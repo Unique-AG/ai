@@ -49,6 +49,7 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_41_NANO_2025_0414 = "AZURE_GPT_41_NANO_2025_0414"
     AZURE_o3_2025_0416 = "AZURE_o3_2025_0416"
     AZURE_o4_MINI_2025_0416 = "AZURE_o4_MINI_2025_0416"
+    AZURE_MODEL_ROUTER_2025_1118 = "AZURE_MODEL_ROUTER_2025_1118"
     ANTHROPIC_CLAUDE_3_7_SONNET = "litellm:anthropic-claude-3-7-sonnet"
     ANTHROPIC_CLAUDE_3_7_SONNET_THINKING = (
         "litellm:anthropic-claude-3-7-sonnet-thinking"
@@ -59,6 +60,7 @@ class LanguageModelName(StrEnum):
     ANTHROPIC_CLAUDE_OPUS_4 = "litellm:anthropic-claude-opus-4"
     ANTHROPIC_CLAUDE_OPUS_4_1 = "litellm:anthropic-claude-opus-4-1"
     ANTHROPIC_CLAUDE_OPUS_4_5 = "litellm:anthropic-claude-opus-4-5"
+    ANTHROPIC_CLAUDE_OPUS_4_6 = "litellm:anthropic-claude-opus-4-6"
     GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
     GEMINI_2_5_FLASH = "litellm:gemini-2-5-flash"
     GEMINI_2_5_FLASH_LITE = "litellm:gemini-2-5-flash-lite"
@@ -142,6 +144,7 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_51_CODEX_MINI_2025_1113
             | LMN.AZURE_GPT_52_2025_1211
             | LMN.AZURE_GPT_52_CHAT_2025_1211
+            | LMN.AZURE_MODEL_ROUTER_2025_1118
             | LMN.LITELLM_OPENAI_GPT_5
             | LMN.LITELLM_OPENAI_GPT_5_MINI
             | LMN.LITELLM_OPENAI_GPT_5_NANO
@@ -1015,6 +1018,25 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2024, 5, 31),
                     published_at=date(2025, 4, 14),
                 )
+            case LanguageModelName.AZURE_MODEL_ROUTER_2025_1118:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-11-18",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        # Limit of smallest underlying model; router can route to larger contexts
+                        token_limit_input=272_000, token_limit_output=32_768
+                    ),
+                )
             case LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET:
                 return cls(
                     name=model_name,
@@ -1173,6 +1195,26 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 8, 1),
                     published_at=date(2025, 11, 13),
+                )
+            case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_6:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="claude-opus-4-6",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=180_000,
+                        token_limit_output=128_000,
+                    ),
+                    info_cutoff_at=date(2025, 8, 1),
+                    published_at=date(2026, 2, 5),
                 )
             case LanguageModelName.GEMINI_2_0_FLASH:
                 return cls(

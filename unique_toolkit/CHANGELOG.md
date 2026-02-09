@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.46.2] - 2026-02-09
+- Add `litellm:anthropic-claude-opus-4-6` and `AZURE_MODEL_ROUTER_2025_1118` to `info.py`
+
 ## [1.46.1] - 2026-02-06
 - Add model-agnostic token counting via `LanguageModelInfo.get_encoder()`
 - Add bundled Qwen/DeepSeek tokenizers for accurate token counting
