@@ -170,13 +170,15 @@ def file_content_serialization(
             )
 
 
+# Pattern for [sourceN] where N is the source id (e.g. [source0], [source1])
+_SOURCE_REF_PATTERN = re.compile(r"\[source(\d+)\]", re.IGNORECASE)
+
+
 def _extract_referenced_source_numbers(text: str | None) -> set[int]:
     """Extract source ids referenced in text like [source0], [source1]."""
-    # Pattern for [sourceN] where N is the source id (e.g. [source0], [source1])
-    SOURCE_REF_PATTERN = re.compile(r"\[source(\d+)\]", re.IGNORECASE)
     if not text:
         return set()
-    return {int(m) for m in SOURCE_REF_PATTERN.findall(text)}
+    return {int(m) for m in _SOURCE_REF_PATTERN.findall(text)}
 
 
 def _parse_tool_sources(tool_content: str) -> list[ToolSource]:
@@ -203,28 +205,51 @@ def _parse_tool_sources(tool_content: str) -> list[ToolSource]:
 def _trim_tool_content_to_used_sources(
     original_content: str | None,
     tool_content: str | None,
-) -> str:
+) -> tuple[str, dict[int, int]]:
     """Keep only sources that are referenced in original_content.
     original_content uses citations like [source0], [source1].
     tool_content is a JSON string: list of {source_number: id, content: "..."}.
-    Returns trimmed JSON string with only referenced sources.
+    Returns (trimmed JSON string with only referenced sources renumbered 0,1,2,...,
+             mapping from old source_number to new source_number).
     """
     if not tool_content or not tool_content.strip():
-        return tool_content or ""
+        return (tool_content or "", {})
 
     referenced = _extract_referenced_source_numbers(original_content)
     if not referenced:
-        return tool_content
+        return (tool_content, {})
 
     sources = _parse_tool_sources(tool_content)
     if not sources:
-        return tool_content
+        return (tool_content, {})
 
-    trimmed = [
-        source.model_dump() for source in sources if source.source_number in referenced
-    ]
+    kept = [s for s in sources if s.source_number in referenced]
+    if not kept:
+        return ("No relevant sources found.", {})
 
-    return json.dumps(trimmed) if trimmed else "No relevant sources found."
+    # Renumber remaining sources sequentially from 0; build old -> new mapping
+    old_to_new: dict[int, int] = {}
+    renumbered: list[dict[str, Any]] = []
+    for new_number, source in enumerate(kept):
+        old_to_new[source.source_number] = new_number
+        d = source.model_dump()
+        d["source_number"] = new_number
+        renumbered.append(d)
+
+    return (json.dumps(renumbered), old_to_new)
+
+
+def _rewrite_source_references(content: str | None, old_to_new: dict[int, int]) -> str:
+    """Replace [sourceN] with [sourceM] where M = old_to_new[N]. Leaves N unchanged if not in map."""
+    if not content or not old_to_new:
+        return content or ""
+
+    def repl(match: re.Match[str]) -> str:
+        n = int(match.group(1))
+        new_n = old_to_new.get(n, n)
+        return f"[source{new_n}]"
+
+    return _SOURCE_REF_PATTERN.sub(repl, content)
 
 
 def _last_gpt_request(
@@ -252,19 +277,35 @@ def _append_last_tool_calls_and_tool_message(
     builder,
     gpt_request: list[dict[str, Any]],
     original_content_from_next: str | None = None,
-) -> None:
+) -> dict[int, int]:
     """Append only the last assistant (with tool_calls) and last tool message.
     Ensures idempotency: only one assistant_message_append and one
     tool_message_append per gpt_request list on each iteration of grouped_elements.
     When trimming tool content to used sources, uses original_content_from_next
     (the original_content of the next item in grouped_elements) when provided.
+    Remaining sources are renumbered sequentially from 0.
+    Returns the mapping from old source_number to new (0,1,2,...) so the caller
+    can rewrite the next message's content (where citations live).
     """
     assistant_tool_calls = _last_assistant_with_tool_calls(gpt_request)
     tool_calls_content = _last_tool_call_content(gpt_request)
 
+    trimmed_content = ""
+    old_to_new: dict[int, int] = {}
+    if tool_calls_content:
+        trimmed_content, old_to_new = _trim_tool_content_to_used_sources(
+            original_content_from_next,
+            tool_calls_content.get("content"),
+        )
+
     if assistant_tool_calls:
+        assistant_content = assistant_tool_calls.get("content")
+        if old_to_new:
+            assistant_content = _rewrite_source_references(
+                assistant_content, old_to_new
+            )
         builder.assistant_message_append(
-            content=assistant_tool_calls.get("content"),
+            content=assistant_content,
             tool_calls=[
                 LanguageModelFunction.from_tool_call(tc)
                 for tc in assistant_tool_calls.get("tool_calls", [])
@@ -275,11 +316,10 @@ def _append_last_tool_calls_and_tool_message(
         builder.tool_message_append(
             name=tool_calls_content.get("name"),
             tool_call_id=tool_calls_content.get("tool_call_id"),
-            content=_trim_tool_content_to_used_sources(
-                original_content_from_next,
-                tool_calls_content.get("content"),
-            ),
+            content=trimmed_content,
         )
+
+    return old_to_new
 
 
 def get_full_history_with_contents_with_tools(
@@ -346,22 +386,38 @@ def get_full_history_with_contents_with_tools(
                     content=content,
                 )
                 if c.role == ChatRole.USER and c.gpt_request is not None:
-                    _append_last_tool_calls_and_tool_message(
+                    old_to_new = _append_last_tool_calls_and_tool_message(
                         builder=builder,
                         gpt_request=c.gpt_request,
                         original_content_from_next=original_content_from_next,
                     )
+                    if next_c and old_to_new:
+                        rewritten = _rewrite_source_references(
+                            original_content_from_next, old_to_new
+                        )
+                        if next_c.original_content is not None:
+                            next_c.original_content = rewritten
+                        else:
+                            next_c.content = rewritten
         else:
             builder.message_append(
                 role=map_chat_llm_message_role[c.role],
                 content=text,
             )
             if c.role == ChatRole.USER and c.gpt_request is not None:
-                _append_last_tool_calls_and_tool_message(
+                old_to_new = _append_last_tool_calls_and_tool_message(
                     builder=builder,
                     gpt_request=c.gpt_request,
                     original_content_from_next=original_content_from_next,
                 )
+                if next_c and old_to_new:
+                    rewritten = _rewrite_source_references(
+                        original_content_from_next, old_to_new
+                    )
+                    if next_c.original_content is not None:
+                        next_c.original_content = rewritten
+                    else:
+                        next_c.content = rewritten
     return builder.build()
 
 

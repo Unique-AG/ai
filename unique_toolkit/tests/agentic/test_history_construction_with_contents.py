@@ -48,7 +48,9 @@ class TestTrimToolContentToUsedSources:
                 {"source_number": 1, "content": "B"},
             ]
         )
-        assert _trim_tool_content_to_used_sources(None, tool_content) == tool_content
+        content, mapping = _trim_tool_content_to_used_sources(None, tool_content)
+        assert content == tool_content
+        assert mapping == {}
 
     def test_returns_unchanged_when_no_referenced_sources(self):
         tool_content = json.dumps(
@@ -57,16 +59,19 @@ class TestTrimToolContentToUsedSources:
                 {"source_number": 1, "content": "B"},
             ]
         )
-        assert (
-            _trim_tool_content_to_used_sources("No citations here.", tool_content)
-            == tool_content
+        content, mapping = _trim_tool_content_to_used_sources(
+            "No citations here.", tool_content
         )
+        assert content == tool_content
+        assert mapping == {}
 
     def test_returns_unchanged_for_empty_or_invalid_tool_content(self):
-        assert _trim_tool_content_to_used_sources(" [source0] ", None) == ""
-        assert _trim_tool_content_to_used_sources(" [source0] ", "") == ""
+        content, _ = _trim_tool_content_to_used_sources(" [source0] ", None)
+        assert content == ""
+        content, _ = _trim_tool_content_to_used_sources(" [source0] ", "")
+        assert content == ""
 
-    def test_keeps_only_referenced_sources_list(self):
+    def test_keeps_only_referenced_sources_renumbered_sequentially_from_zero(self):
         tool_content = json.dumps(
             [
                 {"source_number": 0, "content": "A"},
@@ -75,35 +80,45 @@ class TestTrimToolContentToUsedSources:
             ]
         )
         original_content = "Use [source0] and [source2] only."
-        result = _trim_tool_content_to_used_sources(original_content, tool_content)
-        parsed = json.loads(result)
+        content, old_to_new = _trim_tool_content_to_used_sources(
+            original_content, tool_content
+        )
+        parsed = json.loads(content)
         assert len(parsed) == 2
         assert parsed[0]["source_number"] == 0 and parsed[0]["content"] == "A"
-        assert parsed[1]["source_number"] == 2 and parsed[1]["content"] == "C"
+        assert parsed[1]["source_number"] == 1 and parsed[1]["content"] == "C"
+        assert old_to_new == {0: 0, 2: 1}
 
     def test_returns_no_relevant_sources_when_none_referenced(self):
         tool_content = json.dumps(
             [{"source_number": 0, "content": "A"}, {"source_number": 1, "content": "B"}]
         )
         original_content = "Only [source5] and [source10]."
-        result = _trim_tool_content_to_used_sources(original_content, tool_content)
-        assert result == "No relevant sources found."
+        content, mapping = _trim_tool_content_to_used_sources(
+            original_content, tool_content
+        )
+        assert content == "No relevant sources found."
+        assert mapping == {}
 
-    def test_single_object_kept_when_referenced(self):
+    def test_single_object_renumbered_to_zero_when_kept(self):
         tool_content = json.dumps([{"source_number": 1, "content": "Single"}])
         original_content = "See [source1]."
-        assert (
-            _trim_tool_content_to_used_sources(original_content, tool_content)
-            == tool_content
+        content, old_to_new = _trim_tool_content_to_used_sources(
+            original_content, tool_content
         )
+        parsed = json.loads(content)
+        assert len(parsed) == 1
+        assert parsed[0]["source_number"] == 0 and parsed[0]["content"] == "Single"
+        assert old_to_new == {1: 0}
 
     def test_single_object_dropped_when_not_referenced(self):
         tool_content = json.dumps({"source_number": 0, "content": "Single"})
         original_content = "See [source1]."
-        assert (
-            _trim_tool_content_to_used_sources(original_content, tool_content)
-            == "No relevant sources found."
+        content, mapping = _trim_tool_content_to_used_sources(
+            original_content, tool_content
         )
+        assert content == "No relevant sources found."
+        assert mapping == {}
 
     def test_handles_source_number_as_string_in_json(self):
         tool_content = json.dumps(
@@ -113,18 +128,23 @@ class TestTrimToolContentToUsedSources:
             ]
         )
         original_content = " [source0] "
-        result = _trim_tool_content_to_used_sources(original_content, tool_content)
-        parsed = json.loads(result)
+        content, old_to_new = _trim_tool_content_to_used_sources(
+            original_content, tool_content
+        )
+        parsed = json.loads(content)
         assert len(parsed) == 1
         assert parsed[0]["content"] == "A"
+        assert parsed[0]["source_number"] == 0
+        assert old_to_new == {0: 0}
 
     def test_returns_unchanged_on_invalid_json(self):
         tool_content = "not valid json [source0]"
         original_content = " [source0] "
-        assert (
-            _trim_tool_content_to_used_sources(original_content, tool_content)
-            == tool_content
+        content, mapping = _trim_tool_content_to_used_sources(
+            original_content, tool_content
         )
+        assert content == tool_content
+        assert mapping == {}
 
 
 class TestAppendLastToolCallsAndToolMessage:
@@ -176,7 +196,7 @@ class TestAppendLastToolCallsAndToolMessage:
         assert messages.root[1].role == "tool"
         assert messages.root[1].content == "Second result"
 
-    def test_tool_content_trimmed_using_original_content_from_next(self):
+    def test_tool_content_trimmed_and_renumbered_using_original_content_from_next(self):
         gpt_request = [
             {"role": "user", "content": "Search."},
             {
@@ -213,8 +233,45 @@ class TestAppendLastToolCallsAndToolMessage:
         assert len(messages.root) == 2
         tool_content = json.loads(messages.root[1].content)
         assert len(tool_content) == 2
-        assert tool_content[0]["source_number"] == 0
-        assert tool_content[1]["source_number"] == 2
+        assert tool_content[0]["source_number"] == 0 and tool_content[0]["content"] == "A"
+        assert tool_content[1]["source_number"] == 1 and tool_content[1]["content"] == "C"
+
+    def test_assistant_content_source_references_rewritten_after_trim(self):
+        gpt_request = [
+            {"role": "user", "content": "Search."},
+            {
+                "role": "assistant",
+                "content": "Answer uses [source0] and [source2].",
+                "tool_calls": [
+                    {
+                        "id": "call_1",
+                        "function": {"name": "Search", "arguments": "{}"},
+                    }
+                ],
+            },
+            {
+                "role": "tool",
+                "name": "Search",
+                "tool_call_id": "call_1",
+                "content": json.dumps(
+                    [
+                        {"source_number": 0, "content": "A"},
+                        {"source_number": 1, "content": "B"},
+                        {"source_number": 2, "content": "C"},
+                    ]
+                ),
+            },
+        ]
+        builder = LanguageModelMessages([]).builder()
+        original_content_from_next = "Answer uses [source0] and [source2]."
+        _append_last_tool_calls_and_tool_message(
+            builder,
+            gpt_request,
+            original_content_from_next=original_content_from_next,
+        )
+        messages = builder.build()
+        assert messages.root[0].role == "assistant"
+        assert messages.root[0].content == "Answer uses [source0] and [source1]."
 
     def test_appends_nothing_when_no_tool_calls_or_tool_message(self):
         gpt_request = [

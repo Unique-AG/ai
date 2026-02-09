@@ -240,7 +240,7 @@ class LoopTokenReducer:
         Returns:
             list[LanguageModelMessage]: The history
         """
-        if feature_flags.is_full_history_with_content_and_tools_enabled(
+        if not feature_flags.is_full_history_with_content_and_tools_enabled(
             self._company_id
         ):
             self._logger.info("Using full history with content and tools")
