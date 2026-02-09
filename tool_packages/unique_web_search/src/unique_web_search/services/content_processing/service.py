@@ -137,8 +137,8 @@ class ContentProcessor:
         # For now, use tiktoken directly since we need decode() functionality
         # which LanguageModelInfo.get_encoder() doesn't provide
         encoder_name = self.config.language_model.encoder_name
-        if isinstance(encoder_name, str):
-            # Custom encoder - fallback to cl100k_base for truncation
+        if encoder_name is None or isinstance(encoder_name, str):
+            # Custom encoder or None - fallback to cl100k_base for truncation
             encoder = tiktoken.get_encoding("cl100k_base")
         else:
             encoder = tiktoken.get_encoding(encoder_name.value)
