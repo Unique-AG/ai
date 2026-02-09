@@ -111,10 +111,8 @@ class ContentProcessor:
         """Summarize webpage content using LLM"""
         content = page.content
         # Check token count - hardcoded 2000 token minimum for summarization
-        encoder = tiktoken.get_encoding(
-            self.config.language_model.encoder_name or "cl100k_base"
-        )
-        token_count = len(encoder.encode(content))
+        encoder = self.config.language_model.get_encoder()
+        token_count = len(encoder(content))
 
         client = get_async_openai_client()
         _LOGGER.info(f"Summarizing webpage ({page.url}) with {token_count} tokens")
@@ -135,9 +133,16 @@ class ContentProcessor:
 
     async def _truncate_page(self, page: WebSearchResult) -> WebSearchResult:
         """Truncate page content to max tokens."""
-        encoder = tiktoken.get_encoding(
-            self.config.language_model.encoder_name or "cl100k_base"
-        )
+        # TODO: Add get_decoder() method to LanguageModelInfo in future
+        # For now, use tiktoken directly since we need decode() functionality
+        # which LanguageModelInfo.get_encoder() doesn't provide
+        encoder_name = self.config.language_model.encoder_name
+        if isinstance(encoder_name, str):
+            # Custom encoder - fallback to cl100k_base for truncation
+            encoder = tiktoken.get_encoding("cl100k_base")
+        else:
+            encoder = tiktoken.get_encoding(encoder_name.value)
+        
         tokens = encoder.encode(page.content)
 
         if len(tokens) > self.config.max_tokens:
