@@ -142,7 +142,7 @@ class ContentProcessor:
             encoder = tiktoken.get_encoding("cl100k_base")
         else:
             encoder = tiktoken.get_encoding(encoder_name.value)
-        
+
         tokens = encoder.encode(page.content)
 
         if len(tokens) > self.config.max_tokens:
