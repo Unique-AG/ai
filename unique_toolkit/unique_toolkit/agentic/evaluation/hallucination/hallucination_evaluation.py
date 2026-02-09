@@ -1,7 +1,6 @@
 from unique_toolkit.agentic.evaluation.evaluation_manager import Evaluation
 from unique_toolkit.agentic.evaluation.hallucination.constants import (
     HallucinationConfig,
-    SourceSelectionMode,
 )
 from unique_toolkit.agentic.evaluation.hallucination.utils import (
     check_hallucination,
@@ -48,11 +47,11 @@ class HallucinationEvaluation(Evaluation):
 
         # Extract context texts using existing utility function with bounds checking
         # This prevents IndexError from invalid source indices (e.g., from code blocks)
-        # Use default pattern which matches various formats: [source0], <source1>, [<source2>], etc.
         context_texts = context_text_from_stream_response(
             response=loop_response,
             selected_chunks=all_chunks,
-            source_selection_mode=SourceSelectionMode.FROM_ORIGINAL_RESPONSE,
+            source_selection_mode=self.config.source_selection_mode,
+            reference_pattern=self.config.reference_pattern,
         )
 
         evaluation_result: EvaluationMetricResult = await check_hallucination(
