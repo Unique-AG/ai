@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [1.46.3] - 2026-02-09
+### Fixed
+- Fix hallucination check crash when responses contain invalid source indices (e.g., from code blocks with array indexing)
+- Use existing `context_text_from_stream_response()` utility with built-in bounds checking instead of manual extraction
+
+### Removed
+- Remove unused `regex` dependency (no longer needed after refactoring)
+
+## [1.46.2] - 2026-02-09
+
 ## [1.46.1] - 2026-02-06
 - Add model-agnostic token counting via `LanguageModelInfo.get_encoder()`
 - Add bundled Qwen/DeepSeek tokenizers for accurate token counting
