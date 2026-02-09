@@ -1,10 +1,43 @@
 site_name: Unique SDK
 site_description: Documentation for the Unique SDK
 site_author: Unique Team
-site_url: https://github.com/Unique-AG/ai/unique_sdk
+site_url: https://unique-ag.github.io/ai/unique-sdk/
 repo_name: Unique-AG/ai/unique_sdk
 repo_url: https://github.com/Unique-AG/ai/unique_sdk  
 edit_uri: /docs/
+
+theme:
+  name: material
+  features:
+    - content.action.edit
+    - content.code.copy
+    - content.code.select
+    - navigation.indexes
+  font:
+    text: Roboto
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
+extra:
+  version:
+    provider: mike
 
 nav:
   - Home: index.md
@@ -83,11 +116,8 @@ site_dir: site
 
 plugins:
   - search
-  - include-dir-to-nav:
-      flat: true
-      file_name_as_title: false
-      recurse: false
-      file_pattern: '.*\.md$'
+  - mike:
+      deploy_prefix: unique-sdk
   - entangled
   - include-markdown 
   - callouts

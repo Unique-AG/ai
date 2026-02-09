@@ -1,38 +1,43 @@
 site_name: Unique Toolkit
 site_description: Documentation for the Unique Toolkit
 site_author: Unique Team
-site_url: https://github.com/Unique-AG/ai/unique_toolkit
+site_url: https://unique-ag.github.io/ai/unique-toolkit/
 repo_name: Unique-AG/ai/unique_toolkit
 repo_url: https://github.com/Unique-AG/ai/unique_toolkit  
 edit_uri: /docs/
 
-#theme:
-#  name: material
-#  features:
-#    - content.action.edit
-#    - content.code.copy
-#    - content.code.select
-#  font:
-#    text: Roboto
-#  icon:
-#    repo: fontawesome/brands/github
-#  palette:
-#    - media: "(prefers-color-scheme)"
-#      toggle:
-#        icon: material/brightness-auto
-#        name: Switch to light mode
-#    - media: "(prefers-color-scheme: light)"
-#      scheme: default
-#      primary: teal
-#      toggle:
-#        icon: material/brightness-7
-#        name: Switch to dark mode
-#    - media: "(prefers-color-scheme: dark)"
-#      scheme: slate
-#      primary: blue grey
-#      toggle:
-#        icon: material/brightness-4
-#        name: Switch to system preference
+theme:
+  name: material
+  features:
+    - content.action.edit
+    - content.code.copy
+    - content.code.select
+    - navigation.indexes
+  font:
+    text: Roboto
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
+extra:
+  version:
+    provider: mike
 
 nav:
   - Home: index.md
@@ -137,6 +142,8 @@ site_dir: site
 
 plugins:
   - search
+  - mike:
+      deploy_prefix: unique-toolkit
   - entangled
   - include-markdown 
   - callouts
