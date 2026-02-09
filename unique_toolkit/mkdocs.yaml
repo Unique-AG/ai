@@ -152,6 +152,8 @@ site_dir: site
 
 plugins:
   - search
+  - mike:
+      deploy_prefix: unique-toolkit
   - entangled
   - include-markdown 
   - callouts
