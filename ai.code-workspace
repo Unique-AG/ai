@@ -47,7 +47,7 @@
         {
             "name": "tool_packages/unique_internal_search",
             "path": "tool_packages/unique_internal_search"
-        },
+        }
     ],
     "settings": {
         // Global workspace settings - apply to all folders

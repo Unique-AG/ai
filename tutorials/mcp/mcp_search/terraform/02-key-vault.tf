@@ -16,7 +16,7 @@ resource "azurerm_key_vault" "main" {
   purge_protection_enabled   = false
 
   # Use RBAC instead of access policies (access policies are deprecated)
-  enable_rbac_authorization = true
+  rbac_authorization_enabled = true
 
   tags = var.tags
 }

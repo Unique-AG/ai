@@ -102,7 +102,7 @@ output "test_endpoint_command" {
     curl -v http://${azurerm_container_group.main.fqdn}/health
     
     # Or test direct container access (bypassing Caddy)
-    curl -v http://${azurerm_container_group.main.fqdn}:8000/health
+    curl -v http://${azurerm_container_group.main.fqdn}:8003/health
   EOF
 }
 

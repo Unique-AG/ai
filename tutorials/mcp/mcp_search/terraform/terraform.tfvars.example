@@ -62,6 +62,10 @@ zitadel_client_secret = "your-zitadel-client-secret"
 # When false, uses ACR admin credentials instead of managed identity
 # use_managed_identity_for_acr = false
 
+# Let's Encrypt Configuration
+# use_staging_letsencrypt = true  # Default: true (uses staging to avoid rate limits)
+#                                  # Set to false for production trusted certificates
+
 # tags = {
 #   project     = "mcp-search"
 #   managed_by  = "terraform"

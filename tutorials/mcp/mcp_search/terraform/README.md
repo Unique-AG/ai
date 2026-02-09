@@ -13,7 +13,7 @@ flowchart TB
     subgraph Azure["Azure Resource Group"]
         subgraph ACI["Azure Container Instance"]
             Caddy["Caddy\n:80/:443"]
-            App["MCP Search\n:8000"]
+            App["MCP Search\n:8003"]
         end
 
         ACR["Azure Container Registry\n(Docker Images)"]
@@ -48,28 +48,6 @@ flowchart TB
 2. **Terraform** >= 1.5.0 - [Install](https://www.terraform.io/downloads)
 3. **Docker** - [Install](https://docs.docker.com/get-docker/)
 4. **Azure Subscription** with appropriate permissions
-
-## Remote State Backend (Optional but Recommended)
-
-For team collaboration, consider using Azure Storage Account as a Terraform backend to store state remotely. See [BACKEND_SETUP.md](./BACKEND_SETUP.md) for setup instructions.
-
-### Quick Setup (After First Deployment)
-
-**Option 1: Using the deployment script** (easiest):
-```bash
-# After your first successful deployment with local state:
-./deploy.sh create-backend    # Shows storage account details (already created!)
-# Edit providers.tf with the storage account name from output
-./deploy.sh migrate-backend  # Migrates state to remote backend
-```
-
-**Option 2: Manual setup:**
-1. Deploy infrastructure first: `./deploy.sh deploy` (creates storage account automatically)
-2. Get storage account name: `terraform output storage_account_name`
-3. Uncomment backend config in `providers.tf` and use the storage account name
-4. Run `terraform init` and answer "yes" when prompted to migrate state
-
-**Note**: The storage account is shared between Caddy certificates and Terraform backend - no need for a separate storage account! You can deploy with local state first, then migrate to remote state later.
 
 ## Quick Start
 
@@ -128,13 +106,33 @@ terraform apply tfplan
 # Build and push Docker image (automatically tagged with git SHA + timestamp)
 az acr login --name $(terraform output -raw acr_name)
 cd ..
-# Images are tagged with {git-sha}-{timestamp} format for traceability
 az acr build --registry $(terraform output -raw acr_name) \
   --image mcp-search:$(git rev-parse --short HEAD)-$(date +%Y%m%d-%H%M%S) \
   --image mcp-search:latest .
 ```
 
-### 5. Configure DNS
+### 5. Verify Deployment
+
+After deployment, verify that everything is working correctly:
+
+```bash
+# Comprehensive verification (recommended)
+./deploy.sh verify
+
+# Or run the verification script directly
+./verify-deployment.sh
+```
+
+The verification script checks:
+- ✅ Terraform state and outputs
+- ✅ Azure resources exist (Resource Group, ACR, Key Vault, Storage, Container Instance)
+- ✅ Container instances are running
+- ✅ Health endpoints are accessible
+- ✅ Key Vault secrets are present
+- ✅ Container Registry accessibility
+- ✅ Log Analytics connectivity
+
+### 6. Configure DNS
 
 After deployment, create a DNS record pointing your domain to the container IP:
 
@@ -178,6 +176,7 @@ terraform output aci_ip_address
 | `caddy_container_cpu` | `0.5` | CPU cores for Caddy container |
 | `caddy_container_memory` | `0.5` | Memory (GB) for Caddy container |
 | `app_image_tag` | `latest` | Docker image tag |
+| `use_managed_identity_for_acr` | `true` | Use managed identity for ACR (set to `false` if you lack role assignment permissions) |
 | `tags` | See defaults | Resource tags |
 
 ## Secrets Management
@@ -185,12 +184,6 @@ terraform output aci_ip_address
 **⚠️ IMPORTANT: Never commit secrets to version control!**
 
 The `.gitignore` file is configured to exclude `terraform.tfvars` and other sensitive files. Always use `terraform.tfvars.example` as a template.
-
-### Best Practices
-
-1. **Local Development**: Use `terraform.tfvars` (gitignored) for local testing
-2. **CI/CD**: Use environment variables or secret management systems
-3. **Production**: Use Azure Key Vault, Terraform Cloud, or CI/CD secrets
 
 ### Option 1: Environment Variables (Recommended for CI/CD)
 
@@ -201,19 +194,9 @@ export TF_VAR_resource_group_name="rg-mcp-search"
 export TF_VAR_location="westeurope"
 export TF_VAR_base_name="search-mcp"
 export TF_VAR_base_name_clean="searchmcp"
-# Use a domain you own (requires DNS setup) or the ACI FQDN after deployment
 export TF_VAR_domain_name="mcp-search.yourdomain.com"
 export TF_VAR_caddy_email="admin@yourdomain.com"
-export TF_VAR_unique_app_key="your-key"
-export TF_VAR_unique_app_id="your-id"
-export TF_VAR_unique_api_base_url="https://api.unique.ch"
-export TF_VAR_unique_auth_company_id="your-company-id"
-export TF_VAR_unique_auth_user_id="your-user-id"
-export TF_VAR_unique_app_endpoint="https://your-app-endpoint"
-export TF_VAR_unique_app_endpoint_secret="your-secret"
-export TF_VAR_zitadel_base_url="https://your-zitadel.zitadel.cloud"
-export TF_VAR_zitadel_client_id="your-client-id"
-export TF_VAR_zitadel_client_secret="your-client-secret"
+# ... add all other variables
 ```
 
 Then run Terraform normally:
@@ -237,56 +220,6 @@ terraform apply
    terraform apply
    ```
 
-### Option 3: Azure Key Vault Integration (Advanced)
-
-For production, you can use Azure Key Vault as a Terraform backend for variables:
-
-```hcl
-# In providers.tf or a separate file
-data "azurerm_key_vault" "secrets" {
-  name                = "your-key-vault-name"
-  resource_group_name = "your-rg-name"
-}
-
-data "azurerm_key_vault_secret" "unique_app_key" {
-  name         = "unique-app-key"
-  key_vault_id = data.azurerm_key_vault.secrets.id
-}
-
-# Then reference in variables.tf or use directly
-```
-
-### Option 4: CI/CD Secrets (GitHub Actions, Azure DevOps)
-
-Store secrets in your CI/CD platform's secret management:
-
-**GitHub Actions:**
-```yaml
-env:
-  TF_VAR_unique_app_key: ${{ secrets.UNIQUE_APP_KEY }}
-  TF_VAR_unique_app_id: ${{ secrets.UNIQUE_APP_ID }}
-  # ... etc
-```
-
-**Azure DevOps:**
-```yaml
-variables:
-  - group: terraform-secrets
-```
-
-### What's Gitignored?
-
-The following files are automatically excluded from git:
-- `terraform.tfvars` - Your actual secrets (never commit!)
-- `*.tfstate` - Terraform state files (may contain sensitive data)
-- `.terraform/` - Provider plugins and modules
-- `tfplan` - Plan files (may contain sensitive data)
-
-**Always commit:**
-- `terraform.tfvars.example` - Template with placeholder values
-- `*.tf` - Terraform configuration files
-- `providers.tf`, `variables.tf`, `main.tf`, `outputs.tf`
-
 ## Deployment Script Commands
 
 ```bash
@@ -307,35 +240,17 @@ The following files are automatically excluded from git:
 
 ### Checking Container Status
 
-Check if your containers are running and view their current state:
-
 ```bash
 # Check container status, health, and recent events
 ./deploy.sh status
 ```
 
-This shows:
-- Container group state (Running, Stopped, etc.)
-- Individual container states
-- Container images and resource allocation
-- Recent events and errors
-- Restart counts
-
 ### Testing the MCP Endpoint
-
-Test if your MCP application is responding:
 
 ```bash
 # Automated test (recommended)
 ./deploy.sh test
 ```
-
-This will:
-- Test the root endpoint (`/`)
-- Test the health endpoint (`/health`)
-- Test direct container access (bypassing Caddy)
-- Test MCP protocol endpoint (`/mcp`)
-- Show HTTP status codes and responses
 
 **Quick manual tests:**
 ```bash
@@ -347,22 +262,17 @@ terraform output aci_fqdn
 curl http://$(terraform output -raw aci_fqdn)/health
 
 # Test direct container access
-curl http://$(terraform output -raw aci_fqdn):8000/health
+curl http://$(terraform output -raw aci_fqdn):8003/health
 
 # Test MCP protocol endpoint
-curl -X POST http://$(terraform output -raw aci_fqdn):8000/mcp \
+curl -X POST http://$(terraform output -raw aci_fqdn):8003/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
 ```
 
-**📖 For detailed testing instructions, see [TESTING.md](./TESTING.md)**
-
 ### Viewing Container Logs
 
-View logs from your containers to monitor application behavior and troubleshoot issues. Logs are available in two ways:
-
-#### 1. Real-time Container Logs (Limited Retention)
-
+**Real-time Container Logs:**
 ```bash
 # View all container logs
 ./deploy.sh logs
@@ -376,10 +286,7 @@ View logs from your containers to monitor application behavior and troubleshoot 
 ./deploy.sh logs caddy -f
 ```
 
-#### 2. Log Analytics (Persistent Storage, 30 days retention)
-
-For persistent logs with advanced querying capabilities:
-
+**Log Analytics (Persistent Storage, 30 days retention):**
 ```bash
 # Query logs from Log Analytics workspace
 ./deploy.sh logs mcp-search --analytics
@@ -397,15 +304,122 @@ az monitor log-analytics query \
 terraform output log_analytics_portal_url
 ```
 
-**Container Names:**
-- `mcp-search` - The MCP Search application container
-- `caddy` - The Caddy reverse proxy container
+## HTTPS Setup
 
-**Why Log Analytics?**
-- ✅ **Persistent storage**: 30 days retention (configurable)
-- ✅ **Advanced querying**: KQL queries for complex log analysis
-- ✅ **Better troubleshooting**: Historical logs even if containers restart
-- ✅ **Centralized**: All container logs in one place
+The Caddy configuration **automatically detects** whether to use:
+- **Self-signed certificates** for Azure FQDNs (`*.azurecontainer.io`)
+- **Let's Encrypt certificates** for custom domains
+
+### For Azure FQDNs (No Domain Needed)
+
+When you use the Azure Container Instance FQDN (e.g., `aci-search-mcp-xxx.swedencentral.azurecontainer.io`):
+
+1. ✅ **HTTPS is enabled** with self-signed certificates
+2. ✅ **Port 443 is available** for HTTPS connections
+3. ⚠️ **Browsers will show security warnings** (expected for self-signed certs)
+4. ✅ **MCP clients can connect** (may need to disable certificate validation)
+
+### For Custom Domains
+
+When you use a custom domain you own:
+
+1. ✅ **Let's Encrypt automatically provisions** certificates
+2. ✅ **Fully trusted** by browsers and clients
+3. ✅ **No security warnings**
+4. ⚠️ **Requires DNS configuration** pointing to the ACI IP
+
+### Testing HTTPS
+
+**With curl (ignore certificate validation):**
+```bash
+# Test HTTPS endpoint (ignore self-signed cert warning)
+curl -k https://$(terraform output -raw aci_fqdn)/health
+
+# Test MCP endpoint
+curl -k -X POST https://$(terraform output -raw aci_fqdn)/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
+```
+
+**With Python (disable SSL verification):**
+```python
+import requests
+import urllib3
+
+# Disable SSL warnings for self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Test endpoint
+response = requests.get(
+    f'https://{aci_fqdn}/health',
+    verify=False  # Disable certificate verification
+)
+print(response.json())
+```
+
+### Getting a Real Certificate
+
+If you want a **trusted Let's Encrypt certificate**:
+
+1. **Use a domain you own**:
+   - Create a subdomain (e.g., `mcp-search.yourdomain.com`)
+   - Point DNS to your ACI IP: `terraform output aci_ip_address`
+   - Update `terraform.tfvars`: `domain_name = "mcp-search.yourdomain.com"`
+   - Apply changes: `terraform apply && ./deploy.sh restart`
+
+2. **Use a free domain service**:
+   - **DuckDNS** (Recommended): https://www.duckdns.org/
+   - Create a free subdomain (e.g., `myapp.duckdns.org`)
+   - Update DNS to point to your ACI IP
+   - Update `domain_name` in `terraform.tfvars`
+
+Caddy will automatically:
+- Request Let's Encrypt certificate
+- Validate domain ownership
+- Provision trusted certificate
+- Enable HTTPS
+
+## Remote State Backend (Optional but Recommended)
+
+For team collaboration, use Azure Storage Account as a Terraform backend to store state remotely.
+
+### Quick Setup (After First Deployment)
+
+**Option 1: Using the deployment script** (easiest):
+```bash
+# After your first successful deployment with local state:
+./deploy.sh create-backend    # Shows storage account details (already created!)
+# Edit providers.tf with the storage account name from output
+./deploy.sh migrate-backend  # Migrates state to remote backend
+```
+
+**Option 2: Manual setup:**
+1. Deploy infrastructure first: `./deploy.sh deploy` (creates storage account automatically)
+2. Get storage account name: `terraform output storage_account_name`
+3. Uncomment backend config in `providers.tf` and use the storage account name
+4. Run `terraform init` and answer "yes" when prompted to migrate state
+
+**Note**: The storage account is shared between Caddy certificates and Terraform backend - no need for a separate storage account!
+
+### Backend Configuration
+
+Uncomment and update the backend configuration in `providers.tf`:
+
+```hcl
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "rg-mcp-search"           # Your resource group
+    storage_account_name = "stsearchmcp<xxxxxx>"     # From terraform output
+    container_name       = "tfstate"                  # Container created automatically
+    key                  = "mcp-search.tfstate"       # State file name
+  }
+}
+```
+
+Then run:
+```bash
+terraform init  # Will prompt to migrate existing state - answer "yes"
+```
 
 ## Updating the Application
 
@@ -426,7 +440,7 @@ The build command automatically:
 
 ### Docker Build Issues
 
-If you encounter network timeouts or Docker Hub rate limiting during `./deploy.sh build`:
+If you encounter network timeouts or Docker Hub rate limiting:
 
 **Option 1: Retry** (often resolves transient network issues)
 ```bash
@@ -443,7 +457,7 @@ IMAGE_TAG="$(git rev-parse --short HEAD)-$(date +%Y%m%d-%H%M%S)"
 ACR_SERVER=$(terraform output -raw acr_login_server)
 
 # Build locally with versioned tag
-docker build -t ${ACR_SERVER}/mcp-search:${IMAGE_TAG} .
+docker build -t ${ACR_SERVER}/mcp-search:${IMAGE_TAG} ..
 docker tag ${ACR_SERVER}/mcp-search:${IMAGE_TAG} ${ACR_SERVER}/mcp-search:latest
 
 # Push both tags to ACR
@@ -454,14 +468,9 @@ docker push ${ACR_SERVER}/mcp-search:latest
 ./deploy.sh restart
 ```
 
-**Option 3: Use ACR's public image caching**
-The build script automatically retries up to 3 times. If it still fails, wait a few minutes and try again, or use the local build method above.
-
 ## Troubleshooting
 
 ### No Logs or Containers Not Running
-
-If you're not seeing logs or suspect containers aren't running:
 
 ```bash
 # 1. Check container status first
@@ -527,8 +536,6 @@ export ARM_SUBSCRIPTION_ID="12345678-1234-1234-1234-123456789012"
 
 If you see: `Error: Terraform does not have the necessary permissions to register Resource Providers`
 
-This happens when Terraform tries to automatically register Azure Resource Providers but you don't have the required permissions. The configuration has been set to disable automatic registration (`resource_provider_registrations = "none"`).
-
 **Required Resource Providers** (must be registered by a subscription admin):
 
 ```bash
@@ -537,20 +544,11 @@ az provider register --namespace Microsoft.ContainerRegistry
 az provider register --namespace Microsoft.KeyVault
 az provider register --namespace Microsoft.Storage
 az provider register --namespace Microsoft.ContainerInstance
+az provider register --namespace Microsoft.OperationalInsights
 
 # Check registration status
 az provider show --namespace Microsoft.ContainerRegistry --query "registrationState"
-az provider show --namespace Microsoft.KeyVault --query "registrationState"
-az provider show --namespace Microsoft.Storage --query "registrationState"
-az provider show --namespace Microsoft.ContainerInstance --query "registrationState"
 ```
-
-**Required Resource Providers:**
-- `Microsoft.ContainerRegistry` - For Azure Container Registry
-- `Microsoft.KeyVault` - For Azure Key Vault
-- `Microsoft.Storage` - For Storage Account
-- `Microsoft.ContainerInstance` - For Azure Container Instances
-- `Microsoft.OperationalInsights` - For Log Analytics workspace
 
 **Note**: If you don't have permissions to register providers, ask your Azure subscription administrator to register them. Registration typically takes 1-2 minutes per provider.
 
@@ -558,13 +556,9 @@ az provider show --namespace Microsoft.ContainerInstance --query "registrationSt
 
 If you see: `Error: does not have authorization to perform action 'Microsoft.Authorization/roleAssignments/write'`
 
-This happens when Terraform tries to assign the `AcrPull` role to the managed identity but you don't have User Access Administrator or Owner permissions. This is the default behavior (`use_managed_identity_for_acr = true`).
-
-**📖 Want to understand why we need this?** See [ACR_AUTHENTICATION.md](./ACR_AUTHENTICATION.md) for a detailed explanation of authentication methods.
+This happens when Terraform tries to assign the `AcrPull` role to the managed identity but you don't have User Access Administrator or Owner permissions.
 
 **Solution 1** (Quickest): Disable managed identity for ACR
-
-If you don't have permissions, use ACR admin credentials instead:
 
 Add to your `terraform.tfvars`:
 ```hcl
@@ -583,42 +577,27 @@ az role assignment create \
 
 **Note**: If you have Owner permissions on the resource group, you already have the ability to create role assignments. The managed identity is still created and used for Key Vault access via RBAC, so that works regardless of this setting.
 
-### View Container Logs
+### Certificate Errors in Browser
 
-```bash
-az container logs --name $(terraform output -raw aci_name) \
-    --resource-group $(terraform output -raw resource_group_name) \
-    --container-name mcp-search
+**Expected for self-signed certificates.** To proceed:
+1. Click "Advanced" or "Show Details"
+2. Click "Proceed to site" or "Accept the risk"
+3. The connection is still encrypted, just not verified by a CA
 
-# For Caddy logs
-az container logs --name $(terraform output -raw aci_name) \
-    --resource-group $(terraform output -raw resource_group_name) \
-    --container-name caddy
-```
+### MCP Client Rejects Certificate
 
-### Check Container Status
+Configure your MCP client to:
+- Disable SSL verification (for testing)
+- Or add the self-signed certificate to trusted store
+- Or use a custom domain with Let's Encrypt certificate
 
-```bash
-az container show --name $(terraform output -raw aci_name) \
-    --resource-group $(terraform output -raw resource_group_name) \
-    --query "containers[].instanceView.currentState"
-```
+### Let's Encrypt Fails
 
-### Restart Containers
-
-```bash
-az container restart --name $(terraform output -raw aci_name) \
-    --resource-group $(terraform output -raw resource_group_name)
-```
-
-### Connect to Container (Debug)
-
-```bash
-az container exec --name $(terraform output -raw aci_name) \
-    --resource-group $(terraform output -raw resource_group_name) \
-    --container-name mcp-search \
-    --exec-command "/bin/bash"
-```
+If using a custom domain and Let's Encrypt fails:
+1. Check DNS is configured correctly
+2. Verify domain resolves to ACI IP
+3. Check Caddy logs: `./deploy.sh logs caddy`
+4. Ensure port 80 is accessible (required for HTTP-01 challenge)
 
 ## Costs
 
@@ -640,7 +619,7 @@ Approximate monthly costs (West Europe, as of 2024):
 3. **HTTPS**: Caddy automatically provisions and renews Let's Encrypt certificates
 4. **Network**: Consider adding NSG rules or using Azure Firewall for additional security
 5. **Identity**: User-assigned managed identity is used for Key Vault access
-6. **State**: Use remote backend (Azure Storage) for team collaboration - see [BACKEND_SETUP.md](./BACKEND_SETUP.md)
+6. **State**: Use remote backend (Azure Storage) for team collaboration
 
 ## Clean Up
 

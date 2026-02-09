@@ -86,7 +86,7 @@ locals {
 
     ports = [
       {
-        port     = 8000
+        port     = 8003
         protocol = "TCP"
       }
     ]
@@ -94,7 +94,7 @@ locals {
     environment_variables = {
       # Server settings
       "MCP_SERVER_BASE_URL"       = "https://${var.domain_name}"
-      "MCP_SERVER_LOCAL_BASE_URL" = "http://localhost:8000"
+      "MCP_SERVER_LOCAL_BASE_URL" = "http://localhost:8003"
       "MCP_SERVER_TRANSPORT"      = "streamable-http"
     }
 

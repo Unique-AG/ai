@@ -189,13 +189,20 @@ view_logs() {
                 use_log_analytics="--analytics"
                 shift
                 ;;
-            mcp-search|caddy)
+            mcp-search|search-mcp|caddy)
+                # Accept known container names
                 container_name="$1"
                 shift
                 ;;
             *)
-                log_warn "Unknown argument: $1"
-                shift
+                # If it's not a flag, assume it's a container name
+                if [[ ! "$1" =~ ^- ]]; then
+                    container_name="$1"
+                    shift
+                else
+                    log_warn "Unknown argument: $1"
+                    shift
+                fi
                 ;;
         esac
     done
@@ -371,7 +378,7 @@ test_mcp_endpoint() {
     echo ""
     log_info "Testing direct container access (bypassing Caddy)..."
     if [ -n "$ACI_FQDN" ]; then
-        DIRECT_ENDPOINT="http://${ACI_FQDN}:8000"
+        DIRECT_ENDPOINT="http://${ACI_FQDN}:8003"
         log_info "Testing: $DIRECT_ENDPOINT/health"
         if curl -s -f -m 10 "$DIRECT_ENDPOINT/health" > /dev/null 2>&1; then
             log_info "✓ Direct container access is working"
@@ -385,7 +392,7 @@ test_mcp_endpoint() {
     echo ""
     log_info "Testing MCP protocol endpoints..."
     if [ -n "$ACI_FQDN" ]; then
-        MCP_ENDPOINT="http://${ACI_FQDN}:8000"
+        MCP_ENDPOINT="http://${ACI_FQDN}:8003"
     else
         MCP_ENDPOINT="$ENDPOINT"
     fi
@@ -408,8 +415,8 @@ test_mcp_endpoint() {
     log_info "  Application URL: $ENDPOINT"
     log_info "  Health check: $ENDPOINT/health"
     if [ -n "$ACI_FQDN" ]; then
-        log_info "  Direct access: http://${ACI_FQDN}:8000/health"
-        log_info "  MCP endpoint: http://${ACI_FQDN}:8000/mcp"
+        log_info "  Direct access: http://${ACI_FQDN}:8003/health"
+        log_info "  MCP endpoint: http://${ACI_FQDN}:8003/mcp"
     fi
     log_info ""
     log_info "To test MCP protocol with authentication, use an MCP client:"
@@ -521,8 +528,9 @@ usage() {
     echo "  deploy          - Full deployment (init, plan, apply, build, restart)"
     echo "  status          - Check container instance status and health"
     echo "  test            - Test MCP endpoint with curl (health check)"
+    echo "  verify          - Comprehensive deployment verification (all checks)"
     echo "  logs [container] [-f] [--analytics] - View container logs"
-    echo "                        container: mcp-search, caddy, or omit for all"
+    echo "                        container: search-mcp, mcp-search, caddy, or omit for all"
     echo "                        -f: follow logs (live updates, container logs only)"
     echo "                        --analytics: query Log Analytics (persistent logs)"
     echo "  outputs         - Show Terraform outputs"
@@ -576,6 +584,10 @@ case "${1:-}" in
     test)
         check_prerequisites
         test_mcp_endpoint
+        ;;
+    verify)
+        check_prerequisites
+        "$SCRIPT_DIR/verify-deployment.sh"
         ;;
     logs)
         check_prerequisites

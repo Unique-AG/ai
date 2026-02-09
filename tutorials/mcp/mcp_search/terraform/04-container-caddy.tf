@@ -11,8 +11,14 @@
 # File Shares (defined by this container)
 # ----------------------------------------------------------------------------
 
-resource "azurerm_storage_share" "caddy_data" {
-  name               = "caddy-data"
+resource "azurerm_storage_share" "caddy_data_prod" {
+  name               = "caddy-data-prod"
+  storage_account_id = azurerm_storage_account.main.id
+  quota              = 1 # GB
+}
+
+resource "azurerm_storage_share" "caddy_data_staging" {
+  name               = "caddy-data-staging"
   storage_account_id = azurerm_storage_account.main.id
   quota              = 1 # GB
 }
@@ -23,11 +29,28 @@ resource "azurerm_storage_share" "caddy_config" {
   quota              = 1 # GB
 }
 
+
 # ----------------------------------------------------------------------------
 # Container Configuration (as local for reference in container group)
 # ----------------------------------------------------------------------------
 
 locals {
+  # Determine which template and file share to use based on use_staging_letsencrypt
+  caddy_template_file = var.use_staging_letsencrypt ? "Caddyfile.staging.template" : "Caddyfile.prod.template"
+  caddy_data_share    = var.use_staging_letsencrypt ? azurerm_storage_share.caddy_data_staging : azurerm_storage_share.caddy_data_prod
+
+  # Render the Caddyfile template
+  caddyfile_content = templatefile(
+    "${path.module}/${local.caddy_template_file}",
+    {
+      domain_name = var.domain_name
+      caddy_email = var.caddy_email
+    }
+  )
+
+  # Base64 encode the Caddyfile content for safe transmission via environment variable
+  caddyfile_content_b64 = base64encode(local.caddyfile_content)
+
   caddy_container = {
     name   = "caddy"
     image  = "caddy:2-alpine"
@@ -46,64 +69,50 @@ locals {
     ]
 
     environment_variables = {
-      "DOMAIN_NAME" = var.domain_name
-      "CADDY_EMAIL" = var.caddy_email
+      "DOMAIN_NAME"             = var.domain_name
+      "CADDY_EMAIL"             = var.caddy_email
+      "USE_STAGING_LETSENCRYPT" = var.use_staging_letsencrypt ? "true" : "false"
+      "CADDYFILE_CONTENT_B64"   = local.caddyfile_content_b64
     }
 
     commands = [
       "sh",
       "-c",
       <<-EOF
-        cat > /etc/caddy/Caddyfile << CADDYFILE
-        {
-            email $${CADDY_EMAIL}
-            # Disable automatic HTTPS for testing (enable when DNS is configured)
-            auto_https disable_redirects
-        }
-
-        # Serve domain (HTTPS when DNS configured, HTTP fallback)
-        $${DOMAIN_NAME} {
-            reverse_proxy localhost:8000
-
-            header {
-                X-Content-Type-Options nosniff
-                X-Frame-Options DENY
-                Referrer-Policy strict-origin-when-cross-origin
-            }
-
-            log {
-                output stdout
-                format json
-            }
-        }
-
-        # Serve HTTP on port 80 for any host (testing without DNS)
-        :80 {
-            reverse_proxy localhost:8000
-
-            header {
-                X-Content-Type-Options nosniff
-                X-Frame-Options DENY
-                Referrer-Policy strict-origin-when-cross-origin
-            }
-
-            log {
-                output stdout
-                format json
-            }
-        }
-        CADDYFILE
+        echo "=========================================="
+        echo "Caddy Configuration"
+        echo "=========================================="
+        echo "Domain: $${DOMAIN_NAME}"
+        echo "Email: $${CADDY_EMAIL}"
+        echo "Let's Encrypt Environment: $${USE_STAGING_LETSENCRYPT}"
+        if [ "$${USE_STAGING_LETSENCRYPT}" = "true" ]; then
+          echo "Using Let's Encrypt STAGING (certificates NOT trusted)"
+        else
+          echo "Using Let's Encrypt PRODUCTION (trusted certificates)"
+        fi
+        echo "=========================================="
+        echo ""
+        
+        # Decode and write the Caddyfile from template (rendered by Terraform)
+        # Using base64 encoding to safely pass multi-line content via environment variable
+        echo "$${CADDYFILE_CONTENT_B64}" | base64 -d > /etc/caddy/Caddyfile
+        
+        echo "Caddyfile generated from template:"
+        cat /etc/caddy/Caddyfile
+        echo ""
+        echo "Starting Caddy..."
+        
         caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
       EOF
     ]
 
     volumes = [
       {
-        name                 = "caddy-data"
+        name                 = var.use_staging_letsencrypt ? "caddy-data-staging" : "caddy-data-prod"
         mount_path           = "/data"
         storage_account_name = azurerm_storage_account.main.name
         storage_account_key  = azurerm_storage_account.main.primary_access_key
-        share_name           = azurerm_storage_share.caddy_data.name
+        share_name           = local.caddy_data_share.name
       },
       {
         name                 = "caddy-config"
