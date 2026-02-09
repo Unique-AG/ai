@@ -1034,7 +1034,8 @@ class LanguageModelInfo(BaseModel):
                     encoder_name=EncoderName.O200K_BASE,
                     token_limits=LanguageModelTokenLimits(
                         # Limit of smallest underlying model; router can route to larger contexts
-                        token_limit_input=272_000, token_limit_output=32_768
+                        token_limit_input=272_000,
+                        token_limit_output=32_768,
                     ),
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET:
