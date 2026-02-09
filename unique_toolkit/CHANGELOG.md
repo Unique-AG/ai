@@ -14,8 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove unused `regex` dependency (no longer needed after refactoring)
 
-## [1.46.2] - 2026-02-09
-
 ## [1.46.1] - 2026-02-06
 - Add model-agnostic token counting via `LanguageModelInfo.get_encoder()`
 - Add bundled Qwen/DeepSeek tokenizers for accurate token counting
