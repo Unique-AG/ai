@@ -4,7 +4,6 @@ from datetime import datetime
 from enum import StrEnum
 
 import numpy as np
-import tiktoken
 from pydantic import RootModel
 
 from unique_toolkit._common.token.token_counting import (
@@ -18,7 +17,7 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelMessageRole as LLMRole
-from unique_toolkit.language_model.infos import EncoderName
+from unique_toolkit.language_model.infos import EncoderName, LanguageModelInfo
 from unique_toolkit.language_model.schemas import LanguageModelMessages
 
 # TODO: Test this once it moves into the unique toolkit
@@ -246,12 +245,17 @@ def get_full_history_as_llm_messages(
 def limit_to_token_window(
     messages: LanguageModelMessages,
     token_limit: int,
+    model_info: LanguageModelInfo | None = None,
     encoding_name: EncoderName = EncoderName.O200K_BASE,
 ) -> LanguageModelMessages:
-    encoder = tiktoken.get_encoding(encoding_name)
+    if model_info is not None:
+        encode = model_info.get_encoder()
+    else:
+        encode = encoding_name.get_encoder()
+
     token_per_message_reversed = num_tokens_per_language_model_message(
         messages,
-        encode=encoder.encode,
+        encode=encode,
     )
 
     to_take: list[bool] = (np.cumsum(token_per_message_reversed) < token_limit).tolist()

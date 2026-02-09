@@ -10,6 +10,7 @@ from typing_extensions import deprecated
 from unique_sdk._list_object import ListObject
 
 from unique_toolkit._common import _time_utils
+from unique_toolkit._common.token import count_tokens
 from unique_toolkit.chat.constants import (
     DEFAULT_MAX_MESSAGES,
 )
@@ -29,7 +30,6 @@ from unique_toolkit.chat.schemas import (
     MessageLogUncitedReferences,
 )
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
-from unique_toolkit.content.utils import count_tokens
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
@@ -38,6 +38,7 @@ from unique_toolkit.language_model.functions import (
     _prepare_all_completions_params_util,
 )
 from unique_toolkit.language_model.infos import (
+    LanguageModelInfo,
     LanguageModelName,
 )
 from unique_toolkit.language_model.schemas import (
@@ -399,6 +400,7 @@ def get_selection_from_history(
     full_history: list[ChatMessage],
     max_tokens: int,
     max_messages=DEFAULT_MAX_MESSAGES,
+    model_info: LanguageModelInfo | None = None,
 ) -> list[ChatMessage]:
     messages = full_history[-max_messages:]
     filtered_messages = [m for m in messages if m.content]
@@ -416,6 +418,7 @@ def get_selection_from_history(
     return pick_messages_in_reverse_for_token_window(
         messages=mapped_messages,
         limit=max_tokens,
+        model_info=model_info,
     )
 
 
@@ -426,23 +429,25 @@ def map_to_chat_messages(messages: list[dict]) -> list[ChatMessage]:
 def pick_messages_in_reverse_for_token_window(
     messages: list[ChatMessage],
     limit: int,
+    model_info: LanguageModelInfo | None = None,
 ) -> list[ChatMessage]:
     if len(messages) < 1 or limit < 1:
         return []
 
     last_index = len(messages) - 1
-    token_count = count_tokens(messages[last_index].content or "")
+    token_count = count_tokens(messages[last_index].content or "", model=model_info)
     while token_count > limit:
         logger.debug(
             f"Limit too low for the initial message. Last message TokenCount {token_count} available tokens {limit} - cutting message in half until it fits",
         )
         content = messages[last_index].content or ""
         messages[last_index].content = content[: len(content) // 2] + "..."
-        token_count = count_tokens(messages[last_index].content or "")
+        token_count = count_tokens(messages[last_index].content or "", model=model_info)
 
     while token_count <= limit and last_index > 0:
         token_count = count_tokens(
             "".join([msg.content or "" for msg in messages[:last_index]]),
+            model=model_info,
         )
         if token_count <= limit:
             last_index -= 1

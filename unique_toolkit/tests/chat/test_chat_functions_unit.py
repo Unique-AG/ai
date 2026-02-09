@@ -390,6 +390,75 @@ def test_pick_messages_in_reverse_for_token_window_empty():
     )
 
 
+@pytest.mark.ai
+def test_pick_messages_in_reverse_for_token_window_with_model():
+    from unique_toolkit.language_model.infos import (
+        LanguageModelInfo,
+        LanguageModelName,
+    )
+
+    messages = [
+        ChatMessage(
+            id="1",
+            role=ChatMessageRole.USER,
+            text="First message",
+            chat_id="chat123",
+        ),
+        ChatMessage(
+            id="2",
+            role=ChatMessageRole.ASSISTANT,
+            text="Second message",
+            chat_id="chat123",
+        ),
+        ChatMessage(
+            id="3",
+            role=ChatMessageRole.USER,
+            text="Third message that is longer " * 5,
+            chat_id="chat123",
+        ),
+    ]
+
+    model_info = LanguageModelInfo.from_name(LanguageModelName.LITELLM_QWEN_3)
+
+    result = pick_messages_in_reverse_for_token_window(
+        messages, limit=50, model_info=model_info
+    )
+
+    assert len(result) > 0
+    assert result[-1].content is not None
+
+
+@pytest.mark.ai
+def test_get_selection_from_history_with_model():
+    from unique_toolkit.language_model.infos import (
+        LanguageModelInfo,
+        LanguageModelName,
+    )
+
+    messages = [
+        ChatMessage(
+            id="1",
+            role=ChatMessageRole.USER,
+            text="First message",
+            chat_id="chat123",
+        ),
+        ChatMessage(
+            id="2",
+            role=ChatMessageRole.ASSISTANT,
+            text="Second message",
+            chat_id="chat123",
+        ),
+    ]
+
+    model_info = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_0513)
+
+    result = get_selection_from_history(
+        messages, max_tokens=100, max_messages=10, model_info=model_info
+    )
+
+    assert len(result) > 0
+
+
 @patch.object(unique_sdk.Integrated, "chat_stream_completion")
 def test_stream_complete_basic(mock_stream):
     mock_stream.return_value = {

@@ -1,3 +1,5 @@
+import pytest
+
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.content.utils import (
     count_tokens,
@@ -89,6 +91,28 @@ class TestContentChunkUtils:
         assert len(picked_chunks) == 2
         assert picked_chunks[0].id == "1"
         assert picked_chunks[1].id == "2"
+
+    @pytest.mark.ai
+    def test_pick_content_chunks_for_token_window_with_model(self):
+        from unique_toolkit.language_model.infos import (
+            LanguageModelInfo,
+            LanguageModelName,
+        )
+
+        chunks = [
+            ContentChunk(id="1", text="你好世界", order=1),
+            ContentChunk(id="2", text="这是一个测试", order=2),
+            ContentChunk(id="3", text="非常长的文本内容 " * 50, order=3),
+        ]
+
+        model_info = LanguageModelInfo.from_name(LanguageModelName.LITELLM_QWEN_3)
+
+        picked_chunks = pick_content_chunks_for_token_window(
+            chunks, token_limit=50, model_info=model_info
+        )
+
+        assert len(picked_chunks) < len(chunks)
+        assert len(picked_chunks) > 0
 
     def test_count_tokens(self):
         text = "This is a sample text to count tokens."

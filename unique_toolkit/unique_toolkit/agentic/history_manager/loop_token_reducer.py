@@ -2,7 +2,6 @@ import json
 from logging import Logger
 from typing import Awaitable, Callable
 
-import tiktoken
 from pydantic import BaseModel
 
 from unique_toolkit._common.token.token_counting import (
@@ -69,9 +68,8 @@ class LoopTokenReducer:
             * (1 - MAX_INPUT_TOKENS_SAFETY_PERCENTAGE)
         )
 
-    def _get_encoder(self, language_model: LMI) -> tiktoken.Encoding:
-        name = language_model.encoder_name or "cl100k_base"
-        return tiktoken.get_encoding(name)
+    def _get_encoder(self, language_model: LMI) -> Callable[[str], list[int]]:
+        return language_model.get_encoder()
 
     async def get_history_for_model_call(
         self,
@@ -136,7 +134,7 @@ class LoopTokenReducer:
         """Count tokens in messages using the configured encoding model."""
         return num_token_for_language_model_messages(
             messages=messages,
-            encode=self._encoder.encode,
+            encode=self._encoder,
         )
 
     def _log_token_usage(self, token_count: int) -> None:

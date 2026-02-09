@@ -1,9 +1,16 @@
+from __future__ import annotations
+
 import re
+from typing import TYPE_CHECKING
 
 import tiktoken
 import unique_sdk
+from typing_extensions import deprecated
 
 from unique_toolkit.content.schemas import Content, ContentChunk, ContentMetadata
+
+if TYPE_CHECKING:
+    from unique_toolkit.language_model.infos import LanguageModelInfo
 
 
 def _map_content_id_to_chunks(content_chunks: list[ContentChunk]):
@@ -135,7 +142,8 @@ def _generate_pages_postfix(chunks: list[ContentChunk]) -> str:
 def pick_content_chunks_for_token_window(
     content_chunks: list[ContentChunk],
     token_limit: int,
-    encoding_model="cl100k_base",
+    model_info: LanguageModelInfo | None = None,
+    encoding_model: str = "cl100k_base",
 ):
     """
     Selects and returns a list of search results that fit within a specified token limit.
@@ -147,6 +155,8 @@ def pick_content_chunks_for_token_window(
     Parameters:
     - content_chunks (list): A list of dictionaries, each containing a 'text' key with string value.
     - token_limit (int): The maximum number of tokens to include in the output.
+    - model_info (LanguageModelInfo | None): The language model to use for token counting.
+    - encoding_model (str): Deprecated. Use model_info instead.
 
     Returns:
     - list: A list of dictionaries representing the search results that fit within the token limit.
@@ -154,22 +164,26 @@ def pick_content_chunks_for_token_window(
     picked_chunks: list[ContentChunk] = []
     token_count = 0
 
-    encoding = tiktoken.get_encoding(encoding_model)
+    if model_info is not None:
+        encode = model_info.get_encoder()
+    else:
+        encoding = tiktoken.get_encoding(encoding_model)
+        encode = encoding.encode
 
     for chunk in content_chunks:
         try:
-            searchtoken_count = len(encoding.encode(chunk.text))
+            searchtoken_count = len(encode(chunk.text))
         except Exception:
             searchtoken_count = 0
         if token_count + searchtoken_count > token_limit:
             break
-
         picked_chunks.append(chunk)
         token_count += searchtoken_count
 
     return picked_chunks
 
 
+@deprecated("Use unique_toolkit._common.token.count_tokens(text, model_info) instead.")
 def count_tokens(text: str, encoding_model="cl100k_base") -> int:
     """
     Counts the number of tokens in the provided text.

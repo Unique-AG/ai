@@ -3,16 +3,18 @@
 
 from pathlib import Path
 
+import pytest
 import tiktoken
 from PIL import Image
 
 from unique_toolkit._common.token.token_counting import (
     SpecialToolCallingTokens,
+    count_tokens,
     num_tokens_for_tools,
     num_tokens_from_messages,
 )
 from unique_toolkit._common.utils.image.encode import image_to_base64
-from unique_toolkit.language_model.infos import LanguageModelName
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 
 CURRENT_DIR = Path(__file__).parent.absolute()
 
@@ -264,3 +266,51 @@ def test_token_counting_with_image():
     assert (
         message_token_count == 1980
     )  # 1676 NOTE: This is the actual result when sending the request to openai
+
+
+@pytest.mark.ai
+class TestCountTokens:
+    def test_count_with_model(self):
+        model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_0513)
+        count = count_tokens("Hello world", model)
+
+        assert isinstance(count, int)
+        assert count > 0
+
+    def test_count_without_model(self):
+        count = count_tokens("Hello world", model=None)
+
+        assert isinstance(count, int)
+        assert count > 0
+
+        expected = len(tiktoken.get_encoding("cl100k_base").encode("Hello world"))
+        assert count == expected
+
+    def test_count_empty_string(self):
+        model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_0513)
+        assert count_tokens("", model) == 0
+        assert count_tokens("", None) == 0
+
+    def test_count_qwen_model(self):
+        model = LanguageModelInfo.from_name(LanguageModelName.LITELLM_QWEN_3)
+        count = count_tokens("Hello world", model)
+
+        assert isinstance(count, int)
+        assert count > 0
+
+    def test_count_deepseek_model(self):
+        model = LanguageModelInfo.from_name(LanguageModelName.LITELLM_DEEPSEEK_V3)
+        count = count_tokens("Hello world", model)
+
+        assert isinstance(count, int)
+        assert count > 0
+
+    def test_qwen_vs_gpt_different_counts(self):
+        qwen = LanguageModelInfo.from_name(LanguageModelName.LITELLM_QWEN_3)
+        gpt = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_0513)
+
+        text = "这是一个测试文本，用于验证不同的分词器会产生不同的结果。"
+        qwen_count = count_tokens(text, qwen)
+        gpt_count = count_tokens(text, gpt)
+
+        assert qwen_count != gpt_count

@@ -4,10 +4,13 @@ import os
 from datetime import date
 from enum import StrEnum
 from functools import lru_cache
-from typing import Annotated, Any, ClassVar, Optional, Self
+from pathlib import Path
+from typing import Annotated, Any, Callable, ClassVar, Optional, Self
 
+import tiktoken
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
+from tokenizers import Tokenizer
 from typing_extensions import deprecated
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
@@ -92,6 +95,23 @@ class LanguageModelName(StrEnum):
 class EncoderName(StrEnum):
     O200K_BASE = "o200k_base"
     CL100K_BASE = "cl100k_base"
+    QWEN = "qwen"
+    DEEPSEEK = "deepseek"
+
+    @lru_cache(maxsize=10)
+    def get_encoder(self) -> Callable[[str], list[int]]:
+        if self.value in {"cl100k_base", "o200k_base"}:
+            enc = tiktoken.get_encoding(self.value)
+            return enc.encode
+
+        base_path = Path(__file__).parent.parent / "_common" / "token" / "tokenizers"
+        tokenizer_path = base_path / self.value / "tokenizer.json"
+
+        if not tokenizer_path.exists():
+            raise FileNotFoundError(f"Tokenizer not found: {tokenizer_path}")
+
+        tokenizer = Tokenizer.from_file(str(tokenizer_path))
+        return lambda text: tokenizer.encode(text).ids
 
 
 def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
@@ -171,6 +191,22 @@ class TemperatureBounds(BaseModel):
     max_temperature: float
 
 
+def _load_custom_encoder(tokenizer_name: str) -> Callable[[str], list[int]]:
+    """Load a custom tokenizer from UNIQUE_CUSTOM_TOKENIZERS_PATH."""
+    custom_path = os.getenv("UNIQUE_CUSTOM_TOKENIZERS_PATH")
+    if not custom_path:
+        raise ValueError(
+            "UNIQUE_CUSTOM_TOKENIZERS_PATH must be set to use custom tokenizers"
+        )
+
+    tokenizer_path = Path(custom_path) / tokenizer_name / "tokenizer.json"
+    if not tokenizer_path.exists():
+        raise FileNotFoundError(f"Custom tokenizer not found: {tokenizer_path}")
+
+    tokenizer = Tokenizer.from_file(str(tokenizer_path))
+    return lambda text: tokenizer.encode(text).ids
+
+
 class LanguageModelInfo(BaseModel):
     model_config = get_configuration_dict()
     name: (
@@ -180,7 +216,9 @@ class LanguageModelInfo(BaseModel):
     provider: LanguageModelProvider = LanguageModelProvider.AZURE
     version: str = Field(title="Model Version", default="")
 
-    encoder_name: EncoderName = EncoderName.CL100K_BASE
+    encoder_name: EncoderName | Annotated[str, Field(title="Custom Encoder Name")] = (
+        EncoderName.CL100K_BASE
+    )
 
     # TODO: Discuss if this is a sensible defaut
     token_limits: LanguageModelTokenLimits = LanguageModelTokenLimits(
@@ -218,7 +256,12 @@ class LanguageModelInfo(BaseModel):
     default_options: dict[str, Any] = {}
 
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
-    """Environment variable name for custom language model infos."""
+
+    def get_encoder(self) -> Callable[[str], list[int]]:
+        """Get an encode callable for this model's tokenizer."""
+        if isinstance(self.encoder_name, EncoderName):
+            return self.encoder_name.get_encoder()
+        return _load_custom_encoder(self.encoder_name)
 
     @classmethod
     @lru_cache(maxsize=1)
@@ -1740,6 +1783,7 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
                     version="deepseek-r1",
+                    encoder_name=EncoderName.DEEPSEEK,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
@@ -1756,6 +1800,7 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
                     version="deepseek-v3-1",
+                    encoder_name=EncoderName.DEEPSEEK,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
@@ -1771,6 +1816,7 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
                     version="qwen-3",
+                    encoder_name=EncoderName.QWEN,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
@@ -1787,6 +1833,7 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
                     version="qwen-3-thinking",
+                    encoder_name=EncoderName.QWEN,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
@@ -1878,7 +1925,7 @@ class LanguageModel:
         return self._model_info.version
 
     @property
-    def encoder_name(self) -> Optional[EncoderName]:
+    def encoder_name(self) -> EncoderName | str:
         """
         Returns the encoder_name used for the model.
         """
