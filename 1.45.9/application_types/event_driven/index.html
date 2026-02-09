@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="Unique Team">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/1.45.9/application_types/event_driven/">
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>Event Driven App - Unique Toolkit</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../../css/version-select.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">Unique Toolkit</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../architectural/" class="nav-link">Architecture</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../setup/getting_started/" class="nav-link">Getting started</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Authentication</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../authentication/#1-personal-api-key" class="dropdown-item">Personal API Key</a>
+</li>
+                                    
+<li>
+    <a href="../../authentication/#2-creating-an-app" class="dropdown-item">Creating an APP</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Application Development</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../standalone_application/" class="dropdown-item">Standalone Application</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Event Driven Applications</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Event Driven App</a>
+</li>
+            
+<li>
+    <a href="event_driven_platform_setup/" class="dropdown-item">Platform Setup</a>
+</li>
+            
+<li>
+    <a href="event_driven_with_sse/" class="dropdown-item">SSE Setup</a>
+</li>
+            
+<li>
+    <a href="event_driven_as_app_with_ngrok/" class="dropdown-item">Web Hooks</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Core Services</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../events/events/" class="dropdown-item">Events</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../chat/" class="dropdown-item">Chat Service - Basics</a>
+</li>
+            
+<li>
+    <a href="../../chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../knowledge_base/" class="dropdown-item">Knowledge Base Service</a>
+</li>
+            
+<li>
+    <a href="../../knowledge_base/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Agentic Table</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../agentic_table/" class="dropdown-item">Agentic Table Module</a>
+</li>
+            
+<li>
+    <a href="../../agentic_table/column_styling/" class="dropdown-item">Column Styling</a>
+</li>
+            
+<li>
+    <a href="../../agentic_table/cell_rendering/" class="dropdown-item">Cell rendering</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Examples</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../plattforms/openai/openai/" class="dropdown-item">OpenAI</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/examples/chat/chat_service/" class="dropdown-item">Basic Service</a>
+</li>
+            
+<li>
+    <a href="../../modules/examples/chat/chat_document_handling/" class="dropdown-item">Document Handling</a>
+</li>
+            
+<li>
+    <a href="../../modules/examples/chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/examples/content/kb_service/" class="dropdown-item">Base Service</a>
+</li>
+            
+<li>
+    <a href="../../modules/examples/content/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Tutorials</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../tutorials/agentic_table_app/" class="dropdown-item">Agentic Table App</a>
+</li>
+                                    
+<li>
+    <a href="../../tutorials/file_creation_and_upload_to_chat/" class="dropdown-item">File Creation with Upload to Chat</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Agentic Framework</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../agentic_framework/framework/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/orchestrator/unqiue_ai_how-it-works/" class="dropdown-item">Orchestrator</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/tool/" class="dropdown-item">Tool</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/tool_call_response/" class="dropdown-item">Tool Call Response</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/tool_manager/" class="dropdown-item">Tool Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/debug_manager/" class="dropdown-item">Debug Info Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/postprocessor_manager/" class="dropdown-item">Postprocessor Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/evaluation_manager/" class="dropdown-item">Evaluation Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/reference_manager/" class="dropdown-item">Reference Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/history_manager/" class="dropdown-item">History Manager</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">API Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../api/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Core Services</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/chat/" class="dropdown-item">Chat Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/knowledge_base/" class="dropdown-item">Knowledge Base Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/short_term_memory/" class="dropdown-item">Short Term Memory Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/app/" class="dropdown-item">App Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/content_smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+            
+<li>
+    <a href="../../modules/data_extraction/" class="dropdown-item">Data Extraction</a>
+</li>
+            
+<li>
+    <a href="../../modules/agentic_table/" class="dropdown-item">Agentic Table</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Framework Utilities</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/openai/" class="dropdown-item">OpenAI Client</a>
+</li>
+            
+<li>
+    <a href="../../modules/langchain/" class="dropdown-item">Langchain Client</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Deprecated Modules</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/content/" class="dropdown-item">Content Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/embedding/" class="dropdown-item">Embedding Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/language_model/" class="dropdown-item">Language Model Module</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../readme/" class="nav-link">Readme</a>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../standalone_application/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="event_driven_platform_setup/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/docs/application_types/event_driven/index.md" class="nav-link">Edit on Unique-AG/ai/unique_toolkit
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#event-driven-app" class="nav-link">Event Driven App</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="1"><a href="#events" class="nav-link">Events</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="1"><a href="#development-setup" class="nav-link">Development Setup</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#register-app-in-platform" class="nav-link">Register App in Platform</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#option-1-connecting-via-sse-client" class="nav-link">Option 1: Connecting via SSE Client</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#option-2-exposing-an-endpoint-to-the-unique-platform" class="nav-link">Option 2: Exposing an Endpoint to the Unique Platform</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#filtering-chat-events" class="nav-link">Filtering Chat Events</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#service-initialization-from-events" class="nav-link">Service Initialization from Events</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="event-driven-app">Event Driven App<a class="headerlink" href="#event-driven-app" title="Permanent link">&para;</a></h1>
+<p>An event driven application reacts to events obtained from the Unique platform. These events can be used to initialize services that in turn have effect on the chat, knowledge base or the agentic table.</p>
+<p>For a secure application it is paramount that successive events do not have any effect onto each other, thus ideally your functionality is stateless and all necessary state is obtained via the services of the Unique Platform.</p>
+<h1 id="events">Events<a class="headerlink" href="#events" title="Permanent link">&para;</a></h1>
+<p>The unique platform sends out events to dedictate endpoints (Webhooks) or registered clients (SSE). </p>
+<h1 id="development-setup">Development Setup<a class="headerlink" href="#development-setup" title="Permanent link">&para;</a></h1>
+<h2 id="register-app-in-platform">Register App in Platform<a class="headerlink" href="#register-app-in-platform" title="Permanent link">&para;</a></h2>
+<p>Whether we use the SSE client to initiate the connection from the Python code or we expose the webhook via a URL, the app needs to be registered as explained <a href="event_driven_platform_setup/">here</a></p>
+<h2 id="option-1-connecting-via-sse-client">Option 1: Connecting via SSE Client<a class="headerlink" href="#option-1-connecting-via-sse-client" title="Permanent link">&para;</a></h2>
+<p>Using an SSE client we can connect to the event stream of the unique platform. Find more <a href="event_driven_with_sse/">here</a>.</p>
+<h2 id="option-2-exposing-an-endpoint-to-the-unique-platform">Option 2: Exposing an Endpoint to the Unique Platform<a class="headerlink" href="#option-2-exposing-an-endpoint-to-the-unique-platform" title="Permanent link">&para;</a></h2>
+<p>Setting up a FastAPI application and exposing the local endpoint via ngrok and the web, we can register this endpoint directly within the Unique platform. More <a href="event_driven_as_app_with_ngrok/">here</a></p>
+<h2 id="filtering-chat-events">Filtering Chat Events<a class="headerlink" href="#filtering-chat-events" title="Permanent link">&para;</a></h2>
+<p>Applications using events are responsible to decide how to react to them and to configure what events should be dropped. 
+Chat events may be filtered by the following two environment variables</p>
+<div class="highlight"><pre><span></span><code>UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS=
+UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE=
+</code></pre></div>
+<p>these variables will be automatically caught by the settings and filter the events that reach the handlers.</p>
+<p>An example would look as follows</p>
+<div class="highlight"><pre><span></span><code>UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS=[&quot;assistant_i34ys925m8zi5n6ptobbnwl1&quot;]
+UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE=[&quot;AcademyTestModule&quot;]
+</code></pre></div>
+<p>⚠️ Events are filtered by default if none of the above variables are defined when using our SSE or FastAPI setup.</p>
+<h3 id="how-filtering-works">How Filtering Works<a class="headerlink" href="#how-filtering-works" title="Permanent link">&para;</a></h3>
+<p>Filtering happens automatically before your event handler is called. Events that don't match the filter criteria are silently dropped. This helps ensure your application only processes relevant events.</p>
+<ul>
+<li>If <code>UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS</code> is set, only events for those assistant IDs will be processed</li>
+<li>If <code>UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE</code> is set, only events from modules with those references will be processed</li>
+<li>If both are set, events must match both criteria</li>
+<li>If neither is set, <strong>all events are filtered out</strong> (default behavior)</li>
+</ul>
+<h2 id="service-initialization-from-events">Service Initialization from Events<a class="headerlink" href="#service-initialization-from-events" title="Permanent link">&para;</a></h2>
+<p>Once you have an event, you can initialize services directly from it:</p>
+<div id="init_services_from_event" class="highlight"><span class="filename">#init_services_from_event</span><pre><span></span><code><span class="c1"># Initialize services from event</span>
+<span class="n">chat_service</span> <span class="o">=</span> <span class="n">ChatService</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+<span class="n">kb_service</span><span class="o">=</span> <span class="n">KnowledgeBaseService</span><span class="o">.</span><span class="n">from_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+</code></pre></div>
+<!--
+<div id="full_sse_setup" class="highlight"><span class="filename">#full_sse_setup</span><pre><span></span><code><span class="o">&lt;&lt;</span><span class="n">common_imports</span><span class="o">&gt;&gt;</span>
+<span class="o">&lt;&lt;</span><span class="n">unique_setup_settings_sdk_from_env</span><span class="o">&gt;&gt;</span>
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">get_event_generator</span><span class="p">(</span><span class="n">unique_settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">event_type</span><span class="o">=</span><span class="n">ChatEvent</span><span class="p">):</span>
+</code></pre></div>
+-->
+
+<!--
+<div class="highlight"><pre><span></span><code>``` {.python #full_sse_setup_with_services file=&quot;docs/.python_files/sse_setup_with_services.py&quot; title=&quot;#full_sse_setup_with_services / file: docs/.python_files/sse_setup_with_services.py&quot;}
+&lt;&lt;full_sse_setup&gt;&gt;
+    &lt;&lt;init_services_from_event&gt;&gt;
+</code></pre></div>
+-->
+
+<p>️</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="../../search/main.js"></script>
+        <script src="../../js/version-select.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

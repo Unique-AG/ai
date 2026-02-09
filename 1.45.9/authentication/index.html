@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="Unique Team">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/1.45.9/authentication/">
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>Authentication with Unique AI Platform - Unique Toolkit</title>
+        <link href="../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../css/brands.min.css" rel="stylesheet">
+        <link href="../css/solid.min.css" rel="stylesheet">
+        <link href="../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../css/version-select.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="..">Unique Toolkit</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href=".." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../architectural/" class="nav-link">Architecture</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../setup/getting_started/" class="nav-link">Getting started</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Authentication</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="#1-personal-api-key" class="dropdown-item">Personal API Key</a>
+</li>
+                                    
+<li>
+    <a href="#2-creating-an-app" class="dropdown-item">Creating an APP</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Application Development</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../application_types/standalone_application/" class="dropdown-item">Standalone Application</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Event Driven Applications</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../application_types/event_driven/" class="dropdown-item">Event Driven App</a>
+</li>
+            
+<li>
+    <a href="../application_types/event_driven/event_driven_platform_setup/" class="dropdown-item">Platform Setup</a>
+</li>
+            
+<li>
+    <a href="../application_types/event_driven/event_driven_with_sse/" class="dropdown-item">SSE Setup</a>
+</li>
+            
+<li>
+    <a href="../application_types/event_driven/event_driven_as_app_with_ngrok/" class="dropdown-item">Web Hooks</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Core Services</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../events/events/" class="dropdown-item">Events</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../chat/" class="dropdown-item">Chat Service - Basics</a>
+</li>
+            
+<li>
+    <a href="../chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../knowledge_base/" class="dropdown-item">Knowledge Base Service</a>
+</li>
+            
+<li>
+    <a href="../knowledge_base/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Agentic Table</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../agentic_table/" class="dropdown-item">Agentic Table Module</a>
+</li>
+            
+<li>
+    <a href="../agentic_table/column_styling/" class="dropdown-item">Column Styling</a>
+</li>
+            
+<li>
+    <a href="../agentic_table/cell_rendering/" class="dropdown-item">Cell rendering</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Examples</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../plattforms/openai/openai/" class="dropdown-item">OpenAI</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../modules/examples/chat/chat_service/" class="dropdown-item">Basic Service</a>
+</li>
+            
+<li>
+    <a href="../modules/examples/chat/chat_document_handling/" class="dropdown-item">Document Handling</a>
+</li>
+            
+<li>
+    <a href="../modules/examples/chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../modules/examples/content/kb_service/" class="dropdown-item">Base Service</a>
+</li>
+            
+<li>
+    <a href="../modules/examples/content/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Tutorials</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../tutorials/agentic_table_app/" class="dropdown-item">Agentic Table App</a>
+</li>
+                                    
+<li>
+    <a href="../tutorials/file_creation_and_upload_to_chat/" class="dropdown-item">File Creation with Upload to Chat</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Agentic Framework</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../agentic_framework/framework/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/orchestrator/unqiue_ai_how-it-works/" class="dropdown-item">Orchestrator</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/tool/" class="dropdown-item">Tool</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/tool_call_response/" class="dropdown-item">Tool Call Response</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/tool_manager/" class="dropdown-item">Tool Manager</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/debug_manager/" class="dropdown-item">Debug Info Manager</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/postprocessor_manager/" class="dropdown-item">Postprocessor Manager</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/evaluation_manager/" class="dropdown-item">Evaluation Manager</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/reference_manager/" class="dropdown-item">Reference Manager</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/history_manager/" class="dropdown-item">History Manager</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">API Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../api/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Core Services</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../modules/chat/" class="dropdown-item">Chat Module</a>
+</li>
+            
+<li>
+    <a href="../modules/knowledge_base/" class="dropdown-item">Knowledge Base Module</a>
+</li>
+            
+<li>
+    <a href="../modules/short_term_memory/" class="dropdown-item">Short Term Memory Module</a>
+</li>
+            
+<li>
+    <a href="../modules/app/" class="dropdown-item">App Module</a>
+</li>
+            
+<li>
+    <a href="../modules/content_smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+            
+<li>
+    <a href="../modules/data_extraction/" class="dropdown-item">Data Extraction</a>
+</li>
+            
+<li>
+    <a href="../modules/agentic_table/" class="dropdown-item">Agentic Table</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Framework Utilities</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../modules/openai/" class="dropdown-item">OpenAI Client</a>
+</li>
+            
+<li>
+    <a href="../modules/langchain/" class="dropdown-item">Langchain Client</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Deprecated Modules</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../modules/content/" class="dropdown-item">Content Module</a>
+</li>
+            
+<li>
+    <a href="../modules/embedding/" class="dropdown-item">Embedding Module</a>
+</li>
+            
+<li>
+    <a href="../modules/language_model/" class="dropdown-item">Language Model Module</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../readme/" class="nav-link">Readme</a>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/docs/authentication/index.md" class="nav-link">Edit on Unique-AG/ai/unique_toolkit
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#authentication-with-unique-ai-platform" class="nav-link">Authentication with Unique AI Platform</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#1-personal-api-key" class="nav-link">1. Personal API Key</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#2-creating-an-app" class="nav-link">2. Creating an APP</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="authentication-with-unique-ai-platform">Authentication with Unique AI Platform<a class="headerlink" href="#authentication-with-unique-ai-platform" title="Permanent link">&para;</a></h1>
+<p>There are two ways of obtaining authentication credentials to use the Unique AI Platform.</p>
+<h2 id="1-personal-api-key">1. Personal API Key<a class="headerlink" href="#1-personal-api-key" title="Permanent link">&para;</a></h2>
+<p>The personal api key can be obtained by clicking on the <code>Personal API Key</code> button in the top right corner of the Unique AI Platform.
+Use this method if you are at a development stage and want to test something quick and local.</p>
+<p><img alt="alt text" src="images/personal_api_key_location.png" width="300" /></p>
+<p>On clicking onto the personal api key button the following popup appears </p>
+<p><img alt="alt text" src="images/personal_api_key.png" /></p>
+<p>and the secrets must be used according to the following table into the environment variables</p>
+<table>
+<thead>
+<tr>
+<th>Toolkit Secret Variable</th>
+<th>Platform Secret Name</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UNIQUE_AUTH_COMPANY_ID</td>
+<td>Company ID</td>
+<td><code>346386357988860534</code></td>
+</tr>
+<tr>
+<td>UNIQUE_AUTH_USER_ID</td>
+<td>User ID</td>
+<td><code>347188092944093062</code></td>
+</tr>
+<tr>
+<td>UNIQUE_APP_ID</td>
+<td>App ID</td>
+<td><code>app_iaii8qhvt5j80wo9i4wmwqqc</code></td>
+</tr>
+<tr>
+<td>UNIQUE_APP_KEY</td>
+<td>Api Key</td>
+<td><code>ukey_&lt;redacted&gt;</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>UNIQUE_API_BASE_URL</code> can be obtained from your admin and the current <code>UNIQUE_API_VERSION</code> is <code>2023-12-06</code>.</p>
+<h2 id="2-creating-an-app">2. Creating an APP<a class="headerlink" href="#2-creating-an-app" title="Permanent link">&para;</a></h2>
+<p>The added advantage of a dedicated app is that you can reach your application from the platform when certain events occur. You will therefore have additional authentication credentials to keep your application secure.</p>
+<p>You would use this method if you are developing a custom applications that would be deployed for multiple users.</p>
+<p>1) On the sidebar click on the following symbol <img alt="alt text" src="images/app_button.png" width="50" /> and click on the <img alt="alt text" src="images/create_app_button.png" width="150" /> button to create a new app.</p>
+<p>2) Enter a name and a description</p>
+<p><img alt="alt text" height="100" src="images/create_app_name_and_description.png" /> </p>
+<p>after saving you will see the following screen</p>
+<p><img alt="alt text" src="images/create_app_full_page.png" /> </p>
+<p>3) Activate the App</p>
+<p>In the header of the page you find the app id as well as an activation button</p>
+<p><img alt="alt text" src="images/create_app_header_before_activation.png" /></p>
+<p>where the app can be activated and deactivated.</p>
+<p>4) Create an API key for the App</p>
+<p>After activation new section allows to create an api key for the app</p>
+<p><img alt="alt text" src="images/create_app_api_key_section.png" /></p>
+<p>once created the following pop up will show</p>
+<p><img alt="alt text" src="images/create_app_api_key_shown.png" /></p>
+<p>with the generated key.</p>
+<p>You can how expose your application's endpoint to the platform by registering an endpoint.</p>
+<p><img alt="alt text" height="100" src="images/create_app_endpoints.png" /> </p>
+<p>Additionally to the url, we must give a name and a description to the endpoint and decide to what event the app is subscribing to</p>
+<p><img alt="alt text" height="100" src="images/create_app_endpoints_popup.png" /> </p>
+<p>We can now add the two secrets to <code>unique.env</code></p>
+<div class="highlight"><pre><span></span><code>UNIQUE_APP_ENDPOINT=https://&lt;your-app-url&gt;
+UNIQUE_APP_ENDPOINT_SECRET=usig_&lt;redacted&gt;
+</code></pre></div></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../js/base.js"></script>
+        <script src="../search/main.js"></script>
+        <script src="../js/version-select.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

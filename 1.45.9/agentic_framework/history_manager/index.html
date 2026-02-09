@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="Unique Team">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/1.45.9/agentic_framework/history_manager/">
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>History Manager - Unique Toolkit</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../../css/version-select.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">Unique Toolkit</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../architectural/" class="nav-link">Architecture</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../setup/getting_started/" class="nav-link">Getting started</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Authentication</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../authentication/#1-personal-api-key" class="dropdown-item">Personal API Key</a>
+</li>
+                                    
+<li>
+    <a href="../../authentication/#2-creating-an-app" class="dropdown-item">Creating an APP</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Application Development</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../application_types/standalone_application/" class="dropdown-item">Standalone Application</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Event Driven Applications</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../application_types/event_driven/" class="dropdown-item">Event Driven App</a>
+</li>
+            
+<li>
+    <a href="../../application_types/event_driven/event_driven_platform_setup/" class="dropdown-item">Platform Setup</a>
+</li>
+            
+<li>
+    <a href="../../application_types/event_driven/event_driven_with_sse/" class="dropdown-item">SSE Setup</a>
+</li>
+            
+<li>
+    <a href="../../application_types/event_driven/event_driven_as_app_with_ngrok/" class="dropdown-item">Web Hooks</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Core Services</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../events/events/" class="dropdown-item">Events</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../chat/" class="dropdown-item">Chat Service - Basics</a>
+</li>
+            
+<li>
+    <a href="../../chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../knowledge_base/" class="dropdown-item">Knowledge Base Service</a>
+</li>
+            
+<li>
+    <a href="../../knowledge_base/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Agentic Table</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../agentic_table/" class="dropdown-item">Agentic Table Module</a>
+</li>
+            
+<li>
+    <a href="../../agentic_table/column_styling/" class="dropdown-item">Column Styling</a>
+</li>
+            
+<li>
+    <a href="../../agentic_table/cell_rendering/" class="dropdown-item">Cell rendering</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Examples</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../plattforms/openai/openai/" class="dropdown-item">OpenAI</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/examples/chat/chat_service/" class="dropdown-item">Basic Service</a>
+</li>
+            
+<li>
+    <a href="../../modules/examples/chat/chat_document_handling/" class="dropdown-item">Document Handling</a>
+</li>
+            
+<li>
+    <a href="../../modules/examples/chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/examples/content/kb_service/" class="dropdown-item">Base Service</a>
+</li>
+            
+<li>
+    <a href="../../modules/examples/content/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Tutorials</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../tutorials/agentic_table_app/" class="dropdown-item">Agentic Table App</a>
+</li>
+                                    
+<li>
+    <a href="../../tutorials/file_creation_and_upload_to_chat/" class="dropdown-item">File Creation with Upload to Chat</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Agentic Framework</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../framework/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../orchestrator/unqiue_ai_how-it-works/" class="dropdown-item">Orchestrator</a>
+</li>
+                                    
+<li>
+    <a href="../tool/" class="dropdown-item">Tool</a>
+</li>
+                                    
+<li>
+    <a href="../tool_call_response/" class="dropdown-item">Tool Call Response</a>
+</li>
+                                    
+<li>
+    <a href="../tool_manager/" class="dropdown-item">Tool Manager</a>
+</li>
+                                    
+<li>
+    <a href="../debug_manager/" class="dropdown-item">Debug Info Manager</a>
+</li>
+                                    
+<li>
+    <a href="../postprocessor_manager/" class="dropdown-item">Postprocessor Manager</a>
+</li>
+                                    
+<li>
+    <a href="../evaluation_manager/" class="dropdown-item">Evaluation Manager</a>
+</li>
+                                    
+<li>
+    <a href="../reference_manager/" class="dropdown-item">Reference Manager</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">History Manager</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">API Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../api/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Core Services</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/chat/" class="dropdown-item">Chat Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/knowledge_base/" class="dropdown-item">Knowledge Base Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/short_term_memory/" class="dropdown-item">Short Term Memory Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/app/" class="dropdown-item">App Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/content_smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+            
+<li>
+    <a href="../../modules/data_extraction/" class="dropdown-item">Data Extraction</a>
+</li>
+            
+<li>
+    <a href="../../modules/agentic_table/" class="dropdown-item">Agentic Table</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Framework Utilities</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/openai/" class="dropdown-item">OpenAI Client</a>
+</li>
+            
+<li>
+    <a href="../../modules/langchain/" class="dropdown-item">Langchain Client</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Deprecated Modules</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/content/" class="dropdown-item">Content Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/embedding/" class="dropdown-item">Embedding Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/language_model/" class="dropdown-item">Language Model Module</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../readme/" class="nav-link">Readme</a>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../reference_manager/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../../api/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/docs/agentic_framework/history_manager.md" class="nav-link">Edit on Unique-AG/ai/unique_toolkit
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="2"><a href="#historymanager-documentation" class="nav-link">📘 HistoryManager Documentation</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h2 id="historymanager-documentation">📘 HistoryManager Documentation<a class="headerlink" href="#historymanager-documentation" title="Permanent link">&para;</a></h2>
+<p>The <code>HistoryManager</code> is a critical component responsible for managing the conversation history, tool call results, and references during the orchestration process. It ensures that the history provided to the LLM is optimized to fit within the token window constraints while maintaining a coherent and complete context for the conversation.</p>
+<hr />
+<h3 id="key-responsibilities-expanded">🔑 Key Responsibilities (Expanded)<a class="headerlink" href="#key-responsibilities-expanded" title="Permanent link">&para;</a></h3>
+<h4 id="1-conversation-history-management">1. <strong>Conversation History Management</strong><a class="headerlink" href="#1-conversation-history-management" title="Permanent link">&para;</a></h4>
+<ul>
+<li>
+<p><strong>Tracking and Storing History</strong>:<br />
+     The <code>HistoryManager</code> maintains a detailed record of all user messages, assistant responses, and tool call results. This includes both the current conversation loop and any prior interactions stored in the database.  </p>
+<ul>
+<li><em>User Messages</em>: Captures the original user input and any rendered versions (e.g., processed with Jinja templates).  </li>
+<li><em>Assistant Responses</em>: Tracks the assistant's replies, including system-generated messages and tool call results.  </li>
+<li><em>Tool Call Results</em>: Logs the outputs of tools invoked during the conversation.  </li>
+</ul>
+</li>
+<li>
+<p><strong>Combining Uploaded Content</strong>:<br />
+     Uploaded files, such as documents or images, are integrated into the conversation history. This ensures that the LLM has access to all relevant context when generating responses.  </p>
+<ul>
+<li>Uploaded content is processed and merged with the conversation history.  </li>
+<li>A portion of the token window is reserved for this content, as configured in the <code>UploadedContentConfig</code>.  </li>
+</ul>
+</li>
+<li>
+<p><strong>Unified View</strong>:<br />
+     The <code>HistoryManager</code> creates a cohesive history by merging uploaded content, user messages, and assistant responses. This unified view is essential for providing the LLM with a complete context for generating accurate and relevant answers.</p>
+</li>
+</ul>
+<hr />
+<h4 id="2-token-window-optimization">2. <strong>Token Window Optimization</strong><a class="headerlink" href="#2-token-window-optimization" title="Permanent link">&para;</a></h4>
+<ul>
+<li>
+<p><strong>Token Limit Awareness</strong>:<br />
+     Each LLM has a fixed token limit for the input it can process in a single API call. The <code>HistoryManager</code> ensures that the conversation history fits within this limit by dynamically adjusting its size.  </p>
+</li>
+<li>
+<p><strong>Dynamic Reduction with Loop Token Reducer</strong>:<br />
+     The <strong>Loop Token Reducer</strong> is a specialized component used to reduce the size of the history dynamically. It prioritizes the most relevant references and messages while discarding less critical information.  </p>
+<ul>
+<li><em>Reference Reduction</em>: Limits the number of references included in the history to avoid exceeding the token window.  </li>
+<li><em>Message Prioritization</em>: Ensures that the most recent and relevant messages are retained.  </li>
+</ul>
+</li>
+<li>
+<p><strong>Balancing Uploaded Content and History</strong>:<br />
+     The <code>HistoryManager</code> allocates a portion of the token window for uploaded content and the remaining portion for conversation history. This balance is configurable and ensures that both types of information are represented effectively.  </p>
+</li>
+<li>
+<p><strong>Optimization Goals</strong>:  </p>
+<ul>
+<li>Maximize the amount of relevant information provided to the LLM.  </li>
+<li>Ensure that the history remains coherent and complete, even after reduction.  </li>
+</ul>
+</li>
+</ul>
+<hr />
+<h4 id="3-tool-call-integration">3. <strong>Tool Call Integration</strong><a class="headerlink" href="#3-tool-call-integration" title="Permanent link">&para;</a></h4>
+<ul>
+<li>
+<p><strong>Appending Tool Call Queries</strong>:<br />
+     When the orchestrator invokes tools, the <code>HistoryManager</code> appends the tool call queries to the history. This ensures that the LLM has a record of the tools it requested and their purposes.  </p>
+</li>
+<li>
+<p><strong>Appending Tool Call Results</strong>:<br />
+     After the tools return their results, the <code>HistoryManager</code> appends these outputs to the history. This includes:  </p>
+<ul>
+<li><em>Successful Results</em>: The content or references generated by the tool.  </li>
+<li><em>Failed Results</em>: Error messages indicating why the tool call failed.  </li>
+</ul>
+</li>
+<li>
+<p><strong>Temporary and Persistent Storage</strong>:  </p>
+<ul>
+<li>Tool call queries and results are temporarily stored during the current conversation loop.  </li>
+<li>Persistent storage of tool call data is not yet implemented but is a planned improvement.  </li>
+</ul>
+</li>
+<li>
+<p><strong>Context for Subsequent Interactions</strong>:<br />
+     By integrating tool call queries and results into the history, the <code>HistoryManager</code> ensures that the LLM has the necessary context for follow-up interactions.</p>
+</li>
+</ul>
+<hr />
+<h4 id="4-post-processing-and-cleanup">4. <strong>Post-Processing and Cleanup</strong><a class="headerlink" href="#4-post-processing-and-cleanup" title="Permanent link">&para;</a></h4>
+<ul>
+<li>
+<p><strong>Removing Unnecessary Content</strong>:<br />
+     The <code>HistoryManager</code> handles post-processing steps to clean up the history. This includes removing content that is not directly relevant to the LLM's understanding of the conversation. Examples include:  </p>
+<ul>
+<li><em>Follow-Up Questions</em>: Generated by post-processors but not part of the LLM's output.  </li>
+<li><em>Stock Tickers or Graphs</em>: Added for user display but irrelevant to the LLM.  </li>
+</ul>
+</li>
+<li>
+<p><strong>Using <code>remove_from_text</code></strong>:<br />
+     The <code>remove_from_text</code> function is used to strip out post-processed content from the history. This ensures that the LLM is not confused by content it did not generate.  </p>
+</li>
+<li>
+<p><strong>Maintaining Coherence</strong>:<br />
+     Post-processing ensures that the history remains coherent and focused on the conversation's core context. This improves the LLM's ability to generate accurate and relevant responses.  </p>
+</li>
+<li>
+<p><strong>Dynamic Adjustments</strong>:<br />
+     Post-processing is applied dynamically during each loop of the orchestrator, ensuring that the history is always optimized for the current interaction.</p>
+</li>
+</ul>
+<hr />
+<h3 id="key-functionalities">🛠️ Key Functionalities<a class="headerlink" href="#key-functionalities" title="Permanent link">&para;</a></h3>
+<h4 id="1-adding-tool-call-results">1. <strong>Adding Tool Call Results</strong><a class="headerlink" href="#1-adding-tool-call-results" title="Permanent link">&para;</a></h4>
+<ul>
+<li>
+<p><strong><code>add_tool_call_results(tool_call_results: list[ToolCallResponse])</code></strong><br />
+     Appends the results of tool calls to the history. If a tool call fails, an error message is added instead.<br />
+     <div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_tool_call_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tool_call_results</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ToolCallResponse</span><span class="p">]):</span>
+    <span class="k">for</span> <span class="n">tool_response</span> <span class="ow">in</span> <span class="n">tool_call_results</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">tool_response</span><span class="o">.</span><span class="n">successful</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_loop_history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">LanguageModelToolMessage</span><span class="p">(</span>
+                    <span class="n">name</span><span class="o">=</span><span class="n">tool_response</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="n">tool_call_id</span><span class="o">=</span><span class="n">tool_response</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+                    <span class="n">content</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Tool call </span><span class="si">{</span><span class="n">tool_response</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> failed with error: </span><span class="si">{</span><span class="n">tool_response</span><span class="o">.</span><span class="n">error_message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_append_tool_call_result_to_history</span><span class="p">(</span><span class="n">tool_response</span><span class="p">)</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong><code>_append_tool_call_result_to_history(tool_response: ToolCallResponse)</code></strong><br />
+     Adds a successful tool call result to the history.<br />
+     <div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">_append_tool_call_result_to_history</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">tool_response</span><span class="p">:</span> <span class="n">ToolCallResponse</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">tool_call_result_for_history</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_tool_call_result_for_loop_history</span><span class="p">(</span>
+        <span class="n">tool_response</span><span class="o">=</span><span class="n">tool_response</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_loop_history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tool_call_result_for_history</span><span class="p">)</span>
+</code></pre></div></p>
+</li>
+</ul>
+<h4 id="2-retrieving-history-for-model-calls">2. <strong>Retrieving History for Model Calls</strong><a class="headerlink" href="#2-retrieving-history-for-model-calls" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong><code>get_history_for_model_call(...)</code></strong><br />
+     Retrieves the conversation history formatted for the LLM, ensuring it fits within the token window. This includes:<ul>
+<li>The original user message.</li>
+<li>The rendered user message (processed via Jinja templates).</li>
+<li>The rendered system message.</li>
+<li>The <code>remove_from_text</code> functions are handed over function to clean up the history from post processing steps or other artifacts in the messages that are not produced by the LLM. In order to not confuse the LLM with these text snippets that have not been produced by it. E.g. follow-up questions.
+ <div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_history_for_model_call</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">original_user_message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">rendered_user_message_string</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">rendered_system_message_string</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">remove_from_text</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="n">Awaitable</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LanguageModelMessages</span><span class="p">:</span>
+    <span class="n">messages</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_token_reducer</span><span class="o">.</span><span class="n">get_history_for_model_call</span><span class="p">(</span>
+        <span class="n">original_user_message</span><span class="o">=</span><span class="n">original_user_message</span><span class="p">,</span>
+        <span class="n">rendered_user_message_string</span><span class="o">=</span><span class="n">rendered_user_message_string</span><span class="p">,</span>
+        <span class="n">rendered_system_message_string</span><span class="o">=</span><span class="n">rendered_system_message_string</span><span class="p">,</span>
+        <span class="n">loop_history</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_loop_history</span><span class="p">,</span>
+        <span class="n">remove_from_text</span><span class="o">=</span><span class="n">remove_from_text</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">messages</span>
+</code></pre></div></li>
+</ul>
+</li>
+</ul>
+<h4 id="3-token-window-management">3. <strong>Token Window Management</strong><a class="headerlink" href="#3-token-window-management" title="Permanent link">&para;</a></h4>
+<ul>
+<li>The <strong>Loop Token Reducer</strong> is used to dynamically adjust the size of the history to fit within the LLM's token limit. This involves:<ul>
+<li>Reducing the number of references included in the history.</li>
+<li>Prioritizing the most relevant chunks and messages.</li>
+<li>Ensuring that the history remains coherent and complete.</li>
+</ul>
+</li>
+</ul>
+<h4 id="4-appending-tool-calls">4. <strong>Appending Tool Calls</strong><a class="headerlink" href="#4-appending-tool-calls" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong><code>_append_tool_calls_to_history(tool_calls: list[LanguageModelFunction])</code></strong><br />
+     Adds tool call queries to the history.<br />
+     <div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">_append_tool_calls_to_history</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span> <span class="n">tool_calls</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">LanguageModelFunction</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_loop_history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+        <span class="n">LanguageModelAssistantMessage</span><span class="o">.</span><span class="n">from_functions</span><span class="p">(</span><span class="n">tool_calls</span><span class="o">=</span><span class="n">tool_calls</span><span class="p">)</span>
+    <span class="p">)</span>
+</code></pre></div></li>
+</ul>
+<h4 id="5-assistant-message-management">5. <strong>Assistant Message Management</strong><a class="headerlink" href="#5-assistant-message-management" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong><code>add_assistant_message(message: LanguageModelAssistantMessage)</code></strong><br />
+     Appends an assistant message to the history.<br />
+     <div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_assistant_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">LanguageModelAssistantMessage</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_loop_history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+</code></pre></div></li>
+</ul>
+<hr />
+<h3 id="areas-for-improvement">🛠️ Areas for Improvement<a class="headerlink" href="#areas-for-improvement" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Tool Call and Tool Message Persistence</strong>  </li>
+<li>
+<p>Currently, tool calls and tool messages are not saved in the database. This limits the ability to reconstruct past interactions fully.</p>
+</li>
+<li>
+<p><strong>Uploaded Content Correlation</strong>  </p>
+</li>
+<li>
+<p>Uploaded images and files are not directly linked to user messages in the history. This makes it difficult to reconstruct the context of uploaded content.</p>
+</li>
+<li>
+<p><strong>Code Cleanup</strong>  </p>
+</li>
+<li>
+<p>The history construction logic, especially for database interactions, requires refactoring for better maintainability and clarity.</p>
+</li>
+<li>
+<p><strong>Enhanced Reference Management</strong>  </p>
+</li>
+<li>Improve the integration with the <code>ReferenceManager</code> to better handle references across multiple iterations and tools.</li>
+</ol></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="../../search/main.js"></script>
+        <script src="../../js/version-select.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

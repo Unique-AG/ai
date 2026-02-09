@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="Unique Team">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/1.45.9/readme/">
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>Readme - Unique Toolkit</title>
+        <link href="../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../css/brands.min.css" rel="stylesheet">
+        <link href="../css/solid.min.css" rel="stylesheet">
+        <link href="../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../css/version-select.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="..">Unique Toolkit</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href=".." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../architectural/" class="nav-link">Architecture</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../setup/getting_started/" class="nav-link">Getting started</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Authentication</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../authentication/#1-personal-api-key" class="dropdown-item">Personal API Key</a>
+</li>
+                                    
+<li>
+    <a href="../authentication/#2-creating-an-app" class="dropdown-item">Creating an APP</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Application Development</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../application_types/standalone_application/" class="dropdown-item">Standalone Application</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Event Driven Applications</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../application_types/event_driven/" class="dropdown-item">Event Driven App</a>
+</li>
+            
+<li>
+    <a href="../application_types/event_driven/event_driven_platform_setup/" class="dropdown-item">Platform Setup</a>
+</li>
+            
+<li>
+    <a href="../application_types/event_driven/event_driven_with_sse/" class="dropdown-item">SSE Setup</a>
+</li>
+            
+<li>
+    <a href="../application_types/event_driven/event_driven_as_app_with_ngrok/" class="dropdown-item">Web Hooks</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Core Services</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../events/events/" class="dropdown-item">Events</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../chat/" class="dropdown-item">Chat Service - Basics</a>
+</li>
+            
+<li>
+    <a href="../chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../knowledge_base/" class="dropdown-item">Knowledge Base Service</a>
+</li>
+            
+<li>
+    <a href="../knowledge_base/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Agentic Table</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../agentic_table/" class="dropdown-item">Agentic Table Module</a>
+</li>
+            
+<li>
+    <a href="../agentic_table/column_styling/" class="dropdown-item">Column Styling</a>
+</li>
+            
+<li>
+    <a href="../agentic_table/cell_rendering/" class="dropdown-item">Cell rendering</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Examples</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../plattforms/openai/openai/" class="dropdown-item">OpenAI</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../modules/examples/chat/chat_service/" class="dropdown-item">Basic Service</a>
+</li>
+            
+<li>
+    <a href="../modules/examples/chat/chat_document_handling/" class="dropdown-item">Document Handling</a>
+</li>
+            
+<li>
+    <a href="../modules/examples/chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../modules/examples/content/kb_service/" class="dropdown-item">Base Service</a>
+</li>
+            
+<li>
+    <a href="../modules/examples/content/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Tutorials</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../tutorials/agentic_table_app/" class="dropdown-item">Agentic Table App</a>
+</li>
+                                    
+<li>
+    <a href="../tutorials/file_creation_and_upload_to_chat/" class="dropdown-item">File Creation with Upload to Chat</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Agentic Framework</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../agentic_framework/framework/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/orchestrator/unqiue_ai_how-it-works/" class="dropdown-item">Orchestrator</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/tool/" class="dropdown-item">Tool</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/tool_call_response/" class="dropdown-item">Tool Call Response</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/tool_manager/" class="dropdown-item">Tool Manager</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/debug_manager/" class="dropdown-item">Debug Info Manager</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/postprocessor_manager/" class="dropdown-item">Postprocessor Manager</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/evaluation_manager/" class="dropdown-item">Evaluation Manager</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/reference_manager/" class="dropdown-item">Reference Manager</a>
+</li>
+                                    
+<li>
+    <a href="../agentic_framework/history_manager/" class="dropdown-item">History Manager</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">API Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../api/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Core Services</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../modules/chat/" class="dropdown-item">Chat Module</a>
+</li>
+            
+<li>
+    <a href="../modules/knowledge_base/" class="dropdown-item">Knowledge Base Module</a>
+</li>
+            
+<li>
+    <a href="../modules/short_term_memory/" class="dropdown-item">Short Term Memory Module</a>
+</li>
+            
+<li>
+    <a href="../modules/app/" class="dropdown-item">App Module</a>
+</li>
+            
+<li>
+    <a href="../modules/content_smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+            
+<li>
+    <a href="../modules/data_extraction/" class="dropdown-item">Data Extraction</a>
+</li>
+            
+<li>
+    <a href="../modules/agentic_table/" class="dropdown-item">Agentic Table</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Framework Utilities</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../modules/openai/" class="dropdown-item">OpenAI Client</a>
+</li>
+            
+<li>
+    <a href="../modules/langchain/" class="dropdown-item">Langchain Client</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Deprecated Modules</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../modules/content/" class="dropdown-item">Content Module</a>
+</li>
+            
+<li>
+    <a href="../modules/embedding/" class="dropdown-item">Embedding Module</a>
+</li>
+            
+<li>
+    <a href="../modules/language_model/" class="dropdown-item">Language Model Module</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item">
+                                <a href="./" class="nav-link active" aria-current="page">Readme</a>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../modules/language_model/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" class="nav-link disabled">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/docs/readme.md" class="nav-link">Edit on Unique-AG/ai/unique_toolkit
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#unique-toolkit" class="nav-link">Unique Toolkit</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#changelog" class="nav-link">Changelog</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="1"><a href="#domains" class="nav-link">Domains</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#app" class="nav-link">App</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#chat" class="nav-link">Chat</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#content" class="nav-link">Content</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#embedding-to-be-deprecated" class="nav-link">Embedding (To be Deprecated)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#language-model" class="nav-link">Language Model</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#short-term-memory" class="nav-link">Short Term Memory</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="unique-toolkit">Unique Toolkit<a class="headerlink" href="#unique-toolkit" title="Permanent link">&para;</a></h1>
+<p>This package provides highlevel abstractions and methods on top of <code>unique_sdk</code> to ease application development for the Unique Platform. </p>
+<p>The Toolkit is structured along the following domains:
+- <code>unique_toolkit.chat</code>
+- <code>unique_toolkit.content</code>
+- <code>unique_toolkit.embedding</code>
+- <code>unique_toolkit.language_model</code>
+- <code>unique_toolkit.short_term_memory</code></p>
+<p>Each domain comprises a set of schemas (in <code>schemas.py</code>) are used in functions (in <code>functions.py</code>) which encapsulates the basic functionalities to interact with the plattform. 
+The above domains represent the internal structure of the Unique platform.</p>
+<p>For the <code>developers</code> we expose interfaces via <code>services</code> classes that correspond directly to an frontend or an entity the <code>user</code> interacts with. </p>
+<p>The following services are currently available:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Responsability</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ChatService</td>
+<td>All interactions with the chat interface</td>
+</tr>
+<tr>
+<td>KnowledgeBaseService</td>
+<td>All interaction with the knowledgebase</td>
+</tr>
+</tbody>
+</table>
+<p>The services can be directly import as </p>
+<p>```
+from unique_toolkit import ChatService, KnowledgeBaseService</p>
+<p>In addition, the <code>unique_toolkit.app</code> module provides functions to initialize apps and dev utilities to interact with the Unique platform. </p>
+<h2 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h2>
+<p>See the <a href="https://github.com/Unique-AG/ai/blob/main/unique_toolkit/CHANGELOG.md">CHANGELOG.md</a> file for details on changes and version history.</p>
+<h1 id="domains">Domains<a class="headerlink" href="#domains" title="Permanent link">&para;</a></h1>
+<h2 id="app">App<a class="headerlink" href="#app" title="Permanent link">&para;</a></h2>
+<p>The <code>unique_toolkit.app</code> module encompasses functions for initializing and securing apps that will interact with the Unique platform.</p>
+<ul>
+<li><code>init_logging.py</code> can be used to initalize the logger either with unique dictConfig or an any other dictConfig.</li>
+<li><code>init_sdk.py</code> can be used to initialize the sdk using the correct env variables and retrieving the endpoint secret.</li>
+<li><code>schemas.py</code> contains the Event schema which can be used to parse and validate the unique.chat.external-module.chosen event.</li>
+<li><code>verification.py</code> can be used to verify the endpoint secret and construct the event.</li>
+</ul>
+<h2 id="chat">Chat<a class="headerlink" href="#chat" title="Permanent link">&para;</a></h2>
+<p>The <code>unique_toolkit.chat</code> module encompasses all chat related functionality.</p>
+<ul>
+<li><code>functions.py</code> comprises the functions to manage and load the chat history and interact with the chat ui, e.g., creating a new assistant message.</li>
+<li><code>schemas.py</code> comprises all relevant schemas, e.g., ChatMessage, used in the ChatService.</li>
+<li><code>utils.py</code> comprises utility functions to use and convert ChatMessage objects in assistants, e.g., convert_chat_history_to_injectable_string converts the chat history to a string that can be injected into a prompt. </li>
+</ul>
+<h2 id="content">Content<a class="headerlink" href="#content" title="Permanent link">&para;</a></h2>
+<p>The <code>unique_toolkit.content</code> module encompasses all content related functionality. Content can be any type of textual data that is stored in the Knowledgebase on the Unique platform. During the ingestion of the content, the content is parsed, split in chunks, indexed, and stored in the database.</p>
+<ul>
+<li><code>functions.py</code> comprises the functions to manage and load the chat history and interact with the chat ui, e.g., creating a new assistant message.</li>
+<li><code>schemas.py</code> comprises all relevant schemas, e.g., Content and ContentChunk, used in the ContentService.</li>
+<li><code>utils.py</code> comprise utility functions to manipulate Content and ContentChunk objects, e.g., sort_content_chunks and merge_content_chunks.</li>
+</ul>
+<h2 id="embedding-to-be-deprecated">Embedding (To be Deprecated)<a class="headerlink" href="#embedding-to-be-deprecated" title="Permanent link">&para;</a></h2>
+<p>The <code>unique_toolkit.embedding</code> module encompasses all embedding related functionality. Embeddings are used to represent textual data in a high-dimensional space. The embeddings can be used to calculate the similarity between two texts, for instance.</p>
+<ul>
+<li><code>functions.py</code> comprises the functions to embed text and calculate the similarity between two texts.</li>
+<li><code>service.py</code> encompasses the EmbeddingService and provides an interface to interact with the embeddings, e.g., embed text and calculate the similarity between two texts.</li>
+<li><code>schemas.py</code> comprises all relevant schemas, e.g., Embeddings, used in the EmbeddingService.</li>
+</ul>
+<h2 id="language-model">Language Model<a class="headerlink" href="#language-model" title="Permanent link">&para;</a></h2>
+<p>The <code>unique_toolkit.language_model</code> module encompasses all language model related functionality and information on the different language models deployed through the 
+Unique platform.</p>
+<ul>
+<li><code>infos.py</code> comprises the information on all language models deployed through the Unique platform. We recommend to use the LanguageModel class, initialized with the LanguageModelName, e.g., LanguageModel(LanguageModelName.AZURE_GPT_4o_2024_1120) to get the information on the specific language model like the name, version, token limits or retirement date.</li>
+<li><code>functions.py</code> comprises the functions to complete and stream complete to chat.</li>
+<li><code>schemas.py</code> comprises all relevant schemas, e.g., LanguageModelResponse, used in the LanguageModelService.</li>
+<li><code>utils.py</code> comprises utility functions to parse the output of the language model, e.g., convert_string_to_json finds and parses the last json object in a string.</li>
+</ul>
+<h2 id="short-term-memory">Short Term Memory<a class="headerlink" href="#short-term-memory" title="Permanent link">&para;</a></h2>
+<p>The <code>unique_toolkit.short_term_memory</code> module encompasses all short term memory related functionality.</p>
+<ul>
+<li><code>functions.py</code> comprises the functions to manage and load the chat history and interact with the chat ui, e.g., creating a new assistant message.</li>
+<li><code>schemas.py</code> comprises all relevant schemas, e.g., ShortTermMemory, used in the ShortTermMemoryService.</li>
+</ul></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../js/base.js"></script>
+        <script src="../search/main.js"></script>
+        <script src="../js/version-select.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

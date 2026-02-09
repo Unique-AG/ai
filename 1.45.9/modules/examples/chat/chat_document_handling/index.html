@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="Unique Team">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/1.45.9/modules/examples/chat/chat_document_handling/">
+        <link rel="shortcut icon" href="../../../../img/favicon.ico">
+        <title>Document Handling - Unique Toolkit</title>
+        <link href="../../../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../../../css/brands.min.css" rel="stylesheet">
+        <link href="../../../../css/solid.min.css" rel="stylesheet">
+        <link href="../../../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../../../../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../../../../css/version-select.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../../../..">Unique Toolkit</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../../../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../../../architectural/" class="nav-link">Architecture</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../../../setup/getting_started/" class="nav-link">Getting started</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Authentication</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../authentication/#1-personal-api-key" class="dropdown-item">Personal API Key</a>
+</li>
+                                    
+<li>
+    <a href="../../../../authentication/#2-creating-an-app" class="dropdown-item">Creating an APP</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Application Development</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../application_types/standalone_application/" class="dropdown-item">Standalone Application</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Event Driven Applications</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../../application_types/event_driven/" class="dropdown-item">Event Driven App</a>
+</li>
+            
+<li>
+    <a href="../../../../application_types/event_driven/event_driven_platform_setup/" class="dropdown-item">Platform Setup</a>
+</li>
+            
+<li>
+    <a href="../../../../application_types/event_driven/event_driven_with_sse/" class="dropdown-item">SSE Setup</a>
+</li>
+            
+<li>
+    <a href="../../../../application_types/event_driven/event_driven_as_app_with_ngrok/" class="dropdown-item">Web Hooks</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Core Services</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../events/events/" class="dropdown-item">Events</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../../chat/" class="dropdown-item">Chat Service - Basics</a>
+</li>
+            
+<li>
+    <a href="../../../../chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../../knowledge_base/" class="dropdown-item">Knowledge Base Service</a>
+</li>
+            
+<li>
+    <a href="../../../../knowledge_base/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Agentic Table</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../../agentic_table/" class="dropdown-item">Agentic Table Module</a>
+</li>
+            
+<li>
+    <a href="../../../../agentic_table/column_styling/" class="dropdown-item">Column Styling</a>
+</li>
+            
+<li>
+    <a href="../../../../agentic_table/cell_rendering/" class="dropdown-item">Cell rendering</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Examples</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../plattforms/openai/openai/" class="dropdown-item">OpenAI</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../chat_service/" class="dropdown-item">Basic Service</a>
+</li>
+            
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Document Handling</a>
+</li>
+            
+<li>
+    <a href="../advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../content/kb_service/" class="dropdown-item">Base Service</a>
+</li>
+            
+<li>
+    <a href="../../content/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Tutorials</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../tutorials/agentic_table_app/" class="dropdown-item">Agentic Table App</a>
+</li>
+                                    
+<li>
+    <a href="../../../../tutorials/file_creation_and_upload_to_chat/" class="dropdown-item">File Creation with Upload to Chat</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Agentic Framework</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../agentic_framework/framework/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/orchestrator/unqiue_ai_how-it-works/" class="dropdown-item">Orchestrator</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/tool/" class="dropdown-item">Tool</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/tool_call_response/" class="dropdown-item">Tool Call Response</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/tool_manager/" class="dropdown-item">Tool Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/debug_manager/" class="dropdown-item">Debug Info Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/postprocessor_manager/" class="dropdown-item">Postprocessor Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/evaluation_manager/" class="dropdown-item">Evaluation Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/reference_manager/" class="dropdown-item">Reference Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/history_manager/" class="dropdown-item">History Manager</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">API Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../api/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Core Services</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../chat/" class="dropdown-item">Chat Module</a>
+</li>
+            
+<li>
+    <a href="../../../knowledge_base/" class="dropdown-item">Knowledge Base Module</a>
+</li>
+            
+<li>
+    <a href="../../../short_term_memory/" class="dropdown-item">Short Term Memory Module</a>
+</li>
+            
+<li>
+    <a href="../../../app/" class="dropdown-item">App Module</a>
+</li>
+            
+<li>
+    <a href="../../../content_smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+            
+<li>
+    <a href="../../../data_extraction/" class="dropdown-item">Data Extraction</a>
+</li>
+            
+<li>
+    <a href="../../../agentic_table/" class="dropdown-item">Agentic Table</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Framework Utilities</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../openai/" class="dropdown-item">OpenAI Client</a>
+</li>
+            
+<li>
+    <a href="../../../langchain/" class="dropdown-item">Langchain Client</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Deprecated Modules</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../content/" class="dropdown-item">Content Module</a>
+</li>
+            
+<li>
+    <a href="../../../embedding/" class="dropdown-item">Embedding Module</a>
+</li>
+            
+<li>
+    <a href="../../../language_model/" class="dropdown-item">Language Model Module</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../../../readme/" class="nav-link">Readme</a>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../chat_service/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../advanced_rendering/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/docs/modules/examples/chat/chat_document_handling.md" class="nav-link">Edit on Unique-AG/ai/unique_toolkit
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#chat-service-image-and-document-handling" class="nav-link">Chat Service - Image and Document Handling</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#overview" class="nav-link">Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#downloading-images-and-documents" class="nav-link">Downloading Images and Documents</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#building-messages-with-images" class="nav-link">Building Messages with Images</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#sending-the-message" class="nav-link">Sending the Message</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#key-considerations" class="nav-link">Key Considerations</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="chat-service-image-and-document-handling">Chat Service - Image and Document Handling<a class="headerlink" href="#chat-service-image-and-document-handling" title="Permanent link">&para;</a></h1>
+<p>This tutorial demonstrates how to handle images and documents uploaded to a chat session. The Chat Service provides convenient methods to retrieve and process various types of content that users upload during conversations.</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>When users upload images or documents through the chat interface, you can:
+- Download and retrieve uploaded content
+- Process images to include them in model prompts
+- Handle documents for analysis or context
+- Build messages that combine text and visual content</p>
+<h2 id="downloading-images-and-documents">Downloading Images and Documents<a class="headerlink" href="#downloading-images-and-documents" title="Permanent link">&para;</a></h2>
+<p>The <code>download_chat_images_and_documents()</code> method retrieves all images and documents that have been uploaded to the current chat session. This returns two separate lists: one for images and one for other document types.</p>
+<div id="chat_service_document_and_image_download" class="highlight"><span class="filename">#chat_service_document_and_image_download</span><pre><span></span><code><span class="n">images</span><span class="p">,</span> <span class="n">documents</span> <span class="o">=</span> <span class="n">chat_service</span><span class="o">.</span><span class="n">download_chat_images_and_documents</span><span class="p">()</span>
+
+<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">documents</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="n">doc_bytes</span> <span class="o">=</span> <span class="n">chat_service</span><span class="o">.</span><span class="n">download_chat_content_to_bytes</span><span class="p">(</span><span class="n">content_id</span><span class="o">=</span><span class="n">documents</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+</code></pre></div>
+<p>Once you have the list of uploaded content, you can download the actual bytes of any specific file using <code>download_chat_content_to_bytes()</code>. This is useful for processing documents or passing images to vision-capable language models.</p>
+<h2 id="building-messages-with-images">Building Messages with Images<a class="headerlink" href="#building-messages-with-images" title="Permanent link">&para;</a></h2>
+<p>To send images to vision-capable models, you need to construct multi-part messages that include both text and image content. The <code>OpenAIUserMessageBuilder</code> makes this easy by providing methods to append different content types.</p>
+<div id="chat_service_images_message_building" class="highlight"><span class="filename">#chat_service_images_message_building</span><pre><span></span><code><span class="n">img_bytes</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="n">img_mime_type</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="n">img_bytes</span> <span class="o">=</span> <span class="n">chat_service</span><span class="o">.</span><span class="n">download_chat_content_to_bytes</span><span class="p">(</span><span class="n">content_id</span><span class="o">=</span><span class="n">images</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+    <span class="n">img_mime_type</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">mimetypes</span><span class="o">.</span><span class="n">guess_type</span><span class="p">(</span><span class="n">images</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+
+<span class="n">builder</span> <span class="o">=</span> <span class="p">(</span><span class="n">OpenAIMessageBuilder</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">system_message_append</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="s2">&quot;You are a helpful assistant.&quot;</span><span class="p">))</span>
+
+<span class="k">if</span> <span class="n">img_bytes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">img_mime_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">builder</span><span class="o">.</span><span class="n">user_message_append</span><span class="p">(</span>
+            <span class="n">content</span><span class="o">=</span><span class="n">OpenAIUserMessageBuilder</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">append_text</span><span class="p">(</span><span class="s2">&quot;What is the content of the image?&quot;</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">append_image</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="n">img_bytes</span><span class="p">,</span> <span class="n">mime_type</span><span class="o">=</span><span class="n">img_mime_type</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">iterable_content</span>
+        <span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">builder</span><span class="o">.</span><span class="n">user_message_append</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="s2">&quot;Can you see the image? If not, say so.&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>In this example:
+1. We download the image bytes and determine the MIME type (e.g., <code>image/png</code>, <code>image/jpeg</code>)
+2. We create an <code>OpenAIMessageBuilder</code> to construct the message sequence
+3. We use <code>OpenAIUserMessageBuilder</code> to create a multi-part user message containing both text and the image
+4. The <code>.iterable_content</code> property provides the properly formatted content for the API</p>
+<h2 id="sending-the-message">Sending the Message<a class="headerlink" href="#sending-the-message" title="Permanent link">&para;</a></h2>
+<p>Once your message is built with all the necessary content, you can send it to the language model and stream the response back to the user.</p>
+<div id="chat_service_send_message" class="highlight"><span class="filename">#chat_service_send_message</span><pre><span></span><code><span class="n">chat_service</span><span class="o">.</span><span class="n">complete_with_references</span><span class="p">(</span>
+    <span class="n">messages</span><span class="o">=</span><span class="n">builder</span><span class="o">.</span><span class="n">messages</span><span class="p">,</span>
+    <span class="n">model_name</span><span class="o">=</span><span class="n">LanguageModelName</span><span class="o">.</span><span class="n">AZURE_GPT_4o_2024_1120</span>
+<span class="p">)</span>
+
+<span class="n">chat_service</span><span class="o">.</span><span class="n">free_user_input</span><span class="p">()</span>
+</code></pre></div>
+<p>The <code>complete_with_references()</code> method:
+- Sends the messages to the specified language model (in this case, GPT-4o with vision capabilities)
+- Automatically streams the response back to the chat interface
+- Handles reference management if the model returns any citations</p>
+<p>Finally, <code>free_user_input()</code> re-enables the chat input field, allowing the user to send another message. This should be called after the model completes its response to restore interactivity.</p>
+<h2 id="key-considerations">Key Considerations<a class="headerlink" href="#key-considerations" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Vision Models</strong>: Use vision-capable models like GPT-4o when processing images</li>
+<li><strong>MIME Types</strong>: Ensure you provide the correct MIME type for images</li>
+<li><strong>Error Handling</strong>: Always check if images/documents exist before processing</li>
+<li><strong>Memory Usage</strong>: Large images and documents consume memory; consider processing strategies for multiple files</li>
+</ul>
+<!--
+
+<div class="highlight"><span class="filename">file: docs/.python_files/chat_with_document_app.py</span><pre><span></span><code><span class="o">&lt;&lt;</span><span class="n">full_sse_setup_with_services</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_document_and_image_download</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_images_message_building</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_send_message</span><span class="o">&gt;&gt;</span>
+</code></pre></div>
+-->
+
+<details class="example">
+<summary>Full Examples Content Search (Click to expand)</summary>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:1"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Content Chunks</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="c1"># %%</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">mimetypes</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ChatService</span><span class="p">,</span>
+    <span class="n">KnowledgeBaseService</span><span class="p">,</span>
+    <span class="n">LanguageModelName</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.dev_util</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_event_generator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatEvent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.unique_settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniqueSettings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.framework_utilities.openai.message_builder</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">OpenAIMessageBuilder</span><span class="p">,</span>
+    <span class="n">OpenAIUserMessageBuilder</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">settings</span> <span class="o">=</span> <span class="n">UniqueSettings</span><span class="o">.</span><span class="n">from_env_auto_with_sdk_init</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">get_event_generator</span><span class="p">(</span><span class="n">unique_settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">event_type</span><span class="o">=</span><span class="n">ChatEvent</span><span class="p">):</span>
+    <span class="c1"># Initialize services from event</span>
+    <span class="n">chat_service</span> <span class="o">=</span> <span class="n">ChatService</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">kb_service</span> <span class="o">=</span> <span class="n">KnowledgeBaseService</span><span class="o">.</span><span class="n">from_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">images</span><span class="p">,</span> <span class="n">documents</span> <span class="o">=</span> <span class="n">chat_service</span><span class="o">.</span><span class="n">download_chat_images_and_documents</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">documents</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">doc_bytes</span> <span class="o">=</span> <span class="n">chat_service</span><span class="o">.</span><span class="n">download_chat_content_to_bytes</span><span class="p">(</span>
+            <span class="n">content_id</span><span class="o">=</span><span class="n">documents</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">id</span>
+        <span class="p">)</span>
+    <span class="n">img_bytes</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">img_mime_type</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">images</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">img_bytes</span> <span class="o">=</span> <span class="n">chat_service</span><span class="o">.</span><span class="n">download_chat_content_to_bytes</span><span class="p">(</span><span class="n">content_id</span><span class="o">=</span><span class="n">images</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+        <span class="n">img_mime_type</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">mimetypes</span><span class="o">.</span><span class="n">guess_type</span><span class="p">(</span><span class="n">images</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="n">builder</span> <span class="o">=</span> <span class="n">OpenAIMessageBuilder</span><span class="p">()</span><span class="o">.</span><span class="n">system_message_append</span><span class="p">(</span>
+        <span class="n">content</span><span class="o">=</span><span class="s2">&quot;You are a helpful assistant.&quot;</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">img_bytes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">img_mime_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">builder</span><span class="o">.</span><span class="n">user_message_append</span><span class="p">(</span>
+            <span class="n">content</span><span class="o">=</span><span class="n">OpenAIUserMessageBuilder</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">append_text</span><span class="p">(</span><span class="s2">&quot;What is the content of the image?&quot;</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">append_image</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="n">img_bytes</span><span class="p">,</span> <span class="n">mime_type</span><span class="o">=</span><span class="n">img_mime_type</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">iterable_content</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">builder</span><span class="o">.</span><span class="n">user_message_append</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="s2">&quot;Can you see the image? If not, say so.&quot;</span><span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">complete_with_references</span><span class="p">(</span>
+        <span class="n">messages</span><span class="o">=</span><span class="n">builder</span><span class="o">.</span><span class="n">messages</span><span class="p">,</span> <span class="n">model_name</span><span class="o">=</span><span class="n">LanguageModelName</span><span class="o">.</span><span class="n">AZURE_GPT_4o_2024_1120</span>
+    <span class="p">)</span>
+
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">free_user_input</span><span class="p">()</span>
+</code></pre></div>
+</div>
+</div>
+</div>
+</details></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../../../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../../../js/base.js"></script>
+        <script src="../../../../search/main.js"></script>
+        <script src="../../../../js/version-select.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

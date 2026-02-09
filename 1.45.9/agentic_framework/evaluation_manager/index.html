@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="Unique Team">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/1.45.9/agentic_framework/evaluation_manager/">
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>Evaluation Manager - Unique Toolkit</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../../css/version-select.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">Unique Toolkit</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../architectural/" class="nav-link">Architecture</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../setup/getting_started/" class="nav-link">Getting started</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Authentication</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../authentication/#1-personal-api-key" class="dropdown-item">Personal API Key</a>
+</li>
+                                    
+<li>
+    <a href="../../authentication/#2-creating-an-app" class="dropdown-item">Creating an APP</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Application Development</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../application_types/standalone_application/" class="dropdown-item">Standalone Application</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Event Driven Applications</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../application_types/event_driven/" class="dropdown-item">Event Driven App</a>
+</li>
+            
+<li>
+    <a href="../../application_types/event_driven/event_driven_platform_setup/" class="dropdown-item">Platform Setup</a>
+</li>
+            
+<li>
+    <a href="../../application_types/event_driven/event_driven_with_sse/" class="dropdown-item">SSE Setup</a>
+</li>
+            
+<li>
+    <a href="../../application_types/event_driven/event_driven_as_app_with_ngrok/" class="dropdown-item">Web Hooks</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Core Services</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../events/events/" class="dropdown-item">Events</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../chat/" class="dropdown-item">Chat Service - Basics</a>
+</li>
+            
+<li>
+    <a href="../../chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../knowledge_base/" class="dropdown-item">Knowledge Base Service</a>
+</li>
+            
+<li>
+    <a href="../../knowledge_base/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Agentic Table</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../agentic_table/" class="dropdown-item">Agentic Table Module</a>
+</li>
+            
+<li>
+    <a href="../../agentic_table/column_styling/" class="dropdown-item">Column Styling</a>
+</li>
+            
+<li>
+    <a href="../../agentic_table/cell_rendering/" class="dropdown-item">Cell rendering</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Examples</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../plattforms/openai/openai/" class="dropdown-item">OpenAI</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/examples/chat/chat_service/" class="dropdown-item">Basic Service</a>
+</li>
+            
+<li>
+    <a href="../../modules/examples/chat/chat_document_handling/" class="dropdown-item">Document Handling</a>
+</li>
+            
+<li>
+    <a href="../../modules/examples/chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/examples/content/kb_service/" class="dropdown-item">Base Service</a>
+</li>
+            
+<li>
+    <a href="../../modules/examples/content/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Tutorials</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../tutorials/agentic_table_app/" class="dropdown-item">Agentic Table App</a>
+</li>
+                                    
+<li>
+    <a href="../../tutorials/file_creation_and_upload_to_chat/" class="dropdown-item">File Creation with Upload to Chat</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Agentic Framework</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../framework/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../orchestrator/unqiue_ai_how-it-works/" class="dropdown-item">Orchestrator</a>
+</li>
+                                    
+<li>
+    <a href="../tool/" class="dropdown-item">Tool</a>
+</li>
+                                    
+<li>
+    <a href="../tool_call_response/" class="dropdown-item">Tool Call Response</a>
+</li>
+                                    
+<li>
+    <a href="../tool_manager/" class="dropdown-item">Tool Manager</a>
+</li>
+                                    
+<li>
+    <a href="../debug_manager/" class="dropdown-item">Debug Info Manager</a>
+</li>
+                                    
+<li>
+    <a href="../postprocessor_manager/" class="dropdown-item">Postprocessor Manager</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Evaluation Manager</a>
+</li>
+                                    
+<li>
+    <a href="../reference_manager/" class="dropdown-item">Reference Manager</a>
+</li>
+                                    
+<li>
+    <a href="../history_manager/" class="dropdown-item">History Manager</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">API Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../api/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Core Services</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/chat/" class="dropdown-item">Chat Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/knowledge_base/" class="dropdown-item">Knowledge Base Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/short_term_memory/" class="dropdown-item">Short Term Memory Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/app/" class="dropdown-item">App Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/content_smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+            
+<li>
+    <a href="../../modules/data_extraction/" class="dropdown-item">Data Extraction</a>
+</li>
+            
+<li>
+    <a href="../../modules/agentic_table/" class="dropdown-item">Agentic Table</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Framework Utilities</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/openai/" class="dropdown-item">OpenAI Client</a>
+</li>
+            
+<li>
+    <a href="../../modules/langchain/" class="dropdown-item">Langchain Client</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Deprecated Modules</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/content/" class="dropdown-item">Content Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/embedding/" class="dropdown-item">Embedding Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/language_model/" class="dropdown-item">Language Model Module</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../readme/" class="nav-link">Readme</a>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../postprocessor_manager/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../reference_manager/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/docs/agentic_framework/evaluation_manager.md" class="nav-link">Edit on Unique-AG/ai/unique_toolkit
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="2"><a href="#evaluationmanager-and-evaluation-documentation" class="nav-link">📘 EvaluationManager and Evaluation Documentation</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h2 id="evaluationmanager-and-evaluation-documentation">📘 EvaluationManager and Evaluation Documentation<a class="headerlink" href="#evaluationmanager-and-evaluation-documentation" title="Permanent link">&para;</a></h2>
+<p>The <code>EvaluationManager</code> and <code>Evaluation</code> classes are responsible for assessing the quality, compliance, and accuracy of generated responses. These evaluations are applied directly by the <strong>orchestrator</strong> after the message has been generated. The orchestrator calls the <code>EvaluationManager</code> to run the evaluations on the generated message, ensuring that the response meets the required standards before being finalized.</p>
+<hr />
+<h3 id="evaluation-overview">🔑 Evaluation Overview<a class="headerlink" href="#evaluation-overview" title="Permanent link">&para;</a></h3>
+<p>The <code>Evaluation</code> class is an abstract base class that defines the structure and behavior of individual evaluations. Each evaluation must implement the following methods:</p>
+<ol>
+<li><strong><code>get_name</code></strong>: Returns the unique name of the evaluation.</li>
+<li><strong><code>get_assessment_type</code></strong>: Specifies the type of assessment (e.g., hallucination or compliance).</li>
+<li><strong><code>run</code></strong>: Executes the evaluation logic on the response.</li>
+<li><strong><code>evaluation_metric_to_assessment</code></strong>: Converts the evaluation result into a user-facing assessment message.</li>
+</ol>
+<h4 id="evaluation-class-definition">Evaluation Class Definition:<a class="headerlink" href="#evaluation-class-definition" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">Evaluation</span><span class="p">(</span><span class="n">ABC</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">EvaluationMetricName</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EvaluationMetricName</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns the unique name of the evaluation.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_assessment_type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ChatMessageAssessmentType</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Specifies the type of assessment (e.g., hallucination or compliance).&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s2">&quot;Subclasses must implement this method to return the assessment type.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">loop_response</span><span class="p">:</span> <span class="n">LanguageModelStreamResponse</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EvaluationMetricResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Executes the evaluation logic.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Subclasses must implement this method.&quot;</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">evaluation_metric_to_assessment</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">evaluation_result</span><span class="p">:</span> <span class="n">EvaluationMetricResult</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EvaluationAssessmentMessage</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts the evaluation result into a user-facing assessment message.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="s2">&quot;Subclasses must implement this method to convert evaluation results to assessment messages.&quot;</span>
+        <span class="p">)</span>
+</code></pre></div>
+<hr />
+<h3 id="evaluationmanager-overview">🔑 EvaluationManager Overview<a class="headerlink" href="#evaluationmanager-overview" title="Permanent link">&para;</a></h3>
+<p>The <code>EvaluationManager</code> is responsible for managing and executing evaluations. It allows evaluations to be registered, executed asynchronously, and their results integrated into the chat interface. The manager ensures that evaluations are run efficiently and their outcomes are displayed to the user.</p>
+<hr />
+<h3 id="key-functionalities-of-evaluationmanager">🛠️ Key Functionalities of EvaluationManager<a class="headerlink" href="#key-functionalities-of-evaluationmanager" title="Permanent link">&para;</a></h3>
+<p>registers and collects evaluations like the hallucination checker.</p>
+<h4 id="1-evaluation-management">1. <strong>Evaluation Management</strong><a class="headerlink" href="#1-evaluation-management" title="Permanent link">&para;</a></h4>
+<ul>
+<li>
+<p><strong><code>add_evaluation(evaluation: Evaluation)</code></strong><br />
+     Registers an evaluation instance with the manager.<br />
+     <div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_evaluation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">evaluation</span><span class="p">:</span> <span class="n">Evaluation</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_evaluations</span><span class="p">[</span><span class="n">evaluation</span><span class="o">.</span><span class="n">get_name</span><span class="p">()]</span> <span class="o">=</span> <span class="n">evaluation</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong><code>get_evaluation_by_name(name: EvaluationMetricName) -&gt; Evaluation | None</code></strong><br />
+     Retrieves an evaluation instance by its name.<br />
+     <div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_evaluation_by_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">EvaluationMetricName</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Evaluation</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_evaluations</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</code></pre></div></p>
+</li>
+</ul>
+<h4 id="2-evaluation-execution">2. <strong>Evaluation Execution</strong><a class="headerlink" href="#2-evaluation-execution" title="Permanent link">&para;</a></h4>
+<ul>
+<li>
+<p><strong><code>run_evaluations(selected_evaluation_names: list[EvaluationMetricName], loop_response: LanguageModelStreamResponse, assistant_message_id: str)</code></strong><br />
+     Executes the selected evaluations asynchronously. Results are processed and returned as a list of <code>EvaluationMetricResult</code>.<br />
+     <div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_evaluations</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">selected_evaluation_names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">EvaluationMetricName</span><span class="p">],</span>
+    <span class="n">loop_response</span><span class="p">:</span> <span class="n">LanguageModelStreamResponse</span><span class="p">,</span>
+    <span class="n">assistant_message_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">EvaluationMetricResult</span><span class="p">]:</span>
+    <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">task_executor</span><span class="o">.</span><span class="n">execute_async</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">execute_evaluation_call</span><span class="p">,</span>
+            <span class="n">loop_response</span><span class="o">=</span><span class="n">loop_response</span><span class="p">,</span>
+            <span class="n">evaluation_name</span><span class="o">=</span><span class="n">evaluation_name</span><span class="p">,</span>
+            <span class="n">assistant_message_id</span><span class="o">=</span><span class="n">assistant_message_id</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">evaluation_name</span> <span class="ow">in</span> <span class="n">selected_evaluation_names</span>
+    <span class="p">]</span>
+    <span class="n">evaluation_results</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="o">*</span><span class="n">tasks</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">evaluation_results_unpacked</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong><code>execute_evaluation_call(evaluation_name: EvaluationMetricName, loop_response: LanguageModelStreamResponse, assistant_message_id: str)</code></strong><br />
+     Executes a single evaluation and returns its result.<br />
+     <div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">execute_evaluation_call</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">evaluation_name</span><span class="p">:</span> <span class="n">EvaluationMetricName</span><span class="p">,</span>
+    <span class="n">loop_response</span><span class="p">:</span> <span class="n">LanguageModelStreamResponse</span><span class="p">,</span>
+    <span class="n">assistant_message_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EvaluationMetricResult</span><span class="p">:</span>
+    <span class="n">evaluation_instance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_evaluation_by_name</span><span class="p">(</span><span class="n">evaluation_name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">evaluation_instance</span><span class="p">:</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_assistant_message</span><span class="p">(</span><span class="n">evaluation_instance</span><span class="p">,</span> <span class="n">assistant_message_id</span><span class="p">)</span>
+        <span class="n">evaluation_metric_result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">evaluation_instance</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">loop_response</span><span class="p">)</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_show_message_assessment</span><span class="p">(</span>
+            <span class="n">evaluation_instance</span><span class="p">,</span> <span class="n">evaluation_metric_result</span><span class="p">,</span> <span class="n">assistant_message_id</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">evaluation_metric_result</span>
+    <span class="k">return</span> <span class="n">EvaluationMetricResult</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="n">evaluation_name</span><span class="p">,</span>
+        <span class="n">is_positive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">value</span><span class="o">=</span><span class="s2">&quot;RED&quot;</span><span class="p">,</span>
+        <span class="n">reason</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Evaluation named </span><span class="si">{</span><span class="n">evaluation_name</span><span class="si">}</span><span class="s2"> not found&quot;</span><span class="p">,</span>
+        <span class="n">error</span><span class="o">=</span><span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Evaluation named </span><span class="si">{evaluation_name}</span><span class="s2"> not found&quot;</span><span class="p">),</span>
+    <span class="p">)</span>
+</code></pre></div></p>
+</li>
+</ul>
+<h4 id="3-result-processing">3. <strong>Result Processing</strong><a class="headerlink" href="#3-result-processing" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong><code>_create_evaluation_metric_result(result: Result[EvaluationMetricResult], evaluation_name: EvaluationMetricName)</code></strong><br />
+     Processes the result of an evaluation and ensures it is valid.<br />
+     <div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">_create_evaluation_metric_result</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">result</span><span class="p">:</span> <span class="n">Result</span><span class="p">[</span><span class="n">EvaluationMetricResult</span><span class="p">],</span>
+    <span class="n">evaluation_name</span><span class="p">:</span> <span class="n">EvaluationMetricName</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">EvaluationMetricResult</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">success</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">EvaluationMetricResult</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">evaluation_name</span><span class="p">,</span>
+            <span class="n">is_positive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">value</span><span class="o">=</span><span class="s2">&quot;RED&quot;</span><span class="p">,</span>
+            <span class="n">reason</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">exception</span><span class="p">),</span>
+            <span class="n">error</span><span class="o">=</span><span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Evaluation result is not successful&quot;</span><span class="p">),</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">unpack</span><span class="p">()</span>
+</code></pre></div></li>
+</ul>
+<h4 id="4-chat-integration">4. <strong>Chat Integration</strong><a class="headerlink" href="#4-chat-integration" title="Permanent link">&para;</a></h4>
+<ul>
+<li>
+<p><strong><code>_show_message_assessment(evaluation_instance: Evaluation, evaluation_metric_result: EvaluationMetricResult, assistant_message_id: str)</code></strong><br />
+     Updates the chat interface with the evaluation results.<br />
+     <div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_show_message_assessment</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">evaluation_instance</span><span class="p">:</span> <span class="n">Evaluation</span><span class="p">,</span>
+    <span class="n">evaluation_metric_result</span><span class="p">:</span> <span class="n">EvaluationMetricResult</span><span class="p">,</span>
+    <span class="n">assistant_message_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">evaluation_assessment_message</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="k">await</span> <span class="n">evaluation_instance</span><span class="o">.</span><span class="n">evaluation_metric_to_assessment</span><span class="p">(</span>
+            <span class="n">evaluation_metric_result</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chat_service</span><span class="o">.</span><span class="n">modify_message_assessment_async</span><span class="p">(</span>
+        <span class="n">assistant_message_id</span><span class="o">=</span><span class="n">assistant_message_id</span><span class="p">,</span>
+        <span class="n">status</span><span class="o">=</span><span class="n">evaluation_assessment_message</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">evaluation_assessment_message</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+        <span class="n">explanation</span><span class="o">=</span><span class="n">evaluation_assessment_message</span><span class="o">.</span><span class="n">explanation</span><span class="p">,</span>
+        <span class="n">label</span><span class="o">=</span><span class="n">evaluation_assessment_message</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="n">evaluation_assessment_message</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div></p>
+</li>
+<li>
+<p><strong><code>_create_assistant_message(evaluation_instance: Evaluation, assistant_message_id: str)</code></strong><br />
+     Creates a placeholder message in the chat interface while the evaluation is pending.<br />
+     <div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_create_assistant_message</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span> <span class="n">evaluation_instance</span><span class="p">:</span> <span class="n">Evaluation</span><span class="p">,</span> <span class="n">assistant_message_id</span><span class="p">:</span> <span class="nb">str</span>
+<span class="p">):</span>
+    <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chat_service</span><span class="o">.</span><span class="n">create_message_assessment_async</span><span class="p">(</span>
+        <span class="n">assistant_message_id</span><span class="o">=</span><span class="n">assistant_message_id</span><span class="p">,</span>
+        <span class="n">status</span><span class="o">=</span><span class="n">ChatMessageAssessmentStatus</span><span class="o">.</span><span class="n">PENDING</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="n">evaluation_instance</span><span class="o">.</span><span class="n">get_assessment_type</span><span class="p">(),</span>
+    <span class="p">)</span>
+</code></pre></div></p>
+</li>
+</ul></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="../../search/main.js"></script>
+        <script src="../../js/version-select.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

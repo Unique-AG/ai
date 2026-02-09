@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="Unique Team">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/1.45.9/knowledge_base/smart_rules/">
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>Smart Rules - Unique Toolkit</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../../css/version-select.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">Unique Toolkit</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../architectural/" class="nav-link">Architecture</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../setup/getting_started/" class="nav-link">Getting started</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Authentication</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../authentication/#1-personal-api-key" class="dropdown-item">Personal API Key</a>
+</li>
+                                    
+<li>
+    <a href="../../authentication/#2-creating-an-app" class="dropdown-item">Creating an APP</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Application Development</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../application_types/standalone_application/" class="dropdown-item">Standalone Application</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Event Driven Applications</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../application_types/event_driven/" class="dropdown-item">Event Driven App</a>
+</li>
+            
+<li>
+    <a href="../../application_types/event_driven/event_driven_platform_setup/" class="dropdown-item">Platform Setup</a>
+</li>
+            
+<li>
+    <a href="../../application_types/event_driven/event_driven_with_sse/" class="dropdown-item">SSE Setup</a>
+</li>
+            
+<li>
+    <a href="../../application_types/event_driven/event_driven_as_app_with_ngrok/" class="dropdown-item">Web Hooks</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Core Services</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../events/events/" class="dropdown-item">Events</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../chat/" class="dropdown-item">Chat Service - Basics</a>
+</li>
+            
+<li>
+    <a href="../../chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../" class="dropdown-item">Knowledge Base Service</a>
+</li>
+            
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Agentic Table</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../agentic_table/" class="dropdown-item">Agentic Table Module</a>
+</li>
+            
+<li>
+    <a href="../../agentic_table/column_styling/" class="dropdown-item">Column Styling</a>
+</li>
+            
+<li>
+    <a href="../../agentic_table/cell_rendering/" class="dropdown-item">Cell rendering</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Examples</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../plattforms/openai/openai/" class="dropdown-item">OpenAI</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/examples/chat/chat_service/" class="dropdown-item">Basic Service</a>
+</li>
+            
+<li>
+    <a href="../../modules/examples/chat/chat_document_handling/" class="dropdown-item">Document Handling</a>
+</li>
+            
+<li>
+    <a href="../../modules/examples/chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/examples/content/kb_service/" class="dropdown-item">Base Service</a>
+</li>
+            
+<li>
+    <a href="../../modules/examples/content/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Tutorials</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../tutorials/agentic_table_app/" class="dropdown-item">Agentic Table App</a>
+</li>
+                                    
+<li>
+    <a href="../../tutorials/file_creation_and_upload_to_chat/" class="dropdown-item">File Creation with Upload to Chat</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Agentic Framework</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../agentic_framework/framework/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/orchestrator/unqiue_ai_how-it-works/" class="dropdown-item">Orchestrator</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/tool/" class="dropdown-item">Tool</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/tool_call_response/" class="dropdown-item">Tool Call Response</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/tool_manager/" class="dropdown-item">Tool Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/debug_manager/" class="dropdown-item">Debug Info Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/postprocessor_manager/" class="dropdown-item">Postprocessor Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/evaluation_manager/" class="dropdown-item">Evaluation Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/reference_manager/" class="dropdown-item">Reference Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../agentic_framework/history_manager/" class="dropdown-item">History Manager</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">API Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../api/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Core Services</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/chat/" class="dropdown-item">Chat Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/knowledge_base/" class="dropdown-item">Knowledge Base Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/short_term_memory/" class="dropdown-item">Short Term Memory Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/app/" class="dropdown-item">App Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/content_smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+            
+<li>
+    <a href="../../modules/data_extraction/" class="dropdown-item">Data Extraction</a>
+</li>
+            
+<li>
+    <a href="../../modules/agentic_table/" class="dropdown-item">Agentic Table</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Framework Utilities</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/openai/" class="dropdown-item">OpenAI Client</a>
+</li>
+            
+<li>
+    <a href="../../modules/langchain/" class="dropdown-item">Langchain Client</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Deprecated Modules</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/content/" class="dropdown-item">Content Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/embedding/" class="dropdown-item">Embedding Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/language_model/" class="dropdown-item">Language Model Module</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../readme/" class="nav-link">Readme</a>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../../agentic_table/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/docs/knowledge_base/smart_rules.md" class="nav-link">Edit on Unique-AG/ai/unique_toolkit
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#filtering-with-smart-rules" class="nav-link">Filtering with Smart Rules</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#why-use-smart-rules" class="nav-link">Why use smart rules?</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#smart-rule-definition" class="nav-link">Smart Rule Definition</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#standard-metadata" class="nav-link">Standard Metadata</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#common-use-cases" class="nav-link">Common Use Cases</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#using-the-metadata-filter" class="nav-link">Using the Metadata Filter</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#full-examples" class="nav-link">Full Examples</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="filtering-with-smart-rules">Filtering with Smart Rules<a class="headerlink" href="#filtering-with-smart-rules" title="Permanent link">&para;</a></h1>
+<p>A powerful mechanism to obtain more relevant information from the knowledge base are <code>smart rules</code>. These rules act as conditionals to reduce the amount of retrieved information. A smart rule is a logical statement that either evaluates to <code>true</code> or <code>false</code> given the metadata of the documents.</p>
+<h2 id="why-use-smart-rules">Why use smart rules?<a class="headerlink" href="#why-use-smart-rules" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Narrow search results to specific folders, file types, or custom metadata</li>
+<li>Reduce irrelevant results and improve search precision</li>
+<li>Combine multiple filtering criteria with AND/OR logic</li>
+</ul>
+<h2 id="smart-rule-definition">Smart Rule Definition<a class="headerlink" href="#smart-rule-definition" title="Permanent link">&para;</a></h2>
+<p>In its simplest form, a smart rule needs three components:</p>
+<ol>
+<li><code>path</code>: A list representing the path to a metadata field (e.g., <code>["title"]</code>, <code>["metadata", "category"]</code>)</li>
+<li><code>operator</code>: The comparison operator (e.g., <code>EQUALS</code>, <code>CONTAINS</code>, <code>GREATER_THAN</code>)</li>
+<li><code>value</code>: The value to compare against</li>
+</ol>
+<h2 id="standard-metadata">Standard Metadata<a class="headerlink" href="#standard-metadata" title="Permanent link">&para;</a></h2>
+<p>The following metadata paths are available by default:</p>
+<table>
+<thead>
+<tr>
+<th>Metadata Path</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>key</code></td>
+<td>The title of the document when it was ingested</td>
+</tr>
+<tr>
+<td><code>url</code></td>
+<td>The url where the document can be retrieved from</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>The title if changed after ingestion</td>
+</tr>
+<tr>
+<td><code>folderId</code></td>
+<td>The <code>scope_id</code> of the folder that contains the file</td>
+</tr>
+<tr>
+<td><code>mimeType</code></td>
+<td>The mime type of the ingested file</td>
+</tr>
+<tr>
+<td><code>folderIdPath</code></td>
+<td>A pathlike construct combining the <code>scope_id</code>'s of the folders leading to the document</td>
+</tr>
+</tbody>
+</table>
+<h2 id="common-use-cases">Common Use Cases<a class="headerlink" href="#common-use-cases" title="Permanent link">&para;</a></h2>
+<h3 id="filter-by-document-title">Filter by Document Title<a class="headerlink" href="#filter-by-document-title" title="Permanent link">&para;</a></h3>
+<p>Use <code>CONTAINS</code> to match partial title text (case-insensitive).</p>
+<h3 id="filter-by-mime-type">Filter by MIME Type<a class="headerlink" href="#filter-by-mime-type" title="Permanent link">&para;</a></h3>
+<p>Use <code>EQUALS</code> for exact matches (e.g., only PDF files).</p>
+<h3 id="filter-content-in-a-folder-and-its-subfolders">Filter Content in a Folder and Its Subfolders<a class="headerlink" href="#filter-content-in-a-folder-and-its-subfolders" title="Permanent link">&para;</a></h3>
+<p>The folder must be identified through its <code>scope_id</code>. Use <code>CONTAINS</code> to include all nested subfolders.</p>
+<h3 id="filter-content-in-a-specific-folder-only">Filter Content in a Specific Folder Only<a class="headerlink" href="#filter-content-in-a-specific-folder-only" title="Permanent link">&para;</a></h3>
+<p>If a restriction on the content in a specific folder is desired (excluding subfolders), use <code>EQUALS</code> instead of <code>CONTAINS</code>.</p>
+<h3 id="custom-metadata">Custom Metadata<a class="headerlink" href="#custom-metadata" title="Permanent link">&para;</a></h3>
+<p>Custom metadata can be used like normal metadata.</p>
+<h3 id="combining-smart-rules">Combining Smart Rules<a class="headerlink" href="#combining-smart-rules" title="Permanent link">&para;</a></h3>
+<p>Smart rules can be combined using logical operators to create complex filtering logic:</p>
+<ul>
+<li><code>AndStatement</code>: All conditions must be true (intersection)</li>
+<li><code>OrStatement</code>: At least one condition must be true (union)</li>
+</ul>
+<p>You can nest these statements to create even more complex logic, such as:</p>
+<ul>
+<li><code>(folder_A OR folder_B) AND mime_type = PDF</code></li>
+<li><code>(title CONTAINS "report") AND (year = 2024 OR year = 2025)</code></li>
+</ul>
+<h2 id="using-the-metadata-filter">Using the Metadata Filter<a class="headerlink" href="#using-the-metadata-filter" title="Permanent link">&para;</a></h2>
+<h3 id="for-content-chunk-search">For Content Chunk Search<a class="headerlink" href="#for-content-chunk-search" title="Permanent link">&para;</a></h3>
+<p>Metadata filters enhance search precision by limiting results to documents that match specific criteria. This combines semantic/keyword search with metadata-based filtering for highly targeted results.</p>
+<p>Once you've defined a smart rule, pass it to the search function via the <code>metadata_filter</code> parameter.</p>
+<p>For implementation examples, see the <a href="../../modules/examples/content/smart_rules#using-the-metadatafilter">Smart Rules Examples</a>.</p>
+<h3 id="for-content-info-search">For Content Info Search<a class="headerlink" href="#for-content-info-search" title="Permanent link">&para;</a></h3>
+<p>Retrieve file metadata and information without searching text content. This is useful when you need to list, audit, or manage files based on their metadata rather than their content.</p>
+<p><strong>What you get:</strong></p>
+<ul>
+<li>File metadata (title, MIME type, size, dates)</li>
+<li>Folder information</li>
+<li>Custom metadata</li>
+<li>File IDs for download or deletion</li>
+<li><strong>No text chunks</strong> - just file information</li>
+</ul>
+<p><strong>Use cases:</strong></p>
+<ul>
+<li>Check what your smart rule finds before deletion</li>
+</ul>
+<p><strong>Pagination:</strong> This method returns paginated results, making it efficient for large result sets.</p>
+<h3 id="for-bulk-content-deletion">For Bulk Content Deletion<a class="headerlink" href="#for-bulk-content-deletion" title="Permanent link">&para;</a></h3>
+<p>Metadata filters can be used to delete multiple files at once based on their metadata. This is useful for cleanup operations but should be used with caution.</p>
+<p><strong>⚠️ Warning:</strong> This operation is irreversible and will permanently delete all content matching the filter criteria.</p>
+<p><strong>Use cases:</strong></p>
+<ul>
+<li>Cleaning up files in a specific folder after project completion</li>
+<li>Removing all files of a certain type (e.g., temporary files)</li>
+<li>Bulk deletion based on custom metadata (e.g., expired content)</li>
+</ul>
+<p><strong>Best practice:</strong> Always test your filter with <code>search_contents()</code> first to verify which files will be affected before deleting.</p>
+<h3 id="for-bulk-metadata-updates">For Bulk Metadata Updates<a class="headerlink" href="#for-bulk-metadata-updates" title="Permanent link">&para;</a></h3>
+<p>Update or add metadata fields to multiple files at once based on a metadata filter. This is useful for tagging, categorizing, or enriching file metadata without modifying the files themselves.</p>
+<p><strong>What it does:</strong></p>
+<ul>
+<li>Adds new metadata fields to matching files</li>
+<li>Updates existing metadata fields (merges with existing metadata)</li>
+<li>Preserves other metadata that isn't specified in the update</li>
+<li>Returns the updated content information</li>
+</ul>
+<p><strong>Use cases:</strong></p>
+<ul>
+<li>Tag all files in a folder with a project identifier</li>
+<li>Add classification or department labels to existing files</li>
+<li>Update version numbers or status fields in bulk</li>
+<li>Enrich metadata based on file location or type</li>
+</ul>
+<h3 id="for-bulk-metadata-removal">For Bulk Metadata Removal<a class="headerlink" href="#for-bulk-metadata-removal" title="Permanent link">&para;</a></h3>
+<p>Remove specific metadata fields from multiple files at once. This is useful for cleaning up obsolete metadata or removing sensitive information.</p>
+<p><strong>What it does:</strong></p>
+<ul>
+<li>Removes specified metadata keys from matching files</li>
+<li>Leaves other metadata fields intact</li>
+<li>Does not affect file content or standard metadata (title, MIME type, etc.)</li>
+<li>Returns the updated content information</li>
+</ul>
+<p><strong>Use cases:</strong></p>
+<ul>
+<li>Remove temporary or expired metadata fields</li>
+<li>Clean up metadata from deprecated workflows</li>
+<li>Remove sensitive metadata that's no longer needed</li>
+<li>Standardize metadata by removing inconsistent fields</li>
+</ul>
+<p><strong>Best practice:</strong> Test your filter with <code>get_paginated_content_infos()</code> first to see which files will be affected and what metadata they currently have.</p>
+<h2 id="full-examples">Full Examples<a class="headerlink" href="#full-examples" title="Permanent link">&para;</a></h2>
+<p>For complete, runnable examples of all smart rules features, see the <a href="../../modules/examples/content/smart_rules">Smart Rules Examples</a> section.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="../../search/main.js"></script>
+        <script src="../../js/version-select.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

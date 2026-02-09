@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="Unique Team">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/1.45.9/agentic_framework/orchestrator/unqiue_ai_how-it-works/">
+        <link rel="shortcut icon" href="../../../img/favicon.ico">
+        <title>Orchestrator - Unique Toolkit</title>
+        <link href="../../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../../css/brands.min.css" rel="stylesheet">
+        <link href="../../../css/solid.min.css" rel="stylesheet">
+        <link href="../../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../../../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../../../css/version-select.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../../..">Unique Toolkit</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../../architectural/" class="nav-link">Architecture</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../../setup/getting_started/" class="nav-link">Getting started</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Authentication</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../authentication/#1-personal-api-key" class="dropdown-item">Personal API Key</a>
+</li>
+                                    
+<li>
+    <a href="../../../authentication/#2-creating-an-app" class="dropdown-item">Creating an APP</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Application Development</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../application_types/standalone_application/" class="dropdown-item">Standalone Application</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Event Driven Applications</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../application_types/event_driven/" class="dropdown-item">Event Driven App</a>
+</li>
+            
+<li>
+    <a href="../../../application_types/event_driven/event_driven_platform_setup/" class="dropdown-item">Platform Setup</a>
+</li>
+            
+<li>
+    <a href="../../../application_types/event_driven/event_driven_with_sse/" class="dropdown-item">SSE Setup</a>
+</li>
+            
+<li>
+    <a href="../../../application_types/event_driven/event_driven_as_app_with_ngrok/" class="dropdown-item">Web Hooks</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Core Services</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../events/events/" class="dropdown-item">Events</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../chat/" class="dropdown-item">Chat Service - Basics</a>
+</li>
+            
+<li>
+    <a href="../../../chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../knowledge_base/" class="dropdown-item">Knowledge Base Service</a>
+</li>
+            
+<li>
+    <a href="../../../knowledge_base/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Agentic Table</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../agentic_table/" class="dropdown-item">Agentic Table Module</a>
+</li>
+            
+<li>
+    <a href="../../../agentic_table/column_styling/" class="dropdown-item">Column Styling</a>
+</li>
+            
+<li>
+    <a href="../../../agentic_table/cell_rendering/" class="dropdown-item">Cell rendering</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Examples</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../plattforms/openai/openai/" class="dropdown-item">OpenAI</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../modules/examples/chat/chat_service/" class="dropdown-item">Basic Service</a>
+</li>
+            
+<li>
+    <a href="../../../modules/examples/chat/chat_document_handling/" class="dropdown-item">Document Handling</a>
+</li>
+            
+<li>
+    <a href="../../../modules/examples/chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../modules/examples/content/kb_service/" class="dropdown-item">Base Service</a>
+</li>
+            
+<li>
+    <a href="../../../modules/examples/content/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Tutorials</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../tutorials/agentic_table_app/" class="dropdown-item">Agentic Table App</a>
+</li>
+                                    
+<li>
+    <a href="../../../tutorials/file_creation_and_upload_to_chat/" class="dropdown-item">File Creation with Upload to Chat</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Agentic Framework</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../framework/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Orchestrator</a>
+</li>
+                                    
+<li>
+    <a href="../../tool/" class="dropdown-item">Tool</a>
+</li>
+                                    
+<li>
+    <a href="../../tool_call_response/" class="dropdown-item">Tool Call Response</a>
+</li>
+                                    
+<li>
+    <a href="../../tool_manager/" class="dropdown-item">Tool Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../debug_manager/" class="dropdown-item">Debug Info Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../postprocessor_manager/" class="dropdown-item">Postprocessor Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../evaluation_manager/" class="dropdown-item">Evaluation Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../reference_manager/" class="dropdown-item">Reference Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../history_manager/" class="dropdown-item">History Manager</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">API Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../api/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Core Services</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../modules/chat/" class="dropdown-item">Chat Module</a>
+</li>
+            
+<li>
+    <a href="../../../modules/knowledge_base/" class="dropdown-item">Knowledge Base Module</a>
+</li>
+            
+<li>
+    <a href="../../../modules/short_term_memory/" class="dropdown-item">Short Term Memory Module</a>
+</li>
+            
+<li>
+    <a href="../../../modules/app/" class="dropdown-item">App Module</a>
+</li>
+            
+<li>
+    <a href="../../../modules/content_smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+            
+<li>
+    <a href="../../../modules/data_extraction/" class="dropdown-item">Data Extraction</a>
+</li>
+            
+<li>
+    <a href="../../../modules/agentic_table/" class="dropdown-item">Agentic Table</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Framework Utilities</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../modules/openai/" class="dropdown-item">OpenAI Client</a>
+</li>
+            
+<li>
+    <a href="../../../modules/langchain/" class="dropdown-item">Langchain Client</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Deprecated Modules</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../modules/content/" class="dropdown-item">Content Module</a>
+</li>
+            
+<li>
+    <a href="../../../modules/embedding/" class="dropdown-item">Embedding Module</a>
+</li>
+            
+<li>
+    <a href="../../../modules/language_model/" class="dropdown-item">Language Model Module</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../../readme/" class="nav-link">Readme</a>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../../framework/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../../tool/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/docs/agentic_framework/orchestrator/unqiue_ai_how-it-works.md" class="nav-link">Edit on Unique-AG/ai/unique_toolkit
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#uniqueai-orchestrator-technical-documentation" class="nav-link">🧭 UniqueAI Orchestrator — Technical Documentation</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="1"><a href="#summary" class="nav-link">📌 Summary</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="1"><a href="#construction-dependencies" class="nav-link">🧱 Construction &amp; Dependencies</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#constructor" class="nav-link">Constructor</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="1"><a href="#main-control-flow-run-method-expanded-readable-walkthrough" class="nav-link">🔁 Main Control flow (run method) — Expanded, Readable Walkthrough</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#initialization-and-kickoff" class="nav-link">Initialization and kickoff</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#iterative-planning-and-execution" class="nav-link">Iterative planning and execution</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#on-loop-exit-finalization-and-completion" class="nav-link">On Loop Exit: Finalization and completion</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="uniqueai-orchestrator-technical-documentation">🧭 UniqueAI Orchestrator — Technical Documentation<a class="headerlink" href="#uniqueai-orchestrator-technical-documentation" title="Permanent link">&para;</a></h1>
+<p>This document explains the architecture and control flow of the UniqueAI agent orchestrator, including how it plans, executes, streams, and coordinates tools, references, thinking steps, evaluations, and post-processing. It includes full function code snippets for clarity and copy/paste.</p>
+<hr />
+<h1 id="summary">📌 Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h1>
+<ul>
+<li>UniqueAI is an iterative, tool-using AI agent orchestrator.</li>
+<li>It receives an incoming chat event and space-scoped configuration, and coordinates:</li>
+<li>Planning (LLM call to decide to stream or call tools)</li>
+<li>Tool execution (with history updates and reference extraction)</li>
+<li>Streaming messages to the frontend</li>
+<li>Evaluation and postprocessing on final messages</li>
+<li>Thinking/Progress updates for user visibility</li>
+<li>The loop is bounded by <code>max_loop_iterations</code> and supports forced tool calls on the first iteration only.</li>
+<li>Prompts (system and user) are rendered via Jinja templates, enriched with tool metadata and MCP server instructions.</li>
+</ul>
+<hr />
+<h1 id="construction-dependencies">🧱 Construction &amp; Dependencies<a class="headerlink" href="#construction-dependencies" title="Permanent link">&para;</a></h1>
+<h2 id="constructor">Constructor<a class="headerlink" href="#constructor" title="Permanent link">&para;</a></h2>
+<p>The orchestrator is initialized with:</p>
+<ul>
+<li>Event: contains the user message and streaming context</li>
+<li>Config: space-scoped config including model, prompts, and loop constraints</li>
+<li>Managers:</li>
+<li>HistoryManager: builds LLM call history and appends tool calls/results</li>
+<li>ToolManager: tool registry, forced tools, execution, and control handoff checks</li>
+<li>ReferenceManager: collects referenceable chunks from LLM and tools</li>
+<li>ThinkingManager: progress reporter for visible “thinking steps”</li>
+<li>DebugInfoManager: aggregates debug metadata and tool traces</li>
+<li>EvaluationManager: runs evaluations when a final message is produced (e.g. Hallucination check or other assessments)</li>
+<li>PostprocessorManager: transforms LLM outputs (e.g., follow up questions, stock ticker information)</li>
+<li>Services:</li>
+<li>ChatService: LLM interactions and streaming to frontend</li>
+</ul>
+<p>Code:
+<div class="highlight"><pre><span></span><code>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+          <span class="bp">self</span><span class="p">,</span>
+        <span class="n">logger</span><span class="p">:</span> <span class="n">Logger</span><span class="p">,</span>
+        <span class="n">event</span><span class="p">:</span> <span class="n">ChatEvent</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">UniqueAIConfig</span><span class="p">,</span>
+        <span class="n">chat_service</span><span class="p">:</span> <span class="n">ChatService</span><span class="p">,</span>
+        <span class="n">content_service</span><span class="p">:</span> <span class="n">ContentService</span><span class="p">,</span>
+        <span class="n">debug_info_manager</span><span class="p">:</span> <span class="n">DebugInfoManager</span><span class="p">,</span>
+        <span class="n">reference_manager</span><span class="p">:</span> <span class="n">ReferenceManager</span><span class="p">,</span>
+        <span class="n">thinking_manager</span><span class="p">:</span> <span class="n">ThinkingManager</span><span class="p">,</span>
+        <span class="n">tool_manager</span><span class="p">:</span> <span class="n">ToolManager</span><span class="p">,</span>
+        <span class="n">history_manager</span><span class="p">:</span> <span class="n">HistoryManager</span><span class="p">,</span>
+        <span class="n">evaluation_manager</span><span class="p">:</span> <span class="n">EvaluationManager</span><span class="p">,</span>
+        <span class="n">postprocessor_manager</span><span class="p">:</span> <span class="n">PostprocessorManager</span><span class="p">,</span>
+        <span class="n">mcp_servers</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">McpServer</span><span class="p">],</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span> <span class="o">=</span> <span class="n">logger</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_event</span> <span class="o">=</span> <span class="n">event</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_chat_service</span> <span class="o">=</span> <span class="n">chat_service</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_content_service</span> <span class="o">=</span> <span class="n">content_service</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_debug_info_manager</span> <span class="o">=</span> <span class="n">debug_info_manager</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reference_manager</span> <span class="o">=</span> <span class="n">reference_manager</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_thinking_manager</span> <span class="o">=</span> <span class="n">thinking_manager</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tool_manager</span> <span class="o">=</span> <span class="n">tool_manager</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_history_manager</span> <span class="o">=</span> <span class="n">history_manager</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_evaluation_manager</span> <span class="o">=</span> <span class="n">evaluation_manager</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_postprocessor_manager</span> <span class="o">=</span> <span class="n">postprocessor_manager</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_latest_assistant_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">assistant_message</span><span class="o">.</span><span class="n">id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mcp_servers</span> <span class="o">=</span> <span class="n">mcp_servers</span>
+</code></pre></div></p>
+<hr />
+<h1 id="main-control-flow-run-method-expanded-readable-walkthrough">🔁 Main Control flow (run method) — Expanded, Readable Walkthrough<a class="headerlink" href="#main-control-flow-run-method-expanded-readable-walkthrough" title="Permanent link">&para;</a></h1>
+<p>The orchestrator runs a bounded, iterative loop that plans, executes, and streams results while coordinating tools, references, evaluations, and post-processing. Here’s a clearer, fuller picture of what happens in each phase.</p>
+<h2 id="initialization-and-kickoff">Initialization and kickoff<a class="headerlink" href="#initialization-and-kickoff" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Fresh session check: Before the loop begins, the agent asks the HistoryManager whether there are any “loop messages” already present. If this is a fresh interaction (no loop messages), it proactively updates the frontend with a short status message like “Starting agentic loop…”. This gives users immediate feedback that the system is alive and preparing to work.</li>
+<li>Context setup: Internally, the agent also sets bookkeeping values such as the current iteration index and any existing “start_text” used for progressive streaming (this may be used to guide how text appears or is removed from later outputs).</li>
+</ul>
+<pre class="mermaid"><code>flowchart LR
+    A[Start: Initialize Orchestrator] --&gt; B{Fresh Session?}
+    B -- Yes --&gt; B1[Update Frontend: Starting agentic loop...]
+    B -- No --&gt; C[Enter Main Loop]
+    B1 --&gt; C
+    C --&gt; E[Continue to Planning Phase]</code></pre>
+<h2 id="iterative-planning-and-execution">Iterative planning and execution<a class="headerlink" href="#iterative-planning-and-execution" title="Permanent link">&para;</a></h2>
+<p>Loop boundary: The agent escapes the for-loop capped at config.agent.max_loop_iterations. This hard limit prevents runaway tool-use or infinite deliberation. Each iteration represents a plan-and-act cycle.</p>
+<h3 id="step-1-compose-prompts-answer-_plan_or_execute">Step 1 — Compose Prompts Answer (_plan_or_execute):<a class="headerlink" href="#step-1-compose-prompts-answer-_plan_or_execute" title="Permanent link">&para;</a></h3>
+<h4 id="part-a-compose-prompts">Part A: Compose Prompts<a class="headerlink" href="#part-a-compose-prompts" title="Permanent link">&para;</a></h4>
+<p>Compose prompts and history: The agent uses <code>_compose_message_plan_execution()</code> to construct a clean message stack for the model call. This includes:</p>
+<ul>
+<li>Original user query (verbatim)</li>
+<li>A Jinja-rendered user prompt (enriched with tool metadata and MCP hints)</li>
+<li>A Jinja-rendered system prompt (which includes tool descriptions, project settings, loop constraints, and any custom instructions)</li>
+<li>Prior conversation and tool results assembled by the HistoryManager</li>
+</ul>
+<pre class="mermaid"><code>flowchart LR 
+    B[_compose_message_plan_execution] --&gt; C[Render Prompts System/User using Jinja Templates]
+    B --&gt; D[Get History from HistoryManager]
+    D --&gt; F
+    C --&gt; F[Merge Prompts and History to LLM Message]
+    F --&gt; H[Continue to Part B]</code></pre>
+<h4 id="part-b-answer-to-user-or-request-tools">Part B: Answer to User or request Tools<a class="headerlink" href="#part-b-answer-to-user-or-request-tools" title="Permanent link">&para;</a></h4>
+<ul>
+<li>First iteration with forced tools: If ToolManager has "forced" tools (Tool the user explicitly said need to be executed) and we are at iteration 0, the agent calls the model once per forced toolChoice. It merges all tool calls and references across those calls into a single stream response. This ensures the model must use specific tools at least once.</li>
+<li>Last iteration: If we've reached the final allowed iteration, the agent disables tools entirely and asks the model to produce a best-effort final answer. This guarantees termination with a user-facing result.</li>
+<li>Default case: The model is allowed to decide whether to call tools or just stream an answer. Tools, references, debug info, and loop parameters are all provided so the model can choose wisely.</li>
+</ul>
+<pre class="mermaid"><code>flowchart LR 
+    A[Part B: Answer or Request Tools] --&gt; B{Iteration Type?}
+
+    B -- First + Forced Tools --&gt; C[Call LLM per forced toolChoice&lt;br/&gt;Merge responses]
+    B -- Last Iteration --&gt; D[Call LLM without tools&lt;br/&gt;Force final answer]
+    B -- Default --&gt; E[Call LLM with tools&lt;br/&gt;Let model decide]
+
+    C --&gt; F[Return LanguageModelStreamResponse]
+    D --&gt; F
+    E --&gt; F
+    F --&gt; G[Continue to Step 2]</code></pre>
+<h3 id="step-2-incorporate-references-and-thinking-steps">Step 2 — Incorporate References and Thinking Steps<a class="headerlink" href="#step-2-incorporate-references-and-thinking-steps" title="Permanent link">&para;</a></h3>
+<ul>
+<li>
+<p>The agent pulls any references that the model produced (<code>loop_response.message.references</code>) and feeds them into the ReferenceManager. These references are the building blocks for citations or UI panels showing sources, tool outputs, or other supporting material.</p>
+</li>
+<li>
+<p>The ThinkingManager receives the <code>loop_response</code> to update visible "thinking" or "progress" indicators. This can show users what the agent is doing (e.g., choosing tools, summarizing findings, or drafting an answer) and helps with transparency during longer operations.</p>
+</li>
+</ul>
+<h3 id="step-3-process-the-plan-_process_plan">Step 3 — Process the Plan (<code>_process_plan</code>):<a class="headerlink" href="#step-3-process-the-plan-_process_plan" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>flowchart LR
+    A[Step 3: Process Plan] --&gt; B{Response Type?}
+
+    B -- Empty Response --&gt; C[Warn User &amp; Exit Loop]
+    B -- Tool Calls Present --&gt; D[Case A: Handle Tool Calls]
+    B -- No Tool Calls --&gt; E[Case B: Handle Finalization]
+
+    C --&gt; F[Continue to Exit Phase]
+    D --&gt; G[Continue to next iteration or exit if last iteration]
+    E --&gt; F</code></pre>
+<h4 id="case-a-model-requests-tool-calls">Case A: Model requests Tool Calls:<a class="headerlink" href="#case-a-model-requests-tool-calls" title="Permanent link">&para;</a></h4>
+<p>If the model requested tool calls, <code>_handle_tool_calls()</code> is invoked:</p>
+<ul>
+<li>Tool calls are appended to history so the full chain-of-thought (without revealing private reasoning) remains consistent for future model calls.</li>
+<li>Tools can include MCP tools or A2A tools.</li>
+<li>ToolManager executes the tools and returns structured results.</li>
+<li>ReferenceManager extracts referenceable chunks from tool outputs. How to construct a <code>ToolResponse</code> that the references can be read is described in the documentation about the <code>ToolResponse</code>.</li>
+<li>DebugInfoManager captures any useful traces or diagnostics. How to construct the <code>ToolResponse</code> to contain the debug information is described in the documentation about the <code>ToolResponse</code>.</li>
+<li>HistoryManager records tool results so the next iteration can build on them.</li>
+<li>Control handoff: If any tool signals that it "takes control" (e.g., a deep research agent that will stream independently), the method returns True to exit the base loop. The Orchestrator "hands off" the responsibility of the user interaction to the control taking tool. Otherwise, the loop continues to the next iteration.</li>
+</ul>
+<pre class="mermaid"><code>flowchart LR
+    A[Case A: Tool Calls Detected] --&gt; B[1. Append tool calls to history]
+    B --&gt; C[2. Execute tools via ToolManager]
+    C --&gt; D[3. Extract referenceable chunks]
+    D --&gt; E[4. Collect debug info]
+    E --&gt; F[5. Add results to history]
+    F --&gt; G{6. Tool takes control?}
+
+    G -- Yes --&gt; H[Exit Loop - Hand off control]
+    G -- No --&gt; I[Continue to Housekeeping Phase]</code></pre>
+<h4 id="case-b-model-does-not-request-tool-calls">Case B: Model does not request Tool Calls<a class="headerlink" href="#case-b-model-does-not-request-tool-calls" title="Permanent link">&para;</a></h4>
+<p>If no tools were requested, the model likely produced a user-facing response. 
+The agent:</p>
+<ol>
+<li>Runs evaluations selected by ToolManager to spot issues (e.g., Hallucination check).</li>
+<li>Applies postprocessors (e.g., generation of follow up questions or displaying of stock information).</li>
+</ol>
+<p>If any evaluation fails, a warning is logged. A future enhancement could inject corrective instructions and retry; for now, the loop cleanly exits after postprocessing a final answer.</p>
+<pre class="mermaid"><code>flowchart LR
+    A[Case B: No Tool Calls - Final Answer] --&gt; B[Run Evaluations]
+    B --&gt; C[Apply Postprocessors]
+    C --&gt; D{Evaluations Pass?}
+
+    D -- Yes --&gt; E[Continue to Exit Phase]
+    D -- No --&gt; F[Log Warning]
+    F --&gt; E</code></pre>
+<h3 id="step-4-exit-the-loop-or-do-we-continue">Step 4 — Exit the Loop or do we Continue?<a class="headerlink" href="#step-4-exit-the-loop-or-do-we-continue" title="Permanent link">&para;</a></h3>
+<p>The following conditions lead to an exit of the loop:</p>
+<ul>
+<li>A final answer has been streamed no more tool calls are requested.</li>
+<li>A tool has been handed of the control of communicating with the user. Like the Deep research tool would or possibly another agent.</li>
+</ul>
+<h4 id="case-a-_process_plan-indicates-were-done">Case A: <code>_process_plan()</code> indicates we’re done.<a class="headerlink" href="#case-a-_process_plan-indicates-were-done" title="Permanent link">&para;</a></h4>
+<ol>
+<li>The answer has already been streamed to the user</li>
+<li>The ThinkingManager is asked to close its visible steps</li>
+</ol>
+<h4 id="case-b-continue-in-the-loop">Case B: Continue in the Loop<a class="headerlink" href="#case-b-continue-in-the-loop" title="Permanent link">&para;</a></h4>
+<p>The requested tool calls have been executed and integrate into the history. The agent continues to step 6 and decides again to call tools or not.</p>
+<p><strong>House Keeping</strong></p>
+<ol>
+<li>Continue iteration: If we're still in the loop (e.g., tools just ran)</li>
+<li>Given a model requests tool calls and a meaningful answer this can be displayed via the ThinkingManager. Alternatively, if the thinking manager is deactivate it could be appended to the last assistant message or added as another assistant message.</li>
+</ol>
+<h2 id="on-loop-exit-finalization-and-completion">On Loop Exit: Finalization and completion<a class="headerlink" href="#on-loop-exit-finalization-and-completion" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Mark message as complete: Once the loop ends (for any reason), the agent signals completion to the frontend by calling modify_assistant_message_async with <code>set_completed_at=True</code>. This allows the UI to remove loading indicators and present the final state of the message. This is also the indication for other external processes like the Benchmarking to know when the Agent finished its work. This was designed to be non-blocking such that long running jobs of 10 or more minutes can be checked and polled by the external processes.</li>
+<li>Outcome: At this point, the conversation history contains user prompts, rendered system/user prompts, any tool calls and results, and the final assistant message. References and debug info are stored, and any evaluation/postprocessing steps have already been applied if we ended on a no-tools final message.</li>
+</ul>
+<pre class="mermaid"><code>flowchart LR
+    A[Exit Conditions Met] --&gt; B[Close thinking steps]
+    B --&gt; C[Mark message as complete&lt;br/&gt;set_completed_at=True]
+    C --&gt; D[End: Orchestrator Complete]</code></pre>
+<p>Why this design works well:</p>
+<ul>
+<li>Predictable Termination: <code>max_loop_iterations</code> plus last-iteration “no tools” ensures the user always gets an answer or a clear explanation.</li>
+<li>Transparent Progress: ThinkingManager and streaming updates keep users informed during multi-step reasoning or tool use.</li>
+<li>High-:uality Outputs: Evaluations and postprocessors refine the final answer before completion.</li>
+<li>Extensible: Forced tools, tool control handoff, and template-driven prompts (with MCP integration) make it easy to add capabilities without changing the core loop.</li>
+</ul>
+<p>Code:
+<div class="highlight"><pre><span></span><code>    <span class="c1"># @track(name=&quot;loop_agent_run&quot;)  # Group traces together</span>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Main loop of the agent. The agent will iterate through the loop, runs the plan and</span>
+<span class="sd">        processes tool calls if any are returned.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Start LoopAgent...&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_history_manager</span><span class="o">.</span><span class="n">has_no_loop_messages</span><span class="p">():</span>  <span class="c1"># TODO: why do we even need to check its always no loop messages on this when its called.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_chat_service</span><span class="o">.</span><span class="n">modify_assistant_message</span><span class="p">(</span>
+                  <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Starting agentic loop...&quot;</span>  <span class="c1"># TODO: this must be more informative</span>
+            <span class="p">)</span>
+
+        <span class="c1">## Loop iteration</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">max_loop_iterations</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_iteration_index</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Starting iteration </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Plan execution</span>
+            <span class="n">loop_response</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_plan_or_execute</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Done with _plan_or_execute&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reference_manager</span><span class="o">.</span><span class="n">add_references</span><span class="p">(</span>
+                  <span class="n">loop_response</span><span class="o">.</span><span class="n">message</span><span class="o">.</span><span class="n">references</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Done with adding references&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Update tool progress reporter</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_thinking_manager</span><span class="o">.</span><span class="n">update_tool_progress_reporter</span><span class="p">(</span><span class="n">loop_response</span><span class="p">)</span>
+
+            <span class="c1"># Execute the plan</span>
+            <span class="n">exit_loop</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_plan</span><span class="p">(</span><span class="n">loop_response</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Done with _process_plan&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">exit_loop</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_thinking_manager</span><span class="o">.</span><span class="n">close_thinking_steps</span><span class="p">(</span><span class="n">loop_response</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Exiting loop.&quot;</span><span class="p">)</span>
+                <span class="k">break</span>
+
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">agent</span><span class="o">.</span><span class="n">max_loop_iterations</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;Max iterations reached.&quot;</span><span class="p">)</span>
+                <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chat_service</span><span class="o">.</span><span class="n">modify_assistant_message_async</span><span class="p">(</span>
+                      <span class="n">content</span><span class="o">=</span><span class="s2">&quot;I have reached the maximum number of self-reflection iterations. Please clarify your request and try again...&quot;</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">break</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">start_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thinking_manager</span><span class="o">.</span><span class="n">update_start_text</span><span class="p">(</span>
+                  <span class="bp">self</span><span class="o">.</span><span class="n">start_text</span><span class="p">,</span> <span class="n">loop_response</span>
+            <span class="p">)</span>
+
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chat_service</span><span class="o">.</span><span class="n">modify_assistant_message_async</span><span class="p">(</span>
+              <span class="n">set_completed_at</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+</code></pre></div></p>
+<p>Key behaviors:</p>
+<ul>
+<li>Forced tools is only be applied on the first iteration. Allowing the LLM to choose freely from the tools in the subsequent iterations.</li>
+<li>Last iteration forbids tool usage to force an answer.</li>
+<li>If a tool takes control (e.g., deep research), the base agent stops continuing the loop &amp; sets the agent to complete for the frontend and other consumers to know that it is done.</li>
+</ul>
+<p>Further Details can be found here:</p>
+<ul>
+<li><a href="../flow_details/planning_vs_executing/">Planning vs Executing</a></li>
+<li><a href="../flow_details/history_construction_and_prompts/">History Construction and Prompt Creation</a></li>
+<li><a href="../flow_details/plan_processing/">Plan Processing</a></li>
+<li><a href="../flow_details/tool_handling/">Tool Handling</a></li>
+<li><a href="../flow_details/finalization_path/">Finalization Path</a></li>
+</ul></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../../js/base.js"></script>
+        <script src="../../../search/main.js"></script>
+        <script src="../../../js/version-select.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

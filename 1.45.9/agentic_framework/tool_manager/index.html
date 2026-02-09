@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="Unique Team">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/1.45.9/agentic_framework/tool_manager/">
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>Tool Manager - Unique Toolkit</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../../css/version-select.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">Unique Toolkit</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../architectural/" class="nav-link">Architecture</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../setup/getting_started/" class="nav-link">Getting started</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Authentication</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../authentication/#1-personal-api-key" class="dropdown-item">Personal API Key</a>
+</li>
+                                    
+<li>
+    <a href="../../authentication/#2-creating-an-app" class="dropdown-item">Creating an APP</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Application Development</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../application_types/standalone_application/" class="dropdown-item">Standalone Application</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Event Driven Applications</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../application_types/event_driven/" class="dropdown-item">Event Driven App</a>
+</li>
+            
+<li>
+    <a href="../../application_types/event_driven/event_driven_platform_setup/" class="dropdown-item">Platform Setup</a>
+</li>
+            
+<li>
+    <a href="../../application_types/event_driven/event_driven_with_sse/" class="dropdown-item">SSE Setup</a>
+</li>
+            
+<li>
+    <a href="../../application_types/event_driven/event_driven_as_app_with_ngrok/" class="dropdown-item">Web Hooks</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Core Services</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../events/events/" class="dropdown-item">Events</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../chat/" class="dropdown-item">Chat Service - Basics</a>
+</li>
+            
+<li>
+    <a href="../../chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../knowledge_base/" class="dropdown-item">Knowledge Base Service</a>
+</li>
+            
+<li>
+    <a href="../../knowledge_base/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Agentic Table</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../agentic_table/" class="dropdown-item">Agentic Table Module</a>
+</li>
+            
+<li>
+    <a href="../../agentic_table/column_styling/" class="dropdown-item">Column Styling</a>
+</li>
+            
+<li>
+    <a href="../../agentic_table/cell_rendering/" class="dropdown-item">Cell rendering</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Examples</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../plattforms/openai/openai/" class="dropdown-item">OpenAI</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/examples/chat/chat_service/" class="dropdown-item">Basic Service</a>
+</li>
+            
+<li>
+    <a href="../../modules/examples/chat/chat_document_handling/" class="dropdown-item">Document Handling</a>
+</li>
+            
+<li>
+    <a href="../../modules/examples/chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/examples/content/kb_service/" class="dropdown-item">Base Service</a>
+</li>
+            
+<li>
+    <a href="../../modules/examples/content/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Tutorials</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../tutorials/agentic_table_app/" class="dropdown-item">Agentic Table App</a>
+</li>
+                                    
+<li>
+    <a href="../../tutorials/file_creation_and_upload_to_chat/" class="dropdown-item">File Creation with Upload to Chat</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Agentic Framework</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../framework/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../orchestrator/unqiue_ai_how-it-works/" class="dropdown-item">Orchestrator</a>
+</li>
+                                    
+<li>
+    <a href="../tool/" class="dropdown-item">Tool</a>
+</li>
+                                    
+<li>
+    <a href="../tool_call_response/" class="dropdown-item">Tool Call Response</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Tool Manager</a>
+</li>
+                                    
+<li>
+    <a href="../debug_manager/" class="dropdown-item">Debug Info Manager</a>
+</li>
+                                    
+<li>
+    <a href="../postprocessor_manager/" class="dropdown-item">Postprocessor Manager</a>
+</li>
+                                    
+<li>
+    <a href="../evaluation_manager/" class="dropdown-item">Evaluation Manager</a>
+</li>
+                                    
+<li>
+    <a href="../reference_manager/" class="dropdown-item">Reference Manager</a>
+</li>
+                                    
+<li>
+    <a href="../history_manager/" class="dropdown-item">History Manager</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">API Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../api/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Core Services</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/chat/" class="dropdown-item">Chat Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/knowledge_base/" class="dropdown-item">Knowledge Base Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/short_term_memory/" class="dropdown-item">Short Term Memory Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/app/" class="dropdown-item">App Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/content_smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+            
+<li>
+    <a href="../../modules/data_extraction/" class="dropdown-item">Data Extraction</a>
+</li>
+            
+<li>
+    <a href="../../modules/agentic_table/" class="dropdown-item">Agentic Table</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Framework Utilities</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/openai/" class="dropdown-item">OpenAI Client</a>
+</li>
+            
+<li>
+    <a href="../../modules/langchain/" class="dropdown-item">Langchain Client</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Deprecated Modules</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../modules/content/" class="dropdown-item">Content Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/embedding/" class="dropdown-item">Embedding Module</a>
+</li>
+            
+<li>
+    <a href="../../modules/language_model/" class="dropdown-item">Language Model Module</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../readme/" class="nav-link">Readme</a>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../tool_call_response/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../debug_manager/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/docs/agentic_framework/tool_manager.md" class="nav-link">Edit on Unique-AG/ai/unique_toolkit
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="2"><a href="#overview" class="nav-link">🧭 Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="2"><a href="#initialization-and-tool-loading" class="nav-link">🚀 Initialization and Tool Loading</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="1"><a href="#unique_toolkit.agentic.tools.tool_manager.ToolManager.filter_duplicate_tool_calls" class="nav-link">filter_duplicate_tool_calls</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#exposing-tools-to-the-orchestrator-and-llm" class="nav-link">📣 Exposing Tools to the Orchestrator and LLM</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#unique_toolkit.agentic.tools.tool_manager.ToolManager.log_loaded_tools" class="nav-link">log_loaded_tools</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#unique_toolkit.agentic.tools.tool_manager.ToolManager.get_tools" class="nav-link">get_tools</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#unique_toolkit.agentic.tools.tool_manager.ToolManager.get_tool_by_name" class="nav-link">get_tool_by_name</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#forced-tools-and-adminuser-constraints" class="nav-link">🎛️ Forced Tools and Admin/User Constraints</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#control-taking-tools-eg-deep-research" class="nav-link">🧠 Control-Taking Tools (e.g., Deep Research)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#tool-execution-workflow" class="nav-link">⚙️ Tool Execution Workflow</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#deduplication-and-safety" class="nav-link">🔁 Deduplication and Safety</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#enhanced-prompting-guidance-for-the-llm" class="nav-link">🗣️ Enhanced Prompting Guidance for the LLM</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h2 id="overview">🧭 Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>This document explains how the Tool Manager organizes, exposes, and executes tools for an LLM-based orchestrator. Code for each capability is embedded in the relevant sections, so you can see how it’s implemented where it matters.</p>
+<p>Key capabilities:
+- Load and filter tools from configuration and the users choices
+- Respects Tool exclusivity, weather it is enabled by the admin or weather the user choose the tool as a must (forced tools)
+- Expose tool definitions and prompt enhancements for the LLM
+- Detects if a tool requests a handoff so it “takes control”  (e.g., deep research)
+- Execute selected tools in parallel with tool-call deduplication and max-call limits
+- it returns the ToolCallResponses of all the tools to the orchestrator for further rounds with the LLM and additional processing like preparation for referencing or collection of debug info.</p>
+<h2 id="initialization-and-tool-loading">🚀 <strong>Initialization and Tool Loading</strong><a class="headerlink" href="#initialization-and-tool-loading" title="Permanent link">&para;</a></h2>
+<p>The <strong>Tool Manager</strong> is responsible for initializing and managing the tools available to the agent. It supports "Internal"-tools but also both <strong>MCP tools</strong> and <strong>A2A sub-agents</strong>, treating them as tools that can be called directly. Here's a 
+breakdown of its functionality:</p>
+<h3 id="internal-tools"><strong>Internal Tools</strong><a class="headerlink" href="#internal-tools" title="Permanent link">&para;</a></h3>
+<p>Internal tools are loaded directly in the python code. Like the web-search tool or the internal-search tool.</p>
+<h3 id="agent-to-agent-protocol-a2a"><strong>Agent-to-Agent Protocol (A2A)</strong><a class="headerlink" href="#agent-to-agent-protocol-a2a" title="Permanent link">&para;</a></h3>
+<p>The A2A protocol enables communication between agents. During initialization, the Tool Manager:
+1. Loads all sub-agents defined for the A2A (Agent to Agent) protocol.
+2. These sub-agents are treated as callable tools, making them callable by the LLM.</p>
+<h3 id="mcp-tools"><strong>MCP Tools</strong><a class="headerlink" href="#mcp-tools" title="Permanent link">&para;</a></h3>
+<p>The Tool Manager also integrates <strong>MCP tools</strong>, which are added to the pool of available tools. These tools can be invoked directly, just like sub-agents, and are managed by the <strong>MCP Manager</strong>.</p>
+<h3 id="tool-discovery-and-filtering"><strong>Tool Discovery and Filtering</strong><a class="headerlink" href="#tool-discovery-and-filtering" title="Permanent link">&para;</a></h3>
+<p>The Tool Manager combines tools from three sources:
+1. <strong>Internal tools</strong>: Built from the configuration provided by the admin.
+2. <strong>MCP tools</strong>: Retrieved from the MCP Manager.
+3. <strong>A2A sub-agents</strong>: Loaded via the A2A Manager.</p>
+<p>After combining these tools, the manager applies several filters:
+- <strong>Exclusivity</strong>: If a tool is marked as exclusive, only that tool is loaded. When a tool is exclusive only that tool can be executed no other (e.g. Deep-research).
+- <strong>Enablement</strong>: Disabled tools are excluded. This is done by the admin of the Space to say which ones are available.
+- <strong>User Preferences</strong>: Should tools be selected by the end-user in the frontend, they are set as exclusive tools for the first iteration with the model. Then only these can be chosen.</p>
+<h3 id="configuration"><strong>Configuration</strong><a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h3>
+<p>The available tools (MCP, sub-agents, and internal tools) are derived directly from the front-end configuration, which is set up by the admin of the space.</p>
+<hr />
+<h3 id="code-implementation"><strong>Code Implementation</strong><a class="headerlink" href="#code-implementation" title="Permanent link">&para;</a></h3>
+<h4 id="constructor-and-initialization"><strong>Constructor and Initialization</strong><a class="headerlink" href="#constructor-and-initialization" title="Permanent link">&para;</a></h4>
+<p>The constructor initializes the Tool Manager with the necessary runtime context and managers:</p>
+<!-- open-source -->
+
+
+<div class="doc doc-object doc-class">
+
+
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="unique_toolkit.agentic.tools.tool_manager._ToolManager">_ToolManager</span>[<span title="typing.Literal">Literal</span>[&#39;completions&#39;]]</code></p>
+
+
+
+
+
+
+
+
+
+
+              <details class="mkdocstrings-source">
+                <summary>Source code in <code>unique_toolkit/agentic/tools/tool_manager.py</code></summary>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">450</span>
+<span class="normal">451</span>
+<span class="normal">452</span>
+<span class="normal">453</span>
+<span class="normal">454</span>
+<span class="normal">455</span>
+<span class="normal">456</span>
+<span class="normal">457</span>
+<span class="normal">458</span>
+<span class="normal">459</span>
+<span class="normal">460</span>
+<span class="normal">461</span>
+<span class="normal">462</span>
+<span class="normal">463</span>
+<span class="normal">464</span>
+<span class="normal">465</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span>
+<span class="normal">469</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ToolManager</span><span class="p">(</span><span class="n">_ToolManager</span><span class="p">[</span><span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;completions&quot;</span><span class="p">]]):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">logger</span><span class="p">:</span> <span class="n">Logger</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">ToolManagerConfig</span><span class="p">,</span>
+        <span class="n">event</span><span class="p">:</span> <span class="n">ChatEvent</span><span class="p">,</span>
+        <span class="n">tool_progress_reporter</span><span class="p">:</span> <span class="n">ToolProgressReporter</span><span class="p">,</span>
+        <span class="n">mcp_manager</span><span class="p">:</span> <span class="n">MCPManager</span><span class="p">,</span>
+        <span class="n">a2a_manager</span><span class="p">:</span> <span class="n">A2AManager</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span>
+            <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">,</span>
+            <span class="n">event</span><span class="o">=</span><span class="n">event</span><span class="p">,</span>
+            <span class="n">tool_progress_reporter</span><span class="o">=</span><span class="n">tool_progress_reporter</span><span class="p">,</span>
+            <span class="n">mcp_manager</span><span class="o">=</span><span class="n">mcp_manager</span><span class="p">,</span>
+            <span class="n">a2a_manager</span><span class="o">=</span><span class="n">a2a_manager</span><span class="p">,</span>
+            <span class="n">api_mode</span><span class="o">=</span><span class="s2">&quot;completions&quot;</span><span class="p">,</span>
+            <span class="n">builtin_tool_manager</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+              </details>
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h1 id="unique_toolkit.agentic.tools.tool_manager.ToolManager.filter_duplicate_tool_calls" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">filter_duplicate_tool_calls</span><span class="p">(</span><span class="n">tool_calls</span><span class="p">)</span></code>
+
+<a href="#unique_toolkit.agentic.tools.tool_manager.ToolManager.filter_duplicate_tool_calls" class="headerlink" title="Permanent link">&para;</a></h1>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Filter out duplicate tool calls based on name and arguments.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>unique_toolkit/agentic/tools/tool_manager.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">321</span>
+<span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span>
+<span class="normal">333</span>
+<span class="normal">334</span>
+<span class="normal">335</span>
+<span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span>
+<span class="normal">339</span>
+<span class="normal">340</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">filter_duplicate_tool_calls</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">tool_calls</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">LanguageModelFunction</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">LanguageModelFunction</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Filter out duplicate tool calls based on name and arguments.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">unique_tool_calls</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">call</span> <span class="ow">in</span> <span class="n">tool_calls</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="ow">not</span> <span class="n">call</span> <span class="o">==</span> <span class="n">other_call</span> <span class="k">for</span> <span class="n">other_call</span> <span class="ow">in</span> <span class="n">unique_tool_calls</span><span class="p">):</span>
+            <span class="n">unique_tool_calls</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">call</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tool_calls</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_tool_calls</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span> <span class="o">=</span> <span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Filtered out </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tool_calls</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">unique_tool_calls</span><span class="p">)</span><span class="si">}</span><span class="s2"> duplicate tool calls.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">unique_tool_calls</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h4 id="tool-initialization"><strong>Tool Initialization</strong><a class="headerlink" href="#tool-initialization" title="Permanent link">&para;</a></h4>
+<p>The <code>_init__tools</code> method discovers and filters tools:</p>
+<!-- open-source -->
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+    <div class="doc doc-contents first">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>unique_toolkit/agentic/tools/tool_manager.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span>
+<span class="normal">130</span>
+<span class="normal">131</span>
+<span class="normal">132</span>
+<span class="normal">133</span>
+<span class="normal">134</span>
+<span class="normal">135</span>
+<span class="normal">136</span>
+<span class="normal">137</span>
+<span class="normal">138</span>
+<span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span>
+<span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span>
+<span class="normal">153</span>
+<span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span>
+<span class="normal">167</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">_init__tools</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="n">ChatEvent</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">tool_choices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tool_choices</span>
+    <span class="n">tool_configs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">tools</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Initializing tool definitions...&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Tool choices: </span><span class="si">{</span><span class="n">tool_choices</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">tool_configs</span><span class="p">,</span> <span class="n">sub_agents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_a2a_manager</span><span class="o">.</span><span class="n">get_all_sub_agents</span><span class="p">(</span>
+        <span class="n">tool_configs</span><span class="p">,</span> <span class="n">event</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_sub_agents</span> <span class="o">=</span> <span class="n">sub_agents</span>
+
+    <span class="n">registered_tool_names</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sub_agents</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_builtin_tools</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builtin_tool_manager</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_api_mode</span> <span class="o">==</span> <span class="s2">&quot;responses&quot;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_builtin_tools</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_builtin_tool_manager</span><span class="o">.</span><span class="n">get_all_openai_builtin_tools</span><span class="p">()</span>
+        <span class="p">)</span>
+
+    <span class="n">registered_tool_names</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builtin_tools</span><span class="p">)</span>
+
+    <span class="c1"># Get MCP tools (these are already properly instantiated)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_mcp_tools</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mcp_manager</span><span class="o">.</span><span class="n">get_all_mcp_tools</span><span class="p">()</span>
+
+    <span class="n">registered_tool_names</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mcp_tools</span><span class="p">)</span>
+
+    <span class="c1"># Build internal tools from configurations</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_internal_tools</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">ToolFactory</span><span class="o">.</span><span class="n">build_tool_with_settings</span><span class="p">(</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">t</span><span class="p">,</span>
+            <span class="n">t</span><span class="o">.</span><span class="n">configuration</span><span class="p">,</span>
+            <span class="n">event</span><span class="p">,</span>
+            <span class="n">tool_progress_reporter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_tool_progress_reporter</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">tool_configs</span>
+        <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">registered_tool_names</span>  <span class="c1"># Skip already handled tools</span>
+        <span class="ow">and</span> <span class="n">t</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">OpenAIBuiltInToolName</span>  <span class="c1"># Safeguard</span>
+    <span class="p">]</span>
+
+    <span class="c1"># Combine all types of tools</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">available_tools</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_internal_tools</span>
+        <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mcp_tools</span>
+        <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sub_agents</span>
+        <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_builtin_tools</span>
+    <span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">available_tools</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">t</span><span class="o">.</span><span class="n">is_enabled</span><span class="p">():</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_disabled_tools</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="c1"># if tool choices are given, only include those tools</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tool_choices</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">t</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tool_choices</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="c1"># is the tool exclusive and has been choosen by the user?</span>
+        <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">is_exclusive</span><span class="p">()</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">tool_choices</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">t</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">tool_choices</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_tools</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span><span class="p">]</span>  <span class="c1"># override all other tools</span>
+            <span class="k">break</span>
+        <span class="c1"># if the tool is exclusive but no tool choices are given, skip it</span>
+        <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">is_exclusive</span><span class="p">():</span>
+            <span class="k">continue</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tools</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div><hr />
+<h2 id="exposing-tools-to-the-orchestrator-and-llm">📣 Exposing Tools to the Orchestrator and LLM<a class="headerlink" href="#exposing-tools-to-the-orchestrator-and-llm" title="Permanent link">&para;</a></h2>
+<p>The orchestrator that works with the tool-manager needs three kinds of information:
+- The actual tool objects (for runtime operations)
+- Tool “definitions” or schemas consumable by the LLM
+- Additional tool-specific prompt enhancements/guidance to help the LLM format call the correct tool and format the output of the tools correctly.</p>
+<p>Get loaded tools and log them:</p>
+<!-- open-source -->
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<a id="unique_toolkit.agentic.tools.tool_manager.ToolManager.log_loaded_tools"></a>
+    <div class="doc doc-contents first">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>unique_toolkit/agentic/tools/tool_manager.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">200</span>
+<span class="normal">201</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">log_loaded_tools</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded tools: </span><span class="si">{</span><span class="p">[</span><span class="n">tool</span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">tool</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">_tools</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div><!-- open-source -->
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<a id="unique_toolkit.agentic.tools.tool_manager.ToolManager.get_tools"></a>
+    <div class="doc doc-contents first">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>unique_toolkit/agentic/tools/tool_manager.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">387</span>
+<span class="normal">388</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_tools</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Tool</span><span class="p">]</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="n">Tool</span> <span class="o">|</span> <span class="n">OpenAIBuiltInTool</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tools</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div><!-- open-source -->
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<a id="unique_toolkit.agentic.tools.tool_manager.ToolManager.get_tool_by_name"></a>
+    <div class="doc doc-contents first">
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>unique_toolkit/agentic/tools/tool_manager.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">373</span>
+<span class="normal">374</span>
+<span class="normal">375</span>
+<span class="normal">376</span>
+<span class="normal">377</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_tool_by_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tool</span> <span class="o">|</span> <span class="n">OpenAIBuiltInTool</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">tool</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tools</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">tool</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">name</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">tool</span>
+    <span class="k">return</span> <span class="kc">None</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div><p>Expose tool definitions and prompts (prompt enhancements):
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_tool_definitions</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">LanguageModelTool</span> <span class="o">|</span> <span class="n">LanguageModelToolDescription</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">tool</span><span class="o">.</span><span class="n">tool_description</span><span class="p">()</span> <span class="k">for</span> <span class="n">tool</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tools</span><span class="p">]</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_tool_prompts</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">ToolPrompts</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">tool</span><span class="o">.</span><span class="n">get_tool_prompts</span><span class="p">()</span> <span class="k">for</span> <span class="n">tool</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tools</span><span class="p">]</span>
+</code></pre></div></p>
+<p>Evaluation metrics aggregation:
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_evaluation_check_list</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">EvaluationMetricName</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tool_evaluation_check_list</span><span class="p">)</span>
+</code></pre></div></p>
+<h2 id="forced-tools-and-adminuser-constraints">🎛️ Forced Tools and Admin/User Constraints<a class="headerlink" href="#forced-tools-and-adminuser-constraints" title="Permanent link">&para;</a></h2>
+<p>Users can force a subset of tools via the UI. Forced tools are surfaced in an LLM API-compatible structure. So that the orchestrator can hand this information over to the LLM call in the correct format.</p>
+<p>Retrieve forced tools and add a forced tool programmatically:
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_forced_tools</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_convert_to_forced_tool</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tools</span>
+        <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tool_choices</span>
+    <span class="p">]</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">add_forced_tool</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="n">tool</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_tool_by_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">tool</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Tool </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> not found&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_tools</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tool</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_tool_choices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tool</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_convert_to_forced_tool</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tool_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;function&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;function&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">tool_name</span><span class="p">},</span>
+    <span class="p">}</span>
+</code></pre></div></p>
+<h2 id="control-taking-tools-eg-deep-research">🧠 Control-Taking Tools (e.g., Deep Research)<a class="headerlink" href="#control-taking-tools-eg-deep-research" title="Permanent link">&para;</a></h2>
+<p>Some tools request a handover from the main orchestrator so they can “take control” of the session. The orchestrator can check this before deciding weather to yield control or to continue its flow.</p>
+<p>Check if any selected call belongs to a control-taking tool:
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">does_a_tool_take_control</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tool_calls</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">LanguageModelFunction</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">tool_call</span> <span class="ow">in</span> <span class="n">tool_calls</span><span class="p">:</span>
+        <span class="n">tool_instance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_tool_by_name</span><span class="p">(</span><span class="n">tool_call</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">tool_instance</span> <span class="ow">and</span> <span class="n">tool_instance</span><span class="o">.</span><span class="n">takes_control</span><span class="p">():</span>
+            <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">return</span> <span class="kc">False</span>
+</code></pre></div></p>
+<h2 id="tool-execution-workflow">⚙️ Tool Execution Workflow<a class="headerlink" href="#tool-execution-workflow" title="Permanent link">&para;</a></h2>
+<p>The orchestrator receives the information from the LLM on what tools to be executed in oder for the llm to receive the requested information.
+The Tool Manager handles the execution of selected tools with the following steps:</p>
+<ol>
+<li>
+<p><strong>Deduplication</strong>: It removes duplicate tool calls from the LLM, ensuring identical calls (e.g., same tool with identical parameters) are executed only once. This prevents redundant processing caused by occasional LLM errors.</p>
+</li>
+<li>
+<p><strong>Call Limit Enforcement</strong>: A maximum of two tool calls is allowed per execution round. This prevents overloading the system with excessive requests.</p>
+</li>
+<li>
+<p><strong>Parallel Execution</strong>: Tools are executed concurrently to save time, as individual tool calls can be time-intensive.</p>
+</li>
+<li>
+<p><strong>Result Handling</strong>: Once the tools return their responses, the Tool Manager:</p>
+</li>
+<li>Sends the results back to the orchestrator.</li>
+<li>Updates the call history.</li>
+<li>Extracts references and debug information for further use.</li>
+</ol>
+<p>This streamlined process ensures efficient, accurate, and manageable tool execution.",
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">execute_selected_tools</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">tool_calls</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">LanguageModelFunction</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">ToolCallResponse</span><span class="p">]:</span>
+    <span class="n">tool_calls</span> <span class="o">=</span> <span class="n">tool_calls</span>
+
+    <span class="n">tool_calls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">filter_duplicate_tool_calls</span><span class="p">(</span>
+        <span class="n">tool_calls</span><span class="o">=</span><span class="n">tool_calls</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">num_tool_calls</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">tool_calls</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">num_tool_calls</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_tool_calls</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="s2">&quot;Number of tool calls </span><span class="si">%s</span><span class="s2"> exceeds the allowed maximum of </span><span class="si">%s</span><span class="s2">.&quot;</span>
+                <span class="s2">&quot;The tool calls will be reduced to the first </span><span class="si">%s</span><span class="s2">.&quot;</span>
+            <span class="p">),</span>
+            <span class="n">num_tool_calls</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_tool_calls</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_tool_calls</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">tool_calls</span> <span class="o">=</span> <span class="n">tool_calls</span><span class="p">[:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">max_tool_calls</span><span class="p">]</span>
+
+    <span class="n">tool_call_responses</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_execute_parallelized</span><span class="p">(</span>
+        <span class="n">tool_calls</span><span class="o">=</span><span class="n">tool_calls</span><span class="p">,</span> <span class="n">loop_iteration</span><span class="o">=</span><span class="n">loop_iteration</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">tool_call_responses</span>
+</code></pre></div></p>
+<p>Parallel execution strategy:
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_execute_parallelized</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">tool_calls</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">LanguageModelFunction</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">ToolCallResponse</span><span class="p">]:</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Execute tool calls&quot;</span><span class="p">)</span>
+
+    <span class="n">task_executor</span> <span class="o">=</span> <span class="n">SafeTaskExecutor</span><span class="p">(</span>
+        <span class="n">logger</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Create tasks for each tool call</span>
+    <span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">task_executor</span><span class="o">.</span><span class="n">execute_async</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">execute_tool_call</span><span class="p">,</span>
+            <span class="n">tool_call</span><span class="o">=</span><span class="n">tool_call</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">tool_call</span> <span class="ow">in</span> <span class="n">tool_calls</span>
+    <span class="p">]</span>
+
+    <span class="c1"># Wait until all tasks are finished</span>
+    <span class="n">tool_call_results</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="o">*</span><span class="n">tasks</span><span class="p">)</span>
+    <span class="n">tool_call_results_unpacked</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ToolCallResponse</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tool_call_results</span><span class="p">):</span>
+        <span class="n">unpacked_tool_call_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_tool_call_response</span><span class="p">(</span>
+            <span class="n">result</span><span class="p">,</span> <span class="n">tool_calls</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">tool_call_results_unpacked</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">unpacked_tool_call_result</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">tool_call_results_unpacked</span>
+</code></pre></div></p>
+<p>Execute a single tool call:
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">execute_tool_call</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span> <span class="n">tool_call</span><span class="p">:</span> <span class="n">LanguageModelFunction</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ToolCallResponse</span><span class="p">:</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Processing tool call: </span><span class="si">{</span><span class="n">tool_call</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">tool_instance</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_tool_by_name</span><span class="p">(</span>
+        <span class="n">tool_call</span><span class="o">.</span><span class="n">name</span>
+    <span class="p">)</span>  <span class="c1"># we need to copy this as it will have problematic interference on multi calls.</span>
+
+    <span class="k">if</span> <span class="n">tool_instance</span><span class="p">:</span>
+        <span class="c1"># Execute the tool</span>
+        <span class="n">tool_response</span><span class="p">:</span> <span class="n">ToolCallResponse</span> <span class="o">=</span> <span class="k">await</span> <span class="n">tool_instance</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="n">tool_call</span><span class="o">=</span><span class="n">tool_call</span>
+        <span class="p">)</span>
+        <span class="n">evaluation_checks</span> <span class="o">=</span> <span class="n">tool_instance</span><span class="o">.</span><span class="n">evaluation_check_list</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tool_evaluation_check_list</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">evaluation_checks</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">tool_response</span>
+
+    <span class="k">return</span> <span class="n">ToolCallResponse</span><span class="p">(</span>
+        <span class="nb">id</span><span class="o">=</span><span class="n">tool_call</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>  <span class="c1"># type: ignore</span>
+        <span class="n">name</span><span class="o">=</span><span class="n">tool_call</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+        <span class="n">error_message</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Tool of name </span><span class="si">{</span><span class="n">tool_call</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> not found&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div></p>
+<p>Normalize outcomes from the task executor:
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">_create_tool_call_response</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">Result</span><span class="p">[</span><span class="n">ToolCallResponse</span><span class="p">],</span> <span class="n">tool_call</span><span class="p">:</span> <span class="n">LanguageModelFunction</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ToolCallResponse</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">success</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">ToolCallResponse</span><span class="p">(</span>
+            <span class="nb">id</span><span class="o">=</span><span class="n">tool_call</span><span class="o">.</span><span class="n">id</span> <span class="ow">or</span> <span class="s2">&quot;unknown_id&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">tool_call</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">error_message</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">exception</span><span class="p">),</span>
+        <span class="p">)</span>
+    <span class="n">unpacked</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">unpack</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">unpacked</span><span class="p">,</span> <span class="n">ToolCallResponse</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ToolCallResponse</span><span class="p">(</span>
+            <span class="nb">id</span><span class="o">=</span><span class="n">tool_call</span><span class="o">.</span><span class="n">id</span> <span class="ow">or</span> <span class="s2">&quot;unknown_id&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">tool_call</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">error_message</span><span class="o">=</span><span class="s2">&quot;Tool call response is not of type ToolCallResponse&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">unpacked</span>
+</code></pre></div></p>
+<h2 id="deduplication-and-safety">🔁 Deduplication and Safety<a class="headerlink" href="#deduplication-and-safety" title="Permanent link">&para;</a></h2>
+<p>Before executing, the Tool Manager removes duplicate calls with identical names and arguments to prevent repeated work in the same round.</p>
+<p>Deduplicate calls and warn when filtered:
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">filter_duplicate_tool_calls</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">tool_calls</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">LanguageModelFunction</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">LanguageModelFunction</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Filter out duplicate tool calls based on name and arguments.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">unique_tool_calls</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">call</span> <span class="ow">in</span> <span class="n">tool_calls</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="ow">not</span> <span class="n">call</span> <span class="o">==</span> <span class="n">other_call</span> <span class="k">for</span> <span class="n">other_call</span> <span class="ow">in</span> <span class="n">unique_tool_calls</span><span class="p">):</span>
+            <span class="n">unique_tool_calls</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">call</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tool_calls</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_tool_calls</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span> <span class="o">=</span> <span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Filtered out </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">tool_calls</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">unique_tool_calls</span><span class="p">)</span><span class="si">}</span><span class="s2"> duplicate tool calls.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">unique_tool_calls</span>
+</code></pre></div></p>
+<h2 id="enhanced-prompting-guidance-for-the-llm">🗣️ Enhanced Prompting Guidance for the LLM<a class="headerlink" href="#enhanced-prompting-guidance-for-the-llm" title="Permanent link">&para;</a></h2>
+<p>To optimize tool selection and minimize formatting errors, the orchestrator should:</p>
+<ol>
+<li><strong>Incorporate Tool Definitions</strong>  </li>
+<li>
+<p>Use <code>get_tool_definitions()</code> to retrieve the function/tool schema and provide it to the LLM. This ensures the LLM understands the available tools and their parameters.</p>
+</li>
+<li>
+<p><strong>Enhance System Prompts with Tool-Specific Guidance</strong>  </p>
+</li>
+<li>
+<p>Inject <code>get_tool_prompts()</code> content into the system prompt to:  </p>
+<ul>
+<li>Clearly define when each tool should be used.  </li>
+<li>Specify the expected inputs and outputs.  </li>
+<li>Include argument formatting examples for clarity.</li>
+</ul>
+</li>
+<li>
+<p><strong>Iterative Feedback for Improved Formatting</strong>  </p>
+</li>
+<li>In subsequent interactions, provide explicit formatting guidance based on the tools previously selected. This iterative refinement ensures consistent and accurate tool usage.</li>
+</ol>
+<h3 id="key-mechanism">Key Mechanism:<a class="headerlink" href="#key-mechanism" title="Permanent link">&para;</a></h3>
+<p>The orchestrator retrieves both tool definitions and tool prompts. Tool definitions describe the functionality and parameters of each tool, while tool prompts act as enhancements to the system message. These prompts guide the LLM in selecting the correct tool and formatting its arguments effectively. This process improves robustness, ensures accurate tool selection, and enhances the overall response quality.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="../../search/main.js"></script>
+        <script src="../../js/version-select.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

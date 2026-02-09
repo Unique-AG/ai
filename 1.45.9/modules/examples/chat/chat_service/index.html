@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="Unique Team">
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/1.45.9/modules/examples/chat/chat_service/">
+        <link rel="shortcut icon" href="../../../../img/favicon.ico">
+        <title>Basic Service - Unique Toolkit</title>
+        <link href="../../../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../../../css/brands.min.css" rel="stylesheet">
+        <link href="../../../../css/solid.min.css" rel="stylesheet">
+        <link href="../../../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../../../../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../../../../css/version-select.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../../../..">Unique Toolkit</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../../../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../../../architectural/" class="nav-link">Architecture</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../../../setup/getting_started/" class="nav-link">Getting started</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Authentication</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../authentication/#1-personal-api-key" class="dropdown-item">Personal API Key</a>
+</li>
+                                    
+<li>
+    <a href="../../../../authentication/#2-creating-an-app" class="dropdown-item">Creating an APP</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Application Development</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../application_types/standalone_application/" class="dropdown-item">Standalone Application</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Event Driven Applications</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../../application_types/event_driven/" class="dropdown-item">Event Driven App</a>
+</li>
+            
+<li>
+    <a href="../../../../application_types/event_driven/event_driven_platform_setup/" class="dropdown-item">Platform Setup</a>
+</li>
+            
+<li>
+    <a href="../../../../application_types/event_driven/event_driven_with_sse/" class="dropdown-item">SSE Setup</a>
+</li>
+            
+<li>
+    <a href="../../../../application_types/event_driven/event_driven_as_app_with_ngrok/" class="dropdown-item">Web Hooks</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Core Services</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../events/events/" class="dropdown-item">Events</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../../chat/" class="dropdown-item">Chat Service - Basics</a>
+</li>
+            
+<li>
+    <a href="../../../../chat/advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../../knowledge_base/" class="dropdown-item">Knowledge Base Service</a>
+</li>
+            
+<li>
+    <a href="../../../../knowledge_base/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Agentic Table</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../../agentic_table/" class="dropdown-item">Agentic Table Module</a>
+</li>
+            
+<li>
+    <a href="../../../../agentic_table/column_styling/" class="dropdown-item">Column Styling</a>
+</li>
+            
+<li>
+    <a href="../../../../agentic_table/cell_rendering/" class="dropdown-item">Cell rendering</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Examples</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../plattforms/openai/openai/" class="dropdown-item">OpenAI</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Chat</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Basic Service</a>
+</li>
+            
+<li>
+    <a href="../chat_document_handling/" class="dropdown-item">Document Handling</a>
+</li>
+            
+<li>
+    <a href="../advanced_rendering/" class="dropdown-item">Advanced Rendering</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Knowledge Base</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../content/kb_service/" class="dropdown-item">Base Service</a>
+</li>
+            
+<li>
+    <a href="../../content/smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Tutorials</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../tutorials/agentic_table_app/" class="dropdown-item">Agentic Table App</a>
+</li>
+                                    
+<li>
+    <a href="../../../../tutorials/file_creation_and_upload_to_chat/" class="dropdown-item">File Creation with Upload to Chat</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Agentic Framework</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../agentic_framework/framework/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/orchestrator/unqiue_ai_how-it-works/" class="dropdown-item">Orchestrator</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/tool/" class="dropdown-item">Tool</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/tool_call_response/" class="dropdown-item">Tool Call Response</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/tool_manager/" class="dropdown-item">Tool Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/debug_manager/" class="dropdown-item">Debug Info Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/postprocessor_manager/" class="dropdown-item">Postprocessor Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/evaluation_manager/" class="dropdown-item">Evaluation Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/reference_manager/" class="dropdown-item">Reference Manager</a>
+</li>
+                                    
+<li>
+    <a href="../../../../agentic_framework/history_manager/" class="dropdown-item">History Manager</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">API Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../api/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Core Services</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../chat/" class="dropdown-item">Chat Module</a>
+</li>
+            
+<li>
+    <a href="../../../knowledge_base/" class="dropdown-item">Knowledge Base Module</a>
+</li>
+            
+<li>
+    <a href="../../../short_term_memory/" class="dropdown-item">Short Term Memory Module</a>
+</li>
+            
+<li>
+    <a href="../../../app/" class="dropdown-item">App Module</a>
+</li>
+            
+<li>
+    <a href="../../../content_smart_rules/" class="dropdown-item">Smart Rules</a>
+</li>
+            
+<li>
+    <a href="../../../data_extraction/" class="dropdown-item">Data Extraction</a>
+</li>
+            
+<li>
+    <a href="../../../agentic_table/" class="dropdown-item">Agentic Table</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Framework Utilities</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../openai/" class="dropdown-item">OpenAI Client</a>
+</li>
+            
+<li>
+    <a href="../../../langchain/" class="dropdown-item">Langchain Client</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Deprecated Modules</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../content/" class="dropdown-item">Content Module</a>
+</li>
+            
+<li>
+    <a href="../../../embedding/" class="dropdown-item">Embedding Module</a>
+</li>
+            
+<li>
+    <a href="../../../language_model/" class="dropdown-item">Language Model Module</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../../../readme/" class="nav-link">Readme</a>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../../../../plattforms/openai/openai/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../chat_document_handling/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/docs/modules/examples/chat/chat_service.md" class="nav-link">Edit on Unique-AG/ai/unique_toolkit
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#chat-service-basics" class="nav-link">Chat Service - Basics</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#chat-state" class="nav-link">Chat State</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#basics" class="nav-link">Basics</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#adding-references" class="nav-link">Adding References</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#post-answer" class="nav-link">Post Answer</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="chat-service-basics">Chat Service - Basics<a class="headerlink" href="#chat-service-basics" title="Permanent link">&para;</a></h1>
+<!--
+<div id="import_language_model_name" class="highlight"><span class="filename">#import_language_model_name</span><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">LanguageModelName</span>
+</code></pre></div>
+-->
+
+<!--
+<div id="trivial_message_from_user" class="highlight"><span class="filename">#trivial_message_from_user</span><pre><span></span><code><span class="n">messages</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">OpenAIMessageBuilder</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">system_message_append</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="s2">&quot;You are a helpful assistant&quot;</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">user_message_append</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="n">event</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">user_message</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">messages</span>
+    <span class="p">)</span>
+</code></pre></div>
+-->
+
+<p>The chat service is responsible for all interactions with the Unique chat frontend as seen below</p>
+<p><img alt="alt text" src="../images/chat_frontend.png" /></p>
+<p>The following elements are directly influenced by it.</p>
+<table>
+<thead>
+<tr>
+<th>Element</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>User Message</td>
+<td>The request as entered by the user</td>
+</tr>
+<tr>
+<td>Assistant Message</td>
+<td>The answer of the agent/workflow or LLM</td>
+</tr>
+<tr>
+<td>Json Value</td>
+<td>The final request sent to the LLM that creates the assistant message</td>
+</tr>
+<tr>
+<td>Debug Info</td>
+<td>Debug information generated during the processing of the request</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>ChatService</code> from the <code>unique_toolkit</code> is used to communicate to these elments. Please see <a href="../../../../application_types/event_driven/">Event Driven Applications</a> on how to initialize services and setup a development setup. The service itself can be imported as</p>
+<div class="highlight"><pre><span></span><code>from unique_toolkit import ChatService
+</code></pre></div>
+<h2 id="chat-state">Chat State<a class="headerlink" href="#chat-state" title="Permanent link">&para;</a></h2>
+<p>The <code>ChatService</code> is a stateful service and therefore should be freshly instantiated for each request sent by a user from the frontend. </p>
+<h2 id="basics">Basics<a class="headerlink" href="#basics" title="Permanent link">&para;</a></h2>
+<p>The below sequence diagram shows the dataflow on user input.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant FE as Frontend
+    participant B as Backend
+    participant W as LLM Workflow/Agent
+    participant DB as Database
+
+    FE-&gt;&gt;B: Send user input
+
+    B-&gt;&gt;DB: Create User Message
+    B-&gt;&gt;DB: Create Assistant Message (placeholder)
+    B--&gt;&gt;W: Emit `ChatEvent`
+
+    W-&gt;&gt;B: Update Assistant  Message 
+    B--&gt;&gt;FE: Return Assistant Message
+    B-&gt;&gt;DB: Update Assistant Message</code></pre>
+<h3 id="the-chat-event">The Chat Event<a class="headerlink" href="#the-chat-event" title="Permanent link">&para;</a></h3>
+<p>For each input of the user the application obtains a <code>ChatEvent</code>, this objects contains the <code>id's</code> of the user message in the database as well as the following assistant message entry. We can use these entries to return the final as well as intermediate results to the user using </p>
+<div class="highlight"><pre><span></span><code>chat_service.modify_assistant_message(
+        content=&quot;Intermediate assistant message&quot;,
+    )
+</code></pre></div>
+<p>The functionality automatically uses the last assistant message within the chat.</p>
+<p>The message can be updated as many times as desired to display intermediate results but it is important to ensure that the user has time to read it between the updates. Especially, when using the <code>async</code> version <code>modify_assistant_message_async</code> a short async sleep after modification can be helpful.</p>
+<div class="highlight"><pre><span></span><code>chat_service.modify_assistant_message(
+        content=&quot;Final assistant message&quot;,
+    )
+</code></pre></div>
+<!--
+<div class="highlight"><span class="filename">file: docs/.python_files/minimal_chat_with_manual_modifiy.py</span><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="o">&lt;&lt;</span><span class="n">full_sse_setup_with_services</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_intermediate_assistant_result</span><span class="o">&gt;&gt;</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_final_assistant_result</span><span class="o">&gt;&gt;</span>
+</code></pre></div>
+-->
+
+<h3 id="modify-assistant-messages-with-llm">Modify assistant messages with LLM<a class="headerlink" href="#modify-assistant-messages-with-llm" title="Permanent link">&para;</a></h3>
+<p>The most used functionality is to create an assistant message via a stream to the frontend and to safe it in the database. Therefore, we use</p>
+<div id="chat_service_complete_with_references" class="highlight"><span class="filename">#chat_service_complete_with_references</span><pre><span></span><code><span class="n">chat_service</span><span class="o">.</span><span class="n">complete_with_references</span><span class="p">(</span>
+        <span class="n">messages</span> <span class="o">=</span> <span class="n">messages</span><span class="p">,</span>
+        <span class="n">model_name</span> <span class="o">=</span> <span class="n">LanguageModelName</span><span class="o">.</span><span class="n">AZURE_GPT_4o_2024_1120</span><span class="p">)</span>
+</code></pre></div>
+<p>and again the functionality automatically returns the the last assistant message in the chat.</p>
+<!--
+
+<div class="highlight"><span class="filename">file: docs/.python_files/chat_app_minimal.py</span><pre><span></span><code><span class="o">&lt;&lt;</span><span class="n">full_sse_setup_with_services</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">trivial_message_from_user</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_complete_with_references</span><span class="o">&gt;&gt;</span>
+</code></pre></div>
+-->
+
+<details class="example">
+<summary>Full Examples (Click to expand)</summary>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Simple Manual Response</label><label for="__tabbed_1_2">Simple Streaming</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="c1"># %%</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ChatService</span><span class="p">,</span>
+    <span class="n">KnowledgeBaseService</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.dev_util</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_event_generator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatEvent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.unique_settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniqueSettings</span>
+
+<span class="n">settings</span> <span class="o">=</span> <span class="n">UniqueSettings</span><span class="o">.</span><span class="n">from_env_auto_with_sdk_init</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">get_event_generator</span><span class="p">(</span><span class="n">unique_settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">event_type</span><span class="o">=</span><span class="n">ChatEvent</span><span class="p">):</span>
+    <span class="c1"># Initialize services from event</span>
+    <span class="n">chat_service</span> <span class="o">=</span> <span class="n">ChatService</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">kb_service</span> <span class="o">=</span> <span class="n">KnowledgeBaseService</span><span class="o">.</span><span class="n">from_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">modify_assistant_message</span><span class="p">(</span>
+        <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Intermediate assistant message&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">modify_assistant_message</span><span class="p">(</span>
+        <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Final assistant message&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="c1"># %%</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ChatService</span><span class="p">,</span>
+    <span class="n">KnowledgeBaseService</span><span class="p">,</span>
+    <span class="n">LanguageModelName</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.dev_util</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_event_generator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatEvent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.unique_settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniqueSettings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.framework_utilities.openai.message_builder</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">OpenAIMessageBuilder</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">settings</span> <span class="o">=</span> <span class="n">UniqueSettings</span><span class="o">.</span><span class="n">from_env_auto_with_sdk_init</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">get_event_generator</span><span class="p">(</span><span class="n">unique_settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">event_type</span><span class="o">=</span><span class="n">ChatEvent</span><span class="p">):</span>
+    <span class="c1"># Initialize services from event</span>
+    <span class="n">chat_service</span> <span class="o">=</span> <span class="n">ChatService</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">kb_service</span> <span class="o">=</span> <span class="n">KnowledgeBaseService</span><span class="o">.</span><span class="n">from_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">messages</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">OpenAIMessageBuilder</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">system_message_append</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="s2">&quot;You are a helpful assistant&quot;</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">user_message_append</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="n">event</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">user_message</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">messages</span>
+    <span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">complete_with_references</span><span class="p">(</span>
+        <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span> <span class="n">model_name</span><span class="o">=</span><span class="n">LanguageModelName</span><span class="o">.</span><span class="n">AZURE_GPT_4o_2024_1120</span>
+    <span class="p">)</span>
+</code></pre></div>
+</div>
+</div>
+</div>
+</details>
+<h3 id="unblocking-the-next-user-input">Unblocking the next user input<a class="headerlink" href="#unblocking-the-next-user-input" title="Permanent link">&para;</a></h3>
+<p>For each user interaction the plattform is expected to answer in some form. 
+Thus, the user input is blocked during the process leading to this answer as seen below. </p>
+<p><img alt="alt text" src="../images/chat_window_active_stop_button.png" /></p>
+<p>It can be unblocked using </p>
+<div class="highlight"><pre><span></span><code>chat_service.free_user_input()
+</code></pre></div>
+<!--
+<div class="highlight"><span class="filename">file: docs/.python_files/chat_with_manual_message_create_free_user_input.py</span><pre><span></span><code><span class="o">&lt;&lt;</span><span class="n">full_sse_setup_with_services</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_final_assistant_result</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_free_user_input</span><span class="o">&gt;&gt;</span>
+</code></pre></div>
+-->
+
+<p>which should be called at the end of an agent interaction. Alternatively the user input can be freed by setting the <code>set_completed_at</code> flag in <code>create_assistant_message</code> or <code>modify_assistant_message</code>.</p>
+<h3 id="full-examples">Full Examples<a class="headerlink" href="#full-examples" title="Permanent link">&para;</a></h3>
+<details class="example">
+<summary>Full Examples (Click to expand)</summary>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Modifying Assistant Message</label><label for="__tabbed_2_2">Unblocking</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="c1"># %%</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ChatService</span><span class="p">,</span>
+    <span class="n">KnowledgeBaseService</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.dev_util</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_event_generator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatEvent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.unique_settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniqueSettings</span>
+
+<span class="n">settings</span> <span class="o">=</span> <span class="n">UniqueSettings</span><span class="o">.</span><span class="n">from_env_auto_with_sdk_init</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">get_event_generator</span><span class="p">(</span><span class="n">unique_settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">event_type</span><span class="o">=</span><span class="n">ChatEvent</span><span class="p">):</span>
+    <span class="c1"># Initialize services from event</span>
+    <span class="n">chat_service</span> <span class="o">=</span> <span class="n">ChatService</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">kb_service</span> <span class="o">=</span> <span class="n">KnowledgeBaseService</span><span class="o">.</span><span class="n">from_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">modify_assistant_message</span><span class="p">(</span>
+        <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Intermediate assistant message&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">modify_assistant_message</span><span class="p">(</span>
+        <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Final assistant message&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="c1"># %%</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ChatService</span><span class="p">,</span>
+    <span class="n">KnowledgeBaseService</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.dev_util</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_event_generator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatEvent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.unique_settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniqueSettings</span>
+
+<span class="n">settings</span> <span class="o">=</span> <span class="n">UniqueSettings</span><span class="o">.</span><span class="n">from_env_auto_with_sdk_init</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">get_event_generator</span><span class="p">(</span><span class="n">unique_settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">event_type</span><span class="o">=</span><span class="n">ChatEvent</span><span class="p">):</span>
+    <span class="c1"># Initialize services from event</span>
+    <span class="n">chat_service</span> <span class="o">=</span> <span class="n">ChatService</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">kb_service</span> <span class="o">=</span> <span class="n">KnowledgeBaseService</span><span class="o">.</span><span class="n">from_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">modify_assistant_message</span><span class="p">(</span>
+        <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Final assistant message&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">free_user_input</span><span class="p">()</span>
+</code></pre></div>
+</div>
+</div>
+</div>
+</details>
+<h2 id="adding-references">Adding References<a class="headerlink" href="#adding-references" title="Permanent link">&para;</a></h2>
+<p>For applications using additional information retrieved from the knowledge base or external Apis references are an important measure to verify the generated text from the LLM. Additionally, references can also be used on deterministically created assitant message as in the following example </p>
+<h3 id="manual-references">Manual References<a class="headerlink" href="#manual-references" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>chat_service.modify_assistant_message(
+        content=&quot;Hello from Unique &lt;sup&gt;0&lt;/sup&gt;&quot;,
+        references=[ContentReference(source=&quot;source0&quot;,
+                                     url=&quot;https://www.unique.ai&quot;,
+                                     name=&quot;reference_name&quot;,
+                                     sequence_number=0,
+                                     source_id=&quot;source_id_0&quot;,
+                                     id=&quot;id_0&quot;)]
+    )
+</code></pre></div>
+<p>In the <code>content</code> string the refercnes must be referred to by <code>&lt;sup&gt;sequence_number&lt;/sub&gt;</code>. The name property of the <code>ContentReference</code> will be displayed on the reference component and below the message as seen below</p>
+<p><img alt="alt text" src="../images/chat_with_reference.png" /></p>
+<!--
+<div class="highlight"><span class="filename">file: docs/.python_files/chat_with_manual_message_and_reference.py</span><pre><span></span><code><span class="o">&lt;&lt;</span><span class="n">full_sse_setup</span><span class="o">&gt;&gt;</span>
+    <span class="n">chat_service</span> <span class="o">=</span> <span class="n">ChatService</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_assistant_message_with_reference</span><span class="o">&gt;&gt;</span>
+</code></pre></div>
+-->
+
+<h3 id="referencing-content-chunks-when-streaming-to-the-frontend">Referencing Content Chunks when streaming to the frontend<a class="headerlink" href="#referencing-content-chunks-when-streaming-to-the-frontend" title="Permanent link">&para;</a></h3>
+<p>Lets assume that the vector search has retrieved the following chunks</p>
+<div class="highlight"><pre><span></span><code>chunks = [ContentChunk(text=&quot;Unique is a company that provides the platform for AI-powered solutions.&quot;,
+                                     order=0,
+                                     chunk_id=&quot;chunk_id_0&quot;,
+                                     key=&quot;key_0&quot;,
+                                     title=&quot;title_0&quot;,
+                                     start_page=1,
+                                     end_page=1,
+                                     url=&quot;https://www.unique.ai&quot;,
+                                     id=&quot;id_0&quot;),
+          ContentChunk(text=&quot;Unique is your Responsible AI Partner, with extensive experience in implementing AI solutions for enterprise clients in financial services.&quot;,
+                                     order=1,
+                                     chunk_id=&quot;chunk_id_1&quot;,
+                                     key=&quot;key_1&quot;,
+                                     title=&quot;title_1&quot;,
+                                     start_page=1,
+                                     end_page=1,
+                                     url=&quot;https://www.unique.ai&quot;,
+                                     id=&quot;id_1&quot;)
+                                     ]
+</code></pre></div>
+<p>If we want the LLM be able to reference them in its answer we need to present the information nicely, e.g. in a markdown table</p>
+<div class="highlight"><pre><span></span><code>def to_source_table(chunks: list[ContentChunk]) -&gt; str:
+    header = &quot;| Source Tag | Title |  URL | Text \n&quot; + &quot;| --- | --- | --- | --- |\n&quot;
+    rows = [f&quot;| [source{index}] | {chunk.title} | {chunk.url} | {chunk.text} \n&quot; for index,chunk in enumerate(chunks)]
+    return header + &quot;\n&quot;.join(rows)
+</code></pre></div>
+<p>The index of the list here is important as the backend requires to match the output of the LLM to the content chunk, for this we use the following reference guidelines as part of the system prompt.</p>
+<div class="highlight"><pre><span></span><code>reference_guidelines = &quot;&quot;&quot;
+Whenever you use information retrieved with a tool, you must adhere to strict reference guidelines. 
+You must strictly reference each fact used with the `source_number` of the corresponding passage, in 
+the following format: &#39;[source&lt;order_number&gt;]&#39;.
+
+Example:
+- The stock price of Apple Inc. is $150 [source0] and the company&#39;s revenue increased by 10% [source1].
+- Moreover, the company&#39;s market capitalization is $2 trillion [source2][source3].
+- Our internal documents tell us to invest[source4] (Internal)
+&quot;&quot;&quot;
+</code></pre></div>
+<p>The message to the LLM could now look like this</p>
+<div class="highlight"><pre><span></span><code>messages = (
+        OpenAIMessageBuilder()
+        .system_message_append(content=f&quot;You are a helpful assistant. {reference_guidelines}&quot;)
+        .user_message_append(content=f&quot;&lt;Sources&gt; {to_source_table(chunks)}&lt;/Srouces&gt;\n\n User question: {event.payload.user_message.text}&quot;)
+        .messages
+    )
+
+chat_service.complete_with_references(
+        messages=messages, 
+        model_name=LanguageModelName.AZURE_GPT_4o_2024_1120,
+        content_chunks=chunks)
+</code></pre></div>
+<p><img alt="alt text" src="../images/chat_references_with_streaming.png" /></p>
+<!--
+<div class="highlight"><span class="filename">file: docs/.python_files/chat_with_streamed_references.py</span><pre><span></span><code><span class="o">&lt;&lt;</span><span class="n">full_sse_setup</span><span class="o">&gt;&gt;</span>
+    <span class="n">chat_service</span> <span class="o">=</span> <span class="n">ChatService</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_retrieved_chunks</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_chunk_presentation</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_reference_guidelines</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_streaming_call_with_sources</span><span class="o">&gt;&gt;</span>
+</code></pre></div>
+-->
+
+<details class="example">
+<summary>Full Examples (Click to expand)</summary>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Manual Referencing</label><label for="__tabbed_3_2">Streaming Referencing</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="c1"># %%</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ChatService</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.dev_util</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_event_generator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatEvent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.unique_settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniqueSettings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.content.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ContentReference</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">settings</span> <span class="o">=</span> <span class="n">UniqueSettings</span><span class="o">.</span><span class="n">from_env_auto_with_sdk_init</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">get_event_generator</span><span class="p">(</span><span class="n">unique_settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">event_type</span><span class="o">=</span><span class="n">ChatEvent</span><span class="p">):</span>
+    <span class="n">chat_service</span> <span class="o">=</span> <span class="n">ChatService</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">modify_assistant_message</span><span class="p">(</span>
+        <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Hello from Unique &lt;sup&gt;0&lt;/sup&gt;&quot;</span><span class="p">,</span>
+        <span class="n">references</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">ContentReference</span><span class="p">(</span>
+                <span class="n">source</span><span class="o">=</span><span class="s2">&quot;source0&quot;</span><span class="p">,</span>
+                <span class="n">url</span><span class="o">=</span><span class="s2">&quot;https://www.unique.ai&quot;</span><span class="p">,</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;reference_name&quot;</span><span class="p">,</span>
+                <span class="n">sequence_number</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">source_id</span><span class="o">=</span><span class="s2">&quot;source_id_0&quot;</span><span class="p">,</span>
+                <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;id_0&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">],</span>
+    <span class="p">)</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="c1"># %%</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ChatService</span><span class="p">,</span>
+    <span class="n">LanguageModelName</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.dev_util</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_event_generator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatEvent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.unique_settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniqueSettings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.content.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ContentChunk</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.framework_utilities.openai.message_builder</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">OpenAIMessageBuilder</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">settings</span> <span class="o">=</span> <span class="n">UniqueSettings</span><span class="o">.</span><span class="n">from_env_auto_with_sdk_init</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">get_event_generator</span><span class="p">(</span><span class="n">unique_settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">event_type</span><span class="o">=</span><span class="n">ChatEvent</span><span class="p">):</span>
+    <span class="n">chat_service</span> <span class="o">=</span> <span class="n">ChatService</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">chunks</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">ContentChunk</span><span class="p">(</span>
+            <span class="n">text</span><span class="o">=</span><span class="s2">&quot;Unique is a company that provides the platform for AI-powered solutions.&quot;</span><span class="p">,</span>
+            <span class="n">order</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">chunk_id</span><span class="o">=</span><span class="s2">&quot;chunk_id_0&quot;</span><span class="p">,</span>
+            <span class="n">key</span><span class="o">=</span><span class="s2">&quot;key_0&quot;</span><span class="p">,</span>
+            <span class="n">title</span><span class="o">=</span><span class="s2">&quot;title_0&quot;</span><span class="p">,</span>
+            <span class="n">start_page</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">end_page</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">url</span><span class="o">=</span><span class="s2">&quot;https://www.unique.ai&quot;</span><span class="p">,</span>
+            <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;id_0&quot;</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">ContentChunk</span><span class="p">(</span>
+            <span class="n">text</span><span class="o">=</span><span class="s2">&quot;Unique is your Responsible AI Partner, with extensive experience in implementing AI solutions for enterprise clients in financial services.&quot;</span><span class="p">,</span>
+            <span class="n">order</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">chunk_id</span><span class="o">=</span><span class="s2">&quot;chunk_id_1&quot;</span><span class="p">,</span>
+            <span class="n">key</span><span class="o">=</span><span class="s2">&quot;key_1&quot;</span><span class="p">,</span>
+            <span class="n">title</span><span class="o">=</span><span class="s2">&quot;title_1&quot;</span><span class="p">,</span>
+            <span class="n">start_page</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">end_page</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">url</span><span class="o">=</span><span class="s2">&quot;https://www.unique.ai&quot;</span><span class="p">,</span>
+            <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;id_1&quot;</span><span class="p">,</span>
+        <span class="p">),</span>
+    <span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_source_table</span><span class="p">(</span><span class="n">chunks</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ContentChunk</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="s2">&quot;| Source Tag | Title |  URL | Text </span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;| --- | --- | --- | --- |</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="sa">f</span><span class="s2">&quot;| [source</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">] | </span><span class="si">{</span><span class="n">chunk</span><span class="o">.</span><span class="n">title</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">chunk</span><span class="o">.</span><span class="n">url</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">chunk</span><span class="o">.</span><span class="n">text</span><span class="si">}</span><span class="s2"> </span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="n">header</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+
+    <span class="n">reference_guidelines</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    Whenever you use information retrieved with a tool, you must adhere to strict reference guidelines. </span>
+<span class="s2">    You must strictly reference each fact used with the `source_number` of the corresponding passage, in </span>
+<span class="s2">    the following format: &#39;[source&lt;order_number&gt;]&#39;.</span>
+
+<span class="s2">    Example:</span>
+<span class="s2">    - The stock price of Apple Inc. is $150 [source0] and the company&#39;s revenue increased by 10% [source1].</span>
+<span class="s2">    - Moreover, the company&#39;s market capitalization is $2 trillion [source2][source3].</span>
+<span class="s2">    - Our internal documents tell us to invest[source4] (Internal)</span>
+<span class="s2">    &quot;&quot;&quot;</span>
+    <span class="n">messages</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">OpenAIMessageBuilder</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">system_message_append</span><span class="p">(</span>
+            <span class="n">content</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;You are a helpful assistant. </span><span class="si">{</span><span class="n">reference_guidelines</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">user_message_append</span><span class="p">(</span>
+            <span class="n">content</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;&lt;Sources&gt; </span><span class="si">{</span><span class="n">to_source_table</span><span class="p">(</span><span class="n">chunks</span><span class="p">)</span><span class="si">}</span><span class="s2">&lt;/Srouces&gt;</span><span class="se">\n\n</span><span class="s2"> User question: </span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">user_message</span><span class="o">.</span><span class="n">text</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+        <span class="o">.</span><span class="n">messages</span>
+    <span class="p">)</span>
+
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">complete_with_references</span><span class="p">(</span>
+        <span class="n">messages</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span>
+        <span class="n">model_name</span><span class="o">=</span><span class="n">LanguageModelName</span><span class="o">.</span><span class="n">AZURE_GPT_4o_2024_1120</span><span class="p">,</span>
+        <span class="n">content_chunks</span><span class="o">=</span><span class="n">chunks</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div>
+</div>
+</div>
+</div>
+</details>
+<h2 id="post-answer">Post Answer<a class="headerlink" href="#post-answer" title="Permanent link">&para;</a></h2>
+<h3 id="debug-information">Debug Information<a class="headerlink" href="#debug-information" title="Permanent link">&para;</a></h3>
+<p>Debuging information can be added to both the user and assistant messages but only the debug information that is added to the user message will be shown in the chat frontend.</p>
+<p>Therefore we recommend to use </p>
+<div class="highlight"><pre><span></span><code>debug_info = event.get_initial_debug_info()
+debug_info.update({&quot;timing&quot;: &quot;20s till completion&quot;})
+
+
+chat_service.modify_user_message(
+        content=&quot;Modified User Message&quot;,
+        message_id=event.payload.user_message.id,
+        debug_info=debug_info
+    )
+</code></pre></div>
+<!--
+<div class="highlight"><span class="filename">file: docs/.python_files/chat_edit_debug_information.py</span><pre><span></span><code><span class="o">&lt;&lt;</span><span class="n">full_sse_setup_with_services</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_final_assistant_result</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_modify_user_message_debug_info</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_free_user_input</span><span class="o">&gt;&gt;</span>
+</code></pre></div>
+-->
+
+<p>The debug information will be updated after a refresh of the page and look as follows</p>
+<p><img alt="alt text" src="../../../../debug_info_update.png" /></p>
+<details class="example">
+<summary>Full Examples (Click to expand)</summary>
+<div class="tabbed-set tabbed-alternate" data-tabs="4:2"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><input id="__tabbed_4_2" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">Unblocking</label><label for="__tabbed_4_2">Debug Information</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="c1"># %%</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ChatService</span><span class="p">,</span>
+    <span class="n">KnowledgeBaseService</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.dev_util</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_event_generator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatEvent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.unique_settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniqueSettings</span>
+
+<span class="n">settings</span> <span class="o">=</span> <span class="n">UniqueSettings</span><span class="o">.</span><span class="n">from_env_auto_with_sdk_init</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">get_event_generator</span><span class="p">(</span><span class="n">unique_settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">event_type</span><span class="o">=</span><span class="n">ChatEvent</span><span class="p">):</span>
+    <span class="c1"># Initialize services from event</span>
+    <span class="n">chat_service</span> <span class="o">=</span> <span class="n">ChatService</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">kb_service</span> <span class="o">=</span> <span class="n">KnowledgeBaseService</span><span class="o">.</span><span class="n">from_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">modify_assistant_message</span><span class="p">(</span>
+        <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Final assistant message&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">free_user_input</span><span class="p">()</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="c1"># %%</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ChatService</span><span class="p">,</span>
+    <span class="n">KnowledgeBaseService</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.dev_util</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_event_generator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatEvent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.unique_settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniqueSettings</span>
+
+<span class="n">settings</span> <span class="o">=</span> <span class="n">UniqueSettings</span><span class="o">.</span><span class="n">from_env_auto_with_sdk_init</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">get_event_generator</span><span class="p">(</span><span class="n">unique_settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">event_type</span><span class="o">=</span><span class="n">ChatEvent</span><span class="p">):</span>
+    <span class="c1"># Initialize services from event</span>
+    <span class="n">chat_service</span> <span class="o">=</span> <span class="n">ChatService</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">kb_service</span> <span class="o">=</span> <span class="n">KnowledgeBaseService</span><span class="o">.</span><span class="n">from_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">modify_assistant_message</span><span class="p">(</span>
+        <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Final assistant message&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">debug_info</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">get_initial_debug_info</span><span class="p">()</span>
+    <span class="n">debug_info</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;timing&quot;</span><span class="p">:</span> <span class="s2">&quot;20s till completion&quot;</span><span class="p">})</span>
+
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">modify_user_message</span><span class="p">(</span>
+        <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Modified User Message&quot;</span><span class="p">,</span>
+        <span class="n">message_id</span><span class="o">=</span><span class="n">event</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">user_message</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+        <span class="n">debug_info</span><span class="o">=</span><span class="n">debug_info</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">free_user_input</span><span class="p">()</span>
+</code></pre></div>
+</div>
+</div>
+</div>
+</details>
+<h3 id="message-assessments">Message Assessments<a class="headerlink" href="#message-assessments" title="Permanent link">&para;</a></h3>
+<p>Once an assistant has answered its time to access the quality of its answer. This happense usually through an LLM call to a more sophisticated or a task specialized LLM. The result of the assessment can be reported  using the message assessments by the Unique plattform.</p>
+<!--
+<div class="highlight"><pre><span></span><code>from unique_toolkit.chat.schemas import ChatMessageAssessmentStatus, ChatMessageAssessmentType, ChatMessageAssessmentLabel
+</code></pre></div>
+-->
+<div class="highlight"><pre><span></span><code>if not event.payload.assistant_message.id:
+    raise ValueError(&quot;Assistant message ID is not set&quot;)
+
+message_assessment = chat_service.create_message_assessment(
+        assistant_message_id=event.payload.assistant_message.id,
+        status=ChatMessageAssessmentStatus.PENDING,
+        type=ChatMessageAssessmentType.COMPLIANCE,
+        title=&quot;Following Guidelines&quot;,
+        explanation=&quot;&quot;,
+        is_visible=True,
+    )
+</code></pre></div>
+<p>During the assessment a pending indication can be shown as below. 
+<img alt="alt text" src="../../../../pending_message_assessment.png" /></p>
+<p>Once the assessment is finished it can be reported using</p>
+<div class="highlight"><pre><span></span><code>chat_service.modify_message_assessment(
+    assistant_message_id=event.payload.assistant_message.id,
+    status=ChatMessageAssessmentStatus.DONE,
+    type=ChatMessageAssessmentType.COMPLIANCE,
+    title=&quot;Following Guidelines&quot;,
+    explanation=&quot;The agents choice of words is according to our guidelines.&quot;,
+    label=ChatMessageAssessmentLabel.GREEN,
+)
+</code></pre></div>
+<p>which displays as
+<img alt="alt text" src="../../../../finished_message_assessment.png" /></p>
+<!--
+<div class="highlight"><span class="filename">file: docs/.python_files/chat_with_message_assessment.py</span><pre><span></span><code><span class="o">&lt;&lt;</span><span class="n">common_imports</span><span class="o">&gt;&gt;</span>
+<span class="o">&lt;&lt;</span><span class="n">full_sse_setup_with_services</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_final_assistant_result</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_create_message_assessment</span><span class="o">&gt;&gt;</span>
+    <span class="o">&lt;&lt;</span><span class="n">chat_service_modify_message_assessment</span><span class="o">&gt;&gt;</span>
+</code></pre></div>
+-->
+
+<h3 id="full-examples_1">Full Examples<a class="headerlink" href="#full-examples_1" title="Permanent link">&para;</a></h3>
+<details class="example">
+<summary>Full Examples (Click to expand)</summary>
+<div class="tabbed-set tabbed-alternate" data-tabs="5:2"><input checked="checked" id="__tabbed_5_1" name="__tabbed_5" type="radio" /><input id="__tabbed_5_2" name="__tabbed_5" type="radio" /><div class="tabbed-labels"><label for="__tabbed_5_1">Debug Information</label><label for="__tabbed_5_2">Message Assesment</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="c1"># %%</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ChatService</span><span class="p">,</span>
+    <span class="n">KnowledgeBaseService</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.dev_util</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_event_generator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatEvent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.unique_settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniqueSettings</span>
+
+<span class="n">settings</span> <span class="o">=</span> <span class="n">UniqueSettings</span><span class="o">.</span><span class="n">from_env_auto_with_sdk_init</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">get_event_generator</span><span class="p">(</span><span class="n">unique_settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">event_type</span><span class="o">=</span><span class="n">ChatEvent</span><span class="p">):</span>
+    <span class="c1"># Initialize services from event</span>
+    <span class="n">chat_service</span> <span class="o">=</span> <span class="n">ChatService</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">kb_service</span> <span class="o">=</span> <span class="n">KnowledgeBaseService</span><span class="o">.</span><span class="n">from_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">modify_assistant_message</span><span class="p">(</span>
+        <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Final assistant message&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">debug_info</span> <span class="o">=</span> <span class="n">event</span><span class="o">.</span><span class="n">get_initial_debug_info</span><span class="p">()</span>
+    <span class="n">debug_info</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;timing&quot;</span><span class="p">:</span> <span class="s2">&quot;20s till completion&quot;</span><span class="p">})</span>
+
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">modify_user_message</span><span class="p">(</span>
+        <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Modified User Message&quot;</span><span class="p">,</span>
+        <span class="n">message_id</span><span class="o">=</span><span class="n">event</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">user_message</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+        <span class="n">debug_info</span><span class="o">=</span><span class="n">debug_info</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">free_user_input</span><span class="p">()</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="c1"># %%</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ChatService</span><span class="p">,</span>
+    <span class="n">KnowledgeBaseService</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.dev_util</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_event_generator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatEvent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.unique_settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniqueSettings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.chat.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ChatMessageAssessmentLabel</span><span class="p">,</span>
+    <span class="n">ChatMessageAssessmentStatus</span><span class="p">,</span>
+    <span class="n">ChatMessageAssessmentType</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">settings</span> <span class="o">=</span> <span class="n">UniqueSettings</span><span class="o">.</span><span class="n">from_env_auto_with_sdk_init</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">get_event_generator</span><span class="p">(</span><span class="n">unique_settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">event_type</span><span class="o">=</span><span class="n">ChatEvent</span><span class="p">):</span>
+    <span class="c1"># Initialize services from event</span>
+    <span class="n">chat_service</span> <span class="o">=</span> <span class="n">ChatService</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">kb_service</span> <span class="o">=</span> <span class="n">KnowledgeBaseService</span><span class="o">.</span><span class="n">from_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">modify_assistant_message</span><span class="p">(</span>
+        <span class="n">content</span><span class="o">=</span><span class="s2">&quot;Final assistant message&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">event</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">assistant_message</span><span class="o">.</span><span class="n">id</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Assistant message ID is not set&quot;</span><span class="p">)</span>
+
+    <span class="n">message_assessment</span> <span class="o">=</span> <span class="n">chat_service</span><span class="o">.</span><span class="n">create_message_assessment</span><span class="p">(</span>
+        <span class="n">assistant_message_id</span><span class="o">=</span><span class="n">event</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">assistant_message</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+        <span class="n">status</span><span class="o">=</span><span class="n">ChatMessageAssessmentStatus</span><span class="o">.</span><span class="n">PENDING</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="n">ChatMessageAssessmentType</span><span class="o">.</span><span class="n">COMPLIANCE</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Following Guidelines&quot;</span><span class="p">,</span>
+        <span class="n">explanation</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="n">is_visible</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">chat_service</span><span class="o">.</span><span class="n">modify_message_assessment</span><span class="p">(</span>
+        <span class="n">assistant_message_id</span><span class="o">=</span><span class="n">event</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">assistant_message</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+        <span class="n">status</span><span class="o">=</span><span class="n">ChatMessageAssessmentStatus</span><span class="o">.</span><span class="n">DONE</span><span class="p">,</span>
+        <span class="nb">type</span><span class="o">=</span><span class="n">ChatMessageAssessmentType</span><span class="o">.</span><span class="n">COMPLIANCE</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Following Guidelines&quot;</span><span class="p">,</span>
+        <span class="n">explanation</span><span class="o">=</span><span class="s2">&quot;The agents choice of words is according to our guidelines.&quot;</span><span class="p">,</span>
+        <span class="n">label</span><span class="o">=</span><span class="n">ChatMessageAssessmentLabel</span><span class="o">.</span><span class="n">GREEN</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div>
+</div>
+</div>
+</div>
+</details></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../../../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../../../js/base.js"></script>
+        <script src="../../../../search/main.js"></script>
+        <script src="../../../../js/version-select.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>
