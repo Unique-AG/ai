@@ -202,15 +202,44 @@ def _parse_tool_sources(tool_content: str) -> list[ToolSource]:
     return sources
 
 
+def _max_source_number_in_gpt_request(
+    gpt_request: list[dict[str, Any]],
+    exclude_last_tool_message: bool = True,
+) -> int:
+    """Return the maximum source_number in tool message contents in gpt_request.
+    If exclude_last_tool_message is True, the last tool message is skipped (used
+    when we are about to renumber that message's sources).
+    Returns -1 if no tool messages or no sources.
+    """
+    tool_indices = [
+        i
+        for i, m in enumerate(gpt_request)
+        if m.get("role") == ChatRole.TOOL and m.get("name")
+    ]
+    if not tool_indices:
+        return -1
+    if exclude_last_tool_message and len(tool_indices) > 1:
+        tool_indices = tool_indices[:-1]
+    elif exclude_last_tool_message and len(tool_indices) == 1:
+        return -1
+    max_seen = -1
+    for i in tool_indices:
+        sources = _parse_tool_sources(gpt_request[i].get("content") or "")
+        for s in sources:
+            max_seen = max(max_seen, s.source_number)
+    return max_seen
+
+
 def _trim_tool_content_to_used_sources(
     original_content: str | None,
     tool_content: str | None,
+    start_index: int = 0,
 ) -> tuple[str, dict[int, int]]:
     """Keep only sources that are referenced in original_content.
     original_content uses citations like [source0], [source1].
     tool_content is a JSON string: list of {source_number: id, content: "..."}.
-    Returns (trimmed JSON string with only referenced sources renumbered 0,1,2,...,
-             mapping from old source_number to new source_number).
+    Remaining sources are renumbered sequentially from start_index.
+    Returns (trimmed JSON string, mapping from old source_number to new).
     """
     if not tool_content or not tool_content.strip():
         return (tool_content or "", {})
@@ -227,10 +256,11 @@ def _trim_tool_content_to_used_sources(
     if not kept:
         return ("No relevant sources found.", {})
 
-    # Renumber remaining sources sequentially from 0; build old -> new mapping
+    # Renumber remaining sources sequentially from start_index; build old -> new mapping
     old_to_new: dict[int, int] = {}
     renumbered: list[dict[str, Any]] = []
-    for new_number, source in enumerate(kept):
+    for i, source in enumerate(kept):
+        new_number = start_index + i
         old_to_new[source.source_number] = new_number
         d = source.model_dump()
         d["source_number"] = new_number
@@ -283,19 +313,22 @@ def _append_last_tool_calls_and_tool_message(
     tool_message_append per gpt_request list on each iteration of grouped_elements.
     When trimming tool content to used sources, uses original_content_from_next
     (the original_content of the next item in grouped_elements) when provided.
-    Remaining sources are renumbered sequentially from 0.
-    Returns the mapping from old source_number to new (0,1,2,...) so the caller
-    can rewrite the next message's content (where citations live).
+    Remaining sources are renumbered sequentially from (last source_number in
+    gpt_request + 1) so source numbers stay unique across the request.
+    Returns the mapping from old source_number to new so the caller can rewrite
+    the next message's content (where citations live).
     """
     assistant_tool_calls = _last_assistant_with_tool_calls(gpt_request)
     tool_calls_content = _last_tool_call_content(gpt_request)
 
+    next_source_number = _max_source_number_in_gpt_request(gpt_request) + 1
     trimmed_content = ""
     old_to_new: dict[int, int] = {}
     if tool_calls_content:
         trimmed_content, old_to_new = _trim_tool_content_to_used_sources(
             original_content_from_next,
             tool_calls_content.get("content"),
+            start_index=next_source_number,
         )
 
     if assistant_tool_calls:

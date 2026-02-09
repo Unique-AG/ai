@@ -3,6 +3,7 @@ import json
 from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
     _append_last_tool_calls_and_tool_message,
     _extract_referenced_source_numbers,
+    _max_source_number_in_gpt_request,
     _trim_tool_content_to_used_sources,
 )
 from unique_toolkit.language_model.schemas import LanguageModelMessages
@@ -146,6 +147,48 @@ class TestTrimToolContentToUsedSources:
         assert content == tool_content
         assert mapping == {}
 
+    def test_renumbers_from_start_index(self):
+        tool_content = json.dumps(
+            [
+                {"source_number": 10, "content": "X"},
+                {"source_number": 11, "content": "Y"},
+            ]
+        )
+        original_content = "Use [source10] and [source11]."
+        content, old_to_new = _trim_tool_content_to_used_sources(
+            original_content, tool_content, start_index=3
+        )
+        parsed = json.loads(content)
+        assert parsed[0]["source_number"] == 3 and parsed[0]["content"] == "X"
+        assert parsed[1]["source_number"] == 4 and parsed[1]["content"] == "Y"
+        assert old_to_new == {10: 3, 11: 4}
+
+
+class TestMaxSourceNumberInGptRequest:
+    """Tests for _max_source_number_in_gpt_request."""
+
+    def test_returns_minus_one_when_no_tool_messages(self):
+        gpt_request = [
+            {"role": "user", "content": "Hi"},
+            {"role": "assistant", "content": "Hello"},
+        ]
+        assert _max_source_number_in_gpt_request(gpt_request) == -1
+
+    def test_returns_minus_one_when_only_one_tool_message_excluded(self):
+        gpt_request = [
+            {"role": "tool", "name": "Search", "tool_call_id": "1", "content": json.dumps([{"source_number": 0, "content": "A"}])},
+        ]
+        assert _max_source_number_in_gpt_request(gpt_request, exclude_last_tool_message=True) == -1
+
+    def test_returns_max_from_previous_tool_messages(self):
+        gpt_request = [
+            {"role": "assistant", "content": "Call", "tool_calls": [{"id": "1", "function": {"name": "Search", "arguments": "{}"}}]},
+            {"role": "tool", "name": "Search", "tool_call_id": "1", "content": json.dumps([{"source_number": 0, "content": "A"}, {"source_number": 1, "content": "B"}])},
+            {"role": "assistant", "content": "Call 2", "tool_calls": [{"id": "2", "function": {"name": "Search", "arguments": "{}"}}]},
+            {"role": "tool", "name": "Search", "tool_call_id": "2", "content": json.dumps([{"source_number": 0, "content": "C"}])},
+        ]
+        assert _max_source_number_in_gpt_request(gpt_request) == 1
+
 
 class TestAppendLastToolCallsAndToolMessage:
     """Tests for _append_last_tool_calls_and_tool_message (idempotency and trimming)."""
@@ -272,6 +315,26 @@ class TestAppendLastToolCallsAndToolMessage:
         messages = builder.build()
         assert messages.root[0].role == "assistant"
         assert messages.root[0].content == "Answer uses [source0] and [source1]."
+
+    def test_second_tool_message_sources_start_after_first(self):
+        """Sources in the second tool message are renumbered from (max in first + 1)."""
+        gpt_request = [
+            {"role": "user", "content": "Search."},
+            {"role": "assistant", "content": "", "tool_calls": [{"id": "call_1", "function": {"name": "Search", "arguments": "{}"}}]},
+            {"role": "tool", "name": "Search", "tool_call_id": "call_1", "content": json.dumps([{"source_number": 0, "content": "A"}, {"source_number": 1, "content": "B"}])},
+            {"role": "assistant", "content": "Second", "tool_calls": [{"id": "call_2", "function": {"name": "Search", "arguments": "{}"}}]},
+            {"role": "tool", "name": "Search", "tool_call_id": "call_2", "content": json.dumps([{"source_number": 0, "content": "X"}, {"source_number": 1, "content": "Y"}])},
+        ]
+        builder = LanguageModelMessages([]).builder()
+        original_content_from_next = "See [source0] and [source1]."
+        _append_last_tool_calls_and_tool_message(
+            builder, gpt_request, original_content_from_next=original_content_from_next
+        )
+        messages = builder.build()
+        tool_content = json.loads(messages.root[1].content)
+        assert tool_content[0]["source_number"] == 2 and tool_content[0]["content"] == "X"
+        assert tool_content[1]["source_number"] == 3 and tool_content[1]["content"] == "Y"
+        # Citations live in the next message; old_to_new maps 0->2, 1->3 so they would become [source2], [source3]
 
     def test_appends_nothing_when_no_tool_calls_or_tool_message(self):
         gpt_request = [
