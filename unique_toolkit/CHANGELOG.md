@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [1.46.4] - 2026-02-10
-- Fix: Normalize `encoder_name` strings to `EncoderName` enum in `LanguageModelInfo` via model validator and runtime conversion in `get_encoder()` to enable bundled tokenizers when UI sends string values
+- Fix: Add `union_mode="left_to_right"` to `encoder_name` field so Pydantic tries `EncoderName` enum before `str`, enabling bundled tokenizers when UI sends string values
 
 ## [1.46.3] - 2026-02-09
 ### Fixed

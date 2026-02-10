@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Annotated, Any, Callable, ClassVar, Optional, Self
 
 import tiktoken
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from tokenizers import Tokenizer
 from typing_extensions import deprecated
@@ -219,8 +219,8 @@ class LanguageModelInfo(BaseModel):
     provider: LanguageModelProvider = LanguageModelProvider.AZURE
     version: str = Field(title="Model Version", default="")
 
-    encoder_name: EncoderName | Annotated[str, Field(title="Custom Encoder Name")] = (
-        EncoderName.CL100K_BASE
+    encoder_name: EncoderName | Annotated[str, Field(title="Custom Encoder Name")] = Field(
+        default=EncoderName.CL100K_BASE, union_mode="left_to_right"
     )
 
     # TODO: Discuss if this is a sensible defaut
@@ -260,30 +260,11 @@ class LanguageModelInfo(BaseModel):
 
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
 
-    @model_validator(mode="before")
-    @classmethod
-    def normalize_encoder_name(cls, data: Any) -> Any:
-        """Convert string encoder_name to EncoderName enum if it matches."""
-        if isinstance(data, dict) and "encoder_name" in data:
-            encoder_name = data["encoder_name"]
-            if isinstance(encoder_name, str):
-                try:
-                    data["encoder_name"] = EncoderName(encoder_name)
-                except ValueError:
-                    pass  # Keep as string for custom encoders
-        return data
-
     def get_encoder(self) -> Callable[[str], list[int]]:
         """Get an encode callable for this model's tokenizer."""
-        encoder_name = self.encoder_name
-        if isinstance(encoder_name, str) and not isinstance(encoder_name, EncoderName):
-            try:
-                encoder_name = EncoderName(encoder_name)
-            except ValueError:
-                pass
-        if isinstance(encoder_name, EncoderName):
-            return encoder_name.get_encoder()
-        return _load_custom_encoder(encoder_name)
+        if isinstance(self.encoder_name, EncoderName):
+            return self.encoder_name.get_encoder()
+        return _load_custom_encoder(self.encoder_name)
 
     @classmethod
     @lru_cache(maxsize=1)
