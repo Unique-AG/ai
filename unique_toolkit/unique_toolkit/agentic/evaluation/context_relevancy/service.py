@@ -27,7 +27,7 @@ from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationMetricResult,
 )
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     ModelCapabilities,
@@ -46,7 +46,7 @@ from .prompts import system_prompt_loader, user_prompt_loader
 default_config = EvaluationMetricConfig(
     enabled=False,
     name=EvaluationMetricName.CONTEXT_RELEVANCY,
-    language_model=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
+    language_model=LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL),
     prompts_config=EvaluationMetricPromptsConfig(
         system_prompt_template=system_prompt_loader(),
         user_prompt_template=user_prompt_loader(),

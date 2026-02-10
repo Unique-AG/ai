@@ -18,7 +18,7 @@ from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationMetricInputFieldName,
     EvaluationMetricName,
 )
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 
@@ -41,7 +41,7 @@ class HallucinationConfig(EvaluationMetricConfig):
     enabled: SkipJsonSchema[bool] = False
     name: SkipJsonSchema[EvaluationMetricName] = EvaluationMetricName.HALLUCINATION
     language_model: LMI = LanguageModelInfo.from_name(
-        DEFAULT_GPT_4o,
+        DEFAULT_LANGUAGE_MODEL,
     )
     prompts_config: HallucinationPromptsConfig = Field(  # type: ignore[assignment]
         default_factory=HallucinationPromptsConfig,

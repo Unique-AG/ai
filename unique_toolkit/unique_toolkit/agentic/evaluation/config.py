@@ -10,7 +10,7 @@ from unique_toolkit.agentic.evaluation.schemas import (
     EvaluationMetricName,
 )
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 PromptType = Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=5)]
@@ -33,7 +33,7 @@ class EvaluationMetricConfig(BaseToolConfig):
     enabled: SkipJsonSchema[bool] = False
     name: SkipJsonSchema[EvaluationMetricName]
     language_model: LMI = LanguageModelInfo.from_name(
-        DEFAULT_GPT_4o,
+        DEFAULT_LANGUAGE_MODEL,
     )
     additional_llm_options: dict[str, Any] = Field(
         default={},

@@ -6,13 +6,13 @@ from unique_toolkit.data_extraction.basic.prompt import (
     DEFAULT_DATA_EXTRACTION_SYSTEM_PROMPT,
     DEFAULT_DATA_EXTRACTION_USER_PROMPT,
 )
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 
 
 class StructuredOutputDataExtractorConfig(BaseModel):
     model_config = get_configuration_dict()
 
-    language_model: LMI = get_LMI_default_field(DEFAULT_GPT_4o)
+    language_model: LMI = get_LMI_default_field(DEFAULT_LANGUAGE_MODEL)
     structured_output_enforce_schema: bool = False
     system_prompt_template: str = DEFAULT_DATA_EXTRACTION_SYSTEM_PROMPT
     user_prompt_template: str = DEFAULT_DATA_EXTRACTION_USER_PROMPT

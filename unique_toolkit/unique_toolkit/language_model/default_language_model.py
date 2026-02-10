@@ -33,4 +33,4 @@ def resolve_default_language_model(
             )
             return fallback
 
-DEFAULT_LANGUAGE_MODEL = resolve_default_language_model()
+DEFAULT_LANGUAGE_MODEL: LanguageModelName = resolve_default_language_model()

@@ -1,7 +1,7 @@
 import warnings
 
 from unique_toolkit.language_model.default_language_model import (
-    DEFAULT_GPT_4o as DEFAULT_GPT_4o,
+    DEFAULT_GPT_4o as DEFAULT_GPT_4o, DEFAULT_LANGUAGE_MODEL as DEFAULT_LANGUAGE_MODEL,
 )
 
 warnings.warn(

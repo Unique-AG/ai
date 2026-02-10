@@ -6,7 +6,7 @@ from unique_toolkit.language_model import (
     LanguageModelMessage,
     LanguageModelMessageRole,
 )
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
@@ -40,7 +40,7 @@ def config():
 @pytest.fixture
 def config_without_structured_output():
     return FollowUpQuestionsConfig(
-        language_model=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
+        language_model=LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL),
         examples=[
             FollowUpQuestion(
                 category=FollowUpCategory.CLARIFICATION, question="Example 1"

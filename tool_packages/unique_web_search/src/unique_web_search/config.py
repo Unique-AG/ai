@@ -14,7 +14,7 @@ from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit.language_model.infos import ModelCapabilities
 
 from unique_web_search.prompts import (
@@ -43,7 +43,6 @@ from unique_web_search.settings import env_settings
 
 _LOGGER = getLogger(__name__)
 
-DEFAULT_MODEL_NAME = DEFAULT_GPT_4o
 
 ActivatedSearchEngine = get_search_engine_config_types_from_names(
     env_settings.active_search_engines
@@ -79,7 +78,7 @@ class ExperimentalFeatures(FeatureExtendedSourceSerialization): ...
 
 
 class WebSearchConfig(BaseToolConfig):
-    language_model: LMI = get_LMI_default_field(DEFAULT_MODEL_NAME)
+    language_model: LMI = get_LMI_default_field(DEFAULT_LANGUAGE_MODEL)
 
     limit_token_sources: SkipJsonSchema[int] = Field(
         default=60_000,  # TODO: Remove SkipJsonSchema once UI (Spaces 2.0) can be configured to not include certain fields

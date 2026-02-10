@@ -7,7 +7,7 @@ from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentType,
 )
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 
 DEFAULT_EVALUATION_SYSTEM_MESSAGE_TEMPLATE = """
 You are a through and precise summarization model.
@@ -30,7 +30,7 @@ class SubAgentEvaluationServiceConfig(BaseModel):
         default=ChatMessageAssessmentType.HALLUCINATION,
         description="The type of assessment to use in the display.",
     )
-    summarization_model: LMI = get_LMI_default_field(DEFAULT_GPT_4o)
+    summarization_model: LMI = get_LMI_default_field(DEFAULT_LANGUAGE_MODEL)
     summarization_system_message: str = Field(
         default=DEFAULT_EVALUATION_SYSTEM_MESSAGE_TEMPLATE,
         description="The system message template for the summarization model.",
