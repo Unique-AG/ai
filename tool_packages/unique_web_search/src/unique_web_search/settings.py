@@ -96,6 +96,11 @@ class Base(BaseSettings):
         "https://management.azure.com/.default"
     )
 
+    # Azure AI Project settings
+    azure_ai_bing_agent_model: str = "gpt-4o"
+    azure_ai_project_endpoint: str | None = None
+    azure_ai_bing_ressource_connection_string: str | None = None
+
     @property
     def active_crawlers(self) -> list[str]:
         "Dynamically determine the active crawlers based on the API keys provided"

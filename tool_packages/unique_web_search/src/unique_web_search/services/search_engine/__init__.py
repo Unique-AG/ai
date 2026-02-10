@@ -89,7 +89,7 @@ def get_search_engine_service(
         case SearchEngineType.TAVILY:
             return TavilySearch(search_engine_config)
         case SearchEngineType.BING:
-            return BingSearch(search_engine_config, language_model_service)
+            return BingSearch(search_engine_config)
         case SearchEngineType.BRAVE:
             return BraveSearch(search_engine_config)
         case SearchEngineType.VERTEXAI:

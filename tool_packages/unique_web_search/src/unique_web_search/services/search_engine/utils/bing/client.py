@@ -1,13 +1,14 @@
-from logging import getLogger
+import logging
 
 import certifi
+from azure.ai.projects import AIProjectClient
 from azure.core.credentials import TokenCredential
 from azure.core.pipeline.transport._requests_basic import RequestsTransport
 from azure.identity import DefaultAzureCredential, WorkloadIdentityCredential
 
 from unique_web_search.settings import env_settings
 
-_LOGGER = getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 def _get_workload_identity_credentials(
@@ -22,7 +23,7 @@ def _get_workload_identity_credentials(
     return credentials
 
 
-def get_crendentials():
+def get_credentials():
     match env_settings.azure_identity_credential_type:
         case "workload":
             return _get_workload_identity_credentials(
@@ -47,3 +48,21 @@ def credentials_are_valid(credentials: TokenCredential) -> bool:
     except Exception as e:
         _LOGGER.error(f"Azure identity credentials are invalid: {e}")
         return False
+
+
+def get_project_client(credentials: TokenCredential) -> AIProjectClient:
+    if env_settings.azure_ai_project_endpoint is None:
+        raise ValueError("Azure AI project endpoint is not set")
+
+    if env_settings.use_unique_private_endpoint_transport:
+        transport = RequestsTransport(connection_verify=certifi.where())
+        return AIProjectClient(
+            credential=credentials,
+            endpoint=env_settings.azure_ai_project_endpoint,
+            transport=transport,
+        )
+    else:
+        return AIProjectClient(
+            credential=credentials,
+            endpoint=env_settings.azure_ai_project_endpoint,
+        )
