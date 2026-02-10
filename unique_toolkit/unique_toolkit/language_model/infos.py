@@ -220,7 +220,7 @@ class LanguageModelInfo(BaseModel):
     version: str = Field(title="Model Version", default="")
 
     encoder_name: EncoderName | Annotated[str, Field(title="Custom Encoder Name")] = (
-        EncoderName.CL100K_BASE
+        Field(default=EncoderName.CL100K_BASE, union_mode="left_to_right")
     )
 
     # TODO: Discuss if this is a sensible defaut
