@@ -220,7 +220,9 @@ class InternalSearchService:
             for chunk in result.chunks
         ]
         selected_chunks = pick_content_chunks_for_token_window(
-            found_chunks, self._get_max_tokens()
+            found_chunks,
+            self._get_max_tokens(),
+            model_info=self.config.language_model,
         )
 
         ###
