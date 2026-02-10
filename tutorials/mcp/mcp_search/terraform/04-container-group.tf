@@ -16,6 +16,8 @@ resource "azurerm_key_vault_secret" "acr_password" {
   name         = "acr-password"
   value        = azurerm_container_registry.main.admin_password
   key_vault_id = azurerm_key_vault.main.id
+
+  depends_on = [azurerm_role_assignment.kv_secrets_officer]
 }
 
 resource "azurerm_container_group" "main" {

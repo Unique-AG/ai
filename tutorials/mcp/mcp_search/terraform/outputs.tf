@@ -155,7 +155,7 @@ output "dns_configuration" {
 
 output "view_logs_mcp_search" {
   description = "Command to view MCP Search container logs"
-  value       = "az container logs --name ${azurerm_container_group.main.name} --resource-group ${data.azurerm_resource_group.main.name} --container-name mcp-search"
+  value       = "az container logs --name ${azurerm_container_group.main.name} --resource-group ${data.azurerm_resource_group.main.name} --container-name ${var.base_name}"
 }
 
 output "view_logs_caddy" {
@@ -170,7 +170,7 @@ output "view_logs_all" {
 
 output "follow_logs_mcp_search" {
   description = "Command to follow MCP Search container logs (live)"
-  value       = "az container logs --name ${azurerm_container_group.main.name} --resource-group ${data.azurerm_resource_group.main.name} --container-name mcp-search --follow"
+  value       = "az container logs --name ${azurerm_container_group.main.name} --resource-group ${data.azurerm_resource_group.main.name} --container-name ${var.base_name} --follow"
 }
 
 output "follow_logs_caddy" {

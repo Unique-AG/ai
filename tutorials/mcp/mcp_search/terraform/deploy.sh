@@ -86,6 +86,53 @@ apply_infrastructure() {
     fi
 }
 
+apply_infrastructure_excluding_container_group() {
+    log_info "Applying infrastructure changes (excluding container group)..."
+    log_info "This creates ACR, Key Vault, Storage, etc. but not the container group."
+    log_info "The container group will be created after the image is built."
+    cd "$SCRIPT_DIR"
+    
+    # Get all resources that need to be created before the container group
+    # We exclude the container group itself to avoid "InaccessibleImage" errors
+    log_info "Creating infrastructure resources (this may take a few minutes)..."
+    
+    # Apply all resources except the container group
+    # This allows us to create ACR first, build the image, then create the container group
+    # Note: acr_pull role assignment is excluded as it's conditional (only created if use_managed_identity_for_acr=true)
+    #       It will be created automatically when the container group is created if needed
+    terraform apply \
+        -target=azurerm_container_registry.main \
+        -target=azurerm_key_vault.main \
+        -target=azurerm_storage_account.main \
+        -target=azurerm_log_analytics_workspace.main \
+        -target=azurerm_user_assigned_identity.aci \
+        -target=azurerm_role_assignment.kv_secrets_officer \
+        -target=azurerm_role_assignment.kv_secrets_user \
+        -target=azurerm_key_vault_secret.unique_app_key \
+        -target=azurerm_key_vault_secret.unique_app_id \
+        -target=azurerm_key_vault_secret.unique_api_base_url \
+        -target=azurerm_key_vault_secret.unique_auth_company_id \
+        -target=azurerm_key_vault_secret.unique_auth_user_id \
+        -target=azurerm_key_vault_secret.unique_app_endpoint \
+        -target=azurerm_key_vault_secret.unique_app_endpoint_secret \
+        -target=azurerm_key_vault_secret.zitadel_base_url \
+        -target=azurerm_key_vault_secret.zitadel_client_id \
+        -target=azurerm_key_vault_secret.zitadel_client_secret \
+        -target=azurerm_key_vault_secret.acr_password \
+        -target=azurerm_storage_share.caddy_data_prod \
+        -target=azurerm_storage_share.caddy_data_staging \
+        -target=azurerm_storage_share.caddy_config \
+        -target=azurerm_storage_container.tfstate \
+        -auto-approve
+    
+    if [ $? -ne 0 ]; then
+        log_error "Failed to apply infrastructure (excluding container group)."
+        exit 1
+    fi
+    
+    log_info "Infrastructure resources created successfully (container group will be created after image build)."
+}
+
 build_and_push_image() {
     log_info "Building and pushing Docker image..."
     
@@ -525,7 +572,7 @@ usage() {
     echo "  apply           - Apply infrastructure changes"
     echo "  build           - Build and push Docker image to ACR"
     echo "  restart         - Restart the container instance"
-    echo "  deploy          - Full deployment (init, plan, apply, build, restart)"
+    echo "  deploy          - Full deployment (handles fresh vs existing deployments)"
     echo "  status          - Check container instance status and health"
     echo "  test            - Test MCP endpoint with curl (health check)"
     echo "  verify          - Comprehensive deployment verification (all checks)"
@@ -571,10 +618,40 @@ case "${1:-}" in
     deploy)
         check_prerequisites
         init_terraform
-        plan_infrastructure
-        apply_infrastructure
-        build_and_push_image
-        restart_container
+        
+        # Check if this is a fresh deployment (no container group exists in state)
+        cd "$SCRIPT_DIR"
+        ACI_EXISTS=$(terraform state list 2>/dev/null | grep -q "azurerm_container_group.main" && echo "yes" || echo "no")
+        
+        if [ "$ACI_EXISTS" = "no" ]; then
+            log_info "Fresh deployment detected - creating infrastructure first, then building image..."
+            log_info "This prevents 'InaccessibleImage' errors by ensuring the image exists before creating the container group."
+            
+            # Fresh deployment: create infrastructure (excluding container group), build image, then create container group
+            apply_infrastructure_excluding_container_group
+            
+            log_info "Building and pushing Docker image..."
+            build_and_push_image
+            
+            log_info "Creating container group and any remaining resources now that image is available..."
+            # Do a full apply to create the container group and any conditional resources (like acr_pull)
+            terraform apply -auto-approve
+            
+            if [ $? -ne 0 ]; then
+                log_error "Failed to create container group."
+                exit 1
+            fi
+            
+            log_info "Deployment completed successfully!"
+        else
+            log_info "Container group exists - using standard deployment flow..."
+            # Existing deployment: plan, apply, build, restart
+            plan_infrastructure
+            apply_infrastructure
+            build_and_push_image
+            restart_container
+        fi
+        
         show_outputs
         ;;
     status)
@@ -587,6 +664,20 @@ case "${1:-}" in
         ;;
     verify)
         check_prerequisites
+        if [ ! -f "$SCRIPT_DIR/verify-deployment.sh" ]; then
+            log_error "verify-deployment.sh not found at $SCRIPT_DIR/verify-deployment.sh"
+            log_error "This file should be part of the repository."
+            log_info ""
+            log_info "To fix this issue:"
+            log_info "  1. Ensure you have the latest code: git pull"
+            log_info "  2. If the file is missing, check if it needs to be committed: git status"
+            log_info "  3. The file should be at: terraform/verify-deployment.sh"
+            exit 1
+        fi
+        if [ ! -x "$SCRIPT_DIR/verify-deployment.sh" ]; then
+            log_warn "verify-deployment.sh is not executable, making it executable..."
+            chmod +x "$SCRIPT_DIR/verify-deployment.sh"
+        fi
         "$SCRIPT_DIR/verify-deployment.sh"
         ;;
     logs)

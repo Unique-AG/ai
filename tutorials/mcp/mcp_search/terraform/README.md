@@ -37,7 +37,7 @@ flowchart TB
 |----------|-------------|---------|
 | Container Registry | `acrsearchmcp<suffix>` | Stores Docker images |
 | Key Vault | `kv-search-mcp-<suffix>` | Stores application secrets |
-| Storage Account | `stsearchmcp<suffix>` | Stores Caddy certificates + Terraform state |
+| Storage Account | `stsearchmcp<suffix>` | Stores Caddy certificates (prod/staging) + Terraform state |
 | Log Analytics Workspace | `law-search-mcp-<suffix>` | Centralized logging (30 days retention) |
 | Container Instance | `aci-search-mcp-<suffix>` | Runs the application containers |
 | Managed Identity | `id-search-mcp-<suffix>` | Provides secure access to resources |
@@ -91,25 +91,48 @@ chmod +x deploy.sh
 ./deploy.sh deploy
 ```
 
-Or manually:
+Or manually (for fresh deployments):
 
 ```bash
 # Initialize Terraform
 terraform init
 
-# Plan the deployment
-terraform plan -out=tfplan
+# Step 1: Create infrastructure (ACR, Key Vault, Storage, etc.) WITHOUT container group
+terraform apply -target=azurerm_container_registry.main \
+                -target=azurerm_key_vault.main \
+                -target=azurerm_storage_account.main \
+                -target=azurerm_log_analytics_workspace.main \
+                -target=azurerm_user_assigned_identity.aci \
+                -target=azurerm_role_assignment.kv_secrets_officer \
+                -target=azurerm_role_assignment.kv_secrets_user \
+                -target=azurerm_key_vault_secret.unique_app_key \
+                -target=azurerm_key_vault_secret.unique_app_id \
+                -target=azurerm_key_vault_secret.unique_api_base_url \
+                -target=azurerm_key_vault_secret.unique_auth_company_id \
+                -target=azurerm_key_vault_secret.unique_auth_user_id \
+                -target=azurerm_key_vault_secret.unique_app_endpoint \
+                -target=azurerm_key_vault_secret.unique_app_endpoint_secret \
+                -target=azurerm_key_vault_secret.zitadel_base_url \
+                -target=azurerm_key_vault_secret.zitadel_client_id \
+                -target=azurerm_key_vault_secret.zitadel_client_secret \
+                -target=azurerm_storage_share.caddy_data_prod \
+                -target=azurerm_storage_share.caddy_data_staging \
+                -target=azurerm_storage_share.caddy_config \
+                -auto-approve
 
-# Apply the configuration
-terraform apply tfplan
-
-# Build and push Docker image (automatically tagged with git SHA + timestamp)
+# Step 2: Build and push Docker image (automatically tagged with git SHA + timestamp)
 az acr login --name $(terraform output -raw acr_name)
 cd ..
 az acr build --registry $(terraform output -raw acr_name) \
   --image mcp-search:$(git rev-parse --short HEAD)-$(date +%Y%m%d-%H%M%S) \
   --image mcp-search:latest .
+
+# Step 3: Create the container group and any remaining resources (now that the image exists)
+cd terraform
+terraform apply -auto-approve
 ```
+
+**Note**: The `deploy.sh` script automatically handles this ordering for you. The manual steps above are only needed if you want to deploy without the script. The script detects fresh deployments and ensures the image is built before creating the container group.
 
 ### 5. Verify Deployment
 
@@ -119,7 +142,8 @@ After deployment, verify that everything is working correctly:
 # Comprehensive verification (recommended)
 ./deploy.sh verify
 
-# Or run the verification script directly
+# Or run the verification script directly (from terraform directory)
+cd terraform
 ./verify-deployment.sh
 ```
 
@@ -175,6 +199,7 @@ terraform output aci_ip_address
 | `app_container_memory` | `1.5` | Memory (GB) for app container |
 | `caddy_container_cpu` | `0.5` | CPU cores for Caddy container |
 | `caddy_container_memory` | `0.5` | Memory (GB) for Caddy container |
+| `use_staging_letsencrypt` | `true` | Use Let's Encrypt staging environment (set to `false` for production trusted certificates) |
 | `app_image_tag` | `latest` | Docker image tag |
 | `use_managed_identity_for_acr` | `true` | Use managed identity for ACR (set to `false` if you lack role assignment permissions) |
 | `tags` | See defaults | Resource tags |
@@ -306,27 +331,83 @@ terraform output log_analytics_portal_url
 
 ## HTTPS Setup
 
-The Caddy configuration **automatically detects** whether to use:
-- **Self-signed certificates** for Azure FQDNs (`*.azurecontainer.io`)
-- **Let's Encrypt certificates** for custom domains
+The Caddy configuration uses externalized template files to support both **staging** and **production** Let's Encrypt environments. Certificates are stored in separate file shares based on the environment.
+
+### Caddyfile Templates
+
+The Caddyfile is defined in template files that are rendered at deployment:
+
+- **`Caddyfile.prod.template`**: Production Let's Encrypt (trusted certificates, rate limits apply)
+- **`Caddyfile.staging.template`**: Staging Let's Encrypt (untrusted certificates, no rate limits)
+
+**Default**: Uses staging environment (`use_staging_letsencrypt = true`) to avoid rate limits during testing.
+
+### Let's Encrypt Environments
+
+#### Staging Environment (Default)
+
+```hcl
+# terraform.tfvars
+use_staging_letsencrypt = true  # Default, can be omitted
+```
+
+**Characteristics**:
+- ✅ **No rate limits** - unlimited certificate requests
+- ⚠️ **Certificates NOT trusted** by browsers/clients (for testing only)
+- ✅ Perfect for development and testing
+- Certificates stored in `caddy-data-staging` file share
+
+#### Production Environment
+
+```hcl
+# terraform.tfvars
+use_staging_letsencrypt = false
+```
+
+**Characteristics**:
+- ✅ **Trusted certificates** for browsers and clients
+- ⚠️ **Rate limits apply** (50 certificates per registered domain per week)
+- ✅ No security warnings
+- Certificates stored in `caddy-data-prod` file share
 
 ### For Azure FQDNs (No Domain Needed)
 
 When you use the Azure Container Instance FQDN (e.g., `aci-search-mcp-xxx.swedencentral.azurecontainer.io`):
 
-1. ✅ **HTTPS is enabled** with self-signed certificates
+1. ✅ **HTTPS is enabled** with Let's Encrypt certificates (staging or production based on `use_staging_letsencrypt`)
 2. ✅ **Port 443 is available** for HTTPS connections
-3. ⚠️ **Browsers will show security warnings** (expected for self-signed certs)
-4. ✅ **MCP clients can connect** (may need to disable certificate validation)
+3. ⚠️ **Staging certificates show security warnings** (expected - use production for trusted certs)
+4. ✅ **MCP clients can connect** (may need to disable certificate validation for staging)
 
 ### For Custom Domains
 
 When you use a custom domain you own:
 
 1. ✅ **Let's Encrypt automatically provisions** certificates
-2. ✅ **Fully trusted** by browsers and clients
-3. ✅ **No security warnings**
+2. ✅ **Fully trusted** (when using production environment)
+3. ✅ **No security warnings** (production only)
 4. ⚠️ **Requires DNS configuration** pointing to the ACI IP
+
+### Switching Environments
+
+To switch from staging to production:
+
+1. **Update `terraform.tfvars`**:
+   ```hcl
+   use_staging_letsencrypt = false
+   ```
+
+2. **Apply changes**:
+   ```bash
+   terraform apply
+   ```
+
+3. **Restart container** (if needed):
+   ```bash
+   ./deploy.sh restart
+   ```
+
+**Note**: Switching environments uses a different file share, so certificates from the previous environment won't be available. Caddy will automatically request new certificates for the new environment.
 
 ### Testing HTTPS
 
@@ -374,10 +455,12 @@ If you want a **trusted Let's Encrypt certificate**:
    - Update `domain_name` in `terraform.tfvars`
 
 Caddy will automatically:
-- Request Let's Encrypt certificate
+- Request Let's Encrypt certificate (staging or production based on `use_staging_letsencrypt`)
 - Validate domain ownership
-- Provision trusted certificate
+- Provision certificate
 - Enable HTTPS
+
+**Note**: For trusted certificates, set `use_staging_letsencrypt = false` in `terraform.tfvars`.
 
 ## Remote State Backend (Optional but Recommended)
 
@@ -400,6 +483,10 @@ For team collaboration, use Azure Storage Account as a Terraform backend to stor
 4. Run `terraform init` and answer "yes" when prompted to migrate state
 
 **Note**: The storage account is shared between Caddy certificates and Terraform backend - no need for a separate storage account!
+
+**Certificate Storage**: Certificates are stored in separate file shares:
+- Production: `caddy-data-prod` (when `use_staging_letsencrypt = false`)
+- Staging: `caddy-data-staging` (when `use_staging_letsencrypt = true`)
 
 ### Backend Configuration
 
@@ -598,6 +685,15 @@ If using a custom domain and Let's Encrypt fails:
 2. Verify domain resolves to ACI IP
 3. Check Caddy logs: `./deploy.sh logs caddy`
 4. Ensure port 80 is accessible (required for HTTP-01 challenge)
+5. If hitting rate limits, switch to staging temporarily: `use_staging_letsencrypt = true`
+
+### Staging Certificates Not Trusted
+
+**Expected behavior** when `use_staging_letsencrypt = true`. Staging certificates are intentionally untrusted for testing. To get trusted certificates, set `use_staging_letsencrypt = false` in `terraform.tfvars`.
+
+### Certificate Not Found After Environment Switch
+
+When switching between staging and production environments, Caddy uses a different file share. The old certificates won't be available. Caddy will automatically request new certificates for the new environment.
 
 ## Costs
 
@@ -632,3 +728,84 @@ terraform destroy
 ```
 
 **Warning**: This will delete all resources including the Key Vault and its secrets. Make sure to backup any important data first.
+
+## Certificate Persistence
+
+### How Certificates Persist Across Redeployments
+
+Certificates **ARE reused** when redeploying, **as long as Terraform state is preserved**.
+
+#### How It Works
+
+1. **Random Suffix**: A 6-character random suffix (e.g., `p33drs`) is generated and stored in Terraform state
+2. **Storage Account**: The storage account name includes this suffix (e.g., `stsearchmcpp33drs`)
+3. **Certificate Storage**: Caddy stores certificates in file shares within this storage account:
+   - Production: `caddy-data-prod/caddy/certificates/acme-v02.api.letsencrypt.org-directory/<domain>/`
+   - Staging: `caddy-data-staging/caddy/certificates/acme-staging-v02.api.letsencrypt.org-directory/<domain>/`
+4. **Persistence**: As long as Terraform state exists and the storage account persists, certificates are automatically reused
+
+#### Scenarios
+
+**✅ Certificates ARE Reused**:
+- Normal redeployment (`terraform apply` after code changes)
+- Container restart (`./deploy.sh restart`)
+- Image updates (`./deploy.sh build` + `./deploy.sh restart`)
+- Terraform configuration changes (that don't affect storage account)
+
+**❌ Certificates Are NOT Reused**:
+- Terraform state is lost/deleted → New random suffix → New storage account → Certificates lost
+- `terraform destroy` followed by `terraform apply` → New random suffix → Certificates lost
+- Storage account manually deleted → Certificates lost
+- Resource group recreated → All resources recreated → Certificates lost
+
+#### Current Random Suffix
+
+Check your current suffix:
+```bash
+terraform state show random_string.suffix
+```
+
+#### Recommendations for Production
+
+**Option 1: Use Remote State Backend** (Recommended)
+```bash
+# After first deployment:
+./deploy.sh create-backend
+# Edit providers.tf with storage account name
+./deploy.sh migrate-backend
+```
+
+**Benefits**:
+- State persists even if local files are lost
+- Team members share the same state
+- Random suffix persists across team members
+
+**Option 2: Use a Fixed Suffix**
+
+For maximum persistence, you can replace the random suffix with a fixed value by adding a `resource_suffix` variable to `variables.tf` and using it in `01-foundation.tf` instead of the random string.
+
+#### Certificate Renewal
+
+Let's Encrypt certificates are valid for 90 days. Caddy automatically renews them:
+- Renewal happens at ~60 days (2/3 of certificate lifetime)
+- Renewed certificates are stored in the same location
+- No action required - certificates persist across container restarts
+
+#### Verification
+
+Verify certificates are stored correctly:
+```bash
+# Check storage account name
+terraform output storage_account_name
+
+# List certificates (adjust share name for staging/production)
+az storage file list \
+  --share-name caddy-data-prod \
+  --path caddy/certificates \
+  --account-name $(terraform output -raw storage_account_name) \
+  --account-key $(az storage account keys list \
+    --resource-group $(terraform output -raw resource_group_name) \
+    --account-name $(terraform output -raw storage_account_name) \
+    --query '[0].value' -o tsv) \
+  --output table
+```

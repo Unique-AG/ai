@@ -17,60 +17,80 @@ resource "azurerm_key_vault_secret" "unique_app_key" {
   name         = "unique-app-key"
   value        = var.unique_app_key
   key_vault_id = azurerm_key_vault.main.id
+
+  depends_on = [azurerm_role_assignment.kv_secrets_officer]
 }
 
 resource "azurerm_key_vault_secret" "unique_app_id" {
   name         = "unique-app-id"
   value        = var.unique_app_id
   key_vault_id = azurerm_key_vault.main.id
+
+  depends_on = [azurerm_role_assignment.kv_secrets_officer]
 }
 
 resource "azurerm_key_vault_secret" "unique_api_base_url" {
   name         = "unique-api-base-url"
   value        = var.unique_api_base_url
   key_vault_id = azurerm_key_vault.main.id
+
+  depends_on = [azurerm_role_assignment.kv_secrets_officer]
 }
 
 resource "azurerm_key_vault_secret" "unique_auth_company_id" {
   name         = "unique-auth-company-id"
   value        = var.unique_auth_company_id
   key_vault_id = azurerm_key_vault.main.id
+
+  depends_on = [azurerm_role_assignment.kv_secrets_officer]
 }
 
 resource "azurerm_key_vault_secret" "unique_auth_user_id" {
   name         = "unique-auth-user-id"
   value        = var.unique_auth_user_id
   key_vault_id = azurerm_key_vault.main.id
+
+  depends_on = [azurerm_role_assignment.kv_secrets_officer]
 }
 
 resource "azurerm_key_vault_secret" "unique_app_endpoint" {
   name         = "unique-app-endpoint"
   value        = var.unique_app_endpoint
   key_vault_id = azurerm_key_vault.main.id
+
+  depends_on = [azurerm_role_assignment.kv_secrets_officer]
 }
 
 resource "azurerm_key_vault_secret" "unique_app_endpoint_secret" {
   name         = "unique-app-endpoint-secret"
   value        = var.unique_app_endpoint_secret
   key_vault_id = azurerm_key_vault.main.id
+
+  depends_on = [azurerm_role_assignment.kv_secrets_officer]
 }
 
 resource "azurerm_key_vault_secret" "zitadel_base_url" {
   name         = "zitadel-base-url"
   value        = var.zitadel_base_url
   key_vault_id = azurerm_key_vault.main.id
+
+  depends_on = [azurerm_role_assignment.kv_secrets_officer]
 }
 
 resource "azurerm_key_vault_secret" "zitadel_client_id" {
   name         = "zitadel-client-id"
   value        = var.zitadel_client_id
   key_vault_id = azurerm_key_vault.main.id
+
+  depends_on = [azurerm_role_assignment.kv_secrets_officer]
 }
 
 resource "azurerm_key_vault_secret" "zitadel_client_secret" {
   name         = "zitadel-client-secret"
   value        = var.zitadel_client_secret
   key_vault_id = azurerm_key_vault.main.id
+
+  depends_on = [azurerm_role_assignment.kv_secrets_officer]
 }
 
 # ----------------------------------------------------------------------------
@@ -94,7 +114,7 @@ locals {
     environment_variables = {
       # Server settings
       "MCP_SERVER_BASE_URL"       = "https://${var.domain_name}"
-      "MCP_SERVER_LOCAL_BASE_URL" = "http://localhost:8003"
+      "MCP_SERVER_LOCAL_BASE_URL" = "http://0.0.0.0:8003"
       "MCP_SERVER_TRANSPORT"      = "streamable-http"
     }
 
