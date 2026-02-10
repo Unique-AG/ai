@@ -1,22 +1,25 @@
-from typing import Callable, Generator, TypeVar
+from __future__ import annotations
 
-from tiktoken import get_encoding
+from typing import TYPE_CHECKING, Callable, Generator, TypeVar
+
+if TYPE_CHECKING:
+    from unique_toolkit.language_model.infos import LanguageModelInfo
 
 T = TypeVar("T")
 
 
 def batch_sequence_generator(
     *,
-    encoder_name: str,
+    language_model: LanguageModelInfo,
     source_batches: list[T],
     max_tokens_per_extraction_batch: int,
     serializer: Callable[[T], str],
 ) -> Generator[list[T], None, None]:
-    encoder = get_encoding(encoder_name)
+    encoder = language_model.get_encoder()
     current_batch = []
     current_tokens = 0
     for batch in source_batches:
-        batch_tokens = encoder.encode(serializer(batch))
+        batch_tokens = encoder(serializer(batch))
         if current_tokens + len(batch_tokens) > max_tokens_per_extraction_batch:
             yield current_batch
             current_batch = []

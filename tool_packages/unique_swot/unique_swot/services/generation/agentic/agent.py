@@ -93,7 +93,7 @@ class GenerationAgent:
         fraction_step = 1 / len(components_step)
 
         batches_generator = batch_sequence_generator(
-            encoder_name=self._llm.encoder_name.value,
+            language_model=self._llm,
             source_batches=source_batches,
             max_tokens_per_extraction_batch=self._config.max_tokens_per_extraction_batch,
             serializer=json.dumps,
