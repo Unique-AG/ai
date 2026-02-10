@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.46.4] - 2026-02-10
+- Fix: Normalize `encoder_name` strings to `EncoderName` enum in `LanguageModelInfo` via model validator and runtime conversion in `get_encoder()` to enable bundled tokenizers when UI sends string values
+
 ## [1.46.3] - 2026-02-09
 ### Fixed
 - Fix hallucination check crash when responses contain invalid source indices (e.g., from code blocks with array indexing)
