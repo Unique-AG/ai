@@ -151,12 +151,17 @@ class InternalSearchService:
                 chat_only = True
 
         has_no_searchable_content = (
-            metadata_filter is None and await self.get_uploaded_files() is None
+            metadata_filter is None and len(await self.get_uploaded_files()) == 0
         )
         if has_no_searchable_content:
             self.debug_info = self._build_debug_info(
-                search_strings, metadata_filter, chat_only
-            )
+                search_strings = search_strings,
+                metadata_filter = metadata_filter,
+                chat_only = chat_only,
+            )    
+            # Reset the metadata filter in case it was disabled
+            self.content_service._metadata_filter = metadata_filter_copy
+
             return []
 
         # Run all searches in parallel
@@ -243,12 +248,15 @@ class InternalSearchService:
             selected_chunks = sort_content_chunks(selected_chunks)
 
         self.debug_info = self._build_debug_info(
-            search_strings, metadata_filter, chat_only
+            search_strings = search_strings,
+            metadata_filter = metadata_filter,
+            chat_only = chat_only,
         )
         return selected_chunks
 
     def _build_debug_info(
         self,
+        *,
         search_strings: list[str],
         metadata_filter: dict | None,
         chat_only: bool,
@@ -581,21 +589,16 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             active_message_log=self._active_message_log,
         )
 
-        if len(selected_chunks) == 0:
-            self._active_message_log = await self._create_or_update_active_message_log(
-                progress_message="_No files available for search._",
-                search_strings_list=[],
-                status=MessageLogStatus.COMPLETED,
-            )
-            if not feature_flags.is_new_answers_ui_enabled(self.company_id):
-                await self.post_progress_message(
-                    message="_No files available for search._",
-                    tool_call=tool_call,
-                )
-        else:
+        if len(selected_chunks) != 0:
             self._active_message_log = await self._create_or_update_active_message_log(
                 chunks=selected_chunks,
                 search_strings_list=search_strings_list,
+                status=MessageLogStatus.COMPLETED,
+            )
+        else:
+            self._active_message_log = await self._create_or_update_active_message_log(
+                progress_message="_No files available for search_",
+                search_strings_list=[],
                 status=MessageLogStatus.COMPLETED,
             )
 
