@@ -864,6 +864,7 @@ async def test_deep_research_tool__run__returns_error_response__when_exception_o
             with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool._run = AsyncMock(side_effect=Exception("Test error"))
+                tool.chat_service.update_debug_info_async = AsyncMock()
                 tool.chat_service.modify_assistant_message_async = AsyncMock()
                 tool.write_message_log_text_message = Mock()
 
@@ -919,6 +920,7 @@ async def test_deep_research_tool__run__returns_error_response__when_exception_o
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool._run = AsyncMock(side_effect=Exception("Test error"))
                 tool._update_execution_status = AsyncMock()
+                tool.chat_service.update_debug_info_async = AsyncMock()
                 tool.chat_service.modify_assistant_message_async = AsyncMock()
                 tool.write_message_log_text_message = Mock()
 
@@ -931,6 +933,7 @@ async def test_deep_research_tool__run__returns_error_response__when_exception_o
                 # Assert
                 assert isinstance(result, ToolCallResponse)
                 tool._update_execution_status.assert_called_once()
+                tool.chat_service.update_debug_info_async.assert_called_once()
                 tool.chat_service.modify_assistant_message_async.assert_called_once()
                 tool.write_message_log_text_message.assert_called_once_with(
                     "**Research failed for an unknown reason**"
