@@ -39,6 +39,8 @@ For local development, we recommend using [ngrok](https://ngrok.com/) to expose 
 
 ## Step 3: Save Client Credentials
 
+> 💡 **Note:** Secrets for display only. Do not copy.
+
 ![Client Secrets](./4_client_secrets.png)
 
 After creating the application, you'll see:
