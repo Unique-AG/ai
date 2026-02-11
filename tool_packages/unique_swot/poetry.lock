@@ -3140,7 +3140,7 @@ openai = ["openai (>=1.105.0,<2.0.0)"]
 
 [[package]]
 name = "unique-toolkit"
-version = "1.46.3"
+version = "1.46.4"
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -3341,4 +3341,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "a6bf218b6a79154a27b610c1d63db407797c8f800cc6d2b837ff31f2ad75d721"
+content-hash = "83917e2d24bc8e8b8c13d46ee0c6a9120d811ea6df41f155ef74d41615c70753"
