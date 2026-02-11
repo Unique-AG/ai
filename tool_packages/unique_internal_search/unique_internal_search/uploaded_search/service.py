@@ -4,6 +4,7 @@ from pydantic import Field, create_model
 from typing_extensions import override
 from unique_toolkit import ContentService
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -35,6 +36,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
     ):
         self._tool_progress_reporter = tool_progress_reporter
         self._content_service = ContentService.from_event(event)
+        self._company_id = event.company_id
         self._config = config
         config.chat_only = True
         self._internal_search_tool = InternalSearchTool(
@@ -49,7 +51,9 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
     async def post_progress_message(
         self, message: str, tool_call: LanguageModelFunction, **kwargs
     ):
-        if self._tool_progress_reporter:
+        if self._tool_progress_reporter and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
+            self._company_id
+        ):
             await self._tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name="**Search Uploaded Document**",
@@ -136,7 +140,12 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         if isinstance(tool_call.arguments, dict):
             search_string_data = tool_call.arguments.get("search_string", "") or ""
         tool_response = await self._internal_search_tool.run(tool_call)
-        if self._tool_progress_reporter:
+        if (
+            self._tool_progress_reporter
+            and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
+                self._company_id
+            )
+        ):
             await self._tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name="**Search Uploaded Document**",
