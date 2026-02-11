@@ -33,7 +33,7 @@ In the **Pro Setup**, configure the following:
 For local development, we recommend using [ngrok](https://ngrok.com/) to expose your MCP server:
 
 1. Expose your local MCP server using ngrok
-2. Add the ngrok URL as a redirect URL
+2. Add the ngrok URL as a redirect URL as `https://<your-ngrok-domain>/auth/callback`
 3. Optionally, add `http://localhost:8003/auth/callback` for direct local access
    - **Note:** If using localhost redirects, you'll need to activate development mode
 
