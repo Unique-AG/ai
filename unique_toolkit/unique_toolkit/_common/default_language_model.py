@@ -1,6 +1,8 @@
 import warnings
 
-from unique_toolkit.language_model.infos import LanguageModelName
+from unique_toolkit.language_model.default_language_model import (
+    DEFAULT_GPT_4o as DEFAULT_GPT_4o,
+)
 
 warnings.warn(
     "unique_toolkit._common.default_language_model is deprecated. "
@@ -8,5 +10,3 @@ warnings.warn(
     DeprecationWarning,
     stacklevel=2,
 )
-
-DEFAULT_GPT_4o = LanguageModelName.AZURE_GPT_4o_2024_1120
