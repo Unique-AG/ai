@@ -21,16 +21,13 @@ class TestResolveDefaultLanguageModel:
         Setup summary: Clear test env var, resolve with explicit fallback, assert fallback is returned.
         """
         # Arrange
-        monkeypatch.delenv("TEST_DEFAULT_LANGUAGE_MODEL", raising=False)
+        monkeypatch.delenv("DEFAULT_LANGUAGE_MODEL", raising=False)
 
         # Act
-        result = resolve_default_language_model(
-            env_var="TEST_DEFAULT_LANGUAGE_MODEL",
-            fallback=LanguageModelName.AZURE_GPT_4o_MINI_2024_0718,
-        )
+        result = resolve_default_language_model()
 
         # Assert
-        assert result == LanguageModelName.AZURE_GPT_4o_MINI_2024_0718
+        assert result == DEFAULT_GPT_4o
 
     @pytest.mark.verified
     def test_resolve_default_language_model__returns_enum_value__when_env_matches_value(
@@ -43,16 +40,32 @@ class TestResolveDefaultLanguageModel:
         Setup summary: Set env var to enum value string, resolve, and assert expected model.
         """
         # Arrange
-        monkeypatch.setenv("TEST_DEFAULT_LANGUAGE_MODEL", DEFAULT_GPT_4o.value)
+        monkeypatch.setenv("DEFAULT_LANGUAGE_MODEL", DEFAULT_GPT_4o.value)
 
         # Act
-        result = resolve_default_language_model(
-            env_var="TEST_DEFAULT_LANGUAGE_MODEL",
-            fallback=LanguageModelName.AZURE_GPT_4o_MINI_2024_0718,
-        )
+        result = resolve_default_language_model()
 
         # Assert
         assert result == DEFAULT_GPT_4o
+
+    @pytest.mark.verified
+    def test_resolve_default_language_model__returns_enum_value__when_env_matches_value_string(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """
+        Purpose: Verify env values matching enum value strings resolve correctly.
+        Why this matters: Enables configuration by symbolic enum names across deployments.
+        Setup summary: Set env var to enum value string, resolve, and assert selected model.
+        """
+        # Arrange
+        monkeypatch.setenv("DEFAULT_LANGUAGE_MODEL", "litellm:openai-gpt-5")
+
+        # Act
+        result = resolve_default_language_model()
+
+        # Assert
+        assert result == LanguageModelName.LITELLM_OPENAI_GPT_5
 
     @pytest.mark.verified
     def test_resolve_default_language_model__returns_enum_member__when_env_matches_member_name(
@@ -65,16 +78,13 @@ class TestResolveDefaultLanguageModel:
         Setup summary: Set env var to enum member name, resolve, and assert selected model.
         """
         # Arrange
-        monkeypatch.setenv("TEST_DEFAULT_LANGUAGE_MODEL", "AZURE_GPT_4o_2024_1120")
+        monkeypatch.setenv("DEFAULT_LANGUAGE_MODEL", "LITELLM_OPENAI_GPT_5")
 
         # Act
-        result = resolve_default_language_model(
-            env_var="TEST_DEFAULT_LANGUAGE_MODEL",
-            fallback=LanguageModelName.AZURE_GPT_4o_MINI_2024_0718,
-        )
+        result = resolve_default_language_model()
 
         # Assert
-        assert result == LanguageModelName.AZURE_GPT_4o_2024_1120
+        assert result == LanguageModelName.LITELLM_OPENAI_GPT_5
 
     @pytest.mark.verified
     def test_resolve_default_language_model__returns_fallback__when_env_value_invalid(
@@ -88,18 +98,15 @@ class TestResolveDefaultLanguageModel:
         Setup summary: Set invalid env value, capture warning logs, resolve, and assert fallback plus warning.
         """
         # Arrange
-        monkeypatch.setenv("TEST_DEFAULT_LANGUAGE_MODEL", "NOT_A_REAL_MODEL")
+        monkeypatch.setenv("DEFAULT_LANGUAGE_MODEL", "NOT_A_REAL_MODEL")
 
         # Act
         with caplog.at_level(
             logging.WARNING,
             logger="unique_toolkit.language_model.default_language_model",
         ):
-            result = resolve_default_language_model(
-                env_var="TEST_DEFAULT_LANGUAGE_MODEL",
-                fallback=LanguageModelName.AZURE_GPT_4o_MINI_2024_0718,
-            )
+            result = resolve_default_language_model()
 
         # Assert
-        assert result == LanguageModelName.AZURE_GPT_4o_MINI_2024_0718
-        assert "Invalid TEST_DEFAULT_LANGUAGE_MODEL='NOT_A_REAL_MODEL'" in caplog.text
+        assert result == DEFAULT_GPT_4o
+        assert "Invalid DEFAULT_LANGUAGE_MODEL='NOT_A_REAL_MODEL'" in caplog.text
