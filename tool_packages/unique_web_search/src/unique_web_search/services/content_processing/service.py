@@ -1,15 +1,19 @@
 import asyncio
 import logging
 import re
+from typing import TYPE_CHECKING
 
 import tiktoken
 from langchain_text_splitters import TokenTextSplitter
 from openai.types.chat import ChatCompletionMessageParam
 from unique_toolkit._common.execution import SafeTaskExecutor
+from unique_toolkit._common.token import count_tokens
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.embedding.service import EmbeddingService
 from unique_toolkit.framework_utilities.openai import get_async_openai_client
-from unique_toolkit.language_model.infos import LanguageModelInfo
+
+if TYPE_CHECKING:
+    from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_web_search.services.content_processing.config import (
     REGEX_CONTENT_TRANSFORMATIONS,
@@ -32,12 +36,13 @@ class ContentProcessor:
         self,
         event: ChatEvent,
         config: ContentProcessorConfig,
-        language_model: LanguageModelInfo,
+        language_model_orchestrator: "LanguageModelInfo | None" = None,
+        # TODO: Is this still needed? Kept for backward compatibility with monorepo callers
+        language_model: "LanguageModelInfo | None" = None,
     ):
         self.config = config
         self.embedding_service = EmbeddingService(event=event)
-        self.language_model = language_model
-        self.encoder_name = language_model.encoder_name or DEFAULT_ENCODER_MODEL
+        self.language_model_orchestrator = language_model_orchestrator
         self.chunk_size = 1000  # Default chunk size
         self.chunking_max_workers = 10  # Default max workers
 
@@ -111,8 +116,7 @@ class ContentProcessor:
         """Summarize webpage content using LLM"""
         content = page.content
         # Check token count - hardcoded 2000 token minimum for summarization
-        encoder = self.config.language_model.get_encoder()
-        token_count = len(encoder(content))
+        token_count = count_tokens(content, model=self.language_model_orchestrator)
 
         client = get_async_openai_client()
         _LOGGER.info(f"Summarizing webpage ({page.url}) with {token_count} tokens")

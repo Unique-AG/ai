@@ -3411,7 +3411,7 @@ wheels = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.46.1"
+version = "1.46.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -3429,7 +3429,6 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "pyhumps" },
     { name = "python-docx" },
-    { name = "regex" },
     { name = "requests" },
     { name = "sseclient" },
     { name = "tiktoken" },
@@ -3437,9 +3436,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "unique-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8d/61/42960bff593e315c6ee1f85d043a3d27e65d8b141a02b201442c1a799dfe/unique_toolkit-1.46.1.tar.gz", hash = "sha256:0923773ba47d8fb7815a46ae6c711e377c8f24bc59da3215ad2513d572533354", size = 4184842, upload-time = "2026-02-09T07:51:46.316Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/38/ba/c8a68f38be23a05164a60b24e98ff7a1a5a1e617f2c17b01416a548e9ca1/unique_toolkit-1.46.4.tar.gz", hash = "sha256:374360eb34538fad16899ef7f211a6e480b0486eebd9731ea21badf8a2c8f795", size = 4185411, upload-time = "2026-02-10T16:27:37.402Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c9/2d/6fe0dd049a0acf75179e14b299b1a13bb44ddd7e23558839e476afd3886f/unique_toolkit-1.46.1-py3-none-any.whl", hash = "sha256:4efca14ad39b2e16c4f47433139715848930341cfcf63ab2a55dc7f0ca721a23", size = 4366377, upload-time = "2026-02-09T07:51:44.46Z" },
+    { url = "https://files.pythonhosted.org/packages/43/12/68f1f1ef6928e7286baa2aacafe1bb08d903a4a2debdc45ab8ccdeb7e9db/unique_toolkit-1.46.4-py3-none-any.whl", hash = "sha256:d30ea7bf411c26987918d97a543bae62ff8f48d1e21eba00d6becb5c9adff66f", size = 4366756, upload-time = "2026-02-10T16:27:35.204Z" },
 ]
 
 [[package]]
@@ -3506,7 +3505,7 @@ requires-dist = [
     { name = "timeout-decorator", specifier = ">=0.5.0,<1" },
     { name = "typing-extensions", specifier = ">=4.14.1,<5" },
     { name = "unidecode", specifier = ">=1.4.0,<2" },
-    { name = "unique-toolkit", specifier = ">=1.46.1,<2" },
+    { name = "unique-toolkit", specifier = ">=1.46.4,<2" },
 ]
 
 [package.metadata.requires-dev]

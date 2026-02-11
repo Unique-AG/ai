@@ -1,7 +1,11 @@
 import logging
 from time import time
+from typing import TYPE_CHECKING
 
 from typing_extensions import override
+
+if TYPE_CHECKING:
+    from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
@@ -41,9 +45,16 @@ _LOGGER = logging.getLogger(__name__)
 class WebSearchTool(Tool[WebSearchConfig]):
     name = "WebSearch"
 
-    def __init__(self, configuration: WebSearchConfig, *args, **kwargs):
+    def __init__(
+        self,
+        configuration: WebSearchConfig,
+        *args,
+        language_model_orchestrator: "LanguageModelInfo | None" = None,
+        **kwargs,
+    ):
         super().__init__(configuration, *args, **kwargs)
-        self.language_model = self.config.language_model
+        # TODO: Propagate orchestrator LLM into tool initialization in separate PR
+        self.language_model_orchestrator = language_model_orchestrator
 
         self.search_engine_service = get_search_engine_service(
             self.config.search_engine_config,
@@ -57,7 +68,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self.content_processor = ContentProcessor(
             event=self.event,
             config=self.config.content_processor_config,
-            language_model=self.language_model,
+            language_model_orchestrator=self.language_model_orchestrator,
         )
         self.debug = self.config.debug
         self._display_name = kwargs.get("display_name", "Web Search")
@@ -68,7 +79,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 self.config.language_model_max_input_tokens,
                 self.config.percentage_of_input_tokens_for_sources,
                 self.config.limit_token_sources,
-                self.language_model,
+                self.language_model_orchestrator or self.config.language_model,
                 self.chat_history_token_length,
             )
 
@@ -188,7 +199,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
         config = ExecutorConfiguration(
-            language_model=self.language_model,
+            language_model=self.config.language_model,
             chunk_relevancy_sort_config=self.config.chunk_relevancy_sort_config,
             company_id=self.company_id,
             debug_info=debug_info,
