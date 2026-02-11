@@ -28,8 +28,6 @@ from unique_web_search.services.search_engine.schema import (
 _LOGGER = logging.getLogger(__name__)
 
 
-DEFAULT_ENCODER_MODEL = "cl100k_base"
-
 
 class ContentProcessor:
     def __init__(
@@ -213,7 +211,7 @@ class ContentProcessor:
         chunk_size = self.chunk_size
 
         splitter = TokenTextSplitter(
-            encoding_name=self.encoder_name,
+            encoding_name=self.config.language_model.encoder_name,
             chunk_size=chunk_size,
             chunk_overlap=0,
         )
