@@ -243,10 +243,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "error": str(e),
                 "traceback": traceback.format_exc(),
             }
+            await self.chat_service.update_debug_info_async(debug_info)
             await self.chat_service.modify_assistant_message_async(
                 content="Deep Research failed to complete for an unknown reason",
                 set_completed_at=True,
-                debug_info=debug_info,
             )
 
         return ToolCallResponse(
