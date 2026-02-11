@@ -6164,41 +6164,38 @@ url = "../../unique_sdk"
 
 [[package]]
 name = "unique-toolkit"
-version = "1.46.1"
+version = "1.46.4"
 description = ""
 optional = false
-python-versions = "^3.12"
+python-versions = "<4.0,>=3.12"
 groups = ["main", "dev"]
-files = []
-develop = true
+files = [
+    {file = "unique_toolkit-1.46.4-py3-none-any.whl", hash = "sha256:d30ea7bf411c26987918d97a543bae62ff8f48d1e21eba00d6becb5c9adff66f"},
+    {file = "unique_toolkit-1.46.4.tar.gz", hash = "sha256:374360eb34538fad16899ef7f211a6e480b0486eebd9731ea21badf8a2c8f795"},
+]
 
 [package.dependencies]
-aiohttp = "^3.12.0"
-docxtpl = "^0.20.1"
-httpx = "^0.28.0"
-jambo = "^0.1.2"
-jinja2 = "^3.1.6"
-markdown-it-py = "^4.0.0"
-numpy = "^2.4.2"
-openai = "^1.99.9"
-pandas = "^2.3.0"
-pillow = "^10.4.0"
-platformdirs = "^4.0.0"
-pydantic = "^2.8.2"
-pydantic-settings = "^2.10.1"
-pyhumps = "^3.8.0"
-python-docx = "^1.1.0"
-regex = "^2024.5.15"
-requests = "^2.32.0"
-sseclient = "^0.0.27"
-tiktoken = "^0.12.0"
-tokenizers = "^0.21.0"
-typing-extensions = "^4.9.0"
-unique-sdk = "^0.10.77"
-
-[package.source]
-type = "directory"
-url = "../../unique_toolkit"
+aiohttp = ">=3.12.0,<4.0.0"
+docxtpl = ">=0.20.1,<0.21.0"
+httpx = ">=0.28.0,<0.29.0"
+jambo = ">=0.1.2,<0.2.0"
+jinja2 = ">=3.1.6,<4.0.0"
+markdown-it-py = ">=4.0.0,<5.0.0"
+numpy = ">=2.4.2,<3.0.0"
+openai = ">=1.99.9,<2.0.0"
+pandas = ">=2.3.0,<3.0.0"
+pillow = ">=10.4.0,<11.0.0"
+platformdirs = ">=4.0.0,<5.0.0"
+pydantic = ">=2.8.2,<3.0.0"
+pydantic-settings = ">=2.10.1,<3.0.0"
+pyhumps = ">=3.8.0,<4.0.0"
+python-docx = ">=1.1.0,<2.0.0"
+requests = ">=2.32.0,<3.0.0"
+sseclient = ">=0.0.27,<0.0.28"
+tiktoken = ">=0.12.0,<0.13.0"
+tokenizers = ">=0.21.0,<0.22.0"
+typing-extensions = ">=4.9.0,<5.0.0"
+unique-sdk = ">=0.10.77,<0.11.0"
 
 [[package]]
 name = "unique-web-search"
@@ -6821,4 +6818,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "64d9d75153a46b2feefd69ed0f70386e07da2e89ca4d97970e02ea0e3fa1b866"
+content-hash = "cbf1adee5d7e9cd5e452e8f23804c1911b1d152450e0d6f815a75f011f3130dd"
