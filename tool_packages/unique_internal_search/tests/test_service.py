@@ -134,6 +134,7 @@ class TestInternalSearchService:
         # Arrange
         base_internal_search_config.chat_only = False
         base_internal_search_config.scope_to_chat_on_upload = True
+        mock_content_service._metadata_filter = {"some": "filter"}
         service = InternalSearchService(
             config=base_internal_search_config,
             content_service=mock_content_service,
@@ -953,6 +954,7 @@ class TestInternalSearchTool:
         ):
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+            mock_content_service._metadata_filter = {"some": "filter"}
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
             def setup_tool(self, configuration, event, *args, **kwargs):
@@ -1006,6 +1008,7 @@ class TestInternalSearchTool:
         ):
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+            mock_content_service._metadata_filter = {"some": "filter"}
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
             def setup_tool(self, configuration, event, *args, **kwargs):
