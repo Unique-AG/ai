@@ -3066,14 +3066,14 @@ openai = ["openai (>=1.105.0,<2.0.0)"]
 
 [[package]]
 name = "unique-toolkit"
-version = "1.46.3"
+version = "1.46.4"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.12"
 groups = ["main"]
 files = [
-    {file = "unique_toolkit-1.46.3-py3-none-any.whl", hash = "sha256:6e0361fa37aa85cc4a105a6315d1f286e7d64d3f29a67a8c1cfdd98294be6005"},
-    {file = "unique_toolkit-1.46.3.tar.gz", hash = "sha256:9c8f23bfdb044d2b802ffe76fade81efb5658372f5fb8276e6f1e8ca28e31247"},
+    {file = "unique_toolkit-1.46.4-py3-none-any.whl", hash = "sha256:d30ea7bf411c26987918d97a543bae62ff8f48d1e21eba00d6becb5c9adff66f"},
+    {file = "unique_toolkit-1.46.4.tar.gz", hash = "sha256:374360eb34538fad16899ef7f211a6e480b0486eebd9731ea21badf8a2c8f795"},
 ]
 
 [package.dependencies]
@@ -3265,4 +3265,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "0b030c8716cdbd02a6984498b4fbd066a398f11261d35c74e6542e02e4fffd07"
+content-hash = "b758fdd209e0ef41592f7ba6db4fcbfaa347b959392d54850ab7c16609920ee8"
