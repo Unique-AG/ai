@@ -9,7 +9,6 @@ import asyncio
 import logging
 from typing import Any, Dict, List, Optional, Union
 
-import tiktoken
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -19,6 +18,7 @@ from langchain_core.messages import (
 )
 from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.tools import BaseTool
+from unique_toolkit._common.token import count_tokens
 from unique_toolkit.chat.schemas import (
     MessageLogDetails,
     MessageLogStatus,
@@ -398,34 +398,22 @@ def get_notes_from_tool_calls(messages: List[MessageLikeRepresentation]) -> List
     ]
 
 
-def count_tokens(text: str, model_info: LanguageModelInfo) -> int:
-    """Count tokens in text using the model's encoder."""
-    if not text:
-        return 0
-    try:
-        encoder = tiktoken.get_encoding(model_info.encoder_name)
-        return len(encoder.encode(text))
-    except Exception as e:
-        _LOGGER.warning(f"Error counting tokens: {e}")
-        return len(str(text)) // 4  # Rough fallback
-
-
 def count_message_tokens(message: BaseMessage, model_info: LanguageModelInfo) -> int:
     """Count tokens in a message including content, tool calls, and tool responses."""
     total_tokens = 4  # Base overhead per message
 
     # Count content
     if message.content:
-        total_tokens += count_tokens(str(message.content), model_info)
+        total_tokens += count_tokens(str(message.content), model=model_info)
 
     # Count tool calls (AIMessage with tool_calls)
     if isinstance(message, AIMessage) and message.tool_calls:
         for tool_call in message.tool_calls:
             # Count tool name and arguments
             if isinstance(tool_call, dict):
-                total_tokens += count_tokens(str(tool_call), model_info)
+                total_tokens += count_tokens(str(tool_call), model=model_info)
             else:
-                total_tokens += count_tokens(str(tool_call), model_info)
+                total_tokens += count_tokens(str(tool_call), model=model_info)
             total_tokens += 4  # Base overhead per tool call
 
     return total_tokens

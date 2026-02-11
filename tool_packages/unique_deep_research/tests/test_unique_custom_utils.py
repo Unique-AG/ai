@@ -16,7 +16,6 @@ from unique_deep_research.unique_custom.utils import (
     ainvoke_with_token_handling,
     cleanup_request_counter,
     count_message_tokens,
-    count_tokens,
     create_message_log_entry,
     execute_tool_safely,
     get_chat_service_from_config,
@@ -436,72 +435,6 @@ def test_get_notes_from_tool_calls__returns_empty_list__when_no_tool_messages() 
 
 
 @pytest.mark.ai
-@patch("unique_deep_research.unique_custom.utils.tiktoken.get_encoding")
-def test_count_tokens__returns_token_count__for_valid_text(mock_get_encoding) -> None:
-    """
-    Purpose: Verify count_tokens returns correct token count for valid text.
-    Why this matters: Enables accurate token counting for model input limits.
-    Setup summary: Mock tiktoken encoder and verify token counting.
-    """
-    # Arrange
-    mock_encoder = Mock()
-    mock_encoder.encode.return_value = [1, 2, 3, 4, 5]  # 5 tokens
-    mock_get_encoding.return_value = mock_encoder
-    model_info = Mock(spec=LanguageModelInfo)
-    model_info.encoder_name = "cl100k_base"
-    text = "Hello world"
-
-    # Act
-    count = count_tokens(text, model_info)
-
-    # Assert
-    assert count == 5
-    mock_get_encoding.assert_called_once_with("cl100k_base")
-    mock_encoder.encode.assert_called_once_with(text)
-
-
-@pytest.mark.ai
-@patch("unique_deep_research.unique_custom.utils.tiktoken.get_encoding")
-def test_count_tokens__returns_zero__for_empty_text(mock_get_encoding) -> None:
-    """
-    Purpose: Verify count_tokens returns zero for empty text.
-    Why this matters: Ensures proper handling of empty input.
-    Setup summary: Test with empty text and verify zero count.
-    """
-    # Arrange
-    model_info = Mock(spec=LanguageModelInfo)
-    model_info.encoder_name = "cl100k_base"
-
-    # Act
-    count = count_tokens("", model_info)
-
-    # Assert
-    assert count == 0
-    mock_get_encoding.assert_not_called()
-
-
-@pytest.mark.ai
-@patch("unique_deep_research.unique_custom.utils.tiktoken.get_encoding")
-def test_count_tokens__returns_fallback__when_encoding_fails(mock_get_encoding) -> None:
-    """
-    Purpose: Verify count_tokens returns fallback count when encoding fails.
-    Why this matters: Ensures graceful handling of encoding errors.
-    Setup summary: Mock encoding failure and verify fallback calculation.
-    """
-    # Arrange
-    mock_get_encoding.side_effect = Exception("Encoding error")
-    model_info = Mock(spec=LanguageModelInfo)
-    model_info.encoder_name = "cl100k_base"
-    text = "Hello world"  # 11 characters
-
-    # Act
-    count = count_tokens(text, model_info)
-
-    # Assert
-    assert count == 2  # 11 // 4 = 2 (rough fallback)
-
-
-@pytest.mark.ai
 @patch("unique_deep_research.unique_custom.utils.count_tokens")
 def test_count_message_tokens__counts_content_and_tool_calls(mock_count_tokens) -> None:
     """
@@ -550,7 +483,7 @@ def test_count_message_tokens__counts_content_only__for_simple_message(
     # Assert
     # Base overhead (4) + content (5) = 9
     assert count == 9
-    mock_count_tokens.assert_called_once_with("Hello", model_info)
+    mock_count_tokens.assert_called_once_with("Hello", model=model_info)
 
 
 @pytest.mark.ai
