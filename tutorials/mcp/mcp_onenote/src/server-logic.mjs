@@ -477,7 +477,7 @@ export function createOneNoteServer() {
           sectionId = sectionsResponse.value[0].id;
         }
 
-        const pageTitle = params.title || "New Page";
+        const pageTitle = (params.title || "New Page").replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const simpleHtml = `
           <!DOCTYPE html>
           <html>
