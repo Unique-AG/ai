@@ -23,12 +23,12 @@ def test_zitadel_oauth_proxy_settings__constructs_urls__with_base_url(
     settings = ZitadelOAuthProxySettings(base_url=sample_base_url)
 
     # Act & Assert
-    assert settings.jwks_uri() == f"{sample_base_url}/oauth/v2/keys"
-    assert settings.token_endpoint() == f"{sample_base_url}/oauth/v2/token"
-    assert settings.revoke_endpoint() == f"{sample_base_url}/oauth/v2/revoke"
-    assert settings.authorize_endpoint() == f"{sample_base_url}/oauth/v2/authorize"
-    assert settings.userinfo_endpoint() == f"{sample_base_url}/oidc/v1/userinfo"
-    assert settings.introspect_endpoint() == f"{sample_base_url}/oauth/v2/introspect"
+    assert settings.jwks_uri == f"{sample_base_url}/oauth/v2/keys"
+    assert settings.token_endpoint == f"{sample_base_url}/oauth/v2/token"
+    assert settings.revoke_endpoint == f"{sample_base_url}/oauth/v2/revoke"
+    assert settings.authorize_endpoint == f"{sample_base_url}/oauth/v2/authorize"
+    assert settings.userinfo_endpoint == f"{sample_base_url}/oidc/v1/userinfo"
+    assert settings.introspect_endpoint == f"{sample_base_url}/oauth/v2/introspect"
 
 
 @pytest.mark.ai
