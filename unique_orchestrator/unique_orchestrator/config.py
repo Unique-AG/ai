@@ -2,7 +2,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
-from pydantic import Field, ValidationInfo, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from unique_deep_research.config import DeepResearchToolConfig
 from unique_deep_research.service import DeepResearchTool
@@ -37,6 +37,7 @@ from unique_toolkit.agentic.tools.a2a import (
     REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
+from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.openai_builtin.manager import (
     OpenAICodeInterpreterConfig,
 )
@@ -64,6 +65,13 @@ class SpaceType(StrEnum):
 
 T = TypeVar("T", bound=SpaceType)
 
+class SpaceUserConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    user_instructions: str | None = Field(
+        default=None,
+        description="User instructions for the space provided by the user.",
+    )
 
 class SpaceConfigBase(BaseToolConfig, Generic[T]):
     """Base class for space configuration."""
@@ -80,6 +88,11 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
     custom_instructions: str = Field(
         default="",
         description="A custom instruction provided by the system admin.",
+    )
+
+    user: SpaceUserConfig = Field(
+        default=SpaceUserConfig(),
+        description="Properties specified by the user for the space.",
     )
 
     tools: list[ToolBuildConfig] = Field(
