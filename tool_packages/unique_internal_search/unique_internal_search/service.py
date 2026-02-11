@@ -87,7 +87,12 @@ class InternalSearchService:
         )
         return sorted_chat_results
 
-    async def is_chat_only(self, metadata_filter: dict | None = None, content_ids: list[str] | None = None, **kwargs) -> bool:
+    async def is_chat_only(
+        self,
+        metadata_filter: dict | None = None,
+        content_ids: list[str] | None = None,
+        **kwargs,
+    ) -> bool:
         """Check whether the assistant should limit itself to files in chat"""
         if self.config.chat_only:
             return True
@@ -97,7 +102,11 @@ class InternalSearchService:
                 return True
         # If no metadata filter (neither explicit nor from service) and no content_ids,
         # treat as chat_only since no files are selected from the knowledge base.
-        if metadata_filter is None and self.content_service._metadata_filter is None and content_ids is None:
+        if (
+            metadata_filter is None
+            and self.content_service._metadata_filter is None
+            and content_ids is None
+        ):
             return True
         return False
 
@@ -138,7 +147,9 @@ class InternalSearchService:
         # Take a backup of the metadata filter to restore later
         metadata_filter_copy = self.content_service._metadata_filter
 
-        chat_only = await self.is_chat_only(metadata_filter=metadata_filter, content_ids=content_ids, **kwargs)
+        chat_only = await self.is_chat_only(
+            metadata_filter=metadata_filter, content_ids=content_ids, **kwargs
+        )
 
         # Apply the effective metadata filter:
         # - chat_only=True: no metadata filtering (must also clear service filter
@@ -478,9 +489,15 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             )
 
     async def is_chat_only(
-        self, metadata_filter: dict | None = None, content_ids: list[str] | None = None, tool_call: LanguageModelFunction | None = None, **kwargs
+        self,
+        metadata_filter: dict | None = None,
+        content_ids: list[str] | None = None,
+        tool_call: LanguageModelFunction | None = None,
+        **kwargs,
     ) -> bool:
-        if await super().is_chat_only(**kwargs):
+        if await super().is_chat_only(
+            metadata_filter=metadata_filter, content_ids=content_ids, **kwargs
+        ):
             return True
         if (
             tool_call
