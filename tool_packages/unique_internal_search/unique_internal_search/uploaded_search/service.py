@@ -48,19 +48,6 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         else:
             self._user_query = None
 
-    async def post_progress_message(
-        self, message: str, tool_call: LanguageModelFunction, **kwargs
-    ):
-        if self._tool_progress_reporter and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-            self._company_id
-        ):
-            await self._tool_progress_reporter.notify_from_tool_call(
-                tool_call=tool_call,
-                name="**Search Uploaded Document**",
-                message=message,
-                state=ProgressState.RUNNING,
-            )
-
     @override
     def display_name(self) -> str:
         return self._display_name
