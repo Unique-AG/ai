@@ -1458,13 +1458,9 @@ class TestInternalSearchTool:
                 "unique_internal_search.service.append_metadata_in_chunks",
                 return_value=sample_content_chunks,
             ),
-            patch(
-                "unique_internal_search.service.feature_flags"
-            ) as mock_feature_flags,
+            patch("unique_internal_search.service.feature_flags") as mock_feature_flags,
         ):
-            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = (
-                False
-            )
+            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = False
             mock_content_service = Mock(spec=ContentService)
             mock_content_service._metadata_filter = {"key": "value"}
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
@@ -1533,13 +1529,9 @@ class TestInternalSearchTool:
                 "unique_internal_search.service.append_metadata_in_chunks",
                 return_value=sample_content_chunks,
             ),
-            patch(
-                "unique_internal_search.service.feature_flags"
-            ) as mock_feature_flags,
+            patch("unique_internal_search.service.feature_flags") as mock_feature_flags,
         ):
-            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = (
-                False
-            )
+            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = False
             mock_content_service = Mock(spec=ContentService)
             mock_content_service._metadata_filter = {"key": "value"}
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
@@ -2064,13 +2056,9 @@ class TestInternalSearchTool:
                 "unique_internal_search.service.append_metadata_in_chunks",
                 return_value=sample_content_chunks,
             ),
-            patch(
-                "unique_internal_search.service.feature_flags"
-            ) as mock_feature_flags,
+            patch("unique_internal_search.service.feature_flags") as mock_feature_flags,
         ):
-            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = (
-                False
-            )
+            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = False
             mock_content_service = Mock(spec=ContentService)
             mock_content_service._metadata_filter = {"key": "value"}
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
@@ -2284,6 +2272,7 @@ class TestInternalSearchTool:
         # Both service-level and passed metadata_filter are None
         mock_content_service._metadata_filter = None
         mock_content_service.search_contents_async = AsyncMock(return_value=[])
+        mock_content_service.search_content_chunks_async = AsyncMock()
 
         # Act
         result = await service.search("test query", metadata_filter=None)
@@ -2291,7 +2280,6 @@ class TestInternalSearchTool:
         # Assert
         assert result == []
         # search_content_chunks_async should never be called since we short-circuit
-        mock_content_service.search_content_chunks_async = AsyncMock()
         mock_content_service.search_content_chunks_async.assert_not_called()
         # Debug info should still be set
         assert hasattr(service, "debug_info")
