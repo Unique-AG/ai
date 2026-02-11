@@ -359,13 +359,18 @@ class UniqueAI:
             and doc.expired_at <= datetime.now(timezone.utc)
         ]
 
+        # Combine custom instructions and user instructions
+        custom_instructions = self._config.space.custom_instructions
+        if self._config.space.user.user_instructions:
+            custom_instructions += "\n\n" + self._config.space.user.user_instructions
+
         system_message = system_prompt_template.render(
             model_info=self._config.space.language_model.model_dump(mode="json"),
             date_string=date_string,
             tool_descriptions=tool_descriptions,
             used_tools=used_tools,
             project_name=self._config.space.project_name,
-            custom_instructions=self._config.space.custom_instructions,
+            custom_instructions=custom_instructions,
             max_tools_per_iteration=self._config.agent.experimental.loop_configuration.max_tool_calls_per_iteration,
             max_loop_iterations=self._effective_max_loop_iterations,
             current_iteration=self.current_iteration_index + 1,
