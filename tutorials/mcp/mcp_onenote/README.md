@@ -69,10 +69,14 @@ Two ways to authenticate:
 
 ### Deploy
 
+Update the configuration variables at the top of `deploy.sh` to match your Azure environment (resource group, app name, ACR name, etc.).
+
 ```bash
 az login
 ./deploy.sh
 ```
+
+`az login` opens a browser popup to sign in with your Microsoft account. After login, you'll be prompted to select a subscription — pick the one created in step 1 of prerequisites. The deploy script reads the active subscription automatically.
 
 ### Deployed Instance
 

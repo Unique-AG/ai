@@ -2,16 +2,14 @@
 set -e
 
 # === CONFIGURATION ===
-SUBSCRIPTION="698f3b43-ccb0-4f97-9e10-2ca89a7782cf"
 RG="rg-lab-demo-001-onenote-mcp"
 LOCATION="westeurope"
 APP="onenote-mcp-app"
 ACR="onenotemcpacr"
 
-#az login
-
 # === SET SUBSCRIPTION  ===
-az account set --subscription $SUBSCRIPTION
+SUBSCRIPTION=$(az account show --query id -o tsv)
+
 
 # === CREATE ACR (persists, ~$0.17/day, stores your docker images) ===
 az acr create -n $ACR -g $RG --sku Basic --admin-enabled true 2>/dev/null || echo "ACR exists"

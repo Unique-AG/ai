@@ -193,7 +193,7 @@ export function createOneNoteServer() {
           const base64Cache = saveCache();
           graphClient = null;
           accessToken = null;
-          console.error(`Auth completed for ${tokenResponse.account.username}`);
+          console.error(`Auth completed for ${tokenResponse.account.username.split('@')[0].slice(0, 3)}***`);
           console.error(`To persist, set MSAL_CACHE env var to: ${base64Cache?.substring(0, 50)}...`);
         }).catch(err => console.error("Background auth failed:", err.message));
         
@@ -260,8 +260,11 @@ export function createOneNoteServer() {
       console.error("listNotebooks tool called");
       try {
         await ensureGraphClient();
-        const response = await graphClient.api("/me/onenote/notebooks").get();
-        // Return content as an array of text items
+        let api = graphClient.api("/me/onenote/notebooks");
+        if (params.includeSections) {
+          api = api.expand("sections");
+        }
+        const response = await api.get();
         return {
           content: [
             {
@@ -287,16 +290,15 @@ export function createOneNoteServer() {
     async (params) => {
       try {
         await ensureGraphClient();
+        if (params.notebookId) {
+          const notebook = await graphClient.api(`/me/onenote/notebooks/${params.notebookId}`).get();
+          return { content: [{ type: "text", text: JSON.stringify(notebook) }] };
+        }
         const response = await graphClient.api(`/me/onenote/notebooks`).get();
-        // TODO: Filter by notebookId if provided
-        return { 
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(response.value[0])
-            }
-          ]
-        };
+        if (!response.value || response.value.length === 0) {
+          throw new Error("No notebooks found");
+        }
+        return { content: [{ type: "text", text: JSON.stringify(response.value[0]) }] };
       } catch (error) {
         console.error("Error getting notebook:", error);
         throw new Error(`Failed to get notebook: ${error.message}`);
@@ -342,22 +344,16 @@ export function createOneNoteServer() {
       console.error("listPages tool called");
       try {
         await ensureGraphClient();
-        // Get sections first
-        const sectionsResponse = await graphClient.api(`/me/onenote/sections`).get();
-        
-        if (sectionsResponse.value.length === 0) {
-          return { 
-            content: [
-              {
-                type: "text",
-                text: "[]"
-              }
-            ]
-          };
+
+        let sectionId = params.sectionId;
+        if (!sectionId) {
+          const sectionsResponse = await graphClient.api(`/me/onenote/sections`).get();
+          if (sectionsResponse.value.length === 0) {
+            return { content: [{ type: "text", text: "[]" }] };
+          }
+          sectionId = sectionsResponse.value[0].id;
         }
-        
-        // Use the first section
-        const sectionId = sectionsResponse.value[0].id;
+
         const response = await graphClient.api(`/me/onenote/sections/${sectionId}/pages`).get();
         
         return { 
@@ -437,10 +433,10 @@ export function createOneNoteServer() {
           const url = `https://graph.microsoft.com/v1.0/me/onenote/pages/${targetPage.id}/content`;
           console.error("Fetching content from:", url);
           
-          // Make direct HTTP request with fetch
+          const token = await getAccessToken();
           const response = await fetch(url, {
             headers: {
-              'Authorization': `Bearer ${accessToken}`
+              'Authorization': `Bearer ${token}`
             }
           });
           
@@ -499,22 +495,22 @@ export function createOneNoteServer() {
       console.error("createPage tool called");
       try {
         await ensureGraphClient();
-        // Get sections first
-        const sectionsResponse = await graphClient.api(`/me/onenote/sections`).get();
-        
-        if (sectionsResponse.value.length === 0) {
-          throw new Error("No sections found");
+
+        let sectionId = params.sectionId;
+        if (!sectionId) {
+          const sectionsResponse = await graphClient.api(`/me/onenote/sections`).get();
+          if (sectionsResponse.value.length === 0) {
+            throw new Error("No sections found");
+          }
+          sectionId = sectionsResponse.value[0].id;
         }
-        
-        // Use the first section
-        const sectionId = sectionsResponse.value[0].id;
-        
-        // Create simple HTML content
+
+        const pageTitle = params.title || "New Page";
         const simpleHtml = `
           <!DOCTYPE html>
           <html>
             <head>
-              <title>New Page</title>
+              <title>${pageTitle}</title>
             </head>
             <body>
               <p>This is a new page created via the Microsoft Graph API</p>
@@ -624,11 +620,11 @@ export function createOneNoteServer() {
         const url = `https://graph.microsoft.com/v1.0/me/onenote/pages/${pageId}/content`;
         console.error("Appending content to:", url);
         
-        // Make direct HTTP request with fetch
+        const token = await getAccessToken();
         const response = await fetch(url, {
           method: 'PATCH',
           headers: {
-            'Authorization': `Bearer ${accessToken}`,
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(patchCommands)
