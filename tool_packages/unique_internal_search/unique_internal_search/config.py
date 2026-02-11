@@ -19,7 +19,6 @@ from unique_toolkit.content.schemas import (
     ContentRerankerConfig,
     ContentSearchType,
 )
-from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_internal_search.prompts import (
     DEFAULT_LANGUAGE_PARAM_DESCRIPTION,
@@ -66,10 +65,6 @@ class InternalSearchConfig(BaseToolConfig):
     language_model_max_input_tokens: SkipJsonSchema[int | None] = Field(
         default=None,
         description="Language model maximum input tokens",
-    )
-    language_model: SkipJsonSchema[LanguageModelInfo | None] = Field(
-        default=None,
-        description="Language model info for model-agnostic token counting",
     )
     scope_ids: Annotated[list[str], Field(title="Active")] | DeactivatedNone = Field(
         default=None,
