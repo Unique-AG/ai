@@ -11,6 +11,7 @@ from unique_toolkit._common.token import count_tokens
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.embedding.service import EmbeddingService
 from unique_toolkit.framework_utilities.openai import get_async_openai_client
+from unique_toolkit.language_model.infos import EncoderName
 
 if TYPE_CHECKING:
     from unique_toolkit.language_model.infos import LanguageModelInfo
@@ -28,14 +29,13 @@ from unique_web_search.services.search_engine.schema import (
 _LOGGER = logging.getLogger(__name__)
 
 
-
 class ContentProcessor:
     def __init__(
         self,
         event: ChatEvent,
         config: ContentProcessorConfig,
         language_model_orchestrator: "LanguageModelInfo | None" = None,
-        # TODO: Is this still needed? Kept for backward compatibility with monorepo callers
+        # TODO: Is this still needed? Kept for backward compatibility with monorepo callers (first remove from web_search_service.py)
         language_model: "LanguageModelInfo | None" = None,
     ):
         self.config = config
@@ -139,11 +139,10 @@ class ContentProcessor:
         # For now, use tiktoken directly since we need decode() functionality
         # which LanguageModelInfo.get_encoder() doesn't provide
         encoder_name = self.config.language_model.encoder_name
-        if encoder_name is None or isinstance(encoder_name, str):
-            # Custom encoder or None - fallback to cl100k_base for truncation
-            encoder = tiktoken.get_encoding("cl100k_base")
-        else:
+        if isinstance(encoder_name, EncoderName):
             encoder = tiktoken.get_encoding(encoder_name.value)
+        else:
+            encoder = tiktoken.get_encoding("cl100k_base")
 
         tokens = encoder.encode(page.content)
 
