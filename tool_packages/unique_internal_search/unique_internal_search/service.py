@@ -147,11 +147,13 @@ class InternalSearchService:
             if metadata_filter is None:
                 metadata_filter = self.content_service._metadata_filter
             # If still no metadata filter available, treat as chat_only. No metadata filter means that no files are selected from the knowledge base.
-            if metadata_filter is None:
+            if metadata_filter is None and content_ids is None:
                 chat_only = True
 
         has_no_searchable_content = (
-            metadata_filter is None and len(await self.get_uploaded_files()) == 0
+            metadata_filter is None
+            and content_ids is None
+            and len(await self.get_uploaded_files()) == 0
         )
         if has_no_searchable_content:
             self.debug_info = self._build_debug_info(
