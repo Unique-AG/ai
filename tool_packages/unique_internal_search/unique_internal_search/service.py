@@ -155,10 +155,10 @@ class InternalSearchService:
         )
         if has_no_searchable_content:
             self.debug_info = self._build_debug_info(
-                search_strings = search_strings,
-                metadata_filter = metadata_filter,
-                chat_only = chat_only,
-            )    
+                search_strings=search_strings,
+                metadata_filter=metadata_filter,
+                chat_only=chat_only,
+            )
             # Reset the metadata filter in case it was disabled
             self.content_service._metadata_filter = metadata_filter_copy
 
@@ -248,9 +248,9 @@ class InternalSearchService:
             selected_chunks = sort_content_chunks(selected_chunks)
 
         self.debug_info = self._build_debug_info(
-            search_strings = search_strings,
-            metadata_filter = metadata_filter,
-            chat_only = chat_only,
+            search_strings=search_strings,
+            metadata_filter=metadata_filter,
+            chat_only=chat_only,
         )
         return selected_chunks
 
