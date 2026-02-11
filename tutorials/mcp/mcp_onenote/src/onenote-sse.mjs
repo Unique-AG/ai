@@ -6,6 +6,7 @@ import { createOneNoteServer, ensureGraphClient } from './server-logic.mjs';
 const app = express();
 const port = process.env.PORT || 3000;
 
+// TODO: Add Zitadel auth layer to protect SSE/message endpoints
 app.use(cors());
 
 // Parse JSON bodies for POST requests

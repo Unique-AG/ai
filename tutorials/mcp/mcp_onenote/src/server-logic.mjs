@@ -96,27 +96,6 @@ export async function ensureGraphClient() {
   return graphClient;
 }
 
-// Create graph client with device code auth or access token
-async function createGraphClient(force = false) {
-  if (force) {
-    pca = null;
-    graphClient = null;
-  }
-
-  try {
-    accessToken = await getAccessToken();
-    graphClient = Client.initWithMiddleware({
-      authProvider: {
-        getAccessToken: async () => await getAccessToken()
-      }
-    });
-    return { type: 'token', client: graphClient };
-  } catch (error) {
-    console.error('Authentication error:', error);
-    throw new Error(`Authentication failed: ${error.message}`);
-  }
-}
-
 export function createOneNoteServer() {
   const server = new McpServer(
     { 
@@ -188,66 +167,63 @@ export function createOneNoteServer() {
       const result = await Promise.race([authPromise, timeoutPromise]);
       
       if (result.timeout) {
-        // Auth still in progress - return URL to user, continue in background
         authPromise.then((tokenResponse) => {
-          const base64Cache = saveCache();
+          saveCache();
           graphClient = null;
           accessToken = null;
           console.error(`Auth completed for ${tokenResponse.account.username.split('@')[0].slice(0, 3)}***`);
-          console.error(`To persist, set MSAL_CACHE env var to: ${base64Cache?.substring(0, 50)}...`);
         }).catch(err => console.error("Background auth failed:", err.message));
         
         return {
           content: [{
             type: "text",
-            text: `🔐 Authentication started!\n\n${deviceCodeMessage}\n\n⏳ Complete login in browser, then call 'get_auth_cache' tool to get the env var value.`
+            text: `🔐 Authentication started!\n\n${deviceCodeMessage}\n\n⏳ Complete login in browser. Token is kept in memory (~1h), MSAL refreshes automatically.`
           }]
         };
       } else {
-        // Auth completed quickly
-        const base64Cache = saveCache();
+        saveCache();
         graphClient = null;
         accessToken = null;
         
         return {
           content: [{
             type: "text",
-            text: `✅ Authenticated as ${result.account.username}\nToken expires: ${result.expiresOn.toLocaleString()}\n\n📋 To persist across restarts, set this env var in Azure:\nMSAL_CACHE=${base64Cache}`
+            text: `✅ Authenticated as ${result.account.username}\nToken expires: ${result.expiresOn.toLocaleString()}`
           }]
         };
       }
     }
   );
 
-  // Tool to get current auth cache as base64 for env var
-  server.tool(
-    "get_auth_cache",
-    "Get the current auth cache as base64 string to set as MSAL_CACHE env var in Azure",
-    {},
-    async () => {
-      const client = getMsalClient();
-      const accounts = await client.getTokenCache().getAllAccounts();
-      
-      if (accounts.length === 0) {
-        return {
-          content: [{
-            type: "text",
-            text: "❌ No authenticated account. Use 'authenticate' tool first."
-          }]
-        };
-      }
-      
-      const cacheData = client.getTokenCache().serialize();
-      const base64Cache = Buffer.from(cacheData).toString('base64');
-      
-      return {
-        content: [{
-          type: "text",
-          text: `✅ Authenticated as: ${accounts[0].username}\n\n📋 Set this env var in Azure to persist:\n\nMSAL_CACHE=${base64Cache}`
-        }]
-      };
-    }
-  );
+  // Disabled: exposes token cache to MCP clients. Re-enable if persistent auth via MSAL_CACHE env var is needed.
+  // server.tool(
+  //   "get_auth_cache",
+  //   "Get the current auth cache as base64 string to set as MSAL_CACHE env var in Azure",
+  //   {},
+  //   async () => {
+  //     const client = getMsalClient();
+  //     const accounts = await client.getTokenCache().getAllAccounts();
+  //     
+  //     if (accounts.length === 0) {
+  //       return {
+  //         content: [{
+  //           type: "text",
+  //           text: "❌ No authenticated account. Use 'authenticate' tool first."
+  //         }]
+  //       };
+  //     }
+  //     
+  //     const cacheData = client.getTokenCache().serialize();
+  //     const base64Cache = Buffer.from(cacheData).toString('base64');
+  //     
+  //     return {
+  //       content: [{
+  //         type: "text",
+  //         text: `✅ Authenticated as: ${accounts[0].username}\n\n📋 Set this env var in Azure to persist:\n\nMSAL_CACHE=${base64Cache}`
+  //       }]
+  //     };
+  //   }
+  // );
 
   // Tool for listing all notebooks
   server.tool(
@@ -317,15 +293,11 @@ export function createOneNoteServer() {
       console.error("listSections tool called");
       try {
         await ensureGraphClient();
-        const response = await graphClient.api(`/me/onenote/sections`).get();
-        return { 
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(response.value)
-            }
-          ]
-        };
+        const endpoint = params.notebookId
+          ? `/me/onenote/notebooks/${params.notebookId}/sections`
+          : `/me/onenote/sections`;
+        const response = await graphClient.api(endpoint).get();
+        return { content: [{ type: "text", text: JSON.stringify(response.value) }] };
       } catch (error) {
         console.error("Error listing sections:", error);
         throw new Error(`Failed to list sections: ${error.message}`);
