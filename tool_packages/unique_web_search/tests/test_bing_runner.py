@@ -748,9 +748,14 @@ class TestCreateAndProcessRun:
         mock_parser = AsyncMock(return_value=expected_results)
 
         with (
-            patch(f"{_RUNNER_MODULE}.get_or_create_agent_id", return_value="agent-id-1") as mock_get_agent,
+            patch(
+                f"{_RUNNER_MODULE}.get_or_create_agent_id", return_value="agent-id-1"
+            ) as mock_get_agent,
             patch(f"{_RUNNER_MODULE}.get_bing_grounding_tool"),
-            patch(f"{_RUNNER_MODULE}._get_answer_from_thread", return_value="response text"),
+            patch(
+                f"{_RUNNER_MODULE}._get_answer_from_thread",
+                return_value="response text",
+            ),
             patch(f"{_RUNNER_MODULE}.env_settings") as mock_env,
         ):
             mock_env.azure_ai_bing_agent_model = "gpt-4o"
@@ -785,7 +790,9 @@ class TestCreateAndProcessRun:
         mock_agent_client.agents.create_thread_and_process_run.return_value = mock_run
 
         with (
-            patch(f"{_RUNNER_MODULE}.get_or_create_agent_id", return_value="agent-id-1"),
+            patch(
+                f"{_RUNNER_MODULE}.get_or_create_agent_id", return_value="agent-id-1"
+            ),
             patch(f"{_RUNNER_MODULE}.get_bing_grounding_tool"),
             patch(f"{_RUNNER_MODULE}.env_settings") as mock_env,
         ):
@@ -820,9 +827,13 @@ class TestCreateAndProcessRun:
         failing_parser = AsyncMock(side_effect=ValueError("cannot parse"))
 
         with (
-            patch(f"{_RUNNER_MODULE}.get_or_create_agent_id", return_value="agent-id-1"),
+            patch(
+                f"{_RUNNER_MODULE}.get_or_create_agent_id", return_value="agent-id-1"
+            ),
             patch(f"{_RUNNER_MODULE}.get_bing_grounding_tool"),
-            patch(f"{_RUNNER_MODULE}._get_answer_from_thread", return_value="plain text"),
+            patch(
+                f"{_RUNNER_MODULE}._get_answer_from_thread", return_value="plain text"
+            ),
             patch(f"{_RUNNER_MODULE}.env_settings") as mock_env,
         ):
             mock_env.azure_ai_bing_agent_model = "gpt-4o"
@@ -860,9 +871,14 @@ class TestCreateAndProcessRun:
         parser_2 = AsyncMock(return_value=expected)
 
         with (
-            patch(f"{_RUNNER_MODULE}.get_or_create_agent_id", return_value="agent-id-1"),
+            patch(
+                f"{_RUNNER_MODULE}.get_or_create_agent_id", return_value="agent-id-1"
+            ),
             patch(f"{_RUNNER_MODULE}.get_bing_grounding_tool"),
-            patch(f"{_RUNNER_MODULE}._get_answer_from_thread", return_value="some response"),
+            patch(
+                f"{_RUNNER_MODULE}._get_answer_from_thread",
+                return_value="some response",
+            ),
             patch(f"{_RUNNER_MODULE}.env_settings") as mock_env,
         ):
             mock_env.azure_ai_bing_agent_model = "gpt-4o"
