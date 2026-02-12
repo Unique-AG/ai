@@ -1416,11 +1416,10 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
-                        ModelCapabilities.REASONING,
                     ],
                     provider=LanguageModelProvider.LITELLM,
                     version="grok-4-1-fast-non-reasoning",
-                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with grok tokenizer
                     token_limits=LanguageModelTokenLimits(
                         # Context window is 2_000_000, we leave 200_000 tokens as buffer due to tokenizer mismatch
                         # Assign 90% for input and 10% for output
@@ -1441,7 +1440,7 @@ class LanguageModelInfo(BaseModel):
                     ],
                     provider=LanguageModelProvider.LITELLM,
                     version="grok-4-1-fast-reasoning",
-                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with grok tokenizer
                     token_limits=LanguageModelTokenLimits(
                         # Context window is 2_000_000, we leave 200_000 tokens as buffer due to tokenizer mismatch
                         # Assign 90% for input and 10% for output
