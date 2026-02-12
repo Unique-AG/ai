@@ -2,17 +2,21 @@ import logging
 from typing import Literal
 
 from pydantic import BaseModel, Field
+from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
     SearchEngine,
     SearchEngineType,
+    get_search_engine_model_config,
 )
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 from unique_web_search.services.search_engine.utils.bing import (
+    ResponseParser,
     create_and_process_run,
     credentials_are_valid,
     get_credentials,
@@ -34,25 +38,36 @@ class BingSearchOptionalQueryParams(BaseModel):
 class BingSearchConfig(
     BaseSearchEngineConfig[SearchEngineType.BING], BingSearchOptionalQueryParams
 ):
+    model_config = get_search_engine_model_config(SearchEngineType.BING)
+
     search_engine_name: Literal[SearchEngineType.BING] = SearchEngineType.BING
+
+    language_model: LMI = get_LMI_default_field(
+        DEFAULT_GPT_4o,
+        description="The language model to use in as a fallback parser if the agent response is not a valid JSON.",
+    )
 
 
 class BingSearch(SearchEngine[BingSearchConfig]):
     def __init__(
         self,
         config: BingSearchConfig,
+        response_parsers: list[ResponseParser],
     ):
         super().__init__(config)
         self.credentials = get_credentials()
         self.is_configured = credentials_are_valid(self.credentials)
+        self.response_parsers = response_parsers
 
     @property
     def requires_scraping(self) -> bool:
         return self.config.requires_scraping
 
     async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        project = get_project_client(self.credentials)
+        agent_client = get_project_client(self.credentials)
 
-        search_results = create_and_process_run(project, query, self.config.fetch_size)
+        search_results = await create_and_process_run(
+            agent_client, query, self.config.fetch_size, self.response_parsers
+        )
 
         return search_results
