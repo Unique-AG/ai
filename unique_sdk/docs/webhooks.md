@@ -215,5 +215,5 @@ def handle_external_module(event):
 - [Message Log API](api_resources/message_log.md) - Update execution steps
 - [Message Execution API](api_resources/message_execution.md) - Track long-running operations
 - [Configuration Guide](getting_started/configuration.md) - Set up your app credentials
-- [Tutorials](tutorials/folder_updates.md) - Step-by-step tutorials and guides
+- [Tutorials](tutorials/openai_scripts.md) - Step-by-step tutorials and guides
 
