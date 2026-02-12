@@ -133,6 +133,9 @@ def mock_tool_build_config(test_tool_config: MockToolConfig) -> ToolBuildConfig:
 
     Returns:
         ToolBuildConfig with default values.
+
+    Note: is_sub_agent is not passed; it is a computed property derived from
+    name == "SubAgentTool". For name="test_tool" it evaluates to False.
     """
     return ToolBuildConfig(
         name="test_tool",
@@ -141,7 +144,6 @@ def mock_tool_build_config(test_tool_config: MockToolConfig) -> ToolBuildConfig:
         icon=ToolIcon.BOOK,
         selection_policy=ToolSelectionPolicy.BY_USER,
         is_exclusive=False,
-        is_sub_agent=False,
         is_enabled=True,
     )
 
