@@ -78,7 +78,11 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         agent_client = get_project_client(self.credentials)
 
         search_results = await create_and_process_run(
-            agent_client, query, self.config.fetch_size, self.response_parsers, self.config.generation_instructions
+            agent_client,
+            query,
+            self.config.fetch_size,
+            self.response_parsers,
+            self.config.generation_instructions,
         )
 
         return search_results
