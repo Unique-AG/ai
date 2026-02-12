@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-02-12
+- Automatic Bing grounding agent creation and discovery via Azure AI Agents SDK
+- `BingGroundingTool` integration for native Bing search within agent runs
+- Strategy-pattern response parsing: `JsonConversionStrategy` with `LLMParserStrategy` fallback
+- Configurable `generation_instructions` field on `BingSearchConfig`
+- Refactored Bing client: merged `identity.py` and `project.py` into `client.py`
+- Removed manual `agent_id` and `endpoint` config fields (now auto-managed)
+- New env settings: `azure_ai_bing_agent_model`, `azure_ai_project_endpoint`, `azure_ai_bing_ressource_connection_string`
+
 ## [1.10.1] - 2026-02-09
 - Migrate to model-specific token counting from unique_toolkit 1.46.1
 - Add optional `language_model_orchestrator` parameter to use orchestrator's LLM for token counting
