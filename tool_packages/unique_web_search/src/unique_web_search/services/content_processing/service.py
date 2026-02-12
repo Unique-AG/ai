@@ -1,15 +1,19 @@
 import asyncio
 import logging
 import re
+from typing import TYPE_CHECKING
 
 import tiktoken
 from langchain_text_splitters import TokenTextSplitter
 from openai.types.chat import ChatCompletionMessageParam
 from unique_toolkit._common.execution import SafeTaskExecutor
+from unique_toolkit._common.token import count_tokens
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.embedding.service import EmbeddingService
 from unique_toolkit.framework_utilities.openai import get_async_openai_client
-from unique_toolkit.language_model.infos import LanguageModelInfo
+
+if TYPE_CHECKING:
+    from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_web_search.services.content_processing.config import (
     REGEX_CONTENT_TRANSFORMATIONS,
@@ -24,20 +28,18 @@ from unique_web_search.services.search_engine.schema import (
 _LOGGER = logging.getLogger(__name__)
 
 
-DEFAULT_ENCODER_MODEL = "cl100k_base"
-
-
 class ContentProcessor:
     def __init__(
         self,
         event: ChatEvent,
         config: ContentProcessorConfig,
-        language_model: LanguageModelInfo,
+        language_model_orchestrator: "LanguageModelInfo | None" = None,
+        # TODO (UN-17099): Remove once monorepo web_search_service.py stops passing this
+        language_model: "LanguageModelInfo | None" = None,
     ):
         self.config = config
         self.embedding_service = EmbeddingService(event=event)
-        self.language_model = language_model
-        self.encoder_name = language_model.encoder_name or DEFAULT_ENCODER_MODEL
+        self.language_model_orchestrator = language_model_orchestrator
         self.chunk_size = 1000  # Default chunk size
         self.chunking_max_workers = 10  # Default max workers
 
@@ -111,10 +113,7 @@ class ContentProcessor:
         """Summarize webpage content using LLM"""
         content = page.content
         # Check token count - hardcoded 2000 token minimum for summarization
-        encoder = tiktoken.get_encoding(
-            self.config.language_model.encoder_name or "cl100k_base"
-        )
-        token_count = len(encoder.encode(content))
+        token_count = count_tokens(content, model=self.language_model_orchestrator)
 
         client = get_async_openai_client()
         _LOGGER.info(f"Summarizing webpage ({page.url}) with {token_count} tokens")
@@ -135,9 +134,14 @@ class ContentProcessor:
 
     async def _truncate_page(self, page: WebSearchResult) -> WebSearchResult:
         """Truncate page content to max tokens."""
-        encoder = tiktoken.get_encoding(
-            self.config.language_model.encoder_name or "cl100k_base"
-        )
+        # TODO (UN-17097): Add get_decoder() to LanguageModelInfo
+        # For now, use tiktoken directly since we need decode() functionality
+        # Only cl100k_base and o200k_base are tiktoken-compatible; others (qwen, deepseek) fallback to cl100k_base
+        tiktoken_encodings = {"cl100k_base", "o200k_base"}
+        encoder_name = self.config.language_model.encoder_name
+        encoding = encoder_name if encoder_name in tiktoken_encodings else "cl100k_base"
+        encoder = tiktoken.get_encoding(encoding)
+
         tokens = encoder.encode(page.content)
 
         if len(tokens) > self.config.max_tokens:
@@ -203,8 +207,15 @@ class ContentProcessor:
 
         chunk_size = self.chunk_size
 
+        # TODO (UN-17101): Evaluate non-tiktoken tokenizer support for chunking
+        tiktoken_encodings = {"cl100k_base", "o200k_base"}
+        encoding = (
+            self.config.language_model.encoder_name
+            if self.config.language_model.encoder_name in tiktoken_encodings
+            else "cl100k_base"
+        )
         splitter = TokenTextSplitter(
-            encoding_name=self.encoder_name,
+            encoding_name=encoding,
             chunk_size=chunk_size,
             chunk_overlap=0,
         )
