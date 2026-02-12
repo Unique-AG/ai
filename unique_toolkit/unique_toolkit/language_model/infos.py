@@ -71,6 +71,8 @@ class LanguageModelName(StrEnum):
     GEMINI_2_5_PRO_PREVIEW_0605 = "litellm:gemini-2-5-pro-preview-06-05"
     GEMINI_3_FLASH_PREVIEW = "litellm:gemini-3-flash-preview"
     GEMINI_3_PRO_PREVIEW = "litellm:gemini-3-pro-preview"
+    GROK_4_1_FAST_NON_REASONING = "litellm:grok-4-1-fast-non-reasoning"
+    GROK_4_1_FAST_REASONING = "litellm:grok-4-1-fast-reasoning"
     LITELLM_OPENAI_GPT_5 = "litellm:openai-gpt-5"
     LITELLM_OPENAI_GPT_5_MINI = "litellm:openai-gpt-5-mini"
     LITELLM_OPENAI_GPT_5_NANO = "litellm:openai-gpt-5-nano"
@@ -1406,6 +1408,48 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 11, 13),
+                )
+            case LanguageModelName.GROK_4_1_FAST_NON_REASONING:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="grok-4-1-fast-non-reasoning",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # Context window is 2_000_000, we leave 200_000 tokens as buffer due to tokenizer mismatch
+                        # Assign 90% for input and 10% for output
+                        token_limit_input=int(1_800_000 * 0.9),
+                        token_limit_output=int(1_800_000 * 0.1),
+                    ),
+                    info_cutoff_at=date(2024, 11, day=4),
+                    published_at=date(2025, 11, 19),
+                )
+            case LanguageModelName.GROK_4_1_FAST_REASONING:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="grok-4-1-fast-reasoning",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # Context window is 2_000_000, we leave 200_000 tokens as buffer due to tokenizer mismatch
+                        # Assign 90% for input and 10% for output
+                        token_limit_input=int(1_800_000 * 0.9),
+                        token_limit_output=int(1_800_000 * 0.1),
+                    ),
+                    info_cutoff_at=date(2024, 11, day=4),
+                    published_at=date(2025, 11, 19),
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_5:
                 return cls(
