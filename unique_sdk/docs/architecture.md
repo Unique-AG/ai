@@ -45,7 +45,7 @@ The Unique API proxy provides a secure, OpenAI-compatible gateway for accessing 
 
 The proxy accepts OpenAI-compatible requests and routes them through Unique's infrastructure. Simply configure your OpenAI client to point to Unique's proxy endpoint and include authentication headers. The API interface remains identical to OpenAI's, so you can use existing OpenAI code with minimal changes.
 
-See the [OpenAI Integration Tutorial](../tutorials/openai_scripts.md) for a complete example.
+See the [OpenAI Integration Tutorial](tutorials/openai_scripts.md) for a complete example.
 
 ### 3. Webhook System
 
@@ -115,4 +115,4 @@ Now that you understand the SDK architecture:
 1. **[Get Started](getting_started/installation.md)** - Install and configure the SDK
 2. **[Try the Quickstart](getting_started/quickstart.md)** - Make your first API call
 3. **[Explore API Resources](api_resources/index.md)** - Browse all available APIs
-4. **[See Tutorials](tutorials/folder_updates.md)** - Learn from step-by-step tutorials
+4. **[See Tutorials](tutorials/openai_scripts.md)** - Learn from step-by-step tutorials

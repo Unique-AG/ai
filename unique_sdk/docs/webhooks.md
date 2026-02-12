@@ -6,7 +6,7 @@ Webhooks enable real-time event notifications from Unique AI to your application
 
 A core functionality of Unique AI is the ability for users to engage in an interactive chat feature. SDK developers can hook into this chat to provide new functionalities.
 
-Your App (refer to `app-id` in [Configuration](../getting_started/configuration.md)) must be subscribed to each individual Unique event in order to receive a webhook.
+Your App (refer to `app-id` in [Configuration](getting_started/configuration.md)) must be subscribed to each individual Unique event in order to receive a webhook.
 
 ## Webhook Headers
 
@@ -215,5 +215,5 @@ def handle_external_module(event):
 - [Message Log API](api_resources/message_log.md) - Update execution steps
 - [Message Execution API](api_resources/message_execution.md) - Track long-running operations
 - [Configuration Guide](getting_started/configuration.md) - Set up your app credentials
-- [Tutorials](tutorials/folder_updates.md) - Step-by-step tutorials and guides
+- [Tutorials](tutorials/openai_scripts.md) - Step-by-step tutorials and guides
 

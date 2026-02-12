@@ -1,11 +1,24 @@
 site_name: Unique SDK
 site_description: Documentation for the Unique SDK
 site_author: Unique Team
-site_url: https://unique-ag.github.io/ai/unique-sdk/
-repo_name: Unique-AG/ai/unique_sdk
-repo_url: https://github.com/Unique-AG/ai/unique_sdk  
-edit_uri: /docs/
+# IMPORTANT: site_url is set dynamically by CI to versioned path
+# For local testing: http://localhost:8000/unique-sdk/0.10.78/
+site_url: https://unique-ag.github.io/ai/unique-sdk/0.10.78/
+repo_name: Unique-AG/ai
+repo_url: https://github.com/Unique-AG/ai
+edit_uri: edit/main/unique_sdk/docs/
 
+# Enable version dropdown (reads versions.json)
+extra:
+  version:
+    provider: mike  # Uses mike's JSON format (no mike binary needed)
+    alias: true     # Theme shows alias (e.g. "latest") next to version; title in JSON is plain version
+  social:
+    - icon: fontawesome/solid/house
+      link: https://unique-ag.github.io/ai/
+      name: Unique AI Documentation
+
+# Theme must be explicitly set (not inherited from root)
 theme:
   name: material
   features:
@@ -35,11 +48,8 @@ theme:
         icon: material/brightness-4
         name: Switch to system preference
 
-extra:
-  version:
-    provider: mike
-
 nav:
+  - Unique AI Documentation: https://unique-ag.github.io/ai/
   - Home: index.md
   - Getting Started:
     - Installation: getting_started/installation.md
@@ -53,6 +63,7 @@ nav:
     - ChatCompletion: api_resources/chat_completion.md
     - Content: api_resources/content.md
     - Embeddings: api_resources/embeddings.md
+    - Elicitation: api_resources/elicitation.md
     - Folder: api_resources/folder.md
     - Group: api_resources/group.md
     - LLM Models: api_resources/llm_models.md
@@ -116,8 +127,7 @@ site_dir: site
 
 plugins:
   - search
-  - mike:
-      deploy_prefix: unique-sdk
+  # include_dir_to_nav disabled: was rewriting nav and breaking titles; nav is fully explicit below
   - entangled
   - include-markdown 
   - callouts

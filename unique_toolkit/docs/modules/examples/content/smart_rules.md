@@ -1,6 +1,6 @@
 # Smart Rules - Examples
 
-This page provides practical code examples for implementing smart rules with the knowledge base. For broader documentation and concepts, see the [Smart Rules Documentation](../../../knowledge_base/smart_rules).
+This page provides practical code examples for implementing smart rules with the knowledge base. For broader documentation and concepts, see the [Smart Rules Documentation](../../../knowledge_base/smart_rules.md).
 
 ## Smart Rule Definition Examples
 
@@ -92,7 +92,7 @@ You can nest these statements to create even more complex logic, such as:
 - `(folder_A OR folder_B) AND mime_type = PDF`
 - `(title CONTAINS "report") AND (year = 2024 OR year = 2025)`
 
-## Using the Metadata Filter
+## Using the Metadata Filter {#using-the-metadatafilter}
 
 ### For Content Chunk Search
 

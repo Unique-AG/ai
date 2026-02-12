@@ -496,7 +496,7 @@ Now that you understand UniqueQL:
 
 1. **[Try Search with Filters](api_resources/search.md)** - Use UniqueQL in search queries
 2. **[Explore Content API](api_resources/content.md)** - Filter content with metadata
-3. **[See Tutorials](../tutorials/get_contents.md)** - View rule-based search tutorial
+3. **[See Tutorials](tutorials/get_contents.md)** - View rule-based search tutorial
 4. **[Read Full Documentation](https://unique-ch.atlassian.net/wiki/x/coAXHQ)** - Official UniqueQL documentation
 
 ## Related Resources
