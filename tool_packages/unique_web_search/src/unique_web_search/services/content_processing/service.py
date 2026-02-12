@@ -11,7 +11,6 @@ from unique_toolkit._common.token import count_tokens
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.embedding.service import EmbeddingService
 from unique_toolkit.framework_utilities.openai import get_async_openai_client
-from unique_toolkit.language_model.infos import EncoderName
 
 if TYPE_CHECKING:
     from unique_toolkit.language_model.infos import LanguageModelInfo
@@ -35,7 +34,7 @@ class ContentProcessor:
         event: ChatEvent,
         config: ContentProcessorConfig,
         language_model_orchestrator: "LanguageModelInfo | None" = None,
-        # TODO: Is this still needed? Kept for backward compatibility with monorepo callers (first remove from web_search_service.py)
+        # TODO (UN-17099): Remove once monorepo web_search_service.py stops passing this
         language_model: "LanguageModelInfo | None" = None,
     ):
         self.config = config
@@ -135,14 +134,13 @@ class ContentProcessor:
 
     async def _truncate_page(self, page: WebSearchResult) -> WebSearchResult:
         """Truncate page content to max tokens."""
-        # TODO: Add get_decoder() method to LanguageModelInfo in future
+        # TODO (UN-17097): Add get_decoder() to LanguageModelInfo
         # For now, use tiktoken directly since we need decode() functionality
-        # which LanguageModelInfo.get_encoder() doesn't provide
+        # Only cl100k_base and o200k_base are tiktoken-compatible; others (qwen, deepseek) fallback to cl100k_base
+        tiktoken_encodings = {"cl100k_base", "o200k_base"}
         encoder_name = self.config.language_model.encoder_name
-        if isinstance(encoder_name, EncoderName):
-            encoder = tiktoken.get_encoding(encoder_name.value)
-        else:
-            encoder = tiktoken.get_encoding("cl100k_base")
+        encoding = encoder_name if encoder_name in tiktoken_encodings else "cl100k_base"
+        encoder = tiktoken.get_encoding(encoding)
 
         tokens = encoder.encode(page.content)
 
@@ -209,8 +207,15 @@ class ContentProcessor:
 
         chunk_size = self.chunk_size
 
+        # TODO (UN-17101): Evaluate non-tiktoken tokenizer support for chunking
+        tiktoken_encodings = {"cl100k_base", "o200k_base"}
+        encoding = (
+            self.config.language_model.encoder_name
+            if self.config.language_model.encoder_name in tiktoken_encodings
+            else "cl100k_base"
+        )
         splitter = TokenTextSplitter(
-            encoding_name=self.config.language_model.encoder_name,
+            encoding_name=encoding,
             chunk_size=chunk_size,
             chunk_overlap=0,
         )

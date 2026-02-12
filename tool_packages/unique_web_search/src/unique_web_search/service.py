@@ -53,7 +53,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         **kwargs,
     ):
         super().__init__(configuration, *args, **kwargs)
-        # TODO: Propagate orchestrator LLM into tool initialization in separate PR
+        # TODO (UN-17100): Propagate orchestrator LLM into tool initialization
         self.language_model_orchestrator = language_model_orchestrator
 
         self.search_engine_service = get_search_engine_service(
