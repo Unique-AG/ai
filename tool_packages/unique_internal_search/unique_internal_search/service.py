@@ -1,8 +1,12 @@
 import asyncio
 from logging import Logger
+from typing import TYPE_CHECKING
 
 from pydantic import Field, create_model
 from typing_extensions import override
+
+if TYPE_CHECKING:
+    from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit._common.chunk_relevancy_sorter.exception import (
     ChunkRelevancySorterException,
 )
@@ -57,6 +61,7 @@ class InternalSearchService:
         company_id: str | None = None,
         message_step_logger: MessageStepLogger | None = None,
         display_name: str = "Internal Search",
+        language_model_orchestrator: "LanguageModelInfo | None" = None,
     ):
         self.config = config
         self.content_service = content_service
@@ -68,6 +73,8 @@ class InternalSearchService:
         self._message_step_logger = message_step_logger
         self._display_name = display_name
         self._active_message_log: MessageLog | None = None
+        # TODO: Propagate orchestrator LLM into tool initialization in separate PR
+        self.language_model_orchestrator = language_model_orchestrator
 
     async def post_progress_message(self, message: str, *args, **kwargs):
         pass
@@ -250,7 +257,9 @@ class InternalSearchService:
             for chunk in result.chunks
         ]
         selected_chunks = pick_content_chunks_for_token_window(
-            found_chunks, self._get_max_tokens()
+            found_chunks,
+            self._get_max_tokens(),
+            model_info=self.language_model_orchestrator,
         )
 
         ###
