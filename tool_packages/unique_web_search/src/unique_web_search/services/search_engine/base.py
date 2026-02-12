@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from enum import StrEnum
 from typing import Generic, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 from unique_web_search.services.search_engine.schema import (

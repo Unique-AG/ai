@@ -1,8 +1,8 @@
-import logging
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 from unique_toolkit._common.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 
@@ -22,8 +22,9 @@ from unique_web_search.services.search_engine.utils.bing import (
     get_credentials,
     get_project_client,
 )
-
-_LOGGER = logging.getLogger(__name__)
+from unique_web_search.services.search_engine.utils.bing.models import (
+    GENERATION_INSTRUCTIONS,
+)
 
 
 class BingSearchOptionalQueryParams(BaseModel):
@@ -41,6 +42,16 @@ class BingSearchConfig(
     model_config = get_search_engine_model_config(SearchEngineType.BING)
 
     search_engine_name: Literal[SearchEngineType.BING] = SearchEngineType.BING
+
+    generation_instructions: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(GENERATION_INSTRUCTIONS.split("\n"))
+        ),
+    ] = Field(
+        default=GENERATION_INSTRUCTIONS,
+        description="The generation instructions to be used in Microsoft Foundry Agents.",
+    )
 
     language_model: LMI = get_LMI_default_field(
         DEFAULT_GPT_4o,
@@ -67,7 +78,7 @@ class BingSearch(SearchEngine[BingSearchConfig]):
         agent_client = get_project_client(self.credentials)
 
         search_results = await create_and_process_run(
-            agent_client, query, self.config.fetch_size, self.response_parsers
+            agent_client, query, self.config.fetch_size, self.response_parsers, self.config.generation_instructions
         )
 
         return search_results

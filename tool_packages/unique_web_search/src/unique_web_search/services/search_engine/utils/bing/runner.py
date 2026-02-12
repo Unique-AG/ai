@@ -19,13 +19,13 @@ from unique_web_search.services.search_engine.schema import (
     WebSearchResults,
 )
 from unique_web_search.services.search_engine.utils.bing.models import (
-    GENERATION_INSTRUCTIONS,
+    RESPONSE_RULE,
     GroundingWithBingResults,
 )
 from unique_web_search.settings import env_settings
 
 _LOGGER = logging.getLogger(__name__)
-_AGENT_NAME_IDENTIFIER = "GROUNDING_WITH_BING_AGENT"
+_AGENT_NAME_IDENTIFIER = "UNIQUE_GROUNDING_WITH_BING_AGENT"
 _JSON_PATTERN = re.compile(r"```json\s*([\s\S]*?)\s*```")
 
 
@@ -103,6 +103,7 @@ async def create_and_process_run(
     query: str,
     fetch_size: int,
     response_parsers_strategies: list[ResponseParser],
+    generation_instructions: str,
 ) -> list[WebSearchResult]:
     """Execute a Bing-grounded agent run and return parsed search results.
 
@@ -123,11 +124,13 @@ async def create_and_process_run(
     """
     agent_id = get_or_create_agent_id(agent_client)
 
+    instructions = f"{generation_instructions}\n{RESPONSE_RULE}"
+
     agent_run = agent_client.agents.create_thread_and_process_run(
         agent_id=agent_id,
         model=env_settings.azure_ai_bing_agent_model,
         toolset=get_bing_grounding_tool(fetch_size=fetch_size),  # type: ignore
-        instructions=GENERATION_INSTRUCTIONS,
+        instructions=instructions,
         thread=AgentThreadCreationOptions(
             messages=[ThreadMessageOptions(role="user", content=query)]
         ),

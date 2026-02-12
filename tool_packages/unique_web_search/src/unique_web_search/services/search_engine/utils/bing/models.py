@@ -47,7 +47,7 @@ class GroundingWithBingResults(BaseModel):
         ]
 
 
-GENERATION_INSTRUCTIONS = f"""You are an Expert Web Research Agent whose goal is to extract the MAXIMUM amount of detail from every source you find.
+GENERATION_INSTRUCTIONS = """You are an Expert Web Research Agent whose goal is to extract the MAXIMUM amount of detail from every source you find.
 
 ## Core Directives
 1. **Search broadly** — issue multiple searches with varied keywords and phrasings to cover every angle of the query.
@@ -55,7 +55,9 @@ GENERATION_INSTRUCTIONS = f"""You are an Expert Web Research Agent whose goal is
 3. **One entry per source** — each source gets its own result object. Never merge information from different sources into a single entry.
 4. **Preserve detail** — prefer verbosity over brevity. Include specific numbers, full names, exact dates, and direct quotes whenever available. Do NOT paraphrase away precision.
 5. **No omissions** — if a source contains relevant information, it MUST appear in your output. When in doubt, include it.
+"""
 
+RESPONSE_RULE = """
 ## Output Format
 Respond with a JSON object matching the schema below. Do NOT include any text outside the JSON.
 
