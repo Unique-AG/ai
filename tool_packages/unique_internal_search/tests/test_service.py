@@ -134,6 +134,7 @@ class TestInternalSearchService:
         # Arrange
         base_internal_search_config.chat_only = False
         base_internal_search_config.scope_to_chat_on_upload = True
+        mock_content_service._metadata_filter = {"some": "filter"}
         service = InternalSearchService(
             config=base_internal_search_config,
             content_service=mock_content_service,
@@ -214,7 +215,7 @@ class TestInternalSearchService:
         search_string = "test query"
 
         # Act
-        result = await service.search(search_string)
+        result = await service.search(search_string, metadata_filter={"key": "value"})
 
         # Assert
         assert len(result) == 2
@@ -248,7 +249,12 @@ class TestInternalSearchService:
             chat_id="chat_123",
             logger=mock_logger,
         )
-        mock_content_service.search_contents_async = AsyncMock(return_value=[])
+        # Return an uploaded file so has_no_searchable_content is False
+        uploaded_file = Mock()
+        uploaded_file.created_at = "2024-01-01"
+        mock_content_service.search_contents_async = AsyncMock(
+            return_value=[uploaded_file]
+        )
         mock_content_service._metadata_filter = {"key": "value"}
         mock_content_service.search_content_chunks_async = AsyncMock(
             return_value=sample_content_chunks
@@ -325,6 +331,7 @@ class TestInternalSearchService:
             logger=mock_logger,
         )
         mock_content_service.search_contents_async = AsyncMock(return_value=[])
+        mock_content_service._metadata_filter = {"key": "value"}
         mock_content_service.search_content_chunks_async = AsyncMock(
             return_value=sample_content_chunks
         )
@@ -366,6 +373,7 @@ class TestInternalSearchService:
             logger=mock_logger,
         )
         mock_content_service.search_contents_async = AsyncMock(return_value=[])
+        mock_content_service._metadata_filter = {"key": "value"}
         mock_content_service.search_content_chunks_async = AsyncMock(
             return_value=sample_content_chunks
         )
@@ -444,6 +452,7 @@ class TestInternalSearchService:
             logger=mock_logger,
         )
         mock_content_service.search_contents_async = AsyncMock(return_value=[])
+        mock_content_service._metadata_filter = {"key": "value"}
         mock_content_service.search_content_chunks_async = AsyncMock(
             return_value=sample_content_chunks
         )
@@ -478,6 +487,7 @@ class TestInternalSearchService:
             logger=mock_logger,
         )
         mock_content_service.search_contents_async = AsyncMock(return_value=[])
+        mock_content_service._metadata_filter = {"key": "value"}
         test_error = ValueError("Search failed")
         mock_content_service.search_content_chunks_async = AsyncMock(
             side_effect=test_error
@@ -944,6 +954,7 @@ class TestInternalSearchTool:
         ):
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+            mock_content_service._metadata_filter = {"some": "filter"}
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
             def setup_tool(self, configuration, event, *args, **kwargs):
@@ -997,6 +1008,7 @@ class TestInternalSearchTool:
         ):
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+            mock_content_service._metadata_filter = {"some": "filter"}
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
             def setup_tool(self, configuration, event, *args, **kwargs):
@@ -1449,9 +1461,11 @@ class TestInternalSearchTool:
                 "unique_internal_search.service.append_metadata_in_chunks",
                 return_value=sample_content_chunks,
             ),
+            patch("unique_internal_search.service.feature_flags") as mock_feature_flags,
         ):
+            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = False
             mock_content_service = Mock(spec=ContentService)
-            mock_content_service._metadata_filter = None
+            mock_content_service._metadata_filter = {"key": "value"}
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
             mock_content_service.search_content_chunks_async = AsyncMock(
                 return_value=sample_content_chunks
@@ -1518,9 +1532,11 @@ class TestInternalSearchTool:
                 "unique_internal_search.service.append_metadata_in_chunks",
                 return_value=sample_content_chunks,
             ),
+            patch("unique_internal_search.service.feature_flags") as mock_feature_flags,
         ):
+            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = False
             mock_content_service = Mock(spec=ContentService)
-            mock_content_service._metadata_filter = None
+            mock_content_service._metadata_filter = {"key": "value"}
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
             mock_content_service.search_content_chunks_async = AsyncMock(
                 return_value=sample_content_chunks
@@ -2043,9 +2059,11 @@ class TestInternalSearchTool:
                 "unique_internal_search.service.append_metadata_in_chunks",
                 return_value=sample_content_chunks,
             ),
+            patch("unique_internal_search.service.feature_flags") as mock_feature_flags,
         ):
+            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = False
             mock_content_service = Mock(spec=ContentService)
-            mock_content_service._metadata_filter = None
+            mock_content_service._metadata_filter = {"key": "value"}
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
             mock_content_service.search_content_chunks_async = AsyncMock(
                 return_value=sample_content_chunks
@@ -2114,6 +2132,7 @@ class TestInternalSearchTool:
             chat_id="chat_123",
             logger=mock_logger,
         )
+        mock_content_service._metadata_filter = {"key": "value"}
 
         # Track call count to verify parallel execution
         call_count = 0
@@ -2161,6 +2180,7 @@ class TestInternalSearchTool:
             chat_id="chat_123",
             logger=mock_logger,
         )
+        mock_content_service._metadata_filter = {"key": "value"}
         mock_content_service.search_content_chunks_async = AsyncMock(
             return_value=sample_content_chunks
         )
@@ -2204,6 +2224,7 @@ class TestInternalSearchTool:
             chat_id="chat_123",
             logger=mock_logger,
         )
+        mock_content_service._metadata_filter = {"key": "value"}
         mock_content_service.search_content_chunks_async = AsyncMock(
             return_value=sample_content_chunks
         )
@@ -2225,6 +2246,373 @@ class TestInternalSearchTool:
         assert set(called_strings).issubset(
             {"query1", "query2", "query3", "query4", "query5"}
         )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__returns_empty_list__when_no_metadata_filter_and_no_uploaded_files(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify search returns empty list when metadata_filter is None and no files are uploaded.
+        Why this matters: When there is no metadata filter (no knowledge base files selected) and no
+        uploaded files in the chat, there is nothing to search, so the search should short-circuit.
+        Setup summary: Set chat_only=False, no metadata_filter on service or passed, mock empty uploaded files.
+        """
+        # Arrange
+        base_internal_search_config.chat_only = False
+        base_internal_search_config.scope_to_chat_on_upload = False
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+        # Both service-level and passed metadata_filter are None
+        mock_content_service._metadata_filter = None
+        mock_content_service.search_contents_async = AsyncMock(return_value=[])
+        mock_content_service.search_content_chunks_async = AsyncMock()
+
+        # Act
+        result = await service.search("test query", metadata_filter=None)
+
+        # Assert
+        assert result == []
+        # search_content_chunks_async should never be called since we short-circuit
+        mock_content_service.search_content_chunks_async.assert_not_called()
+        # Debug info should still be set
+        assert hasattr(service, "debug_info")
+        assert service.debug_info["chatOnly"] is True
+        assert service.debug_info["metadataFilter"] is None
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__proceeds_with_search__when_no_metadata_filter_but_files_uploaded(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+        sample_content_chunks: list[ContentChunk],
+        sample_content_list: list[Any],
+    ) -> None:
+        """
+        Purpose: Verify search proceeds when metadata_filter is None but files are uploaded to the chat.
+        Why this matters: Even without a metadata filter, uploaded files should still be searchable
+        because the search falls back to chat_only mode with uploaded content.
+        Setup summary: Set no metadata_filter, mock uploaded files exist, verify search executes.
+        """
+        # Arrange
+        base_internal_search_config.chat_only = False
+        base_internal_search_config.scope_to_chat_on_upload = False
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+        # No metadata filter on either service or passed
+        mock_content_service._metadata_filter = None
+        # But uploaded files exist
+        mock_content_service.search_contents_async = AsyncMock(
+            return_value=sample_content_list
+        )
+        mock_content_service.search_content_chunks_async = AsyncMock(
+            return_value=sample_content_chunks
+        )
+
+        # Act
+        result = await service.search("test query", metadata_filter=None)
+
+        # Assert
+        assert len(result) > 0
+        # search_content_chunks_async should have been called since uploaded files exist
+        mock_content_service.search_content_chunks_async.assert_called_once()
+        # Should be treated as chat_only since metadata_filter is None
+        call_kwargs = mock_content_service.search_content_chunks_async.call_args[1]
+        assert call_kwargs["chat_only"] is True
+        assert call_kwargs["metadata_filter"] is None
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__falls_back_to_service_metadata_filter__when_passed_filter_is_none(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+        sample_content_chunks: list[ContentChunk],
+    ) -> None:
+        """
+        Purpose: Verify search falls back to service-level metadata_filter when passed filter is None.
+        Why this matters: The service's _metadata_filter acts as a default when no explicit filter is passed,
+        enabling knowledge base scoping without requiring every caller to pass a filter.
+        Setup summary: Set metadata_filter on service, pass None to search, verify service filter is used.
+        """
+        # Arrange
+        base_internal_search_config.chat_only = False
+        base_internal_search_config.scope_to_chat_on_upload = False
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+        # Service has a metadata filter but none is passed to search
+        service_filter = {"scope": "knowledge_base"}
+        mock_content_service._metadata_filter = service_filter
+        mock_content_service.search_contents_async = AsyncMock(return_value=[])
+        mock_content_service.search_content_chunks_async = AsyncMock(
+            return_value=sample_content_chunks
+        )
+
+        # Act
+        result = await service.search("test query", metadata_filter=None)
+
+        # Assert
+        assert len(result) > 0
+        call_kwargs = mock_content_service.search_content_chunks_async.call_args[1]
+        # Should fall back to the service-level metadata filter
+        assert call_kwargs["metadata_filter"] == service_filter
+        assert call_kwargs["chat_only"] is False
+        # Service metadata filter should be restored after search
+        assert mock_content_service._metadata_filter == service_filter
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__treats_as_chat_only__when_both_metadata_filters_are_none(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+        sample_content_chunks: list[ContentChunk],
+        sample_content_list: list[Any],
+    ) -> None:
+        """
+        Purpose: Verify search treats as chat_only when both passed and service metadata filters are None.
+        Why this matters: No metadata filter means no knowledge base files are selected, so the search
+        should automatically scope to chat-uploaded files only.
+        Setup summary: Set both metadata filters to None, mock uploaded files, verify chat_only=True in debug_info.
+        """
+        # Arrange
+        base_internal_search_config.chat_only = False
+        base_internal_search_config.scope_to_chat_on_upload = False
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+        mock_content_service._metadata_filter = None
+        # Uploaded files exist so search proceeds (not short-circuited)
+        mock_content_service.search_contents_async = AsyncMock(
+            return_value=sample_content_list
+        )
+        mock_content_service.search_content_chunks_async = AsyncMock(
+            return_value=sample_content_chunks
+        )
+
+        # Act
+        result = await service.search("test query", metadata_filter=None)
+
+        # Assert
+        assert len(result) > 0
+        assert hasattr(service, "debug_info")
+        # Should be treated as chat_only since no metadata filter is available
+        assert service.debug_info["chatOnly"] is True
+        assert service.debug_info["metadataFilter"] is None
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__does_not_treat_as_chat_only__when_content_ids_provided_and_no_metadata_filter(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+        sample_content_chunks: list[ContentChunk],
+    ) -> None:
+        """
+        Purpose: Verify search does NOT fall back to chat_only when content_ids is provided even if metadata_filter is None.
+        Why this matters: When content_ids are provided, there is specific content to search against,
+        so the search should not be treated as chat_only regardless of the metadata filter.
+        Setup summary: Set both metadata filters to None, provide content_ids, verify chat_only remains False.
+        """
+        # Arrange
+        base_internal_search_config.chat_only = False
+        base_internal_search_config.scope_to_chat_on_upload = False
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+        mock_content_service._metadata_filter = None
+        mock_content_service.search_contents_async = AsyncMock(return_value=[])
+        mock_content_service.search_content_chunks_async = AsyncMock(
+            return_value=sample_content_chunks
+        )
+
+        # Act
+        result = await service.search(
+            "test query",
+            metadata_filter=None,
+            content_ids=["content_1", "content_2"],
+        )
+
+        # Assert
+        assert len(result) > 0
+        mock_content_service.search_content_chunks_async.assert_called_once()
+        call_kwargs = mock_content_service.search_content_chunks_async.call_args[1]
+        # Should NOT be treated as chat_only because content_ids is provided
+        assert call_kwargs["chat_only"] is False
+        assert call_kwargs["content_ids"] == ["content_1", "content_2"]
+        assert call_kwargs["metadata_filter"] is None
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__proceeds_with_search__when_content_ids_provided_and_no_metadata_filter_and_no_uploaded_files(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+        sample_content_chunks: list[ContentChunk],
+    ) -> None:
+        """
+        Purpose: Verify search does NOT short-circuit when content_ids is provided, even without metadata filter or uploaded files.
+        Why this matters: content_ids provides explicit content to search against, so has_no_searchable_content
+        should be False and the search should proceed normally.
+        Setup summary: No metadata filter, no uploaded files, provide content_ids, verify search executes.
+        """
+        # Arrange
+        base_internal_search_config.chat_only = False
+        base_internal_search_config.scope_to_chat_on_upload = False
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+        mock_content_service._metadata_filter = None
+        # No uploaded files
+        mock_content_service.search_contents_async = AsyncMock(return_value=[])
+        mock_content_service.search_content_chunks_async = AsyncMock(
+            return_value=sample_content_chunks
+        )
+
+        # Act
+        result = await service.search(
+            "test query",
+            metadata_filter=None,
+            content_ids=["content_1"],
+        )
+
+        # Assert
+        # Should NOT short-circuit — content_ids provides searchable content
+        assert len(result) > 0
+        mock_content_service.search_content_chunks_async.assert_called_once()
+        call_kwargs = mock_content_service.search_content_chunks_async.call_args[1]
+        assert call_kwargs["content_ids"] == ["content_1"]
+        assert call_kwargs["chat_only"] is False
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__treats_as_chat_only__when_no_metadata_filter_and_no_content_ids(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+        sample_content_chunks: list[ContentChunk],
+        sample_content_list: list[Any],
+    ) -> None:
+        """
+        Purpose: Verify search treats as chat_only when both metadata_filter and content_ids are None.
+        Why this matters: When neither a metadata filter nor content_ids are provided, there is no
+        knowledge base scope, so the search should fall back to chat_only mode.
+        Setup summary: Set both metadata filters and content_ids to None, mock uploaded files, verify chat_only=True.
+        """
+        # Arrange
+        base_internal_search_config.chat_only = False
+        base_internal_search_config.scope_to_chat_on_upload = False
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+        mock_content_service._metadata_filter = None
+        # Uploaded files exist so search proceeds (not short-circuited)
+        mock_content_service.search_contents_async = AsyncMock(
+            return_value=sample_content_list
+        )
+        mock_content_service.search_content_chunks_async = AsyncMock(
+            return_value=sample_content_chunks
+        )
+
+        # Act
+        result = await service.search(
+            "test query",
+            metadata_filter=None,
+            content_ids=None,
+        )
+
+        # Assert
+        assert len(result) > 0
+        call_kwargs = mock_content_service.search_content_chunks_async.call_args[1]
+        # Should be treated as chat_only since both metadata_filter and content_ids are None
+        assert call_kwargs["chat_only"] is True
+        assert call_kwargs["metadata_filter"] is None
+        assert call_kwargs["content_ids"] is None
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__restores_service_metadata_filter__when_no_searchable_content(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify service metadata_filter is restored even when search short-circuits due to no searchable content.
+        Why this matters: The metadata filter backup/restore must work correctly on the early-return path
+        to avoid corrupting service state for subsequent operations.
+        Setup summary: Set a service metadata_filter, trigger the no-searchable-content path, verify filter restored.
+        """
+        # Arrange
+        base_internal_search_config.chat_only = True
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+        original_filter = {"original": "filter"}
+        mock_content_service._metadata_filter = original_filter
+        # No uploaded files → has_no_searchable_content = True
+        mock_content_service.search_contents_async = AsyncMock(return_value=[])
+
+        # Act
+        result = await service.search("test query")
+
+        # Assert
+        assert result == []
+        # The service metadata filter should be restored
+        assert mock_content_service._metadata_filter == original_filter
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -2251,6 +2639,7 @@ class TestInternalSearchTool:
             company_id="company_123",
         )
         mock_content_service.search_contents_async = AsyncMock(return_value=[])
+        mock_content_service._metadata_filter = {"key": "value"}
 
         # Make the second search fail, others succeed
         call_count = 0

@@ -1,7 +1,7 @@
 from logging import getLogger
 
 from pydantic import BaseModel, Field
-from unique_toolkit.content.utils import count_tokens
+from unique_toolkit._common.token import count_tokens
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_web_search.services.content_processing import WebPageChunk
@@ -92,7 +92,7 @@ def reduce_sources_to_token_limit(
 
     for chunk in web_page_chunks:
         if total_tokens < max_token_sources - chat_history_token_length:
-            total_tokens += count_tokens(text=chunk.content)
+            total_tokens += count_tokens(text=chunk.content, model=language_model)
             selected_chunks.append(chunk)
         else:
             break

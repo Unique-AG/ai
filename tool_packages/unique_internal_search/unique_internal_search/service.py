@@ -94,7 +94,12 @@ class InternalSearchService:
         )
         return sorted_chat_results
 
-    async def is_chat_only(self, **kwargs) -> bool:
+    async def is_chat_only(
+        self,
+        metadata_filter: dict | None = None,
+        content_ids: list[str] | None = None,
+        **kwargs,
+    ) -> bool:
         """Check whether the assistant should limit itself to files in chat"""
         if self.config.chat_only:
             return True
@@ -102,6 +107,14 @@ class InternalSearchService:
             chat_files = await self.get_uploaded_files()
             if len(chat_files) > 0:
                 return True
+        # If no metadata filter (neither explicit nor from service) and no content_ids,
+        # treat as chat_only since no files are selected from the knowledge base.
+        if (
+            metadata_filter is None
+            and self.content_service._metadata_filter is None
+            and content_ids is None
+        ):
+            return True
         return False
 
     async def search(
@@ -138,22 +151,39 @@ class InternalSearchService:
         ###
         # 2. Search for context in the Vector DB
         ###
-        chat_only = await self.is_chat_only(**kwargs)
-
-        """
-        Handle the fact that metadata can exclude uploaded content
-        and that the search service is hardcoded to use the metadata_filter 
-        from the event if set to None
-        """
-        # Take a backup of the metadata filter
+        # Take a backup of the metadata filter to restore later
         metadata_filter_copy = self.content_service._metadata_filter
 
-        if metadata_filter is None:
-            metadata_filter = self.content_service._metadata_filter
-        if chat_only and metadata_filter:
-            # if this is not set to none search_content_chunks_async will overwrite it inside its call thats why it needs to stay.
+        chat_only = await self.is_chat_only(
+            metadata_filter=metadata_filter, content_ids=content_ids, **kwargs
+        )
+
+        # Apply the effective metadata filter:
+        # - chat_only=True: no metadata filtering (must also clear service filter
+        #   because search_content_chunks_async would otherwise use it)
+        # - chat_only=False: use provided filter or fall back to service default
+        if chat_only:
             self.content_service._metadata_filter = None
             metadata_filter = None
+        else:
+            if metadata_filter is None:
+                metadata_filter = self.content_service._metadata_filter
+
+        has_no_searchable_content = (
+            metadata_filter is None
+            and content_ids is None
+            and len(await self.get_uploaded_files()) == 0
+        )
+        if has_no_searchable_content:
+            self.debug_info = self._build_debug_info(
+                search_strings=search_strings,
+                metadata_filter=metadata_filter,
+                chat_only=chat_only,
+            )
+            # Reset the metadata filter in case it was disabled
+            self.content_service._metadata_filter = metadata_filter_copy
+
+            return []
 
         # Run all searches in parallel
         results = await asyncio.gather(
@@ -240,12 +270,25 @@ class InternalSearchService:
         else:
             selected_chunks = sort_content_chunks(selected_chunks)
 
-        self.debug_info = {
+        self.debug_info = self._build_debug_info(
+            search_strings=search_strings,
+            metadata_filter=metadata_filter,
+            chat_only=chat_only,
+        )
+        return selected_chunks
+
+    def _build_debug_info(
+        self,
+        *,
+        search_strings: list[str],
+        metadata_filter: dict | None,
+        chat_only: bool,
+    ) -> dict:
+        return {
             "searchStrings": search_strings,
             "metadataFilter": metadata_filter,
             "chatOnly": chat_only,
         }
-        return selected_chunks
 
     async def _search_single_string(
         self,
@@ -455,9 +498,15 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             )
 
     async def is_chat_only(
-        self, tool_call: LanguageModelFunction | None = None, **kwargs
+        self,
+        metadata_filter: dict | None = None,
+        content_ids: list[str] | None = None,
+        tool_call: LanguageModelFunction | None = None,
+        **kwargs,
     ) -> bool:
-        if await super().is_chat_only(**kwargs):
+        if await super().is_chat_only(
+            metadata_filter=metadata_filter, content_ids=content_ids, **kwargs
+        ):
             return True
         if (
             tool_call
@@ -569,11 +618,18 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             active_message_log=self._active_message_log,
         )
 
-        self._active_message_log = await self._create_or_update_active_message_log(
-            chunks=selected_chunks,
-            search_strings_list=search_strings_list,
-            status=MessageLogStatus.COMPLETED,
-        )
+        if len(selected_chunks) != 0:
+            self._active_message_log = await self._create_or_update_active_message_log(
+                chunks=selected_chunks,
+                search_strings_list=search_strings_list,
+                status=MessageLogStatus.COMPLETED,
+            )
+        else:
+            self._active_message_log = await self._create_or_update_active_message_log(
+                progress_message="_No files available for search_",
+                search_strings_list=[],
+                status=MessageLogStatus.COMPLETED,
+            )
 
         ## Modify metadata in chunks
         selected_chunks = append_metadata_in_chunks(

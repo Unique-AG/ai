@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.46.5] - 2026-02-11
+- Add `DEFAULT_LANGUAGE_MODEL` environment-based resolution with fallback support for invalid or missing values
+- Allow default model configuration via both enum value strings and enum member names
+- Export `DEFAULT_LANGUAGE_MODEL` and `DEFAULT_GPT_4o` from `unique_toolkit.language_model` for easier imports
+- Keep `unique_toolkit._common.default_language_model.DEFAULT_GPT_4o` backward compatible via re-export
+- Add unit tests for default language model resolution behavior
+
 ## [1.46.4] - 2026-02-10
 - Fix: Add `union_mode="left_to_right"` to `encoder_name` field so Pydantic tries `EncoderName` enum before `str`, enabling bundled tokenizers when UI sends string values
 

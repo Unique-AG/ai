@@ -68,7 +68,9 @@ class Folder(APIResource["Folder"]):
         createdFolders: List["Folder.CreatedFolder"]
 
     class CreateParams(RequestOptions):
-        paths: List[str]
+        paths: NotRequired[List[str] | None]
+        parentScopeId: NotRequired[str | None]
+        relativePaths: NotRequired[List[str] | None]
         inheritAccess: NotRequired[bool]
 
     class FolderInfo(TypedDict):
