@@ -24,7 +24,7 @@ from unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
@@ -1152,7 +1152,7 @@ class TestChatServiceUnit:
 
         response = self.service.stream_complete(
             messages=messages,
-            model_name=DEFAULT_GPT_4o,
+            model_name=DEFAULT_LANGUAGE_MODEL,
             tools=[mock_tool],
         )
 
@@ -1265,7 +1265,7 @@ class TestChatServiceUnit:
 
         response = await self.service.stream_complete_async(
             messages=messages,
-            model_name=DEFAULT_GPT_4o,
+            model_name=DEFAULT_LANGUAGE_MODEL,
             tools=[mock_tool],
         )
 

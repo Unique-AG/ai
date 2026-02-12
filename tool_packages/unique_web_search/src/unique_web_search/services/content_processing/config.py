@@ -10,7 +10,7 @@ from unique_toolkit._common.validators import (
 )
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 
 
 class ContentProcessingStartegy(StrEnum):
@@ -85,7 +85,7 @@ class ContentProcessorConfig(BaseModel):
         default=True,
         description="Whether to remove URLs from markdown links in website content.",
     )
-    language_model: LMI = get_LMI_default_field(DEFAULT_GPT_4o)
+    language_model: LMI = get_LMI_default_field(DEFAULT_LANGUAGE_MODEL)
     max_tokens: int = Field(
         default=5000,
         description="Max tokens for truncation and summarization",

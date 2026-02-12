@@ -7,7 +7,7 @@ from unique_toolkit import LanguageModelService
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.language_model.builder import MessagesBuilder
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit.language_model.infos import ModelCapabilities
 
 from unique_web_search.services.search_engine.base import (
@@ -49,7 +49,7 @@ class BingSearchConfig(
     BaseSearchEngineConfig[SearchEngineType.BING], BingSearchOptionalQueryParams
 ):
     search_engine_name: Literal[SearchEngineType.BING] = SearchEngineType.BING
-    language_model: LMI = get_LMI_default_field(DEFAULT_GPT_4o)
+    language_model: LMI = get_LMI_default_field(DEFAULT_LANGUAGE_MODEL)
 
     @field_validator("language_model", mode="after")
     @classmethod

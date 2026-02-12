@@ -7,7 +7,7 @@ from unique_toolkit._common.experimental.write_up_agent.services.generation_hand
 )
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 
 
 class GenerationHandlerConfig(BaseModel):
@@ -20,7 +20,7 @@ class GenerationHandlerConfig(BaseModel):
     model_config = get_configuration_dict()
 
     language_model: LMI = get_LMI_default_field(
-        DEFAULT_GPT_4o,
+        DEFAULT_LANGUAGE_MODEL,
         description="The language model to use for generating summaries.",
     )
 

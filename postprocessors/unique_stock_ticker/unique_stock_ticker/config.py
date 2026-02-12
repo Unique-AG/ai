@@ -11,7 +11,7 @@ from pydantic import (
 from typing_extensions import deprecated
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.config import get_configuration_dict
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_stock_ticker.detection.config import StockTickerDetectionConfig
@@ -32,7 +32,7 @@ class StockTickerConfigOld(BaseModel):
         extra="forbid",
     )
     language_model: LMI = LanguageModelInfo.from_name(
-        DEFAULT_GPT_4o,
+        DEFAULT_LANGUAGE_MODEL,
     )
     additional_llm_options: dict[str, Any] = Field(
         default={},

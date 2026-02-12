@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, create_autospec
 import pytest
 from unique_toolkit.chat import ChatService
 from unique_toolkit.language_model import LanguageModelService
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
 )
@@ -28,7 +28,7 @@ def mock_llm_service():
 def stock_ticker_config():
     # Adjust as necessary to create a real or dummy config
     return StockTickerDetectionConfig(
-        language_model=LanguageModelInfo.from_name(DEFAULT_GPT_4o)
+        language_model=LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL)
     )
 
 

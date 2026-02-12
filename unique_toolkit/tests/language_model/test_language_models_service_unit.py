@@ -6,7 +6,7 @@ import unique_sdk
 from pydantic import BaseModel
 
 from tests.test_obj_factory import get_event_obj
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit.language_model.functions import (
     _add_response_format_to_options,
     _prepare_completion_params_util,
@@ -161,7 +161,7 @@ class TestLanguageModelServiceUnit:
 
         response = self.service.complete(
             messages=messages,
-            model_name=DEFAULT_GPT_4o,
+            model_name=DEFAULT_LANGUAGE_MODEL,
             tools=[mock_tool],
         )
 
@@ -286,7 +286,7 @@ class TestLanguageModelServiceUnit:
 
         response = await self.service.complete_async(
             messages=messages,
-            model_name=DEFAULT_GPT_4o,
+            model_name=DEFAULT_LANGUAGE_MODEL,
             tools=[mock_tool],
         )
         assert response.choices[0].message.tool_calls is not None

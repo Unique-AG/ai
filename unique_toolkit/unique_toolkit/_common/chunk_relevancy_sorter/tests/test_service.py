@@ -22,7 +22,7 @@ from unique_toolkit.agentic.evaluation.schemas import (
 )
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 
@@ -56,8 +56,8 @@ def config():
         enabled=True,
         relevancy_levels_to_consider=["high", "medium", "low"],
         relevancy_level_order={"high": 0, "medium": 1, "low": 2},
-        language_model=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
-        fallback_language_model=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
+        language_model=LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL),
+        fallback_language_model=LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL),
         structured_output_config=StructuredOutputConfig(
             enabled=False,
             extract_fact_list=False,

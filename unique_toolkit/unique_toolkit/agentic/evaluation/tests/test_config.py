@@ -7,7 +7,7 @@ from unique_toolkit.agentic.evaluation.config import (
     EvaluationMetricPromptsConfig,
 )
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 
@@ -157,7 +157,7 @@ def test_evaluation_metric_config__has_all_required_fields__on_initialization() 
     Setup summary: Create config with language model, assert all fields exist.
     """
     # Arrange
-    language_model: LanguageModelInfo = LanguageModelInfo.from_name(DEFAULT_GPT_4o)
+    language_model: LanguageModelInfo = LanguageModelInfo.from_name(DEFAULT_LANGUAGE_MODEL)
 
     # Act
     config: EvaluationMetricConfig = EvaluationMetricConfig(
