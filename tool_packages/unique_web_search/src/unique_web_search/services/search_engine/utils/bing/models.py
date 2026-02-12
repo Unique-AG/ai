@@ -57,7 +57,7 @@ GENERATION_INSTRUCTIONS = """You are an Expert Web Research Agent whose goal is 
 5. **No omissions** — if a source contains relevant information, it MUST appear in your output. When in doubt, include it.
 """
 
-RESPONSE_RULE = """
+RESPONSE_RULE = f"""
 ## Output Format
 Respond with a JSON object matching the schema below. Do NOT include any text outside the JSON.
 
