@@ -35,14 +35,21 @@ _SearchEngineExposedName = {
 }
 
 
-def get_search_engine_model_config(search_engine_name: SearchEngineType) -> ConfigDict:
-    return get_configuration_dict(title=_SearchEngineExposedName[search_engine_name])
+def get_search_engine_model_config(
+    search_engine_name: SearchEngineType,
+) -> ConfigDict:
+    return get_configuration_dict(
+        title=_SearchEngineExposedName.get(
+            search_engine_name, "Undefined Search Engine"
+        )
+    )
 
 
 T = TypeVar("T", bound=SearchEngineType)
 
 
 class BaseSearchEngineConfig(BaseModel, Generic[T]):
+    model_config = get_configuration_dict()
     search_engine_name: T
     fetch_size: int = Field(
         default=5,
