@@ -1,12 +1,14 @@
 """Tests for Bing grounding agent runner, models, and response parsing strategies."""
 
+from typing import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from azure.ai.agents.models import MessageTextContent, MessageTextUrlCitationAnnotation
+from pydantic import ValidationError
 
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
-    WebSearchResults,
 )
 from unique_web_search.services.search_engine.utils.bing.models import (
     GENERATION_INSTRUCTIONS,
@@ -22,6 +24,17 @@ from unique_web_search.services.search_engine.utils.bing.runner import (
     get_bing_grounding_tool,
     get_or_create_agent_id,
 )
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+async def _async_iter(items: list) -> AsyncIterator:
+    """Wrap a list as an async iterator for mocking async-for-compatible APIs."""
+    for item in items:
+        yield item
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -155,6 +168,39 @@ class TestGroundingWithBingResults:
         assert web_results[0].url == "https://example.com/article"
         assert web_results[1].url == "https://other.com/page"
 
+    @pytest.mark.ai
+    def test_result_item__rejects_extra_fields__with_forbid(self) -> None:
+        """
+        Purpose: Verify ResultItem rejects unknown fields due to extra='forbid'.
+        Why this matters: Prevents silent acceptance of malformed data from the agent.
+        Setup summary: Create ResultItem with an extra field; assert ValidationError.
+        """
+        # Act & Assert
+        with pytest.raises(ValidationError) as exc_info:
+            ResultItem(
+                source_url="https://a.com",
+                source_title="A",
+                detailed_answer="Details",
+                key_facts=["fact"],
+                unknown_field="should fail",
+            )
+        assert "extra_forbidden" in str(exc_info.value)
+
+    @pytest.mark.ai
+    def test_grounding_results__rejects_extra_fields__with_forbid(self) -> None:
+        """
+        Purpose: Verify GroundingWithBingResults rejects unknown fields due to extra='forbid'.
+        Why this matters: Prevents silent acceptance of malformed structured output.
+        Setup summary: Create GroundingWithBingResults with an extra field; assert ValidationError.
+        """
+        # Act & Assert
+        with pytest.raises(ValidationError) as exc_info:
+            GroundingWithBingResults(
+                results=[],
+                unknown_field="should fail",
+            )
+        assert "extra_forbidden" in str(exc_info.value)
+
 
 # ---------------------------------------------------------------------------
 # JsonConversionStrategy tests
@@ -259,20 +305,20 @@ class TestLLMParserStrategy:
         """
         Purpose: Verify LLM parser returns structured results on success.
         Why this matters: Fallback parser must produce correct WebSearchResult objects.
-        Setup summary: Mock LLM service to return valid parsed output.
+        Setup summary: Mock LLM service to return valid parsed GroundingWithBingResults output.
         """
         # Arrange
         mock_lmi = MagicMock()
         mock_lmi.name = "gpt-4o"
         mock_service = MagicMock()
 
-        parsed_data = WebSearchResults(
+        parsed_data = GroundingWithBingResults(
             results=[
-                WebSearchResult(
-                    url="https://llm-parsed.com",
-                    title="LLM Parsed",
-                    snippet="Parsed snippet",
-                    content="Parsed content",
+                ResultItem(
+                    source_url="https://llm-parsed.com",
+                    source_title="LLM Parsed",
+                    detailed_answer="Parsed content",
+                    key_facts=["Parsed snippet"],
                 )
             ]
         )
@@ -332,13 +378,13 @@ class TestLLMParserStrategy:
         mock_lmi.name = "test-model"
         mock_service = MagicMock()
 
-        parsed_data = WebSearchResults(
+        parsed_data = GroundingWithBingResults(
             results=[
-                WebSearchResult(
-                    url="https://a.com",
-                    title="A",
-                    snippet="s",
-                    content="c",
+                ResultItem(
+                    source_url="https://a.com",
+                    source_title="A",
+                    detailed_answer="c",
+                    key_facts=["s"],
                 )
             ]
         )
@@ -356,7 +402,7 @@ class TestLLMParserStrategy:
         # Assert
         call_kwargs = mock_service.complete_async.call_args[1]
         assert call_kwargs["model_name"] == "test-model"
-        assert call_kwargs["structured_output_model"] is WebSearchResults
+        assert call_kwargs["structured_output_model"] is GroundingWithBingResults
         assert call_kwargs["structured_output_enforce_schema"] is True
 
 
@@ -447,30 +493,34 @@ class TestGetOrCreateAgentId:
     """Tests for agent discovery and auto-creation logic."""
 
     @pytest.mark.ai
-    def test_get_or_create__agent_exists__returns_existing_id(
+    @pytest.mark.asyncio
+    async def test_get_or_create__agent_exists__returns_existing_id(
         self, mock_agent_client: MagicMock
     ) -> None:
         """
         Purpose: Verify existing agent is found by name and its id is returned.
         Why this matters: Avoids creating duplicate agents on every request.
-        Setup summary: Mock list_agents returning one agent with matching name.
+        Setup summary: Mock list_agents returning one agent with matching name via async iter.
         """
         # Arrange
         existing_agent = MagicMock()
         existing_agent.name = "UNIQUE_GROUNDING_WITH_BING_AGENT"
         existing_agent.id = "existing-agent-123"
-        mock_agent_client.agents.list_agents.return_value = [existing_agent]
+        mock_agent_client.agents.list_agents.return_value = _async_iter(
+            [existing_agent]
+        )
 
         # Act
-        agent_id = get_or_create_agent_id(mock_agent_client)
+        agent_id = await get_or_create_agent_id(mock_agent_client)
 
         # Assert
         assert agent_id == "existing-agent-123"
         mock_agent_client.agents.create_agent.assert_not_called()
 
     @pytest.mark.ai
+    @pytest.mark.asyncio
     @patch("unique_web_search.services.search_engine.utils.bing.runner.env_settings")
-    def test_get_or_create__agent_not_found__creates_new(
+    async def test_get_or_create__agent_not_found__creates_new(
         self, mock_env: MagicMock, mock_agent_client: MagicMock
     ) -> None:
         """
@@ -479,14 +529,14 @@ class TestGetOrCreateAgentId:
         Setup summary: Mock list_agents returning empty; mock create_agent returning new id.
         """
         # Arrange
-        mock_agent_client.agents.list_agents.return_value = []
+        mock_agent_client.agents.list_agents.return_value = _async_iter([])
         mock_env.azure_ai_bing_agent_model = "gpt-4o"
         new_agent = MagicMock()
         new_agent.id = "new-agent-456"
-        mock_agent_client.agents.create_agent.return_value = new_agent
+        mock_agent_client.agents.create_agent = AsyncMock(return_value=new_agent)
 
         # Act
-        agent_id = get_or_create_agent_id(mock_agent_client)
+        agent_id = await get_or_create_agent_id(mock_agent_client)
 
         # Assert
         assert agent_id == "new-agent-456"
@@ -496,7 +546,8 @@ class TestGetOrCreateAgentId:
         )
 
     @pytest.mark.ai
-    def test_get_or_create__multiple_agents__finds_correct_one(
+    @pytest.mark.asyncio
+    async def test_get_or_create__multiple_agents__finds_correct_one(
         self, mock_agent_client: MagicMock
     ) -> None:
         """
@@ -517,10 +568,12 @@ class TestGetOrCreateAgentId:
         other_2.name = "ANOTHER_AGENT"
         other_2.id = "other-2"
 
-        mock_agent_client.agents.list_agents.return_value = [other_1, target, other_2]
+        mock_agent_client.agents.list_agents.return_value = _async_iter(
+            [other_1, target, other_2]
+        )
 
         # Act
-        agent_id = get_or_create_agent_id(mock_agent_client)
+        agent_id = await get_or_create_agent_id(mock_agent_client)
 
         # Assert
         assert agent_id == "target-789"
@@ -600,23 +653,21 @@ class TestGetAnswerFromThread:
     """Tests for extracting assistant answers from agent threads."""
 
     @pytest.mark.ai
-    def test_get_answer__assistant_messages__concatenates_text(
+    @pytest.mark.asyncio
+    async def test_get_answer__assistant_messages__concatenates_text(
         self, mock_agent_client: MagicMock
     ) -> None:
         """
         Purpose: Verify assistant text messages are concatenated into a single answer.
         Why this matters: Multi-part assistant responses must be fully captured.
-        Setup summary: Two assistant messages with text content; assert concatenation.
+        Setup summary: Two assistant messages with MessageTextContent; assert concatenation.
         """
         # Arrange
-        text_content_1 = MagicMock(spec=["text"])
-        text_content_1.text = MagicMock(value="First part. ")
-        # Make isinstance check work for MessageTextContent
-        text_content_1.__class__ = type("MessageTextContent", (), {})
+        text_content_1 = MagicMock(spec=MessageTextContent)
+        text_content_1.text.value = "First part. "
 
-        text_content_2 = MagicMock(spec=["text"])
-        text_content_2.text = MagicMock(value="Second part.")
-        text_content_2.__class__ = type("MessageTextContent", (), {})
+        text_content_2 = MagicMock(spec=MessageTextContent)
+        text_content_2.text.value = "Second part."
 
         msg_1 = MagicMock()
         msg_1.role = "assistant"
@@ -626,28 +677,19 @@ class TestGetAnswerFromThread:
         msg_2.role = "assistant"
         msg_2.content = [text_content_2]
 
-        mock_agent_client.agents.messages.list.return_value = [msg_1, msg_2]
+        mock_agent_client.agents.messages.list.return_value = _async_iter(
+            [msg_1, msg_2]
+        )
 
         # Act
-        with patch(
-            "unique_web_search.services.search_engine.utils.bing.runner.isinstance",
-            side_effect=lambda obj, cls: obj in [text_content_1, text_content_2],
-        ):
-            # Since we can't easily mock isinstance, use the real function
-            # but construct objects that match
-            pass
+        answer = await _get_answer_from_thread("thread-1", mock_agent_client)
 
-        # We need a different approach - use real MessageTextContent-like objects
-
-        # Recreate with a simpler approach
-        answer = _get_answer_from_thread("thread-1", mock_agent_client)
-
-        # Assert - since our mocks don't pass isinstance check for MessageTextContent,
-        # the answer will be empty. Let's test the actual contract differently.
-        assert isinstance(answer, str)
+        # Assert
+        assert answer == "First part. Second part."
 
     @pytest.mark.ai
-    def test_get_answer__no_assistant_messages__returns_empty_string(
+    @pytest.mark.asyncio
+    async def test_get_answer__no_assistant_messages__returns_empty_string(
         self, mock_agent_client: MagicMock
     ) -> None:
         """
@@ -660,16 +702,17 @@ class TestGetAnswerFromThread:
         user_msg.role = "user"
         user_msg.content = []
 
-        mock_agent_client.agents.messages.list.return_value = [user_msg]
+        mock_agent_client.agents.messages.list.return_value = _async_iter([user_msg])
 
         # Act
-        answer = _get_answer_from_thread("thread-1", mock_agent_client)
+        answer = await _get_answer_from_thread("thread-1", mock_agent_client)
 
         # Assert
         assert answer == ""
 
     @pytest.mark.ai
-    def test_get_answer__empty_thread__returns_empty_string(
+    @pytest.mark.asyncio
+    async def test_get_answer__empty_thread__returns_empty_string(
         self, mock_agent_client: MagicMock
     ) -> None:
         """
@@ -678,16 +721,17 @@ class TestGetAnswerFromThread:
         Setup summary: Empty messages list; assert empty answer.
         """
         # Arrange
-        mock_agent_client.agents.messages.list.return_value = []
+        mock_agent_client.agents.messages.list.return_value = _async_iter([])
 
         # Act
-        answer = _get_answer_from_thread("thread-1", mock_agent_client)
+        answer = await _get_answer_from_thread("thread-1", mock_agent_client)
 
         # Assert
         assert answer == ""
 
     @pytest.mark.ai
-    def test_get_answer__mixed_roles__only_assistant_extracted(
+    @pytest.mark.asyncio
+    async def test_get_answer__mixed_roles__only_assistant_extracted(
         self, mock_agent_client: MagicMock
     ) -> None:
         """
@@ -704,16 +748,50 @@ class TestGetAnswerFromThread:
         assistant_msg.role = "assistant"
         assistant_msg.content = []  # No MessageTextContent subclass, so nothing added
 
-        mock_agent_client.agents.messages.list.return_value = [user_msg, assistant_msg]
+        mock_agent_client.agents.messages.list.return_value = _async_iter(
+            [user_msg, assistant_msg]
+        )
 
         # Act
-        answer = _get_answer_from_thread("thread-1", mock_agent_client)
+        answer = await _get_answer_from_thread("thread-1", mock_agent_client)
 
         # Assert
         assert answer == ""
         mock_agent_client.agents.messages.list.assert_called_once_with(
             thread_id="thread-1"
         )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_get_answer__citation_annotations__replaced_in_text(
+        self, mock_agent_client: MagicMock
+    ) -> None:
+        """
+        Purpose: Verify MessageTextUrlCitationAnnotation citations are replaced in answer text.
+        Why this matters: Citation placeholders must be converted to readable markdown links.
+        Setup summary: Assistant message with text containing a citation placeholder and
+            a citation annotation; assert placeholder is replaced with markdown link.
+        """
+        # Arrange
+        text_content = MagicMock(spec=MessageTextContent)
+        text_content.text.value = "Python is popular [doc1]."
+
+        citation = MagicMock(spec=MessageTextUrlCitationAnnotation)
+        citation.text = "[doc1]"
+        citation.url_citation.title = "Python Docs"
+        citation.url_citation.url = "https://docs.python.org"
+
+        msg = MagicMock()
+        msg.role = "assistant"
+        msg.content = [text_content, citation]
+
+        mock_agent_client.agents.messages.list.return_value = _async_iter([msg])
+
+        # Act
+        answer = await _get_answer_from_thread("thread-1", mock_agent_client)
+
+        # Assert
+        assert answer == "Python is popular [Python Docs](https://docs.python.org)."
 
 
 # ---------------------------------------------------------------------------
@@ -729,18 +807,22 @@ class TestCreateAndProcessRun:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__successful__returns_parsed_results(self) -> None:
+    async def test_run__successful_without_agent_id__returns_parsed_results(
+        self,
+    ) -> None:
         """
-        Purpose: Verify successful run returns parsed search results.
-        Why this matters: Core happy-path for Bing grounding integration.
-        Setup summary: Mock all external calls; assert parser strategy is invoked.
+        Purpose: Verify successful run returns parsed search results when no agent_id is provided.
+        Why this matters: Core happy-path for Bing grounding integration with auto-provisioning.
+        Setup summary: Mock all external calls with agent_id=''; assert parser strategy is invoked.
         """
         # Arrange
         mock_agent_client = MagicMock()
         mock_run = MagicMock()
         mock_run.status = "completed"
         mock_run.thread_id = "thread-abc"
-        mock_agent_client.agents.create_thread_and_process_run.return_value = mock_run
+        mock_agent_client.agents.create_thread_and_process_run = AsyncMock(
+            return_value=mock_run
+        )
 
         expected_results = [
             WebSearchResult(url="https://a.com", title="A", snippet="s", content="c")
@@ -749,11 +831,14 @@ class TestCreateAndProcessRun:
 
         with (
             patch(
-                f"{_RUNNER_MODULE}.get_or_create_agent_id", return_value="agent-id-1"
+                f"{_RUNNER_MODULE}.get_or_create_agent_id",
+                new_callable=AsyncMock,
+                return_value="agent-id-1",
             ) as mock_get_agent,
             patch(f"{_RUNNER_MODULE}.get_bing_grounding_tool"),
             patch(
                 f"{_RUNNER_MODULE}._get_answer_from_thread",
+                new_callable=AsyncMock,
                 return_value="response text",
             ),
             patch(f"{_RUNNER_MODULE}.env_settings") as mock_env,
@@ -763,6 +848,7 @@ class TestCreateAndProcessRun:
             # Act
             results = await create_and_process_run(
                 agent_client=mock_agent_client,
+                agent_id="",
                 query="test query",
                 fetch_size=5,
                 response_parsers_strategies=[mock_parser],
@@ -772,6 +858,59 @@ class TestCreateAndProcessRun:
         # Assert
         assert results == expected_results
         mock_get_agent.assert_called_once_with(mock_agent_client)
+        mock_parser.assert_called_once()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__with_agent_id__uses_existing_agent(self) -> None:
+        """
+        Purpose: Verify that providing an agent_id skips agent creation and uses the given id.
+        Why this matters: Allows using pre-configured agents from config without auto-provisioning.
+        Setup summary: Provide non-empty agent_id; assert get_or_create_agent_id is NOT called.
+        """
+        # Arrange
+        mock_agent_client = MagicMock()
+        mock_run = MagicMock()
+        mock_run.status = "completed"
+        mock_run.thread_id = "thread-existing"
+        mock_agent_client.agents.create_thread_and_process_run = AsyncMock(
+            return_value=mock_run
+        )
+
+        expected_results = [
+            WebSearchResult(
+                url="https://existing.com", title="E", snippet="s", content="c"
+            )
+        ]
+        mock_parser = AsyncMock(return_value=expected_results)
+
+        with (
+            patch(
+                f"{_RUNNER_MODULE}.get_or_create_agent_id",
+                new_callable=AsyncMock,
+            ) as mock_get_agent,
+            patch(
+                f"{_RUNNER_MODULE}._get_answer_from_thread",
+                new_callable=AsyncMock,
+                return_value="response text",
+            ),
+            patch(f"{_RUNNER_MODULE}.env_settings") as mock_env,
+        ):
+            mock_env.azure_ai_bing_agent_model = "gpt-4o"
+
+            # Act
+            results = await create_and_process_run(
+                agent_client=mock_agent_client,
+                agent_id="pre-configured-agent-id",
+                query="test query",
+                fetch_size=5,
+                response_parsers_strategies=[mock_parser],
+                generation_instructions="Test instructions",
+            )
+
+        # Assert
+        assert results == expected_results
+        mock_get_agent.assert_not_called()
         mock_parser.assert_called_once()
 
     @pytest.mark.ai
@@ -787,11 +926,15 @@ class TestCreateAndProcessRun:
         mock_run = MagicMock()
         mock_run.status = "failed"
         mock_run.last_error = "Internal error"
-        mock_agent_client.agents.create_thread_and_process_run.return_value = mock_run
+        mock_agent_client.agents.create_thread_and_process_run = AsyncMock(
+            return_value=mock_run
+        )
 
         with (
             patch(
-                f"{_RUNNER_MODULE}.get_or_create_agent_id", return_value="agent-id-1"
+                f"{_RUNNER_MODULE}.get_or_create_agent_id",
+                new_callable=AsyncMock,
+                return_value="agent-id-1",
             ),
             patch(f"{_RUNNER_MODULE}.get_bing_grounding_tool"),
             patch(f"{_RUNNER_MODULE}.env_settings") as mock_env,
@@ -802,6 +945,7 @@ class TestCreateAndProcessRun:
             with pytest.raises(Exception) as exc_info:
                 await create_and_process_run(
                     agent_client=mock_agent_client,
+                    agent_id="",
                     query="test",
                     fetch_size=5,
                     response_parsers_strategies=[],
@@ -822,17 +966,23 @@ class TestCreateAndProcessRun:
         mock_run = MagicMock()
         mock_run.status = "completed"
         mock_run.thread_id = "thread-xyz"
-        mock_agent_client.agents.create_thread_and_process_run.return_value = mock_run
+        mock_agent_client.agents.create_thread_and_process_run = AsyncMock(
+            return_value=mock_run
+        )
 
         failing_parser = AsyncMock(side_effect=ValueError("cannot parse"))
 
         with (
             patch(
-                f"{_RUNNER_MODULE}.get_or_create_agent_id", return_value="agent-id-1"
+                f"{_RUNNER_MODULE}.get_or_create_agent_id",
+                new_callable=AsyncMock,
+                return_value="agent-id-1",
             ),
             patch(f"{_RUNNER_MODULE}.get_bing_grounding_tool"),
             patch(
-                f"{_RUNNER_MODULE}._get_answer_from_thread", return_value="plain text"
+                f"{_RUNNER_MODULE}._get_answer_from_thread",
+                new_callable=AsyncMock,
+                return_value="plain text",
             ),
             patch(f"{_RUNNER_MODULE}.env_settings") as mock_env,
         ):
@@ -842,6 +992,7 @@ class TestCreateAndProcessRun:
             with pytest.raises(ValueError) as exc_info:
                 await create_and_process_run(
                     agent_client=mock_agent_client,
+                    agent_id="",
                     query="test",
                     fetch_size=5,
                     response_parsers_strategies=[failing_parser],
@@ -862,7 +1013,9 @@ class TestCreateAndProcessRun:
         mock_run = MagicMock()
         mock_run.status = "completed"
         mock_run.thread_id = "thread-fb"
-        mock_agent_client.agents.create_thread_and_process_run.return_value = mock_run
+        mock_agent_client.agents.create_thread_and_process_run = AsyncMock(
+            return_value=mock_run
+        )
 
         expected = [
             WebSearchResult(url="https://fb.com", title="FB", snippet="s", content="c")
@@ -872,11 +1025,14 @@ class TestCreateAndProcessRun:
 
         with (
             patch(
-                f"{_RUNNER_MODULE}.get_or_create_agent_id", return_value="agent-id-1"
+                f"{_RUNNER_MODULE}.get_or_create_agent_id",
+                new_callable=AsyncMock,
+                return_value="agent-id-1",
             ),
             patch(f"{_RUNNER_MODULE}.get_bing_grounding_tool"),
             patch(
                 f"{_RUNNER_MODULE}._get_answer_from_thread",
+                new_callable=AsyncMock,
                 return_value="some response",
             ),
             patch(f"{_RUNNER_MODULE}.env_settings") as mock_env,
@@ -886,6 +1042,7 @@ class TestCreateAndProcessRun:
             # Act
             results = await create_and_process_run(
                 agent_client=mock_agent_client,
+                agent_id="",
                 query="query",
                 fetch_size=3,
                 response_parsers_strategies=[parser_1, parser_2],
@@ -942,6 +1099,41 @@ class TestBingSearchConfig:
 
         # Assert
         assert config.generation_instructions == custom
+
+    @pytest.mark.ai
+    def test_config__agent_id_and_endpoint__default_to_empty_string(self) -> None:
+        """
+        Purpose: Verify agent_id and endpoint default to empty strings.
+        Why this matters: Empty defaults enable auto-provisioning fallback path.
+        Setup summary: Create config with no overrides; assert agent_id and endpoint are "".
+        """
+        from unique_web_search.services.search_engine.bing import BingSearchConfig
+
+        # Act
+        config = BingSearchConfig()
+
+        # Assert
+        assert config.agent_id == ""
+        assert config.endpoint == ""
+
+    @pytest.mark.ai
+    def test_config__custom_agent_id_and_endpoint__stored_correctly(self) -> None:
+        """
+        Purpose: Verify agent_id and endpoint can be overridden with custom values.
+        Why this matters: Allows pre-configured agent usage from deployment config.
+        Setup summary: Provide custom agent_id and endpoint; assert stored correctly.
+        """
+        from unique_web_search.services.search_engine.bing import BingSearchConfig
+
+        # Act
+        config = BingSearchConfig(
+            agent_id="my-agent-id-123",
+            endpoint="https://my-project.azure.com",
+        )
+
+        # Assert
+        assert config.agent_id == "my-agent-id-123"
+        assert config.endpoint == "https://my-project.azure.com"
 
 
 # ---------------------------------------------------------------------------

@@ -6,17 +6,17 @@ from azure.ai.agents.models import (
     AgentThreadCreationOptions,
     BingGroundingTool,
     MessageTextContent,
+    MessageTextUrlCitationAnnotation,
     RunStatus,
     ThreadMessageOptions,
 )
-from azure.ai.projects import AIProjectClient
+from azure.ai.projects.aio import AIProjectClient
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model.builder import MessagesBuilder
 from unique_toolkit.language_model.service import LanguageModelService
 
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
-    WebSearchResults,
 )
 from unique_web_search.services.search_engine.utils.bing.models import (
     RESPONSE_RULE,
@@ -34,7 +34,7 @@ _JSON_PATTERN = re.compile(r"```json\s*([\s\S]*?)\s*```")
 # ---------------------------------------------------------------------------
 
 
-def _get_agent_id(agent_client: AIProjectClient) -> str:
+async def _get_agent_id(agent_client: AIProjectClient) -> str:
     """Look up the existing Bing grounding agent by name.
 
     Raises:
@@ -42,29 +42,29 @@ def _get_agent_id(agent_client: AIProjectClient) -> str:
     """
     list_agents = agent_client.agents.list_agents()
 
-    for agent in list_agents:
+    async for agent in list_agents:
         if agent.name == _AGENT_NAME_IDENTIFIER:
             return agent.id
 
     raise Exception(f"Agent {_AGENT_NAME_IDENTIFIER} not found")
 
 
-def _create_agent_id(agent_client: AIProjectClient) -> str:
+async def _create_agent_id(agent_client: AIProjectClient) -> str:
     """Provision a new Bing grounding agent using the configured model."""
-    agent = agent_client.agents.create_agent(
+    agent = await agent_client.agents.create_agent(
         name=_AGENT_NAME_IDENTIFIER,
         model=env_settings.azure_ai_bing_agent_model,
     )
     return agent.id
 
 
-def get_or_create_agent_id(agent_client: AIProjectClient) -> str:
+async def get_or_create_agent_id(agent_client: AIProjectClient) -> str:
     """Return the Bing grounding agent id, creating one if it doesn't exist yet."""
     try:
-        return _get_agent_id(agent_client)
+        return await _get_agent_id(agent_client)
     except Exception as e:
         _LOGGER.exception(f"Error getting agent: {e}")
-        return _create_agent_id(agent_client)
+        return await _create_agent_id(agent_client)
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +100,7 @@ class ResponseParser(Protocol):
 
 async def create_and_process_run(
     agent_client: AIProjectClient,
+    agent_id: str,
     query: str,
     fetch_size: int,
     response_parsers_strategies: list[ResponseParser],
@@ -122,24 +123,19 @@ async def create_and_process_run(
         Exception: If the agent run fails, is cancelled, or expires.
         ValueError: If none of the parser strategies can parse the response.
     """
-    agent_id = get_or_create_agent_id(agent_client)
+    if not agent_id:
+        _LOGGER.warning("No agent ID provided, creating a new agent")
+        thread = await _create_agent_and_run_thread(
+            agent_client, query, fetch_size, generation_instructions
+        )
+    else:
+        _LOGGER.warning(f"Using existing agent ID: {agent_id}")
+        thread = await _create_agent_run_with_agent_id(agent_client, agent_id, query)
 
-    instructions = f"{generation_instructions}\n{RESPONSE_RULE}"
+    if thread.status in [RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.EXPIRED]:
+        raise Exception(f"Run failed: {thread.last_error}")
 
-    agent_run = agent_client.agents.create_thread_and_process_run(
-        agent_id=agent_id,
-        model=env_settings.azure_ai_bing_agent_model,
-        toolset=get_bing_grounding_tool(fetch_size=fetch_size),  # type: ignore
-        instructions=instructions,
-        thread=AgentThreadCreationOptions(
-            messages=[ThreadMessageOptions(role="user", content=query)]
-        ),
-    )
-
-    if agent_run.status in [RunStatus.FAILED, RunStatus.CANCELLED, RunStatus.EXPIRED]:
-        raise Exception(f"Run failed: {agent_run.last_error}")
-
-    answer = _get_answer_from_thread(agent_run.thread_id, agent_client)
+    answer = await _get_answer_from_thread(thread.thread_id, agent_client)
 
     search_results = await _convert_response_to_search_results(
         answer, response_parsers_strategies
@@ -148,15 +144,64 @@ async def create_and_process_run(
     return search_results
 
 
-def _get_answer_from_thread(thread_id: str, agent_client: AIProjectClient) -> str:
+async def _create_agent_run_with_agent_id(
+    agent_client: AIProjectClient,
+    agent_id: str,
+    query: str,
+):
+    """Execute a Bing-grounded agent run and return parsed search results."""
+    agent_run = await agent_client.agents.create_thread_and_process_run(
+        agent_id=agent_id,
+        model=env_settings.azure_ai_bing_agent_model,
+        thread=AgentThreadCreationOptions(
+            messages=[ThreadMessageOptions(role="user", content=query)]
+        ),
+    )
+    return agent_run
+
+
+async def _create_agent_and_run_thread(
+    agent_client: AIProjectClient,
+    query: str,
+    fetch_size: int,
+    generation_instructions: str,
+):
+    agent_id = await get_or_create_agent_id(agent_client)
+
+    instructions = f"{generation_instructions}\n{RESPONSE_RULE}"
+
+    agent_run = await agent_client.agents.create_thread_and_process_run(
+        agent_id=agent_id,
+        model=env_settings.azure_ai_bing_agent_model,
+        toolset=get_bing_grounding_tool(fetch_size=fetch_size),  # type: ignore
+        instructions=instructions,
+        thread=AgentThreadCreationOptions(
+            messages=[ThreadMessageOptions(role="user", content=query)]
+        ),
+    )
+    return agent_run
+
+
+async def _get_answer_from_thread(thread_id: str, agent_client: AIProjectClient) -> str:
     """Concatenate all assistant text messages from a thread into a single string."""
     messages = agent_client.agents.messages.list(thread_id=thread_id)
     answer = ""
-    for message in messages:
+    citations: list[MessageTextUrlCitationAnnotation] = []
+
+    async for message in messages:
         if message.role == "assistant":
             for content in message.content:
                 if isinstance(content, MessageTextContent):
                     answer += content.text.value
+                elif isinstance(content, MessageTextUrlCitationAnnotation):
+                    citations.append(content)
+
+    for citation in citations:
+        answer = answer.replace(
+            citation.text,
+            f"[{citation.url_citation.title}]({citation.url_citation.url})",
+        )
+
     return answer
 
 
@@ -177,6 +222,9 @@ async def _convert_response_to_search_results(
     """
     for strategy in conversion_strategies:
         try:
+            _LOGGER.info(
+                f"Trying parsing response with strategy: {strategy.__class__.__name__}"
+            )
             return await strategy(response)
         except Exception as e:
             _LOGGER.exception(f"Error converting response to search results: {e}")
@@ -234,13 +282,13 @@ class LLMParserStrategy(ResponseParser):
         llm_response = await self.llm_service.complete_async(
             messages=messages,
             model_name=self.llm.name,
-            structured_output_model=WebSearchResults,
+            structured_output_model=GroundingWithBingResults,
             structured_output_enforce_schema=True,
         )
 
         if not llm_response.choices[0].message.parsed:
             raise ValueError("No JSON found in the response")
 
-        return WebSearchResults.model_validate(
+        return GroundingWithBingResults.model_validate(
             llm_response.choices[0].message.parsed
-        ).results
+        ).to_web_search_results()

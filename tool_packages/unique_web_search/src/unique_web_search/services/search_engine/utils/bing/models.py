@@ -1,9 +1,10 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from unique_web_search.services.search_engine.schema import WebSearchResult
 
 
 class ResultItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     source_url: str = Field(
         description="The URL of the source this information was extracted from.",
     )
@@ -28,6 +29,7 @@ class ResultItem(BaseModel):
 
 
 class GroundingWithBingResults(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     results: list[ResultItem] = Field(
         description=(
             "One entry per source. Every source found must be represented. "

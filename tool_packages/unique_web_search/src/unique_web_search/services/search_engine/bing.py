@@ -1,3 +1,4 @@
+import asyncio
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
@@ -43,6 +44,15 @@ class BingSearchConfig(
 
     search_engine_name: Literal[SearchEngineType.BING] = SearchEngineType.BING
 
+    agent_id: str = Field(
+        default="",
+        description="The ID of the agent to use for the search.",
+    )
+    endpoint: str = Field(
+        default="",
+        description="The endpoint to use for the search.",
+    )
+
     generation_instructions: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
@@ -67,22 +77,29 @@ class BingSearch(SearchEngine[BingSearchConfig]):
     ):
         super().__init__(config)
         self.credentials = get_credentials()
-        self.is_configured = credentials_are_valid(self.credentials)
         self.response_parsers = response_parsers
+
+    @property
+    def is_configured(self) -> bool:
+        async def _is_configured() -> bool:
+            return await credentials_are_valid(self.credentials)
+
+        return asyncio.run(_is_configured())
 
     @property
     def requires_scraping(self) -> bool:
         return self.config.requires_scraping
 
     async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
-        agent_client = get_project_client(self.credentials)
+        agent_client = get_project_client(self.credentials, self.config.endpoint)
 
         search_results = await create_and_process_run(
             agent_client,
-            query,
-            self.config.fetch_size,
-            self.response_parsers,
-            self.config.generation_instructions,
+            agent_id=self.config.agent_id,
+            query=query,
+            fetch_size=self.config.fetch_size,
+            response_parsers_strategies=self.response_parsers,
+            generation_instructions=self.config.generation_instructions,
         )
 
         return search_results

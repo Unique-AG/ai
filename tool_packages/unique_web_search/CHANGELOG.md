@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.1] - 2026-02-13
+- `agent_id` and `endpoint` fields on `BingSearchConfig` to allow using a pre-configured agent and project endpoint from config instead of relying solely on auto-provisioning
+- Citation replacement in Bing agent responses: `MessageTextUrlCitationAnnotation` placeholders are now converted to readable markdown links
+- `validate_custom_web_search_api_method` field validator on settings to gracefully coerce invalid method values to `None` instead of failing at startup
+- Migrated Bing client and runner to fully async Azure SDK (`azure.ai.projects.aio`, `azure.identity.aio`), eliminating thread-blocking synchronous calls
+- `get_project_client` now accepts an `endpoint` parameter with fallback: environment variable takes precedence, then config value
+- `create_and_process_run` now branches on `agent_id`: when provided, uses the existing agent directly; when empty, auto-provisions via `get_or_create_agent_id`
+- `LLMParserStrategy` now uses `GroundingWithBingResults` as its structured output model instead of `WebSearchResults`
+- `ResultItem` and `GroundingWithBingResults` models now enforce `extra="forbid"` to reject unexpected fields
+
 ## [1.11.0] - 2026-02-12
 - Automatic Bing grounding agent creation and discovery via Azure AI Agents SDK
 - `BingGroundingTool` integration for native Bing search within agent runs
