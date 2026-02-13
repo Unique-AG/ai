@@ -8,21 +8,22 @@
 
 ## Overview
 
-MCP server integrating Microsoft OneNote with Unique AI Chat using [FastMCP](https://github.com/jlowin/fastmcp) and [Microsoft Graph CLI](https://learn.microsoft.com/en-us/graph/cli/overview).
+MCP server integrating Microsoft OneNote with Unique AI Chat using [@modelcontextprotocol/sdk](https://github.com/modelcontextprotocol/typescript-sdk) and [Microsoft Graph JavaScript Client](https://github.com/microsoftgraph/msgraph-sdk-javascript).
+
+**SSE Endpoint:** `https://onenote-mcp-app.azurewebsites.net/sse`
+
+Example flow with `listNotebooks`:
 
 ```mermaid
 %%{init: {'theme': 'neutral', 'themeVariables': { 'fontSize': '14px' }}}%%
 sequenceDiagram
     participant Chat as Unique AI Chat
-    participant MCP as MCP Server (FastMCP)
-    participant Graph as mgc CLI
-    participant OneNote as OneNote API
+    participant MCP as MCP Server (Node.js)
+    participant Graph as Microsoft Graph API
 
-    Chat->>MCP: list_notebooks()
-    MCP->>Graph: mgc onenote notebooks list
-    Graph->>OneNote: GET /me/onenote/notebooks
-    OneNote-->>Graph: JSON
-    Graph-->>MCP: Output
+    Chat->>MCP: listNotebooks()
+    MCP->>Graph: GET /me/onenote/notebooks
+    Graph-->>MCP: JSON
     MCP-->>Chat: Tool Result
 ```
 
@@ -30,8 +31,30 @@ sequenceDiagram
 
 | Tool | Description |
 |------|-------------|
-| `list_notebooks` | List notebooks |
-| `list_sections` | List sections in a notebook |
-| `list_pages` | List pages in a section |
-| `get_page_content` | Get page content |
-| `search_pages` | Search pages by keyword |
+| `authenticate` | Start device code auth flow |
+| `listNotebooks` | List all notebooks |
+| `listSections` | List sections in a notebook |
+| `listPages` | List pages in a section |
+| `getPage` | Get page content (HTML) |
+| `searchPages` | Search pages by keyword |
+| `createPage` | Create a new page |
+| `appendToPage` | Append content to existing page |
+
+## Deployment
+
+Deployed as a Docker container on **Azure App Service** (Sweden Central region).
+
+| Resource | Details |
+|----------|---------|
+| App Service | `onenote-mcp-app` (B1 plan) |
+| Container Registry | `onenotemcpacr` |
+| Resource Group | `rg-lab-demo-001-onenote-mcp` |
+
+## Limitations
+
+- **Single-user auth** — all connections share one Microsoft account
+- **Token in memory** — container restart requires re-authentication
+
+## Source Code
+
+[GitHub: ai/tutorials/mcp/mcp_onenote](https://github.com/Unique-AG/ai/tree/main/tutorials/mcp/mcp_onenote)
