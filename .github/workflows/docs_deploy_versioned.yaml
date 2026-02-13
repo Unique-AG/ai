@@ -350,8 +350,8 @@ jobs:
           mkdir -p unique-sdk unique-toolkit
           
           # Copy SDK versions (exclude latest redirect)
-          if [ -d "../_deploy/unique-sdk" ]; then
-            for version_dir in ../_deploy/unique-sdk/*/; do
+          if [ -d "_deploy/unique-sdk" ]; then
+            for version_dir in _deploy/unique-sdk/*/; do
               version=$(basename "$version_dir")
               if [ "$version" != "latest" ]; then
                 cp -r "$version_dir" "unique-sdk/$version"
@@ -360,8 +360,8 @@ jobs:
           fi
           
           # Copy Toolkit versions (exclude latest redirect)
-          if [ -d "../_deploy/unique-toolkit" ]; then
-            for version_dir in ../_deploy/unique-toolkit/*/; do
+          if [ -d "_deploy/unique-toolkit" ]; then
+            for version_dir in _deploy/unique-toolkit/*/; do
               version=$(basename "$version_dir")
               if [ "$version" != "latest" ]; then
                 cp -r "$version_dir" "unique-toolkit/$version"
