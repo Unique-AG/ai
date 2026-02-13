@@ -152,7 +152,6 @@ async def _create_agent_run_with_agent_id(
     """Execute a Bing-grounded agent run and return parsed search results."""
     agent_run = await agent_client.agents.create_thread_and_process_run(
         agent_id=agent_id,
-        model=env_settings.azure_ai_bing_agent_model,
         thread=AgentThreadCreationOptions(
             messages=[ThreadMessageOptions(role="user", content=query)]
         ),
