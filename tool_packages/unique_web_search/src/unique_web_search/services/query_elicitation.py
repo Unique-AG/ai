@@ -69,7 +69,6 @@ class QueryElicitationModel(BaseModel):
             queries=(
                 list[str],
                 Field(
-                    description="The queries to search the web for",
                     default=queries,
                 ),
             ),
