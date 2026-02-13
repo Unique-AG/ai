@@ -115,4 +115,4 @@ Now that you understand the SDK architecture:
 1. **[Get Started](getting_started/installation.md)** - Install and configure the SDK
 2. **[Try the Quickstart](getting_started/quickstart.md)** - Make your first API call
 3. **[Explore API Resources](api_resources/index.md)** - Browse all available APIs
-4. **[See Tutorials](tutorials/openai_scripts.md)** - Learn from step-by-step tutorials
+4. **[See Tutorials](tutorials/folder_updates.md)** - Learn from step-by-step tutorials
