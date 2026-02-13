@@ -90,8 +90,13 @@ get_version_from_pyproject() {
 copy_version_to_latest() {
     local output_path=$1
     local version=$2
-    rm -rf "$output_path/latest"
-    cp -r "$output_path/$version" "$output_path/latest"
+    if [ -d "$output_path/$version" ]; then
+        log_info "Copying $output_path/$version/ -> $output_path/latest/"
+        rm -rf "$output_path/latest"
+        cp -r "$output_path/$version" "$output_path/latest"
+    else
+        log_warn "$output_path/$version not found, skipping latest copy"
+    fi
 }
 
 # Redirect /unique-sdk/ and /unique-toolkit/ to .../latest/ so the base path doesn't list subfolders
@@ -120,6 +125,7 @@ generate_versions_json() {
     local output_file=$3
     
     log_info "Generating versions.json for $(basename "$project_dir")"
+    mkdir -p "$(dirname "$output_file")"
     
     # Find version directories: only include semver-like names (e.g. 1.46.4, 0.10.80)
     # Exclude: latest, unique_toolkit, unique_sdk, and any other non-version folder

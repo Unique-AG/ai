@@ -236,6 +236,7 @@ jobs:
             local output_file=$3
             
             echo "📝 Generating $output_file..."
+            mkdir -p "$(dirname "$output_file")"
             
             # Only include semver-like directories (e.g. 1.46.4, 0.10.80). Exclude latest, unique_toolkit, etc.
             versions=()
@@ -248,14 +249,30 @@ jobs:
               done
             fi
             
+            # Add current version if not already present
+            found=false
+            for v in "${versions[@]}"; do
+              if [ "$v" = "$current_version" ]; then
+                found=true
+                break
+              fi
+            done
+            if [ "$found" = false ]; then
+              versions+=("$current_version")
+            fi
+            
             # Sort versions (reverse semantic sort)
-            IFS=$'\n' versions=($(printf '%s\n' "${versions[@]}" | sort -V -r))
-            unset IFS
+            if [ ${#versions[@]} -eq 0 ]; then
+              sorted_versions=()
+            else
+              IFS=$'\n' sorted_versions=($(printf '%s\n' "${versions[@]}" | sort -V -r))
+              unset IFS
+            fi
             
             # Generate JSON
             echo "[" > "$output_file"
             first=true
-            for version in "${versions[@]}"; do
+            for version in "${sorted_versions[@]}"; do
               if [ "$first" = false ]; then
                 echo "," >> "$output_file"
               fi
@@ -272,7 +289,7 @@ jobs:
             echo "" >> "$output_file"
             echo "]" >> "$output_file"
             
-            echo "  ✓ Generated with ${#versions[@]} version(s)"
+            echo "  ✓ Generated with ${#sorted_versions[@]} version(s)"
           }
           
           # Generate for SDK
@@ -298,8 +315,12 @@ jobs:
             local project_path=$1
             local version=$2
             echo "📋 Copying $project_path/$version/ -> $project_path/latest/"
-            rm -rf "$project_path/latest"
-            cp -r "$project_path/$version" "$project_path/latest"
+            if [ -d "$project_path/$version" ]; then
+              rm -rf "$project_path/latest"
+              cp -r "$project_path/$version" "$project_path/latest"
+            else
+              echo "  ⚠ $project_path/$version not found, skipping latest copy"
+            fi
           }
           copy_to_latest "_deploy/unique-sdk" "${{ steps.versions.outputs.sdk_version }}"
           copy_to_latest "_deploy/unique-toolkit" "${{ steps.versions.outputs.toolkit_version }}"
