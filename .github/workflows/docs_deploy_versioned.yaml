@@ -336,6 +336,10 @@ jobs:
         run: |
           echo "💾 Saving versions to gh-pages branch..."
           
+          # Move _deploy to a safe location outside the repo so it survives the branch switch
+          # In GitHub Actions, ../ is the workspace root's parent, which is safe.
+          mv _deploy ../_docs_deploy_temp
+          
           # Checkout or create gh-pages branch
           if git show-ref --verify --quiet refs/heads/gh-pages; then
             git checkout gh-pages
@@ -350,8 +354,8 @@ jobs:
           mkdir -p unique-sdk unique-toolkit
           
           # Copy SDK versions (exclude latest redirect)
-          if [ -d "_deploy/unique-sdk" ]; then
-            for version_dir in _deploy/unique-sdk/*/; do
+          if [ -d "../_docs_deploy_temp/unique-sdk" ]; then
+            for version_dir in ../_docs_deploy_temp/unique-sdk/*/; do
               version=$(basename "$version_dir")
               if [ "$version" != "latest" ]; then
                 cp -r "$version_dir" "unique-sdk/$version"
@@ -360,8 +364,8 @@ jobs:
           fi
           
           # Copy Toolkit versions (exclude latest redirect)
-          if [ -d "_deploy/unique-toolkit" ]; then
-            for version_dir in _deploy/unique-toolkit/*/; do
+          if [ -d "../_docs_deploy_temp/unique-toolkit" ]; then
+            for version_dir in ../_docs_deploy_temp/unique-toolkit/*/; do
               version=$(basename "$version_dir")
               if [ "$version" != "latest" ]; then
                 cp -r "$version_dir" "unique-toolkit/$version"
@@ -381,8 +385,9 @@ jobs:
             echo "✓ Cache updated"
           fi
           
-          # Return to main
+          # Return to main and restore _deploy for the following steps
           git checkout main
+          mv ../_docs_deploy_temp _deploy
 
       # ============================================================================
       # 11. Deploy to GitHub Pages
