@@ -1,6 +1,6 @@
 # Knowledge Base Service - Examples
 
-This page provides practical code examples for implementing knowledge base operations. For broader documentation and concepts, see the [Knowledge Base Documentation](../../../knowledge_base/index).
+This page provides practical code examples for implementing knowledge base operations. For broader documentation and concepts, see the [Knowledge Base Documentation](../../../knowledge_base/index.md).
 
 ## Content Upload
 

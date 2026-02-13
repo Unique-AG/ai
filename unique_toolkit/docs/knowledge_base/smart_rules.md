@@ -65,7 +65,7 @@ Metadata filters enhance search precision by limiting results to documents that 
 
 Once you've defined a smart rule, pass it to the search function via the `metadata_filter` parameter.
 
-For implementation examples, see the [Smart Rules Examples](../../modules/examples/content/smart_rules#using-the-metadatafilter).
+For implementation examples, see the [Smart Rules Examples](../modules/examples/content/smart_rules.md#using-the-metadatafilter).
 
 ### For Content Info Search
 
@@ -139,5 +139,5 @@ Remove specific metadata fields from multiple files at once. This is useful for 
 
 ## Full Examples
 
-For complete, runnable examples of all smart rules features, see the [Smart Rules Examples](../../modules/examples/content/smart_rules) section.
+For complete, runnable examples of all smart rules features, see the [Smart Rules Examples](../modules/examples/content/smart_rules.md) section.
 

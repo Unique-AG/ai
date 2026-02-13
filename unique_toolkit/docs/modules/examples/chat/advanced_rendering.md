@@ -1,6 +1,6 @@
 # Advanced Rendering - Examples
 
-This page provides practical code examples for implementing advanced rendering features in chat messages. For broader documentation and concepts, see the [Advanced Rendering Documentation](../../../chat/advanced_rendering).
+This page provides practical code examples for implementing advanced rendering features in chat messages. For broader documentation and concepts, see the [Advanced Rendering Documentation](../../../chat/advanced_rendering.md).
 
 ## Prompt Buttons
 

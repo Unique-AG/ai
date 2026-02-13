@@ -1,40 +1,55 @@
 site_name: Unique Toolkit
 site_description: Documentation for the Unique Toolkit
 site_author: Unique Team
-site_url: https://github.com/Unique-AG/ai/unique_toolkit
-repo_name: Unique-AG/ai/unique_toolkit
-repo_url: https://github.com/Unique-AG/ai/unique_toolkit  
-edit_uri: /docs/
+# IMPORTANT: site_url is set dynamically by CI to versioned path
+# For local testing: http://localhost:8000/unique-toolkit/1.46.2/
+site_url: https://unique-ag.github.io/ai/unique-toolkit/1.46.2/
+repo_name: Unique-AG/ai
+repo_url: https://github.com/Unique-AG/ai
+edit_uri: edit/main/unique_toolkit/docs/
 
-#theme:
-#  name: material
-#  features:
-#    - content.action.edit
-#    - content.code.copy
-#    - content.code.select
-#  font:
-#    text: Roboto
-#  icon:
-#    repo: fontawesome/brands/github
-#  palette:
-#    - media: "(prefers-color-scheme)"
-#      toggle:
-#        icon: material/brightness-auto
-#        name: Switch to light mode
-#    - media: "(prefers-color-scheme: light)"
-#      scheme: default
-#      primary: teal
-#      toggle:
-#        icon: material/brightness-7
-#        name: Switch to dark mode
-#    - media: "(prefers-color-scheme: dark)"
-#      scheme: slate
-#      primary: blue grey
-#      toggle:
-#        icon: material/brightness-4
-#        name: Switch to system preference
+# Enable version dropdown (reads versions.json)
+extra:
+  version:
+    provider: mike  # Uses mike's JSON format (no mike binary needed)
+    alias: true     # Theme shows alias (e.g. "latest") next to version; title in JSON is plain version
+  social:
+    - icon: fontawesome/solid/house
+      link: https://unique-ag.github.io/ai/
+      name: Unique AI Documentation
+
+# Theme must be explicitly set (not inherited from root)
+theme:
+  name: material
+  features:
+    - content.action.edit
+    - content.code.copy
+    - content.code.select
+    - navigation.indexes
+  font:
+    text: Roboto
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
 
 nav:
+  - Unique AI Documentation: https://unique-ag.github.io/ai/
   - Home: index.md
   - Architecture: architectural.md
   - Getting started: setup/getting_started.md
@@ -43,21 +58,21 @@ nav:
     - Creating an APP: authentication/#2-creating-an-app
   - Application Development:
     - Standalone Application: application_types/standalone_application.md
-    - Event Driven Applications: 
-      - application_types/event_driven/index.md
+    - Event Driven Applications:
+      - Overview: application_types/event_driven/index.md
       - Platform Setup: application_types/event_driven/event_driven_platform_setup.md
       - SSE Setup: application_types/event_driven/event_driven_with_sse.md
       - Web Hooks: application_types/event_driven/event_driven_as_app_with_ngrok.md
   - Core Services:
     - Events: events/events.md
     - Chat:
-      - chat/index.md
+      - Overview: chat/index.md
       - Advanced Rendering: chat/advanced_rendering.md
     - Knowledge Base:
-      - knowledge_base/index.md
+      - Overview: knowledge_base/index.md
       - Smart Rules: knowledge_base/smart_rules.md
     - Agentic Table:
-      - agentic_table/index.md
+      - Overview: agentic_table/index.md
       - Column Styling: agentic_table/column_styling.md
       - Cell rendering: agentic_table/cell_rendering.md
   - Examples:
