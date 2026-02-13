@@ -26,7 +26,8 @@ class A2AManager:
         sub_agents = []
 
         for tool_config in tool_configs:
-            if not tool_config.is_sub_agent:
+            # Subagents are tools with name == "SubAgentTool"
+            if not (tool_config.name == "SubAgentTool"):
                 continue
 
             if not isinstance(tool_config.configuration, SubAgentToolConfig):
@@ -49,7 +50,9 @@ class A2AManager:
             )
 
         filtered_tool_config = [
-            tool_config for tool_config in tool_configs if not tool_config.is_sub_agent
+            tool_config
+            for tool_config in tool_configs
+            if not (tool_config.name == "SubAgentTool")
         ]
 
         return filtered_tool_config, sub_agents
