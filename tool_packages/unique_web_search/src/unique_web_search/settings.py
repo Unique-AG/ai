@@ -4,7 +4,7 @@ import os
 import sys
 from enum import StrEnum
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -158,6 +158,19 @@ class Base(BaseSettings):
                 )
                 return None
         return v
+
+    @field_validator("custom_web_search_api_method", mode="before")
+    @classmethod
+    def validate_custom_web_search_api_method(
+        cls, v: Any
+    ) -> CUSTOM_API_REQUEST_METHOD | None:
+        try:
+            return CUSTOM_API_REQUEST_METHOD(v)
+        except ValueError:
+            _LOGGER.error(
+                f"Invalid custom web search API method: {v}. Setting value to None"
+            )
+        return None
 
 
 class Settings(Base):

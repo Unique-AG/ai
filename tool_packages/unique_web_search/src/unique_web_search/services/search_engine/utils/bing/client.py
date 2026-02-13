@@ -1,10 +1,10 @@
 import logging
 
 import certifi
-from azure.ai.projects import AIProjectClient
-from azure.core.credentials import TokenCredential
+from azure.ai.projects.aio import AIProjectClient
+from azure.core.credentials_async import AsyncTokenCredential
 from azure.core.pipeline.transport._requests_basic import RequestsTransport
-from azure.identity import DefaultAzureCredential, WorkloadIdentityCredential
+from azure.identity.aio import DefaultAzureCredential, WorkloadIdentityCredential
 
 from unique_web_search.settings import env_settings
 
@@ -37,10 +37,10 @@ def get_credentials():
             )
 
 
-def credentials_are_valid(credentials: TokenCredential) -> bool:
+async def credentials_are_valid(credentials: AsyncTokenCredential) -> bool:
     _LOGGER.info("Validating Azure identity credentials")
     try:
-        credentials.get_token(
+        await credentials.get_token(
             env_settings.azure_identity_credentials_validate_token_url
         )
         _LOGGER.info("Azure identity credentials are valid")
@@ -50,19 +50,25 @@ def credentials_are_valid(credentials: TokenCredential) -> bool:
         return False
 
 
-def get_project_client(credentials: TokenCredential) -> AIProjectClient:
-    if env_settings.azure_ai_project_endpoint is None:
-        raise ValueError("Azure AI project endpoint is not set")
+def get_project_client(
+    credentials: AsyncTokenCredential, endpoint: str
+) -> AIProjectClient:
+    endpoint = env_settings.azure_ai_project_endpoint or endpoint
+
+    if not endpoint:
+        raise ValueError(
+            "Azure AI project endpoint is not set from environment variables or configuration"
+        )
 
     if env_settings.use_unique_private_endpoint_transport:
         transport = RequestsTransport(connection_verify=certifi.where())
         return AIProjectClient(
             credential=credentials,
-            endpoint=env_settings.azure_ai_project_endpoint,
+            endpoint=endpoint,
             transport=transport,
         )
     else:
         return AIProjectClient(
             credential=credentials,
-            endpoint=env_settings.azure_ai_project_endpoint,
+            endpoint=endpoint,
         )
