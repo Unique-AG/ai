@@ -10,6 +10,7 @@ from unique_web_search.services.search_engine import (
     SearchEngine,
     SearchEngineType,
 )
+from unique_web_search.services.search_engine.base import get_search_engine_model_config
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -38,6 +39,7 @@ class BraveSearchParameters(BaseModel):
 
 
 class BraveSearchConfig(BaseSearchEngineConfig[SearchEngineType.BRAVE]):
+    model_config = get_search_engine_model_config(SearchEngineType.BRAVE)
     search_engine_name: Literal[SearchEngineType.BRAVE] = SearchEngineType.BRAVE
 
 
