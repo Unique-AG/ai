@@ -135,7 +135,7 @@ def mock_tool_build_config(test_tool_config: MockToolConfig) -> ToolBuildConfig:
         ToolBuildConfig with default values.
 
     Note: is_sub_agent is not passed; it is a computed property derived from
-    name == "SubAgentTool". For name="test_tool" it evaluates to False.
+    isinstance(configuration, SubAgentToolConfig). For MockToolConfig it is False.
     """
     return ToolBuildConfig(
         name="test_tool",

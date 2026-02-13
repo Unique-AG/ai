@@ -1,3 +1,4 @@
+import warnings
 from enum import StrEnum
 from typing import Annotated, Any
 
@@ -12,6 +13,7 @@ from pydantic import (
 )
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+from unique_toolkit.agentic.tools.a2a.tool import SubAgentToolConfig
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
 
@@ -70,8 +72,11 @@ class ToolBuildConfig(BaseModel):
     @computed_field
     @property
     def is_sub_agent(self) -> bool:
-        """Deprecated. Use name == 'SubAgentTool' instead."""
-        return self.name == "SubAgentTool"
+        """True when configuration is SubAgentToolConfig (or subclass)."""
+        warnings.warn(
+            "is_sub_agent is deprecated. Use isinstance(configuration, SubAgentToolConfig) instead."
+        )
+        return isinstance(self.configuration, SubAgentToolConfig)
 
     @model_validator(mode="before")
     def initialize_config_based_on_tool_name(
@@ -106,7 +111,6 @@ class ToolBuildConfig(BaseModel):
         ):  # TODO: This is an extra special case which we should avoid
             from unique_toolkit.agentic.tools.a2a import ExtendedSubAgentToolConfig
 
-            value["name"] = "SubAgentTool"
             config = ExtendedSubAgentToolConfig.model_validate(configuration)
         elif isinstance(configuration, dict):
             # Local import to avoid circular import at module import time

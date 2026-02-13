@@ -134,8 +134,8 @@ class TestToolBuildConfigAndFactory:
         """Test creating ToolBuildConfig with dictionary configuration.
 
         Note: is_sub_agent in the dict is used by the validator only when True
-        (to set name="SubAgentTool"). Here it's False, so it's ignored.
-        is_sub_agent is a computed property: name == "SubAgentTool", hence False.
+        (to build ExtendedSubAgentToolConfig). Here it's False, so it's ignored.
+        is_sub_agent is computed from configuration type (SubAgentToolConfig), hence False.
         """
         # First register the tool
         ToolFactory.register_tool(TestTool, TestToolConfig)
@@ -148,7 +148,7 @@ class TestToolBuildConfigAndFactory:
             "icon": ToolIcon.ANALYTICS,
             "selection_policy": ToolSelectionPolicy.ON_BY_DEFAULT,
             "is_exclusive": True,
-            "is_sub_agent": False,  # Ignored; computed from name
+            "is_sub_agent": False,  # Ignored; computed from configuration type
             "is_enabled": True,
         }
 
@@ -163,7 +163,7 @@ class TestToolBuildConfigAndFactory:
         assert tool_build_config.is_exclusive is True
         assert (
             tool_build_config.is_sub_agent is False
-        )  # Computed: name != "SubAgentTool"
+        )  # Computed: config not SubAgentToolConfig
         assert tool_build_config.is_enabled is True
 
         # Verify configuration object
@@ -174,7 +174,7 @@ class TestToolBuildConfigAndFactory:
     def test_tool_build_config_creation_with_pre_instantiated_configuration(self):
         """Test creating ToolBuildConfig with pre-instantiated configuration object.
 
-        is_sub_agent is computed from name; for name="test_tool" it is False.
+        is_sub_agent is computed from configuration type; for TestToolConfig it is False.
         """
         # First register the tool
         ToolFactory.register_tool(TestTool, TestToolConfig)
@@ -190,7 +190,7 @@ class TestToolBuildConfigAndFactory:
             "icon": ToolIcon.BOOK,
             "selection_policy": ToolSelectionPolicy.BY_USER,
             "is_exclusive": False,
-            "is_sub_agent": False,  # Ignored; computed from name
+            "is_sub_agent": False,  # Ignored; computed from configuration type
             "is_enabled": False,
         }
 
@@ -205,7 +205,7 @@ class TestToolBuildConfigAndFactory:
         assert tool_build_config.is_exclusive is False
         assert (
             tool_build_config.is_sub_agent is False
-        )  # Computed: name != "SubAgentTool"
+        )  # Computed: config not SubAgentToolConfig
         assert tool_build_config.is_enabled is False
 
         # Verify configuration object
@@ -218,7 +218,7 @@ class TestToolBuildConfigAndFactory:
     def test_tool_build_config_defaults(self):
         """Test ToolBuildConfig with default values.
 
-        is_sub_agent defaults to False for non-SubAgentTool names (computed property).
+        is_sub_agent defaults to False when configuration is not SubAgentToolConfig.
         """
         # First register the tool
         ToolFactory.register_tool(TestTool, TestToolConfig)
@@ -239,7 +239,7 @@ class TestToolBuildConfigAndFactory:
         assert tool_build_config.is_exclusive is False
         assert (
             tool_build_config.is_sub_agent is False
-        )  # Computed: name != "SubAgentTool"
+        )  # Computed: config not SubAgentToolConfig
         assert tool_build_config.is_enabled is True
 
     def test_tool_factory_build_tool_config(self):
@@ -277,7 +277,7 @@ class TestToolBuildConfigAndFactory:
         """Test building tool with settings through factory.
 
         is_sub_agent in ToolBuildConfig is a computed property; passing it is
-        ignored. For name="test_tool" it evaluates to False.
+        ignored. For TestToolConfig it evaluates to False (not SubAgentToolConfig).
         """
         # Register the tool
         ToolFactory.register_tool(TestTool, TestToolConfig)
@@ -361,7 +361,7 @@ class TestToolBuildConfigAndFactory:
     def test_complete_tool_lifecycle(self):
         """Test complete tool lifecycle: register, configure, build, use, cleanup.
 
-        is_sub_agent is computed from name; omitted or False yields False.
+        is_sub_agent is computed from configuration type (SubAgentToolConfig).
         """
         # Step 1: Register tool with factory
         ToolFactory.register_tool(TestTool, TestToolConfig)
