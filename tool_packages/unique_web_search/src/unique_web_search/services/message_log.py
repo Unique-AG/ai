@@ -22,10 +22,12 @@ class WebSearchMessageLogger:
         self._progress_message = ""
 
     async def finished(self) -> None:
+        self._progress_message = "Search completed!"
         self._status = MessageLogStatus.COMPLETED
         await self._propagate_message_log()
 
     async def failed(self) -> None:
+        self._progress_message = "Search failed!"
         self._status = MessageLogStatus.FAILED
         await self._propagate_message_log()
 

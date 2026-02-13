@@ -30,6 +30,64 @@ from unique_web_search.services.search_engine.base import SearchEngineType
 from unique_web_search.services.search_engine.google import GoogleConfig
 
 
+class TestQueryElicitationConfig:
+    """Test cases for QueryElicitationConfig."""
+
+    @pytest.mark.ai
+    def test_query_elicitation_config__defaults_enable_to_false__on_creation(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify QueryElicitationConfig defaults enable_elicitation to False.
+        Why this matters: Elicitation is disabled by default to avoid blocking searches without explicit opt-in.
+        Setup summary: Create config with defaults, verify enable_elicitation is False.
+        """
+        # Arrange
+        from unique_web_search.services.query_elicitation import QueryElicitationConfig
+
+        # Act
+        config = QueryElicitationConfig()
+
+        # Assert
+        assert config.enable_elicitation is False
+
+    @pytest.mark.ai
+    def test_query_elicitation_config__accepts_true__when_explicitly_enabled(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify QueryElicitationConfig can be explicitly set to True.
+        Why this matters: Users must be able to opt-in to elicitation when desired.
+        Setup summary: Create config with enable_elicitation=True, verify value.
+        """
+        # Arrange
+        from unique_web_search.services.query_elicitation import QueryElicitationConfig
+
+        # Act
+        config = QueryElicitationConfig(enable_elicitation=True)
+
+        # Assert
+        assert config.enable_elicitation is True
+
+    @pytest.mark.ai
+    def test_query_elicitation_config__defaults_timeout_to_60__on_creation(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify QueryElicitationConfig defaults timeout_seconds to 60.
+        Why this matters: Timeout governs how long the system waits for user approval.
+        Setup summary: Create config with defaults, verify timeout_seconds is 60.
+        """
+        # Arrange
+        from unique_web_search.services.query_elicitation import QueryElicitationConfig
+
+        # Act
+        config = QueryElicitationConfig()
+
+        # Assert
+        assert config.timeout_seconds == 60
+
+
 class TestAnswerGenerationConfig:
     """Test cases for AnswerGenerationConfig."""
 

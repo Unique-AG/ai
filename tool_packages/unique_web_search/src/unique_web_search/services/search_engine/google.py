@@ -11,6 +11,7 @@ from unique_web_search.services.search_engine import (
     SearchEngine,
     SearchEngineType,
 )
+from unique_web_search.services.search_engine.base import get_search_engine_model_config
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -26,6 +27,7 @@ PAGINATION_SIZE = 10
 
 
 class GoogleConfig(BaseSearchEngineConfig[SearchEngineType.GOOGLE]):
+    model_config = get_search_engine_model_config(SearchEngineType.GOOGLE)
     search_engine_name: Literal[SearchEngineType.GOOGLE] = SearchEngineType.GOOGLE
 
     custom_search_config: GoogleSearchOptionalQueryParams = (

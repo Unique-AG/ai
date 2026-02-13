@@ -4,7 +4,6 @@ from typing import Literal
 import httpx
 from httpx import Response, Timeout
 from pydantic import BaseModel, Field
-from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 from unique_web_search.client_settings import get_jina_search_settings
 from unique_web_search.services.search_engine import (
@@ -12,6 +11,7 @@ from unique_web_search.services.search_engine import (
     SearchEngine,
     SearchEngineType,
 )
+from unique_web_search.services.search_engine.base import get_search_engine_model_config
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -20,8 +20,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class JinaSearchOptionalParams(BaseModel):
-    model_config = get_configuration_dict()
-
     # Request body parameters
     gl: str | None = Field(
         default=None,
@@ -122,10 +120,11 @@ class JinaSearchOptionalParams(BaseModel):
     )
 
 
-class JinaConfig(BaseSearchEngineConfig[SearchEngineType.JINA]):
+class JinaConfig(
+    JinaSearchOptionalParams, BaseSearchEngineConfig[SearchEngineType.JINA]
+):
+    model_config = get_search_engine_model_config(SearchEngineType.JINA)
     search_engine_name: Literal[SearchEngineType.JINA] = SearchEngineType.JINA
-
-    custom_search_config: JinaSearchOptionalParams = JinaSearchOptionalParams()
 
 
 class JinaSearchParams(BaseModel):
@@ -169,8 +168,11 @@ class JinaSearch(SearchEngine[JinaConfig]):
         assert jina_search_settings.api_key is not None
 
         # Separate body parameters from header parameters
-        config_dict = self.config.custom_search_config.model_dump(
-            mode="json", exclude_none=True, by_alias=True
+        config_dict = self.config.model_dump(
+            mode="json",
+            exclude_none=True,
+            by_alias=True,
+            exclude={"search_engine_name"},
         )
 
         # Body parameters (non-header fields)

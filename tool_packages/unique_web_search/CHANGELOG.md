@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.2] - 2026-02-13
+- Purely Cosmetic Change to improve Search Engine names in the UI
+- MessageLog get updated at the end of the the execution of websearch
+- Query Elicitation disabled by default
+
 ## [1.11.1] - 2026-02-13
 - `agent_id` and `endpoint` fields on `BingSearchConfig` to allow using a pre-configured agent and project endpoint from config instead of relying solely on auto-provisioning
 - Citation replacement in Bing agent responses: `MessageTextUrlCitationAnnotation` placeholders are now converted to readable markdown links

@@ -224,6 +224,65 @@ class TestWebSearchMessageLoggerFinished:
         )
         assert call_kwargs["header"] == "My Custom Tool"
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_finished__sets_progress_message_to_search_completed__when_called(
+        self,
+        mock_message_step_logger: MessageStepLogger,
+        mock_message_log: MessageLog,
+    ) -> None:
+        """
+        Purpose: Verify finished() sets progress message to "Search completed!".
+        Why this matters: Progress message communicates completion state to the UI.
+        Setup summary: Create logger, call finished(), verify progress message.
+        """
+        # Arrange
+        mock_message_step_logger.create_or_update_message_log_async = AsyncMock(
+            return_value=mock_message_log
+        )
+        logger = WebSearchMessageLogger(
+            message_step_logger=mock_message_step_logger,
+            tool_display_name="Test Tool",
+        )
+
+        # Act
+        await logger.finished()
+
+        # Assert
+        assert logger._progress_message == "Search completed!"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_finished__overwrites_prior_progress_message__when_called(
+        self,
+        mock_message_step_logger: MessageStepLogger,
+        mock_message_log: MessageLog,
+    ) -> None:
+        """
+        Purpose: Verify finished() overwrites any prior progress message with "Search completed!".
+        Why this matters: Final progress message must reflect completion regardless of prior state.
+        Setup summary: Set a progress message, call finished(), verify overwrite.
+        """
+        # Arrange
+        mock_message_step_logger.create_or_update_message_log_async = AsyncMock(
+            return_value=mock_message_log
+        )
+        logger = WebSearchMessageLogger(
+            message_step_logger=mock_message_step_logger,
+            tool_display_name="Test Tool",
+        )
+        await logger.log_progress("Processing results...")
+
+        # Act
+        await logger.finished()
+
+        # Assert
+        assert logger._progress_message == "Search completed!"
+        call_kwargs = (
+            mock_message_step_logger.create_or_update_message_log_async.call_args.kwargs
+        )
+        assert call_kwargs["progress_message"] == "Search completed!"
+
 
 class TestWebSearchMessageLoggerFailed:
     """Tests for WebSearchMessageLogger.failed() method."""
@@ -285,6 +344,65 @@ class TestWebSearchMessageLoggerFailed:
             mock_message_step_logger.create_or_update_message_log_async.call_args.kwargs
         )
         assert call_kwargs["status"] == MessageLogStatus.FAILED
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_failed__sets_progress_message_to_search_failed__when_called(
+        self,
+        mock_message_step_logger: MessageStepLogger,
+        mock_message_log: MessageLog,
+    ) -> None:
+        """
+        Purpose: Verify failed() sets progress message to "Search failed!".
+        Why this matters: Progress message communicates failure state to the UI.
+        Setup summary: Create logger, call failed(), verify progress message.
+        """
+        # Arrange
+        mock_message_step_logger.create_or_update_message_log_async = AsyncMock(
+            return_value=mock_message_log
+        )
+        logger = WebSearchMessageLogger(
+            message_step_logger=mock_message_step_logger,
+            tool_display_name="Test Tool",
+        )
+
+        # Act
+        await logger.failed()
+
+        # Assert
+        assert logger._progress_message == "Search failed!"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_failed__overwrites_prior_progress_message__when_called(
+        self,
+        mock_message_step_logger: MessageStepLogger,
+        mock_message_log: MessageLog,
+    ) -> None:
+        """
+        Purpose: Verify failed() overwrites any prior progress message with "Search failed!".
+        Why this matters: Final progress message must reflect failure regardless of prior state.
+        Setup summary: Set a progress message, call failed(), verify overwrite.
+        """
+        # Arrange
+        mock_message_step_logger.create_or_update_message_log_async = AsyncMock(
+            return_value=mock_message_log
+        )
+        logger = WebSearchMessageLogger(
+            message_step_logger=mock_message_step_logger,
+            tool_display_name="Test Tool",
+        )
+        await logger.log_progress("Searching web...")
+
+        # Act
+        await logger.failed()
+
+        # Assert
+        assert logger._progress_message == "Search failed!"
+        call_kwargs = (
+            mock_message_step_logger.create_or_update_message_log_async.call_args.kwargs
+        )
+        assert call_kwargs["progress_message"] == "Search failed!"
 
 
 class TestWebSearchMessageLoggerLogProgress:
@@ -683,7 +801,7 @@ class TestWebSearchMessageLoggerIntegration:
         assert logger._status == MessageLogStatus.COMPLETED
         assert len(logger._details.data) == 1
         assert len(logger._references) == 2
-        assert logger._progress_message == "Starting search..."
+        assert logger._progress_message == "Search completed!"
         assert (
             mock_message_step_logger.create_or_update_message_log_async.call_count == 4
         )
@@ -717,7 +835,7 @@ class TestWebSearchMessageLoggerIntegration:
         # Assert
         assert logger._status == MessageLogStatus.FAILED
         assert len(logger._details.data) == 1
-        assert logger._progress_message == "Starting search..."
+        assert logger._progress_message == "Search failed!"
         assert (
             mock_message_step_logger.create_or_update_message_log_async.call_count == 3
         )

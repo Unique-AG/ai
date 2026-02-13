@@ -3,13 +3,13 @@ from typing import Literal, Sequence, Union
 
 from pydantic import BaseModel, Field, ValidationError
 from tavily import AsyncTavilyClient
-from unique_toolkit.agentic.tools.config import get_configuration_dict
 
 from unique_web_search.services.search_engine import (
     BaseSearchEngineConfig,
     SearchEngine,
     SearchEngineType,
 )
+from unique_web_search.services.search_engine.base import get_search_engine_model_config
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -89,14 +89,15 @@ class TavilySearchParams(BaseModel):
 
 
 class TavilyCustomSearchConfig(BaseModel):
-    model_config = get_configuration_dict()
     search_depth: Literal["basic", "advanced"] = "advanced"
     topic: Literal["general", "news", "finance"] | None = None
 
 
-class TavilyConfig(BaseSearchEngineConfig[SearchEngineType.TAVILY]):
+class TavilyConfig(
+    TavilyCustomSearchConfig, BaseSearchEngineConfig[SearchEngineType.TAVILY]
+):
+    model_config = get_search_engine_model_config(SearchEngineType.TAVILY)
     search_engine_name: Literal[SearchEngineType.TAVILY] = SearchEngineType.TAVILY
-    custom_search_config: TavilyCustomSearchConfig = TavilyCustomSearchConfig()
 
 
 _tavily_search_settings: TavilySearchSettings | None = None
@@ -127,8 +128,8 @@ class TavilySearch(SearchEngine[TavilyConfig]):
         search_params = TavilySearchParams(
             query=query,
             max_results=self.config.fetch_size,
-            **self.config.custom_search_config.model_dump(
-                exclude_none=True, by_alias=False
+            **self.config.model_dump(
+                exclude={"search_engine_name"}, exclude_none=True, by_alias=False
             ),
         )
 
