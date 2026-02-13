@@ -4372,14 +4372,14 @@ files = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.77"
+version = "0.10.80"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.11"
 groups = ["main"]
 files = [
-    {file = "unique_sdk-0.10.77-py3-none-any.whl", hash = "sha256:4096a540e22b8ac19ad3d5ca9ca287f7883ae112f011f25833742202cbe61a3f"},
-    {file = "unique_sdk-0.10.77.tar.gz", hash = "sha256:057e30d73acc139db63568293389d7565b4d4b73f2e249eceba812a5ecb2489e"},
+    {file = "unique_sdk-0.10.80-py3-none-any.whl", hash = "sha256:ab1f04d5420d4d9d5a932c625f29f754a0676273e06f004da77f39fe72df2061"},
+    {file = "unique_sdk-0.10.80.tar.gz", hash = "sha256:18cb9197566cf7e04a005d04d809dc0265322e5c3c78f4d660c0fcf58591f509"},
 ]
 
 [package.dependencies]
@@ -4756,4 +4756,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "8ccb19eb19e2e33c84b0857cf6a036de10d0736d56415c32fb760818afbbffdd"
+content-hash = "30779dfd8b014d20df3485edad354d8f7b11cf0d799fbfdf9bac27c5485465da"
