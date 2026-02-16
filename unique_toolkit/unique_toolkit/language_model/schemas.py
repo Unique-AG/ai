@@ -20,11 +20,25 @@ from openai.types.responses import (
     EasyInputMessageParam,
     FunctionToolParam,
     ResponseCodeInterpreterToolCall,
+    ResponseComputerToolCall,
+    ResponseCustomToolCall,
+    ResponseFileSearchToolCall,
+    ResponseFunctionToolCall,
     ResponseFunctionToolCallParam,
+    ResponseFunctionWebSearch,
     ResponseOutputItem,
     ResponseOutputMessage,
+    ResponseOutputText,
+    ResponseReasoningItem,
 )
 from openai.types.responses.response_input_param import FunctionCallOutput
+from openai.types.responses.response_output_item import (
+    ImageGenerationCall,
+    LocalShellCall,
+    McpApprovalRequest,
+    McpCall,
+    McpListTools,
+)
 from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 from openai.types.shared_params.function_definition import FunctionDefinition
 from pydantic import (
@@ -470,6 +484,21 @@ LanguageModelMessageOptions = (
     | LanguageModelAssistantMessage
     | LanguageModelSystemMessage
     | LanguageModelUserMessage
+    # Responses API output items (all concrete types from ResponseOutputItem Union)
+    | ResponseOutputMessage
+    | ResponseOutputText
+    | ResponseFileSearchToolCall
+    | ResponseFunctionToolCall
+    | ResponseFunctionWebSearch
+    | ResponseComputerToolCall
+    | ResponseReasoningItem
+    | ImageGenerationCall
+    | ResponseCodeInterpreterToolCall
+    | LocalShellCall
+    | McpCall
+    | McpListTools
+    | McpApprovalRequest
+    | ResponseCustomToolCall
 )
 
 

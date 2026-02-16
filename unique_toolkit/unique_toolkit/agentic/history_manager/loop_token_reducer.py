@@ -1,7 +1,8 @@
 import json
 from logging import Logger
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, Sequence, get_args
 
+from openai.types.responses import ResponseOutputItem
 from pydantic import BaseModel
 
 from unique_toolkit._common.token.token_counting import (
@@ -18,7 +19,6 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.schemas import (
-    LanguageModelAssistantMessage,
     LanguageModelMessage,
     LanguageModelMessageRole,
     LanguageModelMessages,
@@ -26,6 +26,16 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolMessage,
     LanguageModelUserMessage,
 )
+
+# Type alias for history items: supports both Completions API messages
+# and Responses API output items
+HistoryItem = LanguageModelMessage | ResponseOutputItem
+
+# Get concrete types from ResponseOutputItem Union for runtime isinstance checks
+# (subscripted generics cannot be used directly with isinstance)
+# ResponseOutputItem is Annotated[Union[...], PropertyInfo], so we need to extract
+# the Union's args
+_RESPONSE_OUTPUT_TYPES = get_args(get_args(ResponseOutputItem)[0])
 
 MAX_INPUT_TOKENS_SAFETY_PERCENTAGE = (
     0.1  # 10% safety margin for input tokens we need 10% less does not work.
@@ -76,7 +86,7 @@ class LoopTokenReducer:
         original_user_message: str,
         rendered_user_message_string: str,
         rendered_system_message_string: str,
-        loop_history: list[LanguageModelMessage],
+        loop_history: list[HistoryItem],
         remove_from_text: Callable[[str], Awaitable[str]],
     ) -> LanguageModelMessages:
         """Compose the system and user messages for the plan execution step, which is evaluating if any further tool calls are required."""
@@ -131,7 +141,12 @@ class LoopTokenReducer:
         return has_multiple_chunks_for_a_tool_call and exceeds_limit
 
     def _count_message_tokens(self, messages: LanguageModelMessages) -> int:
-        """Count tokens in messages using the configured encoding model."""
+        """
+        Count tokens in messages using the configured encoding model.
+
+        Delegates to num_token_for_language_model_messages which handles both
+        LanguageModelMessage and ResponseOutputItem types.
+        """
         return num_token_for_language_model_messages(
             messages=messages,
             encode=self._encoder,
@@ -161,17 +176,24 @@ class LoopTokenReducer:
     def _construct_history(
         self,
         history_from_db: list[LanguageModelMessage],
-        loop_history: list[LanguageModelMessage],
+        loop_history: list[HistoryItem],
     ) -> LanguageModelMessages:
+        """
+        Construct the full history by combining DB history and loop history.
+
+        Loop history can contain both Completions API messages (LanguageModelMessage)
+        and Responses API output items (ResponseOutputItem). The LanguageModelMessages
+        wrapper handles both types.
+        """
         constructed_history = LanguageModelMessages(
-            history_from_db + loop_history,
+            history_from_db + loop_history,  # type: ignore[arg-type]
         )
 
         return constructed_history
 
     def _handle_token_limit_exceeded(
-        self, loop_history: list[LanguageModelMessage], token_count: int
-    ) -> list[LanguageModelMessage]:
+        self, loop_history: list[HistoryItem], token_count: int
+    ) -> list[HistoryItem]:
         """Handle case where token limit is exceeded by reducing sources in tool responses."""
         overshoot_factor = (
             token_count / self._effective_token_limit
@@ -247,25 +269,34 @@ class LoopTokenReducer:
             ),
         )
         if remove_from_text is not None:
-            full_history.root = await self._clean_messages(
-                full_history.root, remove_from_text
+            # full_history.root is list[LMMessageOptions] but contains only LMMessage at runtime
+            # (DB history doesn't contain ResponseOutputItem). Safe to pass to _clean_messages.
+            cleaned = await self._clean_messages(
+                full_history.root,  # type: ignore[arg-type]
+                remove_from_text,
             )
+            full_history.root = cleaned  # type: ignore[assignment]
 
+        # Safe: full_history.root contains only LanguageModelMessage at runtime (from DB)
         limited_history_messages = self._limit_to_token_window(
-            full_history.root, self._max_history_tokens
+            full_history.root,  # type: ignore[arg-type]
+            self._max_history_tokens,
         )
 
         if len(limited_history_messages) == 0:
-            limited_history_messages = full_history.root[-1:]
+            limited_history_messages = list(full_history.root[-1:])
 
         self._logger.info(
             f"Reduced history to {len(limited_history_messages)} messages from {len(full_history.root)}",
         )
 
-        return self.ensure_last_message_is_user_message(limited_history_messages)
+        # Safe: limited_history_messages contains only LanguageModelMessage instances
+        return self.ensure_last_message_is_user_message(
+            limited_history_messages  # type: ignore[arg-type]
+        )
 
     def _limit_to_token_window(
-        self, messages: list[LanguageModelMessage], token_limit: int
+        self, messages: Sequence[LanguageModelMessage], token_limit: int
     ) -> list[LanguageModelMessage]:
         selected_messages = []
         token_count = 0
@@ -281,25 +312,23 @@ class LoopTokenReducer:
 
     async def _clean_messages(
         self,
-        messages: list[
-            LanguageModelMessage
-            | LanguageModelToolMessage
-            | LanguageModelAssistantMessage
-            | LanguageModelSystemMessage
-            | LanguageModelUserMessage
-        ],
+        messages: Sequence[LanguageModelMessage],
         remove_from_text: Callable[[str], Awaitable[str]],
     ) -> list[LanguageModelMessage]:
-        for message in messages:
+        # Convert to list to ensure mutability (Sequence might be immutable)
+        messages_list = list(messages) if not isinstance(messages, list) else messages
+        for message in messages_list:
             if isinstance(message.content, str):
                 message.content = await remove_from_text(message.content)
             else:
                 self._logger.warning(
                     f"Skipping message with unsupported content type: {type(message.content)}"
                 )
-        return messages
+        return messages_list
 
-    def ensure_last_message_is_user_message(self, limited_history_messages):
+    def ensure_last_message_is_user_message(
+        self, limited_history_messages: Sequence[LanguageModelMessage]
+    ) -> list[LanguageModelMessage]:
         """
         As the token limit can be reached in the middle of a gpt_request,
         we move forward to the next user message,to avoid confusing messages for the LLM
@@ -311,13 +340,13 @@ class LoopTokenReducer:
 
         # FIXME: This might reduce the history by a lot if we have a lot of tool calls / references in the history. Could make sense to summarize the messages and include
         # FIXME: We should remove chunks no longer in history from handler
-        return limited_history_messages[idx:]
+        return list(limited_history_messages[idx:])
 
     def _reduce_message_length_by_reducing_sources_in_tool_response(
         self,
-        history: list[LanguageModelMessage],
+        history: list[HistoryItem],
         overshoot_factor: float,
-    ) -> list[LanguageModelMessage]:
+    ) -> list[HistoryItem]:
         """
         Reduce the message length by removing sources from each tool call based on overshoot.
 
@@ -328,8 +357,11 @@ class LoopTokenReducer:
         Using SAFETY_MARGIN_FOR_AGGRESSIVE_REDUCTION factor provides a safety margin to avoid over-reduction.
         E.g., if overshoot_factor = 2 (2x over limit), keep 1/1.5 = 2/3 of chunks.
         Always keeps at least 1 chunk.
+
+        Note: ResponseOutputItem instances are passed through unchanged as they don't
+        contain reducible sources (they are generated by the model, not by tools).
         """
-        history_reduced: list[LanguageModelMessage] = []
+        history_reduced: list[HistoryItem] = []
         content_chunks_reduced: list[ContentChunk] = []
         chunk_offset = 0
         source_offset = 0
@@ -337,7 +369,7 @@ class LoopTokenReducer:
         for message in history:
             if self._should_reduce_message(message):
                 result = self._reduce_sources_in_tool_message(
-                    message,  # type: ignore
+                    message,  # type: ignore[arg-type]
                     chunk_offset,
                     source_offset,
                     overshoot_factor,
@@ -352,10 +384,22 @@ class LoopTokenReducer:
         self._reference_manager.replace(chunks=content_chunks_reduced)
         return history_reduced
 
-    def _should_reduce_message(self, message: LanguageModelMessage) -> bool:
-        """Determine if a message should have its sources reduced."""
-        return message.role == LanguageModelMessageRole.TOOL and isinstance(
-            message, LanguageModelToolMessage
+    def _should_reduce_message(self, message: HistoryItem) -> bool:
+        """
+        Determine if a message should have its sources reduced.
+
+        Only LanguageModelToolMessage instances from the Completions API have
+        reducible sources. ResponseOutputItem instances are generated by the model
+        and should be passed through unchanged.
+        """
+        # ResponseOutputItem instances don't have reducible sources
+        if isinstance(message, _RESPONSE_OUTPUT_TYPES):
+            return False
+
+        # Only reduce LanguageModelToolMessage instances
+        return (
+            isinstance(message, LanguageModelToolMessage)
+            and message.role == LanguageModelMessageRole.TOOL
         )
 
     def _reduce_sources_in_tool_message(

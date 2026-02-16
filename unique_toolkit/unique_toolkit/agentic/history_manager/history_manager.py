@@ -1,6 +1,7 @@
 from logging import Logger
 from typing import Annotated, Awaitable, Callable
 
+from openai.types.responses import ResponseOutputItem
 from pydantic import BaseModel, Field
 
 from unique_toolkit._common.feature_flags.schema import (
@@ -22,6 +23,10 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelToolMessage,
 )
+
+# Type alias for loop history items: supports both Completions API messages
+# and Responses API output items
+HistoryItem = LanguageModelMessage | ResponseOutputItem
 
 DeactivatedNone = Annotated[
     None,
@@ -121,7 +126,8 @@ class HistoryManager:
         )
         self._tool_call_result_history: list[ToolCallResponse] = []
         self._tool_calls: list[LanguageModelFunction] = []
-        self._loop_history: list[LanguageModelMessage] = []
+        # Supports both Completions API messages and Responses API output items
+        self._loop_history: list[HistoryItem] = []
         self._source_enumerator = 0
 
     def add_tool_call(self, tool_call: LanguageModelFunction) -> None:
@@ -197,6 +203,31 @@ class HistoryManager:
             LanguageModelAssistantMessage.from_functions(tool_calls=tool_calls)
         )
 
+    def append_responses_output_to_history(
+        self, output: list[ResponseOutputItem]
+    ) -> None:
+        """
+        Append Responses API output items to the loop history.
+
+        This method stores the complete output from a Responses API call, including:
+        - ResponseReasoningItem: Reasoning traces showing the model's thought process
+        - ResponseCodeInterpreterToolCall: Code execution with input/output
+        - ResponseOutputMessage: Assistant message content within the output
+        - Other Responses API specific output types
+
+        These items are stored as-is since the Responses API accepts its own output
+        items as input for subsequent calls, enabling proper context preservation
+        across loop iterations.
+
+        Args:
+            output: List of ResponseOutputItem objects from a Responses API stream response.
+        """
+
+        self._logger.debug(
+            f"Appending {len(output)} Responses API output items to loop history"
+        )
+        self._loop_history.extend(output)
+
     def add_assistant_message(self, message: LanguageModelAssistantMessage) -> None:
         self._loop_history.append(message)
 
@@ -238,4 +269,4 @@ class HistoryManager:
             history.append(
                 LanguageModelAssistantMessage(content=assistant_message_text)
             )
-        return LanguageModelMessages(history)
+        return LanguageModelMessages(history)  # type: ignore[arg-type]  # list[LM] -> list[LMOptions]

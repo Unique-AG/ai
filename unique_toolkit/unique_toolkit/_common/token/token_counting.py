@@ -5,9 +5,10 @@ from __future__ import annotations
 
 import json
 import os
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, get_args
 
 import tiktoken
+from openai.types.responses import ResponseOutputItem
 from pydantic import BaseModel
 
 from unique_toolkit._common.token.image_token_counting import (
@@ -23,6 +24,10 @@ if TYPE_CHECKING:
     from unique_toolkit.language_model.infos import LanguageModelInfo
 
 DEFAULT_ENCODING = os.getenv("UNIQUE_DEFAULT_TOKENIZER_ENCODING", "cl100k_base")
+
+# Extract concrete types from ResponseOutputItem Union for isinstance checks
+# ResponseOutputItem is Annotated[Union[...], PropertyInfo]
+_RESPONSE_OUTPUT_TYPES = get_args(get_args(ResponseOutputItem)[0])
 
 
 class SpecialToolCallingTokens(BaseModel):
@@ -183,7 +188,7 @@ def messages_to_openai_messages(
     messages: LanguageModelMessages | list[LanguageModelMessage],
 ):
     if isinstance(messages, list):
-        messages = LanguageModelMessages(messages)
+        messages = LanguageModelMessages(messages)  # type: ignore[arg-type]
 
     return [
         {
@@ -210,6 +215,34 @@ def num_token_for_language_model_messages(
     messages: LanguageModelMessages | list[LanguageModelMessage],
     encode: Callable[[str], list[int]],
 ) -> int:
+    """
+    Count tokens for language model messages.
+
+    Supports both LanguageModelMessage (standard Completions API messages)
+    and ResponseOutputItem (Responses API output items). For ResponseOutputItem,
+    tokens are estimated via JSON serialization.
+    """
+    # Handle LanguageModelMessages wrapper with mixed types
+    if isinstance(messages, LanguageModelMessages):
+        # Check if any ResponseOutputItem instances present
+        has_response_items = any(
+            isinstance(item, _RESPONSE_OUTPUT_TYPES) for item in messages.root
+        )
+
+        if has_response_items:
+            # Count mixed types individually
+            token_count = 0
+            for item in messages.root:
+                if isinstance(item, _RESPONSE_OUTPUT_TYPES):
+                    # ResponseOutputItem: estimate via JSON serialization
+                    json_str = json.dumps(item.model_dump(exclude_defaults=True))
+                    token_count += len(encode(json_str))
+                else:
+                    # LanguageModelMessage: recursive call with single item
+                    token_count += num_token_for_language_model_messages([item], encode)  # type: ignore[list-item]
+            return token_count
+
+    # Standard path: all LanguageModelMessage items
     return num_tokens_from_messages(messages_to_openai_messages(messages), encode)
 
 
