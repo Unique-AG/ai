@@ -110,8 +110,8 @@ jobs:
               echo "cache_found=false" >> $GITHUB_OUTPUT
             fi
             
-            # Return to main branch
-            git checkout main
+            # Return to original state (important for PRs)
+            git checkout -f ${{ github.sha }}
           else
             echo "⚠ No gh-pages branch yet (first run)"
             echo "cache_found=false" >> $GITHUB_OUTPUT
@@ -502,5 +502,5 @@ jobs:
           fi
 
     environment:
-      name: ${{ github.event_name != 'pull_request' && 'github-pages' || '' }}
+      name: ${{ github.event_name == 'pull_request' && 'docs-build' || 'github-pages' }}
       url: ${{ steps.deployment.outputs.page_url }}
