@@ -28,6 +28,7 @@ from unique_toolkit.agentic.tools.tool_manager import (
     ToolManager,
 )
 from unique_toolkit.app.schemas import ChatEvent, McpServer
+from unique_toolkit.chat.schemas import StoppedByUserException
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelAssistantMessage
@@ -170,47 +171,53 @@ class UniqueAI:
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )
 
-        ## Loop iteration
-        max_iterations = self._effective_max_loop_iterations
-        for i in range(max_iterations):
-            self.current_iteration_index = i
-            self._logger.info(f"Starting iteration {i + 1}...")
+        try:
+            ## Loop iteration
+            max_iterations = self._effective_max_loop_iterations
+            for i in range(max_iterations):
+                self.current_iteration_index = i
+                self._logger.info(f"Starting iteration {i + 1}...")
 
-            # Plan execution
-            loop_response = await self._plan_or_execute()
-            self._logger.info("Done with _plan_or_execute")
+                # Plan execution
+                loop_response = await self._plan_or_execute()
+                self._logger.info("Done with _plan_or_execute")
 
-            self._reference_manager.add_references(loop_response.message.references)
-            self._logger.info("Done with adding references")
+                self._reference_manager.add_references(loop_response.message.references)
+                self._logger.info("Done with adding references")
 
-            # Update tool progress reporter
-            self._thinking_manager.update_tool_progress_reporter(loop_response)
+                # Update tool progress reporter
+                self._thinking_manager.update_tool_progress_reporter(loop_response)
 
-            # Execute the plan
-            exit_loop = await self._process_plan(loop_response)
-            self._logger.info("Done with _process_plan")
+                # Execute the plan
+                exit_loop = await self._process_plan(loop_response)
+                self._logger.info("Done with _process_plan")
 
-            if exit_loop:
-                self._thinking_manager.close_thinking_steps(loop_response)
-                self._logger.info("Exiting loop.")
-                break
+                if exit_loop:
+                    self._thinking_manager.close_thinking_steps(loop_response)
+                    self._logger.info("Exiting loop.")
+                    break
 
-            if i == max_iterations - 1:
-                self._logger.error("Max iterations reached.")
-                await self._chat_service.modify_assistant_message_async(
-                    content="I have reached the maximum number of self-reflection iterations. Please clarify your request and try again...",
+                if i == max_iterations - 1:
+                    self._logger.error("Max iterations reached.")
+                    await self._chat_service.modify_assistant_message_async(
+                        content="I have reached the maximum number of self-reflection iterations. Please clarify your request and try again...",
+                    )
+                    break
+
+                self.start_text = self._thinking_manager.update_start_text(
+                    self.start_text, loop_response
                 )
-                break
+            await self._update_debug_info_if_tool_took_control()
 
-            self.start_text = self._thinking_manager.update_start_text(
-                self.start_text, loop_response
+            # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
+            await self._chat_service.modify_assistant_message_async(
+                set_completed_at=not self._tool_took_control,
             )
-        await self._update_debug_info_if_tool_took_control()
-
-        # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
-        await self._chat_service.modify_assistant_message_async(
-            set_completed_at=not self._tool_took_control,
-        )
+        except StoppedByUserException:
+            self._logger.info("Agent stopped by user request.")
+            await self._chat_service.modify_assistant_message_async(
+                set_completed_at=True,
+            )
 
     # @track()
     async def _plan_or_execute(self) -> LanguageModelStreamResponse:
