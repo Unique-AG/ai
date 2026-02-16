@@ -3447,7 +3447,7 @@ wheels = [
 
 [[package]]
 name = "unique-web-search"
-version = "1.11.3"
+version = "1.11.4"
 source = { editable = "." }
 dependencies = [
     { name = "azure-ai-projects" },
