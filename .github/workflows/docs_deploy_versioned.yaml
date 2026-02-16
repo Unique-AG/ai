@@ -30,6 +30,20 @@ on:
       # Build script
       - 'scripts/docs_build_versioned.sh'
 
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yaml'
+      - 'unique_sdk/docs/**'
+      - 'unique_sdk/mkdocs.yaml'
+      - 'unique_toolkit/docs/**'
+      - 'unique_toolkit/mkdocs.yaml'
+      - 'tutorials/docs/**'
+      - 'tutorials/mkdocs.yaml'
+      - '.github/workflows/docs_deploy_versioned.yaml'
+
   # Manual trigger
   workflow_dispatch:
     inputs:
@@ -350,12 +364,55 @@ jobs:
           create_base_redirect "_deploy/unique-toolkit"
           
           echo "✓ Latest copies and redirects created"
+          
+      # ============================================================================
+      # 10. Verify Deployment Structure
+      # ============================================================================
+
+      - name: Verify build structure
+        run: |
+          echo "🔍 Verifying deployment structure in _deploy/..."
+          
+          # Check SDK
+          SDK_VER="${{ steps.versions.outputs.sdk_version }}"
+          if [ -d "_deploy/unique-sdk/$SDK_VER" ] && [ -f "_deploy/unique-sdk/latest/index.html" ] && [ -f "_deploy/unique-sdk/versions.json" ]; then
+            echo "✅ SDK documentation structure is valid"
+            echo "   - Version: $SDK_VER"
+            echo "   - Latest redirect exists"
+            echo "   - versions.json exists"
+          else
+            echo "❌ SDK documentation structure is INVALID"
+            ls -R _deploy/unique-sdk/ || echo "   (unique-sdk directory missing)"
+            exit 1
+          fi
+          
+          # Check Toolkit
+          TOOLKIT_VER="${{ steps.versions.outputs.toolkit_version }}"
+          if [ -d "_deploy/unique-toolkit/$TOOLKIT_VER" ] && [ -f "_deploy/unique-toolkit/latest/index.html" ] && [ -f "_deploy/unique-toolkit/versions.json" ]; then
+            echo "✅ Toolkit documentation structure is valid"
+            echo "   - Version: $TOOLKIT_VER"
+            echo "   - Latest redirect exists"
+            echo "   - versions.json exists"
+          else
+            echo "❌ Toolkit documentation structure is INVALID"
+            ls -R _deploy/unique-toolkit/ || echo "   (unique-toolkit directory missing)"
+            exit 1
+          fi
+          
+          # Check Root
+          if [ -f "_deploy/index.html" ]; then
+            echo "✅ Root site exists"
+          else
+            echo "❌ Root site index.html is MISSING"
+            exit 1
+          fi
 
       # ============================================================================
-      # 10. Save to gh-pages Branch (Cache for Next Run)
+      # 11. Save to gh-pages Branch (Cache for Next Run)
       # ============================================================================
 
       - name: Update gh-pages cache
+        if: github.event_name != 'pull_request'
         run: |
           echo "💾 Saving versions to gh-pages branch..."
           
@@ -402,36 +459,46 @@ jobs:
           mv ../_docs_deploy_temp _deploy
 
       # ============================================================================
-      # 11. Deploy to GitHub Pages
+      # 12. Deploy to GitHub Pages
       # ============================================================================
 
       - name: Setup Pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v4
 
       - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: _deploy
 
       - name: Deploy to GitHub Pages
+        if: github.event_name != 'pull_request'
         id: deployment
         uses: actions/deploy-pages@v4
 
       # ============================================================================
-      # 12. Summary
+      # 13. Summary
       # ============================================================================
 
       - name: Deployment summary
         run: |
-          echo "## 🚀 Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Build Check Complete" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "⚠️ This was a Pull Request. No files were deployed or cached." >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**SDK Version:** ${{ steps.versions.outputs.sdk_version }}" >> $GITHUB_STEP_SUMMARY
           echo "**Toolkit Version:** ${{ steps.versions.outputs.toolkit_version }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📚 Links" >> $GITHUB_STEP_SUMMARY
-          echo "- [Root Site](${{ steps.deployment.outputs.page_url }})" >> $GITHUB_STEP_SUMMARY
-          echo "- [SDK Documentation](${{ steps.deployment.outputs.page_url }}unique-sdk/latest/)" >> $GITHUB_STEP_SUMMARY
-          echo "- [Toolkit Documentation](${{ steps.deployment.outputs.page_url }}unique-toolkit/latest/)" >> $GITHUB_STEP_SUMMARY
+          
+          PAGE_URL="${{ steps.deployment.outputs.page_url }}"
+          if [ -n "$PAGE_URL" ]; then
+            echo "### 📚 Links" >> $GITHUB_STEP_SUMMARY
+            echo "- [Root Site]($PAGE_URL)" >> $GITHUB_STEP_SUMMARY
+            echo "- [SDK Documentation](${PAGE_URL}unique-sdk/latest/)" >> $GITHUB_STEP_SUMMARY
+            echo "- [Toolkit Documentation](${PAGE_URL}unique-toolkit/latest/)" >> $GITHUB_STEP_SUMMARY
+          fi
 
     environment:
       name: github-pages
