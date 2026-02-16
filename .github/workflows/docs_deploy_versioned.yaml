@@ -375,6 +375,7 @@ jobs:
           else
             echo "Creating new gh-pages branch"
             git checkout --orphan gh-pages
+            git rm -rf . || true
           fi
           
           # Copy versioned docs (only sub-projects)
