@@ -1,0 +1,159 @@
+name: Config Compatibility Check
+
+on:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to check (empty=auto-detect, all=all packages)'
+        type: choice
+        options:
+          - ''
+          - all
+          - toolkit
+          - web_search
+          - deep_research
+          - swot
+          - internal_search
+          - stock_ticker
+          - follow_up_questions
+        default: ''
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            toolkit:
+              - 'unique_toolkit/unique_toolkit/**/config.py'
+              - 'unique_toolkit/unique_toolkit/**/settings.py'
+            web_search:
+              - 'tool_packages/unique_web_search/**/*.py'
+            deep_research:
+              - 'tool_packages/unique_deep_research/**/*.py'
+            swot:
+              - 'tool_packages/unique_swot/**/*.py'
+            internal_search:
+              - 'tool_packages/unique_internal_search/**/*.py'
+            stock_ticker:
+              - 'postprocessors/unique_stock_ticker/**/*.py'
+            follow_up_questions:
+              - 'postprocessors/unique_follow_up_questions/**/*.py'
+
+      - uses: ./.github/actions/select-packages
+        id: set-matrix
+        with:
+          packages: |
+            [
+              {"id": "toolkit", "dir": "unique_toolkit", "python": "3.12"},
+              {"id": "web_search", "dir": "tool_packages/unique_web_search", "python": "3.12"},
+              {"id": "deep_research", "dir": "tool_packages/unique_deep_research", "python": "3.12"},
+              {"id": "swot", "dir": "tool_packages/unique_swot", "python": "3.12"},
+              {"id": "internal_search", "dir": "tool_packages/unique_internal_search", "python": "3.12"},
+              {"id": "stock_ticker", "dir": "postprocessors/unique_stock_ticker", "python": "3.12"},
+              {"id": "follow_up_questions", "dir": "postprocessors/unique_follow_up_questions", "python": "3.12"}
+            ]
+          selected: ${{ inputs.package }}
+          changes: ${{ toJson(steps.filter.outputs) }}
+
+  check-config-compatibility:
+    needs: detect-changes
+    if: ${{ fromJson(needs.detect-changes.outputs.matrix).include[0] != null }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+
+    steps:
+      # 1. Setup
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for merge-base
+
+      - name: Compute merge base
+        id: base
+        run: |
+          BASE_REF="origin/${{ github.base_ref || 'main' }}"
+          git fetch origin "${{ github.base_ref || 'main' }}"
+          MERGE_BASE=$(git merge-base HEAD "$BASE_REF")
+          echo "commit=$MERGE_BASE" >> $GITHUB_OUTPUT
+          echo "Merge base: $MERGE_BASE"
+
+      # 2. Export defaults from base commit
+      - name: Checkout base commit
+        run: git checkout ${{ steps.base.outputs.commit }} --quiet
+
+      - name: Install package manager (base)
+        uses: ./.github/actions/install-package-manager
+        with:
+          package_dir: ${{ matrix.dir }}
+          python_version: ${{ matrix.python }}
+
+      - name: Export base defaults
+        run: |
+          python -m unique_toolkit.config_checker export \
+            --package "${{ matrix.dir }}" \
+            --output ./config-artifacts-base/ \
+            --verbose
+
+      - name: Upload base artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: config-base-${{ matrix.id }}
+          path: ./config-artifacts-base/
+          retention-days: 1
+          if-no-files-found: warn
+
+      # 3. Checkout tip and validate
+      - name: Checkout PR tip
+        run: git checkout ${{ github.sha }} --quiet
+
+      - name: Install package manager (tip)
+        uses: ./.github/actions/install-package-manager
+        with:
+          package_dir: ${{ matrix.dir }}
+          python_version: ${{ matrix.python }}
+
+      - name: Download base artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: config-base-${{ matrix.id }}
+          path: ./config-artifacts-base/
+
+      - name: Validate compatibility
+        id: validate
+        run: |
+          python -m unique_toolkit.config_checker check \
+            --artifacts ./config-artifacts-base/ \
+            --package "${{ matrix.dir }}" \
+            --report-defaults \
+            --fail-on-missing \
+            --verbose
+        continue-on-error: true
+
+      - name: Generate report
+        if: always()
+        run: |
+          if [ -f ./config-check-report.md ]; then
+            echo "## Configuration Check Report for ${{ matrix.id }}" >> $GITHUB_STEP_SUMMARY
+            cat ./config-check-report.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ✓ Configuration Check Passed for ${{ matrix.id }}" >> $GITHUB_STEP_SUMMARY
+            echo "No breaking configuration changes detected." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check validation result
+        if: steps.validate.outcome == 'failure'
+        run: |
+          echo "❌ Configuration compatibility check failed"
+          exit 1
