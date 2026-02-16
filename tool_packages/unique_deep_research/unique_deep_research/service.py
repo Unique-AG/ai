@@ -35,6 +35,7 @@ from unique_toolkit.chat.schemas import (
     MessageLogEvent,
     MessageLogStatus,
     MessageLogUncitedReferences,
+    StoppedByUserException,
 )
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content.schemas import ContentReference
@@ -229,6 +230,15 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         try:
             return await self._run(tool_call)
+        except StoppedByUserException:
+            _LOGGER.info("Deep Research cancelled by user")
+            self.write_message_log_text_message("**Research stopped by user**")
+            if self.is_message_execution():
+                await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
+            await self.chat_service.modify_assistant_message_async(
+                content="Research was stopped.",
+            )
+            raise
         except Exception as e:
             self.write_message_log_text_message(
                 "**Research failed for an unknown reason**"
@@ -279,10 +289,12 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         if self.is_message_execution():
             _LOGGER.info("Starting research")
             # Run research
+            await self.chat_service.check_cancellation_async()
             self.write_message_log_text_message("**Generating research plan**")
             research_brief = await self.generate_research_brief_from_dict(
                 self.get_visible_history_messages()
             )
+            await self.chat_service.check_cancellation_async()
             processed_result, content_chunks = await self.run_research(research_brief)
 
             if processed_result == "":
@@ -458,7 +470,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             },
         }
 
-        result = await custom_agent.ainvoke(initial_state, config=config)  # type: ignore[arg-type]
+        result = await self.chat_service.run_with_cancellation(
+            custom_agent.ainvoke(initial_state, config=config)  # type: ignore[arg-type]
+        )
 
         # Extract final report (citations already refined by agents.py)
         research_result = result.get("final_report", "")
@@ -519,8 +533,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             stream=True,
         )
 
-        # Process the stream
-        research_result, annotations = await self._process_research_stream(stream)
+        # Process the stream (with cancellation watcher)
+        research_result, annotations = await self.chat_service.run_with_cancellation(
+            self._process_research_stream(stream)
+        )
 
         if not research_result:
             return "", []
