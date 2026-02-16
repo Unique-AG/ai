@@ -200,7 +200,7 @@ jobs:
           # Copy SDK versions (excluding current, already built)
           if [ -d "_cached_versions/unique-sdk" ]; then
             mkdir -p "_deploy/unique-sdk"
-            for version_dir in _cached_versions/unique-sdk/*/; do
+            find _cached_versions/unique-sdk/ -mindepth 1 -maxdepth 1 -type d | while read -r version_dir; do
               version=$(basename "$version_dir")
               if [ "$version" != "${{ steps.versions.outputs.sdk_version }}" ] && [ "$version" != "latest" ]; then
                 echo "  - SDK v$version"
@@ -212,7 +212,7 @@ jobs:
           # Copy Toolkit versions (excluding current, already built)
           if [ -d "_cached_versions/unique-toolkit" ]; then
             mkdir -p "_deploy/unique-toolkit"
-            for version_dir in _cached_versions/unique-toolkit/*/; do
+            find _cached_versions/unique-toolkit/ -mindepth 1 -maxdepth 1 -type d | while read -r version_dir; do
               version=$(basename "$version_dir")
               if [ "$version" != "${{ steps.versions.outputs.toolkit_version }}" ] && [ "$version" != "latest" ]; then
                 echo "  - Toolkit v$version"
@@ -241,12 +241,14 @@ jobs:
             # Only include semver-like directories (e.g. 1.46.4, 0.10.80). Exclude latest, unique_toolkit, etc.
             versions=()
             if [ -d "$project_dir" ]; then
-              for dir in "$project_dir"/*/ ; do
+              # Use find to safely iterate over directories
+              while IFS= read -r dir; do
+                [ -z "$dir" ] && continue
                 version=$(basename "$dir")
                 if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
                   versions+=("$version")
                 fi
-              done
+              done < <(find "$project_dir" -mindepth 1 -maxdepth 1 -type d)
             fi
             
             # Add current version if not already present
@@ -357,28 +359,35 @@ jobs:
         run: |
           echo "💾 Saving versions to gh-pages branch..."
           
-          # Move _deploy to a safe location outside the repo so it survives the branch switch
-          # In GitHub Actions, ../ is the workspace root's parent, which is safe.
+          # Move _deploy to a safe location outside the repo
           mv _deploy ../_docs_deploy_temp
           
+          # Clean the current directory entirely to prevent checkout conflicts
+          # Keep .git and .github (needed for composite action POST steps)
+          find . -maxdepth 1 ! -name ".git" ! -name ".github" ! -name "." -exec rm -rf {} +
+          
           # Checkout or create gh-pages branch
-          if git show-ref --verify --quiet refs/heads/gh-pages; then
-            git checkout gh-pages
+          if git fetch origin gh-pages 2>/dev/null; then
+            git checkout -f gh-pages
+            git reset --hard origin/gh-pages
+            # Clean everything except .git and .github to start fresh with new files
+            find . -maxdepth 1 ! -name ".git" ! -name ".github" ! -name "." -exec rm -rf {} +
           else
             echo "Creating new gh-pages branch"
             git checkout --orphan gh-pages
             git rm -rf . || true
           fi
           
-          # Copy versioned docs (not root, only sub-projects)
-          rm -rf unique-sdk unique-toolkit
+          # Copy versioned docs (only sub-projects)
           mkdir -p unique-sdk unique-toolkit
           
           # Copy SDK versions (exclude latest redirect)
           if [ -d "../_docs_deploy_temp/unique-sdk" ]; then
-            for version_dir in ../_docs_deploy_temp/unique-sdk/*/; do
+            # Use a more robust way to iterate over directories
+            find ../_docs_deploy_temp/unique-sdk/ -mindepth 1 -maxdepth 1 -type d | while read -r version_dir; do
               version=$(basename "$version_dir")
               if [ "$version" != "latest" ]; then
+                echo "  - SDK v$version"
                 cp -r "$version_dir" "unique-sdk/$version"
               fi
             done
@@ -386,9 +395,10 @@ jobs:
           
           # Copy Toolkit versions (exclude latest redirect)
           if [ -d "../_docs_deploy_temp/unique-toolkit" ]; then
-            for version_dir in ../_docs_deploy_temp/unique-toolkit/*/; do
+            find ../_docs_deploy_temp/unique-toolkit/ -mindepth 1 -maxdepth 1 -type d | while read -r version_dir; do
               version=$(basename "$version_dir")
               if [ "$version" != "latest" ]; then
+                echo "  - Toolkit v$version"
                 cp -r "$version_dir" "unique-toolkit/$version"
               fi
             done
@@ -406,8 +416,8 @@ jobs:
             echo "✓ Cache updated"
           fi
           
-          # Return to main and restore _deploy for the following steps
-          git checkout main
+          # Return to the original commit and restore _deploy for the following steps
+          git checkout -f ${{ github.sha }}
           mv ../_docs_deploy_temp _deploy
 
       # ============================================================================
