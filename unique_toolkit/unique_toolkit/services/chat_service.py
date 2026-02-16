@@ -1,5 +1,6 @@
+import asyncio
 import logging
-from typing import Any, Sequence, overload
+from typing import Any, Coroutine, Sequence, overload
 
 import unique_sdk
 from openai.types.chat import ChatCompletionToolChoiceOptionParam
@@ -124,6 +125,131 @@ class ChatService(ChatServiceDeprecated):
         self._elicitation_service = ElicitationService.from_chat_event(self._event)
 
         return self._elicitation_service
+
+    async def check_cancellation_async(self) -> None:
+        """Check if the user has requested cancellation of the current agent execution.
+
+        Fetches the chat history and checks whether the assistant message has its
+        ``cancelled_at`` field set. If so, raises ``StoppedByUserException``.
+
+        This method is safe to call frequently (e.g., between agent loop iterations
+        or inside long-running tool executions). Failures to read from the database
+        are logged as warnings and silently ignored so they don't interrupt the
+        agent when cancellation is not requested.
+
+        Raises:
+            StoppedByUserException: If the assistant message has been cancelled.
+        """
+        from unique_toolkit.chat.schemas import StoppedByUserException
+
+        try:
+            raw_msg = await unique_sdk.Message.retrieve_async(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                id=self._assistant_message_id,
+                chatId=self._chat_id,
+            )
+            cancelled_at = getattr(raw_msg, "cancelledAt", None)
+            logger.debug("[CancellationCheck] Retrieved message %s: cancelledAt=%s", self._assistant_message_id, cancelled_at)
+            if cancelled_at is not None:
+                raise StoppedByUserException(
+                    "User cancelled the agent execution"
+                )
+        except StoppedByUserException:
+            raise
+        except Exception as e:
+            logger.warning("[CancellationCheck] Failed to check cancellation: %s: %s", type(e).__name__, e)
+
+    def check_cancellation(self) -> None:
+        """Synchronous version of :meth:`check_cancellation_async`.
+
+        Raises:
+            StoppedByUserException: If the assistant message has been cancelled.
+        """
+        from unique_toolkit.chat.schemas import StoppedByUserException
+
+        try:
+            raw_msg = unique_sdk.Message.retrieve(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                id=self._assistant_message_id,
+                chatId=self._chat_id,
+            )
+            cancelled_at = getattr(raw_msg, "cancelledAt", None)
+            if cancelled_at is not None:
+                raise StoppedByUserException(
+                    "User cancelled the agent execution"
+                )
+        except StoppedByUserException:
+            raise
+        except Exception as e:
+            logger.warning("Failed to check cancellation status: %s", e)
+
+    async def run_with_cancellation(
+        self,
+        coroutine: Coroutine[Any, Any, Any],
+        poll_interval: float = 2.0,
+    ) -> Any:
+        """Run a coroutine with automatic cancellation polling.
+
+        Starts a background watcher that polls the database every ``poll_interval``
+        seconds. If the assistant message's ``cancelled_at`` field is set, the
+        running task is cancelled via ``asyncio.Task.cancel()``, which raises
+        ``asyncio.CancelledError`` at the next ``await`` point inside the coroutine.
+        This is then converted to ``StoppedByUserException``.
+
+        Use this to wrap long-running operations (e.g., LangGraph ``ainvoke``,
+        OpenAI streaming) so they can be interrupted promptly without needing
+        manual ``check_cancellation_async()`` calls sprinkled throughout.
+
+        Example::
+
+            result = await chat_service.run_with_cancellation(
+                custom_agent.ainvoke(initial_state, config=config)
+            )
+
+        Args:
+            coroutine: The async coroutine to execute.
+            poll_interval: How often (in seconds) to poll for cancellation.
+                Defaults to 2.0 seconds.
+
+        Returns:
+            The return value of the coroutine.
+
+        Raises:
+            StoppedByUserException: If the user cancelled the execution.
+        """
+        from unique_toolkit.chat.schemas import StoppedByUserException
+
+        task = asyncio.ensure_future(coroutine)
+        logger.debug("[RunWithCancellation] Started task, launching cancellation watcher (poll_interval=%ss)", poll_interval)
+
+        async def _cancellation_watcher() -> None:
+            poll_count = 0
+            while not task.done():
+                poll_count += 1
+                logger.debug("[RunWithCancellation] Watcher poll #%d", poll_count)
+                try:
+                    await self.check_cancellation_async()
+                except StoppedByUserException:
+                    logger.info("[RunWithCancellation] Cancellation detected! Cancelling task.")
+                    task.cancel()
+                    return
+                await asyncio.sleep(poll_interval)
+            logger.debug("[RunWithCancellation] Task completed before cancellation (polls=%d)", poll_count)
+
+        watcher = asyncio.ensure_future(_cancellation_watcher())
+        try:
+            return await task
+        except asyncio.CancelledError:
+            logger.info("[RunWithCancellation] Task was cancelled, raising StoppedByUserException")
+            raise StoppedByUserException("User cancelled the agent execution")
+        finally:
+            watcher.cancel()
+            try:
+                await watcher
+            except asyncio.CancelledError:
+                pass
 
     async def update_debug_info_async(self, debug_info: dict):
         """Updates the debug information for the chat session.

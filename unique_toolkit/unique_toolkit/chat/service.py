@@ -54,6 +54,7 @@ from unique_toolkit.chat.schemas import (
     MessageLogDetails,
     MessageLogStatus,
     MessageLogUncitedReferences,
+    StoppedByUserException,
 )
 from unique_toolkit.content.functions import (
     download_content_to_bytes,
@@ -135,6 +136,7 @@ __all__ = [
     "MessageLogDetails",
     "MessageLogStatus",
     "MessageLogUncitedReferences",
+    "StoppedByUserException",
     # Content Functions
     "download_content_to_bytes",
     "search_contents",

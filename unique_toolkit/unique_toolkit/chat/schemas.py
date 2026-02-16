@@ -83,6 +83,7 @@ class ChatMessage(BaseModel):
     debug_info: dict | None = {}
     created_at: datetime | None = None
     completed_at: datetime | None = None
+    cancelled_at: datetime | None = None
     updated_at: datetime | None = None
     references: list[ContentReference] | None = None
 
@@ -204,6 +205,17 @@ class MessageLogDetails(BaseModel):
     status: str | None = Field(
         default=None, description="Overarching status of the current message log"
     )
+
+
+class StoppedByUserException(Exception):
+    """Raised when the user requests cancellation of the agent execution.
+
+    This exception is raised by cancellation checks (e.g., ChatService.check_cancellation())
+    when the `cancelled_at` field is set on the assistant message. Agents and tools should
+    allow this exception to propagate so the execution terminates gracefully.
+    """
+
+    pass
 
 
 class MessageLog(BaseModel):
