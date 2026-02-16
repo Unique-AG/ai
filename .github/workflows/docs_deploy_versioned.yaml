@@ -135,7 +135,7 @@ jobs:
       - name: Build SDK docs
         run: |
           VERSION="${{ steps.versions.outputs.sdk_version }}"
-          OUTPUT_DIR="_deploy/unique-sdk/$VERSION"
+          OUTPUT_DIR="$(pwd)/_deploy/unique-sdk/$VERSION"
           
           # Check if version already exists in cache (skip if force_rebuild is true)
           if [ -d "_cached_versions/unique-sdk/$VERSION" ] && [ "${{ inputs.force_rebuild }}" != "true" ]; then
@@ -165,7 +165,7 @@ jobs:
       - name: Build Toolkit docs
         run: |
           VERSION="${{ steps.versions.outputs.toolkit_version }}"
-          OUTPUT_DIR="_deploy/unique-toolkit/$VERSION"
+          OUTPUT_DIR="$(pwd)/_deploy/unique-toolkit/$VERSION"
           
           # Check if version already exists in cache (skip if force_rebuild is true)
           if [ -d "_cached_versions/unique-toolkit/$VERSION" ] && [ "${{ inputs.force_rebuild }}" != "true" ]; then
@@ -378,38 +378,19 @@ jobs:
             git rm -rf . || true
           fi
           
-          # Copy versioned docs (only sub-projects)
-          mkdir -p unique-sdk unique-toolkit
-          
-          # Copy SDK versions (exclude latest redirect)
-          if [ -d "../_docs_deploy_temp/unique-sdk" ]; then
-            # Use a more robust way to iterate over directories
-            find ../_docs_deploy_temp/unique-sdk/ -mindepth 1 -maxdepth 1 -type d | while read -r version_dir; do
-              version=$(basename "$version_dir")
-              if [ "$version" != "latest" ]; then
-                echo "  - SDK v$version"
-                cp -r "$version_dir" "unique-sdk/$version"
-              fi
-            done
-          fi
-          
-          # Copy Toolkit versions (exclude latest redirect)
-          if [ -d "../_docs_deploy_temp/unique-toolkit" ]; then
-            find ../_docs_deploy_temp/unique-toolkit/ -mindepth 1 -maxdepth 1 -type d | while read -r version_dir; do
-              version=$(basename "$version_dir")
-              if [ "$version" != "latest" ]; then
-                echo "  - Toolkit v$version"
-                cp -r "$version_dir" "unique-toolkit/$version"
-              fi
-            done
-          fi
+          # Copy only the versioned sub-projects to the cache branch
+          echo "📋 Copying versioned docs to gh-pages cache..."
+          [ -d "../_docs_deploy_temp/unique-sdk" ] && cp -r ../_docs_deploy_temp/unique-sdk .
+          [ -d "../_docs_deploy_temp/unique-toolkit" ] && cp -r ../_docs_deploy_temp/unique-toolkit .
           
           # Commit if changes
-          git add unique-sdk/ unique-toolkit/
+          # Use -A to ensure deletions are tracked if a version was removed
+          git add -A unique-sdk/ unique-toolkit/ 2>/dev/null || true
+          
           if git diff --staged --quiet; then
             echo "⚠ No changes to cache"
           else
-            git commit -m "Cache docs versions from ${{ github.sha }}" \
+            git commit -m "Update docs cache from ${{ github.sha }}" \
               -m "SDK: ${{ steps.versions.outputs.sdk_version }}" \
               -m "Toolkit: ${{ steps.versions.outputs.toolkit_version }}"
             git push origin gh-pages
