@@ -43,6 +43,7 @@ on:
       - 'tutorials/docs/**'
       - 'tutorials/mkdocs.yaml'
       - '.github/workflows/docs_deploy_versioned.yaml'
+      - 'scripts/docs_build_versioned.sh'
 
   # Manual trigger
   workflow_dispatch:
