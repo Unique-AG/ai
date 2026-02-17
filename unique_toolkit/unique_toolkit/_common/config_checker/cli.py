@@ -251,6 +251,14 @@ def _generate_markdown_report(
             lines.append("- Config class not found at tip (was removed or renamed)\n")
             lines.append("\n")
 
+    # Newly protected configs
+    new_configs = [r for r in report.results if r.is_new]
+    if new_configs:
+        lines.append("### ✨ Newly Protected Configurations\n")
+        for result in new_configs:
+            lines.append(f"- **{result.config_name}** (First time protected)\n")
+        lines.append("\n")
+
     # Default changes (if requested)
     if report_defaults:
         configs_with_changes = [
