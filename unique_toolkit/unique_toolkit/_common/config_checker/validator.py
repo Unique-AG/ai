@@ -168,6 +168,7 @@ class ConfigValidator:
 
         # Build mapping of config names to models
         config_models = {entry.name: entry.model for entry in config_entries}
+        processed_tip_names = set()
 
         # Load all JSON files
         json_files = list(artifact_dir.glob("*.json"))
@@ -197,6 +198,7 @@ class ConfigValidator:
                         ],
                     )
                 else:
+                    processed_tip_names.add(config_name)
                     result = self.validate_config(
                         old_json, config_models[config_name], config_name
                     )
@@ -215,6 +217,18 @@ class ConfigValidator:
                                 message=f"Invalid JSON: {e}",
                             )
                         ],
+                    )
+                )
+
+        # Add newly discovered configs from tip that weren't in base artifacts
+        for entry in config_entries:
+            if entry.name not in processed_tip_names:
+                logger.info(f"New configuration discovered at tip: {entry.name}")
+                results.append(
+                    ConfigValidationResult(
+                        config_name=entry.name,
+                        valid=True,
+                        is_new=True,
                     )
                 )
 
