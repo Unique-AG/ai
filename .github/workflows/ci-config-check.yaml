@@ -156,12 +156,21 @@ jobs:
       - name: Generate report
         if: always()
         run: |
-          if [ -f ./config-check-report.md ]; then
-            echo "## Configuration Check Report for ${{ matrix.id }}" >> $GITHUB_STEP_SUMMARY
-            cat ./config-check-report.md >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.validate.outcome }}" == "failure" ]; then
+            echo "## ❌ Configuration Check Failed for ${{ matrix.id }}" >> $GITHUB_STEP_SUMMARY
+            if [ -f ./config-check-report.md ]; then
+              cat ./config-check-report.md >> $GITHUB_STEP_SUMMARY
+            else
+              echo "Validation failed. See job logs for details." >> $GITHUB_STEP_SUMMARY
+            fi
           else
             echo "## ✓ Configuration Check Passed for ${{ matrix.id }}" >> $GITHUB_STEP_SUMMARY
-            echo "No breaking configuration changes detected." >> $GITHUB_STEP_SUMMARY
+            if [ -f ./config-check-report.md ]; then
+              echo "Default changes detected:" >> $GITHUB_STEP_SUMMARY
+              cat ./config-check-report.md >> $GITHUB_STEP_SUMMARY
+            else
+              echo "No breaking configuration changes detected." >> $GITHUB_STEP_SUMMARY
+            fi
           fi
 
       - name: Check validation result
