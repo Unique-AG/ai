@@ -1,5 +1,10 @@
 """Tests for config registry."""
 
+import sys
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 from pydantic import BaseModel
 
@@ -25,6 +30,7 @@ class AnotherConfig(BaseModel):
     name: str = "test"
 
 
+@pytest.mark.ai
 def test_registry_explicit_registration():
     """Test that configs must be explicitly registered."""
     registry = ConfigRegistry()
@@ -40,6 +46,7 @@ def test_registry_explicit_registration():
     assert all_configs[0].source == "explicit_decorator"
 
 
+@pytest.mark.ai
 def test_registry_decorator_registration():
     """Test that @register_config decorator works."""
 
@@ -56,6 +63,7 @@ def test_registry_decorator_registration():
     assert "custom_name" in names
 
 
+@pytest.mark.ai
 def test_registry_decorator_with_auto_name():
     """Test that @register_config works without explicit name."""
 
@@ -72,6 +80,7 @@ def test_registry_decorator_with_auto_name():
     assert "AutoNamedConfig" in names
 
 
+@pytest.mark.ai
 def test_registry_multiple_explicit_configs():
     """Test registering multiple explicit configs."""
     registry = ConfigRegistry()
@@ -86,6 +95,7 @@ def test_registry_multiple_explicit_configs():
     assert names == {"Config1", "Config2"}
 
 
+@pytest.mark.ai
 def test_registry_explicit_takes_precedence():
     """Test that explicit registration is used in get_all_configs."""
     registry = ConfigRegistry()
@@ -111,9 +121,47 @@ def test_registry_explicit_takes_precedence():
     #     assert len(configs) == 0
 
 
+@pytest.mark.ai
 def test_registry_handles_missing_package_path():
     """Test that registry handles non-existent paths gracefully."""
     registry = ConfigRegistry()
 
     entries = registry.discover_configs("/nonexistent/path")
     assert len(entries) == 0
+
+
+@pytest.mark.ai
+def test_registry_discovery_complex():
+    """Test complex discovery scenarios in registry."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+
+        # Test src directory detection
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        pkg_dir = src_dir / "my_pkg"
+        pkg_dir.mkdir()
+
+        (pkg_dir / "config.py").write_text(
+            "@register_config()\nclass MyConfig(BaseModel): pass", encoding="utf-8"
+        )
+        (pkg_dir / "skip.txt").write_text("not python", encoding="utf-8")
+        (pkg_dir / ".hidden.py").write_text("hidden", encoding="utf-8")
+
+        # Mock register_config to avoid actual registration in global registry
+        with patch("unique_toolkit._common.config_checker.registry.register_config"):
+            registry = ConfigRegistry()
+            # Need to mock sys.path to avoid polluting it
+            with patch("sys.path", sys.path[:]):
+                registry.discover_configs(tmp_path)
+                assert str(src_dir.resolve()) in [
+                    str(Path(p).resolve()) for p in sys.path
+                ]
+
+
+@pytest.mark.ai
+def test_registry_load_from_package():
+    """Test load_from_package method in registry."""
+    registry = ConfigRegistry()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        registry.load_from_package(Path(tmpdir))
