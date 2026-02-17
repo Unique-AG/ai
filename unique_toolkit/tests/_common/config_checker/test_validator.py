@@ -149,23 +149,30 @@ def test_validator_reports_missing_config():
         # Case 1: fail_on_missing = True (default)
         report = validator.validate_all(artifact_dir, entries, fail_on_missing=True)
 
-        assert report.total_configs == 1
+        assert report.total_configs == 2
         assert report.invalid_count == 1
         assert report.has_failures()
 
-        result = report.results[0]
+        # Find the RemovedConfig result
+        result = next(r for r in report.results if r.config_name == "RemovedConfig")
         assert result.config_name == "RemovedConfig"
         assert not result.valid
         assert "not found" in result.errors[0].message.lower()
 
+        # Find the BaseConfig result (new config)
+        result_new = next(r for r in report.results if r.config_name == "BaseConfig")
+        assert result_new.config_name == "BaseConfig"
+        assert result_new.valid
+        assert result_new.is_new
+
         # Case 2: fail_on_missing = False
         report2 = validator.validate_all(artifact_dir, entries, fail_on_missing=False)
 
-        assert report2.total_configs == 1
+        assert report2.total_configs == 2
         assert report2.invalid_count == 0
         assert not report2.has_failures()
 
-        result2 = report2.results[0]
+        result2 = next(r for r in report2.results if r.config_name == "RemovedConfig")
         assert result2.config_name == "RemovedConfig"
         assert result2.valid
         assert "not found" in result2.errors[0].message.lower()
