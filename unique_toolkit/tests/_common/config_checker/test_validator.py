@@ -346,3 +346,48 @@ def test_validator_instantiation_fallback():
     result = validator.validate_config(old_json, ReqModel, "Req")
     assert result.valid
     assert result.default_changes is None
+
+
+@pytest.mark.ai
+def test_validator_handles_extra_allow():
+    """Test that removing a field is okay if extra='allow'."""
+    validator = ConfigValidator()
+
+    class ExtraAllowModel(BaseModel):
+        model_config = {"extra": "allow"}
+        kept_field: int = 1
+
+    old_json = {"kept_field": 1, "removed_field": 2}
+
+    # Should be VALID but have a warning
+    result = validator.validate_config(old_json, ExtraAllowModel, "ExtraAllow")
+
+    assert result.valid
+    assert result.warnings is not None
+    assert any(
+        "allowed because model allows extra fields" in w.message.lower()
+        for w in result.warnings
+    )
+    assert result.errors is None
+
+
+@pytest.mark.ai
+def test_validator_handles_extra_ignore_is_breaking():
+    """Test that removing a field is BREAKING if extra='ignore' (default)."""
+    validator = ConfigValidator()
+
+    class ExtraIgnoreModel(BaseModel):
+        model_config = {"extra": "ignore"}
+        kept_field: int = 1
+
+    old_json = {"kept_field": 1, "removed_field": 2}
+
+    # Should be INVALID
+    result = validator.validate_config(old_json, ExtraIgnoreModel, "ExtraIgnore")
+
+    assert not result.valid
+    assert result.errors is not None
+    assert any(
+        "breaking change because model does not explicitly allow" in e.message.lower()
+        for e in result.errors
+    )

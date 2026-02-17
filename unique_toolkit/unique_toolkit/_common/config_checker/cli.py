@@ -241,6 +241,17 @@ def _generate_markdown_report(
                     lines.append(f"- `{error.field_path}`: {error.message}\n")
             lines.append("\n")
 
+    # Non-breaking warnings (e.g. removed fields where extra=allow)
+    all_warnings = [r for r in report.results if r.warnings]
+    if all_warnings:
+        lines.append("### 🟡 Configuration Warnings\n")
+        for result in all_warnings:
+            lines.append(f"**{result.config_name}**\n")
+            if result.warnings:
+                for warning in result.warnings:
+                    lines.append(f"- `{warning.field_path}`: {warning.message}\n")
+            lines.append("\n")
+
     # Missing configs
     if missing_configs:
         status_emoji = "🔴" if fail_on_missing else "🟡"

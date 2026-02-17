@@ -43,6 +43,7 @@ class ConfigValidationResult:
     valid: bool
     is_new: bool = False
     errors: list[ValidationError] | None = None
+    warnings: list[ValidationError] | None = None
     default_changes: list[DefaultChange] | None = None
 
 
