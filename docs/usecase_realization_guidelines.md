@@ -72,7 +72,7 @@ If you find yourself in a situation where some information is missing from Uniqu
 
 ### 🛠️ How to go this route?
 
-You can find detailed examples of how to develop MCP servers and integrate them with Unique AI in the [tutorials on MCP](../Tutorials/mcp).
+You can find detailed examples of how to develop MCP servers and integrate them with Unique AI in the [tutorials on MCP](../tutorials/mcp/).
 
 ## 🏗️ Option 3: Develop a Custom Module/Agent
 
@@ -86,7 +86,7 @@ You ofcourse have the option to develop an entirely new agent from scratch. This
 
 ### 🛠️ How to go this route?
 
-You can find instructions and examples of how to develop custom modules using the Unique Toolkit in the [event driven applications](../unique-toolkit/application_types/event_driven) section of this documentation.
+You can find instructions and examples of how to develop custom modules using the Unique Toolkit in the [event driven applications](../unique-toolkit/latest/application_types/event_driven/) section of this documentation.
 
 
 ## 🚀 Option 4: Develop standalone Application
@@ -100,5 +100,5 @@ You can find instructions and examples of how to develop custom modules using th
 
 ### 🛠️ How to go this route?
 
-You can find detailed examples of how to develop standalone applications using the Unique Toolkit in the [Unique Toolkit Documentation](../unique-toolkit/application_types/standalone_application.md).
+You can find detailed examples of how to develop standalone applications using the Unique Toolkit in the [Unique Toolkit Documentation](../unique-toolkit/latest/application_types/standalone_application/).
 

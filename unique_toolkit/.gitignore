@@ -13,3 +13,6 @@ coverage.xml
 coverage.json
 .coverage
 htmlcov/
+
+# Jetbrains IDE files
+.idea/

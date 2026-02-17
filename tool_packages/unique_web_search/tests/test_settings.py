@@ -86,5 +86,61 @@ class TestCustomAPISettings:
         assert settings.custom_web_search_api_client_config == client_config
 
 
+class TestValidateCustomWebSearchApiMethod:
+    """Test cases for validate_custom_web_search_api_method field validator."""
+
+    @pytest.mark.ai
+    def test_validate_method__valid_get__returns_get_enum(self) -> None:
+        """
+        Purpose: Verify valid "GET" string is converted to CUSTOM_API_REQUEST_METHOD.GET.
+        Why this matters: Ensures string config values are properly coerced to enum.
+        Setup summary: Pass "GET" string; assert enum value.
+        """
+        # Act
+        settings = Base(custom_web_search_api_method="GET")
+
+        # Assert
+        assert settings.custom_web_search_api_method == CUSTOM_API_REQUEST_METHOD.GET
+
+    @pytest.mark.ai
+    def test_validate_method__valid_post__returns_post_enum(self) -> None:
+        """
+        Purpose: Verify valid "POST" string is converted to CUSTOM_API_REQUEST_METHOD.POST.
+        Why this matters: Ensures string config values are properly coerced to enum.
+        Setup summary: Pass "POST" string; assert enum value.
+        """
+        # Act
+        settings = Base(custom_web_search_api_method="POST")
+
+        # Assert
+        assert settings.custom_web_search_api_method == CUSTOM_API_REQUEST_METHOD.POST
+
+    @pytest.mark.ai
+    def test_validate_method__invalid_value__returns_none(self) -> None:
+        """
+        Purpose: Verify invalid method string is coerced to None instead of raising.
+        Why this matters: Graceful degradation prevents startup failures from bad config.
+        Setup summary: Pass invalid method string; assert None.
+        """
+        # Act
+        settings = Base(custom_web_search_api_method="INVALID_METHOD")
+
+        # Assert
+        assert settings.custom_web_search_api_method is None
+
+    @pytest.mark.ai
+    def test_validate_method__none_value__remains_none(self) -> None:
+        """
+        Purpose: Verify None input is preserved as None.
+        Why this matters: Default None must not be incorrectly coerced.
+        Setup summary: Pass None; assert None.
+        """
+        # Act
+        settings = Base(custom_web_search_api_method=None)
+
+        # Assert
+        assert settings.custom_web_search_api_method is None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

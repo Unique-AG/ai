@@ -10,6 +10,7 @@ from unique_web_search.services.search_engine import (
     SearchEngine,
     SearchEngineType,
 )
+from unique_web_search.services.search_engine.base import get_search_engine_model_config
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -48,6 +49,7 @@ AllowedSource = Literal["web", "news"]
 
 
 class FireCrawlConfig(BaseSearchEngineConfig[SearchEngineType.FIRECRAWL]):
+    model_config = get_search_engine_model_config(SearchEngineType.FIRECRAWL)
     search_engine_name: Literal[SearchEngineType.FIRECRAWL] = SearchEngineType.FIRECRAWL
 
     sources: list[AllowedSource] = Field(

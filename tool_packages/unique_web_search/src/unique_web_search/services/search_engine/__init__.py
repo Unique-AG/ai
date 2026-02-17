@@ -37,6 +37,10 @@ from unique_web_search.services.search_engine.tavily import (
     TavilyConfig,
     TavilySearch,
 )
+from unique_web_search.services.search_engine.utils.bing import (
+    JsonConversionStrategy,
+    LLMParserStrategy,
+)
 from unique_web_search.services.search_engine.vertexai import (
     VertexAI,
     VertexAIConfig,
@@ -44,23 +48,23 @@ from unique_web_search.services.search_engine.vertexai import (
 
 SearchEngineTypes = (
     GoogleSearch
+    | BingSearch
+    | CustomAPI
     | JinaSearch
     | TavilySearch
-    | BingSearch
     | BraveSearch
     | FireCrawlSearch
     | VertexAI
-    | CustomAPI
 )
 SearchEngineConfigTypes = (
     GoogleConfig
+    | BingSearchConfig
+    | CustomAPIConfig
     | JinaConfig
     | TavilyConfig
-    | BingSearchConfig
     | BraveSearchConfig
     | FireCrawlConfig
     | VertexAIConfig
-    | CustomAPIConfig
 )
 
 ENGINE_NAME_TO_CONFIG = {
@@ -89,7 +93,14 @@ def get_search_engine_service(
         case SearchEngineType.TAVILY:
             return TavilySearch(search_engine_config)
         case SearchEngineType.BING:
-            return BingSearch(search_engine_config, language_model_service)
+            response_parsers = [
+                JsonConversionStrategy(),
+                LLMParserStrategy(
+                    search_engine_config.language_model,
+                    language_model_service,
+                ),
+            ]
+            return BingSearch(search_engine_config, response_parsers)
         case SearchEngineType.BRAVE:
             return BraveSearch(search_engine_config)
         case SearchEngineType.VERTEXAI:

@@ -10,6 +10,7 @@ from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
     SearchEngine,
     SearchEngineType,
+    get_search_engine_model_config,
 )
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
@@ -31,6 +32,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class VertexAIConfig(BaseSearchEngineConfig[SearchEngineType.VERTEXAI]):
+    model_config = get_search_engine_model_config(SearchEngineType.VERTEXAI)
     search_engine_name: Literal[SearchEngineType.VERTEXAI] = SearchEngineType.VERTEXAI
 
     model_name: str = Field(

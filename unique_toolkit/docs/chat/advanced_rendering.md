@@ -15,7 +15,7 @@ When clicked, the text will appear in the user prompt window:
 
 ![alt text](./images/chat_prompt_window_after_press.png)
 
-For implementation examples, see the [Prompt Buttons Examples](../../modules/examples/chat/advanced_rendering#prompt-buttons).
+For implementation examples, see the [Prompt Buttons Examples](../modules/examples/chat/advanced_rendering.md#prompt-buttons).
 
 ## LaTeX Formulas
 
@@ -81,7 +81,7 @@ The `create_latex_formula_string` helper function creates block math formulas. H
 
 ![alt text](./images/chat_latex_formula.png)
 
-For detailed implementation examples including helper functions, manual formatting, inline math, and complex formulas, see the [LaTeX Formulas Examples](../../modules/examples/chat/advanced_rendering#latex-formulas).
+For detailed implementation examples including helper functions, manual formatting, inline math, and complex formulas, see the [LaTeX Formulas Examples](../modules/examples/chat/advanced_rendering.md#latex-formulas).
 
 ### Tips & Tricks
 
@@ -109,7 +109,7 @@ Images can be rendered directly within chat messages using Markdown syntax. This
 2. **Copy the Image URL**: Once the image is uploaded, it will be assigned a unique URL in the format `unique://content/content_id`. Copy this URL.
 3. **Insert the Markdown**: In your chat message, use the Markdown syntax to embed the image. Replace `unique://content/cont_1234` with the actual URL of your uploaded image.
 
-For implementation examples, see the [Images Examples](../../modules/examples/chat/advanced_rendering#images).
+For implementation examples, see the [Images Examples](../modules/examples/chat/advanced_rendering.md#images).
 
 ### Tips & Tricks
 
@@ -159,7 +159,7 @@ The payload must be an **array of objects**, each describing a single financial 
 - `lastUpdated`: Timestamp of when the data was last updated
 - `version`: Version number of the data structure
 
-For detailed implementation examples, see the [Financial Chart Examples](../../modules/examples/chat/advanced_rendering#financial-chart).
+For detailed implementation examples, see the [Financial Chart Examples](../modules/examples/chat/advanced_rendering.md#financial-chart).
 
 ### Supported Metric Names
 
@@ -178,7 +178,7 @@ For detailed implementation examples, see the [Financial Chart Examples](../../m
 
 ## Full Examples
 
-For complete, runnable examples of all advanced rendering features, see the [Advanced Rendering Examples](../../modules/examples/chat/advanced_rendering) section.
+For complete, runnable examples of all advanced rendering features, see the [Advanced Rendering Examples](../modules/examples/chat/advanced_rendering.md) section.
 
 
 

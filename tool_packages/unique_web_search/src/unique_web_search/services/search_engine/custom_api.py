@@ -9,6 +9,7 @@ from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
     SearchEngine,
     SearchEngineType,
+    get_search_engine_model_config,
 )
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
@@ -59,6 +60,7 @@ ApiRequestMethodType, ApiRequestMethodField = conditional_type(
 
 
 class CustomAPIConfig(BaseSearchEngineConfig[SearchEngineType.CUSTOM_API]):
+    model_config = get_search_engine_model_config(SearchEngineType.CUSTOM_API)
     search_engine_name: Literal[SearchEngineType.CUSTOM_API] = (
         SearchEngineType.CUSTOM_API
     )

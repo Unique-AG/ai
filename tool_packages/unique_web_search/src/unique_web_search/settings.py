@@ -4,7 +4,7 @@ import os
 import sys
 from enum import StrEnum
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -96,6 +96,11 @@ class Base(BaseSettings):
         "https://management.azure.com/.default"
     )
 
+    # Azure AI Project settings
+    azure_ai_bing_agent_model: str = "gpt-4o"
+    azure_ai_project_endpoint: str | None = None
+    azure_ai_bing_ressource_connection_string: str | None = None
+
     @property
     def active_crawlers(self) -> list[str]:
         "Dynamically determine the active crawlers based on the API keys provided"
@@ -153,6 +158,19 @@ class Base(BaseSettings):
                 )
                 return None
         return v
+
+    @field_validator("custom_web_search_api_method", mode="before")
+    @classmethod
+    def validate_custom_web_search_api_method(
+        cls, v: Any
+    ) -> CUSTOM_API_REQUEST_METHOD | None:
+        try:
+            return CUSTOM_API_REQUEST_METHOD(v)
+        except ValueError:
+            _LOGGER.error(
+                f"Invalid custom web search API method: {v}. Setting value to None"
+            )
+        return None
 
 
 class Settings(Base):

@@ -27,7 +27,7 @@ class QueryElicitationConfig(BaseModel):
     model_config = get_configuration_dict()
 
     enable_elicitation: bool = Field(
-        default=True,
+        default=False,
         description="Whether to enable elicitation. This flag is relevant only if the associated feature flag is enabled.",
     )
     timeout_seconds: int = Field(
@@ -69,7 +69,6 @@ class QueryElicitationModel(BaseModel):
             queries=(
                 list[str],
                 Field(
-                    description="The queries to search the web for",
                     default=queries,
                 ),
             ),

@@ -1,0 +1,37 @@
+name: "[docs] Test versioned docs build"
+
+# Run the same build as deploy (root + SDK + Toolkit) on PRs so breakages are caught before merge.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yaml'
+      - 'unique_sdk/docs/**'
+      - 'unique_sdk/mkdocs.yaml'
+      - 'unique_toolkit/docs/**'
+      - 'unique_toolkit/mkdocs.yaml'
+      - 'tutorials/docs/**'
+      - 'tutorials/mkdocs.yaml'
+      - 'scripts/docs_build_versioned.sh'
+      - 'pyproject.toml'
+      - '.github/workflows/docs_build_test.yaml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Setup Python and Poetry
+        uses: ./.github/actions/setup-python-poetry
+      - name: Install dependencies
+        run: poetry install --with dev
+      - name: Build versioned documentation
+        run: ./scripts/docs_build_versioned.sh --clean
