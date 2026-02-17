@@ -169,10 +169,26 @@ def check(
             artifacts_dir, config_entries, fail_on_missing=fail_on_missing
         )
 
+        # Count configs with default changes
+        configs_with_changes = [
+            r for r in report.results if r.valid and r.default_changes
+        ]
+        total_default_changes = sum(
+            len(r.default_changes or []) for r in configs_with_changes
+        )
+
         click.echo("\n📊 Validation Results:")
-        click.echo(f"  - Total: {report.total_configs}")
+        click.echo(f"  - Total Configs: {report.total_configs}")
         click.echo(f"  - Valid: {report.valid_count}")
         click.echo(f"  - Invalid: {report.invalid_count}")
+        if total_default_changes > 0:
+            click.echo(
+                f"  - Default changes detected: {total_default_changes} in {len(configs_with_changes)} config(s)"
+            )
+            if not report_defaults:
+                click.echo("    (Use --report-defaults to see details in the report)")
+        elif report_defaults:
+            click.echo("  - No default changes detected.")
 
         # Generate markdown report
         markdown_report = _generate_markdown_report(

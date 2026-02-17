@@ -74,7 +74,7 @@ class ConfigDiffer:
         diff = DeepDiff(old_json, new_json, ignore_order=True)
 
         if diff:
-            # Extract value changes (most common: scalar changes, nested structure changes)
+            # 1. Value changes (most common: scalar changes, nested structure changes)
             for path, change_info in diff.get("values_changed", {}).items():
                 field_path = self._path_to_dot_notation(path)
                 changes.append(
@@ -85,7 +85,7 @@ class ConfigDiffer:
                     )
                 )
 
-            # Extract type changes (e.g., str -> int)
+            # 2. Type changes (e.g., str -> int)
             for path, change_info in diff.get("type_changes", {}).items():
                 field_path = self._path_to_dot_notation(path)
                 changes.append(
@@ -96,64 +96,66 @@ class ConfigDiffer:
                     )
                 )
 
-            # Handle dictionary key changes (added/removed keys within dicts)
-            # Extract parent dict and report as a change
+            # 3. Dictionary items added (new fields or keys)
             for path in diff.get("dictionary_item_added", []):
-                self._report_structural_change(path, old_json, new_json, changes)
+                field_path = self._path_to_dot_notation(path)
+                # Ignore top-level additions (new fields), as these are handled by the validator
+                if "." not in field_path:
+                    continue
 
+                new_value = ConfigDiffer._get_nested_value(new_json, path)
+                changes.append(
+                    DefaultChange(
+                        field_path=field_path,
+                        old_value=None,
+                        new_value=new_value,
+                    )
+                )
+
+            # 4. Dictionary items removed
             for path in diff.get("dictionary_item_removed", []):
-                self._report_structural_change(path, old_json, new_json, changes)
+                field_path = self._path_to_dot_notation(path)
+                # Ignore top-level removals (removed fields), as these are handled by the validator
+                if "." not in field_path:
+                    continue
 
-            # Handle list item changes (added/removed items in lists)
-            # Extract parent list and report as a change
+                old_value = ConfigDiffer._get_nested_value(old_json, path)
+                changes.append(
+                    DefaultChange(
+                        field_path=field_path,
+                        old_value=old_value,
+                        new_value=None,
+                    )
+                )
+
+            # 5. List item changes - here we still prefer reporting the whole container
+            # because "item added at index 2" is less useful than seeing the new list.
+            list_changes: set[str] = set()
             for path in diff.get("iterable_item_added", []):
-                self._report_structural_change(path, old_json, new_json, changes)
+                parent_path = ConfigDiffer._extract_parent_path(path)
+                if parent_path:
+                    list_changes.add(parent_path)
 
             for path in diff.get("iterable_item_removed", []):
-                self._report_structural_change(path, old_json, new_json, changes)
+                parent_path = ConfigDiffer._extract_parent_path(path)
+                if parent_path:
+                    list_changes.add(parent_path)
+
+            for parent_path in list_changes:
+                field_path = self._path_to_dot_notation(parent_path)
+                # Avoid duplication if already reported
+                if any(c.field_path == field_path for c in changes):
+                    continue
+
+                changes.append(
+                    DefaultChange(
+                        field_path=field_path,
+                        old_value=ConfigDiffer._get_nested_value(old_json, parent_path),
+                        new_value=ConfigDiffer._get_nested_value(new_json, parent_path),
+                    )
+                )
 
         return sorted(changes, key=lambda x: x.field_path)
-
-    @staticmethod
-    def _report_structural_change(
-        path: str,
-        old_json: dict[str, Any],
-        new_json: dict[str, Any],
-        changes: list[DefaultChange],
-    ) -> None:
-        """Report a structural change (dict key or list item added/removed).
-
-        Extracts the parent container and adds it to changes list.
-
-        Args:
-            path: DeepDiff path to the changed item
-            old_json: Original config
-            new_json: Updated config
-            changes: List to accumulate changes
-        """
-        # Extract parent path (e.g., root['items'][0] -> root['items'])
-        parent_path = ConfigDiffer._extract_parent_path(path)
-        if not parent_path:
-            return
-
-        field_path = ConfigDiffer._path_to_dot_notation(parent_path)
-
-        # Avoid duplicates: only add if not already reporting this parent
-        if any(c.field_path == field_path for c in changes):
-            return
-
-        # Get parent values from old and new configs
-        old_value = ConfigDiffer._get_nested_value(old_json, parent_path)
-        new_value = ConfigDiffer._get_nested_value(new_json, parent_path)
-
-        if old_value is not None or new_value is not None:
-            changes.append(
-                DefaultChange(
-                    field_path=field_path,
-                    old_value=old_value,
-                    new_value=new_value,
-                )
-            )
 
     @staticmethod
     def _extract_parent_path(path: str) -> str:
