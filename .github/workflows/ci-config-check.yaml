@@ -108,8 +108,7 @@ jobs:
           if ${{ steps.install_base.outputs.run_cmd }} python -c "import importlib.util; exit(0 if importlib.util.find_spec('unique_toolkit._common.config_checker') else 1)" 2>/dev/null; then
             ${{ steps.install_base.outputs.run_cmd }} python -m unique_toolkit._common.config_checker export \
               --package . \
-              --output "$GITHUB_WORKSPACE/config-artifacts-base/" \
-              --verbose
+              --output "$GITHUB_WORKSPACE/config-artifacts-base/"
           else
             echo "⚠️ Config checker module not found in base commit. Skipping base export."
             mkdir -p "$GITHUB_WORKSPACE/config-artifacts-base/"
@@ -150,8 +149,7 @@ jobs:
             --package . \
             --report-defaults \
             --fail-on-missing \
-            --output-report "$GITHUB_WORKSPACE/config-check-report.md" \
-            --verbose
+            --output-report "$GITHUB_WORKSPACE/config-check-report.md"
         continue-on-error: true
 
       - name: Generate report

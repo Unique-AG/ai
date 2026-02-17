@@ -70,12 +70,16 @@ class ConfigValidator:
         Returns:
             ConfigValidationResult with validation status and details
         """
+        logger.debug(f"Validating config '{config_name}' against {new_model.__name__}")
         errors = []
 
         # 1. Structural Check: Detect removed fields
         old_keys = set(old_json.keys())
         new_keys = set(new_model.model_fields.keys())
         removed_keys = old_keys - new_keys
+
+        if removed_keys:
+            logger.debug(f"Detected removed keys in '{config_name}': {removed_keys}")
 
         for key in removed_keys:
             errors.append(
@@ -88,19 +92,29 @@ class ConfigValidator:
 
         try:
             # 2. Value Check: Try to validate/instantiate
+            logger.debug(f"Attempting model_validate for '{config_name}'")
             instance = new_model.model_validate(old_json)
+            logger.debug(f"Successfully validated '{config_name}'")
 
             # If successful (and no removed fields), check for default changes
             try:
                 # Instantiate a fresh instance with code-only defaults via model_construct()
                 # This ensures we ignore the current environment when getting "tip" defaults.
+                logger.debug(f"Constructing default instance for '{config_name}'")
                 default_instance = new_model.model_construct()
 
                 default_changes = self.differ.compare_defaults(
                     old_json, default_instance
                 )
-            except Exception:
+                if default_changes:
+                    logger.debug(
+                        f"Detected {len(default_changes)} default changes in '{config_name}'"
+                    )
+            except Exception as e:
                 # Fallback to the validated instance if needed
+                logger.debug(
+                    f"Default construction failed for '{config_name}', falling back: {e}"
+                )
                 default_changes = self.differ.compare_defaults(old_json, instance)
 
             if not errors:

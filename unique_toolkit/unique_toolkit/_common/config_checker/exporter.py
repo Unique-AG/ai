@@ -50,6 +50,7 @@ class ConfigExporter:
         Returns:
             Dictionary of defaults in JSON-serializable format
         """
+        logger.debug(f"Exporting defaults for {config_model.__name__}")
         # Create instance with all defaults using model_construct()
         # This bypasses validation and settings sources (like environment variables)
         # while still populating code-level defaults and default_factories.
@@ -62,7 +63,9 @@ class ConfigExporter:
             raise
 
         # Export to dict
-        return self._serialize_model(instance)
+        data = self._serialize_model(instance)
+        logger.debug(f"Serialized {config_model.__name__}: {data}")
+        return data
 
     def _check_for_env_vars(self, model: type[BaseSettings]) -> None:
         """Check if environment variables are set that would affect defaults.
