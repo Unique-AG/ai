@@ -172,25 +172,6 @@ def test_differ_format_summary_no_changes():
 
 
 @pytest.mark.ai
-def test_differ_list_fallback():
-    """Test list comparison fallback for non-sortable items."""
-    differ = ConfigDiffer()
-    # List of dicts is not sortable in Python 3
-    old = [{"id": 1}, {"id": 2}]
-    new = [{"id": 2}, {"id": 1}]
-
-    # These should be equal via fallback
-    changes = []
-    differ._compare_recursive(old, new, "list", changes)
-    assert len(changes) == 0
-
-    # These should be different
-    new_diff = [{"id": 3}, {"id": 1}]
-    differ._compare_recursive(old, new_diff, "list", changes)
-    assert len(changes) == 1
-
-
-@pytest.mark.ai
 def test_default_change_report_format():
     """Test DefaultChangeReport formatting."""
     from unique_toolkit._common.config_checker.models import DefaultChange

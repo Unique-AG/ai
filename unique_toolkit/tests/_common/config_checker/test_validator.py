@@ -119,8 +119,8 @@ def test_validator_validate_all_from_artifacts():
 
         # Create config entries
         entries = [
-            ConfigEntry("BaseConfig", BaseConfig, "auto_discovery"),
-            ConfigEntry("UpdatedConfig", UpdatedConfig, "auto_discovery"),
+            ConfigEntry(name="BaseConfig", model=BaseConfig),
+            ConfigEntry(name="UpdatedConfig", model=UpdatedConfig),
         ]
 
         report = validator.validate_all(artifact_dir, entries)
@@ -143,7 +143,7 @@ def test_validator_reports_missing_config():
 
         # No matching entry for RemovedConfig
         entries = [
-            ConfigEntry("BaseConfig", BaseConfig, "auto_discovery"),
+            ConfigEntry(name="BaseConfig", model=BaseConfig),
         ]
 
         # Case 1: fail_on_missing = True (default)
@@ -190,7 +190,7 @@ def test_validator_handles_invalid_json():
         (artifact_dir / "BadConfig.json").write_text("{invalid json")
 
         entries = [
-            ConfigEntry("BadConfig", BaseConfig, "auto_discovery"),
+            ConfigEntry(name="BadConfig", model=BaseConfig),
         ]
 
         report = validator.validate_all(artifact_dir, entries)
@@ -327,7 +327,7 @@ def test_validator_skip_manifest():
         class C(BaseModel):
             x: int
 
-        entries = [ConfigEntry("C", C, "explicit")]
+        entries = [ConfigEntry(name="C", model=C)]
 
         report = validator.validate_all(artifact_dir, entries)
         assert report.total_configs == 1

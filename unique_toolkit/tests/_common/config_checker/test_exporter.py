@@ -156,7 +156,7 @@ def test_exporter_export_all_error_handling():
 
     # Force error by mocking export_defaults
     with patch.object(exporter, "export_defaults", side_effect=ValueError("Forced")):
-        entries = [ConfigEntry("Broken", BrokenConfig, "explicit")]
+        entries = [ConfigEntry(name="Broken", model=BrokenConfig)]
         with tempfile.TemporaryDirectory() as tmpdir:
             manifest = exporter.export_all(entries, Path(tmpdir))
             assert manifest.skipped_count == 1
@@ -193,7 +193,10 @@ def test_exporter_warns_on_environment_var():
     try:
         # Need to use export_all to see consolidated warnings
         entries = [
-            ConfigEntry("EnvironmentSettings", EnvironmentSettings, "auto_discovery")
+            ConfigEntry(
+                name="EnvironmentSettings",
+                model=EnvironmentSettings,
+            )
         ]
         with tempfile.TemporaryDirectory() as tmpdir:
             manifest = exporter.export_all(entries, Path(tmpdir))
@@ -224,8 +227,8 @@ def test_exporter_export_all_to_directory():
     exporter = ConfigExporter()
 
     entries = [
-        ConfigEntry("SimpleConfig", SimpleConfig, "auto_discovery"),
-        ConfigEntry("NestedConfig", NestedConfig, "auto_discovery"),
+        ConfigEntry(name="SimpleConfig", model=SimpleConfig),
+        ConfigEntry(name="NestedConfig", model=NestedConfig),
     ]
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -262,7 +265,7 @@ def test_exporter_handles_required_fields():
         required_field: str  # No default
 
     exporter = ConfigExporter()
-    entries = [ConfigEntry("RequiredConfig", RequiredConfig, "auto_discovery")]
+    entries = [ConfigEntry(name="RequiredConfig", model=RequiredConfig)]
 
     with tempfile.TemporaryDirectory() as tmpdir:
         manifest = exporter.export_all(entries, Path(tmpdir))
@@ -283,7 +286,7 @@ def test_exporter_tracks_config_file_paths():
     """Test that exporter tracks output file paths in manifest."""
     exporter = ConfigExporter()
 
-    entries = [ConfigEntry("SimpleConfig", SimpleConfig, "auto_discovery")]
+    entries = [ConfigEntry(name="SimpleConfig", model=SimpleConfig)]
 
     with tempfile.TemporaryDirectory() as tmpdir:
         manifest = exporter.export_all(entries, Path(tmpdir))

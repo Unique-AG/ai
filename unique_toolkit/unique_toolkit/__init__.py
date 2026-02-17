@@ -26,6 +26,7 @@ try:
         ConfigEntry,  # noqa: F401, I001
         ConfigExporter,  # noqa: F401, I001
         ConfigRegistry,  # noqa: F401, I001
+        ConfigValidator,  # noqa: F401, I001
         DefaultChangeReport,  # noqa: F401, I001
         ExportManifest,  # noqa: F401, I001
         ValidationReport,  # noqa: F401, I001
@@ -70,6 +71,7 @@ if _CONFIG_CHECKER_AVAILABLE:
             "ConfigEntry",
             "ConfigExporter",
             "ConfigRegistry",
+            "ConfigValidator",
             "DefaultChangeReport",
             "ExportManifest",
             "ValidationReport",
