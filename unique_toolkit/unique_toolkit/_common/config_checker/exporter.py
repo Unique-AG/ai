@@ -4,12 +4,11 @@ import hashlib
 import json
 import logging
 import os
-from dataclasses import asdict, dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings
 
 from unique_toolkit._common.config_checker.models import (
@@ -20,15 +19,16 @@ from unique_toolkit._common.config_checker.models import (
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class ExportManifest:
+class ExportManifest(BaseModel):
     """Manifest of exported configs."""
 
     exported_count: int
     skipped_count: int
-    warnings: list[EnvironmentVarWarning]
-    config_files: dict[str, str]  # config_name -> file_path
-    timestamp: str | None = None
+    warnings: list[EnvironmentVarWarning] = Field(default_factory=list)
+    config_files: dict[str, str] = Field(
+        default_factory=dict
+    )  # config_name -> file_path
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
 
 
 class ConfigExporter:
@@ -58,8 +58,10 @@ class ConfigExporter:
             instance = config_model.model_construct()
             if issubclass(config_model, BaseSettings):
                 self._check_for_env_vars(config_model)
-        except Exception as e:
-            logger.error(f"Failed to instantiate {config_model.__name__}: {e}")
+        except Exception:
+            logger.error(
+                f"Failed to instantiate {config_model.__name__}", exc_info=True
+            )
             raise
 
         # Export to dict
@@ -125,8 +127,8 @@ class ConfigExporter:
                 exported_count += 1
                 logger.info(f"Exported {entry.name} to {output_file}")
 
-            except Exception as e:
-                logger.error(f"Failed to export {entry.name}: {e}")
+            except Exception:
+                logger.error(f"Failed to export {entry.name}", exc_info=True)
                 skipped_count += 1
 
         # Add consolidated warning if env vars were detected
@@ -152,7 +154,7 @@ class ConfigExporter:
                 {
                     "exported_count": manifest.exported_count,
                     "skipped_count": manifest.skipped_count,
-                    "warnings": [asdict(w) for w in manifest.warnings],
+                    "warnings": [w.model_dump() for w in manifest.warnings],
                     "config_files": manifest.config_files,
                 },
                 f,

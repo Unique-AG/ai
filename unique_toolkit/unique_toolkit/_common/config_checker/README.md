@@ -70,22 +70,27 @@ No additional setup needed!
 
 ### High-Level Flow
 
-```
-1. Merge-Base Commit (Before Your Changes)
-   ├─ Find all @register_config decorated models
-   └─ Export their CODE-LEVEL defaults to JSON
+```mermaid
+graph TD
+    subgraph "Merge-Base Commit (Base)"
+        A[Scan for @register_config] --> B[Export defaults to JSON]
+        B --> C[Store artifacts]
+    end
 
-2. PR Tip Commit (Your Changes)
-   ├─ Find all @register_config decorated models
-   ├─ Load old JSON from merge-base
-   └─ Validate old JSON against NEW schema
-       ├─ Schema compatible? → PASS
-       ├─ Schema incompatible? → FAIL with details
-       └─ Defaults changed? → PASS but REPORT
+    subgraph "PR Tip Commit (Current)"
+        D[Scan for @register_config] --> E[Load base artifacts]
+        E --> F[Validate old JSON against NEW schema]
+        F --> G{Compatible?}
+        G -- Yes --> H[Check for default changes]
+        G -- No --> I[Report Breaking Change]
+        H -- Changed --> J[Report Default Change]
+        H -- No Change --> K[Success]
+    end
 
-3. CI Report
-   ├─ Human-readable markdown report
-   └─ Pass/fail decision for PR
+    C -.-> E
+    I --> L[PR Status: FAIL]
+    J --> M[PR Status: PASS + Info]
+    K --> N[PR Status: PASS]
 ```
 
 **Key Insight**: We validate that old data can be loaded with new schema.
@@ -383,19 +388,6 @@ Potential improvements (not in MVP):
 
 ## Development
 
-The package source is in `unique_toolkit/unique_toolkit/_common/config_checker/`:
-
-```
-config_checker/
-├── __init__.py       # Public API
-├── registry.py       # Config registration
-├── exporter.py       # Default export
-├── validator.py      # Schema validation
-├── differ.py         # Default comparison
-├── cli.py            # CLI commands
-├── models.py         # Data structures
-└── tests/            # Test suite
-```
 
 ### Running Tests
 

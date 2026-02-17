@@ -2,22 +2,22 @@
 
 import json
 import logging
-from dataclasses import dataclass
+import re
 from typing import Any
 
-from pydantic import BaseModel
+from deepdiff import DeepDiff
+from pydantic import BaseModel, Field
 
 from unique_toolkit._common.config_checker.models import DefaultChange
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class DefaultChangeReport:
+class DefaultChangeReport(BaseModel):
     """Report of detected default changes."""
 
     config_name: str
-    changes: list[DefaultChange]
+    changes: list[DefaultChange] = Field(default_factory=list)
 
     def has_changes(self) -> bool:
         """Check if there are any changes."""
@@ -32,13 +32,13 @@ class DefaultChangeReport:
         for change in self.changes:
             old_str = (
                 json.dumps(change.old_value)
-                if not isinstance(change.old_value, str)
-                else f'"{change.old_value}"'
+                if not isinstance(change.old_value, (str, int, float, bool, type(None)))
+                else json.dumps(change.old_value)
             )
             new_str = (
                 json.dumps(change.new_value)
-                if not isinstance(change.new_value, str)
-                else f'"{change.new_value}"'
+                if not isinstance(change.new_value, (str, int, float, bool, type(None)))
+                else json.dumps(change.new_value)
             )
             summary += f"  - {change.field_path}: {old_str} → {new_str}\n"
 
@@ -70,7 +70,7 @@ class ConfigDiffer:
 
         self._compare_recursive(old_json, new_json, "", changes)
 
-        return changes
+        return sorted(changes, key=lambda x: x.field_path)
 
     @staticmethod
     def _compare_recursive(
@@ -87,46 +87,31 @@ class ConfigDiffer:
             prefix: Current field path prefix
             changes: List to accumulate changes
         """
-        # Both dicts
+        # Both dicts: recurse into keys that exist in both
         if isinstance(old, dict) and isinstance(new, dict):
-            all_keys = set(old.keys()) | set(new.keys())
-            for key in all_keys:
+            # We only care about fields that exist in both (schema changes are handled by validator)
+            common_keys = set(old.keys()) & set(new.keys())
+            for key in common_keys:
                 new_prefix = f"{prefix}.{key}" if prefix else key
-                old_val = old.get(key)
-                new_val = new.get(key)
+                ConfigDiffer._compare_recursive(old[key], new[key], new_prefix, changes)
 
-                if key not in old:
-                    # Key only in new (not a change, it's a new field)
-                    continue
-                if key not in new:
-                    # Key removed (schema change, not a default change)
-                    continue
-
-                ConfigDiffer._compare_recursive(old_val, new_val, new_prefix, changes)
-
-        # Both lists
+        # Both lists: use DeepDiff for robust semantic comparison (ignoring order)
         elif isinstance(old, list) and isinstance(new, list):
-            # Semantic equality: check if they contain the same items regardless of order.
-            # This prevents false positives for sets (which are serialized as lists)
-            # or cases where reordering is non-breaking.
-            if len(old) != len(new):
-                is_equal = False
-            else:
-                try:
-                    # Try sorting to handle permutations efficiently
-                    is_equal = sorted(old) == sorted(new)
-                except (TypeError, KeyError):
-                    # Fallback for non-sortable items (like list of dicts)
-                    is_equal = all(x in new for x in old) and all(x in old for x in new)
-
-            if not is_equal:
+            if DeepDiff(old, new, ignore_order=True):
                 changes.append(
                     DefaultChange(field_path=prefix, old_value=old, new_value=new)
                 )
 
-        # Scalar values
+        # Scalar values or type changes
         else:
             if old != new:
                 changes.append(
                     DefaultChange(field_path=prefix, old_value=old, new_value=new)
                 )
+
+    @staticmethod
+    def _parse_deepdiff_path(path: str) -> str:
+        """Convert DeepDiff path (root['a']['b']) to dot notation (a.b)."""
+        # Keep this for utility, though not used in the hybrid approach
+        parts = re.findall(r"\[['\"]?([^'\"\]]+)['\"]?\]", path)
+        return ".".join(parts)
