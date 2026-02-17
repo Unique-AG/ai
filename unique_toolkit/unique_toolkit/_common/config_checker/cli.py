@@ -286,14 +286,15 @@ def _generate_markdown_report(
                 lines.append("\n")
 
     # Summary
+    lines.append("### Summary\n")
     if report.invalid_count > 0:
-        lines.append(
-            f"### Summary\n{report.invalid_count} config(s) failed validation.\n"
-        )
-    else:
-        lines.append(
-            f"### Summary\nAll {report.total_configs} config(s) validated successfully.\n"
-        )
+        lines.append(f"❌ **{report.invalid_count}** config(s) failed validation.\n")
+
+    if report.valid_count > 0:
+        lines.append(f"✅ **{report.valid_count}** config(s) passed validation.\n")
+
+    if not report.results:
+        lines.append("No configurations were checked.\n")
 
     return "".join(lines)
 
