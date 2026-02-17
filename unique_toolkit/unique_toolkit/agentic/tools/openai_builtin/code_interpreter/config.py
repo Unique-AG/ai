@@ -1,7 +1,6 @@
 from pydantic import Field
 from pydantic.json_schema import SkipJsonSchema
 
-from unique_toolkit._common.config_checker import register_config
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInToolName,
@@ -52,7 +51,6 @@ DEFAULT_TOOL_DESCRIPTION_FOR_USER_PROMPT = ""
 DEFAULT_TOOL_DESCRIPTION = "Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc."
 
 
-@register_config()
 class OpenAICodeInterpreterConfig(BaseToolConfig):
     upload_files_in_chat_to_container: bool = Field(
         default=True,
