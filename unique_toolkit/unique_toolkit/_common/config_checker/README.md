@@ -366,7 +366,7 @@ Impact is proportional to package complexity (number of configs, nesting depth).
 ## Limits & Assumptions
 
 - **Pydantic v2 only**: Uses Pydantic v2 APIs (`model_validate`, `model_dump`)
-- **Python 3.12+**: Requires Python 3.12 or later
+- **Python 3.11+**: Requires Python 3.11 or later
 - **Explicit Registration Required**: All configs must be decorated with `@register_config()`. Auto-discovery is disabled to enforce ownership.
 - **SecretStr values**: Exported as plain strings in ephemeral CI artifacts (safe: artifacts auto-deleted)
 - **Code-Level Defaults Only**: Env vars are ignored; only code-level defaults are checked
@@ -380,7 +380,6 @@ Potential improvements (not in MVP):
 - [ ] Config change changelog generation
 - [ ] Integration with migration scripts
 - [ ] Custom validation hooks
-- [ ] Cross-version testing (Python 3.11, 3.13)
 
 ## Development
 
@@ -401,7 +400,7 @@ config_checker/
 ### Running Tests
 
 ```bash
-pytest unique_toolkit/unique_toolkit/_common/config_checker/tests/ -v
+pytest unique_toolkit/tests/unique_toolkit/_common/config_checker -v
 ```
 
 ### CLI Development
@@ -425,6 +424,3 @@ This tool is designed for early breaking change detection. If you encounter issu
 3. Expected vs actual behavior
 4. Any custom validators or field configurations
 
-## License
-
-Proprietary - Unique AI
