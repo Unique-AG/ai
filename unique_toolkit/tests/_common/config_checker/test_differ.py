@@ -1,5 +1,6 @@
 """Tests for config differ."""
 
+import pytest
 from pydantic import BaseModel, Field
 
 from unique_toolkit._common.config_checker.differ import (
@@ -27,6 +28,7 @@ class DictConfig(BaseModel):
     metadata: dict[str, str] = Field(default_factory=lambda: {"version": "1.0"})
 
 
+@pytest.mark.ai
 def test_differ_detects_scalar_changes():
     """Test that differ detects scalar value changes."""
     differ = ConfigDiffer()
@@ -42,6 +44,7 @@ def test_differ_detects_scalar_changes():
     assert changes[0].new_value == 100
 
 
+@pytest.mark.ai
 def test_differ_detects_nested_changes():
     """Test that differ detects changes in nested models."""
     differ = ConfigDiffer()
@@ -57,6 +60,7 @@ def test_differ_detects_nested_changes():
     assert len(value_changes) > 0
 
 
+@pytest.mark.ai
 def test_differ_detects_list_changes():
     """Test that differ detects list value changes."""
     differ = ConfigDiffer()
@@ -73,6 +77,7 @@ def test_differ_detects_list_changes():
     assert items_changes[0].new_value == ["a", "b", "c"]
 
 
+@pytest.mark.ai
 def test_differ_detects_dict_changes():
     """Test that differ detects dict value changes."""
     differ = ConfigDiffer()
@@ -87,6 +92,7 @@ def test_differ_detects_dict_changes():
     assert len(metadata_changes) > 0
 
 
+@pytest.mark.ai
 def test_differ_ignores_new_fields():
     """Test that differ doesn't report new fields as changes."""
 
@@ -108,6 +114,7 @@ def test_differ_ignores_new_fields():
     assert len([c for c in changes if "new_field" in c.field_path]) == 0
 
 
+@pytest.mark.ai
 def test_differ_ignores_removed_fields():
     """Test that differ doesn't report removed fields as changes."""
 
@@ -130,6 +137,7 @@ def test_differ_ignores_removed_fields():
     assert len([c for c in changes if "removed_field" in c.field_path]) == 0
 
 
+@pytest.mark.ai
 def test_differ_no_changes_on_identical_values():
     """Test that differ reports no changes when values are identical."""
     differ = ConfigDiffer()
@@ -142,6 +150,7 @@ def test_differ_no_changes_on_identical_values():
     assert len(changes) == 0
 
 
+@pytest.mark.ai
 def test_differ_no_changes_on_reordered_lists():
     """Test that differ ignores order changes in lists (handles sets)."""
     differ = ConfigDiffer()
@@ -155,6 +164,33 @@ def test_differ_no_changes_on_reordered_lists():
     assert len(changes) == 0
 
 
+@pytest.mark.ai
+def test_differ_format_summary_no_changes():
+    """Test DefaultChangeReport.format_summary with no changes."""
+    report = DefaultChangeReport(config_name="Test", changes=[])
+    assert report.format_summary() == ""
+
+
+@pytest.mark.ai
+def test_differ_list_fallback():
+    """Test list comparison fallback for non-sortable items."""
+    differ = ConfigDiffer()
+    # List of dicts is not sortable in Python 3
+    old = [{"id": 1}, {"id": 2}]
+    new = [{"id": 2}, {"id": 1}]
+
+    # These should be equal via fallback
+    changes = []
+    differ._compare_recursive(old, new, "list", changes)
+    assert len(changes) == 0
+
+    # These should be different
+    new_diff = [{"id": 3}, {"id": 1}]
+    differ._compare_recursive(old, new_diff, "list", changes)
+    assert len(changes) == 1
+
+
+@pytest.mark.ai
 def test_default_change_report_format():
     """Test DefaultChangeReport formatting."""
     from unique_toolkit._common.config_checker.models import DefaultChange
