@@ -27,9 +27,6 @@ class A2AManager:
 
         for tool_config in tool_configs:
             if not isinstance(tool_config.configuration, SubAgentToolConfig):
-                self._logger.info(
-                    "tool_config.configuration must be of type SubAgentToolConfig"
-                )
                 continue
 
             sub_agent_tool_config = tool_config.configuration
