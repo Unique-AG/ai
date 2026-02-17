@@ -10,13 +10,13 @@ from unique_toolkit._common.config_checker.models import ConfigEntry
 logger = logging.getLogger(__name__)
 
 # Global registry for explicit registrations
-_global_explicit_registry: dict[str, type[BaseModel]] = {}
+_GLOBAL_EXPLICIT_REGISTRY: dict[str, type[BaseModel]] = {}
 
 
 def _clear_global_registry():
     """Clear the global explicit registry (used for testing only)."""
-    global _global_explicit_registry
-    _global_explicit_registry.clear()
+    global _GLOBAL_EXPLICIT_REGISTRY
+    _GLOBAL_EXPLICIT_REGISTRY.clear()
 
 
 def register_config(name: str | None = None):
@@ -42,7 +42,7 @@ def register_config(name: str | None = None):
 
     def decorator(cls: type[BaseModel]) -> type[BaseModel]:
         config_name = name or cls.__name__
-        _global_explicit_registry[config_name] = cls
+        _GLOBAL_EXPLICIT_REGISTRY[config_name] = cls
         logger.debug(
             f"Explicitly registered config: {config_name} -> {cls.__module__}.{cls.__name__}"
         )
@@ -94,9 +94,16 @@ class ConfigRegistry:
         # Scan for Python files recursively
         for py_file in search_path.rglob("*.py"):
             # Skip hidden files, __pycache__, .venv, etc.
+            # Use relative path to only check for hidden directories within the scan root
+            try:
+                relative_py_file = py_file.relative_to(search_path)
+            except ValueError:
+                # Should not happen with rglob but being safe
+                continue
+
             if any(
                 part.startswith(".") or part == "__pycache__" or part == ".venv"
-                for part in py_file.parts
+                for part in relative_py_file.parts
             ):
                 continue
 
@@ -136,7 +143,7 @@ class ConfigRegistry:
         config_entry = ConfigEntry(
             name=name,
             model=model,
-            source="explicit_decorator",
+            source="explicit",
             module_path=None,
         )
         self._explicit_configs[name] = config_entry
@@ -158,12 +165,12 @@ class ConfigRegistry:
         result.update({entry.name: entry for entry in self._explicit_configs.values()})
 
         # Also include any from global registry that weren't loaded yet
-        for name, model in _global_explicit_registry.items():
+        for name, model in _GLOBAL_EXPLICIT_REGISTRY.items():
             if name not in result:
                 config_entry = ConfigEntry(
                     name=name,
                     model=model,
-                    source="explicit_decorator",
+                    source="explicit",
                     module_path=None,
                 )
                 result[name] = config_entry

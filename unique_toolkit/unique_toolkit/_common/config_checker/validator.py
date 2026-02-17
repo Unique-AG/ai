@@ -2,11 +2,10 @@
 
 import json
 import logging
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from unique_toolkit._common.config_checker.differ import ConfigDiffer
 from unique_toolkit._common.config_checker.models import (
@@ -20,14 +19,13 @@ from unique_toolkit._common.config_checker.models import (
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class ValidationReport:
+class ValidationReport(BaseModel):
     """Report of validation results."""
 
     total_configs: int
     valid_count: int
     invalid_count: int
-    results: list[ConfigValidationResult]
+    results: list[ConfigValidationResult] = Field(default_factory=list)
 
     def has_failures(self) -> bool:
         """Check if there are any validation failures."""

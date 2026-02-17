@@ -1,23 +1,22 @@
 """Internal data models for config checker."""
 
-from dataclasses import dataclass
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
-@dataclass
-class ConfigEntry:
+class ConfigEntry(BaseModel):
     """Represents a registered config model."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     name: str
     model: type[BaseModel]
-    source: str  # "auto_discovery" or "explicit_decorator"
+    source: str = "explicit"
     module_path: str | None = None  # Path to the module containing the config
 
 
-@dataclass
-class ValidationError:
+class ValidationError(BaseModel):
     """Represents a schema validation error."""
 
     field_path: str
@@ -26,8 +25,7 @@ class ValidationError:
     new_value: Any | None = None
 
 
-@dataclass
-class DefaultChange:
+class DefaultChange(BaseModel):
     """Represents a detected default value change."""
 
     field_path: str
@@ -35,8 +33,7 @@ class DefaultChange:
     new_value: Any
 
 
-@dataclass
-class ConfigValidationResult:
+class ConfigValidationResult(BaseModel):
     """Result of validating old JSON against new schema."""
 
     config_name: str
@@ -47,8 +44,7 @@ class ConfigValidationResult:
     default_changes: list[DefaultChange] | None = None
 
 
-@dataclass
-class EnvironmentVarWarning:
+class EnvironmentVarWarning(BaseModel):
     """Warning about environment variables during export."""
 
     var_name: str
