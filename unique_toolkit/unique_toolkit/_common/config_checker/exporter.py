@@ -5,6 +5,7 @@ import json
 import logging
 import os
 from dataclasses import asdict, dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -192,12 +193,18 @@ class ConfigExporter:
                 return ""
             hash_val = hashlib.sha256(secret_val.encode()).hexdigest()
             return f"secret_hash:sha256:{hash_val}"
+        if isinstance(value, BaseModel):
+            return ConfigExporter._serialize_model(value)
         if isinstance(value, dict):
             return {k: ConfigExporter._serialize_any(v) for k, v in value.items()}
         if isinstance(value, list):
             return [ConfigExporter._serialize_any(v) for v in value]
-        if hasattr(value, "value") and not isinstance(value, type):  # Enums
-            return value.value
+        if hasattr(value, "value") and not isinstance(
+            value, type
+        ):  # Enums or custom objects like FeatureFlag
+            return ConfigExporter._serialize_any(value.value)
         if isinstance(value, Path):
             return str(value)
+        if isinstance(value, date):
+            return value.isoformat()
         return value
