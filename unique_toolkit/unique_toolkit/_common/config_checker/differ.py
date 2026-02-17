@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from unique_toolkit.config_checker.models import DefaultChange
+from unique_toolkit._common.config_checker.models import DefaultChange
 
 logger = logging.getLogger(__name__)
 

@@ -15,71 +15,70 @@ These failures often don't surface until runtime in production, causing incident
 
 ## Quick Start (5 minutes)
 
-### 1. Auto-Discovery (Most Configs)
+### 1. Explicit Registration (REQUIRED)
 
-By default, the system automatically discovers configs matching these patterns:
-- Classes named `*Config` (e.g., `DatabaseConfig`, `ApiConfig`)
-- Classes named `*Settings` (e.g., `Settings`, `DatabaseSettings`)
-- Located in `config.py` files anywhere in your package
-- Inheriting from Pydantic `BaseModel` or `BaseSettings`
-
-**Example**: A package with this structure is auto-discovered:
-```
-mypackage/
-├── config.py
-│   └── class DatabaseSettings(BaseSettings): ...
-├── core/
-│   └── config.py
-│       └── class CoreConfig(BaseModel): ...
-```
-
-No code changes needed! The CI will automatically check all configs.
-
-### 2. Explicit Registration (Optional, for Edge Cases)
-
-For non-standard scenarios, use the `@register_config()` decorator:
+All configs must be explicitly registered using the `@register_config()` decorator. This puts the burden on teams to declare what they want to protect—enforcing ownership.
 
 ```python
-from unique_toolkit.config_checker import register_config
+from unique_toolkit._common.config_checker import register_config
 
-@register_config(name="custom_database")
-class DatabaseSettings(BaseSettings):
-    host: str = "localhost"
-    port: int = 5432
+@register_config()  # Required!
+class Settings(BaseSettings):
+    api_key: str = "default"
+    timeout: int = 30
+
+@register_config(name="custom_name")  # Optional: custom name
+class WebSearchConfig(BaseModel):
+    mode: str = "fast"
 ```
 
-### 3. Opt-Out (for Internal Configs)
+**Why explicit registration?**
+- Teams own what gets checked
+- No surprise breaking changes in configs you forgot about
+- Clear intent: "I want to protect this config"
+- Encourages discipline: one decorator per important config
 
-Mark configs to skip checking:
+### 2. What Gets Checked
 
-```python
-class InternalDebugConfig(BaseModel):
-    _skip_config_check = True
-    internal_flag: bool = False
-```
+At **merge-base** (before your changes):
+- Find all `@register_config` decorated models
+- Export their code-level defaults to JSON
 
-### 4. CI is Already Running
+At **PR tip** (your changes):
+- Find all `@register_config` decorated models
+- **Validate the old JSON against the NEW schema**
+- This catches: removed fields, type changes, required fields added
+
+**Examples**:
+- ✅ **PASS**: Add a new optional field with a default
+- ❌ **FAIL**: Remove a field
+- ❌ **FAIL**: Change a field type
+- ✅ **PASS + REPORT**: Change a default value (non-breaking)
+
+### 3. CI is Already Running
 
 The workflow `.github/workflows/ci-config-check.yaml` automatically:
 - Runs on every PR
+- Detects `@register_config` decorated configs
 - Exports defaults at merge-base
 - Validates at PR tip
 - Reports breaking changes in PR checks
 
-No setup needed for most packages!
+No additional setup needed!
 
 ## How It Works
 
 ### High-Level Flow
 
 ```
-1. Base Commit (Merge Base)
-   ├─ Discover all configs
-   └─ Export defaults to JSON
+1. Merge-Base Commit (Before Your Changes)
+   ├─ Find all @register_config decorated models
+   └─ Export their CODE-LEVEL defaults to JSON
 
-2. PR Tip Commit
-   ├─ Discover configs with new schema
-   └─ Validate old JSON against new schema
+2. PR Tip Commit (Your Changes)
+   ├─ Find all @register_config decorated models
+   ├─ Load old JSON from merge-base
+   └─ Validate old JSON against NEW schema
        ├─ Schema compatible? → PASS
        ├─ Schema incompatible? → FAIL with details
        └─ Defaults changed? → PASS but REPORT
@@ -88,6 +87,9 @@ No setup needed for most packages!
    ├─ Human-readable markdown report
    └─ Pass/fail decision for PR
 ```
+
+**Key Insight**: We validate that old data can be loaded with new schema.
+If you removed a field, old configs using that field will fail to validate.
 
 ### What Gets Checked
 
@@ -105,14 +107,14 @@ The tool can be run manually locally for debugging:
 ### Export Defaults (run at base commit)
 
 ```bash
-python -m unique_toolkit.config_checker export \
-    --package ./tool_packages/unique_web_search \
+python -m unique_toolkit._common.config_checker export \
     --output ./artifacts/
 ```
 
 Output:
 ```
-📦 Exporting configs from: ./tool_packages/unique_web_search
+📦 Exporting configs from: .
+📁 Output directory: ./artifacts/
 ✓ Discovered 8 config(s)
 ✓ Export complete!
   - 8 exported
@@ -125,15 +127,15 @@ Generates:
 ### Validate Against New Schema (run at tip commit)
 
 ```bash
-python -m unique_toolkit.config_checker check \
+python -m unique_toolkit._common.config_checker check \
     --artifacts ./artifacts/ \
-    --package ./tool_packages/unique_web_search \
     --report-defaults
 ```
 
 Output:
 ```
-🔍 Validating configs from: ./tool_packages/unique_web_search
+🔍 Validating configs from: .
+📁 Artifact directory: ./artifacts/
 ✓ Discovered 8 config(s) at tip
 📊 Validation Results:
   - Total: 8
@@ -153,17 +155,15 @@ git stash
 
 # Export base defaults
 git checkout main
-python -m unique_toolkit.config_checker export \
-    --package . \
+python -m unique_toolkit._common.config_checker export \
     --output /tmp/base-defaults
 
 # Restore your changes
 git stash pop
 
 # Validate
-python -m unique_toolkit.config_checker check \
-    --artifacts /tmp/base-defaults \
-    --package .
+python -m unique_toolkit._common.config_checker check \
+    --artifacts /tmp/base-defaults
 ```
 
 ## Understanding Reports
@@ -271,7 +271,7 @@ This is normal in CI—the check continues with code defaults.
 
 ### Core Modules
 
-- **registry.py**: Auto-discovers and manages config registration
+- **registry.py**: Manages config registration (explicitly decorated models only)
 - **exporter.py**: Exports config defaults to JSON
 - **validator.py**: Validates old JSON against new schemas
 - **differ.py**: Detects non-breaking default changes
@@ -282,7 +282,6 @@ This is normal in CI—the check continues with code defaults.
 
 **For Developers**:
 - `@register_config()` decorator for explicit registration
-- `_skip_config_check` attribute to exclude configs
 
 **For CI/CD**:
 - `.github/workflows/ci-config-check.yaml` runs on every PR
@@ -293,19 +292,29 @@ This is normal in CI—the check continues with code defaults.
 
 ### Q: My config uses environment variables. Will this break CI?
 
-**A:** No. The exporter uses code-level defaults only. You'll see a warning about env vars, but export continues with code defaults.
+**A:** No. The exporter uses code-level defaults only, ignoring env vars. This ensures the baseline is deterministic and reproducible across CI environments.
 
 ### Q: I renamed a config class. How do I avoid CI failure?
 
-**A:** Use `@register_config(name="old_name")` on the new class during transition:
+**A:** Use the same name in `@register_config()` on both old and new classes during transition:
 
 ```python
+# At base (old class)
 @register_config(name="WebSearchSettings")
-class SearchSettings(BaseSettings):  # Renamed from WebSearchSettings
+class WebSearchSettings(BaseSettings):
+    ...
+
+# At tip (new class with same registered name)
+@register_config(name="WebSearchSettings")
+class SearchSettings(BaseSettings):
     ...
 ```
 
-Once stable, remove the decorator.
+Once stable, you can rename the decorator or remove it if the class will always be called `WebSearchSettings`.
+
+### Q: What if I don't use @register_config?
+
+**A:** Your config won't be checked. This is intentional. You must explicitly declare what configs to protect.
 
 ### Q: A field changed type but I coerced it in the schema. Will CI fail?
 
@@ -318,11 +327,11 @@ Once stable, remove the decorator.
 ```bash
 # At base
 git checkout main
-python -m unique_toolkit.config_checker export --package . --output /tmp/base
+python -m unique_toolkit._common.config_checker export --package . --output /tmp/base
 
 # At tip
 git checkout your-branch
-python -m unique_toolkit.config_checker check --artifacts /tmp/base --package .
+python -m unique_toolkit._common.config_checker check --artifacts /tmp/base --package .
 ```
 
 ### Q: The report says a config is "missing". What does that mean?
@@ -337,16 +346,9 @@ To fix: Either restore the class or use `@register_config()` to map the old name
 
 **A:** Not recommended (defeats the purpose), but you can:
 
-1. **Temporarily opt-out** of checking:
-   ```python
-   class ConfigToRework(BaseModel):
-       _skip_config_check = True
-       ...
-   ```
+1. **Fix the schema** to maintain compatibility
 
-2. **Fix the schema** to maintain compatibility
-
-3. **Create a migration guide** for users
+2. **Create a migration guide** for users
 
 The system is designed to catch issues early. If you need to skip, understand why.
 
@@ -365,9 +367,9 @@ Impact is proportional to package complexity (number of configs, nesting depth).
 
 - **Pydantic v2 only**: Uses Pydantic v2 APIs (`model_validate`, `model_dump`)
 - **Python 3.12+**: Requires Python 3.12 or later
-- **Config files named `config.py`**: Auto-discovery looks for this filename
-- **Classes in `config.py` only**: Explicit decorator required for configs in other files
+- **Explicit Registration Required**: All configs must be decorated with `@register_config()`. Auto-discovery is disabled to enforce ownership.
 - **SecretStr values**: Exported as plain strings in ephemeral CI artifacts (safe: artifacts auto-deleted)
+- **Code-Level Defaults Only**: Env vars are ignored; only code-level defaults are checked
 
 ## Future Enhancements
 
@@ -382,12 +384,12 @@ Potential improvements (not in MVP):
 
 ## Development
 
-The package source is in `unique_toolkit/unique_toolkit/config_checker/`:
+The package source is in `unique_toolkit/unique_toolkit/_common/config_checker/`:
 
 ```
 config_checker/
 ├── __init__.py       # Public API
-├── registry.py       # Config discovery
+├── registry.py       # Config registration
 ├── exporter.py       # Default export
 ├── validator.py      # Schema validation
 ├── differ.py         # Default comparison
@@ -399,7 +401,7 @@ config_checker/
 ### Running Tests
 
 ```bash
-pytest unique_toolkit/unique_toolkit/config_checker/tests/ -v
+pytest unique_toolkit/unique_toolkit/_common/config_checker/tests/ -v
 ```
 
 ### CLI Development

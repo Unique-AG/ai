@@ -6,8 +6,8 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from unique_toolkit.config_checker.models import ConfigEntry
-from unique_toolkit.config_checker.validator import ConfigValidator
+from unique_toolkit._common.config_checker.models import ConfigEntry
+from unique_toolkit._common.config_checker.validator import ConfigValidator
 
 
 class BaseConfig(BaseModel):
@@ -169,7 +169,7 @@ def test_validation_report_has_failures():
     old_json = {"name": "test", "value": 42}
     result = validator.validate_config(old_json, BaseConfig, "BaseConfig")
 
-    from unique_toolkit.config_checker.validator import ValidationReport
+    from unique_toolkit._common.config_checker.validator import ValidationReport
 
     report = ValidationReport(
         total_configs=1,

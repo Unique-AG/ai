@@ -101,7 +101,7 @@ jobs:
 
       - name: Export base defaults
         run: |
-          python -m unique_toolkit.config_checker export \
+          python -m unique_toolkit._common.config_checker export \
             --package "${{ matrix.dir }}" \
             --output ./config-artifacts-base/ \
             --verbose
@@ -133,7 +133,7 @@ jobs:
       - name: Validate compatibility
         id: validate
         run: |
-          python -m unique_toolkit.config_checker check \
+          python -m unique_toolkit._common.config_checker check \
             --artifacts ./config-artifacts-base/ \
             --package "${{ matrix.dir }}" \
             --report-defaults \

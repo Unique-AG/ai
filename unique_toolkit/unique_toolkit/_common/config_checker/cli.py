@@ -7,9 +7,9 @@ from pathlib import Path
 
 import click
 
-from unique_toolkit.config_checker.exporter import ConfigExporter
-from unique_toolkit.config_checker.registry import ConfigRegistry
-from unique_toolkit.config_checker.validator import ConfigValidator
+from unique_toolkit._common.config_checker.exporter import ConfigExporter
+from unique_toolkit._common.config_checker.registry import ConfigRegistry
+from unique_toolkit._common.config_checker.validator import ConfigValidator
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +30,8 @@ def cli():
 @click.option(
     "--package",
     type=click.Path(exists=True),
-    required=True,
-    help="Path to the package to export configs from",
+    default=".",
+    help="Path to the package to export configs from (default: current directory)",
 )
 @click.option(
     "--output",
@@ -109,8 +109,8 @@ def export(package: str, output: str, verbose: bool):
 @click.option(
     "--package",
     type=click.Path(exists=True),
-    required=True,
-    help="Path to the package to validate configs in",
+    default=".",
+    help="Path to the package to validate configs in (default: current directory)",
 )
 @click.option(
     "--report-defaults",
@@ -125,8 +125,8 @@ def export(package: str, output: str, verbose: bool):
 @click.option(
     "--output-report",
     type=click.Path(),
-    default="config-check-report.md",
-    help="Path to write markdown report",
+    default=None,
+    help="Path to write markdown report (optional)",
 )
 @click.option(
     "--verbose",
@@ -139,7 +139,7 @@ def check(
     package: str,
     report_defaults: bool,
     fail_on_missing: bool,
-    output_report: str,
+    output_report: str | None,
     verbose: bool,
 ):
     """Validate configs against schema at current commit (tip).
@@ -152,7 +152,6 @@ def check(
 
     artifacts_dir = Path(artifacts)
     package_path = Path(package)
-    report_path = Path(output_report)
 
     click.echo(f"🔍 Validating configs from: {package_path}")
     click.echo(f"📁 Artifact directory: {artifacts_dir}")
@@ -180,13 +179,14 @@ def check(
             fail_on_missing=fail_on_missing,
         )
 
-        # Write report
-        with open(report_path, "w") as f:
-            f.write(markdown_report)
+        # Write report if path provided
+        if output_report:
+            report_path = Path(output_report)
+            with open(report_path, "w") as f:
+                f.write(markdown_report)
+            click.echo(f"\n📄 Report written to: {report_path}")
 
-        click.echo(f"\n📄 Report written to: {report_path}")
-
-        # Print report
+        # Print report summary to stdout
         click.echo("\n" + markdown_report)
 
         # Exit with appropriate code
