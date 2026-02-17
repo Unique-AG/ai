@@ -10,7 +10,10 @@ from typing import Any
 from pydantic import BaseModel, SecretStr
 from pydantic_settings import BaseSettings
 
-from unique_toolkit.config_checker.models import ConfigEntry, EnvironmentVarWarning
+from unique_toolkit._common.config_checker.models import (
+    ConfigEntry,
+    EnvironmentVarWarning,
+)
 
 logger = logging.getLogger(__name__)
 

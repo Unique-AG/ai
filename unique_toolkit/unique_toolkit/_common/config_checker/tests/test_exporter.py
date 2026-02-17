@@ -8,8 +8,8 @@ from pathlib import Path
 from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings
 
-from unique_toolkit.config_checker.exporter import ConfigExporter
-from unique_toolkit.config_checker.models import ConfigEntry
+from unique_toolkit._common.config_checker.exporter import ConfigExporter
+from unique_toolkit._common.config_checker.models import ConfigEntry
 
 
 class SimpleConfig(BaseModel):

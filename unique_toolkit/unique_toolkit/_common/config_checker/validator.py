@@ -8,9 +8,14 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-from unique_toolkit.config_checker.differ import ConfigDiffer
-from unique_toolkit.config_checker.models import ConfigEntry, ConfigValidationResult
-from unique_toolkit.config_checker.models import ValidationError as ValidationErrorModel
+from unique_toolkit._common.config_checker.differ import ConfigDiffer
+from unique_toolkit._common.config_checker.models import (
+    ConfigEntry,
+    ConfigValidationResult,
+)
+from unique_toolkit._common.config_checker.models import (
+    ValidationError as ValidationErrorModel,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +73,6 @@ class ConfigValidator:
         errors = []
 
         # 1. Structural Check: Detect removed fields
-        # If a field existed in the old defaults but is gone now, it's a breaking change
-        # (even if model_validate would ignore it as an 'extra' field)
         old_keys = set(old_json.keys())
         new_keys = set(new_model.model_fields.keys())
         removed_keys = old_keys - new_keys
@@ -85,10 +88,6 @@ class ConfigValidator:
 
         try:
             # 2. Value Check: Try to validate/instantiate
-            # This catches:
-            # - Type changes (incompatible)
-            # - New required fields (missing in old JSON)
-            # - Validator failures
             instance = new_model.model_validate(old_json)
 
             # If successful (and no removed fields), check for default changes
@@ -110,8 +109,26 @@ class ConfigValidator:
                 )
 
         except ValidationError as e:
-            # Parse validation errors
-            errors.extend(self._parse_validation_errors(e, old_json))
+            # 3. Parse and Enhance Validation Errors
+            new_errors = self._parse_validation_errors(e, old_json)
+
+            # Heuristic: Try to identify renames
+            # If we have removed fields AND 'missing' field errors, they might be renames
+            missing_fields = [
+                err.field_path
+                for err in new_errors
+                if "missing" in err.message.lower() or "required" in err.message.lower()
+            ]
+
+            if removed_keys and missing_fields:
+                for err in new_errors:
+                    if err.field_path in missing_fields:
+                        # Suggest potential rename if there's exactly one removed field and one missing field
+                        if len(removed_keys) == 1:
+                            old_field = list(removed_keys)[0]
+                            err.message += f" (Note: Field '{old_field}' was removed, maybe you renamed it?)"
+
+            errors.extend(new_errors)
 
             return ConfigValidationResult(
                 config_name=config_name,

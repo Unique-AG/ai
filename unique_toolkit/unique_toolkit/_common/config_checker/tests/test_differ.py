@@ -2,7 +2,10 @@
 
 from pydantic import BaseModel, Field
 
-from unique_toolkit.config_checker.differ import ConfigDiffer, DefaultChangeReport
+from unique_toolkit._common.config_checker.differ import (
+    ConfigDiffer,
+    DefaultChangeReport,
+)
 
 
 class SimpleConfig(BaseModel):
@@ -141,7 +144,7 @@ def test_differ_no_changes_on_identical_values():
 
 def test_default_change_report_format():
     """Test DefaultChangeReport formatting."""
-    from unique_toolkit.config_checker.models import DefaultChange
+    from unique_toolkit._common.config_checker.models import DefaultChange
 
     changes = [
         DefaultChange(field_path="value", old_value=42, new_value=100),

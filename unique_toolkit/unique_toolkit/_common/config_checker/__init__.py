@@ -11,16 +11,25 @@ Key components:
 - CLI: export and check commands
 """
 
-from unique_toolkit.config_checker.differ import ConfigDiffer, DefaultChangeReport
-from unique_toolkit.config_checker.exporter import ConfigExporter, ExportManifest
-from unique_toolkit.config_checker.registry import (
-    ConfigEntry,
+from unique_toolkit._common.config_checker.differ import (
+    ConfigDiffer,
+    DefaultChangeReport,
+)
+from unique_toolkit._common.config_checker.exporter import (
+    ConfigExporter,
+    ExportManifest,
+)
+from unique_toolkit._common.config_checker.models import ConfigEntry
+from unique_toolkit._common.config_checker.registry import (
     ConfigRegistry,
     register_config,
 )
-from unique_toolkit.config_checker.validator import ConfigValidator, ValidationReport
+from unique_toolkit._common.config_checker.validator import (
+    ConfigValidator,
+    ValidationReport,
+)
 
-__all__ = [
+__all__: list[str] = [
     "register_config",
     "ConfigRegistry",
     "ConfigEntry",
