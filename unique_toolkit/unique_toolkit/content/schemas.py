@@ -29,7 +29,7 @@ class ContentMetadata(BaseModel):
 
 @register_config()
 class ContentChunk(BaseModel):
-    model_config = model_config
+    model_config = ContentMetadata.model_config
     id: str = Field(
         default="",
         description="The id of the content this chunk belongs to. The id starts with 'cont_' followed by an alphanumeric string of length 24.",
@@ -70,7 +70,6 @@ class ContentChunk(BaseModel):
     metadata: ContentMetadata | None = None
     internally_stored_at: datetime | None = None
     created_at: datetime | None = None
-    updated_at: datetime | None = None
 
 
 class Content(BaseModel):
