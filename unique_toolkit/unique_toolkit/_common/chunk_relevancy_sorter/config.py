@@ -2,6 +2,7 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
 
+from unique_toolkit._common.config_checker import register_config
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.evaluation.context_relevancy.schema import (
     StructuredOutputConfig,
@@ -10,6 +11,7 @@ from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 
 
+@register_config()
 class ChunkRelevancySortConfig(BaseModel):
     model_config = get_configuration_dict()
     enabled: bool = Field(
