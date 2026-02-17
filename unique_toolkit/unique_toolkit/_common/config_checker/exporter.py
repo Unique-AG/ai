@@ -1,5 +1,6 @@
 """Export config defaults to JSON artifacts."""
 
+import hashlib
 import json
 import logging
 import os
@@ -35,6 +36,7 @@ class ConfigExporter:
     def __init__(self):
         self.warnings: list[EnvironmentVarWarning] = []
         self.config_files: dict[str, str] = {}
+        self.detected_env_vars: set[str] = set()
 
     def export_defaults(self, config_model: type[BaseModel]) -> dict[str, Any]:
         """Export defaults for a single config model.
@@ -47,15 +49,13 @@ class ConfigExporter:
         Returns:
             Dictionary of defaults in JSON-serializable format
         """
-        # Create instance with all defaults
+        # Create instance with all defaults using model_construct()
+        # This bypasses validation and settings sources (like environment variables)
+        # while still populating code-level defaults and default_factories.
         try:
-            # Check if it's a BaseSettings
+            instance = config_model.model_construct()
             if issubclass(config_model, BaseSettings):
-                # Create with validation disabled to avoid env var loading
-                instance = config_model()  # type: ignore
                 self._check_for_env_vars(config_model)
-            else:
-                instance = config_model()
         except Exception as e:
             logger.error(f"Failed to instantiate {config_model.__name__}: {e}")
             raise
@@ -69,22 +69,21 @@ class ConfigExporter:
         Args:
             model: The BaseSettings model to check
         """
-        if not hasattr(model, "model_config"):
-            return
+        config = getattr(model, "model_config", {})
+        env_prefix = config.get("env_prefix", "")
 
-        config = model.model_config
-        env_prefix = config.get("env_prefix", "").lower()
+        # Check all env vars against prefix AND field names
+        field_names = set(model.model_fields.keys())
 
-        if env_prefix:
-            for env_var, value in os.environ.items():
-                if env_var.lower().startswith(env_prefix):
-                    warning = EnvironmentVarWarning(
-                        var_name=env_var,
-                        value=value[:20] if value else None,
-                        message=f"Environment variable {env_var} set during export (will be ignored, using code defaults)",
-                    )
-                    self.warnings.append(warning)
-                    logger.warning(f"ENV VAR DETECTED: {warning.message}")
+        for env_var in os.environ:
+            # Check prefix (case-insensitive)
+            if env_prefix and env_var.lower().startswith(env_prefix.lower()):
+                self.detected_env_vars.add(env_var)
+                continue
+
+            # Check field names (case-insensitive)
+            if env_var.lower() in {f.lower() for f in field_names}:
+                self.detected_env_vars.add(env_var)
 
     def export_all(
         self,
@@ -107,6 +106,7 @@ class ConfigExporter:
         skipped_count = 0
         self.warnings.clear()
         self.config_files.clear()
+        self.detected_env_vars.clear()
 
         for entry in config_entries:
             try:
@@ -124,6 +124,15 @@ class ConfigExporter:
             except Exception as e:
                 logger.error(f"Failed to export {entry.name}: {e}")
                 skipped_count += 1
+
+        # Add consolidated warning if env vars were detected
+        if self.detected_env_vars:
+            vars_str = ", ".join(sorted(self.detected_env_vars))
+            msg = f"Environment variables detected during export: {vars_str}. These were ignored to ensure a secure, code-only export of defaults."
+            self.warnings.append(
+                EnvironmentVarWarning(var_name="MULTIPLE", message=msg)
+            )
+            logger.warning(msg)
 
         manifest = ExportManifest(
             exported_count=exported_count,
@@ -166,45 +175,29 @@ class ConfigExporter:
         Returns:
             JSON-serializable dictionary
         """
-        result = instance.model_dump(mode="json")
-
-        # Handle special types
-        for key, value in result.items():
-            if isinstance(value, SecretStr):
-                result[key] = str(value)
-            elif isinstance(value, dict):
-                result[key] = ConfigExporter._serialize_dict(value)
-            elif isinstance(value, list):
-                result[key] = ConfigExporter._serialize_list(value)
-
-        return result
+        # Use model_dump() without mode="json" to keep SecretStr objects intact
+        # so we can call .get_secret_value() on them.
+        data = instance.model_dump()
+        return ConfigExporter._serialize_any(data)
 
     @staticmethod
-    def _serialize_dict(obj: dict[str, Any]) -> dict[str, Any]:
-        """Recursively serialize dictionary values."""
-        result = {}
-        for key, value in obj.items():
-            if isinstance(value, SecretStr):
-                result[key] = str(value)
-            elif isinstance(value, dict):
-                result[key] = ConfigExporter._serialize_dict(value)
-            elif isinstance(value, list):
-                result[key] = ConfigExporter._serialize_list(value)
-            else:
-                result[key] = value
-        return result
-
-    @staticmethod
-    def _serialize_list(obj: list) -> list:
-        """Recursively serialize list items."""
-        result = []
-        for item in obj:
-            if isinstance(item, SecretStr):
-                result.append(str(item))
-            elif isinstance(item, dict):
-                result.append(ConfigExporter._serialize_dict(item))
-            elif isinstance(item, list):
-                result.append(ConfigExporter._serialize_list(item))
-            else:
-                result.append(item)
-        return result
+    def _serialize_any(value: Any) -> Any:
+        """Recursively serialize any value to JSON-compatible format."""
+        if isinstance(value, SecretStr):
+            # Security: Never export plain-text secrets to artifacts.
+            # Instead, export a deterministic hash so we can still detect changes
+            # without leaking the actual value.
+            secret_val = value.get_secret_value()
+            if not secret_val:
+                return ""
+            hash_val = hashlib.sha256(secret_val.encode()).hexdigest()
+            return f"secret_hash:sha256:{hash_val}"
+        if isinstance(value, dict):
+            return {k: ConfigExporter._serialize_any(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [ConfigExporter._serialize_any(v) for v in value]
+        if hasattr(value, "value") and not isinstance(value, type):  # Enums
+            return value.value
+        if isinstance(value, Path):
+            return str(value)
+        return value

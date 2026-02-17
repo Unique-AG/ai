@@ -62,7 +62,10 @@ class ConfigDiffer:
         Returns:
             List of DefaultChange objects for any differences
         """
-        new_json = new_instance.model_dump(mode="json")
+        # Use the robust serialization from exporter to handle secrets correctly
+        from unique_toolkit._common.config_checker.exporter import ConfigExporter
+
+        new_json = ConfigExporter._serialize_model(new_instance)
         changes: list[DefaultChange] = []
 
         self._compare_recursive(old_json, new_json, "", changes)
@@ -103,7 +106,20 @@ class ConfigDiffer:
 
         # Both lists
         elif isinstance(old, list) and isinstance(new, list):
-            if old != new:
+            # Semantic equality: check if they contain the same items regardless of order.
+            # This prevents false positives for sets (which are serialized as lists)
+            # or cases where reordering is non-breaking.
+            if len(old) != len(new):
+                is_equal = False
+            else:
+                try:
+                    # Try sorting to handle permutations efficiently
+                    is_equal = sorted(old) == sorted(new)
+                except (TypeError, KeyError):
+                    # Fallback for non-sortable items (like list of dicts)
+                    is_equal = all(x in new for x in old) and all(x in old for x in new)
+
+            if not is_equal:
                 changes.append(
                     DefaultChange(field_path=prefix, old_value=old, new_value=new)
                 )

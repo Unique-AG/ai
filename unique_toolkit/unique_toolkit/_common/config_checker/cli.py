@@ -165,7 +165,9 @@ def check(
 
         # Validate
         validator = ConfigValidator()
-        report = validator.validate_all(artifacts_dir, config_entries)
+        report = validator.validate_all(
+            artifacts_dir, config_entries, fail_on_missing=fail_on_missing
+        )
 
         click.echo("\n📊 Validation Results:")
         click.echo(f"  - Total: {report.total_configs}")
@@ -219,15 +221,34 @@ def _generate_markdown_report(
     else:
         lines.append("## ✓ All Configurations Compatible\n")
 
+    # Separate missing configs from other failures
+    missing_configs = [
+        r
+        for r in report.results
+        if any("not found at tip" in e.message for e in (r.errors or []))
+    ]
+    other_failures = [
+        r for r in report.results if not r.valid and r not in missing_configs
+    ]
+
     # Schema validation failures
-    schema_failures = [r for r in report.results if not r.valid]
-    if schema_failures:
+    if other_failures:
         lines.append("### 🔴 Schema Validation Failures\n")
-        for result in schema_failures:
+        for result in other_failures:
             lines.append(f"**{result.config_name}**\n")
             if result.errors:
                 for error in result.errors:
                     lines.append(f"- `{error.field_path}`: {error.message}\n")
+            lines.append("\n")
+
+    # Missing configs
+    if missing_configs:
+        status_emoji = "🔴" if fail_on_missing else "🟡"
+        status_text = "Failures" if fail_on_missing else "Warnings"
+        lines.append(f"### {status_emoji} Missing Configurations ({status_text})\n")
+        for result in missing_configs:
+            lines.append(f"**{result.config_name}**\n")
+            lines.append("- Config class not found at tip (was removed or renamed)\n")
             lines.append("\n")
 
     # Default changes (if requested)

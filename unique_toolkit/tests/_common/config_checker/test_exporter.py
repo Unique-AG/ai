@@ -41,8 +41,7 @@ class EnvironmentSettings(BaseSettings):
     db_host: str = "localhost"
     db_port: int = 5432
 
-    class Config:
-        env_prefix = "DB_"
+    model_config = {"env_prefix": "DB_"}
 
 
 def test_exporter_exports_simple_config():
@@ -64,12 +63,23 @@ def test_exporter_exports_nested_config():
 
 
 def test_exporter_handles_secret_str():
-    """Test that SecretStr values are extracted."""
+    """Test that SecretStr values are hashed for security (not plain-text or obfuscated)."""
     exporter = ConfigExporter()
 
     result = exporter.export_defaults(SecretConfig)
 
-    assert result == {"api_key": "secret123", "token": "public"}
+    # Should NOT be the actual value
+    assert result["api_key"] != "secret123"
+    # Should NOT be '**********'
+    assert result["api_key"] != "**********"
+    # Should be a hash
+    assert result["api_key"].startswith("secret_hash:sha256:")
+
+    # Verify deterministic hashing
+    import hashlib
+
+    expected_hash = hashlib.sha256(b"secret123").hexdigest()
+    assert result["api_key"] == f"secret_hash:sha256:{expected_hash}"
 
 
 def test_exporter_handles_list_defaults():
@@ -90,26 +100,41 @@ def test_exporter_handles_dict_defaults():
     assert result == {"metadata": {"version": "1.0"}}
 
 
-def test_exporter_warns_on_environment_variables():
+def test_exporter_warns_on_environment_var():
     """Test that exporter warns when env vars are set."""
     exporter = ConfigExporter()
 
-    # Set an env var
+    # Set an env var that matches prefix
     os.environ["DB_HOST"] = "remote.db"
+    # Set an env var that matches field name (even without prefix)
+    os.environ["DB_PORT"] = "9999"
 
     try:
-        result = exporter.export_defaults(EnvironmentSettings)
+        # Need to use export_all to see consolidated warnings
+        entries = [
+            ConfigEntry("EnvironmentSettings", EnvironmentSettings, "auto_discovery")
+        ]
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest = exporter.export_all(entries, Path(tmpdir))
 
-        # Should still export code defaults
-        assert result["db_host"] == "localhost"
-        assert result["db_port"] == 5432
+            # Should have exactly one consolidated warning
+            assert len(manifest.warnings) == 1
+            warning = manifest.warnings[0]
+            assert "DB_HOST" in warning.message
+            assert "DB_PORT" in warning.message
+            assert "ignored" in warning.message
 
-        # Should have warnings
-        assert len(exporter.warnings) > 0
-        assert any("DB_HOST" in w.var_name for w in exporter.warnings)
+            # Check individual config export still ignores env
+            with open(Path(tmpdir) / "EnvironmentSettings.json") as f:
+                result = json.load(f)
+            assert result["db_host"] == "localhost"
+            assert result["db_port"] == 5432
 
     finally:
-        del os.environ["DB_HOST"]
+        if "DB_HOST" in os.environ:
+            del os.environ["DB_HOST"]
+        if "DB_PORT" in os.environ:
+            del os.environ["DB_PORT"]
 
 
 def test_exporter_export_all_to_directory():
@@ -147,20 +172,27 @@ def test_exporter_export_all_to_directory():
         assert manifest_data["exported_count"] == 2
 
 
-def test_exporter_handles_instantiation_errors():
-    """Test that exporter handles models that fail to instantiate."""
+def test_exporter_handles_required_fields():
+    """Test that exporter handles models with required fields via model_construct."""
 
-    class BadConfig(BaseModel):
+    class RequiredConfig(BaseModel):
         required_field: str  # No default
 
     exporter = ConfigExporter()
-    entries = [ConfigEntry("BadConfig", BadConfig, "auto_discovery")]
+    entries = [ConfigEntry("RequiredConfig", RequiredConfig, "auto_discovery")]
 
     with tempfile.TemporaryDirectory() as tmpdir:
         manifest = exporter.export_all(entries, Path(tmpdir))
 
-        assert manifest.exported_count == 0
-        assert manifest.skipped_count == 1
+        # With model_construct, even required fields don't prevent export
+        # (they will just be missing from the JSON)
+        assert manifest.exported_count == 1
+        assert manifest.skipped_count == 0
+
+        # Check content
+        with open(Path(tmpdir) / "RequiredConfig.json") as f:
+            data = json.load(f)
+        assert data == {}  # Empty because no fields have defaults
 
 
 def test_exporter_tracks_config_file_paths():

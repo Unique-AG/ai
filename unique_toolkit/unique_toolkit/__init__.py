@@ -76,3 +76,6 @@ if _CONFIG_CHECKER_AVAILABLE:
             "register_config",
         ]
     )
+# Add langchain-specific exports if available
+if _LANGCHAIN_AVAILABLE:
+    __all__.append("get_langchain_client")
