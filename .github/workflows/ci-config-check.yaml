@@ -1,4 +1,5 @@
-name: Config Compatibility Check
+name: "[CI] Config Compatibility Check"
+description: "Checks for breaking configuration changes in the toolkit and tool packages."
 
 on:
   pull_request:
@@ -35,20 +36,19 @@ jobs:
         with:
           filters: |
             toolkit:
-              - 'unique_toolkit/unique_toolkit/**/config.py'
-              - 'unique_toolkit/unique_toolkit/**/settings.py'
+              - 'unique_toolkit/**'
             web_search:
-              - 'tool_packages/unique_web_search/**/*.py'
+              - 'tool_packages/unique_web_search/**'
             deep_research:
-              - 'tool_packages/unique_deep_research/**/*.py'
+              - 'tool_packages/unique_deep_research/**'
             swot:
-              - 'tool_packages/unique_swot/**/*.py'
+              - 'tool_packages/unique_swot/**'
             internal_search:
-              - 'tool_packages/unique_internal_search/**/*.py'
+              - 'tool_packages/unique_internal_search/**'
             stock_ticker:
-              - 'postprocessors/unique_stock_ticker/**/*.py'
+              - 'postprocessors/unique_stock_ticker/**'
             follow_up_questions:
-              - 'postprocessors/unique_follow_up_questions/**/*.py'
+              - 'postprocessors/unique_follow_up_questions/**'
 
       - uses: ./.github/actions/select-packages
         id: set-matrix
