@@ -22,7 +22,7 @@ from unique_toolkit._common.config_checker.registry import _clear_global_registr
 from unique_toolkit._common.config_checker.validator import ValidationReport
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_main_module():
     """Test the __main__ module execution."""
     from unique_toolkit._common.config_checker import __main__
@@ -32,7 +32,7 @@ def test_main_module():
     assert __main__.cli is not None
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_cli_export_command():
     """Integration test for 'export' CLI command."""
     runner = CliRunner()
@@ -65,7 +65,7 @@ def test_cli_export_command():
         assert (output_path / "manifest.json").exists()
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_cli_check_command():
     """Integration test for 'check' CLI command."""
     runner = CliRunner()
@@ -78,7 +78,7 @@ def test_cli_check_command():
         pkg_path = Path(tmpdir) / "pkg_check"
         pkg_path.mkdir()
         (pkg_path / f"{module_name}.py").write_text(
-            "from unique_toolkit._common.config_checker import register_config\nfrom pydantic import BaseModel\n@register_config()\nclass CCheck(BaseModel): x: int = 1",
+            "from unique_toolkit._common.config_checker import register_config\nfrom pydantic import BaseModel\n@register_config()\nclass CCheck(BaseModel): x: int = 2",
             encoding="utf-8",
         )
 
@@ -101,9 +101,11 @@ def test_cli_check_command():
 
         assert result.exit_code == 0
         assert "Validation PASSED" in result.output
+        assert "Default Value Changes" in result.output
+        assert "`x`: 1 → 2" in result.output
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_cli_check_failure():
     """Test 'check' CLI command with breaking change."""
     runner = CliRunner()
@@ -133,7 +135,37 @@ def test_cli_check_failure():
         assert "Validation FAILED" in result.output
 
 
-@pytest.mark.ai
+@pytest.mark.verified
+def test_cli_check_failure_type_and_value_change():
+    """Test 'check' CLI command with breaking change."""
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        module_name = "conf_fail_unique_789"
+        artifacts = Path(tmpdir) / "artifacts"
+        artifacts.mkdir()
+        (artifacts / "CFail.json").write_text('{"x": 1}', encoding="utf-8")
+
+        pkg_path = Path(tmpdir) / "pkg_fail"
+        pkg_path.mkdir()
+        # Change x to string (breaking)
+        (pkg_path / f"{module_name}.py").write_text(
+            "from unique_toolkit._common.config_checker import register_config\nfrom pydantic import BaseModel\n@register_config()\nclass CFail(BaseModel): x: str = '1'",
+            encoding="utf-8",
+        )
+
+        _clear_global_registry()
+        if module_name in sys.modules:
+            del sys.modules[module_name]
+
+        result = runner.invoke(
+            cli, ["check", "--artifacts", str(artifacts), "--package", str(pkg_path)]
+        )
+
+        assert result.exit_code == 1
+        assert "Validation FAILED" in result.output
+
+
+@pytest.mark.verified
 def test_generate_markdown_report_missing_configs():
     """Test markdown report generation for missing configs."""
     # Case 1: fail_on_missing = True
@@ -164,7 +196,7 @@ def test_generate_markdown_report_missing_configs():
     assert "🟡" in md2
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_cli_output_report():
     """Test CLI with --output-report."""
     runner = CliRunner()
@@ -200,7 +232,7 @@ def test_cli_output_report():
         assert "All Configurations Compatible" in report_path.read_text()
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_cli_main_run():
     """Test running the CLI via __main__."""
     import subprocess
@@ -222,7 +254,7 @@ def test_cli_main_run():
     assert "Config compatibility checker CLI" in result.stdout
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_cli_no_configs_discovered():
     """Test export command when no configs are discovered."""
     runner = CliRunner()
@@ -239,7 +271,7 @@ def test_cli_no_configs_discovered():
         assert "No configs discovered" in result.output
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_cli_complex_report():
     """Test markdown report generation with errors and changes."""
     res_err = ConfigValidationResult(
@@ -263,7 +295,7 @@ def test_cli_complex_report():
     assert "`val`: 1 → 2" in md
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_exporter_warnings_in_cli():
     """Test CLI output when there are export warnings."""
     runner = CliRunner()
@@ -298,7 +330,7 @@ def test_exporter_warnings_in_cli():
             del os.environ["CW_VAR"]
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_cli_skipped_configs_warning():
     """Test CLI output when some configs are skipped during export."""
     runner = CliRunner()
