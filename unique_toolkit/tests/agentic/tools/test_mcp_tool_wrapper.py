@@ -683,6 +683,56 @@ class TestMCPToolWrapperRun:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_run__processes_image_content__and_populates_image_data_urls_AI(
+        self,
+        mcp_tool_wrapper: MCPToolWrapper,
+    ) -> None:
+        """
+        Purpose: Verify MCP tool processes image content from SDK response.
+        Why this matters: MCP tools can return images that must reach the LLM via data URLs.
+        """
+        # Arrange
+        tool_call = LanguageModelFunction(
+            id="call_123",
+            name="test_mcp_tool",
+            arguments={"query": "chart"},
+        )
+        mcp_result = {
+            "content": [
+                {"type": "text", "text": "Here is the chart"},
+                {
+                    "type": "image",
+                    "data": "iVBORw0KGgo=",
+                    "mimeType": "image/png",
+                },
+            ],
+        }
+
+        with (
+            patch(
+                "unique_toolkit.agentic.tools.mcp.tool_wrapper.upload_content_from_bytes"
+            ) as mock_upload,
+            patch("unique_sdk.MCP.call_tool") as mock_sdk_call,
+            patch.object(mcp_tool_wrapper, "_create_or_update_message_log"),
+        ):
+            mock_sdk_call.return_value = mcp_result
+            mock_content = Mock()
+            mock_content.id = "content_abc123"
+            mock_upload.return_value = mock_content
+
+            # Act
+            response: ToolCallResponse = await mcp_tool_wrapper.run(tool_call)
+
+            # Assert
+            assert response.image_data_urls
+            assert len(response.image_data_urls) == 1
+            assert response.image_data_urls[0].startswith("data:image/png;base64,")
+            assert "Here is the chart" in response.content
+            assert "unique://content/content_abc123" in response.content
+            assert "Include the image(s)" in response.content
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_run__handles_sdk_exception__with_error_response_AI(
         self,
         mcp_tool_wrapper: MCPToolWrapper,

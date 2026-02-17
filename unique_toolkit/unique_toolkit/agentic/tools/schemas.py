@@ -19,6 +19,10 @@ class ToolCallResponse(BaseModel):
     content_chunks: Optional[list[ContentChunk]] = None  # TODO: Make the default []
     reasoning_result: Optional[dict] = None  # TODO: Make the default {}
     error_message: str = ""
+    image_data_urls: list[str] = Field(
+        default_factory=list,
+        description="Data URLs (e.g. data:image/png;base64,...) for images returned by this tool. Used by MCP and internal tools; history attaches them to the user message so the LLM can see the image.",
+    )
     system_reminder: str = Field(
         default="",
         description="A reminder for the agent to consider when using the tool that will be appended to the tool call response",

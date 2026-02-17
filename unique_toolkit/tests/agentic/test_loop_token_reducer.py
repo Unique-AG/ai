@@ -730,6 +730,54 @@ def test_replace_user_message__adds_user_message__when_last_is_not_user_AI(
     assert result[-1].content == "Rendered question"
 
 
+@pytest.mark.ai
+def test_replace_user_message__appends_image_urls_as_content_parts__when_provided_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify _replace_user_message appends image data URLs as image_url parts
+    with a text label before each image (so the LLM sees tool output images).
+    Why this matters: MCP/internal tool responses with images must be visible to the LLM.
+    """
+    # Arrange
+    history: list[LanguageModelMessage] = [
+        LanguageModelSystemMessage(content="System prompt"),
+        LanguageModelUserMessage(content="Original question"),
+    ]
+    original_user_message = "Original question"
+    rendered_user_message = "Rendered question with context"
+    image_urls = [
+        "data:image/png;base64,iVBORw0KGgo=",
+        "data:image/jpeg;base64,/9j/4AAQ=",
+    ]
+    label = "Image below is the tool's output (see the following tool message for the full result)."
+
+    # Act
+    result = loop_token_reducer._replace_user_message(
+        history, original_user_message, rendered_user_message, image_urls
+    )
+
+    # Assert: one text part, then per URL a label + image_url
+    last_msg = result[-1]
+    assert last_msg.role == LanguageModelMessageRole.USER
+    assert isinstance(last_msg.content, list)
+    assert len(last_msg.content) == 5  # text + (label + url) * 2
+    assert last_msg.content[0] == {
+        "type": "text",
+        "text": "Rendered question with context",
+    }
+    assert last_msg.content[1] == {"type": "text", "text": label}
+    assert last_msg.content[2] == {
+        "type": "image_url",
+        "imageUrl": {"url": "data:image/png;base64,iVBORw0KGgo="},
+    }
+    assert last_msg.content[3] == {"type": "text", "text": label}
+    assert last_msg.content[4] == {
+        "type": "image_url",
+        "imageUrl": {"url": "data:image/jpeg;base64,/9j/4AAQ="},
+    }
+
+
 # Ensure Last Message is User Tests
 @pytest.mark.ai
 def test_ensure_last_message_is_user_message__returns_from_first_user_AI(
@@ -929,3 +977,53 @@ async def test_get_history_for_model_call__returns_messages__when_under_limit_AI
     # Assert
     assert isinstance(result, LanguageModelMessages)
     assert len(result.root) > 0
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
+)
+@patch.object(LoopTokenReducer, "_count_message_tokens")
+async def test_get_history_for_model_call__appends_image_urls_to_user_message__when_provided_AI(
+    mock_count_tokens: "Mock",
+    mock_get_history: "Mock",
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify get_history_for_model_call includes image_url parts when image_data_urls_from_tools provided.
+    Why this matters: Tool-returned images must appear in the user message for the LLM.
+    """
+    # Arrange
+    mock_get_history.return_value = LanguageModelMessages(
+        root=[LanguageModelUserMessage(content="Original question")]
+    )
+    mock_count_tokens.return_value = 100
+
+    async def mock_remove_from_text(text: str) -> str:
+        return text
+
+    # Act
+    result = await loop_token_reducer.get_history_for_model_call(
+        original_user_message="Original question",
+        rendered_user_message_string="Rendered question",
+        rendered_system_message_string="System prompt",
+        loop_history=[],
+        remove_from_text=mock_remove_from_text,
+        image_data_urls_from_tools=["data:image/png;base64,iVBORw0KGgo="],
+    )
+
+    # Assert
+    user_messages = [m for m in result.root if m.role == LanguageModelMessageRole.USER]
+    assert user_messages
+    last_user = user_messages[-1]
+    assert isinstance(last_user.content, list)
+    image_parts = [
+        p
+        for p in last_user.content
+        if isinstance(p, dict) and p.get("type") == "image_url"
+    ]
+    assert image_parts
+    assert (
+        image_parts[0].get("imageUrl", {}).get("url")
+        == "data:image/png;base64,iVBORw0KGgo="
+    )

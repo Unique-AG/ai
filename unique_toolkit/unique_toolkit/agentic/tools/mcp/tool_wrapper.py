@@ -1,5 +1,7 @@
+import base64
 import json
 import logging
+import uuid
 from typing import Any, Dict
 
 import unique_sdk
@@ -15,6 +17,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 )
 from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
+from unique_toolkit.content.functions import upload_content_from_bytes
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -133,8 +136,10 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             # Use SDK to call the public API
             result = await self._call_mcp_tool_via_sdk(arguments)
 
-            # Create successful response
-            tool_response = ToolCallResponse(  # TODO: Why result here not applied directly to the body of the tool_response? like so how does it know the results in the history?
+            content_str, image_data_urls = self._process_mcp_result(result)
+
+            # TODO: Why result here not applied directly to the body of the tool_response? like so how does it know the results in the history?
+            tool_response = ToolCallResponse(
                 id=tool_call.id or "",
                 name=self.name,
                 debug_info={
@@ -142,7 +147,8 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                     "arguments": arguments,
                 },
                 error_message="",
-                content=json.dumps(result),
+                content=content_str,
+                image_data_urls=image_data_urls,
             )
 
             # Notify completion
@@ -264,6 +270,88 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         raise ValueError(
             f"Unexpected arguments type for MCP tool {self.name}: {type(raw_arguments)}"
         )
+
+    def _process_mcp_result(self, result: Dict[str, Any]) -> tuple[str, list[str]]:
+        """Parse MCP result content array, upload images, return content string and data URLs."""
+        content_items = self._extract_content_items(result)
+        if not content_items:
+            return json.dumps(result), []
+
+        text_parts: list[str] = []
+        image_data_urls: list[str] = []
+        image_markdowns: list[str] = []
+
+        for i, item in enumerate(content_items):
+            if not isinstance(item, dict):
+                continue
+            item_type = item.get("type", "")
+            if item_type == "text":
+                text_parts.append(str(item.get("text", "")))
+            elif item_type == "image":
+                data_b64 = item.get("data")
+                mime_type = item.get("mimeType", "image/png")
+                if data_b64:
+                    data_url, content_id = self._process_image_content(
+                        data_b64, mime_type, i
+                    )
+                    if data_url:
+                        image_data_urls.append(data_url)
+                    if content_id:
+                        image_markdowns.append(
+                            f"![image](unique://content/{content_id})"
+                        )
+
+        content_str = "\n\n".join(text_parts)
+        if image_markdowns:
+            content_str += "\n\n" + "\n\n".join(image_markdowns)
+            content_str += (
+                "\n\nInclude the image(s) in your response using the markdown above."
+            )
+        if not content_str.strip():
+            content_str = json.dumps(result)
+        return content_str, image_data_urls
+
+    def _extract_content_items(self, result: Dict[str, Any]) -> list[Any]:
+        """Extract content array from MCP result (handles various response shapes)."""
+        if "content" in result and isinstance(result["content"], list):
+            return result["content"]
+        if "result" in result and isinstance(result["result"], dict):
+            inner = result["result"]
+            if "content" in inner and isinstance(inner["content"], list):
+                return inner["content"]
+        return []
+
+    def _process_image_content(
+        self, data_b64: str, mime_type: str, index: int
+    ) -> tuple[str | None, str | None]:
+        """Decode base64 image, upload to chat, return data URL and content ID."""
+        try:
+            img_bytes = base64.b64decode(data_b64)
+        except Exception as e:
+            self.logger.warning(
+                f"MCP tool {self.name}: failed to decode image base64: {e}"
+            )
+            return None, None
+
+        data_url = f"data:{mime_type};base64,{data_b64}"
+        content_id: str | None = None
+
+        try:
+            content = upload_content_from_bytes(
+                user_id=self.event.user_id,
+                company_id=self.event.company_id,
+                content=img_bytes,
+                content_name=f"mcp_tool_{self.name}_image_{uuid.uuid4().hex[:12]}_{index}.png",
+                mime_type=mime_type,
+                chat_id=self.event.payload.chat_id,
+                skip_ingestion=True,
+                hide_in_chat=True,
+            )
+            content_id = content.id
+        except Exception as e:
+            self.logger.warning(f"MCP tool {self.name}: failed to upload image: {e}")
+
+        return data_url, content_id
 
     async def _call_mcp_tool_via_sdk(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call MCP tool via SDK to public API"""
