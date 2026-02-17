@@ -91,7 +91,16 @@ class ConfigValidator:
             instance = new_model.model_validate(old_json)
 
             # If successful (and no removed fields), check for default changes
-            default_changes = self.differ.compare_defaults(old_json, instance)
+            try:
+                # Instantiate a fresh instance to get current defaults in code
+                default_instance = new_model()
+                default_changes = self.differ.compare_defaults(
+                    old_json, default_instance
+                )
+            except Exception:
+                # If we can't instantiate without args (required fields),
+                # use the validated instance as fallback
+                default_changes = self.differ.compare_defaults(old_json, instance)
 
             if not errors:
                 return ConfigValidationResult(
