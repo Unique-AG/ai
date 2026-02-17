@@ -1,5 +1,4 @@
 name: "[CI] Config Compatibility Check"
-description: "Checks for breaking configuration changes in the toolkit and tool packages."
 
 on:
   pull_request:
@@ -82,9 +81,11 @@ jobs:
 
       - name: Compute merge base
         id: base
+        env:
+          BASE_REF_NAME: ${{ github.base_ref || 'main' }}
         run: |
-          BASE_REF="origin/${{ github.base_ref || 'main' }}"
-          git fetch origin "${{ github.base_ref || 'main' }}"
+          BASE_REF="origin/$BASE_REF_NAME"
+          git fetch origin "$BASE_REF_NAME"
           MERGE_BASE=$(git merge-base HEAD "$BASE_REF")
           echo "commit=$MERGE_BASE" >> $GITHUB_OUTPUT
           echo "Merge base: $MERGE_BASE"
