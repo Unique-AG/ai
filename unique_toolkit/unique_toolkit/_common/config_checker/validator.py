@@ -72,6 +72,7 @@ class ConfigValidator:
         """
         logger.debug(f"Validating config '{config_name}' against {new_model.__name__}")
         errors = []
+        warnings = []
 
         # 1. Structural Check: Detect removed fields
         old_keys = set(old_json.keys())
@@ -81,14 +82,29 @@ class ConfigValidator:
         if removed_keys:
             logger.debug(f"Detected removed keys in '{config_name}': {removed_keys}")
 
-        for key in removed_keys:
-            errors.append(
-                ValidationErrorModel(
-                    field_path=key,
-                    message="Field was removed from the model (breaking change)",
-                    old_value=old_json.get(key),
-                )
-            )
+            # Check model config for extra handling
+            model_config = getattr(new_model, "model_config", {})
+            extra_handling = model_config.get("extra", "ignore")
+
+            for key in removed_keys:
+                msg = f"Field '{key}' was removed from the model"
+                if extra_handling == "allow":
+                    logger.debug(f"Allowing removal of '{key}' because extra='allow'")
+                    warnings.append(
+                        ValidationErrorModel(
+                            field_path=key,
+                            message=f"{msg} (Allowed because model allows extra fields)",
+                            old_value=old_json.get(key),
+                        )
+                    )
+                else:
+                    errors.append(
+                        ValidationErrorModel(
+                            field_path=key,
+                            message=f"{msg} (Breaking change because model does not explicitly allow extra fields)",
+                            old_value=old_json.get(key),
+                        )
+                    )
 
         try:
             # 2. Value Check: Try to validate/instantiate
@@ -117,20 +133,13 @@ class ConfigValidator:
                 )
                 default_changes = self.differ.compare_defaults(old_json, instance)
 
-            if not errors:
-                return ConfigValidationResult(
-                    config_name=config_name,
-                    valid=True,
-                    errors=None,
-                    default_changes=default_changes if default_changes else None,
-                )
-            else:
-                return ConfigValidationResult(
-                    config_name=config_name,
-                    valid=False,
-                    errors=errors,
-                    default_changes=None,
-                )
+            return ConfigValidationResult(
+                config_name=config_name,
+                valid=len(errors) == 0,
+                errors=errors if errors else None,
+                warnings=warnings if warnings else None,
+                default_changes=default_changes if default_changes else None,
+            )
 
         except ValidationError as e:
             # 3. Parse and Enhance Validation Errors
@@ -158,6 +167,7 @@ class ConfigValidator:
                 config_name=config_name,
                 valid=False,
                 errors=errors,
+                warnings=warnings if warnings else None,
                 default_changes=None,
             )
 
