@@ -249,9 +249,16 @@ class ConfigValidator:
             try:
                 current = original_json
                 for key in loc:
-                    if isinstance(current, dict):
+                    if isinstance(current, dict) and isinstance(key, str):
                         current = current.get(key)
+                    elif isinstance(current, list) and isinstance(key, int):
+                        try:
+                            current = current[key]
+                        except (IndexError, TypeError):
+                            current = None
+                            break
                     else:
+                        current = None
                         break
                 old_value = current
             except Exception:
