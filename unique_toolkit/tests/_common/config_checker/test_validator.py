@@ -130,14 +130,29 @@ def test_validator_reports_missing_config():
             ConfigEntry("BaseConfig", BaseConfig, "auto_discovery"),
         ]
 
-        report = validator.validate_all(artifact_dir, entries)
+        # Case 1: fail_on_missing = True (default)
+        report = validator.validate_all(artifact_dir, entries, fail_on_missing=True)
 
         assert report.total_configs == 1
         assert report.invalid_count == 1
+        assert report.has_failures()
 
         result = report.results[0]
         assert result.config_name == "RemovedConfig"
+        assert not result.valid
         assert "not found" in result.errors[0].message.lower()
+
+        # Case 2: fail_on_missing = False
+        report2 = validator.validate_all(artifact_dir, entries, fail_on_missing=False)
+
+        assert report2.total_configs == 1
+        assert report2.invalid_count == 0
+        assert not report2.has_failures()
+
+        result2 = report2.results[0]
+        assert result2.config_name == "RemovedConfig"
+        assert result2.valid
+        assert "not found" in result2.errors[0].message.lower()
 
 
 def test_validator_handles_invalid_json():

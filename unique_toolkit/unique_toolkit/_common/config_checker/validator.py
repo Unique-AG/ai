@@ -92,14 +92,15 @@ class ConfigValidator:
 
             # If successful (and no removed fields), check for default changes
             try:
-                # Instantiate a fresh instance to get current defaults in code
-                default_instance = new_model()
+                # Instantiate a fresh instance with code-only defaults via model_construct()
+                # This ensures we ignore the current environment when getting "tip" defaults.
+                default_instance = new_model.model_construct()
+
                 default_changes = self.differ.compare_defaults(
                     old_json, default_instance
                 )
             except Exception:
-                # If we can't instantiate without args (required fields),
-                # use the validated instance as fallback
+                # Fallback to the validated instance if needed
                 default_changes = self.differ.compare_defaults(old_json, instance)
 
             if not errors:
@@ -150,12 +151,14 @@ class ConfigValidator:
         self,
         artifact_dir: Path,
         config_entries: list[ConfigEntry],
+        fail_on_missing: bool = False,
     ) -> ValidationReport:
         """Validate all configs from artifact directory.
 
         Args:
             artifact_dir: Directory containing exported JSON files
             config_entries: List of ConfigEntry objects for new schema
+            fail_on_missing: Whether to fail if a config is missing at tip
 
         Returns:
             ValidationReport with all results
@@ -185,7 +188,7 @@ class ConfigValidator:
                     logger.warning(f"No model found for config: {config_name}")
                     result = ConfigValidationResult(
                         config_name=config_name,
-                        valid=False,
+                        valid=not fail_on_missing,
                         errors=[
                             ValidationErrorModel(
                                 field_path="__root__",

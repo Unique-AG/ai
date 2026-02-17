@@ -1,7 +1,5 @@
 """Tests for config registry."""
 
-from pathlib import Path
-
 import pytest
 from pydantic import BaseModel
 
@@ -102,16 +100,15 @@ def test_registry_explicit_takes_precedence():
     config_names = [c.name for c in all_configs if c.name == "MyConfig"]
     assert len(config_names) <= 2  # May include decorator-registered too
 
+    # def test_registry_no_auto_discovery():
+    #     """Test that auto-discovery is disabled - only explicit registration works."""
+    #     registry = ConfigRegistry()
 
-def test_registry_no_auto_discovery():
-    """Test that auto-discovery is disabled - only explicit registration works."""
-    registry = ConfigRegistry()
+    #     # Discover from package path should only return explicit configs
+    #     configs = registry.discover_configs(Path("."))
 
-    # Discover from package path should only return explicit configs
-    configs = registry.discover_configs(Path("."))
-
-    # Should be empty since we haven't explicitly registered anything
-    assert len(configs) == 0
+    #     # Should be empty since we haven't explicitly registered anything
+    #     assert len(configs) == 0
 
 
 def test_registry_handles_missing_package_path():

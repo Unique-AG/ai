@@ -142,6 +142,19 @@ def test_differ_no_changes_on_identical_values():
     assert len(changes) == 0
 
 
+def test_differ_no_changes_on_reordered_lists():
+    """Test that differ ignores order changes in lists (handles sets)."""
+    differ = ConfigDiffer()
+
+    old_json = {"items": ["a", "b", "c"]}
+    new_instance = ListConfig(items=["c", "b", "a"])
+
+    changes = differ.compare_defaults(old_json, new_instance)
+
+    # Reordering shouldn't be reported as a change
+    assert len(changes) == 0
+
+
 def test_default_change_report_format():
     """Test DefaultChangeReport formatting."""
     from unique_toolkit._common.config_checker.models import DefaultChange
