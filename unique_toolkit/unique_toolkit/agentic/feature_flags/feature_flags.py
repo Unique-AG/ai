@@ -68,7 +68,7 @@ class FeatureFlags(BaseSettings):
     )
 
     enable_elicitation_un_15809: FeatureFlag = Field(
-        default=FeatureFlag(False),
+        default=FeatureFlag(True),
         description="Enable elicitation (UN-15809)",
     )
 
