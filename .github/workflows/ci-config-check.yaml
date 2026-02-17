@@ -101,18 +101,19 @@ jobs:
           python_version: ${{ matrix.python }}
 
       - name: Export base defaults
+        working-directory: ${{ matrix.dir }}
         run: |
           # Only run export if the config checker exists in the base commit.
           # If this is the first PR introducing the tool, we skip the base export.
           if ${{ steps.install_base.outputs.run_cmd }} python -c "import importlib.util; exit(0 if importlib.util.find_spec('unique_toolkit._common.config_checker') else 1)" 2>/dev/null; then
             ${{ steps.install_base.outputs.run_cmd }} python -m unique_toolkit._common.config_checker export \
-              --package "${{ matrix.dir }}" \
-              --output ./config-artifacts-base/ \
+              --package . \
+              --output "$GITHUB_WORKSPACE/config-artifacts-base/" \
               --verbose
           else
             echo "⚠️ Config checker module not found in base commit. Skipping base export."
-            mkdir -p ./config-artifacts-base/
-            echo '{"exported_count": 0, "skipped_count": 0, "warnings": [], "config_files": {}}' > ./config-artifacts-base/manifest.json
+            mkdir -p "$GITHUB_WORKSPACE/config-artifacts-base/"
+            echo '{"exported_count": 0, "skipped_count": 0, "warnings": [], "config_files": {}}' > "$GITHUB_WORKSPACE/config-artifacts-base/manifest.json"
           fi
 
       - name: Upload base artifacts
@@ -142,13 +143,14 @@ jobs:
 
       - name: Validate compatibility
         id: validate
+        working-directory: ${{ matrix.dir }}
         run: |
           ${{ steps.install_tip.outputs.run_cmd }} python -m unique_toolkit._common.config_checker check \
-            --artifacts ./config-artifacts-base/ \
-            --package "${{ matrix.dir }}" \
+            --artifacts "$GITHUB_WORKSPACE/config-artifacts-base/" \
+            --package . \
             --report-defaults \
             --fail-on-missing \
-            --output-report ./config-check-report.md \
+            --output-report "$GITHUB_WORKSPACE/config-check-report.md" \
             --verbose
         continue-on-error: true
 
