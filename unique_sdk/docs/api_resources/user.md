@@ -71,6 +71,43 @@ Manage users within a company including user lookup and configuration management
     )
     ```
 
+??? example "`unique_sdk.User.get_by_id` - Get user by ID"
+
+    !!! info "Compatibility"
+        Compatible with release >.80
+
+    Get a specific user by their ID.
+
+    **Parameters:**
+
+    - `target_user_id` (str, required) - The ID of the user to retrieve
+
+    **Returns:**
+
+    Returns a [`User`](#user) object.
+
+    **Example:**
+
+    ```python
+    user = unique_sdk.User.get_by_id(
+        user_id=user_id,
+        company_id=company_id,
+        target_user_id="351283829975023795"
+    )
+
+    print(f"User: {user['displayName']} ({user['email']})")
+    ```
+
+    **Example - Async:**
+
+    ```python
+    user = await unique_sdk.User.get_by_id_async(
+        user_id=user_id,
+        company_id=company_id,
+        target_user_id="351283829975023795"
+    )
+    ```
+
 ??? example "`unique_sdk.User.get_user_groups` - Get groups a user belongs to"
 
     !!! info "Compatibility"
@@ -289,7 +326,7 @@ Manage users within a company including user lookup and configuration management
     - `createdAt` (str) - Creation timestamp (ISO 8601)
     - `active` (bool) - Whether user is active
 
-    **Returned by:** `User.get_users()`
+    **Returned by:** `User.get_users()`, `User.get_by_id()`
 
 #### UserWithConfiguration {#userwithconfiguration}
 
