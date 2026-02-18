@@ -40,24 +40,25 @@ class TypeChangedConfig(BaseModel):
     value: str = "42"  # Changed from int to str
 
 
-@pytest.mark.ai
+validator = ConfigValidator()
+
+
+@pytest.mark.verified
 def test_validator_validates_compatible_config():
     """Test that validator accepts compatible configs."""
-    validator = ConfigValidator()
 
-    old_json = {"name": "test", "value": 42}
+    old_json = BaseConfig().model_dump()
     result = validator.validate_config(old_json, BaseConfig, "BaseConfig")
 
     assert result.valid
     assert result.errors is None
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_validator_detects_removed_field():
     """Test that validator detects removed required fields."""
-    validator = ConfigValidator()
 
-    old_json = {"name": "test", "value": 42}
+    old_json = BaseConfig().model_dump()
     result = validator.validate_config(
         old_json, RemovedFieldConfig, "RemovedFieldConfig"
     )
@@ -65,29 +66,35 @@ def test_validator_detects_removed_field():
     assert not result.valid
     assert result.errors is not None
     assert len(result.errors) > 0
+    err = result.errors[0]
+    assert err.field_path == "value"
+    assert err.message.startswith("Field 'value' was removed from the model")
+    assert err.old_value == 42
+    assert err.new_value is None
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_validator_detects_type_change():
     """Test that validator detects type changes."""
-    validator = ConfigValidator()
 
-    old_json = {"name": "test", "value": 42}
+    old_json = BaseConfig().model_dump()
     result = validator.validate_config(old_json, TypeChangedConfig, "TypeChangedConfig")
 
-    # Pydantic v2 is strict about type changes
-    # int 42 should fail to validate as str
-    # (unless there's coercion, which we don't want)
-    if not result.valid:
-        assert result.errors is not None
+    assert not result.valid
+    assert result.errors is not None
+    assert len(result.errors) > 0
+    err = result.errors[0]
+    assert err.field_path == "value"
+    assert err.message == "string_type: Input should be a valid string"
+    assert err.old_value == 42
+    assert err.new_value is None
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_validator_detects_default_changes():
     """Test that validator detects (but doesn't fail on) default changes."""
-    validator = ConfigValidator()
 
-    old_json = {"name": "test", "value": 42}
+    old_json = BaseConfig().model_dump()
     result = validator.validate_config(old_json, UpdatedConfig, "UpdatedConfig")
 
     assert result.valid
@@ -101,21 +108,16 @@ def test_validator_detects_default_changes():
     assert change.new_value == 100
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_validator_validate_all_from_artifacts():
     """Test validating all configs from artifact directory."""
-    validator = ConfigValidator()
 
     with tempfile.TemporaryDirectory() as tmpdir:
         artifact_dir = Path(tmpdir)
 
         # Create artifact files
-        (artifact_dir / "BaseConfig.json").write_text(
-            json.dumps({"name": "test", "value": 42})
-        )
-        (artifact_dir / "UpdatedConfig.json").write_text(
-            json.dumps({"name": "test", "value": 42})
-        )
+        (artifact_dir / "BaseConfig.json").write_text(BaseConfig().model_dump_json())
+        (artifact_dir / "UpdatedConfig.json").write_text(BaseConfig().model_dump_json())
 
         # Create config entries
         entries = [
@@ -130,10 +132,9 @@ def test_validator_validate_all_from_artifacts():
         assert report.invalid_count == 0
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_validator_reports_missing_config():
     """Test that validator reports configs that don't exist at tip."""
-    validator = ConfigValidator()
 
     with tempfile.TemporaryDirectory() as tmpdir:
         artifact_dir = Path(tmpdir)
@@ -178,10 +179,9 @@ def test_validator_reports_missing_config():
         assert "not found" in result2.errors[0].message.lower()
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_validator_handles_invalid_json():
     """Test that validator handles malformed JSON files."""
-    validator = ConfigValidator()
 
     with tempfile.TemporaryDirectory() as tmpdir:
         artifact_dir = Path(tmpdir)
@@ -200,13 +200,12 @@ def test_validator_handles_invalid_json():
         assert "JSON" in result.errors[0].message
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_validation_report_has_failures():
     """Test ValidationReport.has_failures() method."""
-    validator = ConfigValidator()
 
     # Valid result
-    old_json = {"name": "test", "value": 42}
+    old_json = BaseConfig().model_dump()
     result = validator.validate_config(old_json, BaseConfig, "BaseConfig")
 
     from unique_toolkit._common.config_checker.validator import ValidationReport
@@ -234,7 +233,7 @@ def test_validation_report_has_failures():
     assert report2.has_failures()
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_validator_error_summary_and_edge_cases():
     """Test ValidationReport error summary and validator edge cases."""
     # Test has_failures and get_error_summary
@@ -260,7 +259,6 @@ def test_validator_error_summary_and_edge_cases():
     assert "successfully" in report_ok.get_error_summary()
 
     # Test validator fallback in default check
-    validator = ConfigValidator()
 
     class ReqConfig(BaseModel):
         x: int
@@ -271,10 +269,9 @@ def test_validator_error_summary_and_edge_cases():
     assert result.valid
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_validator_parse_errors_recursive():
     """Test recursive error parsing in validator."""
-    validator = ConfigValidator()
 
     class Nested(BaseModel):
         y: int
@@ -284,23 +281,29 @@ def test_validator_parse_errors_recursive():
         l_: list[Nested]
 
     # Invalid data to trigger ValidationError
-    bad_data = {"n_": {"y": "hi"}, "l_": [{"y": "there"}]}
+    bad_data = {"n_": {"y": "hello"}, "l_": [{"y": {1, 2, 3}}, {"y": 1}]}
 
     try:
         Root.model_validate(bad_data)
     except ValidationError as e:
         errors = validator._parse_validation_errors(e, bad_data)
-        assert len(errors) >= 2
+        assert len(errors) == 2
         # Check field paths
+        assert "2 validation errors for Root" in str(e)
         paths = [e.field_path for e in errors]
+        err_messages = [e.message for e in errors]
         assert "n_.y" in paths
         assert "l_.0.y" in paths
+        assert "int_type: Input should be a valid integer" in err_messages  # set
+        assert (
+            "int_parsing: Input should be a valid integer, unable to parse string as an integer"
+            in err_messages
+        )  # string
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_validator_rename_heuristic():
     """Test the rename heuristic in the validator."""
-    validator = ConfigValidator()
 
     class OldModel(BaseModel):
         old_field: int = 1
@@ -308,17 +311,17 @@ def test_validator_rename_heuristic():
     class NewModel(BaseModel):
         new_field: int
 
-    old_json = {"old_field": 1}
+    old_json = OldModel().model_dump()
     # This should trigger the "maybe you renamed it?" note
     result = validator.validate_config(old_json, NewModel, "RenameTest")
     assert not result.valid
     assert any("maybe you renamed it?" in e.message for e in result.errors)
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_validator_skip_manifest():
     """Test that validator skips manifest.json."""
-    validator = ConfigValidator()
+
     with tempfile.TemporaryDirectory() as tmpdir:
         artifact_dir = Path(tmpdir)
         (artifact_dir / "manifest.json").write_text("{}", encoding="utf-8")
@@ -333,34 +336,97 @@ def test_validator_skip_manifest():
         assert report.total_configs == 1
 
 
-@pytest.mark.ai
-def test_validator_instantiation_fallback():
-    """Test validator fallback when default instantiation fails."""
-    validator = ConfigValidator()
+@pytest.fixture
+def required_field_model():
+    """Model with required fields for testing instantiation fallback."""
 
     class ReqModel(BaseModel):
-        x: int  # Required
+        x: int  # Required field
 
-    old_json = {"x": 1}
-    # This will trigger lines 102-104 in validator.py
-    result = validator.validate_config(old_json, ReqModel, "Req")
-    assert result.valid
-    assert result.default_changes is None
+    return ReqModel
 
 
-@pytest.mark.ai
-def test_validator_handles_extra_allow():
-    """Test that removing a field is okay if extra='allow'."""
-    validator = ConfigValidator()
+@pytest.fixture
+def optional_field_model():
+    """Model with optional fields for testing successful instantiation."""
 
-    class ExtraAllowModel(BaseModel):
+    class OptionalModel(BaseModel):
+        x: int = 42  # Has default
+
+    return OptionalModel
+
+
+@pytest.fixture
+def allowed_extra_fields_model():
+    class AllowedExtraModel(BaseModel):
+        x: int = 42
         model_config = {"extra": "allow"}
-        kept_field: int = 1
 
-    old_json = {"kept_field": 1, "removed_field": 2}
+    return AllowedExtraModel
+
+
+@pytest.mark.verified
+@pytest.mark.parametrize(
+    "old_json,should_be_valid,description,should_be_valid_2",
+    [
+        ({"x": 1}, True, "Valid JSON matches required fields", True),
+        ({"x": 1, "y": 999}, False, "Extra fields in JSON are handled", True),
+        ({}, False, "Missing required field causes validation error", True),
+    ],
+)
+def test_validator_instantiation_scenarios(
+    required_field_model,
+    allowed_extra_fields_model,
+    old_json: dict,
+    should_be_valid: bool,
+    should_be_valid_2: bool,
+    description: str,
+):
+    result = validator.validate_config(old_json, required_field_model, "ReqModel")
+
+    assert result.valid == should_be_valid, (
+        f"Failed: {description} - Expected valid={should_be_valid}, got {result.valid}"
+    )
+
+    if not should_be_valid:
+        assert result.errors is not None, "Expected errors when validation fails"
+        assert len(result.errors) > 0, "Should have at least one validation error"
+
+    result_2 = validator.validate_config(
+        old_json, allowed_extra_fields_model, "AllowedExtraModel"
+    )
+    assert result_2.valid == should_be_valid_2
+
+
+@pytest.mark.verified
+def test_validator_default_construction_fallback(optional_field_model):
+    """Test that validator falls back gracefully when default construction fails."""
+
+    old_json = {"x": 50}
+    result = validator.validate_config(old_json, optional_field_model, "OptionalModel")
+
+    # Should successfully validate
+    assert result.valid is True, "Config should validate successfully"
+
+    # Default changes should be computed even for compatible configs
+    # (x: 50 differs from default x: 42)
+    assert result.default_changes is not None, "Should detect default value changes"
+    assert any(
+        change.field_path == "x" and change.old_value == 50
+        for change in result.default_changes
+    ), "Should track the changed default value for field 'x'"
+
+
+@pytest.mark.verified
+def test_validator_handles_extra_allow(allowed_extra_fields_model):
+    """Test that removing a field is okay if extra='allow'."""
+
+    old_json = {"x": 1, "removed_field": 2}
 
     # Should be VALID but have a warning
-    result = validator.validate_config(old_json, ExtraAllowModel, "ExtraAllow")
+    result = validator.validate_config(
+        old_json, allowed_extra_fields_model, "ExtraAllow"
+    )
 
     assert result.valid
     assert result.warnings is not None
@@ -371,10 +437,9 @@ def test_validator_handles_extra_allow():
     assert result.errors is None
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_validator_handles_extra_ignore_is_breaking():
     """Test that removing a field is BREAKING if extra='ignore' (default)."""
-    validator = ConfigValidator()
 
     class ExtraIgnoreModel(BaseModel):
         model_config = {"extra": "ignore"}

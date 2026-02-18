@@ -144,15 +144,10 @@ def test_registry_discovery_complex():
         # Mock register_config to avoid actual registration in global registry
         with patch("unique_toolkit._common.config_checker.registry.register_config"):
             registry = ConfigRegistry()
-            # Need to mock sys.path to avoid polluting it
-            with patch("sys.path", sys.path[:]):
-                registry.discover_configs(tmp_path)
-                assert str(src_dir.resolve()) in [
-                    str(Path(p).resolve()) for p in sys.path
-                ]
-                assert str(pkg_dir.resolve()) not in [  # if src, use src
-                    str(Path(p).resolve()) for p in sys.path
-                ]
+            path_before = sys.path.copy()
+            registry.discover_configs(tmp_path)
+            # Discovery uses isolated sys.path; no persistent modification
+            assert sys.path == path_before
 
 
 @pytest.mark.verified
@@ -170,13 +165,12 @@ def test_registry_discovery_skips_non_config_files():
 
         registry = ConfigRegistry()
         with patch("importlib.util.spec_from_file_location") as mock_spec:
-            with patch("sys.path", sys.path[:]):
-                registry.discover_configs(tmp_path)
+            registry.discover_configs(tmp_path)
 
-                # Should only be called for config.py, not other.py
-                called_files = [call.args[1] for call in mock_spec.call_args_list]
-                assert any("registered_config.py" in str(f) for f in called_files)
-                assert not any("other.py" in str(f) for f in called_files)
+            # Should only be called for config.py, not other.py
+            called_files = [call.args[1] for call in mock_spec.call_args_list]
+            assert any("registered_config.py" in str(f) for f in called_files)
+            assert not any("other.py" in str(f) for f in called_files)
 
 
 @pytest.mark.verified
