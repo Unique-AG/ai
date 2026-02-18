@@ -6,6 +6,8 @@ import unique_sdk
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field
 
+from unique_toolkit._common.config_checker import register_config
+
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
     alias_generator=camelize,
@@ -25,6 +27,7 @@ class ContentMetadata(BaseModel):
     mime_type: str
 
 
+@register_config()
 class ContentChunk(BaseModel):
     model_config = model_config
     id: str = Field(

@@ -1,0 +1,180 @@
+name: "[CI] Config Compatibility Check"
+
+on:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to check (empty=auto-detect, all=all packages)'
+        type: choice
+        options:
+          - ''
+          - all
+          - toolkit
+          - web_search
+          - deep_research
+          - swot
+          - internal_search
+          - stock_ticker
+          - follow_up_questions
+        default: ''
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            toolkit:
+              - 'unique_toolkit/**'
+            web_search:
+              - 'tool_packages/unique_web_search/**'
+            deep_research:
+              - 'tool_packages/unique_deep_research/**'
+            swot:
+              - 'tool_packages/unique_swot/**'
+            internal_search:
+              - 'tool_packages/unique_internal_search/**'
+            stock_ticker:
+              - 'postprocessors/unique_stock_ticker/**'
+            follow_up_questions:
+              - 'postprocessors/unique_follow_up_questions/**'
+
+      - uses: ./.github/actions/select-packages
+        id: set-matrix
+        with:
+          packages: |
+            [
+              {"id": "toolkit", "dir": "unique_toolkit", "python": "3.12"},
+              {"id": "web_search", "dir": "tool_packages/unique_web_search", "python": "3.12"},
+              {"id": "deep_research", "dir": "tool_packages/unique_deep_research", "python": "3.12"},
+              {"id": "swot", "dir": "tool_packages/unique_swot", "python": "3.12"},
+              {"id": "internal_search", "dir": "tool_packages/unique_internal_search", "python": "3.12"},
+              {"id": "stock_ticker", "dir": "postprocessors/unique_stock_ticker", "python": "3.12"},
+              {"id": "follow_up_questions", "dir": "postprocessors/unique_follow_up_questions", "python": "3.12"}
+            ]
+          selected: ${{ inputs.package }}
+          changes: ${{ toJson(steps.filter.outputs) }}
+
+  check-config-compatibility:
+    needs: detect-changes
+    if: ${{ fromJson(needs.detect-changes.outputs.matrix).include[0] != null }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+
+    steps:
+      # 1. Setup
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for merge-base
+
+      - name: Compute merge base
+        id: base
+        env:
+          BASE_REF_NAME: ${{ github.base_ref || 'main' }}
+        run: |
+          BASE_REF="origin/$BASE_REF_NAME"
+          git fetch origin "$BASE_REF_NAME"
+          MERGE_BASE=$(git merge-base HEAD "$BASE_REF")
+          echo "commit=$MERGE_BASE" >> $GITHUB_OUTPUT
+          echo "Merge base: $MERGE_BASE"
+
+      # 2. Export defaults from base commit
+      - name: Checkout base commit
+        run: git checkout ${{ steps.base.outputs.commit }} --quiet
+
+      - name: Install package manager (base)
+        id: install_base
+        uses: ./.github/actions/install-package-manager
+        with:
+          package_dir: ${{ matrix.dir }}
+          python_version: ${{ matrix.python }}
+
+      - name: Export base defaults
+        working-directory: ${{ matrix.dir }}
+        run: |
+          # Only run export if the config checker exists in the base commit.
+          # If this is the first PR introducing the tool, we skip the base export.
+          if ${{ steps.install_base.outputs.run_cmd }} python -c "import importlib.util; exit(0 if importlib.util.find_spec('unique_toolkit._common.config_checker') else 1)" 2>/dev/null; then
+            ${{ steps.install_base.outputs.run_cmd }} python -m unique_toolkit._common.config_checker export \
+              --package . \
+              --output "$GITHUB_WORKSPACE/config-artifacts-base/"
+          else
+            echo "⚠️ Config checker module not found in base commit. Skipping base export."
+            mkdir -p "$GITHUB_WORKSPACE/config-artifacts-base/"
+            echo '{"exported_count": 0, "skipped_count": 0, "warnings": [], "config_files": {}}' > "$GITHUB_WORKSPACE/config-artifacts-base/manifest.json"
+          fi
+
+      - name: Upload base artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: config-base-${{ matrix.id }}
+          path: ./config-artifacts-base/
+          retention-days: 1
+          if-no-files-found: warn
+
+      # 3. Checkout tip and validate
+      - name: Checkout PR tip
+        run: git checkout ${{ github.sha }} --quiet
+
+      - name: Install package manager (tip)
+        id: install_tip
+        uses: ./.github/actions/install-package-manager
+        with:
+          package_dir: ${{ matrix.dir }}
+          python_version: ${{ matrix.python }}
+
+      - name: Download base artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: config-base-${{ matrix.id }}
+          path: ./config-artifacts-base/
+
+      - name: Validate compatibility
+        id: validate
+        working-directory: ${{ matrix.dir }}
+        run: |
+          ${{ steps.install_tip.outputs.run_cmd }} python -m unique_toolkit._common.config_checker check \
+            --artifacts "$GITHUB_WORKSPACE/config-artifacts-base/" \
+            --package . \
+            --report-defaults \
+            --fail-on-missing \
+            --output-report "$GITHUB_WORKSPACE/config-check-report.md"
+        continue-on-error: true
+
+      - name: Generate report
+        if: always()
+        run: |
+          if [ "${{ steps.validate.outcome }}" == "failure" ]; then
+            echo "## ❌ Configuration Check Failed for ${{ matrix.id }}" >> $GITHUB_STEP_SUMMARY
+            if [ -f ./config-check-report.md ]; then
+              cat ./config-check-report.md >> $GITHUB_STEP_SUMMARY
+            else
+              echo "Validation failed. See job logs for details." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "## ✓ Configuration Check Passed for ${{ matrix.id }}" >> $GITHUB_STEP_SUMMARY
+            if [ -f ./config-check-report.md ]; then
+              echo "Default changes detected:" >> $GITHUB_STEP_SUMMARY
+              cat ./config-check-report.md >> $GITHUB_STEP_SUMMARY
+            else
+              echo "No breaking configuration changes detected." >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+      - name: Check validation result
+        if: steps.validate.outcome == 'failure'
+        run: |
+          echo "❌ Configuration compatibility check failed"
+          exit 1

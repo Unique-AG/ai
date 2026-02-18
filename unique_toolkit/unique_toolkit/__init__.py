@@ -19,6 +19,24 @@ from unique_toolkit.language_model import (
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 from unique_toolkit.short_term_memory import ShortTermMemoryService
 
+# Conditionally import config_checker (requires pydantic-settings)
+try:
+    from unique_toolkit._common.config_checker import (
+        ConfigDiffer,  # noqa: F401, I001
+        ConfigEntry,  # noqa: F401, I001
+        ConfigExporter,  # noqa: F401, I001
+        ConfigRegistry,  # noqa: F401, I001
+        ConfigValidator,  # noqa: F401, I001
+        DefaultChangeReport,  # noqa: F401, I001
+        ExportManifest,  # noqa: F401, I001
+        ValidationReport,  # noqa: F401, I001
+        register_config,  # noqa: F401, I001
+    )
+
+    _CONFIG_CHECKER_AVAILABLE = True
+except ImportError:
+    _CONFIG_CHECKER_AVAILABLE = False
+
 # Conditionally import langchain utilities if langchain is installed
 try:
     from unique_toolkit.framework_utilities.langchain.client import get_langchain_client  # noqa: F401, I001
@@ -45,6 +63,21 @@ __all__ = [
     "StructuredOutputDataExtractorConfig",
 ]
 
+# Add config_checker exports if available
+if _CONFIG_CHECKER_AVAILABLE:
+    __all__.extend(
+        [
+            "ConfigDiffer",
+            "ConfigEntry",
+            "ConfigExporter",
+            "ConfigRegistry",
+            "ConfigValidator",
+            "DefaultChangeReport",
+            "ExportManifest",
+            "ValidationReport",
+            "register_config",
+        ]
+    )
 # Add langchain-specific exports if available
 if _LANGCHAIN_AVAILABLE:
     __all__.append("get_langchain_client")
