@@ -1,11 +1,9 @@
 import logging
-from typing import Any, Coroutine, Sequence, overload
+from typing import Any, Sequence, overload
 
 import unique_sdk
 from openai.types.chat import ChatCompletionToolChoiceOptionParam
-from unique_toolkit._common.event_bus import TypedEventBus
 from unique_toolkit.chat.cancellation import CancellationWatcher
-from unique_toolkit.chat.schemas import CancellationEvent
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from openai.types.responses import (
     ResponseIncludable,
@@ -108,7 +106,6 @@ from unique_toolkit.short_term_memory.schemas import ShortTermMemory
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
-
 class ChatService(ChatServiceDeprecated):
     """Provides all functionalities to manage the chat session."""
 
@@ -117,9 +114,7 @@ class ChatService(ChatServiceDeprecated):
         super().__init__(*args, **kwargs)
         self._elicitation_service: ElicitationService | None = None
 
-        self._cancellation_bus: TypedEventBus[CancellationEvent] = TypedEventBus()
         self._cancellation_watcher = CancellationWatcher(
-            bus=self._cancellation_bus,
             user_id=self._user_id,
             company_id=self._company_id,
             chat_id=self._chat_id,
@@ -127,9 +122,9 @@ class ChatService(ChatServiceDeprecated):
         )
 
     @property
-    def on_cancellation(self) -> TypedEventBus[CancellationEvent]:
-        """Event bus that fires when a user cancellation is detected."""
-        return self._cancellation_bus
+    def cancellation(self) -> CancellationWatcher:
+        """Cancellation watcher for this chat session."""
+        return self._cancellation_watcher
 
     @property
     def elicitation(self) -> ElicitationService:
@@ -140,52 +135,6 @@ class ChatService(ChatServiceDeprecated):
         self._elicitation_service = ElicitationService.from_chat_event(self._event)
 
         return self._elicitation_service
-
-    async def check_cancellation_async(self) -> None:
-        """Check if the user has requested cancellation.
-
-        Polls the database for the ``cancelledAt`` flag on the assistant
-        message.  If set, all subscribers on :attr:`on_cancellation` are
-        notified **before** :class:`StoppedByUserException` is raised.
-
-        Raises:
-            StoppedByUserException: If the assistant message has been cancelled.
-        """
-        await self._cancellation_watcher.check_cancellation_async()
-
-    def check_cancellation(self) -> None:
-        """Synchronous version of :meth:`check_cancellation_async`.
-
-        Raises:
-            StoppedByUserException: If the assistant message has been cancelled.
-        """
-        self._cancellation_watcher.check_cancellation()
-
-    async def run_with_cancellation(
-        self,
-        coroutine: Coroutine[Any, Any, Any],
-        poll_interval: float = 2.0,
-    ) -> Any:
-        """Run *coroutine* with automatic cancellation polling.
-
-        A background watcher polls the database every *poll_interval* seconds.
-        When the assistant message's ``cancelledAt`` field is set, the running
-        task is cancelled, subscribers on :attr:`on_cancellation` are notified,
-        and :class:`StoppedByUserException` is raised.
-
-        Args:
-            coroutine: The async coroutine to execute.
-            poll_interval: How often (in seconds) to poll for cancellation.
-
-        Returns:
-            The return value of the coroutine.
-
-        Raises:
-            StoppedByUserException: If the user cancelled the execution.
-        """
-        return await self._cancellation_watcher.run_with_cancellation(
-            coroutine, poll_interval=poll_interval
-        )
 
     async def update_debug_info_async(self, debug_info: dict):
         """Updates the debug information for the chat session.

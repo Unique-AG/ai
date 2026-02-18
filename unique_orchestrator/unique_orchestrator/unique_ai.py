@@ -28,7 +28,7 @@ from unique_toolkit.agentic.tools.tool_manager import (
     ToolManager,
 )
 from unique_toolkit.app.schemas import ChatEvent, McpServer
-from unique_toolkit.chat.schemas import CancellationEvent, StoppedByUserException
+from unique_toolkit.chat.schemas import CancellationEvent
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelAssistantMessage
@@ -178,27 +178,32 @@ class UniqueAI:
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )
 
-        sub = self._chat_service.on_cancellation.subscribe(self._on_cancellation)
+        sub = self._chat_service.cancellation.on_cancellation.subscribe(self._on_cancellation)
         try:
-            ## Loop iteration
             max_iterations = self._effective_max_loop_iterations
             for i in range(max_iterations):
+                if self._chat_service.cancellation.is_cancelled:
+                    break
+
                 self.current_iteration_index = i
                 self._logger.info(f"Starting iteration {i + 1}...")
 
-                # Plan execution
                 loop_response = await self._plan_or_execute()
                 self._logger.info("Done with _plan_or_execute")
+
+                if self._chat_service.cancellation.is_cancelled:
+                    break
 
                 self._reference_manager.add_references(loop_response.message.references)
                 self._logger.info("Done with adding references")
 
-                # Update tool progress reporter
                 self._thinking_manager.update_tool_progress_reporter(loop_response)
 
-                # Execute the plan
                 exit_loop = await self._process_plan(loop_response)
                 self._logger.info("Done with _process_plan")
+
+                if self._chat_service.cancellation.is_cancelled:
+                    break
 
                 if exit_loop:
                     self._thinking_manager.close_thinking_steps(loop_response)
@@ -215,13 +220,12 @@ class UniqueAI:
                 self.start_text = self._thinking_manager.update_start_text(
                     self.start_text, loop_response
                 )
-            await self._update_debug_info_if_tool_took_control()
 
-            await self._chat_service.modify_assistant_message_async(
-                set_completed_at=not self._tool_took_control,
-            )
-        except StoppedByUserException:
-            pass  # cleanup already handled by _on_cancellation subscriber
+            if not self._chat_service.cancellation.is_cancelled:
+                await self._update_debug_info_if_tool_took_control()
+                await self._chat_service.modify_assistant_message_async(
+                    set_completed_at=not self._tool_took_control,
+                )
         finally:
             sub.cancel()
 

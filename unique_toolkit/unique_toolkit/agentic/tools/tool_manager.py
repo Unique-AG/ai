@@ -29,7 +29,6 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse, ToolPrompts
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.chat.schemas import StoppedByUserException
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -256,12 +255,6 @@ class _ToolManager(Generic[_ApiMode]):
 
         # Wait until all tasks are finished
         tool_call_results = await asyncio.gather(*tasks)
-
-        # If any tool was stopped by the user, propagate the exception
-        # so the orchestrator can mark the message as completed.
-        for result in tool_call_results:
-            if not result.success and isinstance(result.exception, StoppedByUserException):
-                raise result.exception
 
         tool_call_results_unpacked: list[ToolCallResponse] = []
         for i, result in enumerate(tool_call_results):
