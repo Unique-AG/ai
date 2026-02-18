@@ -1858,3 +1858,177 @@ def test_deep_research_tool__get_tool_debug_info__returns_correct_debug_info() -
                 assert debug_info["chosenModule"] == "Test Assistant"
                 assert debug_info["userMetadata"] == {"key": "value"}
                 assert debug_info["toolParameters"] == {"param": "test"}
+
+
+def _create_tool_with_mocks(*, message_execution_id="test-execution-id"):
+    """Helper to create a DeepResearchTool with standard mocks."""
+    config = DeepResearchToolConfig()
+    mock_event = Mock()
+    mock_event.company_id = "test-company"
+    mock_event.user_id = "test-user"
+    mock_event.payload.chat_id = "test-chat"
+    mock_event.payload.assistant_message.id = "test-assistant-message"
+    mock_event.payload.user_message.text = "Test request"
+    mock_event.payload.user_message.original_text = "Test request"
+    mock_event.payload.message_execution_id = message_execution_id
+    mock_event.payload.assistant_id = "test-assistant-id"
+    mock_event.payload.name = "Test Assistant"
+    mock_event.payload.user_metadata = {"key": "value"}
+    mock_event.payload.tool_parameters = {"param": "test"}
+
+    return config, mock_event, Mock()
+
+
+@pytest.mark.ai
+def test_deep_research_tool__cancelled_response__returns_stopped_response():
+    config, mock_event, mock_reporter = _create_tool_with_mocks()
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+                tool = DeepResearchTool(config, mock_event, mock_reporter)
+
+                mock_tool_call = Mock()
+                mock_tool_call.id = "tc-1"
+
+                result = tool._cancelled_response(mock_tool_call)
+
+                assert isinstance(result, ToolCallResponse)
+                assert result.id == "tc-1"
+                assert result.name == "DeepResearch"
+                assert result.content == "Research was stopped."
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__on_cancellation__logs_and_updates_message():
+    config, mock_event, mock_reporter = _create_tool_with_mocks()
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+                tool = DeepResearchTool(config, mock_event, mock_reporter)
+                tool.write_message_log_text_message = Mock()
+                tool._update_execution_status = AsyncMock()
+                tool.chat_service.modify_assistant_message_async = AsyncMock()
+
+                from unique_toolkit.chat.schemas import CancellationEvent
+
+                event = CancellationEvent(message_id="msg1")
+                await tool._on_cancellation(event)
+
+                tool.write_message_log_text_message.assert_called_once_with(
+                    "**Research stopped by user**"
+                )
+                tool._update_execution_status.assert_called_once_with(
+                    MessageExecutionUpdateStatus.FAILED
+                )
+                tool.chat_service.modify_assistant_message_async.assert_called_once_with(
+                    content="Research was stopped.",
+                )
+
+
+def _mock_cancellation(*, is_cancelled=False, check_returns=True):
+    """Create a mock CancellationWatcher."""
+    mock = Mock()
+    mock.is_cancelled = is_cancelled
+    mock.check_cancellation_async = AsyncMock(return_value=check_returns)
+    mock.on_cancellation.subscribe = Mock(return_value=Mock())
+    return mock
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__run__returns_cancelled_response__when_cancelled_before_research_brief():
+    config, mock_event, mock_reporter = _create_tool_with_mocks()
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+                tool = DeepResearchTool(config, mock_event, mock_reporter)
+                tool.chat_service._cancellation_watcher = _mock_cancellation(
+                    check_returns=True
+                )
+                tool.chat_service.modify_assistant_message_async = AsyncMock()
+                tool._clear_original_message = AsyncMock()
+                tool.is_followup_question_answer = AsyncMock(return_value=False)
+
+                mock_tool_call = Mock()
+                mock_tool_call.id = "tc-cancel"
+
+                result = await tool._run(mock_tool_call)
+
+                assert isinstance(result, ToolCallResponse)
+                assert result.content == "Research was stopped."
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__run__returns_cancelled_response__when_cancelled_after_research_brief():
+    config, mock_event, mock_reporter = _create_tool_with_mocks()
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+                tool = DeepResearchTool(config, mock_event, mock_reporter)
+
+                call_count = 0
+
+                async def check_cancel_side_effect():
+                    nonlocal call_count
+                    call_count += 1
+                    return call_count >= 2
+
+                tool.chat_service._cancellation_watcher = _mock_cancellation(
+                    check_returns=False
+                )
+                tool.chat_service.cancellation.check_cancellation_async = AsyncMock(
+                    side_effect=check_cancel_side_effect
+                )
+                tool.chat_service.modify_assistant_message_async = AsyncMock()
+                tool._clear_original_message = AsyncMock()
+                tool.is_followup_question_answer = AsyncMock(return_value=False)
+                tool.write_message_log_text_message = Mock()
+                tool.generate_research_brief_from_dict = AsyncMock(
+                    return_value="brief"
+                )
+                tool.get_visible_history_messages = Mock(return_value=[])
+
+                mock_tool_call = Mock()
+                mock_tool_call.id = "tc-cancel-2"
+
+                result = await tool._run(mock_tool_call)
+
+                assert isinstance(result, ToolCallResponse)
+                assert result.content == "Research was stopped."
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__run__returns_cancelled_response__when_cancelled_after_research():
+    config, mock_event, mock_reporter = _create_tool_with_mocks()
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+                tool = DeepResearchTool(config, mock_event, mock_reporter)
+                tool.chat_service._cancellation_watcher = _mock_cancellation(
+                    is_cancelled=True, check_returns=False
+                )
+                tool.chat_service.modify_assistant_message_async = AsyncMock()
+                tool._clear_original_message = AsyncMock()
+                tool.is_followup_question_answer = AsyncMock(return_value=False)
+                tool.write_message_log_text_message = Mock()
+                tool.generate_research_brief_from_dict = AsyncMock(
+                    return_value="brief"
+                )
+                tool.get_visible_history_messages = Mock(return_value=[])
+                tool.run_research = AsyncMock(return_value=("result", []))
+
+                mock_tool_call = Mock()
+                mock_tool_call.id = "tc-cancel-3"
+
+                result = await tool._run(mock_tool_call)
+
+                assert isinstance(result, ToolCallResponse)
+                assert result.content == "Research was stopped."
