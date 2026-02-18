@@ -123,7 +123,9 @@ class HistoryManager:
         self._tool_calls: list[LanguageModelFunction] = []
         self._loop_history: list[LanguageModelMessage] = []
         self._source_enumerator = 0
-        self._collected_tool_response_image_urls: list[tuple[str, str]] = []  # (url, tool_call_id)
+        self._collected_tool_response_image_urls: list[
+            tuple[str, str]
+        ] = []  # (url, tool_call_id)
 
     def add_tool_call(self, tool_call: LanguageModelFunction) -> None:
         self._tool_calls.append(tool_call)
