@@ -78,7 +78,6 @@ class ConfigRegistry:
             logger.warning(f"Package path does not exist: {package_path}")
             return []
 
-        # Find source directory if it's a standard repo structure
         src_dir = package_path / "src"
         if src_dir.exists():
             search_path = src_dir
@@ -87,18 +86,13 @@ class ConfigRegistry:
 
         logger.debug(f"Scanning for configs in: {search_path}")
 
-        # Add search path to sys.path so imports work
         if str(search_path) not in sys.path:
             sys.path.insert(0, str(search_path))
 
-        # Scan for Python files recursively
         for py_file in search_path.rglob("*.py"):
-            # Skip hidden files, __pycache__, .venv, etc.
-            # Use relative path to only check for hidden directories within the scan root
             try:
                 relative_py_file = py_file.relative_to(search_path)
             except ValueError:
-                # Should not happen with rglob but being safe
                 continue
 
             if any(
@@ -107,9 +101,7 @@ class ConfigRegistry:
             ):
                 continue
 
-            # Try to import the module
             try:
-                # Convert path to module name relative to search path
                 relative_path = py_file.relative_to(search_path)
                 module_name = ".".join(relative_path.with_suffix("").parts)
 
@@ -161,10 +153,7 @@ class ConfigRegistry:
         """
         result = {}
 
-        # Add explicit configs
         result.update({entry.name: entry for entry in self._explicit_configs.values()})
-
-        # Also include any from global registry that weren't loaded yet
         for name, model in _GLOBAL_EXPLICIT_REGISTRY.items():
             if name not in result:
                 config_entry = ConfigEntry(
