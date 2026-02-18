@@ -189,7 +189,7 @@ class HistoryManager:
             content += f"\n\n{tool_response.system_reminder}"
 
         # Tool message content must be string (API rejects array content for tool role).
-        # Tool result images are attached to the user message so the model sees them (Tested in a ipynb by Tin 17.02.2025). This is the only way to get the images from tool to the model.
+        # Tool result images are attached to the user message so the model sees them. This is the only way to get the images from tool to the model as of 17.2.26.
 
         return LanguageModelToolMessage(
             content=content,

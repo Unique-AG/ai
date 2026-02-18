@@ -21,7 +21,7 @@ class ToolCallResponse(BaseModel):
     error_message: str = ""
     image_data_urls: list[str] = Field(
         default_factory=list,
-        description="Data URLs (e.g. data:image/png;base64,...) for images returned by this tool. Used by MCP and internal tools; history attaches them to the user message so the LLM can see the image.",
+        description="Data URLs (e.g. data:image/png;base64,...) for images returned by this tool.",
     )
     system_reminder: str = Field(
         default="",
