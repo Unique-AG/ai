@@ -1,6 +1,8 @@
 import warnings
 
+from .cancellation import CancellationWatcher as CancellationWatcher
 from .constants import DOMAIN_NAME as DOMAIN_NAME
+from .schemas import CancellationEvent as CancellationEvent
 from .schemas import ChatMessage as ChatMessage
 from .schemas import ChatMessageAssessment as ChatMessageAssessment
 from .schemas import ChatMessageAssessmentLabel as ChatMessageAssessmentLabel

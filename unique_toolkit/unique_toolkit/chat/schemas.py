@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from typing import Literal
@@ -216,6 +217,13 @@ class StoppedByUserException(Exception):
     """
 
     pass
+
+
+@dataclass(frozen=True, slots=True)
+class CancellationEvent:
+    """Published on the cancellation event bus when a user abort is detected."""
+
+    message_id: str
 
 
 class MessageLog(BaseModel):

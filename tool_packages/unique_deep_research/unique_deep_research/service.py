@@ -29,6 +29,7 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import (
+    CancellationEvent,
     MessageExecutionType,
     MessageExecutionUpdateStatus,
     MessageLogDetails,
@@ -227,18 +228,22 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             return []
         return evaluation_check_list
 
+    async def _on_cancellation(self, _event: CancellationEvent) -> None:
+        """Subscriber called by the cancellation event bus."""
+        _LOGGER.info("Deep Research cancelled by user")
+        self.write_message_log_text_message("**Research stopped by user**")
+        if self.is_message_execution():
+            await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
+        await self.chat_service.modify_assistant_message_async(
+            content="Research was stopped.",
+        )
+
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        sub = self.chat_service.on_cancellation.subscribe(self._on_cancellation)
         try:
             return await self._run(tool_call)
         except StoppedByUserException:
-            _LOGGER.info("Deep Research cancelled by user")
-            self.write_message_log_text_message("**Research stopped by user**")
-            if self.is_message_execution():
-                await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
-            await self.chat_service.modify_assistant_message_async(
-                content="Research was stopped.",
-            )
-            raise
+            raise  # cleanup already handled by _on_cancellation subscriber
         except Exception as e:
             self.write_message_log_text_message(
                 "**Research failed for an unknown reason**"
@@ -258,6 +263,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 content="Deep Research failed to complete for an unknown reason",
                 set_completed_at=True,
             )
+        finally:
+            sub.cancel()
 
         return ToolCallResponse(
             id=tool_call.id or "",

@@ -28,7 +28,7 @@ from unique_toolkit.agentic.tools.tool_manager import (
     ToolManager,
 )
 from unique_toolkit.app.schemas import ChatEvent, McpServer
-from unique_toolkit.chat.schemas import StoppedByUserException
+from unique_toolkit.chat.schemas import CancellationEvent, StoppedByUserException
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelAssistantMessage
@@ -156,6 +156,13 @@ class UniqueAI:
     ############################################################
     # Override of base methods
     ############################################################
+    async def _on_cancellation(self, _event: CancellationEvent) -> None:
+        """Subscriber called by the cancellation event bus."""
+        self._logger.info("Agent stopped by user request.")
+        await self._chat_service.modify_assistant_message_async(
+            set_completed_at=True,
+        )
+
     # @track(name="loop_agent_run")  # Group traces together
     async def run(self):
         """
@@ -171,6 +178,7 @@ class UniqueAI:
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )
 
+        sub = self._chat_service.on_cancellation.subscribe(self._on_cancellation)
         try:
             ## Loop iteration
             max_iterations = self._effective_max_loop_iterations
@@ -209,15 +217,13 @@ class UniqueAI:
                 )
             await self._update_debug_info_if_tool_took_control()
 
-            # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
             await self._chat_service.modify_assistant_message_async(
                 set_completed_at=not self._tool_took_control,
             )
         except StoppedByUserException:
-            self._logger.info("Agent stopped by user request.")
-            await self._chat_service.modify_assistant_message_async(
-                set_completed_at=True,
-            )
+            pass  # cleanup already handled by _on_cancellation subscriber
+        finally:
+            sub.cancel()
 
     # @track()
     async def _plan_or_execute(self) -> LanguageModelStreamResponse:
