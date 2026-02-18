@@ -9,7 +9,6 @@ from .schemas import ChatMessageAssessmentLabel as ChatMessageAssessmentLabel
 from .schemas import ChatMessageAssessmentStatus as ChatMessageAssessmentStatus
 from .schemas import ChatMessageAssessmentType as ChatMessageAssessmentType
 from .schemas import ChatMessageRole as ChatMessageRole
-from .schemas import StoppedByUserException as StoppedByUserException
 
 # Import ChatService with deprecation warning suppressed for internal use
 with warnings.catch_warnings():

@@ -208,17 +208,6 @@ class MessageLogDetails(BaseModel):
     )
 
 
-class StoppedByUserException(Exception):
-    """Raised when the user requests cancellation of the agent execution.
-
-    This exception is raised by cancellation checks (e.g., ChatService.check_cancellation())
-    when the `cancelled_at` field is set on the assistant message. Agents and tools should
-    allow this exception to propagate so the execution terminates gracefully.
-    """
-
-    pass
-
-
 @dataclass(frozen=True, slots=True)
 class CancellationEvent:
     """Published on the cancellation event bus when a user abort is detected."""
