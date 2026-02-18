@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from unique_toolkit._common.config_checker import register_config
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 
 
@@ -33,6 +34,7 @@ _ANSWER_SUBSTRINGS_JINJA_TEMPLATE = """
 """.strip()
 
 
+@register_config()
 class SubAgentDisplayConfig(BaseModel):
     model_config = get_configuration_dict()
 
