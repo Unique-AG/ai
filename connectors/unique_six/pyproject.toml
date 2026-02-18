@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_six"
-version = "0.1.1"
+version = "0.1.2"
 description = "Unique Six API client"
 authors = [
     "Ahmed Jellouli <ahmed.jellouli.ext@unique.ch>",
