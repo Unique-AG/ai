@@ -91,8 +91,13 @@ class ConfigRegistry:
 
         for py_file in search_path.rglob("*.py"):
             try:
+                # Quick static check to avoid importing files that don't contain the decorator
+                content = py_file.read_text(encoding="utf-8", errors="ignore")
+                if "@register_config" not in content:
+                    continue
+
                 relative_py_file = py_file.relative_to(search_path)
-            except ValueError:
+            except (ValueError, OSError):
                 continue
 
             if any(
@@ -102,8 +107,7 @@ class ConfigRegistry:
                 continue
 
             try:
-                relative_path = py_file.relative_to(search_path)
-                module_name = ".".join(relative_path.with_suffix("").parts)
+                module_name = ".".join(relative_py_file.with_suffix("").parts)
 
                 if module_name in sys.modules:
                     # Already imported
@@ -141,12 +145,9 @@ class ConfigRegistry:
         self._explicit_configs[name] = config_entry
         logger.debug(f"Registered explicit config: {name}")
 
-    def get_all_configs(self, include_discovered: bool = False) -> list[ConfigEntry]:
+    def get_all_configs(self) -> list[ConfigEntry]:
         """Get all registered configs.
 
-        Args:
-            include_discovered: Ignored (auto-discovery is disabled).
-                                Kept for API compatibility.
 
         Returns:
             List of all explicitly registered ConfigEntry objects
@@ -175,3 +176,4 @@ class ConfigRegistry:
             package_path: Root path of the package
         """
         self.discover_configs(package_path)
+        logger.debug(f"Loaded registered config(s) from package: {package_path}")
