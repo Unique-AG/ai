@@ -78,7 +78,7 @@ class LoopTokenReducer:
         rendered_system_message_string: str,
         loop_history: list[LanguageModelMessage],
         remove_from_text: Callable[[str], Awaitable[str]],
-        image_data_urls_from_tools: list[str] | None = None,
+        image_data_urls_from_tools: list[tuple[str, str]] | None = None,
     ) -> LanguageModelMessages:
         """Compose the system and user messages for the plan execution step, which is evaluating if any further tool calls are required."""
 
@@ -150,7 +150,7 @@ class LoopTokenReducer:
         rendered_user_message_string: str,
         rendered_system_message_string: str,
         remove_from_text: Callable[[str], Awaitable[str]],
-        image_data_urls_from_tools: list[str],
+        image_data_urls_from_tools: list[tuple[str, str]],
     ) -> list[LanguageModelMessage]:
         history_from_db = await self.get_history_from_db(remove_from_text)
         history_from_db = self._replace_user_message(
@@ -198,7 +198,7 @@ class LoopTokenReducer:
         history: list[LanguageModelMessage],
         original_user_message: str,
         rendered_user_message_string: str,
-        image_data_urls_from_tools: list[str] | None = None,
+        image_data_urls_from_tools: list[tuple[str, str]] | None = None,
     ) -> list[LanguageModelMessage]:
         """
         Replaces the original user message with the rendered string.
@@ -238,13 +238,12 @@ class LoopTokenReducer:
             content: list[dict] = [
                 {"type": "text", "text": text_content},
             ]
-            for url in image_data_urls_from_tools:
-                content.append(
-                    {
-                        "type": "text",
-                        "text": "Image below is the tool's output (see the following tool message for the full result).",
-                    }
+            for url, tool_call_id in image_data_urls_from_tools:
+                label = (
+                    f"Image below is the tool's output (tool call ID: {tool_call_id}). "
+                    "See the following tool message for the full result."
                 )
+                content.append({"type": "text", "text": label})
                 content.append(
                     {"type": "image_url", "imageUrl": {"url": url}},
                 )

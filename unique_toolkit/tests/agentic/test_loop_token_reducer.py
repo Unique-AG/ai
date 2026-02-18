@@ -746,18 +746,17 @@ def test_replace_user_message__appends_image_urls_as_content_parts__when_provide
     ]
     original_user_message = "Original question"
     rendered_user_message = "Rendered question with context"
-    image_urls = [
-        "data:image/png;base64,iVBORw0KGgo=",
-        "data:image/jpeg;base64,/9j/4AAQ=",
+    image_data_from_tools: list[tuple[str, str]] = [
+        ("data:image/png;base64,iVBORw0KGgo=", "call_abc"),
+        ("data:image/jpeg;base64,/9j/4AAQ=", "call_xyz"),
     ]
-    label = "Image below is the tool's output (see the following tool message for the full result)."
 
     # Act
     result = loop_token_reducer._replace_user_message(
-        history, original_user_message, rendered_user_message, image_urls
+        history, original_user_message, rendered_user_message, image_data_from_tools
     )
 
-    # Assert: one text part, then per URL a label + image_url
+    # Assert: one text part, then per (url, tool_call_id) a label (with ID) + image_url
     last_msg = result[-1]
     assert last_msg.role == LanguageModelMessageRole.USER
     assert isinstance(last_msg.content, list)
@@ -766,12 +765,14 @@ def test_replace_user_message__appends_image_urls_as_content_parts__when_provide
         "type": "text",
         "text": "Rendered question with context",
     }
-    assert last_msg.content[1] == {"type": "text", "text": label}
+    assert last_msg.content[1]["type"] == "text"
+    assert "tool call ID: call_abc" in last_msg.content[1]["text"]
     assert last_msg.content[2] == {
         "type": "image_url",
         "imageUrl": {"url": "data:image/png;base64,iVBORw0KGgo="},
     }
-    assert last_msg.content[3] == {"type": "text", "text": label}
+    assert last_msg.content[3]["type"] == "text"
+    assert "tool call ID: call_xyz" in last_msg.content[3]["text"]
     assert last_msg.content[4] == {
         "type": "image_url",
         "imageUrl": {"url": "data:image/jpeg;base64,/9j/4AAQ="},
@@ -1009,7 +1010,9 @@ async def test_get_history_for_model_call__appends_image_urls_to_user_message__w
         rendered_system_message_string="System prompt",
         loop_history=[],
         remove_from_text=mock_remove_from_text,
-        image_data_urls_from_tools=["data:image/png;base64,iVBORw0KGgo="],
+        image_data_urls_from_tools=[
+            ("data:image/png;base64,iVBORw0KGgo=", "call_123"),
+        ],
     )
 
     # Assert
