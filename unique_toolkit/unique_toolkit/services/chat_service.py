@@ -3,7 +3,6 @@ from typing import Any, Sequence, overload
 
 import unique_sdk
 from openai.types.chat import ChatCompletionToolChoiceOptionParam
-from unique_toolkit.chat.cancellation import CancellationWatcher
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from openai.types.responses import (
     ResponseIncludable,
@@ -18,6 +17,7 @@ from pydantic import BaseModel
 from typing_extensions import deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
+from unique_toolkit.chat.cancellation import CancellationWatcher
 from unique_toolkit.chat.constants import (
     DEFAULT_MAX_MESSAGES,
     DEFAULT_PERCENT_OF_MAX_TOKENS,
@@ -105,6 +105,7 @@ from unique_toolkit.short_term_memory.functions import (
 from unique_toolkit.short_term_memory.schemas import ShortTermMemory
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
+
 
 class ChatService(ChatServiceDeprecated):
     """Provides all functionalities to manage the chat session."""

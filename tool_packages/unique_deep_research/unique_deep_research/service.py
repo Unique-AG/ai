@@ -245,7 +245,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         )
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        sub = self.chat_service.cancellation.on_cancellation.subscribe(self._on_cancellation)
+        sub = self.chat_service.cancellation.on_cancellation.subscribe(
+            self._on_cancellation
+        )
         try:
             return await self._run(tool_call)
         except Exception as e:
@@ -551,7 +553,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             stream=True,
         )
 
-        research_result, annotations = await self.chat_service.cancellation.run_with_cancellation(
+        (
+            research_result,
+            annotations,
+        ) = await self.chat_service.cancellation.run_with_cancellation(
             self._process_research_stream(stream),
             cancel_result=("", []),
         )

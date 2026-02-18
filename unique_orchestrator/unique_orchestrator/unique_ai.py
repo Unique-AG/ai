@@ -178,7 +178,9 @@ class UniqueAI:
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )
 
-        sub = self._chat_service.cancellation.on_cancellation.subscribe(self._on_cancellation)
+        sub = self._chat_service.cancellation.on_cancellation.subscribe(
+            self._on_cancellation
+        )
         try:
             max_iterations = self._effective_max_loop_iterations
             for i in range(max_iterations):

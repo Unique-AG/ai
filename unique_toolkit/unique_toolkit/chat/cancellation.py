@@ -71,7 +71,9 @@ class CancellationWatcher:
                 await self._bus.publish_and_wait(event)
                 return True
         except Exception as exc:
-            logger.warning("Failed to check cancellation: %s: %s", type(exc).__name__, exc)
+            logger.warning(
+                "Failed to check cancellation: %s: %s", type(exc).__name__, exc
+            )
         return False
 
     def check_cancellation(self) -> bool:
@@ -93,7 +95,9 @@ class CancellationWatcher:
                 self._cancelled = True
                 return True
         except Exception as exc:
-            logger.warning("Failed to check cancellation: %s: %s", type(exc).__name__, exc)
+            logger.warning(
+                "Failed to check cancellation: %s: %s", type(exc).__name__, exc
+            )
         return False
 
     @overload
