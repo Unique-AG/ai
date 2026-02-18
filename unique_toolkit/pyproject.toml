@@ -58,6 +58,10 @@ optional = true
 fastapi = "^0.119.0"
 uvicorn = "^0.37.0"
 
+[tool.poetry.group.ci.dependencies]
+click = "^8.1.0"
+deepdiff = "^8.6.1"
+
 [tool.poetry.group.dev.dependencies]
 ruff = "0.12.10"
 pytest = "^7.4.3"

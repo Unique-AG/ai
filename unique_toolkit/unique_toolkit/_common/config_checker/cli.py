@@ -13,17 +13,16 @@ from unique_toolkit._common.config_checker.validator import ConfigValidator
 
 logger = logging.getLogger(__name__)
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-
 
 @click.group()
 def cli():
     """Config compatibility checker CLI."""
-    pass
+
+    # Setup logging - only configure when CLI is actually invoked
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
 
 
 @cli.command()
