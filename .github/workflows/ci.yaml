@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  pull_request:
+  merge_group:
+
+jobs:
+  lint:
+    name: Lint
+    uses: ./.github/workflows/ci-lint.yaml
+
+  test:
+    name: Test
+    uses: ./.github/workflows/ci-pytest.yaml
+
+  types:
+    name: Types
+    uses: ./.github/workflows/ci-type-check.yaml
+    permissions:
+      contents: read
+      pull-requests: write
+
+  coverage:
+    name: Coverage
+    uses: ./.github/workflows/ci-coverage.yaml
+    permissions:
+      contents: read
+      pull-requests: write
+
+  deps:
+    name: Dependencies
+    uses: ./.github/workflows/ci-dependency-checks.yaml
+
+  config:
+    name: Config Compatibility Check
+    uses: ./.github/workflows/ci-config-check.yaml
+
+  changelog:
+    name: Changelog and Version Bump
+    uses: ./.github/workflows/enforce_changelog_version_bump.yaml
+
+  pr-title:
+    name: PR Title
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/chore_validate_pr_title.yaml
+    permissions:
+      pull-requests: read
+
+  status:
+    name: Gatekeeper
+    needs: [lint, test, types, coverage, deps, config, changelog, pr-title]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        env:
+          LINT: ${{ needs.lint.result }}
+          TEST: ${{ needs.test.result }}
+          TYPES: ${{ needs.types.result }}
+          COVERAGE: ${{ needs.coverage.result }}
+          DEPS: ${{ needs.deps.result }}
+          CONFIG: ${{ needs.config.result }}
+          CHANGELOG: ${{ needs.changelog.result }}
+          PR_TITLE: ${{ needs.pr-title.result }}
+        run: |
+          echo "=== CI Status Summary ==="
+          echo "lint: $LINT"
+          echo "test: $TEST"
+          echo "types: $TYPES"
+          echo "coverage: $COVERAGE"
+          echo "deps: $DEPS"
+          echo "config: $CONFIG"
+          echo "changelog: $CHANGELOG"
+          echo "pr-title: $PR_TITLE"
+          echo "========================="
+
+          failed=false
+
+          # Required checks (skipped is OK for when no packages changed or merge_group)
+          for check in "lint:$LINT" "test:$TEST" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "changelog:$CHANGELOG" "pr-title:$PR_TITLE"; do
+            name="${check%%:*}"
+            result="${check##*:}"
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "❌ $name: $result"
+              failed=true
+            fi
+          done
+
+          # Types is continue-on-error, report but don't fail
+          if [[ "$TYPES" == "failure" ]]; then
+            echo "⚠️ types failed (non-blocking)"
+          fi
+
+          if [[ "$failed" == "true" ]]; then
+            exit 1
+          fi
+
+          echo "✅ All CI checks passed"
