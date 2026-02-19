@@ -111,6 +111,10 @@ class HistoryManager:
         self._config = config
         self._logger = logger
         self._language_model = language_model
+        self._tool_call_result_history: list[ToolCallResponse] = []
+        self._tool_calls: list[LanguageModelFunction] = []
+        self._loop_history: list[LanguageModelMessage] = []
+        self._source_enumerator = 0
         self._token_reducer = LoopTokenReducer(
             logger=self._logger,
             event=event,
@@ -118,11 +122,8 @@ class HistoryManager:
             has_uploaded_content_config=bool(self._config.uploaded_content_config),
             language_model=self._language_model,
             reference_manager=reference_manager,
+            history_manager=self,
         )
-        self._tool_call_result_history: list[ToolCallResponse] = []
-        self._tool_calls: list[LanguageModelFunction] = []
-        self._loop_history: list[LanguageModelMessage] = []
-        self._source_enumerator = 0
 
     def add_tool_call(self, tool_call: LanguageModelFunction) -> None:
         self._tool_calls.append(tool_call)
@@ -132,6 +133,12 @@ class HistoryManager:
 
     def has_no_loop_messages(self) -> bool:
         return len(self._loop_history) == 0
+
+    def set_source_enumerator(self, next_value: int) -> None:
+        """Set the next source_number to use for new tool results.
+        Call with (max source in history + 1) so new sources stay unique.
+        """
+        self._source_enumerator = next_value
 
     def add_tool_call_results(self, tool_call_results: list[ToolCallResponse]):
         for tool_response in tool_call_results:

@@ -14,6 +14,7 @@ from unique_toolkit.agentic.history_manager.history_construction_with_contents i
     FileContentSerialization,
     get_full_history_with_contents,
     get_full_history_with_contents_with_tools,
+    max_source_number_in_messages,
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.app.schemas import ChatEvent
@@ -55,12 +56,14 @@ class LoopTokenReducer:
         has_uploaded_content_config: bool,
         reference_manager: ReferenceManager,
         language_model: LMI,
+        history_manager: object | None = None,
     ):
         self._max_history_tokens = max_history_tokens
         self._has_uploaded_content_config = has_uploaded_content_config
         self._logger = logger
         self._reference_manager = reference_manager
         self._language_model = language_model
+        self._history_manager = history_manager
         self._encoder = self._get_encoder(language_model)
         self._chat_service = ChatService(event)
         self._content_service = ContentService.from_event(event)
@@ -92,6 +95,17 @@ class LoopTokenReducer:
             rendered_system_message_string,
             remove_from_text,
         )
+
+        # Set next source number from full history (before reduction) so new tool
+        # results never reuse source numbers. If we did this after reduction we'd
+        # use the reduced messages' max and set next too low, causing duplicates
+        # after the next add_tool_call_results (e.g. on the third message).
+        if self._history_manager is not None and hasattr(
+            self._history_manager, "set_source_enumerator"
+        ):
+            full_messages = self._construct_history(history_from_db, loop_history)
+            next_source = max_source_number_in_messages(full_messages.root) + 1
+            self._history_manager.set_source_enumerator(next_source)
 
         messages = self._construct_history(
             history_from_db,

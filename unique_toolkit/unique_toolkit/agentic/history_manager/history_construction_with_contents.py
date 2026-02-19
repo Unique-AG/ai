@@ -27,7 +27,11 @@ from unique_toolkit.language_model import (
     LanguageModelMessageRole as LLMRole,
 )
 from unique_toolkit.language_model.infos import EncoderName
-from unique_toolkit.language_model.schemas import LanguageModelMessages
+from unique_toolkit.language_model.schemas import (
+    LanguageModelMessage,
+    LanguageModelMessageRole as LLMMessageRole,
+    LanguageModelMessages,
+)
 
 # TODO: Test this once it moves into the unique toolkit
 
@@ -225,6 +229,28 @@ def _max_source_number_in_gpt_request(
     max_seen = -1
     for i in tool_indices:
         sources = _parse_tool_sources(gpt_request[i].get("content") or "")
+        for s in sources:
+            max_seen = max(max_seen, s.source_number)
+    return max_seen
+
+
+def max_source_number_in_messages(
+    messages: list[LanguageModelMessage],
+) -> int:
+    """Return the maximum source_number in tool message contents.
+    Returns -1 if no tool messages or no sources. Use (result + 1) as next start index.
+    """
+    max_seen = -1
+    for m in messages:
+        role = getattr(m, "role", None)
+        if role != LLMMessageRole.TOOL and role != "tool":
+            continue
+        content = getattr(m, "content", None)
+        if content is None:
+            continue
+        if isinstance(content, list):
+            content = json.dumps(content)
+        sources = _parse_tool_sources(content)
         for s in sources:
             max_seen = max(max_seen, s.source_number)
     return max_seen
