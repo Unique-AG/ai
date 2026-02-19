@@ -16,17 +16,18 @@ CREATE TABLE pm_positions (
   email         TEXT
 );
 
--- 4) Insert data (email filled for all except the last row)
+-- 4) Insert data (alice@alphabet.example and tin.oroz@unique-ai-academy.com)
 INSERT INTO pm_positions (row_num, sleeve, ticker, instrument, direction, target_weight, position_mm, email) VALUES
+-- Alice's positions 
 (1,  'Equity Long',  'MSFT', 'Microsoft',                 'Long',  0.05,   100, 'alice@alphabet.example'),
 (2,  'Equity Long',  'JNJ',  'Johnson & Johnson',         'Long',  0.04,    80, 'alice@alphabet.example'),
 (3,  'Equity Long',  'UNH',  'UnitedHealth',              'Long',  0.035,   70, 'alice@alphabet.example'),
-(4,  'Equity Long',  'JPM',  'JPMorgan',                  'Long',  0.04,    80, 'alice@alphabet.example'),
-(5,  'Equity Long',  'CVX',  'Chevron',                   'Long',  0.03,    60, 'alice@alphabet.example'),
-(6,  'Equity Beta',  'SPY',  'S&P 500 ETF',               'Long',  0.10,   200, 'alice@alphabet.example'),
-(7,  'Equity Short', 'QQQ',  'Nasdaq-100 ETF',            'Short', -0.05, -100, 'alice@alphabet.example'),
-(8,  'Equity Short', 'RSP',  'S&P 500 Equal-Weight',      'Short', -0.03,  -60, 'alice@alphabet.example'),
-(9,  'Rates',        'IEF',  '7–10Y U.S. Treasuries',     'Long',  0.12,   240, 'alice@alphabet.example'),
-(10, 'Credit',       'LQD',  'Investment Grade Credit',   'Long',  0.10,   200, 'alice@alphabet.example'),
-(11, 'Alternatives', 'GLD',  'Gold',                      'Long',  0.04,    80, 'alice@alphabet.example'),
-(12, 'Alternatives', 'DBC',  'Broad Commodities',         'Long',  0.04,    80, NULL);
+
+-- Tin's positions
+(4,  'Equity Beta',  'SPY',  'S&P 500 ETF',               'Long',  0.15,   300, 'tin.oroz@unique-ai-academy.com'),
+(5,  'Equity Long',  'AAPL', 'Apple Inc',                 'Long',  0.08,   160, 'tin.oroz@unique-ai-academy.com'),
+(6,  'Equity Long',  'NVDA', 'NVIDIA',                    'Long',  0.06,   120, 'tin.oroz@unique-ai-academy.com'),
+(7,  'Equity Short', 'QQQ',  'Nasdaq-100 ETF',            'Short', -0.04,  -80, 'tin.oroz@unique-ai-academy.com'),
+(8,  'Rates',        'TLT',  '20+ Year Treasury Bond',    'Long',  0.10,   200, 'tin.oroz@unique-ai-academy.com'),
+(9,  'Alternatives', 'GLD',  'Gold',                      'Long',  0.05,   100, 'tin.oroz@unique-ai-academy.com'),
+(10, 'Equity Beta',  'VOO',  'Vanguard S&P 500 ETF',      'Long',  0.08,   160, 'tin.oroz@unique-ai-academy.com');

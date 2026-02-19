@@ -49,10 +49,6 @@ base_url_env = os.getenv("BASE_URL_ENV", "https://default.ngrok-free.app")
 
 base_url_arg = sys.argv[1] if len(sys.argv) > 1 else base_url_env
 
-print("base_url_arg", base_url_arg)
-
-print("position", PMPositionsTool.name)
-
 token_verifier = JWTVerifier(
     jwks_uri=f"{ZITADEL_URL}/oauth/v2/keys",
     issuer=f"{ZITADEL_URL}",
@@ -133,9 +129,9 @@ def get_user():
         headers = {
             "Authorization": f"Bearer {token.token}",
         }
-
         response = requests.get(f"{ZITADEL_URL}/oidc/v1/userinfo", headers=headers)
-    return response.json()
+        return response.json()
+    return {"email": "alice@alphabet.example"}
 
 
 @mcp.tool(
@@ -160,7 +156,9 @@ async def search_in_database(
     """Search string to find relevant information on stocks and instruments. This will be converted to sql and run against the database."""
     user = get_user()
     print("user", user)
-    email = user.get("email", "alice@alphabet.example")
+    email = os.getenv("PM_POSITIONS_EMAIL") or user.get(
+        "email", "alice@alphabet.example"
+    )
 
     tool_call: LanguageModelFunction = LanguageModelFunction(
         id="unique_id",  # type: ignore
@@ -188,7 +186,7 @@ async def favicon(request: Request):
 if __name__ == "__main__":
     mcp.run(
         transport="http",
-        host="127.0.0.1",
+        host="0.0.0.0",
         port=8002,
         log_level="debug",
         middleware=custom_middleware,
