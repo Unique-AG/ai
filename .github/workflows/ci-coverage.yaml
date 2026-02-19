@@ -2,6 +2,7 @@ name: "[CI] Coverage - All Packages"
 
 on:
   pull_request:
+  merge_group:
   workflow_dispatch:
     inputs:
       package:
@@ -104,3 +105,39 @@ jobs:
           python_version: ${{ matrix.python }}
           base_ref: origin/${{ github.base_ref || 'main' }}
           min_coverage: ${{ matrix.min_coverage }}
+
+  status:
+    name: CI / Coverage
+    needs: [detect-changes, coverage]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Post status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ "${{ needs.detect-changes.result }}" == "failure" ]]; then
+            STATE="failure"
+            DESC="detect-changes failed"
+          elif [[ "${{ needs.coverage.result }}" == "failure" ]]; then
+            STATE="failure"
+            DESC="Some coverage checks failed"
+          elif [[ "${{ needs.coverage.result }}" == "cancelled" ]]; then
+            STATE="error"
+            DESC="Coverage checks were cancelled"
+          else
+            STATE="success"
+            DESC="All coverage checks passed"
+          fi
+
+          gh api repos/${{ github.repository }}/statuses/${{ github.sha }} \
+            -f state="$STATE" \
+            -f context="CI / Coverage" \
+            -f description="$DESC" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [[ "$STATE" != "success" ]]; then
+            exit 1
+          fi

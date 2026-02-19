@@ -70,3 +70,39 @@ jobs:
             --exclude "poetry.lock,uv.lock,CHANGELOG.md,docs/,mkdocs.yaml,.entangled/" \
             ${{ matrix.package }} \
             "$BASE_REF"
+
+  status:
+    name: CI / Changelog
+    needs: [detect-packages, validate-changes]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Post status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ "${{ needs.detect-packages.result }}" == "failure" ]]; then
+            STATE="failure"
+            DESC="detect-packages failed"
+          elif [[ "${{ needs.validate-changes.result }}" == "failure" ]]; then
+            STATE="failure"
+            DESC="Some changelog/version validations failed"
+          elif [[ "${{ needs.validate-changes.result }}" == "cancelled" ]]; then
+            STATE="error"
+            DESC="Changelog validations were cancelled"
+          else
+            STATE="success"
+            DESC="All changelog validations passed"
+          fi
+
+          gh api repos/${{ github.repository }}/statuses/${{ github.sha }} \
+            -f state="$STATE" \
+            -f context="CI / Changelog" \
+            -f description="$DESC" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [[ "$STATE" != "success" ]]; then
+            exit 1
+          fi

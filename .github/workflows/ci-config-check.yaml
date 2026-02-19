@@ -178,3 +178,39 @@ jobs:
         run: |
           echo "❌ Configuration compatibility check failed"
           exit 1
+
+  status:
+    name: CI / Config
+    needs: [detect-changes, check-config-compatibility]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Post status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ "${{ needs.detect-changes.result }}" == "failure" ]]; then
+            STATE="failure"
+            DESC="detect-changes failed"
+          elif [[ "${{ needs.check-config-compatibility.result }}" == "failure" ]]; then
+            STATE="failure"
+            DESC="Some config compatibility checks failed"
+          elif [[ "${{ needs.check-config-compatibility.result }}" == "cancelled" ]]; then
+            STATE="error"
+            DESC="Config checks were cancelled"
+          else
+            STATE="success"
+            DESC="All config checks passed"
+          fi
+
+          gh api repos/${{ github.repository }}/statuses/${{ github.sha }} \
+            -f state="$STATE" \
+            -f context="CI / Config" \
+            -f description="$DESC" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [[ "$STATE" != "success" ]]; then
+            exit 1
+          fi
