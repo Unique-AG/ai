@@ -302,6 +302,10 @@ print(completion.choices[0].message.content)
     [Function Calling](../../../docs/examples_from_docs/openai_completion_function_call.py)
     <!--/codeinclude-->
 
+## Code execution
+
+Code execution (running Python in a sandbox via the model) is available only through the **Responses API**. For a full tutorial covering auto-managed containers, custom Azure containers, and uploading or downloading files, see [Code Execution with the OpenAI SDK](../../tutorials/code_execution_openai_sdk.md).
+
 ??? example "Full Examples Responses API (Click to expand)"
     
     <!--codeinclude-->

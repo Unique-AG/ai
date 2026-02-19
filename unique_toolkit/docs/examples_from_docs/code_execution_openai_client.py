@@ -1,59 +1,26 @@
-# API Based example for code execution
-
-
-
 # %%
-# Unique Settings
+# Code execution with auto-managed container (Responses API)
 
-from pathlib import Path
-from unique_toolkit.app.unique_settings import UniqueSettings
-unique_settings = UniqueSettings.from_env(env_file=Path("qa.env"))
-unique_settings.init_sdk()
-
-import unique_sdk
-unique_sdk.api_base
-
-
-# %%
-# OpenAI Client
-
+from openai.types.responses.tool_param import CodeInterpreter
 from unique_toolkit.framework_utilities.openai.client import get_openai_client
-client = get_openai_client(unique_settings=unique_settings)
+from unique_toolkit.language_model import LanguageModelName
 
-
-# %%
-# Define tools for code execution
-code_interpreter_tool = {"container": {"type": "auto"}, "type": "code_interpreter"}
-    
-
+model_name = LanguageModelName.AZURE_GPT_5_2025_0807
+client = get_openai_client()
 
 # %%
-# LLM call with a tool for code execution
-from unique_toolkit.framework_utilities.openai.message_builder import OpenAIMessageBuilder
-
+# Define tool and call Responses API
+code_interpreter_tool = CodeInterpreter(type="code_interpreter", container={"type": "auto"})
 messages = "Use code to print hello world."
 
-
-# %%
-from unique_toolkit.language_model import LanguageModelName
-response_with_code = client.responses.create(
-    model=LanguageModelName.AZURE_GPT_5_2025_0807,
-    tools=[code_interpreter_tool],
-    input=messages,
-)
-# %%
-response_with_code.output[1].outputs
-# %%
-
-# To include the output of the code generated in the response, you do the following:
-
 response_with_output = client.responses.create(
-    model=LanguageModelName.AZURE_GPT_5_2025_0807,
+    model=model_name,
     tools=[code_interpreter_tool],
     input=messages,
     include=["code_interpreter_call.outputs"],
 )
-response_with_output.output
+
 # %%
-response_with_output.output[1].outputs
-# %%
+# response.output is a list (e.g. text block, then code_interpreter_call)
+print(response_with_output.output)
+print(response_with_output.output[1].outputs)  # type: ignore[union-attr]
