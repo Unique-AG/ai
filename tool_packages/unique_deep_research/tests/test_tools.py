@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from langchain_core.runnables import RunnableConfig
 
-from unique_deep_research.config import UniqueEngine, WebToolsConfig
+from unique_deep_research.config import UniqueEngine
 from unique_deep_research.unique_custom.tools import (
     _get_internal_data_citation,
     _get_internal_data_title,
