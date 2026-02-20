@@ -5,9 +5,7 @@ from .default_language_model import (
 from .default_language_model import (
     DEFAULT_GPT_4o as DEFAULT_GPT_4o,
 )
-from .functions import (
-    stream_complete_with_references_openai as stream_complete_with_references_openai,
-)
+
 from .infos import LanguageModel as LanguageModel
 from .infos import LanguageModelName as LanguageModelName
 from .prompt import (
@@ -87,4 +85,7 @@ from .utils import (
 )
 from .utils import (
     find_last_json_object as find_last_json_object,
+)
+from .functions import (
+    stream_complete_with_references_openai as stream_complete_with_references_openai,
 )
