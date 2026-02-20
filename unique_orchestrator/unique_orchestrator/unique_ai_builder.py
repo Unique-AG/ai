@@ -262,7 +262,9 @@ async def _build_responses(
         config.agent.experimental.responses_api_config.code_interpreter
     )
     postprocessor_manager = common_components.postprocessor_manager
-    tool_names = [tool.name for tool in config.space.tools]
+    # Only consider enabled tools — a disabled entry (toggle off) must not prevent
+    # the builder from adding an enabled instance from code_interpreter_config.
+    tool_names = [tool.name for tool in config.space.tools if tool.is_enabled]
 
     if code_interpreter_config is not None:
         if OpenAIBuiltInToolName.CODE_INTERPRETER not in tool_names:
