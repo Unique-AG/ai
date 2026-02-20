@@ -4,11 +4,14 @@ import warnings
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
+from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
+
 if TYPE_CHECKING:
     from unique_toolkit.app.unique_settings import UniqueSettings
 
 import humps
 import unique_sdk
+from openai.lib.streaming.chat import ChunkEvent
 from openai.types.chat import ChatCompletionToolChoiceOptionParam
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from pydantic import BaseModel
@@ -617,7 +620,12 @@ async def stream_complete_with_references_openai(
     async with client.chat.completions.stream(
         **stream_kwargs,
     ) as stream:
-        async for chunk in stream:
+        async for event in stream:
+            if isinstance(event, ChunkEvent):
+                chunk = event.chunk
+            else:
+                # Tests or raw streams may yield chunk-like objects directly
+                chunk = cast(ChatCompletionChunk, event)
             if not chunk.choices:
                 continue
             choice_ = chunk.choices[0]
