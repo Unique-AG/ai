@@ -51,8 +51,11 @@ jobs:
     needs: [lint, test, types, coverage, deps, config, changelog, pr-title]
     if: always()
     runs-on: ubuntu-latest
+    permissions:
+      statuses: write
     steps:
       - name: Check results
+        id: check
         env:
           LINT: ${{ needs.lint.result }}
           TEST: ${{ needs.test.result }}
@@ -92,7 +95,26 @@ jobs:
           fi
 
           if [[ "$failed" == "true" ]]; then
-            exit 1
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "description=CI checks failed" >> $GITHUB_OUTPUT
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "description=All CI checks passed" >> $GITHUB_OUTPUT
           fi
 
-          echo "✅ All CI checks passed"
+      - name: Post commit status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          STATE: ${{ steps.check.outputs.status }}
+          DESCRIPTION: ${{ steps.check.outputs.description }}
+        run: |
+          gh api repos/${{ github.repository }}/statuses/$SHA \
+            -f state="$STATE" \
+            -f context="CI / Gatekeeper" \
+            -f description="$DESCRIPTION" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Fail if checks failed
+        if: steps.check.outputs.status == 'failure'
+        run: exit 1
