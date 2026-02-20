@@ -623,9 +623,12 @@ async def stream_complete_with_references_openai(
         async for event in stream:
             if isinstance(event, ChunkEvent):
                 chunk = event.chunk
-            else:
-                # Tests or raw streams may yield chunk-like objects directly
+            elif hasattr(event, "choices"):
+                # Test doubles may yield chunk-like objects directly
                 chunk = cast(ChatCompletionChunk, event)
+            else:
+                # Skip other event types (ContentDeltaEvent, ContentDoneEvent, etc.)
+                continue
             if not chunk.choices:
                 continue
             choice_ = chunk.choices[0]
