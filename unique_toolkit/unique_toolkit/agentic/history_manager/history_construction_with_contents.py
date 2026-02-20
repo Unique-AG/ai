@@ -1,6 +1,8 @@
 import base64
+import json
 import logging
 import mimetypes
+import re
 from datetime import datetime
 from enum import StrEnum
 
@@ -405,6 +407,116 @@ def get_full_history_with_contents_and_tool_calls(
     )
 
     return _interleave_tool_messages(enriched_history, tool_messages_per_turn)
+
+
+_SOURCE_PATTERN = re.compile(r"\[source(\d+)\]", re.IGNORECASE)
+
+
+def _parse_source_items(content: str) -> tuple[list[dict] | None, bool]:
+    """Try to parse tool message content as a list of source items.
+
+    Returns (items, was_single) where items is None if the content is not
+    in the expected source format.  was_single indicates the original JSON
+    was a single dict (not a list) so the caller can re-serialize correctly.
+    """
+    try:
+        data = json.loads(content)
+    except (json.JSONDecodeError, TypeError):
+        return None, False
+
+    if isinstance(data, list):
+        if not data or "source_number" not in data[0]:
+            return None, False
+        return data, False
+
+    if isinstance(data, dict) and "source_number" in data:
+        return [data], True
+
+    return None, False
+
+
+def _renumber_sources_globally(
+    messages: LanguageModelMessages,
+) -> LanguageModelMessages:
+    """Assign unique sequential source IDs across all tool responses.
+
+    Walks messages in turn order (reset on each user message).  For every
+    source_number encountered in a tool message, a new global ID is assigned.
+    The corresponding ``[sourceN]`` citations in assistant messages are
+    updated to match.
+    """
+    next_id = 0
+    current_mapping: dict[int, int] = {}
+
+    for msg in messages:
+        if msg.role == LLMRole.USER:
+            current_mapping = {}
+
+        elif msg.role == LLMRole.TOOL and isinstance(msg.content, str):
+            items, _was_single = _parse_source_items(msg.content)
+            if items is None:
+                continue
+            for item in items:
+                old_id = item["source_number"]
+                if old_id not in current_mapping:
+                    current_mapping[old_id] = next_id
+                    next_id += 1
+                item["source_number"] = current_mapping[old_id]
+            msg.content = json.dumps(items)
+
+        elif msg.role == LLMRole.ASSISTANT and isinstance(msg.content, str):
+            mapping = current_mapping.copy()
+
+            def _replace(match: re.Match, _m: dict[int, int] = mapping) -> str:
+                old = int(match.group(1))
+                return f"[source{_m.get(old, old)}]"
+
+            msg.content = _SOURCE_PATTERN.sub(_replace, msg.content)
+
+    return messages
+
+
+def _strip_uncited_sources(
+    messages: LanguageModelMessages,
+) -> LanguageModelMessages:
+    """Remove sources from tool messages that are not cited in any assistant message."""
+    cited: set[int] = set()
+    for msg in messages:
+        if msg.role == LLMRole.ASSISTANT and isinstance(msg.content, str):
+            cited.update(int(m) for m in _SOURCE_PATTERN.findall(msg.content))
+
+    for msg in messages:
+        if msg.role != LLMRole.TOOL or not isinstance(msg.content, str):
+            continue
+        items, _was_single = _parse_source_items(msg.content)
+        if items is None:
+            continue
+        filtered = [it for it in items if it.get("source_number") in cited]
+        msg.content = json.dumps(filtered)
+
+    return messages
+
+
+def cleanup_tool_message_sources(
+    messages: LanguageModelMessages,
+) -> LanguageModelMessages:
+    """Renumber source IDs globally and strip uncited sources.
+
+    Intended to be called after building the interleaved history and
+    **before** token-window trimming:
+
+        history = get_full_history_with_contents_and_tool_calls(...)
+        history = cleanup_tool_message_sources(history)
+        history = limit_to_token_window(history, token_limit)
+
+    Steps:
+      1. Renumber — assigns unique sequential IDs across all tool responses
+         so that sources from different tool calls don't collide.
+      2. Strip — removes source entries not cited in any assistant message.
+    """
+    messages = _renumber_sources_globally(messages)
+    messages = _strip_uncited_sources(messages)
+    return messages
 
 
 def get_full_history_as_llm_messages(
