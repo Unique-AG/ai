@@ -32,13 +32,21 @@ from unique_toolkit.language_model.schemas import (
 
 logger = logging.getLogger(__name__)
 
-# TODO: Test this once it moves into the unique toolkit
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
 
 map_chat_llm_message_role = {
     ChatRole.USER: LLMRole.USER,
     ChatRole.ASSISTANT: LLMRole.ASSISTANT,
     ChatRole.SYSTEM: LLMRole.SYSTEM,
 }
+
+_SOURCE_PATTERN = re.compile(r"\[source(\d+)\]", re.IGNORECASE)
+
+# ---------------------------------------------------------------------------
+# Schema classes
+# ---------------------------------------------------------------------------
 
 
 class ChatMessageWithContents(ChatMessage):
@@ -80,6 +88,20 @@ class ChatHistoryWithContent(RootModel):
 
     def __getitem__(self, item):
         return self.root[item]
+
+
+class FileContentSerialization(StrEnum):
+    NONE = "none"
+    FILE_NAME = "file_name"
+
+
+class ImageContentInclusion(StrEnum):
+    NONE = "none"
+    ALL = "all"
+
+# ---------------------------------------------------------------------------
+# Content helpers
+# ---------------------------------------------------------------------------
 
 
 def get_chat_history_with_contents(
@@ -139,16 +161,6 @@ def download_encoded_images(
     return base64_encoded_images
 
 
-class FileContentSerialization(StrEnum):
-    NONE = "none"
-    FILE_NAME = "file_name"
-
-
-class ImageContentInclusion(StrEnum):
-    NONE = "none"
-    ALL = "all"
-
-
 def file_content_serialization(
     file_contents: list[Content],
     file_content_serialization: FileContentSerialization,
@@ -167,72 +179,148 @@ def file_content_serialization(
                 + file_names,
             )
 
+# ---------------------------------------------------------------------------
+# Token window
+# ---------------------------------------------------------------------------
 
-def get_full_history_with_contents(
-    user_message: ChatEventUserMessage,
-    chat_id: str,
-    chat_service: ChatService,
-    content_service: ContentService,
-    include_images: ImageContentInclusion = ImageContentInclusion.ALL,
-    file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+
+def limit_to_token_window(
+    messages: LanguageModelMessages,
+    token_limit: int,
+    model_info: LanguageModelInfo | None = None,
+    encoding_name: EncoderName = EncoderName.O200K_BASE,
 ) -> LanguageModelMessages:
-    grouped_elements = get_chat_history_with_contents(
-        user_message=user_message,
-        chat_id=chat_id,
-        chat_history=chat_service.get_full_history(),
-        content_service=content_service,
+    if model_info is not None:
+        encode = model_info.get_encoder()
+    else:
+        encode = encoding_name.get_encoder()
+
+    token_per_message_reversed = num_tokens_per_language_model_message(
+        messages,
+        encode=encode,
     )
 
-    builder = LanguageModelMessages([]).builder()
-    for c in grouped_elements:
-        # LanguageModelUserMessage has not field original content
-        text = c.original_content if c.original_content else c.content
-        if text is None:
-            if c.role == ChatRole.USER:
-                raise ValueError(
-                    "Content or original_content of LanguageModelMessages should exist.",
-                )
-            text = ""
+    to_take: list[bool] = (np.cumsum(token_per_message_reversed) < token_limit).tolist()
+    to_take.reverse()
 
-        if len(c.contents) > 0:
-            file_contents = [
-                co for co in c.contents if FileUtils.is_file_content(co.key)
-            ]
-            image_contents = [
-                co for co in c.contents if FileUtils.is_image_content(co.key)
-            ]
+    return LanguageModelMessages(
+        root=[m for m, tt in zip(messages, to_take, strict=False) if tt],
+    )
 
-            content = (
-                text
-                + "\n\n"
-                + file_content_serialization(
-                    file_contents,
-                    file_content_serialization_type,
-                )
-            )
-            content = content.strip()
+# ---------------------------------------------------------------------------
+# Source ID cleanup helpers
+# ---------------------------------------------------------------------------
 
-            if include_images and len(image_contents) > 0:
-                builder.image_message_append(
-                    content=content,
-                    images=download_encoded_images(
-                        contents=image_contents,
-                        content_service=content_service,
-                        chat_id=chat_id,
-                    ),
-                    role=map_chat_llm_message_role[c.role],
-                )
-            else:
-                builder.message_append(
-                    role=map_chat_llm_message_role[c.role],
-                    content=content,
-                )
-        else:
-            builder.message_append(
-                role=map_chat_llm_message_role[c.role],
-                content=text,
-            )
-    return builder.build()
+
+def _parse_source_items(content: str) -> tuple[list[dict] | None, bool]:
+    """Try to parse tool message content as a list of source items.
+
+    Returns (items, was_single) where items is None if the content is not
+    in the expected source format.  was_single indicates the original JSON
+    was a single dict (not a list) so the caller can re-serialize correctly.
+    """
+    try:
+        data = json.loads(content)
+    except (json.JSONDecodeError, TypeError):
+        return None, False
+
+    if isinstance(data, list):
+        if not data or "source_number" not in data[0]:
+            return None, False
+        return data, False
+
+    if isinstance(data, dict) and "source_number" in data:
+        return [data], True
+
+    return None, False
+
+
+def _renumber_sources_globally(
+    messages: LanguageModelMessages,
+) -> LanguageModelMessages:
+    """Assign unique sequential source IDs across all tool responses.
+
+    Walks messages in turn order (reset on each user message).  For every
+    source_number encountered in a tool message, a new global ID is assigned.
+    The corresponding ``[sourceN]`` citations in assistant messages are
+    updated to match.
+    """
+    next_id = 0
+    current_mapping: dict[int, int] = {}
+
+    for msg in messages:
+        if msg.role == LLMRole.USER:
+            current_mapping = {}
+
+        elif msg.role == LLMRole.TOOL and isinstance(msg.content, str):
+            items, _was_single = _parse_source_items(msg.content)
+            if items is None:
+                continue
+            for item in items:
+                old_id = item["source_number"]
+                if old_id not in current_mapping:
+                    current_mapping[old_id] = next_id
+                    next_id += 1
+                item["source_number"] = current_mapping[old_id]
+            msg.content = json.dumps(items)
+
+        elif msg.role == LLMRole.ASSISTANT and isinstance(msg.content, str):
+            mapping = current_mapping.copy()
+
+            def _replace(match: re.Match, _m: dict[int, int] = mapping) -> str:
+                old = int(match.group(1))
+                return f"[source{_m.get(old, old)}]"
+
+            msg.content = _SOURCE_PATTERN.sub(_replace, msg.content)
+
+    return messages
+
+
+def _strip_uncited_sources(
+    messages: LanguageModelMessages,
+) -> LanguageModelMessages:
+    """Remove sources from tool messages that are not cited in any assistant message."""
+    cited: set[int] = set()
+    for msg in messages:
+        if msg.role == LLMRole.ASSISTANT and isinstance(msg.content, str):
+            cited.update(int(m) for m in _SOURCE_PATTERN.findall(msg.content))
+
+    for msg in messages:
+        if msg.role != LLMRole.TOOL or not isinstance(msg.content, str):
+            continue
+        items, _was_single = _parse_source_items(msg.content)
+        if items is None:
+            continue
+        filtered = [it for it in items if it.get("source_number") in cited]
+        msg.content = json.dumps(filtered)
+
+    return messages
+
+
+def cleanup_tool_message_sources(
+    messages: LanguageModelMessages,
+) -> LanguageModelMessages:
+    """Renumber source IDs globally and strip uncited sources.
+
+    Intended to be called after building the interleaved history and
+    **before** token-window trimming:
+
+        history = get_full_history_with_contents_and_tool_calls(...)
+        history = cleanup_tool_message_sources(history)
+        history = limit_to_token_window(history, token_limit)
+
+    Steps:
+      1. Renumber — assigns unique sequential IDs across all tool responses
+         so that sources from different tool calls don't collide.
+      2. Strip — removes source entries not cited in any assistant message.
+    """
+    messages = _renumber_sources_globally(messages)
+    messages = _strip_uncited_sources(messages)
+    return messages
+
+# ---------------------------------------------------------------------------
+# Tool message interleaving helpers
+# ---------------------------------------------------------------------------
 
 
 def _segment_gpt_request_into_turns(
@@ -362,6 +450,77 @@ def _interleave_tool_messages(
 
     return LanguageModelMessages(root=result)
 
+# ---------------------------------------------------------------------------
+# Public API — history construction
+# ---------------------------------------------------------------------------
+
+
+def get_full_history_with_contents(
+    user_message: ChatEventUserMessage,
+    chat_id: str,
+    chat_service: ChatService,
+    content_service: ContentService,
+    include_images: ImageContentInclusion = ImageContentInclusion.ALL,
+    file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+) -> LanguageModelMessages:
+    grouped_elements = get_chat_history_with_contents(
+        user_message=user_message,
+        chat_id=chat_id,
+        chat_history=chat_service.get_full_history(),
+        content_service=content_service,
+    )
+
+    builder = LanguageModelMessages([]).builder()
+    for c in grouped_elements:
+        # LanguageModelUserMessage has not field original content
+        text = c.original_content if c.original_content else c.content
+        if text is None:
+            if c.role == ChatRole.USER:
+                raise ValueError(
+                    "Content or original_content of LanguageModelMessages should exist.",
+                )
+            text = ""
+
+        if len(c.contents) > 0:
+            file_contents = [
+                co for co in c.contents if FileUtils.is_file_content(co.key)
+            ]
+            image_contents = [
+                co for co in c.contents if FileUtils.is_image_content(co.key)
+            ]
+
+            content = (
+                text
+                + "\n\n"
+                + file_content_serialization(
+                    file_contents,
+                    file_content_serialization_type,
+                )
+            )
+            content = content.strip()
+
+            if include_images and len(image_contents) > 0:
+                builder.image_message_append(
+                    content=content,
+                    images=download_encoded_images(
+                        contents=image_contents,
+                        content_service=content_service,
+                        chat_id=chat_id,
+                    ),
+                    role=map_chat_llm_message_role[c.role],
+                )
+            else:
+                builder.message_append(
+                    role=map_chat_llm_message_role[c.role],
+                    content=content,
+                )
+        else:
+            builder.message_append(
+                role=map_chat_llm_message_role[c.role],
+                content=text,
+            )
+    return builder.build()
+
 
 def get_full_history_with_contents_and_tool_calls(
     user_message: ChatEventUserMessage,
@@ -424,116 +583,6 @@ def get_full_history_with_contents_and_tool_calls(
     return history
 
 
-_SOURCE_PATTERN = re.compile(r"\[source(\d+)\]", re.IGNORECASE)
-
-
-def _parse_source_items(content: str) -> tuple[list[dict] | None, bool]:
-    """Try to parse tool message content as a list of source items.
-
-    Returns (items, was_single) where items is None if the content is not
-    in the expected source format.  was_single indicates the original JSON
-    was a single dict (not a list) so the caller can re-serialize correctly.
-    """
-    try:
-        data = json.loads(content)
-    except (json.JSONDecodeError, TypeError):
-        return None, False
-
-    if isinstance(data, list):
-        if not data or "source_number" not in data[0]:
-            return None, False
-        return data, False
-
-    if isinstance(data, dict) and "source_number" in data:
-        return [data], True
-
-    return None, False
-
-
-def _renumber_sources_globally(
-    messages: LanguageModelMessages,
-) -> LanguageModelMessages:
-    """Assign unique sequential source IDs across all tool responses.
-
-    Walks messages in turn order (reset on each user message).  For every
-    source_number encountered in a tool message, a new global ID is assigned.
-    The corresponding ``[sourceN]`` citations in assistant messages are
-    updated to match.
-    """
-    next_id = 0
-    current_mapping: dict[int, int] = {}
-
-    for msg in messages:
-        if msg.role == LLMRole.USER:
-            current_mapping = {}
-
-        elif msg.role == LLMRole.TOOL and isinstance(msg.content, str):
-            items, _was_single = _parse_source_items(msg.content)
-            if items is None:
-                continue
-            for item in items:
-                old_id = item["source_number"]
-                if old_id not in current_mapping:
-                    current_mapping[old_id] = next_id
-                    next_id += 1
-                item["source_number"] = current_mapping[old_id]
-            msg.content = json.dumps(items)
-
-        elif msg.role == LLMRole.ASSISTANT and isinstance(msg.content, str):
-            mapping = current_mapping.copy()
-
-            def _replace(match: re.Match, _m: dict[int, int] = mapping) -> str:
-                old = int(match.group(1))
-                return f"[source{_m.get(old, old)}]"
-
-            msg.content = _SOURCE_PATTERN.sub(_replace, msg.content)
-
-    return messages
-
-
-def _strip_uncited_sources(
-    messages: LanguageModelMessages,
-) -> LanguageModelMessages:
-    """Remove sources from tool messages that are not cited in any assistant message."""
-    cited: set[int] = set()
-    for msg in messages:
-        if msg.role == LLMRole.ASSISTANT and isinstance(msg.content, str):
-            cited.update(int(m) for m in _SOURCE_PATTERN.findall(msg.content))
-
-    for msg in messages:
-        if msg.role != LLMRole.TOOL or not isinstance(msg.content, str):
-            continue
-        items, _was_single = _parse_source_items(msg.content)
-        if items is None:
-            continue
-        filtered = [it for it in items if it.get("source_number") in cited]
-        msg.content = json.dumps(filtered)
-
-    return messages
-
-
-def cleanup_tool_message_sources(
-    messages: LanguageModelMessages,
-) -> LanguageModelMessages:
-    """Renumber source IDs globally and strip uncited sources.
-
-    Intended to be called after building the interleaved history and
-    **before** token-window trimming:
-
-        history = get_full_history_with_contents_and_tool_calls(...)
-        history = cleanup_tool_message_sources(history)
-        history = limit_to_token_window(history, token_limit)
-
-    Steps:
-      1. Renumber — assigns unique sequential IDs across all tool responses
-         so that sources from different tool calls don't collide.
-      2. Strip — removes source entries not cited in any assistant message.
-    """
-    messages = _renumber_sources_globally(messages)
-    messages = _strip_uncited_sources(messages)
-    return messages
-
-
 def get_full_history_as_llm_messages(
     chat_service: ChatService,
 ) -> LanguageModelMessages:
@@ -551,27 +600,3 @@ def get_full_history_as_llm_messages(
             content=c.content or "",
         )
     return builder.build()
-
-
-def limit_to_token_window(
-    messages: LanguageModelMessages,
-    token_limit: int,
-    model_info: LanguageModelInfo | None = None,
-    encoding_name: EncoderName = EncoderName.O200K_BASE,
-) -> LanguageModelMessages:
-    if model_info is not None:
-        encode = model_info.get_encoder()
-    else:
-        encode = encoding_name.get_encoder()
-
-    token_per_message_reversed = num_tokens_per_language_model_message(
-        messages,
-        encode=encode,
-    )
-
-    to_take: list[bool] = (np.cumsum(token_per_message_reversed) < token_limit).tolist()
-    to_take.reverse()
-
-    return LanguageModelMessages(
-        root=[m for m, tt in zip(messages, to_take, strict=False) if tt],
-    )
