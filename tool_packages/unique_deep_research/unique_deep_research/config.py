@@ -81,6 +81,15 @@ class WebToolsConfig(BaseModel):
         description="Enable or disable the web fetch tool for retrieving content from URLs",
     )
 
+    show_full_page_result: bool = Field(
+        default=False,
+        description=(
+            "Show the full page content of the search results in the return of the web search tool. "
+            "This is useful if the agent doesn't have access to the web_fetch tool "
+            "as it enables it to gather more context."
+        ),
+    )
+
 
 class Tools(BaseModel):
     model_config = get_configuration_dict()

@@ -158,6 +158,7 @@ async def web_search(query: str, config: RunnableConfig) -> str:
 
     configurable = config["configurable"]
     engine_config = configurable["engine_config"].tools.web_tools_config.search_engine
+    show_full_page_result = configurable["engine_config"].tools.web_tools_config.show_full_page_result
 
     search_engine_service = get_search_engine_service(
         engine_config, configurable["language_model_service"]
@@ -200,13 +201,17 @@ async def web_search(query: str, config: RunnableConfig) -> str:
             url=result.url,
         )
 
-        # Format result with citation number
-        formatted_results.append(
+        result_text = (
             f"{result.title}\n"
             f"URL: {result.url}\n"
             f"Citations: <sup>{citation.number}</sup>\n"
-            f"content: {result.snippet}\n"
+            f"Snippet: {result.snippet}\n"
         )
+
+        if show_full_page_result and result.content.strip() != "":
+            result_text += f"Page content: {result.content}\n"
+
+        formatted_results.append(result_text)
 
     return f"Web search results for '{query}':\n\n" + "\n".join(formatted_results)
 
