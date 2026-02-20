@@ -579,7 +579,7 @@ async def stream_complete_with_references_openai(
     messages_: list[ChatCompletionMessageParam] = (
         messages.model_dump(
             exclude_none=True,
-            by_alias=True,
+            by_alias=False,
         )
         if isinstance(messages, LanguageModelMessages)
         else list(messages)

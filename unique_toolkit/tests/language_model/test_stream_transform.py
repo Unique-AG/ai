@@ -10,7 +10,11 @@ from unique_toolkit.language_model.functions import (
     stream_complete_with_references_openai,
 )
 from unique_toolkit.language_model.schemas import (
+    LanguageModelAssistantMessage,
+    LanguageModelFunction,
+    LanguageModelFunctionCall,
     LanguageModelMessages,
+    LanguageModelToolMessage,
     LanguageModelUserMessage,
 )
 from unique_toolkit.language_model.stream_transform import (
@@ -345,6 +349,70 @@ async def test_stream_complete_language_model_messages_input(mock_get_client):
     call_kwargs = fake_client.chat.completions.stream.call_args[1]
     assert isinstance(call_kwargs["messages"], list)
     assert call_kwargs["messages"][0]["role"] == "user"
+
+
+# ---------------------------------------------------------------------------
+# 9b. LanguageModelMessages with tool_calls / tool_call_id → snake_case for OpenAI
+# ---------------------------------------------------------------------------
+
+
+@patch(
+    "unique_toolkit.framework_utilities.openai.client.get_async_openai_client",
+    create=True,
+)
+@pytest.mark.asyncio
+async def test_stream_complete_language_model_messages_snake_case_tool_fields(
+    mock_get_client,
+):
+    """LanguageModelMessages must be serialized with by_alias=False so OpenAI receives tool_calls and tool_call_id (snake_case), not camelCase."""
+    chunks = [FakeChunk(content="ok")]
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.stream.return_value = FakeStreamCtx(chunks)
+    mock_get_client.return_value = fake_client
+
+    tool_call_id = "call_abc123"
+    messages = LanguageModelMessages(
+        [
+            LanguageModelUserMessage(content="run search"),
+            LanguageModelAssistantMessage(
+                content="",
+                tool_calls=[
+                    LanguageModelFunctionCall(
+                        id=tool_call_id,
+                        type="function",
+                        function=LanguageModelFunction(
+                            id=tool_call_id,
+                            name="search",
+                            arguments={"query": "x"},
+                        ),
+                    )
+                ],
+            ),
+            LanguageModelToolMessage(
+                name="search",
+                tool_call_id=tool_call_id,
+                content='{"results": []}',
+            ),
+        ]
+    )
+
+    await stream_complete_with_references_openai(
+        messages=messages,
+        model_name="test-model",
+    )
+
+    call_kwargs = fake_client.chat.completions.stream.call_args[1]
+    sent = call_kwargs["messages"]
+
+    # OpenAI expects snake_case; camelCase would drop tool info
+    assert sent[0]["role"] == "user"
+    assert "tool_calls" in sent[1]
+    assert "toolCalls" not in sent[1]
+    assert sent[1]["tool_calls"][0]["function"]["name"] == "search"
+    assert "tool_call_id" in sent[2]
+    assert "toolCallId" not in sent[2]
+    assert sent[2]["tool_call_id"] == tool_call_id
 
 
 # ---------------------------------------------------------------------------
