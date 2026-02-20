@@ -15,16 +15,6 @@ from pydantic import BaseModel
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
-from unique_toolkit.language_model.schemas import (
-    LanguageModelMessageRole,
-    LanguageModelMessages,
-    LanguageModelResponse,
-    LanguageModelStreamResponse,
-    LanguageModelStreamResponseMessage,
-    LanguageModelTool,
-    LanguageModelToolDescription,
-    LanguageModelFunction,
-)
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelName,
@@ -32,6 +22,16 @@ from unique_toolkit.language_model.infos import (
 )
 from unique_toolkit.language_model.reference import (
     add_references_to_message,
+)
+from unique_toolkit.language_model.schemas import (
+    LanguageModelFunction,
+    LanguageModelMessageRole,
+    LanguageModelMessages,
+    LanguageModelResponse,
+    LanguageModelStreamResponse,
+    LanguageModelStreamResponseMessage,
+    LanguageModelTool,
+    LanguageModelToolDescription,
 )
 
 from .constants import (
@@ -645,8 +645,6 @@ async def stream_complete_with_references_openai(
     # construct tool calls
     tool_calls_list = None
     if len(tools_calls_fragments) > 0:
-        from unique_toolkit.language_model.schemas import LanguageModelFunction
-
         tool_calls_list = [
             LanguageModelFunction(
                 id=tool_call["id"],
