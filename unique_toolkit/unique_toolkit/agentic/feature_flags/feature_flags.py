@@ -62,8 +62,8 @@ class FeatureFlags(BaseSettings):
         >>> bool(flags.enable_elicitation_un_15809)
     """
 
-    enable_new_answers_ui_un_14411: FeatureFlag = Field(
-        default=FeatureFlag([]),
+    enable_new_answers_ui_un_14411: bool = Field(
+        default=False,
         description="Enable new answers UI (UN-14411)",
     )
 
