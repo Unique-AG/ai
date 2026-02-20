@@ -158,7 +158,9 @@ async def web_search(query: str, config: RunnableConfig) -> str:
 
     configurable = config["configurable"]
     engine_config = configurable["engine_config"].tools.web_tools_config.search_engine
-    show_full_page_result = configurable["engine_config"].tools.web_tools_config.show_full_page_result
+    show_full_page_result = configurable[
+        "engine_config"
+    ].tools.web_tools_config.show_full_page_result
 
     search_engine_service = get_search_engine_service(
         engine_config, configurable["language_model_service"]
