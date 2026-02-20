@@ -368,6 +368,7 @@ def get_full_history_with_contents_and_tool_calls(
     chat_id: str,
     chat_service: ChatService,
     content_service: ContentService,
+    token_limit: int | None = None,
     include_images: ImageContentInclusion = ImageContentInclusion.ALL,
     file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
 ) -> LanguageModelMessages:
@@ -376,6 +377,12 @@ def get_full_history_with_contents_and_tool_calls(
     Combines the enriched DB history (user/assistant messages with file and
     image metadata) with the intermediate tool interaction messages extracted
     from the gpt_request field on previous user messages.
+
+    When ``token_limit`` is provided the full pipeline is applied:
+      1. Interleave tool messages into enriched history
+      2. Renumber source IDs globally (disambiguate across tool calls)
+      3. Strip uncited sources from tool messages
+      4. Trim to token window
 
     Falls back to plain enriched history if no gpt_request is available.
     """
@@ -400,13 +407,21 @@ def get_full_history_with_contents_and_tool_calls(
     )
 
     if not last_user_with_gpt_request or not last_user_with_gpt_request.gpt_request:
+        if token_limit is not None:
+            return limit_to_token_window(enriched_history, token_limit)
         return enriched_history
 
     tool_messages_per_turn = _extract_tool_messages_per_turn(
         last_user_with_gpt_request.gpt_request
     )
 
-    return _interleave_tool_messages(enriched_history, tool_messages_per_turn)
+    history = _interleave_tool_messages(enriched_history, tool_messages_per_turn)
+
+    if token_limit is not None:
+        history = cleanup_tool_message_sources(history)
+        history = limit_to_token_window(history, token_limit)
+
+    return history
 
 
 _SOURCE_PATTERN = re.compile(r"\[source(\d+)\]", re.IGNORECASE)
