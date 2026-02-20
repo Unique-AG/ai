@@ -2,7 +2,10 @@ import copy
 import logging
 import warnings
 from datetime import UTC, datetime
-from typing import Any, Sequence, cast
+from typing import TYPE_CHECKING, Any, Sequence, cast
+
+if TYPE_CHECKING:
+    from unique_toolkit.app.unique_settings import UniqueSettings
 
 import humps
 import unique_sdk
