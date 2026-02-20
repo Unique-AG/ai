@@ -18,7 +18,6 @@ class CancellationEvent:
 
     message_id: str
 
-
 T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
