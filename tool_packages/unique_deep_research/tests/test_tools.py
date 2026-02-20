@@ -21,6 +21,7 @@ from unique_deep_research.unique_custom.tools import (
     get_today_str,
     research_complete,
     research_complete_tool_called,
+    web_search,
 )
 
 
@@ -539,3 +540,271 @@ def test_get_today_str__returns_current_date__in_readable_format() -> None:
             "Dec",
         ]
     )
+
+
+def _make_web_search_config(
+    show_full_page_result: bool = False,
+) -> RunnableConfig:
+    """Helper to build a RunnableConfig for web_search tests."""
+    engine_config = UniqueEngine()
+    engine_config.tools.web_tools_config.show_full_page_result = show_full_page_result
+    return RunnableConfig(
+        configurable={
+            "engine_config": engine_config,
+            "language_model_service": Mock(),
+        }
+    )
+
+
+def _make_search_result(
+    title: str = "Result Title",
+    url: str = "https://example.com",
+    snippet: str = "A short snippet",
+    content: str = "",
+) -> Mock:
+    """Helper to create a mock WebSearchResult."""
+    result = Mock()
+    result.title = title
+    result.url = url
+    result.snippet = snippet
+    result.content = content
+    return result
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_web_search__returns_snippet_only__when_show_full_page_result_disabled() -> (
+    None
+):
+    """
+    Purpose: Verify web_search does not include page content when show_full_page_result is False.
+    Why this matters: Default behaviour should only return snippets to keep responses concise.
+    Setup summary: Mock search with content, set show_full_page_result=False, assert no page content.
+    """
+    # Arrange
+    config = _make_web_search_config(show_full_page_result=False)
+    search_result = _make_search_result(
+        title="Test Page",
+        url="https://test.com",
+        snippet="Short snippet",
+        content="Full page content that should NOT appear",
+    )
+
+    mock_citation = Mock()
+    mock_citation.number = 1
+
+    mock_citation_manager = AsyncMock()
+    mock_citation_manager.register_source = AsyncMock(return_value=mock_citation)
+
+    mock_search_service = AsyncMock()
+    mock_search_service.search = AsyncMock(return_value=[search_result])
+
+    # Act
+    with (
+        patch(
+            "unique_deep_research.unique_custom.tools.get_search_engine_service",
+            return_value=mock_search_service,
+        ),
+        patch(
+            "unique_deep_research.unique_custom.tools.get_citation_manager",
+            return_value=mock_citation_manager,
+        ),
+        patch(
+            "unique_deep_research.unique_custom.tools.write_tool_message_log",
+        ),
+    ):
+        result = await web_search.ainvoke({"query": "test query"}, config)
+
+    # Assert
+    assert "Snippet: Short snippet" in result
+    assert "Page content:" not in result
+    assert "Full page content that should NOT appear" not in result
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_web_search__includes_page_content__when_show_full_page_result_enabled() -> (
+    None
+):
+    """
+    Purpose: Verify web_search includes full page content when show_full_page_result is True.
+    Why this matters: Agents without web_fetch need the full content inline to gather context.
+    Setup summary: Mock search with content, set show_full_page_result=True, assert page content present.
+    """
+    # Arrange
+    config = _make_web_search_config(show_full_page_result=True)
+    search_result = _make_search_result(
+        title="Test Page",
+        url="https://test.com",
+        snippet="Short snippet",
+        content="Full page content from the search engine",
+    )
+
+    mock_citation = Mock()
+    mock_citation.number = 1
+
+    mock_citation_manager = AsyncMock()
+    mock_citation_manager.register_source = AsyncMock(return_value=mock_citation)
+
+    mock_search_service = AsyncMock()
+    mock_search_service.search = AsyncMock(return_value=[search_result])
+
+    # Act
+    with (
+        patch(
+            "unique_deep_research.unique_custom.tools.get_search_engine_service",
+            return_value=mock_search_service,
+        ),
+        patch(
+            "unique_deep_research.unique_custom.tools.get_citation_manager",
+            return_value=mock_citation_manager,
+        ),
+        patch(
+            "unique_deep_research.unique_custom.tools.write_tool_message_log",
+        ),
+    ):
+        result = await web_search.ainvoke({"query": "test query"}, config)
+
+    # Assert
+    assert "Snippet: Short snippet" in result
+    assert "Page content: Full page content from the search engine" in result
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_web_search__omits_page_content__when_enabled_but_content_empty() -> None:
+    """
+    Purpose: Verify web_search omits page content when show_full_page_result is True but content is empty.
+    Why this matters: Empty content should not produce a noisy "Page content:" line.
+    Setup summary: Mock search with empty content, set show_full_page_result=True, assert no page content line.
+    """
+    # Arrange
+    config = _make_web_search_config(show_full_page_result=True)
+    search_result = _make_search_result(
+        title="Test Page",
+        url="https://test.com",
+        snippet="Short snippet",
+        content="",
+    )
+
+    mock_citation = Mock()
+    mock_citation.number = 1
+
+    mock_citation_manager = AsyncMock()
+    mock_citation_manager.register_source = AsyncMock(return_value=mock_citation)
+
+    mock_search_service = AsyncMock()
+    mock_search_service.search = AsyncMock(return_value=[search_result])
+
+    # Act
+    with (
+        patch(
+            "unique_deep_research.unique_custom.tools.get_search_engine_service",
+            return_value=mock_search_service,
+        ),
+        patch(
+            "unique_deep_research.unique_custom.tools.get_citation_manager",
+            return_value=mock_citation_manager,
+        ),
+        patch(
+            "unique_deep_research.unique_custom.tools.write_tool_message_log",
+        ),
+    ):
+        result = await web_search.ainvoke({"query": "test query"}, config)
+
+    # Assert
+    assert "Snippet: Short snippet" in result
+    assert "Page content:" not in result
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_web_search__omits_page_content__when_enabled_but_content_whitespace() -> (
+    None
+):
+    """
+    Purpose: Verify web_search omits page content when content is only whitespace.
+    Why this matters: Whitespace-only content should be treated the same as empty.
+    Setup summary: Mock search with whitespace content, set show_full_page_result=True, assert no page content line.
+    """
+    # Arrange
+    config = _make_web_search_config(show_full_page_result=True)
+    search_result = _make_search_result(
+        title="Test Page",
+        url="https://test.com",
+        snippet="Short snippet",
+        content="   \n\t  ",
+    )
+
+    mock_citation = Mock()
+    mock_citation.number = 1
+
+    mock_citation_manager = AsyncMock()
+    mock_citation_manager.register_source = AsyncMock(return_value=mock_citation)
+
+    mock_search_service = AsyncMock()
+    mock_search_service.search = AsyncMock(return_value=[search_result])
+
+    # Act
+    with (
+        patch(
+            "unique_deep_research.unique_custom.tools.get_search_engine_service",
+            return_value=mock_search_service,
+        ),
+        patch(
+            "unique_deep_research.unique_custom.tools.get_citation_manager",
+            return_value=mock_citation_manager,
+        ),
+        patch(
+            "unique_deep_research.unique_custom.tools.write_tool_message_log",
+        ),
+    ):
+        result = await web_search.ainvoke({"query": "test query"}, config)
+
+    # Assert
+    assert "Snippet: Short snippet" in result
+    assert "Page content:" not in result
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_web_search__uses_snippet_label__not_content_label() -> None:
+    """
+    Purpose: Verify web_search formats results with "Snippet:" label (not "content:").
+    Why this matters: The label was renamed to distinguish snippet from full page content.
+    Setup summary: Mock a single search result, assert "Snippet:" label is used in output.
+    """
+    # Arrange
+    config = _make_web_search_config(show_full_page_result=False)
+    search_result = _make_search_result(
+        snippet="This is the snippet text",
+    )
+
+    mock_citation = Mock()
+    mock_citation.number = 1
+
+    mock_citation_manager = AsyncMock()
+    mock_citation_manager.register_source = AsyncMock(return_value=mock_citation)
+
+    mock_search_service = AsyncMock()
+    mock_search_service.search = AsyncMock(return_value=[search_result])
+
+    # Act
+    with (
+        patch(
+            "unique_deep_research.unique_custom.tools.get_search_engine_service",
+            return_value=mock_search_service,
+        ),
+        patch(
+            "unique_deep_research.unique_custom.tools.get_citation_manager",
+            return_value=mock_citation_manager,
+        ),
+        patch(
+            "unique_deep_research.unique_custom.tools.write_tool_message_log",
+        ),
+    ):
+        result = await web_search.ainvoke({"query": "test query"}, config)
+
+    # Assert
+    assert "Snippet: This is the snippet text" in result
+    assert "content: This is the snippet text" not in result
