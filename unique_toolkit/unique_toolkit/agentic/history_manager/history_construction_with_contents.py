@@ -1,4 +1,5 @@
 import base64
+import logging
 import mimetypes
 from datetime import datetime
 from enum import StrEnum
@@ -18,7 +19,16 @@ from unique_toolkit.content.schemas import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelMessageRole as LLMRole
 from unique_toolkit.language_model.infos import EncoderName, LanguageModelInfo
-from unique_toolkit.language_model.schemas import LanguageModelMessages
+from unique_toolkit.language_model.schemas import (
+    LanguageModelAssistantMessage,
+    LanguageModelFunctionCall,
+    LanguageModelMessage,
+    LanguageModelMessageOptions,
+    LanguageModelMessages,
+    LanguageModelToolMessage,
+)
+
+logger = logging.getLogger(__name__)
 
 # TODO: Test this once it moves into the unique toolkit
 
@@ -221,6 +231,180 @@ def get_full_history_with_contents(
                 content=text,
             )
     return builder.build()
+
+
+def _segment_gpt_request_into_turns(
+    gpt_request: list[dict],
+) -> list[list[dict]]:
+    """Segment a gpt_request message array into per-turn groups.
+
+    Each turn starts with a user message. System messages are skipped.
+    Returns a list of turn segments, where each segment is a list of
+    message dicts belonging to that turn.
+    """
+    turns: list[list[dict]] = []
+    current_turn: list[dict] = []
+
+    for msg in gpt_request:
+        if msg.get("role") == "system":
+            continue
+        if msg.get("role") == "user" and current_turn:
+            turns.append(current_turn)
+            current_turn = []
+        current_turn.append(msg)
+
+    if current_turn:
+        turns.append(current_turn)
+
+    return turns
+
+
+def _extract_tool_messages_per_turn(
+    gpt_request: list[dict],
+) -> list[list[dict]]:
+    """Extract intermediate tool-related messages for each turn in a gpt_request.
+
+    For each turn, returns the messages between the user message and the
+    final assistant response — i.e. intermediate assistant messages (with
+    tool_calls) and tool response messages.
+
+    For non-last turns, the final element is the concluding assistant message
+    (which is already in the DB), so it is excluded.
+    For the last turn, there is no concluding assistant response in the
+    gpt_request (it was the LLM output), so all messages after the user
+    message are included.
+    """
+    turns = _segment_gpt_request_into_turns(gpt_request)
+
+    result: list[list[dict]] = []
+    for i, turn in enumerate(turns):
+        is_last_turn = i == len(turns) - 1
+        if is_last_turn:
+            result.append(turn[1:] if len(turn) > 1 else [])
+        else:
+            result.append(turn[1:-1] if len(turn) > 2 else [])
+
+    return result
+
+
+def _convert_raw_messages_to_typed(
+    raw_messages: list[dict],
+) -> list[LanguageModelMessageOptions]:
+    """Convert raw gpt_request message dicts to typed LanguageModelMessage objects.
+
+    Handles assistant messages (with tool_calls) and tool response messages,
+    defaulting missing fields gracefully.
+    """
+    converted: list[LanguageModelMessageOptions] = []
+    for msg in raw_messages:
+        role = msg.get("role", "")
+        try:
+            if role == "assistant":
+                tool_calls = None
+                if msg.get("tool_calls"):
+                    tool_calls = [
+                        LanguageModelFunctionCall(**tc)
+                        for tc in msg["tool_calls"]
+                    ]
+                converted.append(
+                    LanguageModelAssistantMessage(
+                        content=msg.get("content"),
+                        tool_calls=tool_calls,
+                    )
+                )
+            elif role == "tool":
+                converted.append(
+                    LanguageModelToolMessage(
+                        content=msg.get("content"),
+                        tool_call_id=msg.get("tool_call_id", ""),
+                        name=msg.get("name", "unknown"),
+                    )
+                )
+            else:
+                converted.append(
+                    LanguageModelMessage(
+                        role=LLMRole(role),
+                        content=msg.get("content"),
+                    )
+                )
+        except Exception:
+            logger.warning(
+                "Failed to convert gpt_request message, skipping: %s",
+                msg,
+                exc_info=True,
+            )
+    return converted
+
+
+def _interleave_tool_messages(
+    enriched_history: LanguageModelMessages,
+    tool_messages_per_turn: list[list[dict]],
+) -> LanguageModelMessages:
+    """Splice intermediate tool messages into the enriched history.
+
+    The enriched history is a flat list of [user, assistant, user, assistant, ...].
+    For each user message, the corresponding turn's tool messages are inserted
+    right after it (and before the following assistant message).
+    """
+    result: list[LanguageModelMessageOptions] = []
+    turn_idx = 0
+
+    for msg in enriched_history:
+        result.append(msg)
+        if msg.role == LLMRole.USER and turn_idx < len(tool_messages_per_turn):
+            typed_tool_msgs = _convert_raw_messages_to_typed(
+                tool_messages_per_turn[turn_idx]
+            )
+            result.extend(typed_tool_msgs)
+            turn_idx += 1
+
+    return LanguageModelMessages(root=result)
+
+
+def get_full_history_with_contents_and_tool_calls(
+    user_message: ChatEventUserMessage,
+    chat_id: str,
+    chat_service: ChatService,
+    content_service: ContentService,
+    include_images: ImageContentInclusion = ImageContentInclusion.ALL,
+    file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+) -> LanguageModelMessages:
+    """Build the full conversation history with content enrichment AND tool call messages.
+
+    Combines the enriched DB history (user/assistant messages with file and
+    image metadata) with the intermediate tool interaction messages extracted
+    from the gpt_request field on previous user messages.
+
+    Falls back to plain enriched history if no gpt_request is available.
+    """
+    enriched_history = get_full_history_with_contents(
+        user_message=user_message,
+        chat_id=chat_id,
+        chat_service=chat_service,
+        content_service=content_service,
+        include_images=include_images,
+        file_content_serialization_type=file_content_serialization_type,
+    )
+
+    chat_history = chat_service.get_full_history()
+
+    last_user_with_gpt_request = next(
+        (
+            m
+            for m in reversed(chat_history)
+            if m.role == ChatRole.USER and m.gpt_request
+        ),
+        None,
+    )
+
+    if not last_user_with_gpt_request or not last_user_with_gpt_request.gpt_request:
+        return enriched_history
+
+    tool_messages_per_turn = _extract_tool_messages_per_turn(
+        last_user_with_gpt_request.gpt_request
+    )
+
+    return _interleave_tool_messages(enriched_history, tool_messages_per_turn)
 
 
 def get_full_history_as_llm_messages(
