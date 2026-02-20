@@ -37,6 +37,7 @@ from unique_toolkit.agentic.tools.a2a import (
     REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
+from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.openai_builtin.manager import (
     OpenAICodeInterpreterConfig,
 )
@@ -46,6 +47,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporterConfig,
 )
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
 
@@ -308,7 +310,7 @@ class CodeInterpreterExtendedConfig(BaseToolConfig):
         ]
         | DeactivatedNone
     ) = Field(
-        ShowExecutedCodePostprocessorConfig(),
+        default=ShowExecutedCodePostprocessorConfig(),
         description="If active, generated code will be prepended to the LLM answer",
     )
 
@@ -387,4 +389,36 @@ class UniqueAIConfig(BaseToolConfig):
     def disable_sub_agent_referencing_if_not_used(self) -> "UniqueAIConfig":
         if not any(tool.is_sub_agent for tool in self.space.tools):
             self.agent.experimental.sub_agents_config.referencing_config = None
+        return self
+
+    @model_validator(mode="after")
+    def enable_responses_api_for_code_interpreter_tool(self) -> "UniqueAIConfig":
+        """Auto-enable the Responses API when Code Interpreter is added directly as a tool.
+
+        When Code Interpreter is configured via the UI tool selector (i.e. as an entry in
+        space.tools), neither `use_responses_api` nor `responses_api_config.code_interpreter`
+        are set.  This validator detects that combination and fills in the required defaults so
+        that `unique_ai_builder` routes the request correctly and registers all postprocessors.
+
+        The validator only activates when the selected model actually supports the Responses API;
+        models that do not support it are left untouched so that an invalid configuration is not
+        silently promoted.
+        """
+        # Only consider enabled tools — a disabled entry (toggle off) means the user
+        # has not intentionally activated Code Interpreter via the UI toggle.
+        tool_names = [tool.name for tool in self.space.tools if tool.is_enabled]
+        model_supports_responses_api = (
+            ModelCapabilities.RESPONSES_API in self.space.language_model.capabilities
+        )
+
+        if (
+            OpenAIBuiltInToolName.CODE_INTERPRETER in tool_names
+            and model_supports_responses_api
+        ):
+            self.agent.experimental.responses_api_config.use_responses_api = True
+            if self.agent.experimental.responses_api_config.code_interpreter is None:
+                self.agent.experimental.responses_api_config.code_interpreter = (
+                    CodeInterpreterExtendedConfig()
+                )
+
         return self
