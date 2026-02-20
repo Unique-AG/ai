@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model import (
+    LanguageModelFunction,
     LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelResponse,
@@ -540,4 +541,124 @@ def _create_language_model_stream_response_with_references(
     return LanguageModelStreamResponse(
         message=stream_response_message,
         tool_calls=tool_calls,
+    )
+
+
+async def stream_complete_with_references_openai(
+    messages: list[ChatCompletionMessageParam] | LanguageModelMessages,
+    model_name: LanguageModelName | str,
+    content_chunks: list[ContentChunk] | None = None,
+    temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
+    start_text: str | None = None,
+    tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
+    unique_settings: "UniqueSettings | None" = None,  # noqa: F821
+) -> LanguageModelStreamResponse:
+    """Stream a chat completion via the OpenAI proxy, apply reference injection, and return a LanguageModelStreamResponse."""
+
+    from unique_toolkit.framework_utilities.openai.client import (
+        get_async_openai_client,
+    )
+    from unique_toolkit.language_model.stream_transform import (
+        NormalizationTransform,
+        ReferenceInjectionTransform,
+        TextTransformPipeline,
+    )
+
+    # prepare variables
+    client = get_async_openai_client(unique_settings=unique_settings)
+    model_name_: str = (
+        model_name.value if isinstance(model_name, LanguageModelName) else model_name
+    )
+    messages_: list[ChatCompletionMessageParam] = (
+        messages.model_dump(
+            exclude_none=True,
+            by_alias=True,
+        )
+        if isinstance(messages, LanguageModelMessages)
+        else list(messages)
+    )
+    tools_ = (
+        []
+        if tools is None
+        else [
+            tool.to_openai(mode="completions")
+            if isinstance(tool, LanguageModelToolDescription)
+            else {"type": "function", "function": tool.model_dump(exclude_none=True)}
+            for tool in tools
+        ]
+    )
+
+    # pipeline
+    pipeline = TextTransformPipeline()
+    pipeline.add(NormalizationTransform())
+    pipeline.add(
+        ReferenceInjectionTransform(
+            content_chunks=content_chunks or [], model=model_name_
+        )
+    )
+
+    stream_kwargs = {
+        "messages": messages_,
+        "model": model_name_,
+        "temperature": temperature,
+    }
+    # add tool choice and tools only if relevant
+    if tool_choice is not None:
+        stream_kwargs["tool_choice"] = tool_choice
+    if tools_:
+        stream_kwargs["tools"] = tools_
+
+    full_text: str = start_text or ""
+    tools_calls_fragments: dict[int, dict[str, Any]] = {}
+    async with client.chat.completions.stream(
+        **stream_kwargs,
+    ) as stream:
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            choice_ = chunk.choices[0]
+            # text
+            delta_ = choice_.delta
+            if delta_.content is not None:
+                full_text += delta_.content
+                pipeline.feed_delta(delta_.content)  # does nothing right now
+            # tools
+            for tool_call in delta_.tool_calls or []:
+                idx_ = tool_call.index
+                if idx_ not in tools_calls_fragments.keys():
+                    tools_calls_fragments[idx_] = {
+                        "id": tool_call.id or "",
+                        "name": "",
+                        "arguments": "",
+                    }
+                if tool_call.function is not None:
+                    tools_calls_fragments[idx_]["name"] += tool_call.function.name or ""
+                    tools_calls_fragments[idx_]["arguments"] += (
+                        tool_call.function.arguments or ""
+                    )
+    # run on full text
+    text_, references_ = pipeline.run(full_text)
+    # construct tool calls
+    tool_calls_list = None
+    if len(tools_calls_fragments) > 0:
+        tool_calls_list = [
+            LanguageModelFunction(
+                id=tool_call["id"],
+                name=tool_call["name"],
+                arguments=tool_call["arguments"] or None,
+            )
+            for tool_call in tools_calls_fragments.values()
+        ]
+
+    return LanguageModelStreamResponse(
+        message=LanguageModelStreamResponseMessage(
+            id="stream_unknown",
+            previous_message_id=None,
+            role=LanguageModelMessageRole.ASSISTANT,
+            text=text_,
+            original_text=full_text,
+            references=references_,
+        ),
+        tool_calls=tool_calls_list,
     )
