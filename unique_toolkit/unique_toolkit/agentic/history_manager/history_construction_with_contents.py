@@ -537,11 +537,11 @@ def get_full_history_with_contents_and_tool_calls(
     image metadata) with the intermediate tool interaction messages extracted
     from the gpt_request field on previous user messages.
 
-    When ``token_limit`` is provided the full pipeline is applied:
+    Pipeline:
       1. Interleave tool messages into enriched history
       2. Renumber source IDs globally (disambiguate across tool calls)
       3. Strip uncited sources from tool messages
-      4. Trim to token window
+      4. Optionally trim to token window (when ``token_limit`` is provided)
 
     Falls back to plain enriched history if no gpt_request is available.
     """
@@ -575,9 +575,9 @@ def get_full_history_with_contents_and_tool_calls(
     )
 
     history = _interleave_tool_messages(enriched_history, tool_messages_per_turn)
+    history = cleanup_tool_message_sources(history)
 
     if token_limit is not None:
-        history = cleanup_tool_message_sources(history)
         history = limit_to_token_window(history, token_limit)
 
     return history
