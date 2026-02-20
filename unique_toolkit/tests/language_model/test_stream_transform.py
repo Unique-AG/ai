@@ -1,7 +1,7 @@
 """Tests for stream_transform.py and stream_complete_with_references()."""
 
 from types import TracebackType
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -131,13 +131,13 @@ class FakeChunk:
 
 
 class FakeStream:
-    """Fake async context manager wrapping an async iterator of chunks."""
+    """Fake async context manager and async iterator of chunks (like create(stream=True) return)."""
 
     def __init__(self, chunks):
         self._chunks = chunks
 
     async def __aenter__(self):
-        return self._aiter()
+        return self
 
     async def __aexit__(
         self,
@@ -153,19 +153,6 @@ class FakeStream:
 
     def __aiter__(self):
         return self._aiter()
-
-
-class FakeStreamCtx:
-    """Context manager that returns an async-iterable stream."""
-
-    def __init__(self, chunks):
-        self._stream = FakeStream(chunks)
-
-    async def __aenter__(self):
-        return self._stream
-
-    async def __aexit__(self, *args) -> None:
-        pass
 
 
 # ---------------------------------------------------------------------------
@@ -187,7 +174,7 @@ async def test_stream_complete_with_references_text(mock_get_client):
     ]
 
     fake_client = MagicMock()
-    fake_client.chat.completions.stream.return_value = FakeStreamCtx(chunks)
+    fake_client.chat.completions.create = AsyncMock(return_value=FakeStream(chunks))
     mock_get_client.return_value = fake_client
 
     result = await stream_complete_with_references_openai(
@@ -256,7 +243,7 @@ async def test_stream_complete_tool_calls(mock_get_client):
     ]
 
     fake_client = MagicMock()
-    fake_client.chat.completions.stream.return_value = FakeStreamCtx(chunks)
+    fake_client.chat.completions.create = AsyncMock(return_value=FakeStream(chunks))
     mock_get_client.return_value = fake_client
 
     result = await stream_complete_with_references_openai(
@@ -305,7 +292,7 @@ async def test_stream_complete_start_text_prepended(mock_get_client):
     chunks = [FakeChunk(content=" more text")]
 
     fake_client = MagicMock()
-    fake_client.chat.completions.stream.return_value = FakeStreamCtx(chunks)
+    fake_client.chat.completions.create = AsyncMock(return_value=FakeStream(chunks))
     mock_get_client.return_value = fake_client
 
     result = await stream_complete_with_references_openai(
@@ -334,7 +321,7 @@ async def test_stream_complete_language_model_messages_input(mock_get_client):
     chunks = [FakeChunk(content="answer")]
 
     fake_client = MagicMock()
-    fake_client.chat.completions.stream.return_value = FakeStreamCtx(chunks)
+    fake_client.chat.completions.create = AsyncMock(return_value=FakeStream(chunks))
     mock_get_client.return_value = fake_client
 
     messages = LanguageModelMessages([LanguageModelUserMessage(content="hello")])
@@ -346,7 +333,7 @@ async def test_stream_complete_language_model_messages_input(mock_get_client):
 
     assert result.message.text == "answer"
     # Verify model_dump was used: messages list was passed to the client
-    call_kwargs = fake_client.chat.completions.stream.call_args[1]
+    call_kwargs = fake_client.chat.completions.create.call_args[1]
     assert isinstance(call_kwargs["messages"], list)
     assert call_kwargs["messages"][0]["role"] == "user"
 
@@ -368,7 +355,7 @@ async def test_stream_complete_language_model_messages_snake_case_tool_fields(
     chunks = [FakeChunk(content="ok")]
 
     fake_client = MagicMock()
-    fake_client.chat.completions.stream.return_value = FakeStreamCtx(chunks)
+    fake_client.chat.completions.create = AsyncMock(return_value=FakeStream(chunks))
     mock_get_client.return_value = fake_client
 
     tool_call_id = "call_abc123"
@@ -402,7 +389,7 @@ async def test_stream_complete_language_model_messages_snake_case_tool_fields(
         model_name="test-model",
     )
 
-    call_kwargs = fake_client.chat.completions.stream.call_args[1]
+    call_kwargs = fake_client.chat.completions.create.call_args[1]
     sent = call_kwargs["messages"]
 
     # OpenAI expects snake_case; camelCase would drop tool info
@@ -460,7 +447,7 @@ async def test_stream_complete_tool_definitions_converted(mock_get_client):
     chunks: list = []  # no content, just verify tool definitions were forwarded
 
     fake_client = MagicMock()
-    fake_client.chat.completions.stream.return_value = FakeStreamCtx(chunks)
+    fake_client.chat.completions.create = AsyncMock(return_value=FakeStream(chunks))
     mock_get_client.return_value = fake_client
 
     tool_desc = LanguageModelToolDescription(
@@ -488,7 +475,7 @@ async def test_stream_complete_tool_definitions_converted(mock_get_client):
         tools=[tool_desc, tool_raw],
     )
 
-    call_kwargs = fake_client.chat.completions.stream.call_args[1]
+    call_kwargs = fake_client.chat.completions.create.call_args[1]
     sent_tools = call_kwargs["tools"]
     assert len(sent_tools) == 2
     tool_names = {t["function"]["name"] for t in sent_tools}

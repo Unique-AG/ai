@@ -4,14 +4,11 @@ import warnings
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
-from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
-
 if TYPE_CHECKING:
     from unique_toolkit.app.unique_settings import UniqueSettings
 
 import humps
 import unique_sdk
-from openai.lib.streaming.chat import ChunkEvent
 from openai.types.chat import ChatCompletionToolChoiceOptionParam
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 from pydantic import BaseModel
@@ -604,12 +601,12 @@ async def stream_complete_with_references_openai(
         )
     )
 
-    stream_kwargs = {
+    stream_kwargs: dict[str, Any] = {
         "messages": messages_,
         "model": model_name_,
         "temperature": temperature,
+        "stream": True,
     }
-    # add tool choice and tools only if relevant
     if tool_choice is not None:
         stream_kwargs["tool_choice"] = tool_choice
     if tools_:
@@ -617,18 +614,9 @@ async def stream_complete_with_references_openai(
 
     full_text: str = start_text or ""
     tools_calls_fragments: dict[int, dict[str, Any]] = {}
-    async with client.chat.completions.stream(
-        **stream_kwargs,
-    ) as stream:
-        async for event in stream:
-            if isinstance(event, ChunkEvent):
-                chunk = event.chunk
-            elif hasattr(event, "choices"):
-                # Test doubles may yield chunk-like objects directly
-                chunk = cast(ChatCompletionChunk, event)
-            else:
-                # Skip other event types (ContentDeltaEvent, ContentDoneEvent, etc.)
-                continue
+    stream = await client.chat.completions.create(**stream_kwargs)
+    async with stream:
+        async for chunk in stream:
             if not chunk.choices:
                 continue
             choice_ = chunk.choices[0]
