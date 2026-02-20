@@ -34,10 +34,10 @@ from db_tool_pm.prompts import (
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
 )
 
-DB_TYPE = os.getenv("DB_TYPE", "postgres")
+DB_TYPE = os.getenv("DB_TYPE", "sqlite")
 
 DB_HOST = os.getenv("PGHOST", "localhost")
-DB_PORT = int(os.getenv("PGPORT", "10100"))
+DB_PORT = int(os.getenv("PGPORT", "10110"))
 DB_NAME = os.getenv("PGDATABASE", "testdb")
 DB_USER = os.getenv("PGUSER", "postgres")
 DB_PASSWORD = os.getenv("PGPASSWORD", "postgres")
@@ -153,22 +153,18 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
         )
 
     def select_data(self, conn, where_clause, email):
-        sql = (
-            f"SELECT * FROM (SELECT * FROM {TABLE_NAME} WHERE email = ?) AS tmp {where_clause}"
-            if DB_TYPE == "sqlite"
-            else f"SELECT * FROM (select * from {TABLE_NAME} where email= '{email}') as tmp {where_clause}"
-        )
-        print(sql)
         if DB_TYPE == "sqlite":
-            # SQLite: replace ILIKE with LIKE (case-insensitive by default for ASCII)
             where_clause_sqlite = where_clause.replace("ILIKE", "LIKE")
             sql = f"SELECT * FROM {TABLE_NAME} WHERE email = ? AND row_num IN (SELECT row_num FROM {TABLE_NAME} {where_clause_sqlite})"
+            print(sql)
             cursor = conn.cursor()
             cursor.execute(sql, (email,))
             rows = cursor.fetchall()
             rows = [tuple(r) for r in rows]
             print(f"[DB] SQLite query email={email!r} returned {len(rows)} rows")
         else:
+            sql = f"SELECT * FROM (select * from {TABLE_NAME} where email= '{email}') as tmp {where_clause}"
+            print(sql)
             with conn.cursor() as cur:
                 cur.execute(sql)
                 rows = cur.fetchall()
@@ -272,6 +268,7 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
         sleeve_section = ", ".join(sorted(sleeve))
         tickers_section = ", ".join(tickers)
 
+        # TODO: Prompt says LIKE for case-insensitive matching, but LIKE is case-sensitive in PostgreSQL (only SQLite is case-insensitive). Consider reverting to ILIKE in the prompt and relying on where_clause.replace("ILIKE", "LIKE") for SQLite.
         system_prompt = f"""
         You are a SQL generation assistant. Your sole output must be a valid SQL WHERE clause that can be appended to:
         SELECT * FROM {TABLE_NAME}

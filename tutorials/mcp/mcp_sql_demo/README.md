@@ -55,7 +55,7 @@ For a persistent database, use PostgreSQL and set `DB_TYPE=postgres`.
 
 **Connection details (default):**
 - Host: `PGHOST` (default `localhost`)
-- Port: `PGPORT` (default `10100`)
+- Port: `PGPORT` (default `10110`)
 - Database: `PGDATABASE` (default `testdb`)
 - User: `PGUSER` / Password: `PGPASSWORD`
 
@@ -120,7 +120,7 @@ DB_TYPE=sqlite
 
 # PostgreSQL (only when DB_TYPE=postgres)
 PGHOST=localhost
-PGPORT=10100
+PGPORT=10110
 PGDATABASE=testdb
 PGUSER=postgres
 PGPASSWORD=postgres
@@ -167,7 +167,7 @@ If you use `DB_TYPE=postgres`:
 
 ```bash
 docker compose -f docker_compose.yaml up -d
-psql -h localhost -p 10100 -U postgres -f src/mcp_sql_demo/sql/create_table_postgres.sql
+psql -h localhost -p 10110 -U postgres -f src/mcp_sql_demo/sql/create_table_postgres.sql
 ```
 
 (Adjust host/port to match `PGHOST` / `PGPORT`.)
