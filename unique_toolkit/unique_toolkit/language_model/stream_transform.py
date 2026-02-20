@@ -1,4 +1,3 @@
-import copy
 from datetime import UTC, datetime
 from typing import Protocol, runtime_checkable
 
@@ -29,7 +28,7 @@ class ReferenceInjectionTransform:
     def finalize(self, text: str) -> tuple[str, list[ContentReference]]:
         message = ChatMessage(
             id="irrelevant",
-            text=copy.deepcopy(text),
+            text=text,
             role=ChatMessageRole.ASSISTANT,
             created_at=datetime.now(UTC),
             chat_id="irrelevant",
@@ -50,7 +49,7 @@ class ReferenceInjectionTransform:
 class NormalizationTransform:
     """Transform to normalize the text of a message.
     E.g. remove extra whitespace, convert to lowercase, etc.
-    Placeholder for now.
+    For now, this is a no-op. Only trim trailing whitespace.
     """
 
     def process_delta(self, delta: str) -> None:

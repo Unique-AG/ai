@@ -563,7 +563,6 @@ async def stream_complete_with_references_openai(
         get_async_openai_client,
     )
     from unique_toolkit.language_model.stream_transform import (
-        NormalizationTransform,
         ReferenceInjectionTransform,
         TextTransformPipeline,
     )
@@ -594,7 +593,7 @@ async def stream_complete_with_references_openai(
 
     # pipeline
     pipeline = TextTransformPipeline()
-    pipeline.add(NormalizationTransform())
+    # pipeline.add(NormalizationTransform()) # no-op for now
     pipeline.add(
         ReferenceInjectionTransform(
             content_chunks=content_chunks or [], model=model_name_
@@ -613,54 +612,60 @@ async def stream_complete_with_references_openai(
         stream_kwargs["tools"] = tools_
 
     full_text: str = start_text or ""
-    tools_calls_fragments: dict[int, dict[str, Any]] = {}
-    stream = await client.chat.completions.create(**stream_kwargs)
-    async with stream:
-        async for chunk in stream:
-            if not chunk.choices:
-                continue
-            choice_ = chunk.choices[0]
-            # text
-            delta_ = choice_.delta
-            if delta_.content is not None:
-                full_text += delta_.content
-                pipeline.feed_delta(delta_.content)  # does nothing right now
-            # tools
-            for tool_call in delta_.tool_calls or []:
-                idx_ = tool_call.index
-                if idx_ not in tools_calls_fragments.keys():
-                    tools_calls_fragments[idx_] = {
-                        "id": tool_call.id or "",
-                        "name": "",
-                        "arguments": "",
-                    }
-                if tool_call.function is not None:
-                    tools_calls_fragments[idx_]["name"] += tool_call.function.name or ""
-                    tools_calls_fragments[idx_]["arguments"] += (
-                        tool_call.function.arguments or ""
-                    )
-    # run on full text
-    text_, references_ = pipeline.run(full_text)
-    # construct tool calls
-    tool_calls_list = None
-    if len(tools_calls_fragments) > 0:
-        tool_calls_list = [
-            LanguageModelFunction(
-                id=tool_call["id"],
-                name=tool_call["name"],
-                arguments=tool_call["arguments"] or None,
-            )
-            for tool_call in tools_calls_fragments.values()
-        ]
+    tool_calls_fragments: dict[int, dict[str, Any]] = {}
+    try:
+        stream = await client.chat.completions.create(**stream_kwargs)
+        async with stream:
+            async for chunk in stream:
+                if not chunk.choices:
+                    continue
+                choice_ = chunk.choices[0]
+                # text
+                delta_ = choice_.delta
+                if delta_.content is not None:
+                    full_text += delta_.content
+                    pipeline.feed_delta(delta_.content)  # does nothing right now
+                # tools
+                for tool_call in delta_.tool_calls or []:
+                    idx_ = tool_call.index
+                    if idx_ not in tool_calls_fragments.keys():
+                        tool_calls_fragments[idx_] = {
+                            "id": tool_call.id or "",
+                            "name": "",
+                            "arguments": "",
+                        }
+                    if tool_call.function is not None:
+                        tool_calls_fragments[idx_]["name"] += (
+                            tool_call.function.name or ""
+                        )
+                        tool_calls_fragments[idx_]["arguments"] += (
+                            tool_call.function.arguments or ""
+                        )
+        # run on full text
+        text_, references_ = pipeline.run(full_text)
+        # construct tool calls
+        tool_calls_list = None
+        if len(tool_calls_fragments) > 0:
+            tool_calls_list = [
+                LanguageModelFunction(
+                    id=tool_call["id"],
+                    name=tool_call["name"],
+                    arguments=tool_call["arguments"] or None,
+                )
+                for tool_call in tool_calls_fragments.values()
+            ]
 
-    return LanguageModelStreamResponse(
-        message=LanguageModelStreamResponseMessage(
-            id="stream_unknown",
-            previous_message_id=None,
-            role=LanguageModelMessageRole.ASSISTANT,
-            text=text_,
-            original_text=full_text,
-            references=references_,
-        ),
-        tool_calls=tool_calls_list,
-    )
+        return LanguageModelStreamResponse(
+            message=LanguageModelStreamResponseMessage(
+                id="stream_unknown",
+                previous_message_id=None,
+                role=LanguageModelMessageRole.ASSISTANT,
+                text=text_,
+                original_text=full_text,
+                references=references_,
+            ),
+            tool_calls=tool_calls_list,
+        )
+    except Exception as e:
+        logger.error("Error streaming completion (model=%s): %s", model_name_, e)
+        raise
