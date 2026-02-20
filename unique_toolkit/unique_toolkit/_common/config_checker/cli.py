@@ -13,17 +13,16 @@ from unique_toolkit._common.config_checker.validator import ConfigValidator
 
 logger = logging.getLogger(__name__)
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-
 
 @click.group()
 def cli():
     """Config compatibility checker CLI."""
-    pass
+
+    # Setup logging - only configure when CLI is actually invoked
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
 
 
 @cli.command()
@@ -61,7 +60,6 @@ def export(package: str, output: str, verbose: bool):
     click.echo(f"📁 Output directory: {output_dir}")
 
     try:
-        # Discover configs
         registry = ConfigRegistry()
         config_entries = registry.discover_configs(package_path)
 
@@ -73,7 +71,6 @@ def export(package: str, output: str, verbose: bool):
         for entry in config_entries:
             click.echo(f"  - {entry.name} ({entry.source})")
 
-        # Export
         exporter = ConfigExporter()
         manifest = exporter.export_all(config_entries, output_dir)
 
@@ -157,19 +154,15 @@ def check(
     click.echo(f"📁 Artifact directory: {artifacts_dir}")
 
     try:
-        # Discover current configs
         registry = ConfigRegistry()
         config_entries = registry.discover_configs(package_path)
 
         click.echo(f"✓ Discovered {len(config_entries)} config(s) at tip")
 
-        # Validate
         validator = ConfigValidator()
         report = validator.validate_all(
             artifacts_dir, config_entries, fail_on_missing=fail_on_missing
         )
-
-        # Count configs with default changes
         configs_with_changes = [
             r for r in report.results if r.valid and r.default_changes
         ]
@@ -190,24 +183,20 @@ def check(
         elif report_defaults:
             click.echo("  - No default changes detected.")
 
-        # Generate markdown report
         markdown_report = _generate_markdown_report(
             report,
             report_defaults=report_defaults,
             fail_on_missing=fail_on_missing,
         )
 
-        # Write report if path provided
         if output_report:
             report_path = Path(output_report)
             with open(report_path, "w") as f:
                 f.write(markdown_report)
             click.echo(f"\n📄 Report written to: {report_path}")
 
-        # Print report summary to stdout
         click.echo("\n" + markdown_report)
 
-        # Exit with appropriate code
         if report.has_failures():
             click.echo("\n❌ Validation FAILED", err=True)
             sys.exit(1)

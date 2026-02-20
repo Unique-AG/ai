@@ -45,6 +45,7 @@ class TestLanguageModelInfos:
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_1,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_5,
             LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_5,
+            LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_6,
             LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_6,
             LanguageModelName.GEMINI_2_0_FLASH,
             LanguageModelName.GEMINI_2_5_FLASH,

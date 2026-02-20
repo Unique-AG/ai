@@ -51,9 +51,6 @@ class ConfigExporter:
             Dictionary of defaults in JSON-serializable format
         """
         logger.debug(f"Exporting defaults for {config_model.__name__}")
-        # Create instance with all defaults using model_construct()
-        # This bypasses validation and settings sources (like environment variables)
-        # while still populating code-level defaults and default_factories.
         try:
             instance = config_model.model_construct()
             if issubclass(config_model, BaseSettings):
@@ -64,7 +61,6 @@ class ConfigExporter:
             )
             raise
 
-        # Export to dict
         data = self._serialize_model(instance)
         logger.debug(f"Serialized {config_model.__name__}: {data}")
         return data
@@ -78,16 +74,11 @@ class ConfigExporter:
         config = getattr(model, "model_config", {})
         env_prefix = config.get("env_prefix", "")
 
-        # Check all env vars against prefix AND field names
         field_names = set(model.model_fields.keys())
-
         for env_var in os.environ:
-            # Check prefix (case-insensitive)
             if env_prefix and env_var.lower().startswith(env_prefix.lower()):
                 self.detected_env_vars.add(env_var)
                 continue
-
-            # Check field names (case-insensitive)
             if env_var.lower() in {f.lower() for f in field_names}:
                 self.detected_env_vars.add(env_var)
 
@@ -117,8 +108,6 @@ class ConfigExporter:
         for entry in config_entries:
             try:
                 defaults = self.export_defaults(entry.model)
-
-                # Write to JSON file
                 output_file = output_dir / f"{entry.name}.json"
                 with open(output_file, "w") as f:
                     json.dump(defaults, f, indent=2)
@@ -146,8 +135,6 @@ class ConfigExporter:
             warnings=self.warnings,
             config_files=self.config_files,
         )
-
-        # Write manifest
         manifest_file = output_dir / "manifest.json"
         with open(manifest_file, "w") as f:
             json.dump(
@@ -181,8 +168,6 @@ class ConfigExporter:
         Returns:
             JSON-serializable dictionary
         """
-        # Use model_dump() without mode="json" to keep SecretStr objects intact
-        # so we can call .get_secret_value() on them.
         data = instance.model_dump()
         return ConfigExporter._serialize_any(data)
 
@@ -190,9 +175,6 @@ class ConfigExporter:
     def _serialize_any(value: Any) -> Any:
         """Recursively serialize any value to JSON-compatible format."""
         if isinstance(value, SecretStr):
-            # Security: Never export plain-text secrets to artifacts.
-            # Instead, export a deterministic hash so we can still detect changes
-            # without leaking the actual value.
             secret_val = value.get_secret_value()
             if not secret_val:
                 return ""
@@ -204,9 +186,7 @@ class ConfigExporter:
             return {k: ConfigExporter._serialize_any(v) for k, v in value.items()}
         if isinstance(value, list):
             return [ConfigExporter._serialize_any(v) for v in value]
-        if hasattr(value, "value") and not isinstance(
-            value, type
-        ):  # Enums or custom objects like FeatureFlag
+        if hasattr(value, "value") and not isinstance(value, type):
             return ConfigExporter._serialize_any(value.value)
         if isinstance(value, Path):
             return str(value)

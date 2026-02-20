@@ -30,7 +30,7 @@ class AnotherConfig(BaseModel):
     name: str = "test"
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_registry_explicit_registration():
     """Test that configs must be explicitly registered."""
     registry = ConfigRegistry()
@@ -46,7 +46,7 @@ def test_registry_explicit_registration():
     assert all_configs[0].source == "explicit"
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_registry_decorator_registration():
     """Test that @register_config decorator works."""
 
@@ -58,12 +58,12 @@ def test_registry_decorator_registration():
     all_configs = registry.get_all_configs()
 
     # Should find the decorator-registered config
-    assert len(all_configs) >= 1
-    names = {c.name for c in all_configs}
-    assert "custom_name" in names
+    assert len(all_configs) == 1
+    assert all_configs[0].name == "custom_name"
+    assert all_configs[0].model == MyConfig
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_registry_decorator_with_auto_name():
     """Test that @register_config works without explicit name."""
 
@@ -75,12 +75,12 @@ def test_registry_decorator_with_auto_name():
     all_configs = registry.get_all_configs()
 
     # Should use class name as config name
-    assert len(all_configs) >= 1
-    names = {c.name for c in all_configs}
-    assert "AutoNamedConfig" in names
+    assert len(all_configs) == 1
+    assert all_configs[0].name == "AutoNamedConfig"
+    assert all_configs[0].model == AutoNamedConfig
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_registry_multiple_explicit_configs():
     """Test registering multiple explicit configs."""
     registry = ConfigRegistry()
@@ -91,11 +91,13 @@ def test_registry_multiple_explicit_configs():
     all_configs = registry.get_all_configs()
 
     assert len(all_configs) == 2
-    names = {c.name for c in all_configs}
-    assert names == {"Config1", "Config2"}
+    assert all_configs[0].name == "Config1"
+    assert all_configs[0].model == SimpleConfig
+    assert all_configs[1].name == "Config2"
+    assert all_configs[1].model == AnotherConfig
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_registry_explicit_takes_precedence():
     """Test that explicit registration is used in get_all_configs."""
     registry = ConfigRegistry()
@@ -107,11 +109,12 @@ def test_registry_explicit_takes_precedence():
     all_configs = registry.get_all_configs()
 
     # Should have only one entry (the last one wins)
-    config_names = [c.name for c in all_configs if c.name == "MyConfig"]
-    assert len(config_names) <= 2  # May include decorator-registered too
+    assert len(all_configs) == 1
+    assert all_configs[0].name == "MyConfig"
+    assert all_configs[0].model == AnotherConfig
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_registry_handles_missing_package_path():
     """Test that registry handles non-existent paths gracefully."""
     registry = ConfigRegistry()
@@ -120,7 +123,7 @@ def test_registry_handles_missing_package_path():
     assert len(entries) == 0
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_registry_discovery_complex():
     """Test complex discovery scenarios in registry."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -141,15 +144,36 @@ def test_registry_discovery_complex():
         # Mock register_config to avoid actual registration in global registry
         with patch("unique_toolkit._common.config_checker.registry.register_config"):
             registry = ConfigRegistry()
-            # Need to mock sys.path to avoid polluting it
-            with patch("sys.path", sys.path[:]):
-                registry.discover_configs(tmp_path)
-                assert str(src_dir.resolve()) in [
-                    str(Path(p).resolve()) for p in sys.path
-                ]
+            path_before = sys.path.copy()
+            registry.discover_configs(tmp_path)
+            # Discovery uses isolated sys.path; no persistent modification
+            assert sys.path == path_before
 
 
-@pytest.mark.ai
+@pytest.mark.verified
+def test_registry_discovery_skips_non_config_files():
+    """Test that discovery skips files without register_config."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp_path = Path(tmpdir)
+        pkg_dir = tmp_path / "pkg"
+        pkg_dir.mkdir()
+
+        (pkg_dir / "registered_config.py").write_text(
+            "@register_config()\nclass C1(BaseModel): pass", encoding="utf-8"
+        )
+        (pkg_dir / "other.py").write_text("class C2(BaseModel): pass", encoding="utf-8")
+
+        registry = ConfigRegistry()
+        with patch("importlib.util.spec_from_file_location") as mock_spec:
+            registry.discover_configs(tmp_path)
+
+            # Should only be called for config.py, not other.py
+            called_files = [call.args[1] for call in mock_spec.call_args_list]
+            assert any("registered_config.py" in str(f) for f in called_files)
+            assert not any("other.py" in str(f) for f in called_files)
+
+
+@pytest.mark.verified
 def test_registry_load_from_package():
     """Test load_from_package method in registry."""
     registry = ConfigRegistry()

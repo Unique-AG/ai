@@ -72,15 +72,12 @@ class ConfigValidator:
         errors = []
         warnings = []
 
-        # 1. Structural Check: Detect removed fields
         old_keys = set(old_json.keys())
         new_keys = set(new_model.model_fields.keys())
         removed_keys = old_keys - new_keys
 
         if removed_keys:
             logger.debug(f"Detected removed keys in '{config_name}': {removed_keys}")
-
-            # Check model config for extra handling
             model_config = getattr(new_model, "model_config", {})
             extra_handling = model_config.get("extra", "ignore")
 
@@ -105,15 +102,11 @@ class ConfigValidator:
                     )
 
         try:
-            # 2. Value Check: Try to validate/instantiate
             logger.debug(f"Attempting model_validate for '{config_name}'")
             instance = new_model.model_validate(old_json)
             logger.debug(f"Successfully validated '{config_name}'")
 
-            # If successful (and no removed fields), check for default changes
             try:
-                # Instantiate a fresh instance with code-only defaults via model_construct()
-                # This ensures we ignore the current environment when getting "tip" defaults.
                 logger.debug(f"Constructing default instance for '{config_name}'")
                 default_instance = new_model.model_construct()
 
@@ -125,7 +118,6 @@ class ConfigValidator:
                         f"Detected {len(default_changes)} default changes in '{config_name}'"
                     )
             except Exception as e:
-                # Fallback to the validated instance if needed
                 logger.debug(
                     f"Default construction failed for '{config_name}', falling back: {e}"
                 )
@@ -140,24 +132,18 @@ class ConfigValidator:
             )
 
         except ValidationError as e:
-            # 3. Parse and Enhance Validation Errors
             new_errors = self._parse_validation_errors(e, old_json)
-
-            # Heuristic: Try to identify renames
-            # If we have removed fields AND 'missing' field errors, they might be renames
             missing_fields = [
                 err.field_path
                 for err in new_errors
                 if "missing" in err.message.lower() or "required" in err.message.lower()
             ]
 
-            if removed_keys and missing_fields:
+            if removed_keys and missing_fields and len(removed_keys) == 1:
+                old_field = next(iter(removed_keys))
                 for err in new_errors:
                     if err.field_path in missing_fields:
-                        # Suggest potential rename if there's exactly one removed field and one missing field
-                        if len(removed_keys) == 1:
-                            old_field = list(removed_keys)[0]
-                            err.message += f" (Note: Field '{old_field}' was removed, maybe you renamed it?)"
+                        err.message += f" (Note: Field '{old_field}' was removed, maybe you renamed it?)"
 
             errors.extend(new_errors)
 
@@ -187,12 +173,8 @@ class ConfigValidator:
         """
         artifact_dir = Path(artifact_dir)
         results: list[ConfigValidationResult] = []
-
-        # Build mapping of config names to models
         config_models = {entry.name: entry.model for entry in config_entries}
         processed_tip_names = set()
-
-        # Load all JSON files
         json_files = list(artifact_dir.glob("*.json"))
         logger.info(f"Validating {len(json_files)} config files from {artifact_dir}")
 
@@ -206,7 +188,6 @@ class ConfigValidator:
                 with open(json_file, "r") as f:
                     old_json = json.load(f)
 
-                # Find matching model
                 if config_name not in config_models:
                     logger.warning(f"No model found for config: {config_name}")
                     result = ConfigValidationResult(

@@ -1,8 +1,7 @@
-name: "[CI] Type Check - All Packages"
+name: "[CI] Types"
 
 on:
-  pull_request:
-  merge_group:
+  workflow_call:
   workflow_dispatch:
     inputs:
       package:

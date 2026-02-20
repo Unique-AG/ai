@@ -46,31 +46,26 @@ class EnvironmentSettings(BaseSettings):
     model_config = {"env_prefix": "DB_"}
 
 
-@pytest.mark.ai
+exporter = ConfigExporter()
+
+
+@pytest.mark.verified
 def test_exporter_exports_simple_config():
     """Test exporting a simple config model."""
-    exporter = ConfigExporter()
-
     result = exporter.export_defaults(SimpleConfig)
-
     assert result == {"name": "test", "value": 42}
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_exporter_exports_nested_config():
     """Test exporting nested config models."""
-    exporter = ConfigExporter()
-
     result = exporter.export_defaults(NestedConfig)
-
     assert result == {"simple": {"name": "test", "value": 42}, "enabled": True}
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_exporter_handles_secret_str():
     """Test that SecretStr values are hashed for security (not plain-text or obfuscated)."""
-    exporter = ConfigExporter()
-
     result = exporter.export_defaults(SecretConfig)
 
     # Should NOT be the actual value
@@ -87,48 +82,47 @@ def test_exporter_handles_secret_str():
     assert result["api_key"] == f"secret_hash:sha256:{expected_hash}"
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_exporter_handles_list_defaults():
     """Test exporting list defaults."""
-    exporter = ConfigExporter()
 
     result = exporter.export_defaults(ListConfig)
 
     assert result == {"items": ["a", "b"]}
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_exporter_handles_dict_defaults():
     """Test exporting dict defaults."""
-    exporter = ConfigExporter()
-
     result = exporter.export_defaults(DictConfig)
 
     assert result == {"metadata": {"version": "1.0"}}
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_exporter_special_types():
     """Test serialization of Path and Enum."""
     from enum import Enum
 
     class Status(Enum):
         ACTIVE = "active"
+        DELETED = "deleted"
 
     class SpecialConfig(BaseModel):
         path: Path = Path("/tmp")
         status: Status = Status.ACTIVE
         empty_secret: SecretStr = SecretStr("")
+        second_status: Status = Status.DELETED
 
-    exporter = ConfigExporter()
     result = exporter.export_defaults(SpecialConfig)
 
     assert result["path"] == "/tmp"
     assert result["status"] == "active"
+    assert result["second_status"] == "deleted"
     assert result["empty_secret"] == ""
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_exporter_instantiation_error():
     """Test error handling during instantiation."""
 
@@ -137,24 +131,19 @@ def test_exporter_instantiation_error():
         def model_construct(cls, _fields_set=None, **values):
             raise ValueError("Broken")
 
-    exporter = ConfigExporter()
     with pytest.raises(ValueError, match="Broken"):
         exporter.export_defaults(BrokenConfig)
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_exporter_export_all_error_handling():
     """Test that export_all continues on individual config errors."""
-    exporter = ConfigExporter()
 
     class BrokenConfig(BaseModel):
         def __init__(self, **data):
-            if (
-                not data
-            ):  # model_construct bypasses this, but let's force an error if possible
+            if not data:
                 raise ValueError("Broken")
 
-    # Force error by mocking export_defaults
     with patch.object(exporter, "export_defaults", side_effect=ValueError("Forced")):
         entries = [ConfigEntry(name="Broken", model=BrokenConfig)]
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -163,7 +152,7 @@ def test_exporter_export_all_error_handling():
             assert manifest.exported_count == 0
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_exporter_env_var_field_name():
     """Test environment variable detection by field name."""
 
@@ -171,19 +160,17 @@ def test_exporter_env_var_field_name():
         my_field: str = "default"
         model_config = {"env_prefix": "PREFIX_"}
 
-    exporter = ConfigExporter()
-    os.environ["MY_FIELD"] = "env_val"
+    os.environ["PREFIX_MY_FIELD"] = "env_val"
     try:
         exporter.export_defaults(EnvFieldConfig)
-        assert "MY_FIELD" in exporter.detected_env_vars
+        assert "PREFIX_MY_FIELD" in exporter.detected_env_vars
     finally:
-        del os.environ["MY_FIELD"]
+        del os.environ["PREFIX_MY_FIELD"]
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_exporter_warns_on_environment_var():
     """Test that exporter warns when env vars are set."""
-    exporter = ConfigExporter()
 
     # Set an env var that matches prefix
     os.environ["DB_HOST"] = "remote.db"
@@ -221,10 +208,9 @@ def test_exporter_warns_on_environment_var():
             del os.environ["DB_PORT"]
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_exporter_export_all_to_directory():
     """Test exporting multiple configs to a directory."""
-    exporter = ConfigExporter()
 
     entries = [
         ConfigEntry(name="SimpleConfig", model=SimpleConfig),
@@ -257,14 +243,13 @@ def test_exporter_export_all_to_directory():
         assert manifest_data["exported_count"] == 2
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_exporter_handles_required_fields():
     """Test that exporter handles models with required fields via model_construct."""
 
     class RequiredConfig(BaseModel):
         required_field: str  # No default
 
-    exporter = ConfigExporter()
     entries = [ConfigEntry(name="RequiredConfig", model=RequiredConfig)]
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -281,11 +266,9 @@ def test_exporter_handles_required_fields():
         assert data == {}  # Empty because no fields have defaults
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_exporter_tracks_config_file_paths():
     """Test that exporter tracks output file paths in manifest."""
-    exporter = ConfigExporter()
-
     entries = [ConfigEntry(name="SimpleConfig", model=SimpleConfig)]
 
     with tempfile.TemporaryDirectory() as tmpdir:

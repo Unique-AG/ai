@@ -57,6 +57,7 @@ class LanguageModelName(StrEnum):
     ANTHROPIC_CLAUDE_HAIKU_4_5 = "litellm:anthropic-claude-haiku-4-5"
     ANTHROPIC_CLAUDE_SONNET_4 = "litellm:anthropic-claude-sonnet-4"
     ANTHROPIC_CLAUDE_SONNET_4_5 = "litellm:anthropic-claude-sonnet-4-5"
+    ANTHROPIC_CLAUDE_SONNET_4_6 = "litellm:anthropic-claude-sonnet-4-6"
     ANTHROPIC_CLAUDE_OPUS_4 = "litellm:anthropic-claude-opus-4"
     ANTHROPIC_CLAUDE_OPUS_4_1 = "litellm:anthropic-claude-opus-4-1"
     ANTHROPIC_CLAUDE_OPUS_4_5 = "litellm:anthropic-claude-opus-4-5"
@@ -1138,6 +1139,26 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 7, 1),
                     published_at=date(2025, 9, 29),
+                )
+            case LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_6:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="claude-sonnet-4-6",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=180_000,
+                        token_limit_output=64_000,
+                    ),
+                    info_cutoff_at=date(2026, 1, 1),
+                    published_at=date(2026, 2, 17),
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4:
                 return cls(

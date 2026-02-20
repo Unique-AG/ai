@@ -28,13 +28,13 @@ class DictConfig(BaseModel):
     metadata: dict[str, str] = Field(default_factory=lambda: {"version": "1.0"})
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_differ_detects_scalar_changes():
     """Test that differ detects scalar value changes."""
     differ = ConfigDiffer()
 
-    old_json = {"name": "default_name", "value": 42}
-    new_instance = SimpleConfig(name="default_name", value=100)
+    old_json = SimpleConfig().model_dump()
+    new_instance = SimpleConfig(value=100)
 
     changes = differ.compare_defaults(old_json, new_instance)
 
@@ -44,12 +44,12 @@ def test_differ_detects_scalar_changes():
     assert changes[0].new_value == 100
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_differ_detects_nested_changes():
     """Test that differ detects changes in nested models."""
     differ = ConfigDiffer()
 
-    old_json = {"simple": {"name": "default_name", "value": 42}, "enabled": True}
+    old_json = NestedConfig().model_dump()
     new_instance = NestedConfig(simple=SimpleConfig(value=99), enabled=True)
 
     changes = differ.compare_defaults(old_json, new_instance)
@@ -57,42 +57,47 @@ def test_differ_detects_nested_changes():
     assert len(changes) > 0
     # Should have found the nested value change
     value_changes = [c for c in changes if "value" in c.field_path]
-    assert len(value_changes) > 0
+    change = value_changes[0]
+    assert change.old_value == 42
+    assert change.new_value == 99
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_differ_detects_list_changes():
     """Test that differ detects list value changes."""
     differ = ConfigDiffer()
 
-    old_json = {"items": ["a", "b"], "tags": []}
+    old_json = ListConfig().model_dump()
     new_instance = ListConfig(items=["a", "b", "c"], tags=[])
 
     changes = differ.compare_defaults(old_json, new_instance)
 
     assert len(changes) > 0
     items_changes = [c for c in changes if "items" in c.field_path]
-    assert len(items_changes) > 0
-    assert items_changes[0].old_value == ["a", "b"]
-    assert items_changes[0].new_value == ["a", "b", "c"]
+    change = items_changes[0]
+    assert change.old_value == ["a", "b"]
+    assert change.new_value == ["a", "b", "c"]
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_differ_detects_dict_changes():
     """Test that differ detects dict value changes."""
     differ = ConfigDiffer()
 
-    old_json = {"metadata": {"version": "1.0"}}
+    old_json = DictConfig().model_dump()
     new_instance = DictConfig(metadata={"version": "2.0"})
 
     changes = differ.compare_defaults(old_json, new_instance)
 
     assert len(changes) > 0
     metadata_changes = [c for c in changes if "metadata" in c.field_path]
-    assert len(metadata_changes) > 0
+    change = metadata_changes[0]
+    assert change.field_path == "metadata.version"
+    assert change.old_value == "1.0"
+    assert change.new_value == "2.0"
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_differ_ignores_new_fields():
     """Test that differ doesn't report new fields as changes."""
 
@@ -105,16 +110,16 @@ def test_differ_ignores_new_fields():
 
     differ = ConfigDiffer()
 
-    old_json = {"name": "test"}
-    new_instance = NewConfig(name="test", new_field="new")
+    old_json = OldConfig().model_dump()
+    new_instance = NewConfig()
 
     changes = differ.compare_defaults(old_json, new_instance)
 
     # New field shouldn't be reported as a change
-    assert len([c for c in changes if "new_field" in c.field_path]) == 0
+    assert len(changes) == 0
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_differ_ignores_removed_fields():
     """Test that differ doesn't report removed fields as changes."""
 
@@ -127,22 +132,22 @@ def test_differ_ignores_removed_fields():
 
     differ = ConfigDiffer()
 
-    old_json = {"name": "test", "removed_field": "old"}
-    new_instance = NewConfig(name="test")
+    old_json = OldConfig().model_dump()
+    new_instance = NewConfig()
 
     changes = differ.compare_defaults(old_json, new_instance)
 
     # Removed field shouldn't be reported as a change by the differ
     # (that's a schema change, caught by validator)
-    assert len([c for c in changes if "removed_field" in c.field_path]) == 0
+    assert len(changes) == 0
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_differ_no_changes_on_identical_values():
     """Test that differ reports no changes when values are identical."""
     differ = ConfigDiffer()
 
-    old_json = {"name": "default_name", "value": 42}
+    old_json = SimpleConfig().model_dump()
     new_instance = SimpleConfig()
 
     changes = differ.compare_defaults(old_json, new_instance)
@@ -150,12 +155,12 @@ def test_differ_no_changes_on_identical_values():
     assert len(changes) == 0
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_differ_no_changes_on_reordered_lists():
     """Test that differ ignores order changes in lists (handles sets)."""
     differ = ConfigDiffer()
 
-    old_json = {"items": ["a", "b", "c"]}
+    old_json = ListConfig(items=["a", "b", "c"]).model_dump()
     new_instance = ListConfig(items=["c", "b", "a"])
 
     changes = differ.compare_defaults(old_json, new_instance)
@@ -164,14 +169,14 @@ def test_differ_no_changes_on_reordered_lists():
     assert len(changes) == 0
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_differ_format_summary_no_changes():
     """Test DefaultChangeReport.format_summary with no changes."""
     report = DefaultChangeReport(config_name="Test", changes=[])
     assert report.format_summary() == ""
 
 
-@pytest.mark.ai
+@pytest.mark.verified
 def test_default_change_report_format():
     """Test DefaultChangeReport formatting."""
     from unique_toolkit._common.config_checker.models import DefaultChange

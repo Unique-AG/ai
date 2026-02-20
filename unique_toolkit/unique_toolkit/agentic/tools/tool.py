@@ -52,7 +52,7 @@ class Tool(ABC, Generic[ConfigType]):
         """Whether the tool is enabled or not."""
         return self.settings.is_enabled
 
-    def takes_control(self):
+    def takes_control(self) -> bool:
         """
         Some tools require to take control of the conversation with the user and do not want the orchestrator to intervene.
         this function indicates whether the tool takes control or not. It yanks the control away from the orchestrator.

@@ -1,6 +1,8 @@
 """Config model discovery and registration."""
 
 import logging
+import sys
+from contextlib import contextmanager
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -8,6 +10,23 @@ from pydantic import BaseModel
 from unique_toolkit._common.config_checker.models import ConfigEntry
 
 logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def _isolated_import_path(path: Path):
+    """Temporarily add path to sys.path for imports; restore on exit.
+
+    Avoids persistent global side effects and import conflicts when
+    multiple packages are discovered in the same process.
+    """
+    old_path = sys.path.copy()
+    try:
+        if str(path) not in sys.path:
+            sys.path.insert(0, str(path))
+        yield
+    finally:
+        sys.path = old_path
+
 
 # Global registry for explicit registrations
 _GLOBAL_EXPLICIT_REGISTRY: dict[str, type[BaseModel]] = {}
@@ -69,8 +88,6 @@ class ConfigRegistry:
         Returns:
             List of explicitly registered ConfigEntry objects
         """
-        import importlib.util
-        import sys
 
         package_path = Path(package_path).resolve()
 
@@ -78,7 +95,6 @@ class ConfigRegistry:
             logger.warning(f"Package path does not exist: {package_path}")
             return []
 
-        # Find source directory if it's a standard repo structure
         src_dir = package_path / "src"
         if src_dir.exists():
             search_path = src_dir
@@ -87,18 +103,26 @@ class ConfigRegistry:
 
         logger.debug(f"Scanning for configs in: {search_path}")
 
-        # Add search path to sys.path so imports work
-        if str(search_path) not in sys.path:
-            sys.path.insert(0, str(search_path))
+        with _isolated_import_path(search_path):
+            configs = self._discover_configs_under(search_path)
 
-        # Scan for Python files recursively
+        logger.debug(f"Discovered {len(configs)} explicitly registered config(s)")
+        return configs
+
+    def _discover_configs_under(self, search_path: Path) -> list[ConfigEntry]:
+        """Discover configs under search_path (sys.path must include search_path)."""
+        import importlib.util
+
+        # Only files under search_path are loaded (relative_to enforces this).
         for py_file in search_path.rglob("*.py"):
-            # Skip hidden files, __pycache__, .venv, etc.
-            # Use relative path to only check for hidden directories within the scan root
             try:
+                # Quick static check to avoid importing files that don't contain the decorator
+                content = py_file.read_text(encoding="utf-8", errors="ignore")
+                if "@register_config" not in content:
+                    continue
+
                 relative_py_file = py_file.relative_to(search_path)
-            except ValueError:
-                # Should not happen with rglob but being safe
+            except (ValueError, OSError):
                 continue
 
             if any(
@@ -107,11 +131,8 @@ class ConfigRegistry:
             ):
                 continue
 
-            # Try to import the module
             try:
-                # Convert path to module name relative to search path
-                relative_path = py_file.relative_to(search_path)
-                module_name = ".".join(relative_path.with_suffix("").parts)
+                module_name = ".".join(relative_py_file.with_suffix("").parts)
 
                 if module_name in sys.modules:
                     # Already imported
@@ -128,10 +149,7 @@ class ConfigRegistry:
                 logger.debug(f"Failed to import {py_file} for discovery: {e}")
 
         # After importing everything, gather what's in the global registry
-        configs = self.get_all_configs()
-        logger.debug(f"Discovered {len(configs)} explicitly registered config(s)")
-
-        return configs
+        return self.get_all_configs()
 
     def register_explicit(self, model: type[BaseModel], name: str) -> None:
         """Register a config model explicitly (via decorator).
@@ -149,22 +167,16 @@ class ConfigRegistry:
         self._explicit_configs[name] = config_entry
         logger.debug(f"Registered explicit config: {name}")
 
-    def get_all_configs(self, include_discovered: bool = False) -> list[ConfigEntry]:
+    def get_all_configs(self) -> list[ConfigEntry]:
         """Get all registered configs.
 
-        Args:
-            include_discovered: Ignored (auto-discovery is disabled).
-                                Kept for API compatibility.
 
         Returns:
             List of all explicitly registered ConfigEntry objects
         """
         result = {}
 
-        # Add explicit configs
         result.update({entry.name: entry for entry in self._explicit_configs.values()})
-
-        # Also include any from global registry that weren't loaded yet
         for name, model in _GLOBAL_EXPLICIT_REGISTRY.items():
             if name not in result:
                 config_entry = ConfigEntry(
@@ -186,3 +198,4 @@ class ConfigRegistry:
             package_path: Root path of the package
         """
         self.discover_configs(package_path)
+        logger.debug(f"Loaded registered config(s) from package: {package_path}")

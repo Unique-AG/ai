@@ -30,17 +30,7 @@ class DefaultChangeReport(BaseModel):
 
         summary = f"Default changes in {self.config_name}:\n"
         for change in self.changes:
-            old_str = (
-                json.dumps(change.old_value)
-                if not isinstance(change.old_value, (str, int, float, bool, type(None)))
-                else json.dumps(change.old_value)
-            )
-            new_str = (
-                json.dumps(change.new_value)
-                if not isinstance(change.new_value, (str, int, float, bool, type(None)))
-                else json.dumps(change.new_value)
-            )
-            summary += f"  - {change.field_path}: {old_str} → {new_str}\n"
+            summary += f"  - {change.field_path}: {json.dumps(change.old_value)} → {json.dumps(change.new_value)}\n"
 
         return summary
 
@@ -64,17 +54,13 @@ class ConfigDiffer:
         Returns:
             List of DefaultChange objects for any differences
         """
-        # Use the robust serialization from exporter to handle secrets correctly
         from unique_toolkit._common.config_checker.exporter import ConfigExporter
 
         new_json = ConfigExporter._serialize_model(new_instance)
         changes: list[DefaultChange] = []
-
-        # Single DeepDiff call handles all cases: nested dicts, lists (ignoring order), scalars
         diff = DeepDiff(old_json, new_json, ignore_order=True)
 
         if diff:
-            # 1. Value changes (most common: scalar changes, nested structure changes)
             for path, change_info in diff.get("values_changed", {}).items():
                 field_path = self._path_to_dot_notation(path)
                 changes.append(
@@ -85,7 +71,6 @@ class ConfigDiffer:
                     )
                 )
 
-            # 2. Type changes (e.g., str -> int)
             for path, change_info in diff.get("type_changes", {}).items():
                 field_path = self._path_to_dot_notation(path)
                 changes.append(
@@ -96,10 +81,8 @@ class ConfigDiffer:
                     )
                 )
 
-            # 3. Dictionary items added (new fields or keys)
             for path in diff.get("dictionary_item_added", []):
                 field_path = self._path_to_dot_notation(path)
-                # Ignore top-level additions (new fields), as these are handled by the validator
                 if "." not in field_path:
                     continue
 
@@ -112,10 +95,8 @@ class ConfigDiffer:
                     )
                 )
 
-            # 4. Dictionary items removed
             for path in diff.get("dictionary_item_removed", []):
                 field_path = self._path_to_dot_notation(path)
-                # Ignore top-level removals (removed fields), as these are handled by the validator
                 if "." not in field_path:
                     continue
 
@@ -128,8 +109,6 @@ class ConfigDiffer:
                     )
                 )
 
-            # 5. List item changes - here we still prefer reporting the whole container
-            # because "item added at index 2" is less useful than seeing the new list.
             list_changes: set[str] = set()
             for path in diff.get("iterable_item_added", []):
                 parent_path = ConfigDiffer._extract_parent_path(path)
@@ -143,7 +122,6 @@ class ConfigDiffer:
 
             for parent_path in list_changes:
                 field_path = self._path_to_dot_notation(parent_path)
-                # Avoid duplication if already reported
                 if any(c.field_path == field_path for c in changes):
                     continue
 
@@ -164,9 +142,7 @@ class ConfigDiffer:
         Examples:
             root['items'][0] -> root['items']
             root['config']['tags'][1] -> root['config']['tags']
-            root['meta']['version'] -> root['meta']
         """
-        # Remove the last bracket-enclosed index or key
         parent = re.sub(r"\[['\"]?[^'\"\]]+['\"]?\]$", "", path)
         return parent if parent != path and parent else ""
 
@@ -181,7 +157,6 @@ class ConfigDiffer:
         Returns:
             The nested value or None if not found
         """
-        # Extract keys from path: root['a']['b'] -> ['a', 'b']
         keys = re.findall(r"\[['\"]?([^'\"\]]+)['\"]?\]", path)
         current = data
         for key in keys:
@@ -199,6 +174,5 @@ class ConfigDiffer:
     @staticmethod
     def _path_to_dot_notation(path: str) -> str:
         """Convert DeepDiff path (root['a']['b']) to dot notation (a.b)."""
-        # Extract bracket-enclosed keys/indices: root['name'] -> name
         parts = re.findall(r"\[['\"]?([^'\"\]]+)['\"]?\]", path)
         return ".".join(parts)
