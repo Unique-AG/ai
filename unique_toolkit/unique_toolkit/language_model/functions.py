@@ -3,6 +3,7 @@ import logging
 import warnings
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Sequence, cast
+from uuid import uuid4
 
 if TYPE_CHECKING:
     from unique_toolkit.app.unique_settings import UniqueSettings
@@ -556,9 +557,9 @@ async def stream_complete_with_references_openai(
     tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
     tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
     unique_settings: "UniqueSettings | None" = None,  # noqa: F821
+    message_id: str | None = None,
 ) -> LanguageModelStreamResponse:
     """Stream a chat completion via the OpenAI proxy, apply reference injection, and return a LanguageModelStreamResponse."""
-
     from unique_toolkit.framework_utilities.openai.client import (
         get_async_openai_client,
     )
@@ -657,7 +658,7 @@ async def stream_complete_with_references_openai(
 
         return LanguageModelStreamResponse(
             message=LanguageModelStreamResponseMessage(
-                id="stream_unknown",
+                id=message_id or uuid4().hex,
                 previous_message_id=None,
                 role=LanguageModelMessageRole.ASSISTANT,
                 text=text_,
