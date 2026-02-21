@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.46.12] - 2026-02-21
+- Add `litellm:gemini-3-1-pro-preview` to `info.py`
+
 ## [1.46.11] - 2026-02-20
 - Add OpenAI-proxy direct streaming with Python-side reference injection (UN-17264)
 - Add `stream_complete_with_references_openai()` using async OpenAI client and `chat.completions.stream()`
