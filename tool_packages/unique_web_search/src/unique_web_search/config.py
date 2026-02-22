@@ -79,7 +79,8 @@ class AnswerGenerationConfig(BaseModel):
 class ExperimentalFeatures(FeatureExtendedSourceSerialization):
     query_elicitation_config: QueryElicitationConfig = Field(
         default_factory=QueryElicitationConfig,
-        description="Query elicitation configuration",
+        title="Query Review",
+        description="Allow users to review and modify search queries before execution.",
     )
 
 
@@ -92,7 +93,8 @@ class WebSearchConfig(BaseToolConfig):
     )
     percentage_of_input_tokens_for_sources: float = Field(
         default=0.4,
-        description="The percentage of the maximum input tokens of the language model to use for the tool response.",
+        title="Source Content Budget",
+        description="Percentage of the AI model's input capacity reserved for web search results. Higher values include more search content but leave less room for conversation history.",
         ge=0.0,
         le=1.0,
     )
@@ -103,52 +105,53 @@ class WebSearchConfig(BaseToolConfig):
 
     web_search_active_mode: WebSearchMode = Field(
         default=DEFAULT_WEB_SEARCH_MODE_CONFIG,
-        description="Web Search Active Mode",
+        title="Search Mode",
+        description="Choose which search strategy to use. V1 performs simple keyword searches; V2 uses an AI-planned multi-step research approach.",
     )
 
     web_search_mode_config_v1: WebSearchV1Config = Field(
         default_factory=WebSearchV1Config,
-        description="Web Search Mode Configuration V1",
-        title="Web Search Mode Configuration V1",
+        title="Search Mode V1 Settings",
+        description="Settings for the basic search mode (V1), including query refinement and tool behavior.",
     )
     web_search_mode_config_v2: WebSearchV2Config = Field(
         default_factory=WebSearchV2Config,
-        description="Web Search Mode Configuration V2",
-        title="Web Search Mode Configuration V2",
+        title="Search Mode V2 Settings",
+        description="Settings for the advanced AI-planned search mode (V2), including step limits and tool behavior.",
     )
 
     search_engine_config: ActivatedSearchEngine = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         default_factory=DefaultSearchEngine,  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
-        description="Search Engine Configuration",
+        title="Search Engine",
+        description="Choose and configure which search engine to use for web searches (e.g. Google, Bing, Brave).",
         discriminator="search_engine_name",
-        title="Search Engine Configuration",
     )
 
     crawler_config: ActivatedCrawler = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         default_factory=DefaultCrawler,  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
-        title="Crawler Configuration",
-        description="Crawler configuration.",
+        title="Web Page Reader",
+        description="Choose and configure how web pages are fetched and converted to readable text.",
         discriminator="crawler_type",
     )
 
     content_processor_config: ContentProcessorConfig = Field(
         default_factory=ContentProcessorConfig,
-        description="Content processor configuration",
-        title="Content Processor Configuration",
+        title="Content Processing",
+        description="Configure how fetched web page content is cleaned, shortened, and prepared before being used.",
     )
 
     chunk_relevancy_sort_config: ChunkRelevancySortConfig = Field(
         default_factory=ChunkRelevancySortConfig,
-        description="Chunk Relevancy Sort Configuration",
-        title="Chunk Relevancy Sort Configuration",
+        title="Result Relevancy Sorting",
+        description="Use AI to evaluate and sort search results by relevance to the user's question, prioritizing the most useful content.",
     )
 
     evaluation_check_list: list[EvaluationMetricName] = Field(
         default=[
             EvaluationMetricName.HALLUCINATION,
         ],
-        description="Check list of evaluations executed conditionally after the answer is generated",
-        title="Evaluation Check List",
+        title="Answer Quality Checks",
+        description="Automated checks run after generating an answer to detect issues like hallucinations or irrelevant responses.",
     )
 
     tool_format_information_for_system_prompt: Annotated[
@@ -160,18 +163,20 @@ class WebSearchConfig(BaseToolConfig):
         ),
     ] = Field(
         default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
-        description="Tool format information for system prompt. This is used to format the tool response for the system prompt.",
+        title="Source Citation Instructions",
+        description="Advanced: Instructions that tell the AI how to cite web search sources in its answers.",
     )
 
     experimental_features: ExperimentalFeatures = Field(
         default_factory=ExperimentalFeatures,
-        description="Experimental features",
         title="Experimental Features",
+        description="Features that are still in testing and may change or be removed in future updates.",
     )
 
     debug: bool = Field(
         default=False,
-        description="Whether to enable the debug mode",
+        title="Debug Mode",
+        description="When enabled, logs additional technical details for troubleshooting.",
     )
 
     @model_validator(mode="after")

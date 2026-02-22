@@ -1,99 +1,47 @@
-from enum import StrEnum
-from typing import Annotated
-
 from pydantic import BaseModel, Field
-from unidecode import unidecode
-from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
-from unique_toolkit._common.validators import (
-    LMI,
-    get_LMI_default_field,
-)
 from unique_toolkit.agentic.tools.config import get_configuration_dict
-from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 
-
-class ContentProcessingStartegy(StrEnum):
-    SUMMARIZE = "summarize"
-    TRUNCATE = "truncate"
-    NONE = "none"
-
-
-class WebPageChunk(BaseModel):
-    url: str
-    display_link: str
-    title: str
-    snippet: str
-    content: str
-    order: str
-
-    def to_content_chunk(self) -> "ContentChunk":
-        """Convert WebPageChunk to ContentChunk format."""
-
-        # Convert to ascii
-        title = unidecode(self.title)
-        name = f'{self.display_link}: "{title}"'
-
-        return ContentChunk(
-            id=name,
-            text=self.content,
-            order=int(self.order),
-            start_page=None,
-            end_page=None,
-            key=name,
-            chunk_id=self.order,
-            url=self.url,
-            title=name,
-        )
-
-
-# Patterns that remove entire lines
-REGEX_LINE_REMOVAL_PATTERNS = [
-    # Skip navigation elements only (not content navigation)
-    r"^[\*\+\-]?\s*(Skip to|Skip Navigation|Jump to|Accessibility help).*$",
-    # Standalone authentication links (not part of content)
-    r"^\s*(Sign In|Log In|Register|Sign Up|Create Account|My Account)\s*$",
-    # Social media and newsletter signup buttons
-    r"^[\?\[]?\s*(Subscribe|Follow Us|Share This|Newsletter Sign Up)\s*[\]?]?$",
-    # Legal/Privacy footer elements (specific phrases)
-    r"^.*(Cookie Policy|Privacy Policy|Terms of Service|Cookie Settings|Accept Cookies|Cookie Notice).*$",
-    # Accessibility labels
-    r"^\s*\[.*accessibility.*\].*$",
-]
-
-# Pattern/replacement pairs for content transformation
-REGEX_CONTENT_TRANSFORMATIONS = [
-    # Transform markdown links: [text](url) → [text]
-    (r"\[([^\]]+)\]\([^)]+\)", r"[\1]"),
-    # Remove standalone URLs
-    (r"https?://[^\s\])]+ ?", ""),
-]
+from unique_web_search.services.content_processing.cleaning.config import (
+    CleaningConfig,
+)
+from unique_web_search.services.content_processing.processing_strategies.config import (
+    ProcessingStrategiesConfig,
+)
 
 
 class ContentProcessorConfig(BaseModel):
     model_config = get_configuration_dict()
 
-    strategy: ContentProcessingStartegy = Field(
-        default=ContentProcessingStartegy.NONE,
-        description="The content processing strategy to use",
+    chunk_size: int = Field(
+        default=1000,
+        title="Content Chunk Size",
+        description="Maximum size (in characters) of each content piece when splitting long web pages. Smaller values create more pieces; larger values keep more context together.",
     )
-    regex_line_removal_patterns: list[str] = Field(
-        default=REGEX_LINE_REMOVAL_PATTERNS,
-        description="Regex patterns for removing entire lines that match (navigation, UI clutter, etc.). Leave empty to skip line removal.",
+
+    cleaning: CleaningConfig = Field(
+        default_factory=CleaningConfig,
+        title="Content Cleaning",
+        description="Automatic cleanup steps to remove clutter (e.g. navigation menus, cookie banners, URLs) from web page content before it is used.",
     )
-    remove_urls_from_markdown_links: bool = Field(
-        default=True,
-        description="Whether to remove URLs from markdown links in website content.",
+
+    processing_strategies: ProcessingStrategiesConfig = Field(
+        default_factory=ProcessingStrategiesConfig,
+        title="Content Processing",
+        description="Additional processing steps applied to web page content after retrieval, such as shortening or AI-based summarization.",
     )
-    language_model: LMI = get_LMI_default_field(DEFAULT_GPT_4o)
-    max_tokens: int = Field(
-        default=5000,
-        description="Max tokens for truncation and summarization",
-    )
-    summarization_prompt: Annotated[
-        str,
-        RJSFMetaTag.StringWidget.textarea(rows=2),
-    ] = Field(
-        default="""You are a helping assistant that generates query focused summarization of a webpage content. The summary should convey any information that is relevant to the query.""",
-        description="The system prompt to use for summarization",
-    )
+
+    @property
+    def active_processing_strategies(self) -> list[str]:
+        active_cleaning_strategies = []
+        if self.cleaning.line_removal.enabled:
+            active_cleaning_strategies.append("line_removal")
+        if self.cleaning.markdown_transformation.enabled:
+            active_cleaning_strategies.append("markdown_transformation")
+
+        active_processing_strategies = []
+        if self.processing_strategies.truncate.enabled:
+            active_processing_strategies.append("truncate")
+        if self.processing_strategies.llm_processor.enabled:
+            active_processing_strategies.append("llm_processor")
+
+        return active_cleaning_strategies + active_processing_strategies
