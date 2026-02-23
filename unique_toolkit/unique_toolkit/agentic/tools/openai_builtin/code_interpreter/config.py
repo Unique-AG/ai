@@ -89,6 +89,7 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
         description="If set, use the `auto` container setting from OpenAI. Note that this will recreate the container on each call.",
     )
 
+
 @register_config()
 class CodeInterpreterExtendedConfig(BaseToolConfig):
     generated_files_config: DisplayCodeInterpreterFilesPostProcessorConfig = Field(
