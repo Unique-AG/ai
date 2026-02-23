@@ -5,9 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.46.9] - 2026-02-18
+## [1.46.13] - 2026-02-23
 - Attach tool result images (MCP or internal) to the user message so the LLM can see them
 - MCP image handling: hide_in_chat uploads, unique content names, small robustness fixes
+
+## [1.46.12] - 2026-02-21
+- Add `litellm:gemini-3-1-pro-preview` to `info.py`
+
+## [1.46.11] - 2026-02-20
+- Add OpenAI-proxy direct streaming with Python-side reference injection (UN-17264)
+- Add `stream_complete_with_references_openai()` using async OpenAI client and `chat.completions.stream()`
+- Add stream transformation pipeline: `StreamTransform` protocol, `TextTransformPipeline`, `ReferenceInjectionTransform` (reuses `add_references_to_message`), `NormalizationTransform` placeholder
+- Export `stream_complete_with_references_openai` and stream transform types from `unique_toolkit.language_model`
+
+## [1.46.10] - 2026-02-19
+- Add flag-based cancellation support via `CancellationWatcher` and `TypedEventBus`
+- Expose `ChatService.cancellation` property for polling, event subscription, and `run_with_cancellation` helper
+- Add `CancellationEvent`, `cancelled_at` on `ChatMessage`, and `stopped_by_user` on `LanguageModelStreamResponse`
+
+## [1.46.9] - 2026-02-19
+- Add `litellm:anthropic-claude-sonnet-4-6` to `info.py`
 
 ## [1.46.8] - 2026-02-17
 - Add Configuration Check utility as class, CLI and CI workflow

@@ -5,6 +5,9 @@ from .default_language_model import (
 from .default_language_model import (
     DEFAULT_GPT_4o as DEFAULT_GPT_4o,
 )
+from .functions import (
+    stream_complete_with_references_openai as stream_complete_with_references_openai,
+)
 from .infos import LanguageModel as LanguageModel
 from .infos import LanguageModelName as LanguageModelName
 from .prompt import (
@@ -66,6 +69,18 @@ from .schemas import (
 )
 from .service import (
     LanguageModelService as LanguageModelService,
+)
+from .stream_transform import (
+    NormalizationTransform as NormalizationTransform,
+)
+from .stream_transform import (
+    ReferenceInjectionTransform as ReferenceInjectionTransform,
+)
+from .stream_transform import (
+    StreamTransform as StreamTransform,
+)
+from .stream_transform import (
+    TextTransformPipeline as TextTransformPipeline,
 )
 from .utils import (
     convert_string_to_json as convert_string_to_json,
