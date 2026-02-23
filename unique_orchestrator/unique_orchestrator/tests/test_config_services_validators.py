@@ -1,9 +1,6 @@
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_stock_ticker.config import StockTickerConfig
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
-from unique_toolkit.agentic.tools.openai_builtin.manager import (
-    OpenAICodeInterpreterConfig,
-)
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
@@ -149,7 +146,7 @@ def _make_config(
 
 CODE_INTERPRETER_TOOL = ToolBuildConfig(
     name=OpenAIBuiltInToolName.CODE_INTERPRETER,
-    configuration=OpenAICodeInterpreterConfig(),
+    configuration=CodeInterpreterExtendedConfig(),
 )
 
 
@@ -175,19 +172,6 @@ class TestUniqueAIConfigCodeInterpreterValidator:
         )
 
         assert config.agent.experimental.responses_api_config.use_responses_api is True
-
-    def test_populates_code_interpreter_config_with_defaults_when_not_set(self):
-        """When CODE_INTERPRETER is added directly as a tool and no advanced code_interpreter
-        config was provided, a default CodeInterpreterExtendedConfig must be created so that
-        _build_responses registers the postprocessors for file and code display."""
-        config = _make_config(
-            tools=[CODE_INTERPRETER_TOOL], supports_responses_api=True
-        )
-
-        assert isinstance(
-            config.agent.experimental.responses_api_config.code_interpreter,
-            CodeInterpreterExtendedConfig,
-        )
 
     def test_does_not_enable_responses_api_when_model_does_not_support_it(self):
         """Code Interpreter in space.tools must not enable Responses API if the model

@@ -28,18 +28,14 @@ from unique_toolkit.agentic.loop_runner import (
     QWEN_MAX_LOOP_ITERATIONS,
     PlanningConfig,
 )
-from unique_toolkit.agentic.responses_api import (
-    DisplayCodeInterpreterFilesPostProcessorConfig,
-    ShowExecutedCodePostprocessorConfig,
-)
 from unique_toolkit.agentic.tools.a2a import (
     REFERENCING_INSTRUCTIONS_FOR_SYSTEM_PROMPT,
     REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
-from unique_toolkit.agentic.tools.openai_builtin.manager import (
-    OpenAICodeInterpreterConfig,
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+    CodeInterpreterExtendedConfig,
 )
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
@@ -296,30 +292,6 @@ class SubAgentsConfig(BaseToolConfig):
     )
 
 
-class CodeInterpreterExtendedConfig(BaseToolConfig):
-    generated_files_config: DisplayCodeInterpreterFilesPostProcessorConfig = Field(
-        default=DisplayCodeInterpreterFilesPostProcessorConfig(),
-        title="Generated files config",
-        description="Display config for generated files",
-    )
-
-    executed_code_display_config: (
-        Annotated[
-            ShowExecutedCodePostprocessorConfig,
-            Field(title="Active"),
-        ]
-        | DeactivatedNone
-    ) = Field(
-        default=ShowExecutedCodePostprocessorConfig(),
-        description="If active, generated code will be prepended to the LLM answer",
-    )
-
-    tool_config: OpenAICodeInterpreterConfig = Field(
-        default=OpenAICodeInterpreterConfig(),
-        title="Tool config",
-    )
-
-
 class ResponsesApiConfig(BaseToolConfig):
     code_interpreter: (
         Annotated[CodeInterpreterExtendedConfig, Field(title="Active")]
@@ -416,9 +388,5 @@ class UniqueAIConfig(BaseToolConfig):
             and model_supports_responses_api
         ):
             self.agent.experimental.responses_api_config.use_responses_api = True
-            if self.agent.experimental.responses_api_config.code_interpreter is None:
-                self.agent.experimental.responses_api_config.code_interpreter = (
-                    CodeInterpreterExtendedConfig()
-                )
 
         return self
