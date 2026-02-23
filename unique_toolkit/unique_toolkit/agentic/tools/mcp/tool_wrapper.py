@@ -1,6 +1,7 @@
 import base64
 import json
 import logging
+import mimetypes
 import uuid
 from typing import Any, Dict
 
@@ -329,19 +330,23 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             img_bytes = base64.b64decode(data_b64)
         except Exception as e:
             self.logger.warning(
-                f"MCP tool {self.name}: failed to decode image base64: {e}"
+                "MCP tool %s: failed to decode image base64: %s",
+                self.name,
+                e,
+                exc_info=True,
             )
             return None, None
 
         data_url = f"data:{mime_type};base64,{data_b64}"
         content_id: str | None = None
+        ext = mimetypes.guess_extension(mime_type, strict=False) or ".png"
 
         try:
             content = upload_content_from_bytes(
                 user_id=self.event.user_id,
                 company_id=self.event.company_id,
                 content=img_bytes,
-                content_name=f"mcp_tool_{self.name}_image_{uuid.uuid4().hex[:12]}_{index}.png",
+                content_name=f"mcp_tool_{self.name}_image_{uuid.uuid4().hex[:12]}_{index}{ext}",
                 mime_type=mime_type,
                 chat_id=self.event.payload.chat_id,
                 skip_ingestion=True,
@@ -349,7 +354,12 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             )
             content_id = content.id
         except Exception as e:
-            self.logger.warning(f"MCP tool {self.name}: failed to upload image: {e}")
+            self.logger.warning(
+                "MCP tool %s: failed to upload image: %s",
+                self.name,
+                e,
+                exc_info=True,
+            )
 
         return data_url, content_id
 

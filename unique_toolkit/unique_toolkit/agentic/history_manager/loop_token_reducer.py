@@ -235,9 +235,18 @@ class LoopTokenReducer:
                 )
 
         if image_data_urls_from_tools:
-            content: list[dict] = [
-                {"type": "text", "text": text_content},
-            ]
+            if history and history[-1].role == LanguageModelMessageRole.USER:
+                m = history[-1]
+                if isinstance(m.content, list):
+                    content = [dict(part) for part in m.content]
+                    for t in reversed(content):
+                        if isinstance(t, dict) and t.get("type") == "text":
+                            t["text"] = text_content
+                            break
+                else:
+                    content = [{"type": "text", "text": text_content}]
+            else:
+                content = [{"type": "text", "text": text_content}]
             for url, tool_call_id in image_data_urls_from_tools:
                 label = (
                     f"Image below is the tool's output (tool call ID: {tool_call_id}). "
