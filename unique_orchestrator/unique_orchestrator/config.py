@@ -37,7 +37,7 @@ from unique_toolkit.agentic.tools.a2a import (
     REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
-from unique_toolkit.agentic.tools.openai_builtin.manager import (
+from unique_toolkit.agentic.tools.openai_builtin import (
     OpenAICodeInterpreterConfig,
 )
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
