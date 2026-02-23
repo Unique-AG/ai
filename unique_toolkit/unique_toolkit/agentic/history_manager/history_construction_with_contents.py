@@ -99,6 +99,7 @@ class ImageContentInclusion(StrEnum):
     NONE = "none"
     ALL = "all"
 
+
 # ---------------------------------------------------------------------------
 # Content helpers
 # ---------------------------------------------------------------------------
@@ -179,6 +180,7 @@ def file_content_serialization(
                 + file_names,
             )
 
+
 # ---------------------------------------------------------------------------
 # Token window
 # ---------------------------------------------------------------------------
@@ -206,6 +208,7 @@ def limit_to_token_window(
     return LanguageModelMessages(
         root=[m for m, tt in zip(messages, to_take, strict=False) if tt],
     )
+
 
 # ---------------------------------------------------------------------------
 # Source ID cleanup helpers
@@ -331,8 +334,7 @@ def _convert_raw_messages_to_typed(
                 tool_calls = None
                 if msg.get("tool_calls"):
                     tool_calls = [
-                        LanguageModelFunctionCall(**tc)
-                        for tc in msg["tool_calls"]
+                        LanguageModelFunctionCall(**tc) for tc in msg["tool_calls"]
                     ]
                 converted.append(
                     LanguageModelAssistantMessage(
@@ -387,6 +389,7 @@ def _interleave_tool_messages(
             turn_idx += 1
 
     return LanguageModelMessages(root=result)
+
 
 # ---------------------------------------------------------------------------
 # Public API — history construction
