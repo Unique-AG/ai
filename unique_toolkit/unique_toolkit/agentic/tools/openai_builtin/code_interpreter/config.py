@@ -80,10 +80,6 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
         default=False,
         description="If set, use the `auto` container setting from OpenAI. Note that this will recreate the container on each call.",
     )
-    new_field: str = Field(
-        default="test",
-        description="A new field",
-    )
 
 
 ToolFactory.register_tool_config(
