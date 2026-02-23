@@ -6,8 +6,10 @@ from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInToolName,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
-    OpenAICodeInterpreterConfig,
     OpenAICodeInterpreterTool,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+    CodeInterpreterExtendedConfig,
 )
 from unique_toolkit.content.schemas import Content
 from unique_toolkit.content.service import ContentService
@@ -32,9 +34,9 @@ class OpenAIBuiltInToolManager:
         tool_config: ToolBuildConfig,
     ) -> OpenAIBuiltInTool:
         if tool_config.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
-            assert isinstance(tool_config.configuration, OpenAICodeInterpreterConfig)
+            assert isinstance(tool_config.configuration, CodeInterpreterExtendedConfig)
             tool = await OpenAICodeInterpreterTool.build_tool(
-                config=tool_config.configuration,
+                config=tool_config.configuration.tool_config,
                 uploaded_files=uploaded_files,
                 content_service=content_service,
                 client=client,
