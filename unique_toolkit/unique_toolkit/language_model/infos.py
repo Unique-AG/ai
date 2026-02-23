@@ -23,6 +23,18 @@ TypeEncoder = Callable[[str], list[int]]
 TypeDecoder = Callable[[list[int]], str]
 
 
+@lru_cache(maxsize=10)
+def get_tokenizer_from_path(path: Path) -> Tokenizer:
+    if not path.exists():
+        raise FileNotFoundError(f"Tokenizer not found: {path}")
+    return Tokenizer.from_file(str(path))
+
+
+@lru_cache(maxsize=10)
+def get_tokenizer_from_tiktoken(tokenizer_name: str) -> tiktoken.Encoding:
+    return tiktoken.get_encoding(tokenizer_name)
+
+
 class LanguageModelName(StrEnum):
     AZURE_GPT_35_TURBO_0125 = "AZURE_GPT_35_TURBO_0125"
     AZURE_GPT_4_0613 = "AZURE_GPT_4_0613"
@@ -108,31 +120,26 @@ class EncoderName(StrEnum):
     QWEN = "qwen"
     DEEPSEEK = "deepseek"
 
-    @lru_cache(maxsize=10)
+    @property
+    def tokenizer_path(self) -> Path:
+        base_path = Path(__file__).parent.parent / "_common" / "token" / "tokenizers"
+        return base_path / self.value / "tokenizer.json"
+
     def get_encoder(self) -> TypeEncoder:
         if self.value in {"cl100k_base", "o200k_base"}:
-            enc = tiktoken.get_encoding(self.value)
-            return enc.encode
+            tokenizer = get_tokenizer_from_tiktoken(self.value)
+            return tokenizer.encode
 
-        base_path = Path(__file__).parent.parent / "_common" / "token" / "tokenizers"
-        tokenizer_path = base_path / self.value / "tokenizer.json"
-
-        if not tokenizer_path.exists():
-            raise FileNotFoundError(f"Tokenizer not found: {tokenizer_path}")
-
-        tokenizer: Tokenizer = Tokenizer.from_file(str(tokenizer_path))
+        tokenizer = get_tokenizer_from_path(self.tokenizer_path)
         return lambda text: tokenizer.encode(text).ids
 
-    @lru_cache(maxsize=10)
     def get_decoder(self) -> TypeDecoder:
         if self.value in {"cl100k_base", "o200k_base"}:
-            enc = tiktoken.get_encoding(self.value)
-            return enc.decode
+            tokenizer = get_tokenizer_from_tiktoken(self.value)
+            return tokenizer.decode
 
-        base_path = Path(__file__).parent.parent / "_common" / "token" / "tokenizers"
-        tokenizer_path = base_path / self.value / "tokenizer.json"
-        tokenizer: Tokenizer = Tokenizer.from_file(str(tokenizer_path))
-        return lambda tokens: tokenizer.decode(tokens)
+        tokenizer = get_tokenizer_from_path(self.value, self.tokenizer_path)
+        return tokenizer.decode
 
 
 def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
@@ -222,10 +229,8 @@ def _load_custom_encoder(tokenizer_name: str) -> TypeEncoder:
         )
 
     tokenizer_path = Path(custom_path) / tokenizer_name / "tokenizer.json"
-    if not tokenizer_path.exists():
-        raise FileNotFoundError(f"Custom tokenizer not found: {tokenizer_path}")
 
-    tokenizer = Tokenizer.from_file(str(tokenizer_path))
+    tokenizer = get_tokenizer_from_path(tokenizer_path)
     return lambda text: tokenizer.encode(text).ids
 
 
@@ -237,8 +242,8 @@ def _load_custom_decoder(tokenizer_name: str) -> TypeDecoder:
             "UNIQUE_CUSTOM_TOKENIZERS_PATH must be set to use custom tokenizers"
         )
     tokenizer_path = Path(custom_path) / tokenizer_name / "tokenizer.json"
-    tokenizer = Tokenizer.from_file(str(tokenizer_path))
-    return lambda tokens: tokenizer.decode(tokens)
+    tokenizer = get_tokenizer_from_path(tokenizer_path)
+    return tokenizer.decode
 
 
 class LanguageModelInfo(BaseModel):
