@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.1] - 2026-02-23
+- Register config classes with unique_toolkit config checker for validation/CI
+- Bump unique_toolkit dependency to ^1.46.10
+
 ## [3.4.0] - 2026-02-20
 - Add option to show full page content of search results in the return of the web search tool
 
