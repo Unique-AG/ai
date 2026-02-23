@@ -19,9 +19,7 @@ class TestLoadCustomEncoder:
     def test_raises_when_tokenizer_not_found(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch.dict(os.environ, {"UNIQUE_CUSTOM_TOKENIZERS_PATH": tmpdir}):
-                with pytest.raises(
-                    FileNotFoundError, match="Tokenizer not found"
-                ):
+                with pytest.raises(FileNotFoundError, match="Tokenizer not found"):
                     _load_custom_encoder("nonexistent")
 
     def test_loads_valid_tokenizer(self):
