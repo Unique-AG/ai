@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.5] - 2026-02-19
+- Register `SwotAnalysisToolConfig` with `@register_config()` for CI breaking-change detection
+- Bump `unique-toolkit` minimum version to `1.46.10`
+
 ## [1.2.4] - 2026-02-10
 - Migrate token counting in `batch_sequence_generator` to use model-agnostic `LanguageModelInfo.get_encoder()` instead of direct `tiktoken`. Removed `tiktoken` dependency.
 

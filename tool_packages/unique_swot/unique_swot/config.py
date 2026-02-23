@@ -3,6 +3,7 @@ from typing import Annotated
 from pydantic import Field
 from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit import LanguageModelName
+from unique_toolkit._common.config_checker import register_config
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
@@ -21,6 +22,7 @@ If the user simply says RUN, It means that he expects the tool to generate a new
 """.strip()
 
 
+@register_config()
 class SwotAnalysisToolConfig(BaseToolConfig):
     cache_scope_id: SkipJsonSchema[str] = Field(
         default="",
