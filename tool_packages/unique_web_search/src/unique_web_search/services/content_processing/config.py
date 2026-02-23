@@ -3,6 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field
 from unidecode import unidecode
+from unique_toolkit._common.config_checker import register_config
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import (
     LMI,
@@ -70,6 +71,7 @@ REGEX_CONTENT_TRANSFORMATIONS = [
 ]
 
 
+@register_config()
 class ContentProcessorConfig(BaseModel):
     model_config = get_configuration_dict()
 
