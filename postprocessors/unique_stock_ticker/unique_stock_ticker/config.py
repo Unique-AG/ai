@@ -9,6 +9,7 @@ from pydantic import (
     model_validator,
 )
 from typing_extensions import deprecated
+from unique_toolkit._common.config_checker import register_config
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
@@ -52,6 +53,7 @@ class StockTickerConfigOld(BaseModel):
     )
 
 
+@register_config()
 class StockTickerConfig(BaseModel):
     model_config = get_configuration_dict()
 
