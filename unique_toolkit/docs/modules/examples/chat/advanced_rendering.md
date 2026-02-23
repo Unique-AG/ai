@@ -215,6 +215,73 @@ chat_service.create_assistant_message(
 )
 ```
 
+## HTML Rendering
+
+HTML content can be rendered directly within chat messages using the `HtmlRendering` code block. There are two approaches: referencing uploaded content via a `unique://content/` URI, or embedding inline HTML.
+
+### Referencing Uploaded Content
+
+Render an HTML file that has been uploaded to the chat or to a knowledge base:
+
+```python
+content_id = "cont_csr3nbrc4gfm5kpt574lcm3p"
+
+html_block = f"""```HtmlRendering
+100%
+800px
+
+unique://content/{content_id}
+```"""
+
+chat_service.create_assistant_message(
+    content=f"Here is the rendered HTML:\n{html_block}",
+)
+```
+
+### Inline HTML
+
+Embed a full HTML document directly in the message. This example renders an interactive Plotly bar chart:
+
+```python
+html_content = """\
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://cdn.plot.ly/plotly-3.3.0.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <div id="chart"></div>
+  <script>
+    const trace = {
+      x: [1, 2, 3],
+      y: [1, 2, 3],
+      type: 'bar',
+      name: 'Values',
+      marker: { color: '#1f77b4' }
+    };
+    const layout = {
+      title: 'Simple Plotly Bar Chart',
+      xaxis: { title: 'Category', zeroline: false, showgrid: true },
+      yaxis: { title: 'Value', zeroline: true, showgrid: true },
+      margin: { l: 60, r: 20, t: 60, b: 50 }
+    };
+    Plotly.newPlot('chart', [trace], layout, {responsive: true});
+  </script>
+</body>
+</html>"""
+
+html_block = f"""```HtmlRendering
+100%
+700px
+
+{html_content}
+```"""
+
+chat_service.create_assistant_message(
+    content=f"Here is an interactive chart:\n{html_block}",
+)
+```
+
 ## Full Examples
 ??? example "Full Examples Rendering (Click to expand)"
     
