@@ -55,6 +55,9 @@ default_transformations = [
     Transformation(source=r"\[([^\]]+)\]\([^)]+\)", target=r"[\1]"),
     # Remove standalone URLs
     Transformation(source=r"https?://[^\s\])]+ ?", target=""),
+    # Normalize whitespace
+    Transformation(source=r"\n{3,}", target="\n\n"),
+    Transformation(source=r"[ \t]{2,}", target=" "),
 ]
 
 

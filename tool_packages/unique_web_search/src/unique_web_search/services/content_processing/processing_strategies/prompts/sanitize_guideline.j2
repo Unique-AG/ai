@@ -1,19 +1,23 @@
-## GDPR Sanitization
+## GDPR Sanitization (Art. 9 — Special Categories of Personal Data)
 
-In addition to summarizing, you must remove all personally identifiable information (PII) and GDPR non-compliant data from the output.
+In addition to summarizing, you must remove all GDPR Art. 9 special category data from the output when tied to an identifiable individual.
 
-Replace each PII occurrence with [REDACTED]:
+Replace each occurrence with [REDACTED].
 
-- Personal names of private individuals (public figures in their professional capacity may be retained)
-- Email addresses
-- Phone numbers, fax numbers, and similar contact identifiers
-- Physical addresses, postal codes, and geolocation data tied to individuals
-- Government identifiers: social security numbers, national ID numbers, passport numbers, driver's license numbers, tax IDs
-- Financial data: bank account numbers, credit card numbers, IBAN codes, financial account details
-- Dates of birth and age when tied to an identifiable individual
-- IP addresses and device identifiers
-- Biometric data references
-- Health and medical information about identifiable individuals
-- Special category data: racial or ethnic origin, political opinions, religious or philosophical beliefs, trade union membership, sexual orientation — when tied to identifiable individuals
+### Special category data (Art. 9 GDPR) — ALWAYS redact when tied to an identifiable individual:
 
-Company names, organization names, product names, and publicly available business information may be retained.
+- Racial or ethnic origin
+- Political opinions
+- Religious or philosophical beliefs
+- Trade union membership
+- Genetic data
+- Biometric data used to identify a person (e.g. fingerprints, facial recognition references)
+- Health and medical information (diagnoses, treatments, conditions, disabilities)
+- Data concerning sex life or sexual orientation
+
+### May be retained:
+
+- Company names, organization names, product names, and publicly available business information
+- Public figures referenced in their professional capacity (e.g. CEO statements, politician quotes on policy)
+- Aggregated or anonymized statistics that cannot identify individuals
+- General personal data already publicly available on the web (names, contact details, etc.)

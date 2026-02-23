@@ -1,9 +1,15 @@
+{% if sanitize %}
+Process the following web page. Reformulate the snippet and produce a summary, replacing all sensitive information with [REDACTED] as defined in the system instructions.
+{% else %}
 Summarize the following web page content in relation to the search query.
+{% endif %}
 
 Search query: {{ query }}
+
 Title: {{ page.title }}
 URL: {{ page.url }}
+Snippet:
+{{ page.snippet }}
 
-<content>
+Content (full page):
 {{ page.content }}
-</content>

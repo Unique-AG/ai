@@ -13,11 +13,17 @@ class LineRemoval:
     def __call__(self, content: str) -> str:
         if self.config.enabled:
             lines = content.split("\n")
+
+            filtered_lines = []
             for line in lines:
+                skip = True
                 for pattern in self.config.patterns:
-                    if re.match(pattern, line, flags=re.IGNORECASE):
-                        lines.remove(line)
-            content = "\n".join(lines)
+                    if re.search(pattern, line, flags=re.IGNORECASE):
+                        skip = False
+                        break
+                if skip:
+                    filtered_lines.append(line)
+            content = "\n".join(filtered_lines)
         return content
 
     @property

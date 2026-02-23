@@ -1,4 +1,6 @@
+import json
 import logging
+from time import time
 from typing import Annotated, Unpack
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
@@ -35,6 +37,15 @@ class LLMProcessorConfig(BaseModel):
         title="Enable AI Summarization",
         description="When enabled, an AI model processes and summarizes long web page content to extract the most relevant information.",
     )
+
+    language_model: LMI = get_LMI_default_field(DEFAULT_LANGUAGE_MODEL)
+
+    min_tokens: int = Field(
+        default=5000,
+        title="Minimum Content Length for Summarization",
+        description="Web pages with content shorter than this threshold (in tokens) will be kept as-is without AI summarization. Only longer pages are summarized. The effect of this setting will be ignored if sanitization is enabled.",
+    )
+
     sanitize: bool = Field(
         default=False,
         title="Enable Privacy Filtering",
@@ -50,13 +61,7 @@ class LLMProcessorConfig(BaseModel):
         title="Privacy Filtering Instructions",
         description="Instructions given to the AI for identifying and removing personal data. Only used when Privacy Filtering is enabled.",
     )
-    language_model: LMI = get_LMI_default_field(DEFAULT_LANGUAGE_MODEL)
 
-    min_tokens: int = Field(
-        default=5000,
-        title="Minimum Content Length for Summarization",
-        description="Web pages with content shorter than this threshold (in tokens) will be kept as-is without AI summarization. Only longer pages are summarized. The effect of this setting will be ignored if sanitization is enabled.",
-    )
     system_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
@@ -101,13 +106,19 @@ def get_response_model(sanitize: bool) -> type[LLMProcessorResponse]:
     if sanitize:
         return create_model(
             "SanitizedLLMProcessorResponse",
+            snippet=(
+                str,
+                Field(
+                    description="A short, self-contained excerpt (2-3 sentences) capturing the most relevant finding. Sensitive data must be replaced with [REDACTED] according to the sanitization guidelines.",
+                ),
+            ),
+            summary=(
+                str,
+                Field(
+                    description="A comprehensive summary focused on query-relevant information. Sensitive data must be replaced with [REDACTED] according to the sanitization guidelines.",
+                ),
+            ),
             __base__=LLMProcessorResponse,
-            snippet=Field(
-                description="A short, self-contained excerpt (2-3 sentences) capturing the most relevant finding. All personally identifiable information (PII) must be replaced with [REDACTED].",
-            ),
-            summary=Field(
-                description="A comprehensive summary focused on query-relevant information. All personally identifiable information (PII) must be replaced with [REDACTED].",
-            ),
         )
 
     return LLMProcessorResponse
@@ -150,14 +161,16 @@ class LLMProcess:
 
         _LOGGER.info(f"Processing page {page.url} with LLM processor")
 
+        response_model = get_response_model(self._config.sanitize)
+
         messages = (
             MessagesBuilder()
             .system_message_append(
                 render_template(
                     self._config.system_prompt,
-                    sanitize_guideline=self._config.sanitize_guideline
-                    if self._config.sanitize
-                    else "",
+                    sanitize=self._config.sanitize,
+                    sanitize_guideline=self._config.sanitize_guideline,
+                    output_schema=response_model.model_json_schema(),
                 )
             )
             .user_message_append(
@@ -165,12 +178,15 @@ class LLMProcess:
                     self._config.user_prompt,
                     page=page,
                     query=query,
+                    sanitize=self._config.sanitize,
                 )
             )
             .build()
         )
 
-        response_model = get_response_model(self._config.sanitize)
+        timestamp = time()
+        with open(f"messages_{timestamp}.json", "w") as f:
+            json.dump(messages.model_dump(), f, indent=4)
 
         response = await self._llm_service.complete_async(
             messages=messages,
