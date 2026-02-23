@@ -52,7 +52,7 @@ class UniqueApp(BaseSettings):
         ),
     )
     base_url: str = Field(
-        default="http://localhost:8092/",
+        default="http://127.0.0.1:8092/",
         deprecated="Use UniqueApi.base_url instead",
     )
     endpoint: str = Field(default="dummy")
@@ -147,7 +147,6 @@ class UniqueApi(BaseSettings):
         return urlunparse(parsed._replace(path=path, query=None, fragment=None))
 
 
-@register_config()
 class UniqueAuth(BaseSettings):
     company_id: SecretStr = Field(
         default=SecretStr("dummy_company_id"),

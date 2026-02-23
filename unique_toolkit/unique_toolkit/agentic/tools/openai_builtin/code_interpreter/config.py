@@ -52,7 +52,7 @@ DEFAULT_TOOL_DESCRIPTION = "Use this tool to run python code, e.g to generate pl
 
 
 class OpenAICodeInterpreterConfig(BaseToolConfig):
-    upload_files_in_chat_to_container: str = Field(
+    upload_files_in_chat_to_container: bool = Field(
         default=True,
         description="If set, the files uploaded to the chat will be uploaded to the container where code is executed.",
     )
@@ -70,7 +70,10 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
             description="The description of the tool that will be included in the user prompt.",
         )
     )
-
+    expires_after_minutes: int = Field(
+        default=20,
+        description="The number of minutes after which the container will be deleted.",
+    )
     use_auto_container: bool = Field(
         default=False,
         description="If set, use the `auto` container setting from OpenAI. Note that this will recreate the container on each call.",
