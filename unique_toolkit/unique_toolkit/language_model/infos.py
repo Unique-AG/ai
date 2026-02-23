@@ -138,7 +138,7 @@ class EncoderName(StrEnum):
             tokenizer = get_tokenizer_from_tiktoken(self.value)
             return tokenizer.decode
 
-        tokenizer = get_tokenizer_from_path(self.value, self.tokenizer_path)
+        tokenizer = get_tokenizer_from_path(self.tokenizer_path)
         return tokenizer.decode
 
 
