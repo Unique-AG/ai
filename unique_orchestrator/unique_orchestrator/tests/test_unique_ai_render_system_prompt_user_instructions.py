@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -119,10 +119,7 @@ class TestRenderSystemPromptUserInstructions:
 
         result = await mock_unique_ai._render_system_prompt()
 
-        expected = (
-            "\n\nAdditional instructions provided by the user:\n"
-            "Be concise."
-        )
+        expected = "\n\nAdditional instructions provided by the user:\nBe concise."
         assert result == expected
 
     @pytest.mark.ai
