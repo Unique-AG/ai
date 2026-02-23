@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
+from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
@@ -14,6 +15,15 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import 
     OpenAICodeInterpreterConfig,
 )
 from unique_toolkit.agentic.tools.openai_builtin.manager import OpenAIBuiltInToolManager
+
+
+@pytest.fixture(autouse=True)
+def _register_code_interpreter():
+    """Ensure code_interpreter is registered before each test, surviving cross-module factory clears."""
+    ToolFactory.register_tool_config(
+        OpenAIBuiltInToolName.CODE_INTERPRETER.value, CodeInterpreterExtendedConfig
+    )
+    yield
 
 
 @pytest.mark.ai
@@ -27,13 +37,16 @@ async def test_build_tool_code_interpreter_passes_tool_config_not_extended_confi
     Why this matters: Fix for bug where manager expected OpenAICodeInterpreterConfig in
     ToolBuildConfig but tool config was refactored to CodeInterpreterExtendedConfig.
     """
-    tool_config = ToolBuildConfig(
-        name=OpenAIBuiltInToolName.CODE_INTERPRETER,
-        configuration=CodeInterpreterExtendedConfig(
-            tool_config=OpenAICodeInterpreterConfig(expires_after_minutes=30),
-        ),
-        is_enabled=True,
-        is_exclusive=True,
+    extended = CodeInterpreterExtendedConfig(
+        tool_config=OpenAICodeInterpreterConfig(expires_after_minutes=30),
+    )
+    tool_config = ToolBuildConfig.model_validate(
+        {
+            "name": OpenAIBuiltInToolName.CODE_INTERPRETER.value,
+            "configuration": extended,
+            "is_enabled": True,
+            "is_exclusive": True,
+        }
     )
     mock_built_tool = MagicMock(spec=OpenAIBuiltInTool)
     build_tool_async = AsyncMock(return_value=mock_built_tool)
@@ -89,15 +102,20 @@ async def test_build_manager_only_includes_enabled_builtin_tools() -> None:
     mock_tool = MagicMock(spec=OpenAIBuiltInTool)
     build_tool_async = AsyncMock(return_value=mock_tool)
 
-    enabled_config = ToolBuildConfig(
-        name=OpenAIBuiltInToolName.CODE_INTERPRETER,
-        configuration=CodeInterpreterExtendedConfig(),
-        is_enabled=True,
+    default_extended = CodeInterpreterExtendedConfig()
+    enabled_config = ToolBuildConfig.model_validate(
+        {
+            "name": OpenAIBuiltInToolName.CODE_INTERPRETER.value,
+            "configuration": default_extended,
+            "is_enabled": True,
+        }
     )
-    disabled_config = ToolBuildConfig(
-        name=OpenAIBuiltInToolName.CODE_INTERPRETER,
-        configuration=CodeInterpreterExtendedConfig(),
-        is_enabled=False,
+    disabled_config = ToolBuildConfig.model_validate(
+        {
+            "name": OpenAIBuiltInToolName.CODE_INTERPRETER.value,
+            "configuration": default_extended,
+            "is_enabled": False,
+        }
     )
 
     with patch(
