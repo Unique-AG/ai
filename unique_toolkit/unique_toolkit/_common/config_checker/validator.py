@@ -147,12 +147,24 @@ class ConfigValidator:
 
             errors.extend(new_errors)
 
+            # Still compute default changes so they are reported even when validation fails
+            default_changes = None
+            try:
+                default_instance = new_model.model_construct()
+                default_changes = self.differ.compare_defaults(
+                    old_json, default_instance
+                )
+            except Exception as e:
+                logger.debug(
+                    f"Could not compute default changes for '{config_name}': {e}"
+                )
+
             return ConfigValidationResult(
                 config_name=config_name,
                 valid=False,
                 errors=errors,
                 warnings=warnings if warnings else None,
-                default_changes=None,
+                default_changes=default_changes if default_changes else None,
             )
 
     def validate_all(
