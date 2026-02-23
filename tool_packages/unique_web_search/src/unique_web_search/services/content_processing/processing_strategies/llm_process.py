@@ -19,7 +19,7 @@ from unique_web_search.services.content_processing.processing_strategies.base im
     WebSearchResult,
 )
 from unique_web_search.services.content_processing.processing_strategies.prompts import (
-    DEFAULT_SANITIZE_GUIDELINE,
+    DEFAULT_SANITIZE_RULES,
     DEFAULT_SYSTEM_PROMPT_TEMPLATE,
     DEFAULT_USER_PROMPT_TEMPLATE,
 )
@@ -49,15 +49,13 @@ class LLMProcessorConfig(BaseModel):
         title="Enable Privacy Filtering",
         description="When enabled, instructs the AI to remove personal data (names, emails, phone numbers, etc.) from the content for privacy compliance.",
     )
-    sanitize_guideline: Annotated[
+    sanitize_rules: Annotated[
         str,
-        RJSFMetaTag.StringWidget.textarea(
-            rows=len(DEFAULT_SANITIZE_GUIDELINE.split("\n"))
-        ),
+        RJSFMetaTag.StringWidget.textarea(rows=len(DEFAULT_SANITIZE_RULES.split("\n"))),
     ] = Field(
-        default=DEFAULT_SANITIZE_GUIDELINE,
-        title="Privacy Filtering Instructions",
-        description="Instructions given to the AI for identifying and removing personal data. Only used when Privacy Filtering is enabled.",
+        default=DEFAULT_SANITIZE_RULES,
+        title="Privacy Filtering Rules",
+        description="Rules given to the AI for identifying and removing personal data. Only used when Privacy Filtering is enabled.",
     )
 
     system_prompt: Annotated[
@@ -107,13 +105,13 @@ def get_response_model(sanitize: bool) -> type[LLMProcessorResponse]:
             snippet=(
                 str,
                 Field(
-                    description="A short, self-contained excerpt (2-3 sentences) capturing the most relevant finding. Sensitive data must be replaced with [REDACTED] according to the sanitization guidelines.",
+                    description="A short, self-contained excerpt (2-3 sentences) capturing the most relevant finding. GDPR Art. 9 sensitive data must be replaced with the appropriate typed redaction tag (e.g. [RedactHealth], [RedactPoliticalOpinion]) for every individual mentioned.",
                 ),
             ),
             summary=(
                 str,
                 Field(
-                    description="A comprehensive summary focused on query-relevant information. Sensitive data must be replaced with [REDACTED] according to the sanitization guidelines.",
+                    description="A comprehensive summary focused on query-relevant information. GDPR Art. 9 sensitive data must be replaced with the appropriate typed redaction tag (e.g. [RedactHealth], [RedactPoliticalOpinion]) for every individual mentioned.",
                 ),
             ),
             __base__=LLMProcessorResponse,
@@ -167,7 +165,7 @@ class LLMProcess:
                 render_template(
                     self._config.system_prompt,
                     sanitize=self._config.sanitize,
-                    sanitize_guideline=self._config.sanitize_guideline,
+                    sanitize_rules=self._config.sanitize_rules,
                     output_schema=response_model.model_json_schema(),
                 )
             )

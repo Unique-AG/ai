@@ -1,8 +1,4 @@
-{% if sanitize %}
-Process the following web page. Reformulate the snippet and produce a summary, replacing all sensitive information with [REDACTED] as defined in the system instructions.
-{% else %}
-Summarize the following web page content in relation to the search query.
-{% endif %}
+Analyze the following web page and produce a snippet and a summary in relation to the search query.
 
 Search query: {{ query }}
 
@@ -13,3 +9,7 @@ Snippet:
 
 Content (full page):
 {{ page.content }}
+{% if sanitize %}
+
+REMINDER: You MUST apply all sanitization rules to both the snippet and the summary. Replace every piece of GDPR Art. 9 sensitive data with the appropriate typed redaction tag (e.g., [RedactHealth], [RedactPoliticalOpinion]). This applies to ALL individuals mentioned on the page, not only the subject of the search query.
+{% endif %}
