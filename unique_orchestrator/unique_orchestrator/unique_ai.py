@@ -361,8 +361,11 @@ class UniqueAI:
 
         # Combine custom instructions and user instructions
         custom_instructions = self._config.space.custom_instructions
-        if self._config.space.user.user_instructions:
-            custom_instructions += "\n\n" + self._config.space.user.user_instructions
+        if self._config.space.user_instructions:
+            custom_instructions += (
+                "\n\nAdditional instructions provided by the user:\n"
+                + self._config.space.user_instructions
+            )
 
         system_message = system_prompt_template.render(
             model_info=self._config.space.language_model.model_dump(mode="json"),
