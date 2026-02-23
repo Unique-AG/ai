@@ -235,6 +235,7 @@ class LoopTokenReducer:
                 )
 
         if image_data_urls_from_tools:
+            content: list[dict[str, object]]
             if history and history[-1].role == LanguageModelMessageRole.USER:
                 m = history[-1]
                 if isinstance(m.content, list):

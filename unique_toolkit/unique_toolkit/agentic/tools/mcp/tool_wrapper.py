@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import logging
@@ -137,7 +138,9 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             # Use SDK to call the public API
             result = await self._call_mcp_tool_via_sdk(arguments)
 
-            content_str, image_data_urls = self._process_mcp_result(result)
+            content_str, image_data_urls = await asyncio.to_thread(
+                self._process_mcp_result, result
+            )
 
             # TODO: Why result here not applied directly to the body of the tool_response? like so how does it know the results in the history?
             tool_response = ToolCallResponse(

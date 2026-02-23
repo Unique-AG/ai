@@ -219,8 +219,7 @@ class HistoryManager:
     ) -> LanguageModelMessages:
         self._logger.info("Getting history for model call -> ")
 
-        image_data_from_tools = self._collected_tool_response_image_urls
-        self._collected_tool_response_image_urls = []
+        image_data_from_tools = list(self._collected_tool_response_image_urls)
         messages = await self._token_reducer.get_history_for_model_call(
             original_user_message=original_user_message,
             rendered_user_message_string=rendered_user_message_string,
@@ -229,6 +228,7 @@ class HistoryManager:
             remove_from_text=remove_from_text,
             image_data_urls_from_tools=image_data_from_tools,
         )
+        self._collected_tool_response_image_urls = []
         return messages
 
     async def get_user_visible_chat_history(
