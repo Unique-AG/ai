@@ -1,6 +1,4 @@
-import json
 import logging
-from time import time
 from typing import Annotated, Unpack
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
@@ -183,10 +181,6 @@ class LLMProcess:
             )
             .build()
         )
-
-        timestamp = time()
-        with open(f"messages_{timestamp}.json", "w") as f:
-            json.dump(messages.model_dump(), f, indent=4)
 
         response = await self._llm_service.complete_async(
             messages=messages,

@@ -241,7 +241,7 @@ def mock_executor_dependencies():
     """Mock dependencies for executor initialization."""
     from unittest.mock import AsyncMock
 
-    from unique_web_search.utils import WebSearchDebugInfo
+    from unique_web_search.schema import WebSearchDebugInfo
 
     mock_lm_service = Mock()
     mock_lm_service.complete_async = AsyncMock()
