@@ -7,6 +7,7 @@ from unique_toolkit.language_model import LanguageModelFunction
 
 from unique_web_search.schema import (
     Step,
+    StepDebugInfo,
     StepType,
     WebSearchPlan,
 )
@@ -21,7 +22,6 @@ from unique_web_search.services.executors.context import (
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-from unique_web_search.utils import StepDebugInfo
 
 _LOGGER = logging.getLogger(__name__)
 

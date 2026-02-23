@@ -17,11 +17,11 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporter,
 )
 
-from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
+from unique_web_search.schema import WebPageChunk, WebSearchDebugInfo
+from unique_web_search.services.content_processing import ContentProcessor
 from unique_web_search.services.crawlers import CrawlerTypes
 from unique_web_search.services.search_engine import SearchEngineTypes
 from unique_web_search.services.search_engine.schema import WebSearchResult
-from unique_web_search.utils import WebSearchDebugInfo
 
 
 @dataclass

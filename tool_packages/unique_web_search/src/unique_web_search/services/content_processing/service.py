@@ -1,29 +1,30 @@
 import asyncio
 import logging
-import re
-from typing import TYPE_CHECKING
 
-import tiktoken
-from langchain_text_splitters import TokenTextSplitter
-from openai.types.chat import ChatCompletionMessageParam
 from unique_toolkit._common.execution import SafeTaskExecutor
-from unique_toolkit._common.token import count_tokens
-from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.embedding.service import EmbeddingService
-from unique_toolkit.framework_utilities.openai import get_async_openai_client
+from unique_toolkit.language_model import LanguageModelService, TypeDecoder, TypeEncoder
 
-if TYPE_CHECKING:
-    from unique_toolkit.language_model.infos import LanguageModelInfo
-
+from unique_web_search.services.content_processing.cleaning import (
+    LineRemoval,
+    MarkdownTransform,
+)
 from unique_web_search.services.content_processing.config import (
-    REGEX_CONTENT_TRANSFORMATIONS,
-    ContentProcessingStartegy,
     ContentProcessorConfig,
-    WebPageChunk,
+)
+from unique_web_search.services.content_processing.processing_strategies.base import (
+    CleaningStrategy,
+    ProcessingStrategy,
+)
+from unique_web_search.services.content_processing.processing_strategies.llm_process import (
+    LLMProcess,
+)
+from unique_web_search.services.content_processing.processing_strategies.truncate import (
+    Truncate,
 )
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
+from unique_web_search.utils import WebPageChunk
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,17 +32,38 @@ _LOGGER = logging.getLogger(__name__)
 class ContentProcessor:
     def __init__(
         self,
-        event: ChatEvent,
+        language_model_service: LanguageModelService,
         config: ContentProcessorConfig,
-        language_model_orchestrator: "LanguageModelInfo | None" = None,
-        # TODO (UN-17099): Remove once monorepo web_search_service.py stops passing this
-        language_model: "LanguageModelInfo | None" = None,
+        encoder: TypeEncoder,
+        decoder: TypeDecoder,
     ):
         self.config = config
-        self.embedding_service = EmbeddingService(event=event)
-        self.language_model_orchestrator = language_model_orchestrator
-        self.chunk_size = 1000  # Default chunk size
-        self.chunking_max_workers = 10  # Default max workers
+        self.language_model_service = language_model_service
+        self._encoder = encoder
+        self._decoder = decoder
+
+        self._cleaning_strategies: list[CleaningStrategy] = [
+            LineRemoval(
+                config=self.config.cleaning.line_removal,
+            ),
+            MarkdownTransform(
+                enabled=self.config.cleaning.enable_markdown_cleaning,
+            ),
+        ]
+
+        self._processing_strategies: list[ProcessingStrategy] = [
+            Truncate(
+                config=self.config.processing_strategies.truncate,
+                encoder=encoder,
+                decoder=decoder,
+            ),
+            LLMProcess(
+                config=self.config.processing_strategies.llm_processor,
+                llm_service=self.language_model_service,
+                encoder=encoder,
+                decoder=decoder,
+            ),
+        ]
 
     async def run(self, query: str, pages: list[WebSearchResult]) -> list[WebPageChunk]:
         """
@@ -52,133 +74,75 @@ class ContentProcessor:
             list[WebPageChunk]: List of processed webpage chunks.
         """
 
-        pages = await self._process_pages(query, pages)
+        ## Clean content
+        pages = [self._clean_content(page) for page in pages]
 
-        pages_chunks = self._split_pages_to_chunks(pages)
+        ## Apply Processing Strategies
+        processed_pages = await self._process_pages(query, pages)
+
+        ## Split pages to chunks
+        pages_chunks = self._split_pages_to_chunks(processed_pages)
 
         _LOGGER.info(f"Number of chunks total: {len(pages_chunks)}")
 
         return pages_chunks
 
+    def _clean_content(self, page: WebSearchResult) -> WebSearchResult:
+        active_cleaning_strategies = [
+            strategy.__class__.__name__
+            for strategy in self._cleaning_strategies
+            if strategy.is_enabled
+        ]
+        _LOGGER.info(f"Cleaning content with strategies: {active_cleaning_strategies}")
+        for strategy in self._cleaning_strategies:
+            if strategy.is_enabled:
+                page.content = strategy(page.content)
+        return page
+
     async def _process_pages(
         self, query: str, pages: list[WebSearchResult]
     ) -> list[WebSearchResult]:
         # Apply processing strategy with regex preprocessing as baseline
-        _LOGGER.info(f"Processing pages with strategy: {self.config.strategy}")
+        active_strategies = [
+            strategy.__class__.__name__
+            for strategy in self._processing_strategies
+            if strategy.is_enabled
+        ]
+
+        _LOGGER.info(f"Processing pages with strategies: {active_strategies}")
+
+        async def process_single_page(page: WebSearchResult) -> WebSearchResult:
+            for strategy in self._processing_strategies:
+                if strategy.is_enabled:
+                    page = await strategy(page=page, query=query)
+            return page
 
         safe_task_executor = SafeTaskExecutor(logger=_LOGGER)
 
         results = await asyncio.gather(
             *[
                 safe_task_executor.execute_async(
-                    self._process_single_page,
+                    process_single_page,
                     page=page,
-                    query=query,
                 )
                 for page in pages
-            ]
+            ],
         )
 
         processed_pages = []
         for result, page in zip(results, pages):
             if result.success:
-                page = result.unpack()
+                processed_page = result.unpack()
             else:
                 # Empty content to avoid overfilling the context in case processing strategy fails
-                page.content = ""
+                _LOGGER.error(
+                    f"Processing strategy failed for page {page.url}: {result.exception}",
+                    exc_info=result.exception,
+                )
+                processed_page.content = ""
             processed_pages.append(page)
 
         return processed_pages
-
-    async def _process_single_page(
-        self, page: WebSearchResult, query: str
-    ) -> WebSearchResult:
-        """Process a single page with optional regex preprocessing."""
-
-        # Apply the enabled preprocessing steps
-        page.content = self._preprocess_content(page.content)
-
-        # Then apply strategy-specific processing
-        match self.config.strategy:
-            case ContentProcessingStartegy.SUMMARIZE:
-                return await self._summarize_page(page, query)  # LLM processing
-            case ContentProcessingStartegy.TRUNCATE:
-                return await self._truncate_page(page)  # Token truncation
-            case ContentProcessingStartegy.NONE:
-                return page  # Raw content or regex cleaned
-
-    async def _summarize_page(
-        self, page: WebSearchResult, query: str
-    ) -> WebSearchResult:
-        """Summarize webpage content using LLM"""
-        content = page.content
-        # Check token count - hardcoded 2000 token minimum for summarization
-        token_count = count_tokens(content, model=self.language_model_orchestrator)
-
-        client = get_async_openai_client()
-        _LOGGER.info(f"Summarizing webpage ({page.url}) with {token_count} tokens")
-
-        messages: list[ChatCompletionMessageParam] = [
-            {"role": "system", "content": self.config.summarization_prompt},
-            {"role": "user", "content": f"Query: {query}\nWebpage: {content}".strip()},
-        ]
-        response = await client.chat.completions.create(
-            model=self.config.language_model.name,
-            messages=messages,
-            max_tokens=1000,
-            temperature=0.1,
-        )
-
-        page.content = response.choices[0].message.content or ""
-        return page
-
-    async def _truncate_page(self, page: WebSearchResult) -> WebSearchResult:
-        """Truncate page content to max tokens."""
-        # TODO (UN-17097): Add get_decoder() to LanguageModelInfo
-        # For now, use tiktoken directly since we need decode() functionality
-        # Only cl100k_base and o200k_base are tiktoken-compatible; others (qwen, deepseek) fallback to cl100k_base
-        tiktoken_encodings = {"cl100k_base", "o200k_base"}
-        encoder_name = self.config.language_model.encoder_name
-        encoding = encoder_name if encoder_name in tiktoken_encodings else "cl100k_base"
-        encoder = tiktoken.get_encoding(encoding)
-
-        tokens = encoder.encode(page.content)
-
-        if len(tokens) > self.config.max_tokens:
-            page.content = encoder.decode(tokens[: self.config.max_tokens])
-
-        return page
-
-    def _preprocess_content(self, content: str) -> str:
-        """Smart preprocessing to remove navigation and UI clutter."""
-        # Stage 1: Normalize encoding
-        content = content.encode(encoding="utf-8", errors="ignore").decode()
-
-        # Stage 2: Remove lines matching patterns
-        lines = content.split("\n")
-        filtered_lines = []
-
-        for line in lines:
-            should_keep = True
-            for pattern in self.config.regex_line_removal_patterns:
-                if re.search(pattern, line, re.IGNORECASE):
-                    should_keep = False
-                    break
-            if should_keep:
-                filtered_lines.append(line)
-
-        content = "\n".join(filtered_lines)
-
-        # Stage 3: Apply content transformations
-        if self.config.remove_urls_from_markdown_links:
-            for pattern, replacement in REGEX_CONTENT_TRANSFORMATIONS:
-                content = re.sub(pattern, replacement, content)
-
-        # Stage 4: Normalize whitespace
-        content = re.sub(r"\n{3,}", "\n\n", content)
-        content = re.sub(r"[ \t]{2,}", " ", content)
-
-        return content.strip()
 
     def _split_pages_to_chunks(
         self, pages: list[WebSearchResult]
@@ -205,22 +169,14 @@ class ContentProcessor:
             list[dict]: list of chunks.
         """
 
-        chunk_size = self.chunk_size
+        def even_split(text: str, chunk_size: int) -> list[str]:
+            tokens = self._encoder(text)
+            return [
+                self._decoder(tokens[i : i + chunk_size])
+                for i in range(0, len(tokens), chunk_size)
+            ]
 
-        # TODO (UN-17101): Evaluate non-tiktoken tokenizer support for chunking
-        tiktoken_encodings = {"cl100k_base", "o200k_base"}
-        encoding = (
-            self.config.language_model.encoder_name
-            if self.config.language_model.encoder_name in tiktoken_encodings
-            else "cl100k_base"
-        )
-        splitter = TokenTextSplitter(
-            encoding_name=encoding,
-            chunk_size=chunk_size,
-            chunk_overlap=0,
-        )
-
-        chunks = splitter.split_text(page.content)
+        chunks = even_split(page.content, self.config.chunk_size)
 
         if len(chunks) == 0:
             return [

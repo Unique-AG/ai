@@ -1,11 +1,7 @@
 import logging
 from time import time
-from typing import TYPE_CHECKING
 
 from typing_extensions import override
-
-if TYPE_CHECKING:
-    from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
@@ -15,14 +11,19 @@ from unique_toolkit.agentic.tools.tool import (
     Tool,
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
+from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
 )
 
 from unique_web_search.config import WebSearchConfig
-from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
-from unique_web_search.services.content_processing import ContentProcessor, WebPageChunk
+from unique_web_search.schema import (
+    WebSearchDebugInfo,
+    WebSearchPlan,
+    WebSearchToolParameters,
+)
+from unique_web_search.services.content_processing import ContentProcessor
 from unique_web_search.services.crawlers import get_crawler_service
 from unique_web_search.services.executors import (
     WebSearchV1Executor,
@@ -37,7 +38,10 @@ from unique_web_search.services.executors.context import (
 from unique_web_search.services.message_log import WebSearchMessageLogger
 from unique_web_search.services.query_elicitation import QueryElicitationService
 from unique_web_search.services.search_engine import get_search_engine_service
-from unique_web_search.utils import WebSearchDebugInfo, reduce_sources_to_token_limit
+from unique_web_search.utils import (
+    WebPageChunk,
+    reduce_sources_to_token_limit,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,12 +53,14 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self,
         configuration: WebSearchConfig,
         *args,
-        language_model_orchestrator: "LanguageModelInfo | None" = None,
+        language_model_orchestrator: LanguageModelInfo | None = None,
         **kwargs,
     ):
         super().__init__(configuration, *args, **kwargs)
         # TODO (UN-17100): Propagate orchestrator LLM into tool initialization
-        self.language_model_orchestrator = language_model_orchestrator
+        self.language_model_orchestrator = (
+            language_model_orchestrator or configuration.language_model
+        )
 
         self.search_engine_service = get_search_engine_service(
             self.config.search_engine_config,
@@ -65,10 +71,12 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self.company_id = self.event.company_id
         self.chat_history_token_length = 0
         self.chat_history_chat_messages = self._chat_service.get_full_history()
+
         self.content_processor = ContentProcessor(
-            event=self.event,
+            language_model_service=self.language_model_service,
             config=self.config.content_processor_config,
-            language_model_orchestrator=self.language_model_orchestrator,
+            encoder=self.language_model_orchestrator.get_encoder(),
+            decoder=self.language_model_orchestrator.get_decoder(),
         )
         self.debug = self.config.debug
         self._display_name = kwargs.get("display_name", "Web Search")
