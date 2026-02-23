@@ -235,47 +235,6 @@ def _parse_source_items(content: str) -> tuple[list[dict] | None, bool]:
     return None, False
 
 
-def _renumber_sources_globally(
-    messages: LanguageModelMessages,
-) -> LanguageModelMessages:
-    """Assign unique sequential source IDs across all tool responses.
-
-    Walks messages in turn order (reset on each user message).  For every
-    source_number encountered in a tool message, a new global ID is assigned.
-    The corresponding ``[sourceN]`` citations in assistant messages are
-    updated to match.
-    """
-    next_id = 0
-    current_mapping: dict[int, int] = {}
-
-    for msg in messages:
-        if msg.role == LLMRole.USER:
-            current_mapping = {}
-
-        elif msg.role == LLMRole.TOOL and isinstance(msg.content, str):
-            items, _was_single = _parse_source_items(msg.content)
-            if items is None:
-                continue
-            for item in items:
-                old_id = item["source_number"]
-                if old_id not in current_mapping:
-                    current_mapping[old_id] = next_id
-                    next_id += 1
-                item["source_number"] = current_mapping[old_id]
-            msg.content = json.dumps(items)
-
-        elif msg.role == LLMRole.ASSISTANT and isinstance(msg.content, str):
-            mapping = current_mapping.copy()
-
-            def _replace(match: re.Match, _m: dict[int, int] = mapping) -> str:
-                old = int(match.group(1))
-                return f"[source{_m.get(old, old)}]"
-
-            msg.content = _SOURCE_PATTERN.sub(_replace, msg.content)
-
-    return messages
-
-
 def _strip_uncited_sources(
     messages: LanguageModelMessages,
 ) -> LanguageModelMessages:
@@ -296,27 +255,6 @@ def _strip_uncited_sources(
 
     return messages
 
-
-def cleanup_tool_message_sources(
-    messages: LanguageModelMessages,
-) -> LanguageModelMessages:
-    """Renumber source IDs globally and strip uncited sources.
-
-    Intended to be called after building the interleaved history and
-    **before** token-window trimming:
-
-        history = get_full_history_with_contents_and_tool_calls(...)
-        history = cleanup_tool_message_sources(history)
-        history = limit_to_token_window(history, token_limit)
-
-    Steps:
-      1. Renumber — assigns unique sequential IDs across all tool responses
-         so that sources from different tool calls don't collide.
-      2. Strip — removes source entries not cited in any assistant message.
-    """
-    messages = _renumber_sources_globally(messages)
-    messages = _strip_uncited_sources(messages)
-    return messages
 
 # ---------------------------------------------------------------------------
 # Tool message interleaving helpers
@@ -539,9 +477,8 @@ def get_full_history_with_contents_and_tool_calls(
 
     Pipeline:
       1. Interleave tool messages into enriched history
-      2. Renumber source IDs globally (disambiguate across tool calls)
-      3. Strip uncited sources from tool messages
-      4. Optionally trim to token window (when ``token_limit`` is provided)
+      2. Strip uncited sources from tool messages
+      3. Optionally trim to token window (when ``token_limit`` is provided)
 
     Falls back to plain enriched history if no gpt_request is available.
     """
@@ -575,7 +512,7 @@ def get_full_history_with_contents_and_tool_calls(
     )
 
     history = _interleave_tool_messages(enriched_history, tool_messages_per_turn)
-    history = cleanup_tool_message_sources(history)
+    history = _strip_uncited_sources(history)
 
     if token_limit is not None:
         history = limit_to_token_window(history, token_limit)
