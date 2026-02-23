@@ -1,14 +1,13 @@
 import logging
 from typing import Annotated, Unpack
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, create_model
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.language_model import (
     DEFAULT_LANGUAGE_MODEL,
-    LanguageModelMessages,
     LanguageModelService,
     TypeDecoder,
     TypeEncoder,
@@ -56,7 +55,7 @@ class LLMProcessorConfig(BaseModel):
     min_tokens: int = Field(
         default=5000,
         title="Minimum Content Length for Summarization",
-        description="Web pages with content shorter than this threshold (in tokens) will be kept as-is without AI summarization. Only longer pages are summarized.",
+        description="Web pages with content shorter than this threshold (in tokens) will be kept as-is without AI summarization. Only longer pages are summarized. The effect of this setting will be ignored if sanitization is enabled.",
     )
     system_prompt: Annotated[
         str,
@@ -90,16 +89,28 @@ class LLMProcessorConfig(BaseModel):
 
 class LLMProcessorResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
-
-    sanitized_snippet: str = Field(
-        description="The sanitized snippet of the content.",
-    )
-    sanitized_content: str = Field(
-        description="The sanitized content of the page.",
+    snippet: str = Field(
+        description="A short, self-contained excerpt (2-3 sentences) capturing the most relevant finding from the page in relation to the search query.",
     )
     summary: str = Field(
-        description="The summary of the content.",
+        description="A comprehensive summary of the page content focused on information relevant to the search query. Preserves key facts, data points, and conclusions.",
     )
+
+
+def get_response_model(sanitize: bool) -> type[LLMProcessorResponse]:
+    if sanitize:
+        return create_model(
+            "SanitizedLLMProcessorResponse",
+            __base__=LLMProcessorResponse,
+            snippet=Field(
+                description="A short, self-contained excerpt (2-3 sentences) capturing the most relevant finding. All personally identifiable information (PII) must be replaced with [REDACTED].",
+            ),
+            summary=Field(
+                description="A comprehensive summary focused on query-relevant information. All personally identifiable information (PII) must be replaced with [REDACTED].",
+            ),
+        )
+
+    return LLMProcessorResponse
 
 
 class LLMProcess:
@@ -159,41 +170,20 @@ class LLMProcess:
             .build()
         )
 
-        if self._config.sanitize:
-            return await self._handle_sanitization(messages, page)
+        response_model = get_response_model(self._config.sanitize)
 
-        return await self._handle_summarization(messages, page)
-
-    async def _handle_sanitization(
-        self, messages: LanguageModelMessages, page: WebSearchResult
-    ) -> WebSearchResult:
         response = await self._llm_service.complete_async(
             messages=messages,
             model_name=self._config.language_model.name,
-            structured_output_model=LLMProcessorResponse,
+            structured_output_model=response_model,
             structured_output_enforce_schema=True,
         )
+
         if response.choices[0].message.parsed is None:
             raise ValueError("Failed to parse response")
-        parsed = LLMProcessorResponse.model_validate(response.choices[0].message.parsed)
+        parsed = response_model.model_validate(response.choices[0].message.parsed)
 
-        page.snippet = parsed.sanitized_snippet
-        page.content = parsed.sanitized_content
-
-        return page
-
-    async def _handle_summarization(
-        self, messages: LanguageModelMessages, page: WebSearchResult
-    ) -> WebSearchResult:
-        response = await self._llm_service.complete_async(
-            messages=messages,
-            model_name=self._config.language_model.name,
-        )
-        if not isinstance(response.choices[0].message.content, str):
-            raise ValueError(
-                f"Response must be a string, got {type(response.choices[0].message.content)}"
-            )
-
-        page.content = response.choices[0].message.content
+        page.snippet = parsed.snippet
+        page.content = parsed.summary
 
         return page

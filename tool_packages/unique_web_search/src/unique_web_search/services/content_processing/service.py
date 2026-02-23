@@ -136,7 +136,8 @@ class ContentProcessor:
             else:
                 # Empty content to avoid overfilling the context in case processing strategy fails
                 _LOGGER.error(
-                    f"Processing strategy failed for page {page.url}: {result.exception}"
+                    f"Processing strategy failed for page {page.url}: {result.exception}",
+                    exc_info=result.exception,
                 )
                 processed_page.content = ""
             processed_pages.append(page)
@@ -177,17 +178,6 @@ class ContentProcessor:
 
         chunks = even_split(page.content, self.config.chunk_size)
 
-        if len(chunks) == 0:
-            return [
-                WebPageChunk(
-                    url=page.url,
-                    display_link=page.display_link,
-                    title=page.title,
-                    snippet=page.snippet,
-                    content=self._wrap_with_snippet(page.snippet, page.content),
-                    order="0",
-                )
-            ]
         if len(chunks) == 0:
             return [
                 WebPageChunk(
