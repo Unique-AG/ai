@@ -35,7 +35,7 @@ class ContentProcessorConfig(BaseModel):
         active_cleaning_strategies = []
         if self.cleaning.line_removal.enabled:
             active_cleaning_strategies.append("line_removal")
-        if self.cleaning.markdown_transformation.enabled:
+        if self.cleaning.enable_markdown_cleaning:
             active_cleaning_strategies.append("markdown_transformation")
 
         active_processing_strategies = []

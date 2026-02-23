@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, RootModel
+from pydantic import BaseModel, Field
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 
 # Patterns that remove entire lines
@@ -30,49 +30,16 @@ class LineRemovalPatternsConfig(BaseModel):
     )
 
 
-class Transformation(BaseModel):
-    model_config = get_configuration_dict()
-
-    source: str = Field(
-        default="",
-        title="Find Pattern",
-        description="The text pattern to search for in the content (regular expression).",
-    )
-    target: str = Field(
-        default="",
-        title="Replace With",
-        description="The text to replace matched patterns with. Leave empty to remove matches entirely.",
-    )
-
-
-class Transformations(RootModel):
-    root: list[Transformation]
-
-
 # Pattern/replacement pairs for content transformation
-default_transformations = [
+LINK_AND_URL_CLEANUP_PATTERNS = [
     # Transform markdown links: [text](url) → [text]
-    Transformation(source=r"\[([^\]]+)\]\([^)]+\)", target=r"[\1]"),
+    (r"\[([^\]]+)\]\([^)]+\)", r"[\1]"),
     # Remove standalone URLs
-    Transformation(source=r"https?://[^\s\])]+ ?", target=""),
+    (r"https?://[^\s\])]+ ?", r""),
     # Normalize whitespace
-    Transformation(source=r"\n{3,}", target="\n\n"),
-    Transformation(source=r"[ \t]{2,}", target=" "),
+    (r"\n{3,}", r"\n\n"),
+    (r"[ \t]{2,}", r" "),
 ]
-
-
-class MarkdownTransformationConfig(BaseModel):
-    model_config = get_configuration_dict()
-    enabled: bool = Field(
-        default=True,
-        title="Enable Link and URL Cleanup",
-        description="When enabled, simplifies or removes web links and URLs from the content to improve readability.",
-    )
-    transformations: Transformations = Field(
-        default=Transformations(root=default_transformations),
-        title="Cleanup Rules",
-        description="Rules that define how links and URLs are simplified or removed. Each rule has a find pattern and a replacement.",
-    )
 
 
 class CleaningConfig(BaseModel):
@@ -84,8 +51,8 @@ class CleaningConfig(BaseModel):
         description="Remove irrelevant lines from web pages, such as navigation menus, cookie banners, and sign-in buttons.",
     )
 
-    markdown_transformation: MarkdownTransformationConfig = Field(
-        default_factory=MarkdownTransformationConfig,
-        title="Link and URL Cleanup",
-        description="Simplify or remove web links and URLs from the page content to improve readability.",
+    enable_markdown_cleaning: bool = Field(
+        default=True,
+        title="Enable Link and URL Cleanup",
+        description="When enabled, simplifies or removes web links and URLs from the content to improve readability.",
     )

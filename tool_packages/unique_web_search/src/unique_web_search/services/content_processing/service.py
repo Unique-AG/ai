@@ -47,7 +47,7 @@ class ContentProcessor:
                 config=self.config.cleaning.line_removal,
             ),
             MarkdownTransform(
-                config=self.config.cleaning.markdown_transformation,
+                enabled=self.config.cleaning.enable_markdown_cleaning,
             ),
         ]
 
