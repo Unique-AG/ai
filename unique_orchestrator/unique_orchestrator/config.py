@@ -36,8 +36,6 @@ from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServic
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     CodeInterpreterExtendedConfig,
-from unique_toolkit.agentic.tools.openai_builtin import (
-    OpenAICodeInterpreterConfig,
 )
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
