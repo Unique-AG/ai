@@ -5827,7 +5827,15 @@ url = "../tool_packages/unique_swot"
 
 [[package]]
 name = "unique-toolkit"
+<<<<<<< HEAD
 version = "1.47.1"
+=======
+<<<<<<< Updated upstream
+version = "1.46.12"
+=======
+version = "1.47.1"
+>>>>>>> Stashed changes
+>>>>>>> c3d1531a (chore(orchestrator): regenerate poetry.lock)
 description = ""
 optional = false
 python-versions = "^3.12"
@@ -5866,7 +5874,15 @@ url = "../unique_toolkit"
 
 [[package]]
 name = "unique-web-search"
+<<<<<<< HEAD
 version = "1.12.0"
+=======
+<<<<<<< Updated upstream
+version = "1.11.4"
+=======
+version = "1.12.0"
+>>>>>>> Stashed changes
+>>>>>>> c3d1531a (chore(orchestrator): regenerate poetry.lock)
 description = ""
 optional = false
 python-versions = ">=3.12,<4.0"
@@ -5893,7 +5909,15 @@ tavily-python = ">=0.7.11,<1"
 timeout-decorator = ">=0.5.0,<1"
 typing-extensions = ">=4.14.1,<5"
 unidecode = ">=1.4.0,<2"
+<<<<<<< HEAD
 unique-toolkit = ">=1.46.13,<2"
+=======
+<<<<<<< Updated upstream
+unique-toolkit = ">=1.46.5,<2"
+=======
+unique-toolkit = ">=1.46.13,<2"
+>>>>>>> Stashed changes
+>>>>>>> c3d1531a (chore(orchestrator): regenerate poetry.lock)
 
 [package.source]
 type = "directory"
