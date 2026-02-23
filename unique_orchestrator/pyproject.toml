@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_orchestrator"
-version = "1.12.3"
+version = "1.13.01"
 description = ""
 authors = ["Andreas Hauri <andreas.hauri@unique.ai>"]
 readme = ["README.md", "CHANGELOG.md"]
@@ -29,6 +29,7 @@ ruff = "^0.11.7"
 deptry = "^0.24.0"
 basedpyright = "^1.35.0"
 poethepoet = "^0.32.0"
+deepdiff = "^8.6.1"
 unique-sdk = { path = "../unique_sdk" }
 unique-toolkit = { path = "../unique_toolkit", develop = true }
 unique-stock-ticker = { path = "../postprocessors/unique_stock_ticker", develop = true }
