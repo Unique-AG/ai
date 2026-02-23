@@ -675,6 +675,18 @@ wheels = [
 ]
 
 [[package]]
+name = "deepdiff"
+version = "8.6.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "orderly-set" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/19/76/36c9aab3d5c19a94091f7c6c6e784efca50d87b124bf026c36e94719f33c/deepdiff-8.6.1.tar.gz", hash = "sha256:ec56d7a769ca80891b5200ec7bd41eec300ced91ebcc7797b41eb2b3f3ff643a", size = 634054, upload-time = "2025-09-03T19:40:41.461Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f7/e6/efe534ef0952b531b630780e19cabd416e2032697019d5295defc6ef9bd9/deepdiff-8.6.1-py3-none-any.whl", hash = "sha256:ee8708a7f7d37fb273a541fa24ad010ed484192cd0c4ffc0fa0ed5e2d4b9e78b", size = 91378, upload-time = "2025-09-03T19:40:39.679Z" },
+]
+
+[[package]]
 name = "deptry"
 version = "0.24.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2115,6 +2127,15 @@ wheels = [
 ]
 
 [[package]]
+name = "orderly-set"
+version = "5.5.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/4a/88/39c83c35d5e97cc203e9e77a4f93bf87ec89cf6a22ac4818fdcc65d66584/orderly_set-5.5.0.tar.gz", hash = "sha256:e87185c8e4d8afa64e7f8160ee2c542a475b738bc891dc3f58102e654125e6ce", size = 27414, upload-time = "2025-07-10T20:10:55.885Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/12/27/fb8d7338b4d551900fa3e580acbe7a0cf655d940e164cb5c00ec31961094/orderly_set-5.5.0-py3-none-any.whl", hash = "sha256:46f0b801948e98f427b412fcabb831677194c05c3b699b80de260374baa0b1e7", size = 13068, upload-time = "2025-07-10T20:10:54.377Z" },
+]
+
+[[package]]
 name = "orjson"
 version = "3.11.7"
 source = { registry = "https://pypi.org/simple" }
@@ -3415,10 +3436,12 @@ wheels = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.46.5"
+version = "1.46.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
+    { name = "click" },
+    { name = "deepdiff" },
     { name = "docxtpl" },
     { name = "httpx" },
     { name = "jambo" },
@@ -3440,14 +3463,14 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "unique-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/81/0f/cb2108a027120ecaccffe7b15395fc61d208a2b5bc353b9f6baf55e266f6/unique_toolkit-1.46.5.tar.gz", hash = "sha256:ea6c10b924f0f4b814f98bfccfeb3758dc33587965fe2702cce3b5a5caccd387", size = 4185933, upload-time = "2026-02-12T10:32:41.572Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c3/62/551ecca2c70ab8e881dac486213f006f868d93edc68c3a549853b9ce1003/unique_toolkit-1.46.10.tar.gz", hash = "sha256:6553e52c55076268990082f9ea0a5b10318720cba58b5adefd01d7d08e9e401a", size = 4205642, upload-time = "2026-02-19T14:44:53.555Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ec/9e/bc2c85ec08166b7eccaac8666859c3349b63b89cca09ef67b92bdab73019/unique_toolkit-1.46.5-py3-none-any.whl", hash = "sha256:237d662ab4a1d6c26ffecbb15fa899b1bda601a232a8bf5b35b933be37f0ce1d", size = 4367356, upload-time = "2026-02-12T10:32:40.276Z" },
+    { url = "https://files.pythonhosted.org/packages/86/0c/7fcc05de60f5c819cd131751acd112940210d0150f09014a76daf7a4898d/unique_toolkit-1.46.10-py3-none-any.whl", hash = "sha256:c55129f3e95c45558fc50bb50b4890453cc8e17c4ad0481598852d478483e3cb", size = 4390573, upload-time = "2026-02-19T14:44:50.631Z" },
 ]
 
 [[package]]
 name = "unique-web-search"
-version = "1.11.4"
+version = "1.11.5"
 source = { editable = "." }
 dependencies = [
     { name = "azure-ai-projects" },
@@ -3509,7 +3532,7 @@ requires-dist = [
     { name = "timeout-decorator", specifier = ">=0.5.0,<1" },
     { name = "typing-extensions", specifier = ">=4.14.1,<5" },
     { name = "unidecode", specifier = ">=1.4.0,<2" },
-    { name = "unique-toolkit", specifier = ">=1.46.5,<2" },
+    { name = "unique-toolkit", specifier = ">=1.46.10,<2" },
 ]
 
 [package.metadata.requires-dev]

@@ -6,6 +6,7 @@ from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
 )
+from unique_toolkit._common.config_checker import register_config
 from unique_toolkit._common.feature_flags.schema import (
     FeatureExtendedSourceSerialization,
 )
@@ -83,6 +84,7 @@ class ExperimentalFeatures(FeatureExtendedSourceSerialization):
     )
 
 
+@register_config()
 class WebSearchConfig(BaseToolConfig):
     language_model: LMI = get_LMI_default_field(DEFAULT_MODEL_NAME)
 

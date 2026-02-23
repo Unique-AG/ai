@@ -2,6 +2,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field, field_validator
 from pydantic.json_schema import SkipJsonSchema
+from unique_toolkit._common.config_checker import register_config
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 
@@ -16,6 +17,7 @@ from unique_web_search.services.executors.configs.prompts import (
 from unique_web_search.services.helpers import clean_model_title_generator
 
 
+@register_config()
 class WebSearchV2Config(BaseWebSearchModeConfig[WebSearchMode.V2]):
     model_config = get_configuration_dict(
         model_title_generator=clean_model_title_generator

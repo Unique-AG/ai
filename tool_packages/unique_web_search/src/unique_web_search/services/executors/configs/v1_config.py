@@ -3,6 +3,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
+from unique_toolkit._common.config_checker import register_config
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 
@@ -27,6 +28,7 @@ class RefineQueryMode(StrEnum):
 _DEFAULT_QUERY_DESCRIPTION = "The search query to issue to the web."
 
 
+@register_config()
 class WebSearchToolParametersDescriptionConfig(BaseModel):
     model_config = get_configuration_dict()
 
@@ -50,6 +52,7 @@ class WebSearchToolParametersDescriptionConfig(BaseModel):
     )
 
 
+@register_config()
 class QueryRefinementConfig(BaseModel):
     model_config = get_configuration_dict()
 
@@ -69,6 +72,7 @@ class QueryRefinementConfig(BaseModel):
     )
 
 
+@register_config()
 class WebSearchV1Config(BaseWebSearchModeConfig[WebSearchMode.V1]):
     mode: SkipJsonSchema[Literal[WebSearchMode.V1]] = WebSearchMode.V1
 
