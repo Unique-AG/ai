@@ -1,0 +1,78 @@
+name: "[CI] Detect Changes"
+
+# Reusable workflow: detects which packages changed and builds the strategy matrix.
+# All five CI workflows (lint, test, type-check, coverage, deps) call this workflow
+# so the path-filters and the authoritative package list live in one place.
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        description: 'Package to run (empty=auto-detect based on changes, all=all packages)'
+        type: string
+        default: ''
+    outputs:
+      matrix:
+        description: 'JSON strategy matrix of packages to process'
+        value: ${{ jobs.detect.outputs.matrix }}
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            toolkit:
+              - 'unique_toolkit/**/!(*.md|docs/**|.entangled/**|*mkdocs.yaml)'
+            sdk:
+              - 'unique_sdk/**/!(*.md)'
+            mcp:
+              - 'unique_mcp/**/!(*.md)'
+            orchestrator:
+              - 'unique_orchestrator/**/!(*.md)'
+            web_search:
+              - 'tool_packages/unique_web_search/**/!(*.md)'
+            swot:
+              - 'tool_packages/unique_swot/**/!(*.md)'
+            follow_up_questions:
+              - 'postprocessors/unique_follow_up_questions/**/!(*.md)'
+            stock_ticker:
+              - 'postprocessors/unique_stock_ticker/**/!(*.md)'
+            deep_research:
+              - 'tool_packages/unique_deep_research/**/!(*.md)'
+            internal_search:
+              - 'tool_packages/unique_internal_search/**/!(*.md)'
+            quartr:
+              - 'connectors/unique_quartr/**/!(*.md)'
+
+      # Authoritative package × Python-version matrix.
+      # Extra fields (install_args, test_args, min_coverage) are always present so
+      # every consumer workflow can pick the fields it needs without duplication.
+      - name: Select packages
+        id: set-matrix
+        uses: ./.github/actions/select-packages
+        with:
+          packages: |
+            [
+              {"id": "toolkit",            "dir": "unique_toolkit",                            "python": "3.12", "install_args": "--with fastapi", "test_args": "",                       "min_coverage": "60"},
+              {"id": "sdk",                "dir": "unique_sdk",                                "python": "3.11", "install_args": "",               "test_args": "-m \"not integration\"", "min_coverage": "60"},
+              {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12", "install_args": "",               "test_args": "",                       "min_coverage": "60"},
+              {"id": "orchestrator",       "dir": "unique_orchestrator",                       "python": "3.12", "install_args": "",               "test_args": "",                       "min_coverage": "60"},
+              {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "python": "3.12", "install_args": "",               "test_args": "",                       "min_coverage": "60"},
+              {"id": "swot",               "dir": "tool_packages/unique_swot",                 "python": "3.12", "install_args": "",               "test_args": "",                       "min_coverage": "60"},
+              {"id": "follow_up_questions","dir": "postprocessors/unique_follow_up_questions", "python": "3.12", "install_args": "",               "test_args": "",                       "min_coverage": "60"},
+              {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "python": "3.12", "install_args": "",               "test_args": "",                       "min_coverage": "60"},
+              {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "python": "3.12", "install_args": "",               "test_args": "",                       "min_coverage": "60"},
+              {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "python": "3.12", "install_args": "",               "test_args": "",                       "min_coverage": "60"},
+              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12", "install_args": "",               "test_args": "",                       "min_coverage": "60"}
+            ]
+          selected: ${{ inputs.package }}
+          changes: ${{ toJson(steps.filter.outputs) }}

@@ -1,0 +1,21 @@
+# mise configuration for local development
+# https://mise.jdx.dev
+#
+# Install mise:  curl https://mise.run | sh
+# Then run:      mise install
+#
+# Poetry and uv versions are pinned here — they are also the single source of
+# truth used by CI (jdx/mise-action reads this file automatically).
+#
+# Python is NOT pinned globally because it varies per package:
+#   - Most packages: 3.12   →  mise use python@3.12
+#   - unique_sdk:    3.11+  →  cd unique_sdk && mise use python@3.11
+# Run one of the above commands once; mise writes the choice to .mise.local.toml
+# (gitignored) so the repo file stays clean.
+
+[tools]
+poetry = "2.1.3"
+uv = "latest"
+
+[settings]
+experimental = true

@@ -12,11 +12,7 @@ inputs:
   python_version:
     description: 'Python version to use'
     required: false
-    default: '3.11'
-  package_manager_version:
-    description: 'Package manager version to install (e.g., "1.8.3" for Poetry, ignored for uv)'
-    required: false
-    default: '1.8.3'
+    default: '3.12'
   install_args:
     description: 'Additional arguments for install command (e.g., "--with fastapi" for poetry)'
     required: false
@@ -36,10 +32,7 @@ runs:
         package_dir: ${{ inputs.package_dir }}
         package_manager: ${{ inputs.package_manager }}
         python_version: ${{ inputs.python_version }}
-        package_manager_version: ${{ inputs.package_manager_version }}
 
-    # Note: install-package-manager already installs deps via setup-poetry/setup-uv
-    # Only run explicit install if install_args is provided (e.g., --with fastapi)
     - name: Install extra dependencies
       if: inputs.install_args != ''
       shell: bash

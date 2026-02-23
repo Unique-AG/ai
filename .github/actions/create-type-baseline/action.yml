@@ -16,11 +16,7 @@ inputs:
   python_version:
     description: 'Python version to use'
     required: false
-    default: '3.11'
-  package_manager_version:
-    description: 'Package manager version to install (e.g., "1.8.3" for Poetry, ignored for uv)'
-    required: false
-    default: '1.8.3'
+    default: '3.12'
   output_file:
     description: 'Output file for baseline'
     required: false
@@ -36,7 +32,6 @@ runs:
         package_dir: ${{ inputs.package_dir }}
         package_manager: ${{ inputs.package_manager }}
         python_version: ${{ inputs.python_version }}
-        package_manager_version: ${{ inputs.package_manager_version }}
 
     - name: Save script before checkout
       shell: bash
@@ -85,9 +80,6 @@ runs:
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       run: |
-        # Use -c flag for CI mode. The script will checkout the base branch again
-        # (redundant since we're already there), run basedpyright, then checkout back.
-        # Lock files have been discarded, so checkout back should succeed.
         bash /tmp/create-type-baseline.sh \
           -c \
           -r "${{ steps.setup_pm.outputs.run_cmd }}" \

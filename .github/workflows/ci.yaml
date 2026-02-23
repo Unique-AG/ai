@@ -3,33 +3,73 @@ name: CI
 on:
   pull_request:
   merge_group:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to check (empty=auto-detect based on changes, all=all packages)'
+        type: choice
+        options:
+          - ''
+          - all
+          - toolkit
+          - sdk
+          - mcp
+          - orchestrator
+          - web_search
+          - swot
+          - follow_up_questions
+          - stock_ticker
+          - deep_research
+          - internal_search
+          - quartr
+        default: ''
 
 jobs:
+  # Runs once here so the matrix is computed a single time and passed to each
+  # ci-*.yaml below. When those workflows are dispatched standalone they still
+  # run detect-changes themselves via the conditional inside each file.
+  detect-changes:
+    uses: ./.github/workflows/ci-detect-changes.yaml
+    permissions:
+      pull-requests: read
+    with:
+      package: ${{ inputs.package || '' }}
+
   lint:
-    name: Lint
+    needs: detect-changes
     uses: ./.github/workflows/ci-lint.yaml
+    with:
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
 
   test:
-    name: Test
+    needs: detect-changes
     uses: ./.github/workflows/ci-pytest.yaml
+    with:
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
 
-  types:
-    name: Types
+  type-check:
+    needs: detect-changes
     uses: ./.github/workflows/ci-type-check.yaml
     permissions:
       contents: read
       pull-requests: write
+    with:
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
 
   coverage:
-    name: Coverage
+    needs: detect-changes
     uses: ./.github/workflows/ci-coverage.yaml
     permissions:
       contents: read
       pull-requests: write
+    with:
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
 
   deps:
-    name: Dependencies
+    needs: detect-changes
     uses: ./.github/workflows/ci-dependency-checks.yaml
+    with:
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
 
   config:
     name: Config Compatibility Check
@@ -48,7 +88,7 @@ jobs:
 
   status:
     name: Gatekeeper
-    needs: [lint, test, types, coverage, deps, config, changelog, pr-title]
+    needs: [lint, test, type-check, coverage, deps, config, changelog, pr-title]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -59,7 +99,7 @@ jobs:
         env:
           LINT: ${{ needs.lint.result }}
           TEST: ${{ needs.test.result }}
-          TYPES: ${{ needs.types.result }}
+          TYPES: ${{ needs.type-check.result }}
           COVERAGE: ${{ needs.coverage.result }}
           DEPS: ${{ needs.deps.result }}
           CONFIG: ${{ needs.config.result }}
@@ -67,19 +107,19 @@ jobs:
           PR_TITLE: ${{ needs.pr-title.result }}
         run: |
           echo "=== CI Status Summary ==="
-          echo "lint: $LINT"
-          echo "test: $TEST"
-          echo "types: $TYPES"
-          echo "coverage: $COVERAGE"
-          echo "deps: $DEPS"
-          echo "config: $CONFIG"
+          echo "lint:      $LINT"
+          echo "test:      $TEST"
+          echo "types:     $TYPES"
+          echo "coverage:  $COVERAGE"
+          echo "deps:      $DEPS"
+          echo "config:    $CONFIG"
           echo "changelog: $CHANGELOG"
-          echo "pr-title: $PR_TITLE"
+          echo "pr-title:  $PR_TITLE"
           echo "========================="
 
           failed=false
 
-          # Required checks (skipped is OK for when no packages changed or merge_group)
+          # Required checks (skipped is acceptable — e.g. no packages changed, merge_group)
           for check in "lint:$LINT" "test:$TEST" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "changelog:$CHANGELOG" "pr-title:$PR_TITLE"; do
             name="${check%%:*}"
             result="${check##*:}"
@@ -89,9 +129,9 @@ jobs:
             fi
           done
 
-          # Types is continue-on-error, report but don't fail
+          # Types is continue-on-error — report but never fail the gate
           if [[ "$TYPES" == "failure" ]]; then
-            echo "⚠️ types failed (non-blocking)"
+            echo "⚠️  types failed (non-blocking)"
           fi
 
           if [[ "$failed" == "true" ]]; then

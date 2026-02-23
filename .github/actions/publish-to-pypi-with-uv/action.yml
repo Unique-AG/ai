@@ -11,7 +11,7 @@ inputs:
   python_version:
     description: 'Python version to use'
     required: false
-    default: '3.11'
+    default: '3.12'
   check_version:
     description: 'Check if version already exists on PyPI before publishing'
     required: false
@@ -23,16 +23,11 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Install tools via mise
+      uses: jdx/mise-action@v2
       with:
-        python-version: ${{ inputs.python_version }}
-
-    - name: Install uv
-      shell: bash
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        tool_versions: |
+          python ${{ inputs.python_version }}
 
     - name: Install dependencies
       shell: bash
@@ -50,7 +45,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       run: |
-        VERSION=$(python -c "import tomli; f=open('pyproject.toml', 'rb'); data=tomli.load(f); print(data['project']['version'])" 2>/dev/null || python -c "import tomllib; f=open('pyproject.toml', 'rb'); data=tomllib.load(f); print(data['project']['version'])" 2>/dev/null || echo "0.0.0")
+        VERSION=$(python -c "import tomllib; f=open('pyproject.toml', 'rb'); data=tomllib.load(f); print(data['project']['version'])" 2>/dev/null || echo "0.0.0")
         echo "version=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Publish to PyPI (with version check)
@@ -63,7 +58,7 @@ runs:
         if [ "$LATEST_VERSION" = "null" ]; then
           LATEST_VERSION="0.0.0"
         fi
-        
+
         if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
           echo "Version $CURRENT_VERSION already exists on PyPI. Skipping publish."
         else
@@ -76,4 +71,3 @@ runs:
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       run: uv publish --username __token__ --password "${{ inputs.pypi_token }}"
-
