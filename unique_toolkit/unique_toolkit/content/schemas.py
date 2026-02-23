@@ -37,7 +37,7 @@ class ContentChunk(BaseModel):
     )
     text: str = Field(default="", description="The text content of the chunk.")
     order: int = Field(
-        default=0,
+        default=10,
         description="The order of the chunk in the original content. Concatenating the chunks in order will give the original content.",
     )
     key: str | None = Field(
