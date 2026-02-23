@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.03] - 2026-02-23
+- Fix code interpreter tool toggle: auto-enable Responses API and populate default `CodeInterpreterExtendedConfig` when an enabled `code_interpreter` tool is present and model supports Responses API
+- Fix `_build_responses` to filter `tool_names` by `is_enabled` so a disabled tool entry does not block the builder from adding an enabled instance
+
 ## [1.12.02] - 2026-01-05
 - Adjust feature flag
 
