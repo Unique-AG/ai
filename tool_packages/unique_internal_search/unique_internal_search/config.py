@@ -8,6 +8,7 @@ from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
 )
+from unique_toolkit._common.config_checker import register_config
 from unique_toolkit._common.feature_flags.schema import (
     FeatureExtendedSourceSerialization,
 )
@@ -45,6 +46,7 @@ def _search_limit_factory(data: dict[str, Any]) -> int:
     )
 
 
+@register_config()
 class InternalSearchConfig(BaseToolConfig):
     search_type: ContentSearchType = Field(
         default=ContentSearchType.COMBINED,
