@@ -59,7 +59,7 @@ def register_config(name: str | None = None):
             ...
     """
 
-    def decorator(cls: type[BaseModel]) -> type[BaseModel]:
+    def decorator[T: BaseModel](cls: type[T]) -> type[T]:
         config_name = name or cls.__name__
         _GLOBAL_EXPLICIT_REGISTRY[config_name] = cls
         logger.debug(

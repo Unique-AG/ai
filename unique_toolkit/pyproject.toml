@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "1.46.13"
+version = "1.47.0"
 description = ""
 authors = [
     "Cedric Klinkert <cedric.klinkert@unique.ch>",
@@ -102,7 +102,7 @@ extend_exclude = ["docs", "tests", "unique_toolkit/.*/test", "unique_toolkit/.*/
 DEP004 = ["langchain_openai", "langchain_core"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 exclude = [".venv", "docs"]
 
 
@@ -110,6 +110,7 @@ exclude = [".venv", "docs"]
 extend-select = ["I"]
 
 [tool.basedpyright]
+pythonVersion = "3.12"
 typeCheckingMode = "standard"
 include = ["unique_toolkit"]
 exclude = ["**/tests/**", "**/test_*.py"]

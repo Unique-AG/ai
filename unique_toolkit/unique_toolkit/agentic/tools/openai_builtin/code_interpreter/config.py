@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from pydantic import Field
 from pydantic.json_schema import SkipJsonSchema
 
@@ -5,6 +7,12 @@ from unique_toolkit._common.config_checker import register_config
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInToolName,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
+    ShowExecutedCodePostprocessorConfig,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files import (
+    DisplayCodeInterpreterFilesPostProcessorConfig,
 )
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
@@ -82,6 +90,34 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
     )
 
 
+@register_config()
+class CodeInterpreterExtendedConfig(BaseToolConfig):
+    generated_files_config: DisplayCodeInterpreterFilesPostProcessorConfig = Field(
+        default=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        title="Generated files config",
+        description="Display config for generated files",
+    )
+
+    executed_code_display_config: (
+        Annotated[
+            ShowExecutedCodePostprocessorConfig,
+            Field(title="Active"),
+        ]
+        | Annotated[
+            None,
+            Field(title="Deactivated", description="None"),
+        ]
+    ) = Field(
+        default=ShowExecutedCodePostprocessorConfig(),
+        description="If active, generated code will be prepended to the LLM answer",
+    )
+
+    tool_config: OpenAICodeInterpreterConfig = Field(
+        default=OpenAICodeInterpreterConfig(),
+        title="Tool config",
+    )
+
+
 ToolFactory.register_tool_config(
-    OpenAIBuiltInToolName.CODE_INTERPRETER, OpenAICodeInterpreterConfig
+    OpenAIBuiltInToolName.CODE_INTERPRETER, CodeInterpreterExtendedConfig
 )
