@@ -202,6 +202,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 DRY_VER=$(get_version "test_dry")
 [ "$DRY_VER" = "1.0.0" ] && pass "Dry run: version unchanged" || fail "Dry run" "got $DRY_VER"
 
+# --- Test: missing boundary marker (should fail) ---
+
+setup_package "test_no_boundary" "1.0.0" "# Changelog
+
+## [1.0.0] - 2026-01-01
+- Init"
+
+if (cd "$TMPDIR" && "$BUMP_SCRIPT" test_no_boundary 2>/dev/null); then
+    fail "Missing boundary" "expected failure but script succeeded"
+else
+    pass "Missing boundary: script fails"
+fi
+NBOUND_VER=$(get_version "test_no_boundary")
+[ "$NBOUND_VER" = "1.0.0" ] && pass "Missing boundary: version unchanged" || fail "Missing boundary version" "got $NBOUND_VER"
+
+# --- Test: duplicate boundary markers (should fail) ---
+
+setup_package "test_dup_boundary" "1.0.0" "# Changelog
+
++ 2026-02-24
+- A change
+
+<!-- CHANGELOG-BOUNDARY -->
+
+## [1.0.0] - 2026-01-01
+- Init
+
+<!-- CHANGELOG-BOUNDARY -->"
+
+if (cd "$TMPDIR" && "$BUMP_SCRIPT" test_dup_boundary 2>/dev/null); then
+    fail "Duplicate boundary" "expected failure but script succeeded"
+else
+    pass "Duplicate boundary: script fails"
+fi
+DUP_VER=$(get_version "test_dup_boundary")
+[ "$DUP_VER" = "1.0.0" ] && pass "Duplicate boundary: version unchanged" || fail "Duplicate boundary version" "got $DUP_VER"
+
+# --- Test: staging with bump indicator but no changes (should fail) ---
+
+setup_package "test_no_changes" "1.0.0" "# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
++ 2026-02-24
+
+<!-- CHANGELOG-BOUNDARY -->
+
+## [1.0.0] - 2026-01-01
+- Init"
+
+if (cd "$TMPDIR" && "$BUMP_SCRIPT" test_no_changes 2>/dev/null); then
+    fail "Bump without changes" "expected failure but script succeeded"
+else
+    pass "Bump without changes: script fails"
+fi
+
 # --- Summary ---
 
 echo ""

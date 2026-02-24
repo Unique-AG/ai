@@ -185,19 +185,56 @@ if ! grep -qF "$BOUNDARY_MARKER" "$CHANGELOG"; then
 fi
 print_success "Boundary marker present"
 
-# --- validate staging section has bump indicators ---
+# --- validate no duplicate boundary markers ---
+
+BOUNDARY_COUNT=$(grep -cF "$BOUNDARY_MARKER" "$CHANGELOG")
+if [ "$BOUNDARY_COUNT" -gt 1 ]; then
+    print_error "Found $BOUNDARY_COUNT boundary markers in CHANGELOG.md (expected exactly 1)"
+    echo "Remove the duplicate <!-- CHANGELOG-BOUNDARY --> markers."
+    exit 1
+fi
+print_success "Single boundary marker"
+
+# --- extract staging section ---
 
 BOUNDARY_LINE=$(grep -nF "$BOUNDARY_MARKER" "$CHANGELOG" | head -1 | cut -d: -f1)
 STAGING=$(head -n "$((BOUNDARY_LINE - 1))" "$CHANGELOG")
 
+# --- reject version headers in staging area (old format used by mistake) ---
+
+if echo "$STAGING" | grep -qE '^## \[[0-9]+\.[0-9]+'; then
+    print_error "Found a version header (## [X.Y.Z]) in the staging section"
+    echo ""
+    echo "Version headers are now set automatically by CI."
+    echo "Replace the '## [X.Y.Z] - date' line with a bump indicator:"
+    echo "  + $(date +%Y-%m-%d)     <- patch bump"
+    echo "  ++ $(date +%Y-%m-%d)    <- minor bump"
+    echo "  +++ $(date +%Y-%m-%d)   <- major bump"
+    exit 1
+fi
+print_success "No version headers in staging area"
+
+# --- validate staging section has bump indicators with correct format ---
+
 FOUND_BUMP=false
+BUMP_NAMES=( "" "patch" "minor" "major" )
+
 while IFS= read -r line; do
     if [[ "$line" =~ ^(\+{1,3})[[:space:]] ]]; then
-        FOUND_BUMP=true
         pluses="${BASH_REMATCH[1]}"
         level=${#pluses}
-        BUMP_NAMES=( "" "patch" "minor" "major" )
-        print_info "Found bump indicator: ${BUMP_NAMES[$level]}"
+
+        # Validate the date format: +{1,3} YYYY-MM-DD
+        if ! [[ "$line" =~ ^(\+{1,3})[[:space:]]+[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]]*$ ]]; then
+            print_error "Malformed bump indicator line: $line"
+            echo ""
+            echo "Expected format: ${pluses} YYYY-MM-DD"
+            echo "Example: ${pluses} $(date +%Y-%m-%d)"
+            exit 1
+        fi
+
+        FOUND_BUMP=true
+        print_info "Found bump indicator: ${BUMP_NAMES[$level]} ($line)"
     fi
 done <<< "$STAGING"
 
@@ -210,7 +247,7 @@ if [ "$FOUND_BUMP" = false ]; then
     echo "  +++ $(date +%Y-%m-%d)   <- major bump"
     exit 1
 fi
-print_success "Valid bump indicator found"
+print_success "Valid bump indicator(s) found"
 
 # --- validate change descriptions exist ---
 
@@ -228,6 +265,31 @@ if [ "$HAS_CHANGES" = false ]; then
     exit 1
 fi
 print_success "Change descriptions present"
+
+# --- reject unrecognized lines in staging (catch formatting mistakes) ---
+
+while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    # Allow: header boilerplate, bump indicators, change descriptions, sub-items, section headings
+    [[ "$line" =~ ^#\  ]] && continue
+    [[ "$line" =~ ^All\ notable ]] && continue
+    [[ "$line" =~ ^The\ format\ is ]] && continue
+    [[ "$line" =~ ^and\ this\ project ]] && continue
+    [[ "$line" =~ ^(\+{1,3})[[:space:]] ]] && continue
+    [[ "$line" =~ ^-[[:space:]] ]] && continue
+    [[ "$line" =~ ^[[:space:]]+-[[:space:]] ]] && continue
+    [[ "$line" =~ ^[[:space:]] ]] && continue
+    [[ "$line" =~ ^### ]] && continue
+
+    print_error "Unrecognized line in staging section: $line"
+    echo ""
+    echo "The staging section should only contain:"
+    echo "  - Bump indicators: + YYYY-MM-DD / ++ YYYY-MM-DD / +++ YYYY-MM-DD"
+    echo "  - Change descriptions: - Your change here"
+    echo "  - Sub-section headings: ### Added / ### Fixed / etc."
+    exit 1
+done <<< "$STAGING"
+print_success "Staging section format is clean"
 
 # --- warn if pyproject.toml version was manually changed ---
 

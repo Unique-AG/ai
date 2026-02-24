@@ -106,8 +106,16 @@ print_info "Current version: $CURRENT_VERSION"
 # --- split changelog at boundary ---
 
 if ! grep -qF "$BOUNDARY_MARKER" "$CHANGELOG"; then
-    print_info "No boundary marker found in $CHANGELOG — nothing to do"
-    exit 0
+    print_error "No boundary marker found in $CHANGELOG"
+    echo "Expected marker: $BOUNDARY_MARKER"
+    echo "Run migrate-changelogs.sh or add the marker manually."
+    exit 1
+fi
+
+BOUNDARY_COUNT=$(grep -cF "$BOUNDARY_MARKER" "$CHANGELOG")
+if [ "$BOUNDARY_COUNT" -gt 1 ]; then
+    print_error "Found $BOUNDARY_COUNT boundary markers in $CHANGELOG (expected exactly 1)"
+    exit 1
 fi
 
 BOUNDARY_LINE=$(grep -nF "$BOUNDARY_MARKER" "$CHANGELOG" | head -1 | cut -d: -f1)
