@@ -78,8 +78,8 @@ class ToolBuildConfig(BaseModel):
     ) -> Any:
         """Validate and resolve tool configuration based on tool type and name.
 
-        Disabled tools skip validation entirely (Requirement 1).
-        Enabled tools that fail validation are demoted to disabled (Requirement 2).
+        Disabled tools skip validation entirely.
+        Enabled tools that fail validation are demoted to disabled.
         """
         if not isinstance(value, dict):
             return value

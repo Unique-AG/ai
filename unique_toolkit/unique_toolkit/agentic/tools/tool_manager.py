@@ -130,7 +130,9 @@ class _ToolManager(Generic[_ApiMode]):
         self._internal_tools = []
         safe_executor = SafeTaskExecutor(logger=self._logger)
         for t in tool_configs:
-            if t.name in registered_tool_names or t.name in OpenAIBuiltInToolName:
+            if t.name in registered_tool_names:  # Skip already handled tools
+                continue
+            if t.name in OpenAIBuiltInToolName:  # Safeguard
                 continue
             if not t.is_enabled:
                 self._logger.info("Skipping disabled tool '%s'", t.name)
