@@ -36,14 +36,14 @@ _ANSWER_SUBSTRINGS_JINJA_TEMPLATE = """
 
 @register_config()
 class SubAgentDisplayConfig(BaseModel):
-    model_config = get_configuration_dict()
+    model_config = get_configuration_dict(extra="allow")
 
     mode: SubAgentResponseDisplayMode = Field(
-        default=SubAgentResponseDisplayMode.HIDDEN,
+        default=SubAgentResponseDisplayMode.DETAILS_CLOSED,
         description="Controls how to display the sub agent response.",
     )
     remove_from_history: bool = Field(
-        default=True,
+        default=False,
         description="If set, sub agent responses will be removed from the history on subsequent calls to the assistant.",
     )
     add_quote_border: bool = Field(
@@ -73,8 +73,4 @@ class SubAgentDisplayConfig(BaseModel):
     answer_substrings_config: list[SubAgentAnswerSubstringConfig] = Field(
         default=[],
         description="If set, only parts of the answer matching the provided regular expressions will be displayed.",
-    )
-    answer_substrings_jinja_template: str = Field(
-        default=_ANSWER_SUBSTRINGS_JINJA_TEMPLATE,
-        description="The template to use in order to format the different answer substrings, if any.",
     )
