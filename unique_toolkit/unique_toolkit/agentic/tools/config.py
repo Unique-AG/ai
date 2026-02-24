@@ -1,3 +1,4 @@
+import logging
 from enum import StrEnum
 from typing import Annotated, Any
 
@@ -12,6 +13,8 @@ from pydantic import (
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
+
+logger = logging.getLogger(__name__)
 
 
 class ToolIcon(StrEnum):
@@ -73,8 +76,18 @@ class ToolBuildConfig(BaseModel):
         value: Any,
         info: ValidationInfo,
     ) -> Any:
-        """Check the given values for."""
+        """Validate and resolve tool configuration based on tool type and name.
+
+        Disabled tools skip validation entirely (Requirement 1).
+        Enabled tools that fail validation are demoted to disabled (Requirement 2).
+        """
         if not isinstance(value, dict):
+            return value
+
+        if not value.get("is_enabled", True):
+            configuration = value.get("configuration", {})
+            if isinstance(configuration, dict):
+                value["configuration"] = BaseToolConfig()
             return value
 
         is_mcp_tool = value.get("mcp_source_id", "") != ""
@@ -89,8 +102,6 @@ class ToolBuildConfig(BaseModel):
         ):
             return value
         if is_mcp_tool:
-            # For MCP tools, skip ToolFactory validation
-            # Configuration can remain as a dict
             return value
 
         is_sub_agent_tool = (
@@ -99,27 +110,39 @@ class ToolBuildConfig(BaseModel):
 
         configuration = value.get("configuration", {})
 
-        if is_sub_agent_tool:
-            from unique_toolkit.agentic.tools.a2a import ExtendedSubAgentToolConfig
+        try:
+            if is_sub_agent_tool:
+                from unique_toolkit.agentic.tools.a2a import (
+                    ExtendedSubAgentToolConfig,
+                )
 
-            config = ExtendedSubAgentToolConfig.model_validate(configuration)
-        elif isinstance(configuration, dict):
-            # Local import to avoid circular import at module import time
-            from unique_toolkit.agentic.tools.factory import ToolFactory
+                config = ExtendedSubAgentToolConfig.model_validate(configuration)
+            elif isinstance(configuration, dict):
+                from unique_toolkit.agentic.tools.factory import ToolFactory
 
-            config = ToolFactory.build_tool_config(
-                value["name"],
-                **configuration,
+                config = ToolFactory.build_tool_config(
+                    value["name"],
+                    **configuration,
+                )
+            else:
+                from unique_toolkit.agentic.tools.factory import ToolFactory
+
+                assert isinstance(
+                    configuration,
+                    ToolFactory.tool_config_map[value["name"]],  # type: ignore
+                )
+                config = configuration
+        except Exception:
+            tool_name = value.get("name", "<unknown>")
+            logger.warning(
+                "Tool '%s' has invalid configuration and will be disabled.",
+                tool_name,
+                exc_info=True,
             )
-        else:
-            # Check that the type of config matches the tool name
-            from unique_toolkit.agentic.tools.factory import ToolFactory
+            value["is_enabled"] = False
+            value["configuration"] = BaseToolConfig()
+            return value
 
-            assert isinstance(
-                configuration,
-                ToolFactory.tool_config_map[value["name"]],  # type: ignore
-            )
-            config = configuration
         value["configuration"] = config
         return value
 

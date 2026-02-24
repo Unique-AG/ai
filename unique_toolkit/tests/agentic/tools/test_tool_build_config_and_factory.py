@@ -297,31 +297,28 @@ class TestToolBuildConfigAndFactory:
             ToolFactory.build_tool("unregistered_tool", None)
 
     def test_tool_build_config_validation_with_unregistered_tool(self):
-        """Test ToolBuildConfig validation with unregistered tool."""
-        # Try to create config for unregistered tool
+        """Test ToolBuildConfig marks unregistered tool as disabled."""
         config_data = {
             "name": "unregistered_tool",
             "configuration": {"test_param": "test"},
         }
 
-        # This should raise an error during validation
-        with pytest.raises((ValueError, KeyError)):
-            ToolBuildConfig(**config_data)
+        config = ToolBuildConfig(**config_data)
+        assert config.is_enabled is False
+        assert isinstance(config.configuration, BaseToolConfig)
 
     def test_tool_build_config_with_invalid_configuration_type(self):
-        """Test ToolBuildConfig with invalid configuration type."""
-        # Register the tool
+        """Test ToolBuildConfig marks tool with invalid config type as disabled."""
         ToolFactory.register_tool(TestTool, TestToolConfig)
 
-        # Create config with wrong configuration type
         config_data = {
             "name": "test_tool",
-            "configuration": "invalid_config_type",  # Should be dict or TestToolConfig
+            "configuration": "invalid_config_type",
         }
 
-        # This should raise an error during validation
-        with pytest.raises((TypeError, ValueError, AssertionError)):
-            ToolBuildConfig(**config_data)
+        config = ToolBuildConfig(**config_data)
+        assert config.is_enabled is False
+        assert isinstance(config.configuration, BaseToolConfig)
 
     def test_tool_build_config_model_rebuild(self):
         """Test model rebuild functionality."""
