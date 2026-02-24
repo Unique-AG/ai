@@ -15,7 +15,7 @@ from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 class ChunkRelevancySortConfig(BaseModel):
     model_config = get_configuration_dict()
     enabled: bool = Field(
-        default=False,
+        default=True,
         description="Whether to enable the chunk relevancy sort.",
     )
     relevancy_levels_to_consider: list[str] = Field(
