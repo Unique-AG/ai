@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_six"
-# Auto-managed by CI — do not change manually. Update CHANGELOG.md instead.
+# Version auto-managed by CI — do not change manually. Update CHANGELOG.md instead.
 version = "0.1.2"
 description = "Unique Six API client"
 authors = [

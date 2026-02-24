@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique-swot"
-# Auto-managed by CI — do not change manually. Update CHANGELOG.md instead.
+# Version auto-managed by CI — do not change manually. Update CHANGELOG.md instead.
 version = "1.2.4"
 description = "Unique Swot package is a tool that for conducting a swot analysis based on internal and external documents"
 authors = ["Rami Azouz <rami.ext@unique.ch>", "Fabian Schläpfer <fabian.schlaepfer@unique.ai>"]

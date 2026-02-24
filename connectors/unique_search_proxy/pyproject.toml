@@ -1,6 +1,6 @@
 [project]
 name = "core"
-# Auto-managed by CI — do not change manually. Update CHANGELOG.md instead.
+# Version auto-managed by CI — do not change manually. Update CHANGELOG.md instead.
 version = "0.1.0"
 description = "Web Search Proxy implementation"
 authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]

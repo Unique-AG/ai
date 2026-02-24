@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_internal_search"
-# Auto-managed by CI — do not change manually. Update CHANGELOG.md instead.
+# Version auto-managed by CI — do not change manually. Update CHANGELOG.md instead.
 version = "1.2.26"
 description = ""
 authors = [

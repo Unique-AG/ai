@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_stock_ticker"
-# Auto-managed by CI — do not change manually. Update CHANGELOG.md instead.
+# Version auto-managed by CI — do not change manually. Update CHANGELOG.md instead.
 version = "1.1.0"
 description = ""
 authors = [

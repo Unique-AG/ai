@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_quartr"
-# Auto-managed by CI — do not change manually. Update CHANGELOG.md instead.
+# Version auto-managed by CI — do not change manually. Update CHANGELOG.md instead.
 version = "0.2.5"
 description = "Unique Quartr API client"
 authors = [
