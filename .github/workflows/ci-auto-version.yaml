@@ -1,0 +1,95 @@
+name: "[CI] Auto Version Bump"
+
+# Runs on merge to main. Detects packages with changelog staging entries,
+# bumps their versions, commits the result, and triggers publishing.
+#
+# This replaces manual version bumping — developers only write changelog
+# entries with bump indicators (+, ++, +++).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/CHANGELOG.md'
+
+jobs:
+  version-bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Detect and bump versions
+        id: bump
+        run: |
+          BUMPED_PACKAGES=""
+          BOUNDARY_MARKER="<!-- CHANGELOG-BOUNDARY -->"
+
+          PACKAGE_DIRS=(
+            unique_sdk
+            unique_toolkit
+            unique_mcp
+            unique_orchestrator
+            tool_packages/unique_web_search
+            tool_packages/unique_swot
+            tool_packages/unique_deep_research
+            tool_packages/unique_internal_search
+            postprocessors/unique_follow_up_questions
+            postprocessors/unique_stock_ticker
+            connectors/unique_quartr
+            connectors/unique_six
+            connectors/unique_search_proxy
+          )
+
+          for pkg in "${PACKAGE_DIRS[@]}"; do
+            CHANGELOG="$pkg/CHANGELOG.md"
+
+            [ ! -f "$CHANGELOG" ] && continue
+            grep -qF "$BOUNDARY_MARKER" "$CHANGELOG" || continue
+
+            BOUNDARY_LINE=$(grep -nF "$BOUNDARY_MARKER" "$CHANGELOG" | head -1 | cut -d: -f1)
+            STAGING=$(head -n "$((BOUNDARY_LINE - 1))" "$CHANGELOG")
+
+            if echo "$STAGING" | grep -qE '^\+{1,3}\s'; then
+              echo "::group::Bumping $pkg"
+              ./.github/scripts/auto-version-bump.sh "$pkg"
+              echo "::endgroup::"
+              BUMPED_PACKAGES="$BUMPED_PACKAGES $pkg"
+            fi
+          done
+
+          if [ -n "$BUMPED_PACKAGES" ]; then
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+            echo "packages=$BUMPED_PACKAGES" >> "$GITHUB_OUTPUT"
+          else
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit version bumps
+        if: steps.bump.outputs.bumped == 'true'
+        run: |
+          git add -A
+          git commit -m "chore: auto-bump versions [skip ci]
+
+          Packages: ${{ steps.bump.outputs.packages }}"
+          git push origin main
+
+      - name: Trigger publish
+        if: steps.bump.outputs.bumped == 'true'
+        run: |
+          echo "Version bump committed. The publish workflow will be triggered"
+          echo "by the next push event (from the version bump commit), but since"
+          echo "the commit message contains [skip ci], we trigger publish explicitly."
+          gh workflow run ci-publish.yaml --ref main -f package=all
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
