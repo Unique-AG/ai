@@ -43,16 +43,21 @@ def test_code_interpreter_extended_config__has_defaults__when_constructed_with_n
 
 
 @pytest.mark.ai
-def test_code_interpreter_extended_config__accepts_none_executed_code_display__for_deactivated() -> (
+def test_code_interpreter_extended_config__defaults_executed_code_display__when_none_passed() -> (
     None
 ):
     """
-    Purpose: Verify executed_code_display_config can be None to deactivate code display.
-    Why this matters: Allows disabling executed code prepending without changing other behavior.
-    Setup summary: Construct with executed_code_display_config=None; assert it is None.
+    Purpose: Verify executed_code_display_config falls back to default when None is passed.
+    Why this matters: The field validator converts None to the default config, preventing
+    accidental deactivation (e.g. from JSON deserialization of a null value).
+    Setup summary: Construct with executed_code_display_config=None; assert it gets the default.
     """
     # Act
     config = CodeInterpreterExtendedConfig(executed_code_display_config=None)
 
     # Assert
-    assert config.executed_code_display_config is None
+    assert isinstance(
+        config.executed_code_display_config, ShowExecutedCodePostprocessorConfig
+    )
+    assert config.executed_code_display_config.remove_from_history is True
+    assert config.executed_code_display_config.sleep_time_before_display == 0.2
