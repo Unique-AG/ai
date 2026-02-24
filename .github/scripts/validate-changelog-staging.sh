@@ -270,7 +270,7 @@ print_success "Change descriptions present"
 
 while IFS= read -r line; do
     [[ -z "$line" ]] && continue
-    # Allow: header boilerplate, bump indicators, change descriptions, sub-items, section headings
+    # Allow: header boilerplate, bump indicators, change descriptions, sub-items, section headings, HTML comments
     [[ "$line" =~ ^#\  ]] && continue
     [[ "$line" =~ ^All\ notable ]] && continue
     [[ "$line" =~ ^The\ format\ is ]] && continue
@@ -280,6 +280,8 @@ while IFS= read -r line; do
     [[ "$line" =~ ^[[:space:]]+-[[:space:]] ]] && continue
     [[ "$line" =~ ^[[:space:]] ]] && continue
     [[ "$line" =~ ^### ]] && continue
+    [[ "$line" =~ ^\<\!-- ]] && continue
+    [[ "$line" =~ --\>$ ]] && continue
 
     print_error "Unrecognized line in staging section: $line"
     echo ""

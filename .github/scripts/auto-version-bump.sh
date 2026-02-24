@@ -164,15 +164,30 @@ print_info "New version: $NEW_VERSION"
 TODAY=$(date +%Y-%m-%d)
 ENTRY_LINES=()
 
+IN_HTML_COMMENT=false
 while IFS= read -r line; do
     # skip blank lines and bump-indicator lines
     [[ -z "$line" ]] && continue
     [[ "$line" =~ ^(\+{1,3})[[:space:]] ]] && continue
-    # skip the header boilerplate (lines starting with # or containing "Changelog")
+    # skip the header boilerplate
     [[ "$line" =~ ^#\  ]] && continue
     [[ "$line" =~ ^All\ notable ]] && continue
     [[ "$line" =~ ^The\ format\ is ]] && continue
     [[ "$line" =~ ^and\ this\ project ]] && continue
+    # skip HTML comments (instruction block and other comments)
+    if [[ "$line" =~ ^\<\!-- ]]; then
+        if [[ "$line" =~ --\>$ ]]; then
+            continue
+        fi
+        IN_HTML_COMMENT=true
+        continue
+    fi
+    if [[ "$IN_HTML_COMMENT" == true ]]; then
+        if [[ "$line" =~ --\>$ ]]; then
+            IN_HTML_COMMENT=false
+        fi
+        continue
+    fi
     ENTRY_LINES+=("$line")
 done <<< "$STAGING"
 

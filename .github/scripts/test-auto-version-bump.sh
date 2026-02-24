@@ -261,6 +261,42 @@ else
     pass "Bump without changes: script fails"
 fi
 
+# --- Test: instruction comment block is ignored during bump ---
+
+setup_package "test_instructions" "2.0.0" "# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+<!-- Add your changelog entry below. Use a bump indicator to specify the version increment:
+     +   YYYY-MM-DD  → patch (bug fixes, small changes)
+     ++  YYYY-MM-DD  → minor (new features, backwards-compatible)
+     +++ YYYY-MM-DD  → major (breaking changes)
+
+  Example:
+     + 2026-02-25
+     - Fix token counting for streaming responses
+
+  CI will automatically set the version number on merge. Do NOT edit the version in pyproject.toml. -->
+
++ 2026-02-24
+- Actual change that should appear
+
+<!-- CHANGELOG-BOUNDARY -->
+
+## [2.0.0] - 2026-02-01
+- Old entry"
+
+(cd "$TMPDIR" && "$BUMP_SCRIPT" test_instructions)
+NEW_VER=$(get_version "test_instructions")
+[ "$NEW_VER" = "2.0.1" ] && pass "Instruction block: version bumped to 2.0.1" || fail "Instruction block version" "got $NEW_VER"
+
+CONTENT=$(cat "$TMPDIR/test_instructions/CHANGELOG.md")
+echo "$CONTENT" | grep -q "Actual change" && pass "Instruction block: real change preserved" || fail "Instruction block" "missing real change"
+! echo "$CONTENT" | grep -q "Add your changelog entry" && pass "Instruction block: instructions not in version section" || fail "Instruction block" "instructions leaked into version section"
+
 # --- Summary ---
 
 echo ""
