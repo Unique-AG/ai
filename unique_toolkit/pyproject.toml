@@ -1,5 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
+# Auto-managed by CI — do not change manually. Update CHANGELOG.md instead.
 version = "1.47.5"
 description = ""
 authors = [

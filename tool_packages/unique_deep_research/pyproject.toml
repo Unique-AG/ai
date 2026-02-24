@@ -1,5 +1,6 @@
 [tool.poetry]
 name = "unique_deep_research"
+# Auto-managed by CI — do not change manually. Update CHANGELOG.md instead.
 version = "3.4.1"
 description = "Deep Research Tool for complex research tasks"
 authors = [
