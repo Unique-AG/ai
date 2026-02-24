@@ -95,4 +95,4 @@ az webapp restart -n onenote-mcp-app -g rg-lab-demo-001-onenote-mcp
 
 ## Connect to Unique Space
 
-After successfull deployment your MCP server is ready to be added to Unique AI using the link you see in Azure + /sse
+After successfull deployment your MCP server is ready to be added to Unique AI using the link you see in Azure + /sse 
