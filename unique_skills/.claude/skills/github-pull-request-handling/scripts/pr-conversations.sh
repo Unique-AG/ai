@@ -60,14 +60,19 @@ query($owner: String!, $repo: String!, $pr: Int!, $cursor: String) {
 }'
 
 THREADS="[]"
-CURSOR="null"
+CURSOR=""
 
 while true; do
+  CURSOR_ARGS=()
+  if [ -n "$CURSOR" ]; then
+    CURSOR_ARGS=(-F cursor="$CURSOR")
+  fi
+
   PAGE=$(gh api graphql \
     -F owner="$OWNER" \
     -F repo="$REPO" \
     -F pr="$PR" \
-    -F cursor="$CURSOR" \
+    "${CURSOR_ARGS[@]}" \
     -f query="$QUERY")
 
   THREADS=$(echo "$THREADS" "$PAGE" | jq -s '
