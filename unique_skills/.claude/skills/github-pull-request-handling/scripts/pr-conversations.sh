@@ -130,16 +130,16 @@ echo "$THREADS" | jq -r --argjson show_all "$SHOW_ALL" '
       id="${rest%%__*}"; rest="${rest#*__}"
       author="${rest%%__*}"; rest="${rest#*__}"
       body="$rest"
-      printf "  ${BOLD}●${RESET} ${DIM}${id}${RESET}  ${MAGENTA}@${author}${RESET}\n"
-      printf "    ${WHITE}${body}${RESET}\n"
+      printf "  ${BOLD}●${RESET} ${DIM}%s${RESET}  ${MAGENTA}@%s${RESET}\n" "$id" "$author"
+      printf "    ${WHITE}%s${RESET}\n" "$body"
       ;;
     __COMMENT__reply__*)
       rest="${line#__COMMENT__reply__}"
       id="${rest%%__*}"; rest="${rest#*__}"
       author="${rest%%__*}"; rest="${rest#*__}"
       body="$rest"
-      printf "  ${DIM}└${RESET} ${DIM}${id}${RESET}  ${BLUE}@${author}${RESET}\n"
-      printf "    ${WHITE}${body}${RESET}\n"
+      printf "  ${DIM}└${RESET} ${DIM}%s${RESET}  ${BLUE}@%s${RESET}\n" "$id" "$author"
+      printf "    ${WHITE}%s${RESET}\n" "$body"
       ;;
     __BLANK__)
       ;;
