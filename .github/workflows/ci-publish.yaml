@@ -63,7 +63,7 @@ jobs:
         run: |
           BUMPED_PACKAGES=""
           VERSION_SUMMARY=""
-          BOUNDARY_MARKER="<!-- CHANGELOG-BOUNDARY -->"
+          BOUNDARY_MARKER="<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->"
 
           PACKAGE_DIRS=(
             unique_sdk

@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   CI will automatically set the version number on merge. Do NOT edit the version in pyproject.toml. -->
 
-<!-- CHANGELOG-BOUNDARY -->
+<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->
 
 ## [3.4.1] - 2026-02-23
 - Add flag-based cancellation support via `CancellationWatcher`

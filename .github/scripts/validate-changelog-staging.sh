@@ -9,7 +9,7 @@
 set -e
 
 SCRIPT_NAME=$(basename "$0")
-BOUNDARY_MARKER="<!-- CHANGELOG-BOUNDARY -->"
+BOUNDARY_MARKER="<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -190,7 +190,7 @@ print_success "Boundary marker present"
 BOUNDARY_COUNT=$(grep -cF "$BOUNDARY_MARKER" "$CHANGELOG")
 if [ "$BOUNDARY_COUNT" -gt 1 ]; then
     print_error "Found $BOUNDARY_COUNT boundary markers in CHANGELOG.md (expected exactly 1)"
-    echo "Remove the duplicate <!-- CHANGELOG-BOUNDARY --> markers."
+    echo "Remove the duplicate <!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY --> markers."
     exit 1
 fi
 print_success "Single boundary marker"

@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   CI will automatically set the version number on merge. Do NOT edit the version in pyproject.toml. -->
 
-<!-- CHANGELOG-BOUNDARY -->
+<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->
 
 ## [1.1.0] - 2026-01-16
 - Add option to validate plot start_date as timedelta

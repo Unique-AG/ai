@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   CI will automatically set the version number on merge. Do NOT edit the version in pyproject.toml. -->
 
-<!-- CHANGELOG-BOUNDARY -->
+<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->
 
 ## [1.2.26] - 2026-02-17
 - Reverting fix the behavior so that when no knowledge base files are selected, only uploaded files are considered, rather than searching across all files.

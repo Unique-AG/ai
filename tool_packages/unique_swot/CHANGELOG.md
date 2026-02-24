@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   CI will automatically set the version number on merge. Do NOT edit the version in pyproject.toml. -->
 
-<!-- CHANGELOG-BOUNDARY -->
+<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->
 
 ## [1.2.4] - 2026-02-10
 - Migrate token counting in `batch_sequence_generator` to use model-agnostic `LanguageModelInfo.get_encoder()` instead of direct `tiktoken`. Removed `tiktoken` dependency.

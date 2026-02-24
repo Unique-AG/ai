@@ -42,7 +42,7 @@ get_first_version_heading() {
 }
 
 has_boundary() {
-    grep -qF "<!-- CHANGELOG-BOUNDARY -->" "$TMPDIR/$1/CHANGELOG.md"
+    grep -qF "<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->" "$TMPDIR/$1/CHANGELOG.md"
 }
 
 # --- Test: patch bump ---
@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 + 2026-02-24
 - Fix a small bug
 
-<!-- CHANGELOG-BOUNDARY -->
+<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->
 
 ## [1.2.3] - 2026-02-20
 - Previous change"
@@ -83,7 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ++ 2026-02-24
 - Add a new feature
 
-<!-- CHANGELOG-BOUNDARY -->
+<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->
 
 ## [2.5.8] - 2026-02-20
 - Old change"
@@ -104,7 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 +++ 2026-02-24
 - Breaking: completely redesign API
 
-<!-- CHANGELOG-BOUNDARY -->
+<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->
 
 ## [0.9.12] - 2026-02-20
 - Old stuff"
@@ -128,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ++ 2026-02-23
 - New feature from earlier PR
 
-<!-- CHANGELOG-BOUNDARY -->
+<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->
 
 ## [3.1.0] - 2026-02-18
 - Old"
@@ -146,7 +146,7 @@ echo "$CHANGELOG_CONTENT" | grep -q "New feature" && pass "Multi-entry: second c
 
 setup_package "test_noop" "1.0.0" "# Changelog
 
-<!-- CHANGELOG-BOUNDARY -->
+<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->
 
 ## [1.0.0] - 2026-01-01
 - Initial release"
@@ -167,7 +167,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 + 2026-02-24
 - Fix something
 
-<!-- CHANGELOG-BOUNDARY -->
+<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->
 
 ## [0.1.0] - 2026-02-01
 - Init"
@@ -193,7 +193,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 + 2026-02-24
 - A change
 
-<!-- CHANGELOG-BOUNDARY -->
+<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->
 
 ## [1.0.0] - 2026-01-01
 - Init"
@@ -224,12 +224,12 @@ setup_package "test_dup_boundary" "1.0.0" "# Changelog
 + 2026-02-24
 - A change
 
-<!-- CHANGELOG-BOUNDARY -->
+<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->
 
 ## [1.0.0] - 2026-01-01
 - Init
 
-<!-- CHANGELOG-BOUNDARY -->"
+<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->"
 
 if (cd "$TMPDIR" && "$BUMP_SCRIPT" test_dup_boundary 2>/dev/null); then
     fail "Duplicate boundary" "expected failure but script succeeded"
@@ -250,7 +250,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 + 2026-02-24
 
-<!-- CHANGELOG-BOUNDARY -->
+<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->
 
 ## [1.0.0] - 2026-01-01
 - Init"
@@ -284,7 +284,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 + 2026-02-24
 - Actual change that should appear
 
-<!-- CHANGELOG-BOUNDARY -->
+<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->
 
 ## [2.0.0] - 2026-02-01
 - Old entry"

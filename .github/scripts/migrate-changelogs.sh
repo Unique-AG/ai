@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# One-time migration: inserts usage instructions and the <!-- CHANGELOG-BOUNDARY -->
+# One-time migration: inserts usage instructions and the <!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->
 # marker into every CHANGELOG.md in the monorepo, right before the first version heading.
 # Preserves all existing content below.
 
 set -euo pipefail
 
-BOUNDARY_MARKER="<!-- CHANGELOG-BOUNDARY -->"
+BOUNDARY_MARKER="<!-- ADD CHANGELOG ENTRY ABOVE THIS BOUNDARY -->"
 MIGRATED=0
 SKIPPED=0
 
