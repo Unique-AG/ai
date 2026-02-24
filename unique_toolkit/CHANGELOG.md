@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.47.4] - 2026-02-24
+- Extend RJSF tags: add `CustomWidget.custom()` with `CustomWidgetName`, `ObjectWidget.collapsible()`, `SpecialWidget.hidden()`
+- Add RJSF meta tags to `SubAgentToolConfig` text fields (textarea with rows=5 for tool descriptions and format info)
+
 ## [1.47.3] - 2026-02-24
 - Add `mcp_server` name to debug info for analytics
 
