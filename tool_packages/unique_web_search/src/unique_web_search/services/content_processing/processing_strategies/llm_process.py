@@ -1,7 +1,7 @@
 import logging
 from typing import Annotated, Unpack
 
-from pydantic import BaseModel, ConfigDict, Field, create_model
+from pydantic import BaseModel, ConfigDict, Field
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit._common.utils.jinja.render import render_template
@@ -97,25 +97,63 @@ class LLMProcessorResponse(BaseModel):
         description="A comprehensive summary of the page content focused on information relevant to the search query. Preserves key facts, data points, and conclusions.",
     )
 
+    def apply_to_page(self, page: WebSearchResult) -> WebSearchResult:
+        page.snippet = self.snippet
+        page.content = self.summary
+        return page
 
-def get_response_model(sanitize: bool) -> type[LLMProcessorResponse]:
+
+class LLMGuardResponse(LLMProcessorResponse):
+    model_config = ConfigDict(extra="forbid")
+
+    reasoning: str = Field(
+        description=(
+            "A concise, step-by-step account of your GDPR Art. 9 compliance review. "
+            "List every category of sensitive data you identified on the page (e.g. health, religion, sexual orientation), "
+            "name the individuals it pertains to, explain why each item falls under Art. 9, "
+            "and state which redaction tag was applied. "
+            "If no sensitive data was found, explicitly confirm that the page contains no Art. 9 data. "
+            "This field is audited — vague or incomplete reasoning is not acceptable."
+        ),
+    )
+
+    sanitized_snippet: str = Field(
+        description=(
+            "A short, self-contained excerpt (2-3 sentences) capturing the most relevant finding from the page "
+            "in relation to the search query. "
+            "Every piece of GDPR Art. 9 sensitive data — including health conditions, diagnoses, treatments, "
+            "religious or philosophical beliefs, political opinions, sexual orientation, gender identity, "
+            "racial or ethnic origin, trade union membership, genetic data, and biometric data — "
+            "must be replaced inline with the appropriate typed redaction tag "
+            "(e.g. [RedactHealth], [RedactReligiousBelief], [RedactPoliticalOpinion], [RedactSexualOrientation], "
+            "[RedactRacialOrEthnic], [RedactTradeUnion], [RedactGeneticData], [RedactBiometricData]). "
+            "This applies to all individuals mentioned, not only the subject of the search query. "
+            "The surrounding sentence structure must remain intact and readable."
+        ),
+    )
+    sanitized_summary: str = Field(
+        description=(
+            "A comprehensive summary of the page content focused on information relevant to the search query. "
+            "Preserves key facts, data points, dates, statistics, and conclusions — "
+            "except any that constitute GDPR Art. 9 sensitive data, which must be replaced inline with the appropriate "
+            "typed redaction tag (e.g. [RedactHealth], [RedactReligiousBelief], [RedactPoliticalOpinion], "
+            "[RedactSexualOrientation], [RedactRacialOrEthnic], [RedactTradeUnion], [RedactGeneticData], [RedactBiometricData]). "
+            "Applies to all individuals mentioned on the page. "
+            "A less complete summary that is fully sanitized is always preferred over a complete summary containing sensitive data."
+        ),
+    )
+
+    def apply_to_page(self, page: WebSearchResult) -> WebSearchResult:
+        page.snippet = self.sanitized_snippet
+        page.content = self.sanitized_summary
+        return page
+
+
+def get_response_model(
+    sanitize: bool,
+) -> type[LLMProcessorResponse] | type[LLMGuardResponse]:
     if sanitize:
-        return create_model(
-            "SanitizedLLMProcessorResponse",
-            snippet=(
-                str,
-                Field(
-                    description="A short, self-contained excerpt (2-3 sentences) capturing the most relevant finding. GDPR Art. 9 sensitive data must be replaced with the appropriate typed redaction tag (e.g. [RedactHealth], [RedactPoliticalOpinion]) for every individual mentioned.",
-                ),
-            ),
-            summary=(
-                str,
-                Field(
-                    description="A comprehensive summary focused on query-relevant information. GDPR Art. 9 sensitive data must be replaced with the appropriate typed redaction tag (e.g. [RedactHealth], [RedactPoliticalOpinion]) for every individual mentioned.",
-                ),
-            ),
-            __base__=LLMProcessorResponse,
-        )
+        return LLMGuardResponse
 
     return LLMProcessorResponse
 
@@ -189,9 +227,7 @@ class LLMProcess:
 
         if response.choices[0].message.parsed is None:
             raise ValueError("Failed to parse response")
+
         parsed = response_model.model_validate(response.choices[0].message.parsed)
 
-        page.snippet = parsed.snippet
-        page.content = parsed.summary
-
-        return page
+        return parsed.apply_to_page(page)
