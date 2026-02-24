@@ -236,3 +236,10 @@ print_success "Updated $PYPROJECT version to $NEW_VERSION"
 
 echo ""
 print_success "Version bump complete: $CURRENT_VERSION -> $NEW_VERSION (${BUMP_NAMES[$BUMP_LEVEL]})"
+
+# Write to GITHUB_OUTPUT if running in CI (allows the workflow to collect results)
+if [ -n "${GITHUB_OUTPUT:-}" ]; then
+    echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+    echo "old_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+    echo "bump_type=${BUMP_NAMES[$BUMP_LEVEL]}" >> "$GITHUB_OUTPUT"
+fi

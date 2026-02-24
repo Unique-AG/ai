@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
 
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +34,7 @@ jobs:
         id: bump
         run: |
           BUMPED_PACKAGES=""
+          VERSION_SUMMARY=""
           BOUNDARY_MARKER="<!-- CHANGELOG-BOUNDARY -->"
 
           PACKAGE_DIRS=(
@@ -61,16 +63,27 @@ jobs:
             STAGING=$(head -n "$((BOUNDARY_LINE - 1))" "$CHANGELOG")
 
             if echo "$STAGING" | grep -qE '^\+{1,3}\s'; then
+              OLD_VERSION=$(grep -E '^version[[:space:]]*=' "$pkg/pyproject.toml" | head -1 | sed -E 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
+
               echo "::group::Bumping $pkg"
               ./.github/scripts/auto-version-bump.sh "$pkg"
               echo "::endgroup::"
+
+              NEW_VERSION=$(grep -E '^version[[:space:]]*=' "$pkg/pyproject.toml" | head -1 | sed -E 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
               BUMPED_PACKAGES="$BUMPED_PACKAGES $pkg"
+              VERSION_SUMMARY="${VERSION_SUMMARY}| \`${pkg}\` | \`${OLD_VERSION}\` | \`${NEW_VERSION}\` |\n"
             fi
           done
 
           if [ -n "$BUMPED_PACKAGES" ]; then
             echo "bumped=true" >> "$GITHUB_OUTPUT"
             echo "packages=$BUMPED_PACKAGES" >> "$GITHUB_OUTPUT"
+            # Store the summary as a multiline output
+            {
+              echo "version_summary<<SUMMARY_EOF"
+              echo -e "$VERSION_SUMMARY"
+              echo "SUMMARY_EOF"
+            } >> "$GITHUB_OUTPUT"
           else
             echo "bumped=false" >> "$GITHUB_OUTPUT"
           fi
@@ -93,3 +106,40 @@ jobs:
           gh workflow run ci-publish.yaml --ref main -f package=all
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on PR with version info
+        if: steps.bump.outputs.bumped == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION_SUMMARY: ${{ steps.bump.outputs.version_summary }}
+        run: |
+          # Find the PR associated with this merge commit.
+          # Squash-merge messages contain "(#NNN)", merge commits reference the PR too.
+          COMMIT_MSG=$(git log -1 --format='%s' "${{ github.sha }}")
+          PR_NUMBER=$(echo "$COMMIT_MSG" | grep -oE '\(#([0-9]+)\)' | tail -1 | tr -d '(#)')
+
+          if [ -z "$PR_NUMBER" ]; then
+            PR_NUMBER=$(gh pr list --state merged --search "${{ github.sha }}" --json number --jq '.[0].number' 2>/dev/null || echo "")
+          fi
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "Could not determine PR number — skipping comment"
+            exit 0
+          fi
+
+          echo "Posting version summary to PR #$PR_NUMBER"
+
+          COMMENT_BODY=$(cat <<EOF
+          ## Version Bump Summary
+
+          The following versions were published after merging this PR:
+
+          | Package | Previous | New |
+          |---------|----------|-----|
+          ${VERSION_SUMMARY}
+          _Automated by [CI Auto Version Bump](/${{ github.repository }}/actions/runs/${{ github.run_id }})_
+          EOF
+          )
+          COMMENT_BODY=$(echo "$COMMENT_BODY" | sed 's/^          //')
+
+          gh pr comment "$PR_NUMBER" --body "$COMMENT_BODY"
