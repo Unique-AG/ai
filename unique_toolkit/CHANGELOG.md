@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.47.4] - 2026-02-24
+- Handle tool init failures gracefully: skip misconfigured/failing tools instead of crashing the orchestrator (UN-17197)
+
 ## [1.47.3] - 2026-02-24
 - Add `mcp_server` name to debug info for analytics
 

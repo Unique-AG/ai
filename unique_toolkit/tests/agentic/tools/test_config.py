@@ -1082,7 +1082,10 @@ def test_tool_build_config__disables_tool__with_unregistered_name(
     assert config.is_enabled is False
     assert isinstance(config.configuration, BaseToolConfig)
     assert "totally_unknown_tool" in caplog.text
-    assert "invalid configuration" in caplog.text.lower() or "disabled" in caplog.text.lower()
+    assert (
+        "invalid configuration" in caplog.text.lower()
+        or "disabled" in caplog.text.lower()
+    )
 
 
 @pytest.mark.ai
