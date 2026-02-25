@@ -5,18 +5,25 @@ from pathlib import Path
 
 from docxtpl import DocxTemplate
 from markdown_it import MarkdownIt
+from unique_sdk._unique_ql import UQLOperator
 
 from unique_toolkit._common.docx_generator.config import DocxGeneratorConfig
 from unique_toolkit._common.docx_generator.schemas import (
     ContentField,
+    DocxGeneratorResult,
     HeadingField,
     ParagraphField,
     RunField,
     RunsField,
 )
+from unique_toolkit._common.utils.files import FileMimeType
+from unique_toolkit.chat.service import ChatService
+from unique_toolkit.content.schemas import ContentReference
+from unique_toolkit.content.service import ContentService
 
 generator_dir_path = Path(__file__).resolve().parent
 
+_CHAT_FILE_PREFIX_PATTERN = r"Chat_\d{4}-\d{2}-\d{2}_\d{2}:\d{2}_"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -168,18 +175,22 @@ class DocxGeneratorService:
         self,
         subdoc_content: list[HeadingField | ParagraphField | RunsField],
         fields: dict | None = None,
-    ):
+    ) -> bytes | None:
         """
         Generate a docx file from a template with the given content.
 
         Args:
-            subdoc_content (list[HeadingField | ParagraphField | RunsField]): The content to be added to the docx file.
-            fields (dict): Other fields to be added to the docx file. Defaults to None.
+            subdoc_content: The content to be added to the docx file.
+            fields: Other fields to be added to the docx file. Defaults to None.
+
+        Returns:
+            The generated docx file as bytes, or None on error.
         """
         doc = DocxTemplate(io.BytesIO(self.template))
 
         try:
-            content = {}
+            # Seed context with config template_fields (e.g. date, document_title)
+            content = dict(self._config.template_fields)
             content["body"] = ContentField(contents=subdoc_content)
 
             if fields:
@@ -200,6 +211,191 @@ class DocxGeneratorService:
         except Exception as e:
             _LOGGER.error(f"Error generating docx: {e}")
             return None
+
+    def generate_from_template_with_result(
+        self,
+        subdoc_content: list[HeadingField | ParagraphField | RunsField],
+        fields: dict | None = None,
+    ) -> DocxGeneratorResult:
+        """
+        Generate a docx file and return a DocxGeneratorResult wrapper.
+
+        This is a convenience method for callers that previously used the monorepo
+        DocxGeneratorService which returned DocxGeneratorResult directly.
+
+        Args:
+            subdoc_content: The content to be added to the docx file.
+            fields: Other fields to be added to the docx file. Defaults to None.
+
+        Returns:
+            DocxGeneratorResult with success flag and docx bytes.
+        """
+        result = self.generate_from_template(subdoc_content, fields)
+        if result is not None:
+            return DocxGeneratorResult(
+                user_message="ℹ️ Template generated successfully!",
+                docx_object=result,
+                success=True,
+            )
+        return DocxGeneratorResult(
+            user_message="❌ Error generating docx!",
+            docx_object=None,
+            success=False,
+        )
+
+    def upload_and_create_reference(
+        self,
+        *,
+        docx_object: bytes,
+        sequence_number: int,
+        file_name: str,
+        content_service: ContentService,
+        chat_service: ChatService,
+    ) -> ContentReference | None:
+        """
+        Upload a generated DOCX and create a ContentReference for use in chat.
+
+        Uploads to chat if config.upload_to_chat is True, and additionally to
+        a scope if config.upload_scope_id is set. At least one must be configured.
+
+        Args:
+            docx_object: The generated DOCX bytes to upload.
+            sequence_number: The sequence number for the ContentReference.
+            file_name: The original file name (chat prefix will be stripped).
+            content_service: The ContentService to use for uploading.
+            chat_service: The ChatService used to obtain chat_id and message_id.
+
+        Returns:
+            A ContentReference, or None if an error occurs.
+        """
+        try:
+            mime_type = FileMimeType.DOCX.value
+
+            content_name = (
+                re.sub(_CHAT_FILE_PREFIX_PATTERN, "", Path(file_name).stem)
+                + self._config.upload_suffix
+            )
+
+            content_id: str | None = None
+
+            if self._config.upload_to_chat:
+                created = content_service.upload_content_from_bytes(
+                    content=docx_object,
+                    content_name=content_name,
+                    chat_id=chat_service.chat_id,
+                    mime_type=mime_type,
+                    skip_ingestion=self._config.skip_ingestion,
+                )
+                content_id = created.id
+
+            if self._config.upload_scope_id:
+                created = content_service.upload_content_from_bytes(
+                    content=docx_object,
+                    content_name=content_name,
+                    scope_id=self._config.upload_scope_id,
+                    mime_type=mime_type,
+                    skip_ingestion=self._config.skip_ingestion,
+                )
+                content_id = created.id
+
+            if content_id is None:
+                raise ValueError(
+                    "No upload destination configured: set upload_to_chat=True or upload_scope_id."
+                )
+
+            return ContentReference(
+                id=content_id,
+                sequence_number=sequence_number,
+                message_id=chat_service.assistant_message_id,
+                name=content_name,
+                source=content_name,
+                source_id=content_id,
+                url=f"unique://content/{content_id}",
+            )
+
+        except Exception as e:
+            _LOGGER.error(f"Error uploading content: {e}")
+            return None
+
+    @staticmethod
+    def resolve_template(
+        config: DocxGeneratorConfig,
+        content_service: ContentService,
+    ) -> bytes | None:
+        """
+        Fetch template bytes using config's template_content_id or
+        template_name + template_scope_id.
+
+        Returns None if neither is set (the service will fall back to the
+        default bundled template automatically).
+
+        Args:
+            config: The DocxGeneratorConfig with template resolution settings.
+            content_service: The ContentService to use for downloading.
+
+        Returns:
+            Template bytes, or None to use the default template.
+        """
+        try:
+            if config.template_content_id:
+                return DocxGeneratorService._fetch_template_by_content_id(
+                    config.template_content_id, content_service
+                )
+            elif config.template_name and config.template_scope_id:
+                return DocxGeneratorService._fetch_template_by_name(
+                    config.template_name, config.template_scope_id, content_service
+                )
+        except Exception as e:
+            _LOGGER.exception(f"Error resolving template, falling back to default: {e}")
+
+        return None
+
+    @staticmethod
+    def _fetch_template_by_content_id(
+        content_id: str, content_service: ContentService
+    ) -> bytes:
+        response = content_service.request_content_by_id(content_id)
+        if response.status_code != 200:
+            raise ValueError(
+                f"Failed to download template from content ID: {content_id}"
+            )
+        _LOGGER.info(f"Template downloaded from content ID: {content_id}")
+        return response.content
+
+    @staticmethod
+    def _fetch_template_by_name(
+        template_name: str,
+        template_scope_id: str,
+        content_service: ContentService,
+    ) -> bytes:
+        where_clause: dict = {
+            "OR": [
+                {
+                    "title": {UQLOperator.EQUALS: template_name},
+                    "ownerId": {UQLOperator.EQUALS: template_scope_id},
+                },
+                {
+                    "key": {UQLOperator.EQUALS: template_name},
+                    "ownerId": {UQLOperator.EQUALS: template_scope_id},
+                },
+            ]
+        }
+
+        contents = content_service.search_contents(where=where_clause)
+        if len(contents) == 0:
+            raise ValueError(
+                f"No template found with the name `{template_name}` in knowledge base."
+            )
+        if len(contents) > 1:
+            raise ValueError(
+                f"Multiple templates found with the name `{template_name}` in knowledge base."
+            )
+
+        result = DocxGeneratorService._fetch_template_by_content_id(
+            contents[0].id, content_service
+        )
+        _LOGGER.info(f"Template downloaded from template name: {template_name}")
+        return result
 
     def _get_default_template(self) -> bytes:
         generator_dir_path = Path(__file__).resolve().parent

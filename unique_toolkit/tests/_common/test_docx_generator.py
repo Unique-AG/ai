@@ -11,6 +11,7 @@ from docxtpl import DocxTemplate
 from unique_toolkit._common.docx_generator.config import DocxGeneratorConfig
 from unique_toolkit._common.docx_generator.schemas import (
     ContentField,
+    DocxGeneratorResult,
     HeadingField,
     ParagraphField,
     RunField,
@@ -484,6 +485,271 @@ More content with **bold** formatting.
 
         assert len(headings) >= 3
         assert len(runs_fields) > 0
+
+
+class TestDocxGeneratorResult:
+    """Test cases for DocxGeneratorResult schema."""
+
+    def test_result_defaults(self):
+        result = DocxGeneratorResult(user_message="ok")
+        assert result.user_message == "ok"
+        assert result.docx_object is None
+        assert result.success is False
+
+    def test_result_success(self):
+        result = DocxGeneratorResult(
+            user_message="done", docx_object=b"abc", success=True
+        )
+        assert result.docx_object == b"abc"
+        assert result.success is True
+
+    def test_result_failure(self):
+        result = DocxGeneratorResult(user_message="error", success=False)
+        assert result.docx_object is None
+        assert result.success is False
+
+
+class TestGenerateFromTemplateWithResult:
+    """Test generate_from_template_with_result() wrapper."""
+
+    @pytest.fixture
+    def service(self):
+        return DocxGeneratorService(config=DocxGeneratorConfig())
+
+    def test_returns_success_when_bytes_generated(self, service):
+        with patch.object(
+            service, "generate_from_template", return_value=b"docx-bytes"
+        ):
+            result = service.generate_from_template_with_result([])
+        assert isinstance(result, DocxGeneratorResult)
+        assert result.success is True
+        assert result.docx_object == b"docx-bytes"
+
+    def test_returns_failure_on_error(self, service):
+        with patch.object(service, "generate_from_template", return_value=None):
+            result = service.generate_from_template_with_result([])
+        assert result.success is False
+        assert result.docx_object is None
+
+
+class TestGenerateFromTemplateSeeding:
+    """Test that generate_from_template seeds context from config.template_fields."""
+
+    def test_template_fields_included_in_context(self):
+        config = DocxGeneratorConfig(
+            template_fields={"document_title": "My Report", "date": "01/01/2026"}
+        )
+        service = DocxGeneratorService(config=config)
+
+        captured: dict = {}
+
+        mock_doc = Mock(spec=DocxTemplate)
+        mock_doc.new_subdoc.return_value = Mock()
+
+        def fake_render(ctx):
+            captured.update(ctx)
+
+        mock_doc.render = fake_render
+        mock_buf = Mock()
+        mock_buf.getvalue.return_value = b"bytes"
+
+        with patch(
+            "unique_toolkit._common.docx_generator.service.DocxTemplate",
+            return_value=mock_doc,
+        ):
+            with patch(
+                "unique_toolkit._common.docx_generator.service.io.BytesIO",
+                return_value=mock_buf,
+            ):
+                service.generate_from_template([])
+
+        assert captured.get("document_title") == "My Report"
+        assert captured.get("date") == "01/01/2026"
+
+    def test_explicit_fields_override_config_fields(self):
+        config = DocxGeneratorConfig(
+            template_fields={"document_title": "Default Title", "date": "01/01/2026"}
+        )
+        service = DocxGeneratorService(config=config)
+
+        captured: dict = {}
+
+        mock_doc = Mock(spec=DocxTemplate)
+        mock_doc.new_subdoc.return_value = Mock()
+
+        def fake_render(ctx):
+            captured.update(ctx)
+
+        mock_doc.render = fake_render
+        mock_buf = Mock()
+        mock_buf.getvalue.return_value = b"bytes"
+
+        with patch(
+            "unique_toolkit._common.docx_generator.service.DocxTemplate",
+            return_value=mock_doc,
+        ):
+            with patch(
+                "unique_toolkit._common.docx_generator.service.io.BytesIO",
+                return_value=mock_buf,
+            ):
+                service.generate_from_template(
+                    [], fields={"document_title": "Override"}
+                )
+
+        assert captured.get("document_title") == "Override"
+
+
+class TestUploadAndCreateReference:
+    """Test upload_and_create_reference()."""
+
+    @pytest.fixture
+    def service(self):
+        return DocxGeneratorService(config=DocxGeneratorConfig())
+
+    @pytest.fixture
+    def mock_content_service(self):
+        svc = Mock()
+        uploaded = Mock()
+        uploaded.id = "cont_abc123"
+        svc.upload_content_from_bytes.return_value = uploaded
+        return svc
+
+    @pytest.fixture
+    def mock_chat_service(self):
+        svc = Mock()
+        svc.chat_id = "chat_001"
+        svc.assistant_message_id = "msg_001"
+        return svc
+
+    def test_upload_to_chat_returns_reference(
+        self, service, mock_content_service, mock_chat_service
+    ):
+        ref = service.upload_and_create_reference(
+            docx_object=b"docx",
+            sequence_number=1,
+            file_name="report.docx",
+            content_service=mock_content_service,
+            chat_service=mock_chat_service,
+        )
+
+        assert ref is not None
+        assert ref.id == "cont_abc123"
+        assert ref.sequence_number == 1
+        assert ref.message_id == "msg_001"
+        assert ref.url == "unique://content/cont_abc123"
+        mock_content_service.upload_content_from_bytes.assert_called_once()
+
+    def test_upload_to_scope_uses_scope_id(
+        self, mock_content_service, mock_chat_service
+    ):
+        config = DocxGeneratorConfig(upload_to_chat=False, upload_scope_id="scope_xyz")
+        service = DocxGeneratorService(config=config)
+
+        ref = service.upload_and_create_reference(
+            docx_object=b"docx",
+            sequence_number=2,
+            file_name="report.docx",
+            content_service=mock_content_service,
+            chat_service=mock_chat_service,
+        )
+
+        assert ref is not None
+        call_kwargs = mock_content_service.upload_content_from_bytes.call_args.kwargs
+        assert call_kwargs["scope_id"] == "scope_xyz"
+
+    def test_returns_none_on_exception(
+        self, service, mock_content_service, mock_chat_service
+    ):
+        mock_content_service.upload_content_from_bytes.side_effect = RuntimeError(
+            "upload failed"
+        )
+        ref = service.upload_and_create_reference(
+            docx_object=b"docx",
+            sequence_number=1,
+            file_name="report.docx",
+            content_service=mock_content_service,
+            chat_service=mock_chat_service,
+        )
+        assert ref is None
+
+    def test_chat_prefix_stripped_from_file_name(
+        self, service, mock_content_service, mock_chat_service
+    ):
+        service.upload_and_create_reference(
+            docx_object=b"docx",
+            sequence_number=1,
+            file_name="Chat_2026-01-15_09:30_report",
+            content_service=mock_content_service,
+            chat_service=mock_chat_service,
+        )
+        call_kwargs = mock_content_service.upload_content_from_bytes.call_args.kwargs
+        assert "Chat_2026" not in call_kwargs["content_name"]
+        assert "report" in call_kwargs["content_name"]
+
+
+class TestResolveTemplate:
+    """Test resolve_template() static method."""
+
+    def test_returns_none_when_no_template_configured(self):
+        config = DocxGeneratorConfig()
+        mock_cs = Mock()
+        result = DocxGeneratorService.resolve_template(config, mock_cs)
+        assert result is None
+        mock_cs.request_content_by_id.assert_not_called()
+
+    def test_resolves_by_content_id(self):
+        config = DocxGeneratorConfig(template_content_id="cont_tmpl123")
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = b"template-bytes"
+        mock_cs = Mock()
+        mock_cs.request_content_by_id.return_value = mock_response
+
+        result = DocxGeneratorService.resolve_template(config, mock_cs)
+
+        assert result == b"template-bytes"
+        mock_cs.request_content_by_id.assert_called_once_with("cont_tmpl123")
+
+    def test_resolves_by_template_name(self):
+        config = DocxGeneratorConfig(
+            template_name="my_template.docx",
+            template_scope_id="scope_abc",
+        )
+        found_content = Mock()
+        found_content.id = "cont_found"
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = b"template-by-name"
+        mock_cs = Mock()
+        mock_cs.search_contents.return_value = [found_content]
+        mock_cs.request_content_by_id.return_value = mock_response
+
+        result = DocxGeneratorService.resolve_template(config, mock_cs)
+
+        assert result == b"template-by-name"
+        mock_cs.search_contents.assert_called_once()
+
+    def test_returns_none_on_download_error(self):
+        config = DocxGeneratorConfig(template_content_id="cont_bad")
+        mock_response = Mock()
+        mock_response.status_code = 404
+        mock_cs = Mock()
+        mock_cs.request_content_by_id.return_value = mock_response
+
+        result = DocxGeneratorService.resolve_template(config, mock_cs)
+
+        assert result is None
+
+    def test_returns_none_when_multiple_templates_found(self):
+        config = DocxGeneratorConfig(
+            template_name="ambiguous.docx", template_scope_id="scope_abc"
+        )
+        mock_cs = Mock()
+        mock_cs.search_contents.return_value = [Mock(), Mock()]
+
+        result = DocxGeneratorService.resolve_template(config, mock_cs)
+
+        assert result is None
 
 
 if __name__ == "__main__":
