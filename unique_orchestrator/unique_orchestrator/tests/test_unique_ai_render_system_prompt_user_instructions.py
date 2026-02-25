@@ -98,7 +98,9 @@ class TestRenderSystemPromptUserInstructions:
         self, mock_unique_ai: "UniqueAI"
     ) -> None:
         mock_unique_ai._config.space.custom_instructions = "Admin rules."
-        mock_unique_ai._config.space.user_space_instructions = "Please respond in French."
+        mock_unique_ai._config.space.user_space_instructions = (
+            "Please respond in French."
+        )
 
         result = await mock_unique_ai._render_system_prompt()
 
