@@ -55,7 +55,7 @@ PACKAGE=""
 BASE_REF=""
 NO_FETCH=false
 EXCLUDE_ARG=""
-DEFAULT_EXCLUDES="poetry.lock,uv.lock,CHANGELOG.md,docs/,mkdocs.yaml,.entangled/"
+DEFAULT_EXCLUDES="poetry.lock,uv.lock,CHANGELOG.md,pyproject.toml,docs/,mkdocs.yaml,.entangled/"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -118,6 +118,20 @@ MERGE_BASE=$(git merge-base HEAD "$BASE_REF" 2>/dev/null) || true
 if [ -z "$MERGE_BASE" ]; then
     print_error "Could not find merge base between HEAD and $BASE_REF"
     exit 1
+fi
+
+# --- reject manual pyproject.toml version changes (always, even without code changes) ---
+
+if git diff --name-only "$MERGE_BASE"..HEAD | grep -q "^$PACKAGE/pyproject.toml$"; then
+    BASE_VERSION=$(git show "$MERGE_BASE:$PACKAGE/pyproject.toml" 2>/dev/null | grep -E '^version[[:space:]]*=' | sed -E 's/version[[:space:]]*=[[:space:]]*"([^"]+)"/\1/' || echo "")
+    CURRENT_VERSION=$(grep -E '^version[[:space:]]*=' "$PACKAGE/pyproject.toml" | sed -E 's/version[[:space:]]*=[[:space:]]*"([^"]+)"/\1/' || echo "")
+
+    if [ -n "$BASE_VERSION" ] && [ -n "$CURRENT_VERSION" ] && [ "$BASE_VERSION" != "$CURRENT_VERSION" ]; then
+        print_error "pyproject.toml version was manually changed ($BASE_VERSION -> $CURRENT_VERSION)"
+        echo "Version bumping is now automated — the CI pipeline will set the version on merge."
+        echo "Please revert the version change in pyproject.toml."
+        exit 1
+    fi
 fi
 
 # --- check for meaningful code changes ---
@@ -292,21 +306,6 @@ while IFS= read -r line; do
     exit 1
 done <<< "$STAGING"
 print_success "Staging section format is clean"
-
-# --- warn if pyproject.toml version was manually changed ---
-
-if git diff --name-only "$MERGE_BASE"..HEAD | grep -q "^$PACKAGE/pyproject.toml$"; then
-    BASE_VERSION=$(git show "$MERGE_BASE:$PACKAGE/pyproject.toml" 2>/dev/null | grep -E '^version[[:space:]]*=' | sed -E 's/version[[:space:]]*=[[:space:]]*"([^"]+)"/\1/' || echo "")
-    CURRENT_VERSION=$(grep -E '^version[[:space:]]*=' "$PACKAGE/pyproject.toml" | sed -E 's/version[[:space:]]*=[[:space:]]*"([^"]+)"/\1/' || echo "")
-
-    if [ -n "$BASE_VERSION" ] && [ -n "$CURRENT_VERSION" ] && [ "$BASE_VERSION" != "$CURRENT_VERSION" ]; then
-        print_warning "pyproject.toml version was manually changed ($BASE_VERSION -> $CURRENT_VERSION)"
-        echo "Version bumping is now automated — the CI pipeline will set the version on merge."
-        echo "Please revert the version change in pyproject.toml."
-        exit 1
-    fi
-fi
-print_success "pyproject.toml version not manually modified"
 
 echo ""
 print_success "All validations passed!"
