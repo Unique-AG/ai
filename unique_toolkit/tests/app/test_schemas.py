@@ -45,7 +45,7 @@ class TestEventSchemas:
                 "createdAt": "2023-01-01T00:01:00Z"
             },
             "text": "Optional text",
-            "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234"}
+            "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234", "userSpaceInstructions": "some instructions"}
         }"""
         payload = EventPayload.model_validate_json(json_data)
 
@@ -60,6 +60,7 @@ class TestEventSchemas:
         assert payload.additional_parameters is not None
         assert payload.additional_parameters.translate_to_language == "en"
         assert payload.additional_parameters.content_id_to_translate == "content_1234"
+        assert payload.additional_parameters.user_space_instructions == "some instructions"
 
     def test_event_deserialization(self):
         json_data = """{
@@ -85,7 +86,7 @@ class TestEventSchemas:
                     "createdAt": "2023-01-01T00:01:00Z"
                 },
                 "text": "Optional text",
-                "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234"}
+                "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234", "userSpaceInstructions": "some instructions"}
             },
             "createdAt": 1672531200,
             "version": "1.0"
@@ -107,6 +108,7 @@ class TestEventSchemas:
             event.payload.additional_parameters.content_id_to_translate
             == "content_1234"
         )
+        assert event.payload.additional_parameters.user_space_instructions == "some instructions"
         assert event.created_at == 1672531200
         assert event.version == "1.0"
 
@@ -177,7 +179,7 @@ class TestEventSchemas:
                 "createdAt": "2023-01-01T00:01:00Z"
             },
             "text": "Optional text",
-            "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234"}
+            "additionalParameters": {"translateToLanguage": "en", "contentIdToTranslate": "content_1234", "userSpaceInstructions": "some instructions"}
         }"""
         payload = ChatEventPayload.model_validate_json(json_data)
 
@@ -192,3 +194,4 @@ class TestEventSchemas:
         assert payload.additional_parameters is not None
         assert payload.additional_parameters.translate_to_language == "en"
         assert payload.additional_parameters.content_id_to_translate == "content_1234"
+        assert payload.additional_parameters.user_space_instructions == "some instructions"
