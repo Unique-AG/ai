@@ -951,6 +951,10 @@ def ui_schema_for_model(
         alias_gen(fname) if alias_gen and callable(alias_gen) else fname
         for fname in model_cls.model_fields
     ]
+
+    if key_transform is not None:
+        return transform_ui_schema(ui, key_transform, value_transform)
+
     return ui
 
 
