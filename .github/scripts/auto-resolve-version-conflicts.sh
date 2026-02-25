@@ -270,7 +270,7 @@ main() {
   echo "Checking open PRs for version-only conflicts..."
 
   local prs
-  prs=$(gh pr list --state open --json number,headRefName,isCrossRepository --jq '.[] | select(.isCrossRepository == false) | "\(.number) \(.headRefName)"')
+  prs=$(gh pr list --state open --limit 200 --json number,headRefName,isCrossRepository --jq '.[] | select(.isCrossRepository == false) | "\(.number) \(.headRefName)"')
 
   if [[ -z "$prs" ]]; then
     echo "No open same-repo PRs found"
