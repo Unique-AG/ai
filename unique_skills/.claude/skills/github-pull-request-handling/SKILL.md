@@ -1,6 +1,14 @@
 ---
 name: github-pull-request-handling
 description: Handle pull requests and review comments using GitHub CLI (gh). Use when the user wants to check PR comments, address review feedback, reply with commit hashes, or work with pull requests.
+license: MIT
+compatibility: claude cursor opencode
+metadata:
+  version: "1.0.0"
+  languages: all
+  audience: developers
+  workflow: automation
+  since: "2026-02-25"
 ---
 
 # PR and Review Comment Handling
@@ -13,13 +21,29 @@ Guides fetching unresolved PR conversations, addressing them with fixes, and rep
 - `jq` for formatting (used by `pr-conversations.sh`)
 - Current branch has an associated PR, or user provides PR number
 
+## PR lifecycle focus
+
+Stage: **Post-review conversation handling** (after review comments exist).
+
+## Use Instead [if available]
+
+- Use `pr-create` to draft/open a new PR.
+- Use `pr-self-review` before requesting external review.
+- Use `pr-review` for reviewer-side structured code review.
+
 ## Workflow
 
 ### 1. Fetch unresolved conversations
 
 ```bash
-./scripts/pr-conversations.sh [PR_NUMBER]        # unresolved only (default)
-./scripts/pr-conversations.sh --all [PR_NUMBER]  # all threads
+# From repository root (recommended):
+./.claude/skills/github-pull-request-handling/scripts/pr-conversations.sh [PR_NUMBER]        # unresolved only (default)
+./.claude/skills/github-pull-request-handling/scripts/pr-conversations.sh --all [PR_NUMBER]  # all threads
+```
+
+If your current working directory is different, use a repo-root-safe path:
+```bash
+"$(git rev-parse --show-toplevel)/.claude/skills/github-pull-request-handling/scripts/pr-conversations.sh" [PR_NUMBER]
 ```
 
 Uses the GitHub **GraphQL API** to fetch review threads with resolution status. Output:
@@ -67,8 +91,8 @@ gh pr comment PR_NUMBER --body "Addressed all unresolved conversations:
 
 | Task | Command |
 |------|---------|
-| Unresolved conversations | `scripts/pr-conversations.sh [PR]` |
-| All conversations | `scripts/pr-conversations.sh --all [PR]` |
+| Unresolved conversations | `./.claude/skills/github-pull-request-handling/scripts/pr-conversations.sh [PR]` |
+| All conversations | `./.claude/skills/github-pull-request-handling/scripts/pr-conversations.sh --all [PR]` |
 | View PR | `gh pr view` |
 | Add PR comment | `gh pr comment PR_NUMBER --body "..."` |
 | Reply to comment | `gh api repos/.../pulls/PR_NUMBER/comments -X POST` with `in_reply_to` |
@@ -76,6 +100,6 @@ gh pr comment PR_NUMBER --body "Addressed all unresolved conversations:
 
 ## Commit hash format
 
-- Use full 7-char short hash (e.g. `f16cfdae`)
+- Use a short hash (typically 8 chars, e.g. `f16cfdae`)
 - Link: `https://github.com/OWNER/REPO/commit/HASH`
 - Markdown: `[f16cfdae](https://github.com/Unique-AG/ai/commit/f16cfdae)`
