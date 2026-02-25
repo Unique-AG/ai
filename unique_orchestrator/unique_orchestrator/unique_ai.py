@@ -1,9 +1,6 @@
 import asyncio
-import json
-import re
 from datetime import datetime, timezone
 from logging import Logger
-from pathlib import Path
 from typing import overload
 
 import jinja2
@@ -298,8 +295,6 @@ class UniqueAI:
         self._logger.info("Done composing message plan execution.")
 
         tool_definitions = self._tool_manager.get_tool_definitions()
-        self._dump_tool_schemas(tool_definitions)
-        self._dump_messages(messages)
 
         try:
             return await self._loop_iteration_runner(
@@ -517,56 +512,6 @@ class UniqueAI:
                 resp.system_reminder = (
                     f"{existing}\n{self._OPEN_PDF_SYSTEM_REMINDER}".strip()
                 )
-
-    _PAYLOAD_DUMPS_DIR = Path("payload_dumps")
-
-    def _dump_tool_schemas(self, tool_definitions: list) -> None:
-        """Dump the tool schemas passed to the LLM to a JSON file for debugging."""
-        from pydantic import BaseModel
-
-        try:
-            schemas = []
-            for td in tool_definitions:
-                if isinstance(td, dict):
-                    schemas.append(td)
-                    continue
-                params = td.parameters
-                if isinstance(params, type) and issubclass(params, BaseModel):
-                    params_json = params.model_json_schema()
-                elif isinstance(params, dict):
-                    params_json = params
-                else:
-                    params_json = str(params)
-                schemas.append({
-                    "name": td.name,
-                    "description": td.description,
-                    "parameters": params_json,
-                })
-
-            self._PAYLOAD_DUMPS_DIR.mkdir(parents=True, exist_ok=True)
-            out = self._PAYLOAD_DUMPS_DIR / "tool-schemas-for-llm.json"
-            out.write_text(json.dumps(schemas, indent=2, ensure_ascii=False, default=str))
-            self._logger.info(f"Dumped {len(schemas)} tool schemas to {out}")
-        except Exception as e:
-            self._logger.error(f"Failed to dump tool schemas: {e}", exc_info=True)
-
-    def _dump_messages(self, messages: "LanguageModelMessages") -> None:
-        """Dump the messages sent to the LLM, truncating large base64 blobs."""
-        try:
-            raw = messages.model_dump(mode="json")
-            dumped = json.dumps(raw, indent=2, ensure_ascii=False, default=str)
-            dumped = re.sub(
-                r'"(data:[^;]+;base64,)[A-Za-z0-9+/=]{200,}"',
-                r'"\1<BASE64_TRUNCATED>"',
-                dumped,
-            )
-
-            self._PAYLOAD_DUMPS_DIR.mkdir(parents=True, exist_ok=True)
-            out = self._PAYLOAD_DUMPS_DIR / "llm-messages.json"
-            out.write_text(dumped)
-            self._logger.info(f"Dumped LLM messages to {out}")
-        except Exception as e:
-            self._logger.error(f"Failed to dump messages: {e}", exc_info=True)
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
         self._logger.info(
