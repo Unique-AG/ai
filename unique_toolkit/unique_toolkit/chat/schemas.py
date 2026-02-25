@@ -83,7 +83,7 @@ class ChatMessage(BaseModel):
     debug_info: dict | None = {}
     created_at: datetime | None = None
     completed_at: datetime | None = None
-    cancelled_at: datetime | None = None
+    user_aborted_at: datetime | None = None
     updated_at: datetime | None = None
     references: list[ContentReference] | None = None
 
