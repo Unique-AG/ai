@@ -20,9 +20,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Wait for GitHub to compute mergeability
-        run: sleep 10
-
       - name: Auto-resolve version conflicts on open PRs
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
