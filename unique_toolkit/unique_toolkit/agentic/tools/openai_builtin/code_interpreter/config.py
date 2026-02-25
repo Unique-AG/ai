@@ -69,7 +69,9 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
     )
     tool_description: Annotated[
         str,
-        RJSFMetaTag.StringWidget.textarea(rows=len(DEFAULT_TOOL_DESCRIPTION.split("\n"))),
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(DEFAULT_TOOL_DESCRIPTION.split("\n"))
+        ),
     ] = Field(
         default=DEFAULT_TOOL_DESCRIPTION,
         description="The description of the tool that will be included in the system prompt.",
