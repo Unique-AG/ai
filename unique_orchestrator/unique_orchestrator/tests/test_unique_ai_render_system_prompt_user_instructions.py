@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class TestRenderSystemPromptUserInstructions:
-    """Test suite for user_instructions merging in UniqueAI._render_system_prompt"""
+    """Test suite for user_space_instructions merging in UniqueAI._render_system_prompt"""
 
     @pytest.fixture
     def mock_unique_ai(self) -> "UniqueAI":
@@ -36,7 +36,7 @@ class TestRenderSystemPromptUserInstructions:
         mock_config.space.language_model.model_dump.return_value = {}
         mock_config.space.project_name = "TestProject"
         mock_config.space.custom_instructions = "System admin instructions."
-        mock_config.space.user_instructions = None
+        mock_config.space.user_space_instructions = None
 
         mock_tool_manager = MagicMock()
         mock_tool_manager.get_tool_prompts.return_value = []
@@ -70,11 +70,11 @@ class TestRenderSystemPromptUserInstructions:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_renders_only_custom_instructions_when_user_instructions_is_none(
+    async def test_renders_only_custom_instructions_when_user_space_instructions_is_none(
         self, mock_unique_ai: "UniqueAI"
     ) -> None:
         mock_unique_ai._config.space.custom_instructions = "Admin rules."
-        mock_unique_ai._config.space.user_instructions = None
+        mock_unique_ai._config.space.user_space_instructions = None
 
         result = await mock_unique_ai._render_system_prompt()
 
@@ -82,11 +82,11 @@ class TestRenderSystemPromptUserInstructions:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_renders_only_custom_instructions_when_user_instructions_is_empty_string(
+    async def test_renders_only_custom_instructions_when_user_space_instructions_is_empty_string(
         self, mock_unique_ai: "UniqueAI"
     ) -> None:
         mock_unique_ai._config.space.custom_instructions = "Admin rules."
-        mock_unique_ai._config.space.user_instructions = ""
+        mock_unique_ai._config.space.user_space_instructions = ""
 
         result = await mock_unique_ai._render_system_prompt()
 
@@ -94,11 +94,11 @@ class TestRenderSystemPromptUserInstructions:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_appends_user_instructions_when_present(
+    async def test_appends_user_space_instructions_when_present(
         self, mock_unique_ai: "UniqueAI"
     ) -> None:
         mock_unique_ai._config.space.custom_instructions = "Admin rules."
-        mock_unique_ai._config.space.user_instructions = "Please respond in French."
+        mock_unique_ai._config.space.user_space_instructions = "Please respond in French."
 
         result = await mock_unique_ai._render_system_prompt()
 
@@ -111,11 +111,11 @@ class TestRenderSystemPromptUserInstructions:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_appends_user_instructions_when_custom_instructions_is_empty(
+    async def test_appends_user_space_instructions_when_custom_instructions_is_empty(
         self, mock_unique_ai: "UniqueAI"
     ) -> None:
         mock_unique_ai._config.space.custom_instructions = ""
-        mock_unique_ai._config.space.user_instructions = "Be concise."
+        mock_unique_ai._config.space.user_space_instructions = "Be concise."
 
         result = await mock_unique_ai._render_system_prompt()
 
@@ -124,11 +124,11 @@ class TestRenderSystemPromptUserInstructions:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_combined_instructions_preserve_multiline_user_instructions(
+    async def test_combined_instructions_preserve_multiline_user_space_instructions(
         self, mock_unique_ai: "UniqueAI"
     ) -> None:
         mock_unique_ai._config.space.custom_instructions = "Base prompt."
-        mock_unique_ai._config.space.user_instructions = (
+        mock_unique_ai._config.space.user_space_instructions = (
             "Line one.\nLine two.\nLine three."
         )
 
@@ -147,7 +147,7 @@ class TestRenderSystemPromptUserInstructions:
         self, mock_unique_ai: "UniqueAI"
     ) -> None:
         mock_unique_ai._config.space.custom_instructions = ""
-        mock_unique_ai._config.space.user_instructions = None
+        mock_unique_ai._config.space.user_space_instructions = None
 
         result = await mock_unique_ai._render_system_prompt()
 
