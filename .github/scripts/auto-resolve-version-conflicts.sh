@@ -116,7 +116,11 @@ resolve_pr() {
 
   echo "::group::Processing PR #$pr_number ($pr_branch)"
 
-  git fetch origin "$pr_branch" 2>/dev/null || { echo "Cannot fetch $pr_branch — skipping"; echo "::endgroup::"; return 0; }
+  if ! git rev-parse "origin/$pr_branch" &>/dev/null; then
+    echo "Branch origin/$pr_branch not found — skipping"
+    echo "::endgroup::"
+    return 0
+  fi
 
   local ancestor
   ancestor=$(git merge-base "origin/main" "origin/$pr_branch" 2>/dev/null) || { echo "No common ancestor — skipping"; echo "::endgroup::"; return 0; }
@@ -276,6 +280,9 @@ main() {
     echo "No open same-repo PRs found"
     exit 0
   fi
+
+  echo "Fetching all remote branches..."
+  git fetch origin
 
   local resolved_count=0
   local skipped_count=0
