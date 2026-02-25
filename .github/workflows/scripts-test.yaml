@@ -26,7 +26,17 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y bats
-      
+
       - name: Run BATS tests
         run: |
-          bats .github/scripts/tests/*.bats --tap
+          shopt -s nullglob
+          files=(.github/scripts/tests/*.bats)
+          if [ ${#files[@]} -gt 0 ]; then
+            bats "${files[@]}" --tap
+          else
+            echo "No .bats test files found — skipping"
+          fi
+
+      - name: Run shell test scripts
+        run: |
+          .github/scripts/test-auto-version-bump.sh
