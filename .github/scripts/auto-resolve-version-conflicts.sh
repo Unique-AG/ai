@@ -263,8 +263,11 @@ resolve_pr() {
 
 Packages: ${conflicting_packages[*]}"
 
-  git push origin HEAD:"$pr_branch"
-  echo "Pushed resolved version conflicts to $pr_branch"
+  if git push origin HEAD:"$pr_branch" 2>&1; then
+    echo "Pushed resolved version conflicts to $pr_branch"
+  else
+    echo "Push failed (branch may have been updated by developer) — will retry on next trigger"
+  fi
 
   git checkout - -q 2>/dev/null || true
   echo "::endgroup::"
