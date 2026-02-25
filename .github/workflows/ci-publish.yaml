@@ -122,7 +122,19 @@ jobs:
           git commit -m "chore: auto-bump versions [skip ci]
 
           Packages: ${{ steps.bump.outputs.packages }}"
-          git push origin main
+
+          for attempt in 1 2 3; do
+            if git push origin main; then
+              echo "Push succeeded on attempt $attempt"
+              break
+            fi
+            echo "Push failed (attempt $attempt/3), rebasing and retrying..."
+            git pull --rebase origin main
+            if [ "$attempt" -eq 3 ]; then
+              echo "Push failed after 3 attempts"
+              exit 1
+            fi
+          done
 
   # --- Job 2: Detect which packages changed (runs in parallel with version-bump) ---
   detect-changes:

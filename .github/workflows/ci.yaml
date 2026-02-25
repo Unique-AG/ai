@@ -39,6 +39,10 @@ jobs:
     name: Changelog and Version Bump
     uses: ./.github/workflows/enforce_changelog_version_bump.yaml
 
+  version-bump-check:
+    name: Version Bump Check
+    uses: ./.github/workflows/ci-version-bump-check.yaml
+
   pr-title:
     name: PR Title
     if: github.event_name == 'pull_request'
@@ -48,7 +52,7 @@ jobs:
 
   status:
     name: Gatekeeper
-    needs: [lint, test, types, coverage, deps, config, changelog, pr-title]
+    needs: [lint, test, types, coverage, deps, config, changelog, version-bump-check, pr-title]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -64,6 +68,7 @@ jobs:
           DEPS: ${{ needs.deps.result }}
           CONFIG: ${{ needs.config.result }}
           CHANGELOG: ${{ needs.changelog.result }}
+          VERSION_BUMP_CHECK: ${{ needs.version-bump-check.result }}
           PR_TITLE: ${{ needs.pr-title.result }}
         run: |
           echo "=== CI Status Summary ==="
@@ -74,13 +79,14 @@ jobs:
           echo "deps: $DEPS"
           echo "config: $CONFIG"
           echo "changelog: $CHANGELOG"
+          echo "version-bump-check: $VERSION_BUMP_CHECK"
           echo "pr-title: $PR_TITLE"
           echo "========================="
 
           failed=false
 
           # Required checks (skipped is OK for when no packages changed or merge_group)
-          for check in "lint:$LINT" "test:$TEST" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "changelog:$CHANGELOG" "pr-title:$PR_TITLE"; do
+          for check in "lint:$LINT" "test:$TEST" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "changelog:$CHANGELOG" "version-bump-check:$VERSION_BUMP_CHECK" "pr-title:$PR_TITLE"; do
             name="${check%%:*}"
             result="${check##*:}"
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
