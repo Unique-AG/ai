@@ -266,7 +266,8 @@ Packages: ${conflicting_packages[*]}"
   if git push origin HEAD:"$pr_branch" 2>&1; then
     echo "Pushed resolved version conflicts to $pr_branch"
   else
-    echo "Push failed (branch may have been updated by developer) — will retry on next trigger"
+    echo "Push failed (branch may have been updated) — queued for retry"
+    FAILED_PUSHES+=("$pr_number $pr_branch")
   fi
 
   git checkout - -q 2>/dev/null || true
@@ -287,16 +288,29 @@ main() {
   echo "Fetching all remote branches..."
   git fetch origin
 
-  local resolved_count=0
-  local skipped_count=0
+  FAILED_PUSHES=()
 
   while IFS=' ' read -r pr_number pr_branch; do
-    if resolve_pr "$pr_number" "$pr_branch" ""; then
-      resolved_count=$((resolved_count + 1))
-    else
-      skipped_count=$((skipped_count + 1))
-    fi
+    resolve_pr "$pr_number" "$pr_branch" ""
   done <<< "$prs"
+
+  if [[ ${#FAILED_PUSHES[@]} -gt 0 ]]; then
+    echo ""
+    echo "Retrying ${#FAILED_PUSHES[@]} failed push(es) after re-fetch..."
+    git fetch origin
+
+    local retries=("${FAILED_PUSHES[@]}")
+    FAILED_PUSHES=()
+
+    for entry in "${retries[@]}"; do
+      IFS=' ' read -r pr_number pr_branch <<< "$entry"
+      resolve_pr "$pr_number" "$pr_branch" ""
+    done
+
+    if [[ ${#FAILED_PUSHES[@]} -gt 0 ]]; then
+      echo "Still failed after retry: ${FAILED_PUSHES[*]}"
+    fi
+  fi
 
   echo ""
   echo "Done. Processed $(echo "$prs" | wc -l | tr -d ' ') PRs."
