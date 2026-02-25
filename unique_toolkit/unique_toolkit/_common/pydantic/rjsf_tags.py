@@ -946,10 +946,11 @@ def ui_schema_for_model(
 
         ui[fname] = node
 
-    ui["ui:order"] = list(model_cls.model_fields.keys())
-
-    if key_transform is not None:
-        return transform_ui_schema(ui, key_transform, value_transform)
+    alias_gen = model_cls.model_config.get("alias_generator")
+    ui["ui:order"] = [
+        alias_gen(fname) if alias_gen and callable(alias_gen) else fname
+        for fname in model_cls.model_fields
+    ]
     return ui
 
 

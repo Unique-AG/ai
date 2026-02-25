@@ -1,8 +1,8 @@
 from typing import Annotated, Any
 
 from pydantic import (
-    AliasChoices,
     Field,
+    model_validator,
 )
 from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
@@ -45,7 +45,21 @@ def _search_limit_factory(data: dict[str, Any]) -> int:
     )
 
 
+_FIELD_ALIASES: dict[str, str] = {
+    "ftsSearchLanguage": "searchLanguage",
+}
+
+
 class InternalSearchConfig(BaseToolConfig):
+    @model_validator(mode="before")
+    @classmethod
+    def _remap_legacy_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            for old_key, new_key in _FIELD_ALIASES.items():
+                if old_key in data and new_key not in data:
+                    data[new_key] = data.pop(old_key)
+        return data
+
     search_type: ContentSearchType = Field(
         default=ContentSearchType.COMBINED,
         description="The type of search to perform. Two possible values: `COMBINED` or `VECTOR`.",
@@ -86,7 +100,6 @@ class InternalSearchConfig(BaseToolConfig):
     )
     search_language: str = Field(
         default="english",
-        validation_alias=AliasChoices("ftsSearchLanguage", "searchLanguage"),
         description="The language to use for the search.",
     )
     # evaluation_config: EvaluationMetricConfig = EvaluationMetricConfig()
