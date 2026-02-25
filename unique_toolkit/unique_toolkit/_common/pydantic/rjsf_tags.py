@@ -814,6 +814,37 @@ def _is_pyd_model(t: Any) -> bool:
 
 
 # --------- Build RJSF-style uiSchema dict from a model *type* ----------
+def _get_json_schema_field_name(field_name: str, field_info: Any) -> str:
+    """Return the name this field will have in the JSON schema.
+
+    Mirrors Pydantic's own JSON-schema property-name resolution:
+
+    * ``alias_priority >= 2`` means the alias was set explicitly (not derived
+      from ``alias_generator``).  In that case:
+
+      1. ``AliasChoices`` validation_alias → first string choice (Pydantic
+         uses this as the property name, e.g. ``ftsSearchLanguage``).
+      2. Plain ``alias`` string (e.g. an explicit ``Field(alias="…")``).
+
+    * ``alias_priority < 2`` (generator-derived) or no alias → fall back to
+      the Python field name and let ``key_transform`` produce the final name.
+    """
+    alias_priority = getattr(field_info, "alias_priority", None)
+    if alias_priority is not None and alias_priority >= 2:
+        validation_alias = getattr(field_info, "validation_alias", None)
+        # AliasChoices – duck-typed to avoid importing the class
+        choices = getattr(validation_alias, "choices", None)
+        if choices:
+            first = choices[0]
+            if isinstance(first, str):
+                return first
+        alias = getattr(field_info, "alias", None)
+        if isinstance(alias, str):
+            return alias
+
+    return field_name
+
+
 def ui_schema_for_model(
     model_cls: type[BaseModel],
     *,
@@ -944,9 +975,13 @@ def ui_schema_for_model(
 
         # Scalars: node already has metadata if any
 
-        ui[fname] = node
+        json_name = _get_json_schema_field_name(fname, model_cls.model_fields[fname])
+        ui[json_name] = node
 
-    ui["ui:order"] = list(model_cls.model_fields.keys())
+    ui["ui:order"] = [
+        _get_json_schema_field_name(fname, finfo)
+        for fname, finfo in model_cls.model_fields.items()
+    ]
 
     if key_transform is not None:
         return transform_ui_schema(ui, key_transform, value_transform)
