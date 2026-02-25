@@ -50,6 +50,8 @@ _FIELD_ALIASES: dict[str, str] = {
 }
 
 
+# TODO [UN-17521] @klcd: Check if a migration script is required to remove the legacy key `ftsSearchLanguage`
+# Then remove the remapping logic
 class InternalSearchConfig(BaseToolConfig):
     @model_validator(mode="before")
     @classmethod
