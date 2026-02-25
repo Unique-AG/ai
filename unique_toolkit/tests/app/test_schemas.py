@@ -60,7 +60,9 @@ class TestEventSchemas:
         assert payload.additional_parameters is not None
         assert payload.additional_parameters.translate_to_language == "en"
         assert payload.additional_parameters.content_id_to_translate == "content_1234"
-        assert payload.additional_parameters.user_space_instructions == "some instructions"
+        assert (
+            payload.additional_parameters.user_space_instructions == "some instructions"
+        )
 
     def test_event_deserialization(self):
         json_data = """{
@@ -108,7 +110,10 @@ class TestEventSchemas:
             event.payload.additional_parameters.content_id_to_translate
             == "content_1234"
         )
-        assert event.payload.additional_parameters.user_space_instructions == "some instructions"
+        assert (
+            event.payload.additional_parameters.user_space_instructions
+            == "some instructions"
+        )
         assert event.created_at == 1672531200
         assert event.version == "1.0"
 
@@ -194,4 +199,6 @@ class TestEventSchemas:
         assert payload.additional_parameters is not None
         assert payload.additional_parameters.translate_to_language == "en"
         assert payload.additional_parameters.content_id_to_translate == "content_1234"
-        assert payload.additional_parameters.user_space_instructions == "some instructions"
+        assert (
+            payload.additional_parameters.user_space_instructions == "some instructions"
+        )
