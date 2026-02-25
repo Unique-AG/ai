@@ -10,7 +10,7 @@ from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.language_model.builder import MessagesBuilder
 
-from unique_web_search.schema import WebSearchToolParameters
+from unique_web_search.schema import StepDebugInfo, WebSearchToolParameters
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
 )
@@ -24,7 +24,6 @@ from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
 from unique_web_search.utils import (
-    StepDebugInfo,
     query_params_to_human_string,
 )
 

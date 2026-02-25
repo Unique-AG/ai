@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2026-02-23
+### Added
+- LLM-based content processing strategy (`LLMProcess`) that summarizes web page content using an AI model before injecting it into the prompt context
+- Privacy filtering (sanitization) mode for the LLM processor: when enabled, instructs the AI to redact GDPR Art. 9 sensitive personal data from web search content
+- Configurable Jinja2 prompt templates for the LLM content processor (system, user, and sanitization guidelines)
+- `Truncate` strategy as a standalone, configurable processing step with its own `TruncateConfig`
+- Content cleaning pipeline with separate `LineRemoval` and `MarkdownTransform` strategies, each independently configurable
+
+### Changed
+- Refactored `ContentProcessor` into a strategy-based architecture: cleaning strategies run first, then processing strategies (`Truncate`, `LLMProcess`) are applied sequentially
+- `ContentProcessorConfig` replaced monolithic fields (`strategy`, `language_model`, `max_tokens`, `summarization_prompt`) with composable sub-configs (`CleaningConfig`, `ProcessingStrategiesConfig`)
+- Improved all config field descriptions and titles across V1/V2 configs for better UI readability
+
 ## [1.11.4] - 2026-02-16
 - Messagelog alignment
 
