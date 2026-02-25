@@ -102,6 +102,8 @@ class ToolBuildConfig(BaseModel):
         ):
             return value
         if is_mcp_tool:
+            # For MCP tools, skip ToolFactory validation
+            # Configuration can remain as a dict
             return value
 
         is_sub_agent_tool = (
@@ -118,6 +120,7 @@ class ToolBuildConfig(BaseModel):
 
                 config = ExtendedSubAgentToolConfig.model_validate(configuration)
             elif isinstance(configuration, dict):
+                # Local import to avoid circular import at module import time
                 from unique_toolkit.agentic.tools.factory import ToolFactory
 
                 config = ToolFactory.build_tool_config(
@@ -125,6 +128,7 @@ class ToolBuildConfig(BaseModel):
                     **configuration,
                 )
             else:
+                # Check that the type of config matches the tool name
                 from unique_toolkit.agentic.tools.factory import ToolFactory
 
                 assert isinstance(
