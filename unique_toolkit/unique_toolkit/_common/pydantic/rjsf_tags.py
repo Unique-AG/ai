@@ -13,10 +13,19 @@ Key components:
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from enum import StrEnum
 from typing import Annotated, Any, Union, get_args, get_origin
 
 from pydantic import BaseModel
 from typing_extensions import get_type_hints
+
+
+class CustomWidgetName(StrEnum):
+    """Mirrors TypeScript CustomWidgetName. Keep in sync when extending."""
+
+    ICON_PICKER = "iconPicker"
+    # Add new entries here when adding custom widgets in TypeScript
 
 
 # --------- Base Metadata carrier ----------
@@ -401,7 +410,7 @@ class RJSFMetaTag:
 
             attrs = {
                 "ui:widget": "range",
-                "ui:disabled": str(disabled).lower() if disabled else None,
+                "ui:disabled": disabled,
                 "ui:options": options if options else None,
                 "ui:title": title,
                 "ui:description": description,
@@ -573,6 +582,29 @@ class RJSFMetaTag:
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
 
+    class CustomWidget:
+        @classmethod
+        def custom(
+            cls,
+            name: CustomWidgetName,
+            *,
+            disabled: bool = False,
+            title: str | None = None,
+            description: str | None = None,
+            help: str | None = None,
+            **kwargs: Any,
+        ) -> RJSFMetaTag:
+            """Use any custom widget by name. Extend CustomWidgetName when adding new widgets."""
+            attrs = {
+                "ui:widget": name,
+                "ui:disabled": disabled,
+                "ui:title": title,
+                "ui:description": description,
+                "ui:help": help,
+                **kwargs,
+            }
+            return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
+
     # --------- Composer Methods ----------
 
     @classmethod
@@ -663,7 +695,6 @@ class RJSFMetaTag:
         for widget in widgets:
             any_of_branches.append(widget.attrs)
 
-        # Start with Union-level metadata
         union_attrs = {
             "ui:title": title,
             "ui:description": description,
@@ -672,11 +703,6 @@ class RJSFMetaTag:
             "ui:readonly": readonly,
             **kwargs,
         }
-
-        # Add any additional kwargs
-        for key, value in kwargs.items():
-            if value is not None:
-                union_attrs[f"ui:{key}" if not key.startswith("ui:") else key] = value
 
         union_attrs = {k: v for k, v in union_attrs.items() if v is not None}
         return RJSFMetaTag({**union_attrs, "anyOf": any_of_branches})
@@ -788,7 +814,12 @@ def _is_pyd_model(t: Any) -> bool:
 
 
 # --------- Build RJSF-style uiSchema dict from a model *type* ----------
-def ui_schema_for_model(model_cls: type[BaseModel]) -> dict[str, Any]:
+def ui_schema_for_model(
+    model_cls: type[BaseModel],
+    *,
+    key_transform: Callable[[str], str] | None = None,
+    value_transform: Callable[[str], str] | None = None,
+) -> dict[str, Any]:
     """
     Generate a React JSON Schema Form (RJSF) uiSchema from a Pydantic model.
 
@@ -806,6 +837,15 @@ def ui_schema_for_model(model_cls: type[BaseModel]) -> dict[str, Any]:
 
     Args:
         model_cls: A Pydantic BaseModel subclass to analyze
+        key_transform: An optional ``str → str`` function (e.g.
+            ``humps.camelize``) applied to **dict keys** (field names).
+            RJSF metadata keys like ``ui:widget`` are never transformed.
+            When ``None`` (default), the schema is returned with the
+            original snake_case keys.
+        value_transform: An optional ``str → str`` function applied to
+            **string values inside ``ui:order`` lists**.  Defaults to
+            *key_transform* when not provided, since ``ui:order`` values
+            must match the (transformed) property names.
 
     Returns:
         A dictionary representing the RJSF uiSchema with the structure:
@@ -834,11 +874,16 @@ def ui_schema_for_model(model_cls: type[BaseModel]) -> dict[str, Any]:
     hints = get_type_hints(model_cls, include_extras=True)
     ui: dict[str, Any] = {}
 
-    for fname, ann in hints.items():
+    for fname in model_cls.model_fields:
+        ann = hints[fname]
         node: dict[str, Any] = {}
 
         base, meta = _walk_annotated_chain(ann)
         base = _unwrap_optional(base)
+        # For Annotated[T, meta] | None, _walk_annotated_chain sees Union (empty meta).
+        # Re-process the unwrapped type to extract metadata from the Annotated branch.
+        if not meta and get_origin(base) is Annotated:
+            base, meta = _walk_annotated_chain(base)
         # Start with field-level metadata (flat dict)
         if meta:
             node.update(meta)
@@ -901,7 +946,93 @@ def ui_schema_for_model(model_cls: type[BaseModel]) -> dict[str, Any]:
 
         ui[fname] = node
 
+    ui["ui:order"] = list(model_cls.model_fields.keys())
+
+    if key_transform is not None:
+        return transform_ui_schema(ui, key_transform, value_transform)
     return ui
+
+
+# --------- Key / value transformation helpers ----------
+
+
+_STRUCTURAL_KEYS = frozenset(
+    {
+        "anyOf",
+        "oneOf",
+        "allOf",
+        "items",
+        "additionalProperties",
+        "type",
+    }
+)
+
+
+def _is_metadata_key(key: str, field_names: frozenset[str] | None = None) -> bool:
+    """Return ``True`` for RJSF / JSON-Schema structural keys that must not
+    be treated as field names (and therefore must not be transformed).
+
+    When *field_names* is provided, a key that exists in both
+    ``_STRUCTURAL_KEYS`` and *field_names* is treated as a field name
+    (i.e. **not** metadata), so it will be transformed correctly.
+    """
+    if key.startswith(("ui:", "$")):
+        return True
+    if key in _STRUCTURAL_KEYS:
+        return field_names is None or key not in field_names
+    return False
+
+
+def transform_ui_schema(
+    ui_schema: dict[str, Any],
+    key_transform: Callable[[str], str],
+    value_transform: Callable[[str], str] | None = None,
+) -> dict[str, Any]:
+    """Apply transforms to field-name keys and ``ui:order`` values.
+
+    RJSF metadata keys (``ui:widget``, ``ui:options``, …) and JSON-Schema
+    structural keys (``anyOf``, ``items``, …) are never transformed — only
+    regular field-name keys and the string values inside ``ui:order`` lists.
+
+    For the common camelCase use-case::
+
+        from humps import camelize
+        transform_ui_schema(raw_ui, camelize)
+
+    Args:
+        ui_schema: The raw UI schema to transform.
+        key_transform: A ``str → str`` function for dict keys.
+        value_transform: A ``str → str`` function for ``ui:order`` values.
+            Defaults to *key_transform* when ``None``.
+
+    Returns:
+        A new dictionary with transformed keys and ``ui:order`` values.
+    """
+    val_fn = value_transform if value_transform is not None else key_transform
+    top_level_fields = frozenset(ui_schema.get("ui:order", []))
+    return _transform_obj(ui_schema, key_transform, val_fn, top_level_fields)
+
+
+def _transform_obj(
+    obj: Any,
+    key_fn: Callable[[str], str],
+    val_fn: Callable[[str], str],
+    field_names: frozenset[str] | None = None,
+) -> Any:
+    if isinstance(obj, dict):
+        result: dict[str, Any] = {}
+        child_fields = frozenset(obj.get("ui:order", [])) if "ui:order" in obj else None
+        names = field_names if child_fields is None else child_fields
+        for k, v in obj.items():
+            new_key = k if _is_metadata_key(k, names) else key_fn(k)
+            if k == "ui:order" and isinstance(v, list):
+                result[new_key] = [val_fn(s) if isinstance(s, str) else s for s in v]
+            else:
+                result[new_key] = _transform_obj(v, key_fn, val_fn)
+        return result
+    if isinstance(obj, list):
+        return [_transform_obj(item, key_fn, val_fn) for item in obj]
+    return obj
 
 
 # --------- Example ---------

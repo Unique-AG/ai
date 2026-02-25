@@ -7,6 +7,7 @@ from typing import NamedTuple, override
 from openai import AsyncOpenAI
 from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 from pydantic import BaseModel, Field, RootModel
+from pydantic.json_schema import SkipJsonSchema
 
 from unique_toolkit import ChatService
 from unique_toolkit._common.execution import failsafe_async
@@ -29,11 +30,11 @@ logger = logging.getLogger(__name__)
 
 class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
     model_config = get_configuration_dict()
-    upload_to_chat: bool = Field(
+    upload_to_chat: SkipJsonSchema[bool] = Field(
         default=True,
         description="Whether to upload the generated files to the chat.",
     )
-    upload_scope_id: str = Field(
+    upload_scope_id: SkipJsonSchema[str] = Field(
         default="<SCOPE_ID_PLACEHOLDER>",
         description="The scope ID where the generated files will be uploaded. Ignored if `uploadToChat` is set.",
     )
@@ -97,7 +98,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         self._config = config
         self._company_id = company_id
 
-        if self._config.upload_to_chat and self._chat_service is None:
+        if self._chat_service is None:
             raise ValueError("ChatService is required if uploadToChat is True")
 
         self._short_term_memory_manager = None
@@ -231,23 +232,14 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 container_file.filename,
             )
 
-            if self._config.upload_to_chat:
-                assert self._chat_service is not None  # Checked in __init__
-                content = await self._chat_service.upload_to_chat_from_bytes_async(
-                    content=file_content.content,
-                    content_name=container_file.filename,
-                    mime_type=guess_type(container_file.filename)[0] or "text/plain",
-                    skip_ingestion=True,
-                    hide_in_chat=True,
-                )
-            else:
-                content = await self._content_service.upload_content_from_bytes_async(
-                    content=file_content.content,
-                    content_name=container_file.filename,
-                    mime_type=guess_type(container_file.filename)[0] or "text/plain",
-                    scope_id=self._config.upload_scope_id,
-                    skip_ingestion=True,
-                )
+            assert self._chat_service is not None  # Checked in __init__
+            content = await self._chat_service.upload_to_chat_from_bytes_async(
+                content=file_content.content,
+                content_name=container_file.filename,
+                mime_type=guess_type(container_file.filename)[0] or "text/plain",
+                skip_ingestion=True,
+                hide_in_chat=True,
+            )
 
             return _ContentInfo(filename=container_file.filename, content_id=content.id)
 

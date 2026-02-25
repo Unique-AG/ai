@@ -1,9 +1,10 @@
 from typing import Annotated
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic.json_schema import SkipJsonSchema
 
 from unique_toolkit._common.config_checker import register_config
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInToolName,
@@ -66,11 +67,21 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
         default=True,
         description="If set, the files uploaded to the chat will be uploaded to the container where code is executed.",
     )
-    tool_description: str = Field(
+    tool_description: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(DEFAULT_TOOL_DESCRIPTION.split("\n"))
+        ),
+    ] = Field(
         default=DEFAULT_TOOL_DESCRIPTION,
         description="The description of the tool that will be included in the system prompt.",
     )
-    tool_description_for_system_prompt: str = Field(
+    tool_description_for_system_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT.split("\n")) / 2)
+        ),
+    ] = Field(
         default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
         description="The description of the tool that will be included in the system prompt.",
     )
@@ -94,27 +105,24 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
 class CodeInterpreterExtendedConfig(BaseToolConfig):
     generated_files_config: DisplayCodeInterpreterFilesPostProcessorConfig = Field(
         default=DisplayCodeInterpreterFilesPostProcessorConfig(),
-        title="Generated files config",
-        description="Display config for generated files",
+        title="Generated files",
     )
 
-    executed_code_display_config: (
-        Annotated[
-            ShowExecutedCodePostprocessorConfig,
-            Field(title="Active"),
-        ]
-        | Annotated[
-            None,
-            Field(title="Deactivated", description="None"),
-        ]
-    ) = Field(
+    executed_code_display_config: ShowExecutedCodePostprocessorConfig = Field(
         default=ShowExecutedCodePostprocessorConfig(),
-        description="If active, generated code will be prepended to the LLM answer",
+        title="Code display",
     )
+
+    @field_validator("executed_code_display_config", mode="before")
+    @classmethod
+    def _default_executed_code_display_config(cls, v):
+        if v is None:
+            return ShowExecutedCodePostprocessorConfig()
+        return v
 
     tool_config: OpenAICodeInterpreterConfig = Field(
         default=OpenAICodeInterpreterConfig(),
-        title="Tool config",
+        title="Tool",
     )
 
 

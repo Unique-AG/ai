@@ -6,10 +6,10 @@ Title: {{ page.title }}
 URL: {{ page.url }}
 Snippet:
 {{ page.snippet }}
+{% if sanitize %}
+
+REMINDER: You MUST apply all sanitization rules to both the snippet and the summary. Replace every piece of GDPR Art. 9 sensitive data with the appropriate typed redaction tag (e.g., [RedactHealth], [RedactPoliticalOpinion]). This applies to ALL individuals mentioned on the page, not only the subject of the search query. Read the content below with this constraint active.
+{% endif %}
 
 Content (full page):
 {{ page.content }}
-{% if sanitize %}
-
-REMINDER: You MUST apply all sanitization rules to both the snippet and the summary. Replace every piece of GDPR Art. 9 sensitive data with the appropriate typed redaction tag (e.g., [RedactHealth], [RedactPoliticalOpinion]). This applies to ALL individuals mentioned on the page, not only the subject of the search query.
-{% endif %}

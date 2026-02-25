@@ -138,6 +138,43 @@ class TestDebugInfoManager:
         assert debug_info["tools"][0]["name"] == "MinimalTool"
         assert debug_info["tools"][0]["info"] == {}
 
+    def test_extract_tool_debug_info__includes_mcp_server__when_present_in_debug_info(
+        self,
+    ):
+        """Test that mcp_server is promoted from debug_info to the tool level."""
+        manager = DebugInfoManager()
+        tool_call_response = ToolCallResponse(
+            id="tool_1",
+            name="MCPSearchTool",
+            debug_info={
+                "mcp_tool": "MCPSearchTool",
+                "mcp_server": "my-mcp-server",
+                "arguments": {"query": "test"},
+            },
+        )
+
+        manager.extract_tool_debug_info([tool_call_response])
+
+        debug_info = manager.get()
+        assert len(debug_info["tools"]) == 1
+        assert debug_info["tools"][0]["name"] == "MCPSearchTool"
+        assert debug_info["tools"][0]["mcp_server"] == "my-mcp-server"
+
+    def test_extract_tool_debug_info__omits_mcp_server__when_not_present(self):
+        """Test that mcp_server is not included for non-MCP tools."""
+        manager = DebugInfoManager()
+        tool_call_response = ToolCallResponse(
+            id="tool_1",
+            name="InternalSearch",
+            debug_info={"query": "test"},
+        )
+
+        manager.extract_tool_debug_info([tool_call_response])
+
+        debug_info = manager.get()
+        assert len(debug_info["tools"]) == 1
+        assert "mcp_server" not in debug_info["tools"][0]
+
     def test_extract_tool_debug_info__handles_empty_list__without_error(self):
         """Test that passing an empty list doesn't cause errors."""
         manager = DebugInfoManager()
