@@ -1,7 +1,7 @@
 
 # Task Cancellation
 
-When a user clicks "Stop" in the chat frontend, the platform sets a `cancelledAt` flag on the assistant message in the database. The toolkit provides a `CancellationWatcher` to detect this flag and gracefully stop long-running agent loops or tool executions.
+When a user clicks "Stop" in the chat frontend, the platform sets a `userAbortedAt` flag on the assistant message in the database. The toolkit provides a `CancellationWatcher` to detect this flag and gracefully stop long-running agent loops or tool executions.
 
 ## How It Works
 
@@ -13,9 +13,9 @@ sequenceDiagram
     participant A as Agent (Python)
 
     FE->>B: User clicks "Stop"
-    B->>DB: Set cancelledAt on message
-    A->>DB: Poll for cancelledAt
-    DB-->>A: cancelledAt is set
+    B->>DB: Set userAbortedAt on message
+    A->>DB: Poll for userAbortedAt
+    DB-->>A: userAbortedAt is set
     A->>A: Set is_cancelled = True
     A->>A: Notify subscribers via event bus
     A->>A: Break out of loop
