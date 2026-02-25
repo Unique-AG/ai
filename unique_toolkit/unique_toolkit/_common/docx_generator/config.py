@@ -43,7 +43,7 @@ class DocxGeneratorConfig(BaseModel):
         deprecated="Please use content_id instead",
     )
 
-    template_fields: dict[str, object] = Field(
+    template_fields: dict[str, str] = Field(
         default_factory=lambda: {
             "date": datetime.now().strftime("%d/%m/%Y"),
             "document_title": "Template Document",
@@ -57,7 +57,7 @@ class DocxGeneratorConfig(BaseModel):
     )
 
     @field_validator("template_fields", mode="after", check_fields=True)
-    def validate_template_fields(cls, v: dict[str, object]) -> dict[str, object]:
+    def validate_template_fields(cls, v: dict[str, str]) -> dict[str, str]:
         for key, value in v.items():
             if value == "CURRENT_DATE":
                 v[key] = datetime.now().strftime("%d/%m/%Y")
