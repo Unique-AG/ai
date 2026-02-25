@@ -80,7 +80,7 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
         description="A custom instruction provided by the system admin.",
     )
 
-    user_instructions: str | None = Field(
+    user_space_instructions: str | None = Field(
         default=None,
         description="User instructions for the space provided by the user.",
     )
