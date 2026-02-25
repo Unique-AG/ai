@@ -41,7 +41,9 @@ class TestCheckCancellationAsync:
     @pytest.mark.asyncio
     @patch("unique_sdk.Message.retrieve_async", new_callable=AsyncMock)
     async def test_returns_true__when_cancelled(self, mock_retrieve):
-        mock_retrieve.return_value = SimpleNamespace(userAbortedAt="2025-01-01T00:00:00Z")
+        mock_retrieve.return_value = SimpleNamespace(
+            userAbortedAt="2025-01-01T00:00:00Z"
+        )
         w = _make_watcher()
 
         result = await w.check_cancellation_async()
@@ -52,7 +54,9 @@ class TestCheckCancellationAsync:
     @pytest.mark.asyncio
     @patch("unique_sdk.Message.retrieve_async", new_callable=AsyncMock)
     async def test_notifies_subscribers(self, mock_retrieve):
-        mock_retrieve.return_value = SimpleNamespace(userAbortedAt="2025-01-01T00:00:00Z")
+        mock_retrieve.return_value = SimpleNamespace(
+            userAbortedAt="2025-01-01T00:00:00Z"
+        )
         w = _make_watcher()
         received: list[CancellationEvent] = []
         w.on_cancellation.subscribe(lambda e: received.append(e))
@@ -93,7 +97,9 @@ class TestCheckCancellationSync:
 
     @patch("unique_sdk.Message.retrieve")
     def test_returns_true__when_cancelled(self, mock_retrieve):
-        mock_retrieve.return_value = SimpleNamespace(userAbortedAt="2025-01-01T00:00:00Z")
+        mock_retrieve.return_value = SimpleNamespace(
+            userAbortedAt="2025-01-01T00:00:00Z"
+        )
         w = _make_watcher()
 
         assert w.check_cancellation() is True
@@ -114,7 +120,9 @@ class TestCheckCancellationSync:
     @pytest.mark.asyncio
     @patch("unique_sdk.Message.retrieve")
     async def test_notifies_subscribers__when_loop_running(self, mock_retrieve):
-        mock_retrieve.return_value = SimpleNamespace(userAbortedAt="2025-01-01T00:00:00Z")
+        mock_retrieve.return_value = SimpleNamespace(
+            userAbortedAt="2025-01-01T00:00:00Z"
+        )
         w = _make_watcher()
         received: list[CancellationEvent] = []
         w.on_cancellation.subscribe(lambda e: received.append(e))
