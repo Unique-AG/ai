@@ -1,6 +1,9 @@
 import asyncio
+import json
+import re
 from datetime import datetime, timezone
 from logging import Logger
+from pathlib import Path
 from typing import overload
 
 import jinja2
@@ -9,6 +12,7 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.loop_runner import (
@@ -31,10 +35,15 @@ from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.cancellation import CancellationEvent
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.content.schemas import Content
 from unique_toolkit.language_model import LanguageModelAssistantMessage
 from unique_toolkit.language_model.schemas import (
+    LanguageModelFunction,
+    LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelStreamResponse,
+    LanguageModelToolMessage,
+    LanguageModelUserMessage,
 )
 from unique_toolkit.protocols.support import (
     ResponsesSupportCompleteWithReferences,
@@ -118,6 +127,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner | ResponsesLoopIterationRunner,
+        agent_file_registry: list[str] | None = None,
     ) -> None:
         self._logger = logger
         self._event = event
@@ -139,7 +149,8 @@ class UniqueAI:
         self._streaming_handler = streaming_handler
 
         self._message_step_logger = message_step_logger
-        # Helper variable to support control loop
+        self._agent_file_registry: list[str] = agent_file_registry if agent_file_registry is not None else []
+        self._pdf_fallback_occurred = False
         self._tool_took_control = False
         self._loop_iteration_runner = loop_iteration_runner
 
@@ -180,6 +191,51 @@ class UniqueAI:
 
         sub = self._chat_service.cancellation.on_cancellation.subscribe(
             self._on_cancellation
+            
+        ## Loop iteration
+        max_iterations = self._effective_max_loop_iterations
+        for i in range(max_iterations):
+            self.current_iteration_index = i
+            self._logger.info(f"Starting iteration {i + 1}...")
+
+            # Plan execution
+            loop_response = await self._plan_or_execute()
+            self._logger.info("Done with _plan_or_execute")
+
+            self._reference_manager.add_references(loop_response.message.references)
+            self._logger.info("Done with adding references")
+
+            # Update tool progress reporter
+            self._thinking_manager.update_tool_progress_reporter(loop_response)
+
+            if self._pdf_fallback_occurred:
+                await self._report_pdf_fallback_step()
+                self._pdf_fallback_occurred = False
+
+            # Execute the plan
+            exit_loop = await self._process_plan(loop_response)
+            self._logger.info("Done with _process_plan")
+
+            if exit_loop:
+                self._thinking_manager.close_thinking_steps(loop_response)
+                self._logger.info("Exiting loop.")
+                break
+
+            if i == max_iterations - 1:
+                self._logger.error("Max iterations reached.")
+                await self._chat_service.modify_assistant_message_async(
+                    content="I have reached the maximum number of self-reflection iterations. Please clarify your request and try again...",
+                )
+                break
+
+            self.start_text = self._thinking_manager.update_start_text(
+                self.start_text, loop_response
+            )
+        await self._update_debug_info_if_tool_took_control()
+
+        # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
+        await self._chat_service.modify_assistant_message_async(
+            set_completed_at=not self._tool_took_control,
         )
         try:
             max_iterations = self._effective_max_loop_iterations
@@ -231,6 +287,9 @@ class UniqueAI:
         finally:
             sub.cancel()
 
+    _OPEN_PDF_TOOL_NAME = "OpenPdf"
+
+
     # @track()
     async def _plan_or_execute(self) -> LanguageModelStreamResponse:
         self._logger.info("Planning or executing the loop.")
@@ -238,19 +297,276 @@ class UniqueAI:
 
         self._logger.info("Done composing message plan execution.")
 
+        tool_definitions = self._tool_manager.get_tool_definitions()
+        self._dump_tool_schemas(tool_definitions)
+        self._dump_messages(messages)
+
+        try:
+            return await self._loop_iteration_runner(
+                messages=messages,
+                iteration_index=self.current_iteration_index,
+                streaming_handler=self._streaming_handler,  # type: ignore (constructor accepts only compatible arguments)
+                model=self._config.space.language_model,
+                tools=tool_definitions,  # type: ignore (as above)
+                content_chunks=self._reference_manager.get_chunks(),
+                start_text=self.start_text,
+                debug_info=self._debug_info_manager.get(),
+                temperature=self._config.agent.experimental.temperature,
+                tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
+                other_options=self._config.agent.experimental.additional_llm_options,
+            )
+        except Exception as exc:
+            if not self._should_retry_without_pdf_files(exc):
+                raise
+            return await self._retry_without_pdf_files(messages)
+
+    _RETRY_SIGNALS = (
+        "too large",
+        "payload too large",
+        "request entity too large",
+        "content_length_exceeded",
+        "max_tokens",
+        "context_length_exceeded",
+        "413",
+        "request too large",
+        "403 forbidden",
+        "application-gateway",
+    )
+
+    def _should_retry_without_pdf_files(self, exc: Exception) -> bool:
+        """Return True when the error looks like a payload-too-large or related
+        backend rejection that can be resolved by dropping the PDF file parts."""
+        cfg = self._config.agent.experimental.responses_api_config
+        if not cfg.send_pdf_files_in_payload and not cfg.send_uploaded_pdf_in_payload:
+            return False
+        if not self._agent_file_registry and not self._get_uploaded_documents():
+            return False
+        error_text = str(exc).lower()
+        return any(s in error_text for s in self._RETRY_SIGNALS)
+
+    _PDF_TOO_LARGE_TOOL_RESPONSE = (
+        "ERROR: The PDF file is too large to open. "
+        "Could not include the document in the context. "
+        "Please inform the user that the file is too large to process directly "
+        "and suggest asking an admin to include the document in the knowledge base."
+    )
+
+    async def _retry_without_pdf_files(
+        self, messages: LanguageModelMessages
+    ) -> LanguageModelStreamResponse:
+        """Strip PDF file parts from messages, remove the OpenPdf tool, and retry.
+
+        Two different strategies depending on the source:
+        - KB PDFs (via OpenPdf + InternalSearch): strip the OpenPdf tool call
+          and tool response entirely.  The LLM falls back to the InternalSearch
+          chunks it already has.
+        - Uploaded PDFs: inject a synthetic OpenPdf tool call + error response
+          so the LLM knows the files could not be opened and can inform the user.
+        """
+        self._logger.warning(
+            "LLM call failed (likely payload too large). "
+            "Retrying without PDF files."
+        )
+
+        self._tool_manager.remove_tool(self._OPEN_PDF_TOOL_NAME)
+        self._pdf_fallback_occurred = True
+
+        messages = self._strip_file_parts_from_messages(messages)
+        self._strip_open_pdf_messages(messages)
+        self._inject_uploaded_pdf_fallback_messages(messages)
+        self._agent_file_registry.clear()
+        tool_definitions = self._tool_manager.get_tool_definitions()
+
         return await self._loop_iteration_runner(
             messages=messages,
             iteration_index=self.current_iteration_index,
-            streaming_handler=self._streaming_handler,  # type: ignore (constructor accepts only compatible arguments)
+            streaming_handler=self._streaming_handler,  # type: ignore
             model=self._config.space.language_model,
-            tools=self._tool_manager.get_tool_definitions(),  # type: ignore (as above)
+            tools=tool_definitions,  # type: ignore
             content_chunks=self._reference_manager.get_chunks(),
             start_text=self.start_text,
             debug_info=self._debug_info_manager.get(),
             temperature=self._config.agent.experimental.temperature,
-            tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
+            tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore
             other_options=self._config.agent.experimental.additional_llm_options,
         )
+
+    def _strip_open_pdf_messages(
+        self, messages: LanguageModelMessages
+    ) -> None:
+        """Remove OpenPdf tool calls from assistant messages and their
+        corresponding tool response messages entirely.
+        The LLM falls back to InternalSearch chunks."""
+        open_pdf_call_ids: set[str] = set()
+
+        for msg in messages.root:
+            if not isinstance(msg, LanguageModelAssistantMessage):
+                continue
+            if not msg.tool_calls:
+                continue
+            for tc in msg.tool_calls:
+                if tc.function.name == self._OPEN_PDF_TOOL_NAME:
+                    open_pdf_call_ids.add(tc.id or tc.function.id)
+
+        if not open_pdf_call_ids:
+            return
+
+        # Remove tool response messages for OpenPdf calls
+        messages.root[:] = [
+            msg for msg in messages.root
+            if not (
+                isinstance(msg, LanguageModelToolMessage)
+                and msg.tool_call_id in open_pdf_call_ids
+            )
+        ]
+
+        # Remove OpenPdf tool calls from assistant messages
+        for msg in messages.root:
+            if not isinstance(msg, LanguageModelAssistantMessage):
+                continue
+            if not msg.tool_calls:
+                continue
+            msg.tool_calls = [
+                tc for tc in msg.tool_calls
+                if tc.function.name != self._OPEN_PDF_TOOL_NAME
+            ]
+
+    def _inject_uploaded_pdf_fallback_messages(
+        self, messages: LanguageModelMessages
+    ) -> None:
+        """For uploaded PDFs that were silently attached, inject a synthetic
+        OpenPdf tool call + error response so the LLM knows why the files
+        are gone and can inform the user."""
+        uploaded_docs = self._get_uploaded_documents()
+        if not uploaded_docs:
+            return
+
+        content_ids = [doc.id for doc in uploaded_docs if doc.id]
+        if not content_ids:
+            return
+
+        func = LanguageModelFunction(
+            name=self._OPEN_PDF_TOOL_NAME,
+            arguments={"content_ids": content_ids},
+        )
+        assistant_msg = LanguageModelAssistantMessage.from_functions([func])
+        tool_msg = LanguageModelToolMessage(
+            content=self._PDF_TOO_LARGE_TOOL_RESPONSE,
+            name=self._OPEN_PDF_TOOL_NAME,
+            tool_call_id=func.id,
+        )
+        messages.root.append(assistant_msg)
+        messages.root.append(tool_msg)
+
+    async def _report_pdf_fallback_step(self) -> None:
+        """Add a step entry indicating the PDF was too large to open."""
+        self._message_step_logger.create_message_log_entry(
+            text=(
+                "**Open PDF:** The PDF file is too large to open. "
+                "Please ask an admin to include the document in the knowledge base."
+            ),
+            references=[],
+        )
+
+    @staticmethod
+    def _strip_file_parts_from_messages(
+        messages: LanguageModelMessages,
+    ) -> LanguageModelMessages:
+        """Remove file/input_file parts from user messages, keeping only text."""
+        for i, msg in enumerate(messages.root):
+            if msg.role != LanguageModelMessageRole.USER:
+                continue
+            if not isinstance(msg.content, list):
+                continue
+            text_parts = [
+                p for p in msg.content
+                if isinstance(p, dict) and p.get("type") in ("text", "input_text")
+            ]
+            if text_parts:
+                text = " ".join(p.get("text", "") for p in text_parts).strip()
+                messages.root[i] = LanguageModelUserMessage(content=text)
+        return messages
+
+    _OPEN_PDF_SYSTEM_REMINDER = (
+        "<|system_reminder|>PDF documents were found in the search results. "
+        "For any PDF you want to reference or reason over, call the OpenPdf tool "
+        "with the content_id from the search results. The document name is shown "
+        "inside <|document|>…<|/document|> tags in the content field. "
+        "The full PDF provides far better information than the extracted text "
+        "chunks (tables, charts, layout, and cross-page context are preserved)."
+        "<|/system_reminder|>"
+    )
+
+    def _inject_open_pdf_reminder(
+        self, tool_call_responses: list,
+    ) -> None:
+        """When OpenPdf is available, append a system reminder to InternalSearch
+        responses that contain PDF content_ids so the LLM is nudged to open them."""
+        if not self._tool_manager.get_tool_by_name(self._OPEN_PDF_TOOL_NAME):
+            return
+
+        for resp in tool_call_responses:
+            if resp.name != "InternalSearch":
+                continue
+            has_pdf_chunks = any(
+                chunk.key and chunk.key.split(" : ")[0].lower().endswith(".pdf")
+                for chunk in (resp.content_chunks or [])
+            )
+            if has_pdf_chunks:
+                existing = resp.system_reminder or ""
+                resp.system_reminder = (
+                    f"{existing}\n{self._OPEN_PDF_SYSTEM_REMINDER}".strip()
+                )
+
+    _PAYLOAD_DUMPS_DIR = Path("payload_dumps")
+
+    def _dump_tool_schemas(self, tool_definitions: list) -> None:
+        """Dump the tool schemas passed to the LLM to a JSON file for debugging."""
+        from pydantic import BaseModel
+
+        try:
+            schemas = []
+            for td in tool_definitions:
+                if isinstance(td, dict):
+                    schemas.append(td)
+                    continue
+                params = td.parameters
+                if isinstance(params, type) and issubclass(params, BaseModel):
+                    params_json = params.model_json_schema()
+                elif isinstance(params, dict):
+                    params_json = params
+                else:
+                    params_json = str(params)
+                schemas.append({
+                    "name": td.name,
+                    "description": td.description,
+                    "parameters": params_json,
+                })
+
+            self._PAYLOAD_DUMPS_DIR.mkdir(parents=True, exist_ok=True)
+            out = self._PAYLOAD_DUMPS_DIR / "tool-schemas-for-llm.json"
+            out.write_text(json.dumps(schemas, indent=2, ensure_ascii=False, default=str))
+            self._logger.info(f"Dumped {len(schemas)} tool schemas to {out}")
+        except Exception as e:
+            self._logger.error(f"Failed to dump tool schemas: {e}", exc_info=True)
+
+    def _dump_messages(self, messages: "LanguageModelMessages") -> None:
+        """Dump the messages sent to the LLM, truncating large base64 blobs."""
+        try:
+            raw = messages.model_dump(mode="json")
+            dumped = json.dumps(raw, indent=2, ensure_ascii=False, default=str)
+            dumped = re.sub(
+                r'"(data:[^;]+;base64,)[A-Za-z0-9+/=]{200,}"',
+                r'"\1<BASE64_TRUNCATED>"',
+                dumped,
+            )
+
+            self._PAYLOAD_DUMPS_DIR.mkdir(parents=True, exist_ok=True)
+            out = self._PAYLOAD_DUMPS_DIR / "llm-messages.json"
+            out.write_text(dumped)
+            self._logger.info(f"Dumped LLM messages to {out}")
+        except Exception as e:
+            self._logger.error(f"Failed to dump messages: {e}", exc_info=True)
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
         self._logger.info(
@@ -288,6 +604,91 @@ class UniqueAI:
             rendered_system_message_string,
             self._postprocessor_manager.remove_from_text,
         )
+
+        responses_cfg = self._config.agent.experimental.responses_api_config
+        if responses_cfg.use_responses_api and (
+            responses_cfg.send_pdf_files_in_payload
+            or responses_cfg.send_uploaded_pdf_in_payload
+        ):
+            messages = self._inject_content_files_into_user_message(messages)
+
+        return messages
+
+    def _get_uploaded_documents(self) -> list[Content]:
+        """Lazily fetch and cache non-expired PDF documents uploaded to this chat."""
+        if not hasattr(self, "_cached_uploaded_documents"):
+            now = datetime.now(timezone.utc)
+            all_docs = self._content_service.get_documents_uploaded_to_chat()
+            self._cached_uploaded_documents = [
+                doc
+                for doc in all_docs
+                if (doc.expired_at is None or doc.expired_at > now)
+                and doc.key.lower().endswith(".pdf")
+            ]
+        return self._cached_uploaded_documents
+
+    def _collect_content_file_parts(self) -> list[dict]:
+        """Collect file parts to include in the LLM payload.
+
+        Two independent sources, each gated by its own config flag:
+        - Uploaded PDFs (send_uploaded_pdf_in_payload) — included automatically.
+        - Knowledge-base PDFs (send_pdf_files_in_payload) — included when the
+          agent calls OpenPdfTool with a content_id from search results.
+
+        file_data uses a unique://content/<id> URL. The backend resolves this
+        to the actual PDF bytes and base64-encodes them before forwarding to OpenAI.
+        """
+        cfg = self._config.agent.experimental.responses_api_config
+        seen_ids: set[str] = set()
+        file_parts: list[dict] = []
+
+        if cfg.send_uploaded_pdf_in_payload:
+            for doc in self._get_uploaded_documents():
+                if doc.id and doc.id not in seen_ids:
+                    seen_ids.add(doc.id)
+                    file_parts.append(
+                        {
+                            "type": "file",
+                            "file": {
+                                "filename": doc.key or doc.id,
+                                "file_data": f"unique://content/{doc.id}",
+                            },
+                        }
+                    )
+
+        if cfg.send_pdf_files_in_payload:
+            for content_id in self._agent_file_registry:
+                if content_id not in seen_ids:
+                    seen_ids.add(content_id)
+                    file_parts.append(
+                        {
+                            "type": "file",
+                            "file": {
+                                "filename": content_id,
+                                "file_data": f"unique://content/{content_id}",
+                            },
+                        }
+                    )
+
+        return file_parts
+
+    def _inject_content_files_into_user_message(
+        self, messages: LanguageModelMessages
+    ) -> LanguageModelMessages:
+        """Append content file references to the last user message as input_file parts."""
+        file_parts = self._collect_content_file_parts()
+        if not file_parts:
+            return messages
+
+        for i in range(len(messages.root) - 1, -1, -1):
+            msg = messages.root[i]
+            if msg.role == LanguageModelMessageRole.USER:
+                text_content = msg.content if isinstance(msg.content, str) else ""
+                messages.root[i] = LanguageModelUserMessage(
+                    content=[{"type": "text", "text": text_content}] + file_parts
+                )
+                break
+
         return messages
 
     async def _render_user_prompt(self) -> str:
@@ -413,6 +814,15 @@ class UniqueAI:
         )
 
         selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
+        if self._agent_file_registry:
+            selected_evaluation_names = [
+                n for n in selected_evaluation_names
+                if n != EvaluationMetricName.HALLUCINATION
+            ]
+            self._logger.info(
+                "OpenPdf was used — skipping hallucination check "
+                "(LLM has full PDF content, not just search chunks)."
+            )
         evaluation_results = task_executor.execute_async(
             self._evaluation_manager.run_evaluations,
             selected_evaluation_names,
@@ -494,6 +904,8 @@ class UniqueAI:
         tool_call_responses = await self._tool_manager.execute_selected_tools(
             tool_calls
         )
+
+        self._inject_open_pdf_reminder(tool_call_responses)
 
         # Process results with error handling
         # Add tool call results to history first to stabilize source numbering,

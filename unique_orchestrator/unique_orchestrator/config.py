@@ -311,6 +311,28 @@ class ResponsesApiConfig(BaseToolConfig):
         description="If set, the main agent will use the Responses API from OpenAI",
     )
 
+    send_pdf_files_in_payload: bool = Field(
+        default=False,
+        description=(
+            "Enable the OpenPdf tool for knowledge-base PDFs. When the agent "
+            "finds PDFs via InternalSearch, it can call OpenPdf with the "
+            "content_id to include the full document in the LLM context "
+            "(unique://content/<id> URLs, resolved to base64 by the backend). "
+            "Only takes effect when use_responses_api is also True."
+        ),
+    )
+
+    send_uploaded_pdf_in_payload: bool = Field(
+        default=False,
+        description=(
+            "Attach uploaded PDF files directly to the LLM payload as full "
+            "documents (unique://content/<id> URLs, resolved to base64 by the "
+            "backend). When enabled, uploaded PDFs bypass InternalSearch and "
+            "are included automatically from iteration 1. "
+            "Only takes effect when use_responses_api is also True."
+        ),
+    )
+
 
 class ExperimentalConfig(BaseToolConfig):
     """Experimental features this part of the configuration might evolve in the future continuously"""
