@@ -282,9 +282,18 @@ print_success "Change descriptions present"
 
 # --- reject unrecognized lines in staging (catch formatting mistakes) ---
 
+IN_HTML_COMMENT=false
 while IFS= read -r line; do
     [[ -z "$line" ]] && continue
-    # Allow: header boilerplate, bump indicators, change descriptions, sub-items, section headings, HTML comments
+    if [[ "$IN_HTML_COMMENT" == true ]]; then
+        [[ "$line" =~ --\>$ ]] && IN_HTML_COMMENT=false
+        continue
+    fi
+    if [[ "$line" =~ ^\<\!-- ]]; then
+        [[ "$line" =~ --\>$ ]] || IN_HTML_COMMENT=true
+        continue
+    fi
+    # Allow: header boilerplate, bump indicators, change descriptions, sub-items, section headings
     [[ "$line" =~ ^#\  ]] && continue
     [[ "$line" =~ ^All\ notable ]] && continue
     [[ "$line" =~ ^The\ format\ is ]] && continue
@@ -294,8 +303,6 @@ while IFS= read -r line; do
     [[ "$line" =~ ^[[:space:]]+-[[:space:]] ]] && continue
     [[ "$line" =~ ^[[:space:]] ]] && continue
     [[ "$line" =~ ^### ]] && continue
-    [[ "$line" =~ ^\<\!-- ]] && continue
-    [[ "$line" =~ --\>$ ]] && continue
 
     print_error "Unrecognized line in staging section: $line"
     echo ""

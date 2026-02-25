@@ -196,9 +196,6 @@ if [ ${#ENTRY_LINES[@]} -eq 0 ]; then
     exit 1
 fi
 
-# Reconstruct the header (everything before the first entry in the original file)
-HEADER=$(head -n 6 "$CHANGELOG" | grep -E '^(#|$|All notable|The format|and this)' || true)
-# Use a fixed header to be safe
 HEADER="# Changelog
 
 All notable changes to this project will be documented in this file.
