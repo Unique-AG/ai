@@ -46,6 +46,6 @@ class ChunkRelevancySortConfig(BaseModel):
         Annotated[int, Field(title="Limited")]
         | Annotated[None, Field(title="Unlimited")]
     ) = Field(
-        default=1000,
+        default=50,
         description="The maximum number of tasks to run in parallel.",
     )
