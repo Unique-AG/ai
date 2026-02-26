@@ -82,6 +82,7 @@ apply_bump() {
   esac
 }
 
+# Expects changelog entries in Keep a Changelog format: ## [MAJOR.MINOR.PATCH] - YYYY-MM-DD
 first_changelog_version() {
   local ref="$1"
   local path="$2"
@@ -125,28 +126,40 @@ resolve_pr() {
   local ancestor
   ancestor=$(git merge-base "origin/main" "origin/$pr_branch" 2>/dev/null) || { echo "No common ancestor — skipping"; echo "::endgroup::"; return 0; }
 
-  local conflicting_packages=()
-  local non_version_conflicts=false
+  # In-memory conflict detection via git merge-tree (no working tree changes)
+  local merge_output merge_exit
+  merge_output=$(git merge-tree --write-tree "origin/$pr_branch" origin/main 2>&1) && merge_exit=0 || merge_exit=$?
 
-  git checkout "origin/$pr_branch" --detach -q 2>/dev/null
-  if git merge origin/main --no-commit --no-ff -q 2>/dev/null; then
-    git merge --abort 2>/dev/null || true
-    git checkout - -q 2>/dev/null || true
+  if [[ $merge_exit -eq 0 ]]; then
     echo "No conflicts — skipping"
     echo "::endgroup::"
     return 0
   fi
 
-  local conflicted_files
-  conflicted_files=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
+  local all_conflict_lines
+  all_conflict_lines=$(echo "$merge_output" | grep 'CONFLICT' || true)
 
-  if [[ -z "$conflicted_files" ]]; then
-    git merge --abort 2>/dev/null || true
-    git checkout - -q 2>/dev/null || true
-    echo "No conflicted files detected — skipping"
+  if [[ -z "$all_conflict_lines" ]]; then
+    echo "merge-tree indicated issues but no CONFLICT lines — skipping"
     echo "::endgroup::"
     return 0
   fi
+
+  local conflicted_files
+  conflicted_files=$(echo "$all_conflict_lines" | sed -nE 's/.*Merge conflict in (.+)/\1/p')
+
+  local total_conflicts parsed_conflicts
+  total_conflicts=$(echo "$all_conflict_lines" | wc -l | tr -d ' ')
+  parsed_conflicts=$(echo "$conflicted_files" | grep -c . 2>/dev/null || echo 0)
+
+  if [[ "$parsed_conflicts" -lt "$total_conflicts" ]]; then
+    echo "Has non-standard conflicts (modify/delete, rename, etc.) — skipping"
+    echo "::endgroup::"
+    return 0
+  fi
+
+  local conflicting_packages=()
+  local non_version_conflicts=false
 
   for file in $conflicted_files; do
     local is_version_file=false
@@ -165,17 +178,13 @@ resolve_pr() {
     fi
   done
 
-  git merge --abort 2>/dev/null || true
-
   if [[ "$non_version_conflicts" == "true" ]]; then
-    git checkout - -q 2>/dev/null || true
     echo "Has non-version conflicts — skipping (developer must resolve manually)"
     echo "::endgroup::"
     return 0
   fi
 
   if [[ ${#conflicting_packages[@]} -eq 0 ]]; then
-    git checkout - -q 2>/dev/null || true
     echo "No version-related conflicts found — skipping"
     echo "::endgroup::"
     return 0
@@ -184,13 +193,14 @@ resolve_pr() {
   echo "Version conflicts in: ${conflicting_packages[*]}"
 
   if [[ "$DRY_RUN" == "true" ]]; then
-    git checkout - -q 2>/dev/null || true
     echo "[DRY RUN] Would auto-resolve version conflicts for packages: ${conflicting_packages[*]}"
     echo "::endgroup::"
     return 0
   fi
 
+  # Only now touch the working tree: checkout PR branch and merge main once
   git checkout "origin/$pr_branch" --detach -q
+  git merge origin/main --no-commit --no-ff -q 2>/dev/null || true
 
   for pkg in "${conflicting_packages[@]}"; do
     local pyproject="$pkg/pyproject.toml"
@@ -221,8 +231,6 @@ resolve_pr() {
 
     local new_entry
     new_entry=$(extract_new_changelog_entry "$ancestor" "origin/$pr_branch" "$changelog")
-
-    git merge origin/main --no-commit --no-ff -q 2>/dev/null || true
 
     git show "origin/main:$pyproject" > "$pyproject"
     sed -i -E "s/^(version[[:space:]]*=[[:space:]]*)\"[^\"]+\"/\1\"$new_ver\"/" "$pyproject"
