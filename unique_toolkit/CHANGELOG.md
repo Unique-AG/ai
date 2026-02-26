@@ -4,8 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-## [1.47.12] - 2026-02-26
+## [1.47.13] - 2026-02-26
 - Added support for subagent file access to the ContentService and ChatService based on correlation component of the event.
+
+## [1.47.12] - 2026-02-26
+- Attach tool result images (MCP or internal) to the user message so the LLM can see them
+- MCP image handling: hide_in_chat uploads, unique content names, small robustness fixes
 
 ## [1.47.11] - 2026-02-26
 - Add `DocxGeneratorService` migration surface: `DocxGeneratorResult`, `generate_from_template_with_result()`, `upload_and_create_reference()`, `resolve_template()`, `normalize_heading_levels()`
