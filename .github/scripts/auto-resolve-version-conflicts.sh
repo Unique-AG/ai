@@ -204,6 +204,8 @@ resolve_pr() {
   git checkout "origin/$pr_branch" --detach -q
   git merge origin/main --no-commit --no-ff -q 2>/dev/null || true
 
+  local version_summary=""
+
   for pkg in "${conflicting_packages[@]}"; do
     local pyproject="$pkg/pyproject.toml"
     local changelog="$pkg/CHANGELOG.md"
@@ -230,6 +232,7 @@ resolve_pr() {
     new_ver=$(apply_bump "$main_ver" "$bump_type")
 
     echo "  $pkg: ancestor=$ancestor_ver, main=$main_ver, pr=$pr_ver ($bump_type) → $new_ver"
+    version_summary+="| \`$pkg\` | $pr_ver | **$new_ver** | $bump_type |"$'\n'
 
     local new_entry
     new_entry=$(extract_new_changelog_entry "$ancestor" "origin/$pr_branch" "$changelog")
@@ -275,6 +278,17 @@ Packages: ${conflicting_packages[*]}"
 
   if git push origin HEAD:"$pr_branch" 2>&1; then
     echo "Pushed resolved version conflicts to $pr_branch"
+    if [[ -n "$version_summary" ]]; then
+      gh pr comment "$pr_number" --body "$(cat <<COMMENT
+🔄 **Auto-resolved version conflicts with \`main\`**
+
+| Package | Was | Now | Bump |
+|---------|-----|-----|------|
+${version_summary}
+Please pull the latest changes on your branch.
+COMMENT
+)" 2>/dev/null || echo "Warning: failed to post PR comment"
+    fi
   else
     echo "Push failed (branch may have been updated) — queued for retry"
     FAILED_PUSHES+=("$pr_number $pr_branch")
