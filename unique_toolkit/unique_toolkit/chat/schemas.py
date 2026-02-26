@@ -34,7 +34,8 @@ model_config = ConfigDict(
 class ChatMessageRole(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
-    TOOL = "tool"  # TODO: Unused according @unique-fabian. To be removed in separate PR
+    TOOL_CALL = "tool_call"
+    TOOL = "tool"
     SYSTEM = "system"  # Note: These messages are appended by the backend and should not be confused with the LLM’s system message.
 
 
@@ -77,7 +78,7 @@ class ChatMessage(BaseModel):
     content: str | None = Field(default=None, alias="text")
     original_content: str | None = Field(default=None, alias="originalText")
     role: ChatMessageRole
-    gpt_request: list[dict] | None = None
+    gpt_request: list[dict] | dict | None = None
     tool_calls: list[ToolCall] | None = None
     tool_call_id: str | None = None
     debug_info: dict | None = {}
@@ -128,6 +129,24 @@ class ChatMessage(BaseModel):
                     )
 
                 return assistant_message
+
+            case ChatMessageRole.TOOL_CALL:
+                if self.tool_calls:
+                    return ChatCompletionAssistantMessageParam(
+                        role="assistant",
+                        audio=None,
+                        content=self.content or "",
+                        function_call=None,
+                        refusal=None,
+                        tool_calls=[t.to_openai_param() for t in self.tool_calls],
+                    )
+                return ChatCompletionAssistantMessageParam(
+                    role="assistant",
+                    audio=None,
+                    content="",
+                    function_call=None,
+                    refusal=None,
+                )
 
             case ChatMessageRole.TOOL:
                 raise NotImplementedError

@@ -33,6 +33,10 @@ from unique_toolkit.chat.functions import (
     create_message_execution_async,
     create_message_log,
     create_message_log_async,
+    create_tool_call_message,
+    create_tool_call_message_async,
+    create_tool_message,
+    create_tool_message_async,
     get_full_history,
     get_full_history_async,
     get_message_execution,
@@ -498,6 +502,66 @@ class ChatService(ChatServiceDeprecated):
         # Update the user message id
         self._user_message_id = chat_message.id or "unknown"
         return chat_message
+
+    def create_tool_call_message(
+        self,
+        tool_calls_data: list[dict],
+    ) -> ChatMessage:
+        """Persists a TOOL_CALL message for the assistant's tool invocation request."""
+        return create_tool_call_message(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
+            tool_calls_data=tool_calls_data,
+        )
+
+    async def create_tool_call_message_async(
+        self,
+        tool_calls_data: list[dict],
+    ) -> ChatMessage:
+        """Persists a TOOL_CALL message for the assistant's tool invocation request (async)."""
+        return await create_tool_call_message_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
+            tool_calls_data=tool_calls_data,
+        )
+
+    def create_tool_message(
+        self,
+        tool_call_id: str,
+        tool_name: str,
+        content: str,
+    ) -> ChatMessage:
+        """Persists a TOOL message representing a tool's response."""
+        return create_tool_message(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
+            tool_call_id=tool_call_id,
+            tool_name=tool_name,
+            content=content,
+        )
+
+    async def create_tool_message_async(
+        self,
+        tool_call_id: str,
+        tool_name: str,
+        content: str,
+    ) -> ChatMessage:
+        """Persists a TOOL message representing a tool's response (async)."""
+        return await create_tool_message_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            assistant_id=self._assistant_id,
+            tool_call_id=tool_call_id,
+            tool_name=tool_name,
+            content=content,
+        )
 
     def free_user_input(self) -> None:
         """Unblocks the next user input"""

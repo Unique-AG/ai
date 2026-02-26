@@ -1,4 +1,6 @@
 import base64
+import json
+import logging
 import mimetypes
 from datetime import datetime
 from enum import StrEnum
@@ -11,6 +13,9 @@ from unique_toolkit._common.token.token_counting import (
 )
 from unique_toolkit._common.utils import files as FileUtils
 from unique_toolkit.app import ChatEventUserMessage
+from unique_toolkit.chat.functions import (
+    get_full_history_including_tool_messages,
+)
 from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.chat.schemas import ChatMessageRole as ChatRole
 from unique_toolkit.chat.service import ChatService
@@ -18,9 +23,14 @@ from unique_toolkit.content.schemas import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelMessageRole as LLMRole
 from unique_toolkit.language_model.infos import EncoderName, LanguageModelInfo
-from unique_toolkit.language_model.schemas import LanguageModelMessages
+from unique_toolkit.language_model.schemas import (
+    LanguageModelAssistantMessage,
+    LanguageModelFunctionCall,
+    LanguageModelMessages,
+    LanguageModelToolMessage,
+)
 
-# TODO: Test this once it moves into the unique toolkit
+logger = logging.getLogger(__name__)
 
 map_chat_llm_message_role = {
     ChatRole.USER: LLMRole.USER,
@@ -173,6 +183,9 @@ def get_full_history_with_contents(
 
     builder = LanguageModelMessages([]).builder()
     for c in grouped_elements:
+        if c.role in (ChatRole.TOOL_CALL, ChatRole.TOOL):
+            continue
+
         # LanguageModelUserMessage has not field original content
         text = c.original_content if c.original_content else c.content
         if text is None:
@@ -240,6 +253,166 @@ def get_full_history_as_llm_messages(
             content=c.content or "",
         )
     return builder.build()
+
+
+def get_full_history_with_contents_and_tool_calls(
+    user_message: ChatEventUserMessage,
+    chat_id: str,
+    chat_service: ChatService,
+    content_service: ContentService,
+    include_images: ImageContentInclusion = ImageContentInclusion.ALL,
+    file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+) -> LanguageModelMessages:
+    """Build LLM history including tool call/response messages from DB.
+
+    Reads all messages (including TOOL_CALL and TOOL) from the database and
+    maps them to the correct LLM message format:
+    - USER -> LanguageModelUserMessage
+    - ASSISTANT -> LanguageModelAssistantMessage
+    - TOOL_CALL -> LanguageModelAssistantMessage with tool_calls
+    - TOOL -> LanguageModelToolMessage
+    """
+    all_messages = get_full_history_including_tool_messages(
+        event_user_id=chat_service._user_id,
+        event_company_id=chat_service._company_id,
+        event_payload_chat_id=chat_id,
+    )
+
+    last_user_message = ChatMessage(
+        id=user_message.id,
+        chat_id=chat_id,
+        text=user_message.text,
+        originalText=user_message.original_text,
+        role=ChatRole.USER,
+        gpt_request=None,
+        created_at=datetime.fromisoformat(user_message.created_at),
+    )
+    if not all_messages or all_messages[-1].id != last_user_message.id:
+        all_messages.append(last_user_message)
+
+    chat_contents = content_service.search_contents(
+        where={"ownerId": {"equals": chat_id}},
+    )
+    grouped_elements = ChatHistoryWithContent.from_chat_history_and_contents(
+        all_messages,
+        chat_contents,
+    )
+
+    builder = LanguageModelMessages([]).builder()
+    for c in grouped_elements:
+        if c.role == ChatRole.TOOL_CALL:
+            gpt_req = _get_gpt_request_as_dict(c.gpt_request)
+            tool_calls_data = gpt_req.get("tool_calls", [])
+            lm_function_calls = _parse_tool_calls_from_gpt_request(tool_calls_data)
+            if lm_function_calls:
+                builder.messages.append(
+                    LanguageModelAssistantMessage(
+                        content="",
+                        tool_calls=lm_function_calls,
+                    )
+                )
+            continue
+
+        if c.role == ChatRole.TOOL:
+            gpt_req = _get_gpt_request_as_dict(c.gpt_request)
+            tool_call_id = gpt_req.get("tool_call_id", "")
+            tool_name = gpt_req.get("name", "")
+            builder.messages.append(
+                LanguageModelToolMessage(
+                    content=c.content or "",
+                    name=tool_name,
+                    tool_call_id=tool_call_id,
+                )
+            )
+            continue
+
+        text = c.original_content if c.original_content else c.content
+        if text is None:
+            if c.role == ChatRole.USER:
+                raise ValueError(
+                    "Content or original_content of LanguageModelMessages should exist.",
+                )
+            text = ""
+
+        if len(c.contents) > 0:
+            file_contents = [
+                co for co in c.contents if FileUtils.is_file_content(co.key)
+            ]
+            image_contents = [
+                co for co in c.contents if FileUtils.is_image_content(co.key)
+            ]
+
+            content = (
+                text
+                + "\n\n"
+                + file_content_serialization(
+                    file_contents,
+                    file_content_serialization_type,
+                )
+            )
+            content = content.strip()
+
+            if include_images and len(image_contents) > 0:
+                builder.image_message_append(
+                    content=content,
+                    images=download_encoded_images(
+                        contents=image_contents,
+                        content_service=content_service,
+                        chat_id=chat_id,
+                    ),
+                    role=map_chat_llm_message_role[c.role],
+                )
+            else:
+                builder.message_append(
+                    role=map_chat_llm_message_role[c.role],
+                    content=content,
+                )
+        else:
+            builder.message_append(
+                role=map_chat_llm_message_role[c.role],
+                content=text,
+            )
+    return builder.build()
+
+
+def _get_gpt_request_as_dict(gpt_request: list | dict | None) -> dict:
+    """Extract the gpt_request metadata as a dict, handling both list and dict formats."""
+    if gpt_request is None:
+        return {}
+    if isinstance(gpt_request, dict):
+        return gpt_request
+    if isinstance(gpt_request, list) and len(gpt_request) > 0:
+        return gpt_request[0] if isinstance(gpt_request[0], dict) else {}
+    return {}
+
+
+def _parse_tool_calls_from_gpt_request(
+    tool_calls_data: list[dict],
+) -> list[LanguageModelFunctionCall]:
+    """Parse tool_calls stored in gptRequest into LanguageModelFunctionCall objects."""
+    from unique_toolkit.language_model.schemas import LanguageModelFunction
+
+    result = []
+    for tc in tool_calls_data:
+        func_data = tc.get("function", {})
+        arguments = func_data.get("arguments")
+        if isinstance(arguments, str):
+            try:
+                arguments = json.loads(arguments)
+            except (json.JSONDecodeError, TypeError):
+                pass
+        result.append(
+            LanguageModelFunctionCall(
+                id=tc.get("id"),
+                type=tc.get("type", "function"),
+                function=LanguageModelFunction(
+                    id=tc.get("id", ""),
+                    name=func_data.get("name", ""),
+                    arguments=arguments,
+                ),
+            )
+        )
+    return result
 
 
 def limit_to_token_window(

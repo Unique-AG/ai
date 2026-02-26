@@ -44,9 +44,10 @@ class Message(APIResource["Message"]):
     class CreateParams(RequestOptions):
         chatId: str
         assistantId: str
-        role: Literal["ASSISTANT"]
+        role: Literal["ASSISTANT", "TOOL_CALL", "TOOL"]
         text: NotRequired[Optional["str"]]
         references: Optional[List["Message.Reference"]]
+        gptRequest: NotRequired[Optional[Dict[str, Any]]]
         debugInfo: Optional[Dict[str, Any]]
         completedAt: Optional[datetime]
         correlation: NotRequired[Optional["Message.Correlation"]]
