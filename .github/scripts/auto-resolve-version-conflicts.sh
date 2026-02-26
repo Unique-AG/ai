@@ -18,6 +18,8 @@ if [[ "${1:-}" == "--dry-run" ]]; then
   DRY_RUN=true
 fi
 
+# Explicit allowlist of packages published to PyPI. Not auto-discovered because
+# the repo also contains tutorials/examples with pyproject.toml/CHANGELOG.md.
 PUBLISHABLE_PACKAGES=(
   unique_sdk
   unique_toolkit
