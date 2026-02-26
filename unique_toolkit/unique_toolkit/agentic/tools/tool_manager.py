@@ -255,6 +255,7 @@ class _ToolManager(Generic[_ApiMode]):
 
         # Wait until all tasks are finished
         tool_call_results = await asyncio.gather(*tasks)
+
         tool_call_results_unpacked: list[ToolCallResponse] = []
         for i, result in enumerate(tool_call_results):
             unpacked_tool_call_result = self._create_tool_call_response(

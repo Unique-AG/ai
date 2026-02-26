@@ -35,7 +35,7 @@ The following elements are directly influenced by it.
 | Debug Info | Debug information generated during the processing of the request|
 
 
-The `ChatService` from the `unique_toolkit` is used to communicate to these elments. Please see [Event Driven Applications](../../../application_types/event_driven/index.md) on how to initialize services and setup a development setup. The service itself can be imported as
+The `ChatService` from the `unique_toolkit` is used to communicate to these elments. Please see [Event Driven Applications](../application_types/event_driven/index.md) on how to initialize services and setup a development setup. The service itself can be imported as
 
 ```{python #unique_chat_service_import}
 from unique_toolkit import ChatService

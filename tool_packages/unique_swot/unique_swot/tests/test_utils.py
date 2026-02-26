@@ -12,7 +12,7 @@ class DummyOutput(BaseModel):
 
 
 def _build_llm():
-    # Minimal LMI-like object with the encoder name used by tiktoken
+    # Minimal LMI-like object with the encoder name
     return SimpleNamespace(name="dummy-model", encoder_name="cl100k_base")
 
 

@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.28] - 2026-02-26
+- Update message log
+
+## [1.2.27] - 2026-02-25
+- Remove `AliasChoices=ftsSearchLanguage` as its not used anymore (replaced with `searchLanguage`) 
+
+## [1.2.26] - 2026-02-17
+- Reverting fix the behavior so that when no knowledge base files are selected, only uploaded files are considered, rather than searching across all files.
+
+## [1.2.25] - 2026-02-12
+- Add optional `language_model_orchestrator` parameter (defaults to `None`) and pass to `pick_content_chunks_for_token_window()` for model-agnostic token counting. Ready for orchestrator to pass LLM in future update.
+
+## [1.2.24] - 2026-02-11
+- Fix the behavior so that when no knowledge base files are selected, only uploaded files are considered, rather than searching across all files.
+
+## [1.2.23] - 2026-02-11
+- Update message log for uploaded files based on feature flag
+
+## [1.2.22] - 2026-02-05
+- Adjust new feature flag logic
+
+## [1.2.21] - 2026-01-20
+- Fix tool naming for uploaded search
+
+## [1.2.20] - 2026-01-16
+- Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
+
+## [1.2.19] - 2026-01-16
+- Add unified type checking CI with basedpyright
+
+## [1.2.18] - 2026-01-13
+- Fix test suite: add missing `__init__.py`, mock fixtures, and `_message_step_logger` attribute
+
+## [1.2.17] - 2026-01-13
+- Removing unused parameters from config
+- Activating multiple search string execution by default
+
 ## [1.2.16] - 2026-01-12
 - Fix message logswith new ChatUI
 

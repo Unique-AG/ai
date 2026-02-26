@@ -2,27 +2,29 @@ Please create a compelling, investor-focused summary of the following SWOT analy
 
 ## CRITICAL REQUIREMENTS:
 
-**PRESERVE ALL CITATIONS**: Every source citation in the format [source1], [source2], etc. MUST be preserved exactly as it appears in the original report. When summarizing any fact, claim, or data point, you MUST include its original citation markers. Do not remove, modify, or omit any [sourceX] references.
+**PRESERVE ALL CITATIONS**: Every source citation in the format [chunk_X] (e.g., [chunk_a], [chunk_b], etc.) MUST be preserved exactly as it appears in the original report. When summarizing any fact, claim, or data point, you MUST include its original citation markers. Do not remove, modify, or omit any [chunk_X] references.
+
+**DO NOT CREATE TOP-LEVEL HEADERS**: The report template will automatically wrap your output with the `# Executive Overview` header. Your output should ONLY contain section headers starting with `##` (two hash marks), never `#` (one hash mark).
 
 ## Task Requirements:
 
-Transform the detailed report below into a concise, accessible summary that:
+Transform the detailed report below into a concise, accessible Executive Overview that:
 
-1. **Maintains SWOT Structure**: Keep the four-section framework (Strengths, Weaknesses, Opportunities, Threats) clearly organized.
+1. **Opens with Company Context**: Begin with a `## Company Overview` section that positions {{ company_name }} in its market and explains its core business model or value proposition (2-3 paragraphs).
 
-2. **Opens with Context**: Begin with a brief introduction (before the SWOT sections) that positions {{ company_name }} in its market and explains its core business model or value proposition.
-
-3. **Explains Technical Elements**: 
-   - Define all acronyms and technical terms when first introduced
-   - Provide clear explanations of any technologies mentioned (e.g., if the company uses machine learning, blockchain, specific frameworks, or proprietary technology)
-   - Help non-technical investors understand WHY these technologies matter for the business
-   - Always keep the source citations with these explanations
-
-4. **Makes Each SWOT Section Investor-Friendly**:
+2. **Provides SWOT Snapshot**: Include a `## SWOT Snapshot` section with numbered subsections for each SWOT component:
    - **Strengths**: Highlight key competitive advantages and core capabilities, with all citations
    - **Weaknesses**: Address challenges honestly but constructively, with all citations
    - **Opportunities**: Emphasize market potential and strategic growth areas, with all citations
    - **Threats**: Contextualize risks and external challenges, with all citations
+
+3. **Concludes with Synthesis**: End with a `## Conclusion` section that provides strategic perspective and investment implications.
+
+4. **Explains Technical Elements**: 
+   - Define all acronyms and technical terms when first introduced
+   - Provide clear explanations of any technologies mentioned (e.g., if the company uses machine learning, blockchain, specific frameworks, or proprietary technology)
+   - Help non-technical investors understand WHY these technologies matter for the business
+   - Always keep the source citations with these explanations
 
 5. **Maintains Investor Focus**: 
    - Connect insights to investment considerations
@@ -32,68 +34,36 @@ Transform the detailed report below into a concise, accessible summary that:
 
 6. **Stays Grounded in Evidence**: Base all claims on the specific details provided in the source report, and preserve every citation.
 
-## Output Format and Structure:
+## Required Output Structure:
 
-Use markdown headers to create a clear, hierarchical structure. Your summary should follow this format:
+**⚠️ CRITICAL: Your output must follow this EXACT structure. Do NOT include any `#` headers, only `##` and `###` headers.**
 
 ```
-# Executive Summary
+## Company Overview
 
-[2-3 paragraphs: Company overview, market context, and business model]
+[2-3 paragraphs introducing {{ company_name }}, its market position, business model, and value proposition. Include relevant citations where applicable.]
 
-# SWOT Analysis
+## SWOT Snapshot
 
-## Strengths
+### 1. Strengths
 
-[Introduction paragraph for strengths section]
+[A single focused paragraph highlighting the most critical strengths with citations]
 
-### [Key Strength Category 1]
-[Details with citations]
+### 2. Weaknesses
 
-### [Key Strength Category 2]
-[Details with citations]
+[A single focused paragraph covering key weaknesses with citations]
 
-[Continue with additional strength categories as needed]
+### 3. Opportunities
 
-## Weaknesses
+[A single focused paragraph describing main opportunities with citations]
 
-[Introduction paragraph for weaknesses section]
+### 4. Threats
 
-### [Key Weakness Category 1]
-[Details with citations]
+[A single focused paragraph outlining significant threats with citations]
 
-### [Key Weakness Category 2]
-[Details with citations]
+## Conclusion
 
-[Continue with additional weakness categories as needed]
-
-## Opportunities
-
-[Introduction paragraph for opportunities section]
-
-### [Key Opportunity Category 1]
-[Details with citations]
-
-### [Key Opportunity Category 2]
-[Details with citations]
-
-[Continue with additional opportunity categories as needed]
-
-## Threats
-
-[Introduction paragraph for threats section]
-
-### [Key Threat Category 1]
-[Details with citations]
-
-### [Key Threat Category 2]
-[Details with citations]
-
-[Continue with additional threat categories as needed]
-
-# Conclusion
-
-[2-3 paragraphs synthesizing the overall investment perspective:
+[1-2 paragraphs synthesizing the overall investment perspective:
 - Summarize the key takeaways from the SWOT analysis
 - Provide a balanced view of {{ company_name }}'s strategic position
 - Highlight the most critical factors for investment consideration
@@ -101,13 +71,17 @@ Use markdown headers to create a clear, hierarchical structure. Your summary sho
 - Include relevant citations to support key points]
 ```
 
-**Important formatting notes:**
-- Use `#` for the main report sections (Executive Summary, SWOT Analysis, Conclusion)
-- Use `##` for SWOT categories (Strengths, Weaknesses, Opportunities, Threats)
-- Use `###` for specific topics or themes within each SWOT category
-- Group related points under descriptive subsection headers
-- Preserve all `[sourceX]` citations within the content
+**Important formatting rules:**
+- **START your output with `## Company Overview`** - do NOT include any `#` headers
+- Use `##` for the three main sections (Company Overview, SWOT Snapshot, Conclusion)
+- Use `###` for numbered SWOT components within the SWOT Snapshot (1. Strengths, 2. Weaknesses, 3. Opportunities, 4. Threats)
+- Number the SWOT subsections 1, 2, 3, 4 sequentially
+- Only include subsections for SWOT components that have content in the detailed report
+- If a SWOT component doesn't exist in the report, skip that numbered subsection entirely and adjust the numbering accordingly
+- Each SWOT subsection should be a single focused paragraph, not multiple paragraphs
+- Preserve all `[chunk_X]` citations within the content
 - **NEVER use horizontal rules (---) as they don't render properly in the document format**
+- The template will automatically add the `# Executive Overview` header, so do NOT include it yourself
 
 Aim for a summary that is approximately 30-40% the length of the original report, while capturing all critical insights and maintaining ALL source citations.
 
@@ -119,5 +93,5 @@ Aim for a summary that is approximately 30-40% the length of the original report
 
 ---
 
-Please proceed with your investor-focused SWOT summary, ensuring every citation is preserved.
+Please proceed with your investor-focused SWOT summary, ensuring every citation is preserved and following the exact structure specified above.
 

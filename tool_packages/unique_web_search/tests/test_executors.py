@@ -164,6 +164,7 @@ class TestWebSearchV1ExecutorInit:
     @pytest.mark.ai
     def test_init__creates_executor__with_required_parameters(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
     ) -> None:
         """
@@ -174,22 +175,12 @@ class TestWebSearchV1ExecutorInit:
         tool_parameters = WebSearchToolParameters(query="test", date_restrict=None)
 
         executor = WebSearchV1Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
-            debug_info=mock_executor_dependencies["debug_info"],
         )
 
         assert executor.company_id == "test-company"
@@ -205,6 +196,7 @@ class TestWebSearchV1ExecutorRun:
     @pytest.mark.asyncio
     async def test_run__returns_content_chunks_and_log_entries__when_search_succeeds(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
         sample_web_search_results: list[WebSearchResult],
         sample_content_chunks: list,
@@ -227,35 +219,25 @@ class TestWebSearchV1ExecutorRun:
         mock_executor_dependencies["content_reducer"].return_value = []
 
         executor = WebSearchV1Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=None,
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
-            debug_info=mock_executor_dependencies["debug_info"],
             mode=RefineQueryMode.DEACTIVATED,
         )
 
-        content_chunks, queries_for_log = await executor.run()
+        content_chunks = await executor.run()
 
         assert isinstance(content_chunks, list)
-        assert isinstance(queries_for_log, list)
         mock_executor_dependencies["search_service"].search.assert_called_once()
 
     @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_run__crawls_urls__when_search_service_requires_scraping(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
         sample_web_search_results: list[WebSearchResult],
     ) -> None:
@@ -280,22 +262,12 @@ class TestWebSearchV1ExecutorRun:
         mock_executor_dependencies["content_reducer"].return_value = []
 
         executor = WebSearchV1Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=None,
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
-            debug_info=mock_executor_dependencies["debug_info"],
             mode=RefineQueryMode.DEACTIVATED,
         )
 
@@ -311,6 +283,7 @@ class TestWebSearchV1ExecutorRefineQuery:
     @pytest.mark.asyncio
     async def test_refine_query__returns_single_query__when_mode_is_basic(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
     ) -> None:
         """
@@ -331,22 +304,12 @@ class TestWebSearchV1ExecutorRefineQuery:
         )
 
         executor = WebSearchV1Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
-            debug_info=mock_executor_dependencies["debug_info"],
             mode=RefineQueryMode.BASIC,
         )
 
@@ -360,6 +323,7 @@ class TestWebSearchV1ExecutorRefineQuery:
     @pytest.mark.asyncio
     async def test_refine_query__returns_multiple_queries__when_mode_is_advanced(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
     ) -> None:
         """
@@ -383,22 +347,12 @@ class TestWebSearchV1ExecutorRefineQuery:
         )
 
         executor = WebSearchV1Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
-            debug_info=mock_executor_dependencies["debug_info"],
             mode=RefineQueryMode.ADVANCED,
         )
 
@@ -416,6 +370,7 @@ class TestWebSearchV1ExecutorEnforceMaxQueries:
     @pytest.mark.ai
     def test_enforce_max_queries__returns_all_queries__when_under_limit(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
     ) -> None:
         """
@@ -426,22 +381,12 @@ class TestWebSearchV1ExecutorEnforceMaxQueries:
         tool_parameters = WebSearchToolParameters(query="test", date_restrict=None)
 
         executor = WebSearchV1Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
-            debug_info=mock_executor_dependencies["debug_info"],
             max_queries=5,
         )
 
@@ -454,6 +399,7 @@ class TestWebSearchV1ExecutorEnforceMaxQueries:
     @pytest.mark.ai
     def test_enforce_max_queries__truncates_queries__when_over_limit(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
     ) -> None:
         """
@@ -464,22 +410,12 @@ class TestWebSearchV1ExecutorEnforceMaxQueries:
         tool_parameters = WebSearchToolParameters(query="test", date_restrict=None)
 
         executor = WebSearchV1Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=tool_parameters,
             refine_query_system_prompt="test prompt",
-            debug_info=mock_executor_dependencies["debug_info"],
             max_queries=3,
         )
 
@@ -496,6 +432,7 @@ class TestWebSearchV2ExecutorInit:
     @pytest.mark.ai
     def test_init__creates_executor__with_required_parameters(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
     ) -> None:
@@ -505,27 +442,16 @@ class TestWebSearchV2ExecutorInit:
         Setup summary: Provide all required dependencies.
         """
         executor = WebSearchV2Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=sample_web_search_plan,
-            debug_info=mock_executor_dependencies["debug_info"],
         )
 
         assert executor.company_id == "test-company"
         assert executor.max_steps == 3
         assert executor.tool_parameters == sample_web_search_plan
-        assert executor.queries_for_log == []
 
 
 class TestWebSearchV2ExecutorRun:
@@ -535,6 +461,7 @@ class TestWebSearchV2ExecutorRun:
     @pytest.mark.asyncio
     async def test_run__returns_content_chunks_and_log_entries__when_execution_succeeds(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
         sample_web_search_results: list[WebSearchResult],
@@ -556,27 +483,16 @@ class TestWebSearchV2ExecutorRun:
         mock_executor_dependencies["content_reducer"].return_value = []
 
         executor = WebSearchV2Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=None,
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=sample_web_search_plan,
-            debug_info=mock_executor_dependencies["debug_info"],
         )
 
-        content_chunks, queries_for_log = await executor.run()
+        content_chunks = await executor.run()
 
         assert isinstance(content_chunks, list)
-        assert isinstance(queries_for_log, list)
 
 
 class TestWebSearchV2ExecutorExecuteStep:
@@ -586,6 +502,7 @@ class TestWebSearchV2ExecutorExecuteStep:
     @pytest.mark.asyncio
     async def test_execute_step__calls_search_step__when_step_type_is_search(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
         sample_web_search_results: list[WebSearchResult],
@@ -604,21 +521,11 @@ class TestWebSearchV2ExecutorExecuteStep:
         ].config.search_engine_name.name = "TEST"
 
         executor = WebSearchV2Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=sample_web_search_plan,
-            debug_info=mock_executor_dependencies["debug_info"],
         )
 
         step = Step(
@@ -638,6 +545,7 @@ class TestWebSearchV2ExecutorExecuteStep:
     @pytest.mark.asyncio
     async def test_execute_step__calls_read_url_step__when_step_type_is_read_url(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
     ) -> None:
@@ -652,21 +560,11 @@ class TestWebSearchV2ExecutorExecuteStep:
         mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
 
         executor = WebSearchV2Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=sample_web_search_plan,
-            debug_info=mock_executor_dependencies["debug_info"],
         )
 
         step = Step(
@@ -690,6 +588,7 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
     @pytest.mark.asyncio
     async def test_execute_search_step__returns_search_results__when_no_scraping_required(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
         sample_web_search_results: list[WebSearchResult],
@@ -708,21 +607,11 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
         ].config.search_engine_name.name = "TEST"
 
         executor = WebSearchV2Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=sample_web_search_plan,
-            debug_info=mock_executor_dependencies["debug_info"],
         )
 
         step = Step(
@@ -740,6 +629,7 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
     @pytest.mark.asyncio
     async def test_execute_search_step__crawls_urls__when_scraping_required(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
         sample_web_search_results: list[WebSearchResult],
@@ -762,21 +652,11 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
         mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
 
         executor = WebSearchV2Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=sample_web_search_plan,
-            debug_info=mock_executor_dependencies["debug_info"],
         )
 
         step = Step(
@@ -794,6 +674,7 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
     @pytest.mark.asyncio
     async def test_execute_search_step__adds_log_entry__after_search(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
         sample_web_search_results: list[WebSearchResult],
@@ -812,21 +693,11 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
         ].config.search_engine_name.name = "TEST"
 
         executor = WebSearchV2Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=sample_web_search_plan,
-            debug_info=mock_executor_dependencies["debug_info"],
         )
 
         step = Step(
@@ -837,9 +708,10 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
 
         await executor._execute_search_step(step)
 
-        assert len(executor.queries_for_log) == 1
-        assert executor.queries_for_log[0].type == StepType.SEARCH
-        assert executor.queries_for_log[0].message == "test query"
+        # Verify message log callback was called for logging the search
+        mock_executor_dependencies[
+            "message_log_callback"
+        ].log_web_search_results.assert_called()
 
 
 class TestWebSearchV2ExecutorExecuteReadUrlStep:
@@ -849,6 +721,7 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
     @pytest.mark.asyncio
     async def test_execute_read_url_step__returns_web_search_results__with_crawled_content(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
     ) -> None:
@@ -863,21 +736,11 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
         mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
 
         executor = WebSearchV2Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=sample_web_search_plan,
-            debug_info=mock_executor_dependencies["debug_info"],
         )
 
         step = Step(
@@ -896,6 +759,7 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
     @pytest.mark.asyncio
     async def test_execute_read_url_step__adds_log_entry__after_crawl(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
     ) -> None:
@@ -910,21 +774,11 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
         mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
 
         executor = WebSearchV2Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=sample_web_search_plan,
-            debug_info=mock_executor_dependencies["debug_info"],
         )
 
         step = Step(
@@ -935,9 +789,10 @@ class TestWebSearchV2ExecutorExecuteReadUrlStep:
 
         await executor._execute_read_url_step(step)
 
-        assert len(executor.queries_for_log) == 1
-        assert executor.queries_for_log[0].type == StepType.READ_URL
-        assert executor.queries_for_log[0].message == "https://example.com"
+        # Verify message log callback was called for logging progress
+        mock_executor_dependencies[
+            "message_log_callback"
+        ].log_web_search_results.assert_called()
 
 
 class TestWebSearchV2ExecutorEnforceMaxSteps:
@@ -947,6 +802,7 @@ class TestWebSearchV2ExecutorEnforceMaxSteps:
     @pytest.mark.asyncio
     async def test_enforce_max_steps__does_not_truncate__when_under_limit(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
     ) -> None:
         """
@@ -965,21 +821,11 @@ class TestWebSearchV2ExecutorEnforceMaxSteps:
         )
 
         executor = WebSearchV2Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=plan,
-            debug_info=mock_executor_dependencies["debug_info"],
             max_steps=5,
         )
 
@@ -991,6 +837,7 @@ class TestWebSearchV2ExecutorEnforceMaxSteps:
     @pytest.mark.asyncio
     async def test_enforce_max_steps__truncates_steps__when_over_limit(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
     ) -> None:
         """
@@ -1012,21 +859,11 @@ class TestWebSearchV2ExecutorEnforceMaxSteps:
         )
 
         executor = WebSearchV2Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=plan,
-            debug_info=mock_executor_dependencies["debug_info"],
             max_steps=3,
         )
 
@@ -1046,6 +883,7 @@ class TestWebSearchV2ExecutorDebugInfo:
     @pytest.mark.asyncio
     async def test_execute_search_step__adds_debug_info__for_each_operation(
         self,
+        executor_context_objects: dict,
         mock_executor_dependencies: dict,
         sample_web_search_plan: WebSearchPlan,
         sample_web_search_results: list[WebSearchResult],
@@ -1064,21 +902,11 @@ class TestWebSearchV2ExecutorDebugInfo:
         ].config.search_engine_name.name = "TEST"
 
         executor = WebSearchV2Executor(
-            company_id="test-company",
-            language_model_service=mock_executor_dependencies["language_model_service"],
-            language_model=mock_executor_dependencies["language_model"],
-            search_service=mock_executor_dependencies["search_service"],
-            crawler_service=mock_executor_dependencies["crawler_service"],
-            content_processor=mock_executor_dependencies["content_processor"],
-            message_log_callback=mock_executor_dependencies["message_log_callback"],
-            chunk_relevancy_sorter=mock_executor_dependencies["chunk_relevancy_sorter"],
-            chunk_relevancy_sort_config=mock_executor_dependencies[
-                "chunk_relevancy_sort_config"
-            ],
-            content_reducer=mock_executor_dependencies["content_reducer"],
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
             tool_call=mock_executor_dependencies["tool_call"],
             tool_parameters=sample_web_search_plan,
-            debug_info=mock_executor_dependencies["debug_info"],
         )
 
         step = Step(

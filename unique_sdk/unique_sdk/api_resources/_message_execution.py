@@ -20,6 +20,9 @@ class MessageExecution(APIResource["MessageExecution"]):
 
         messageId: str
         type: "MessageExecution.TypeLiteral"
+        isQueueable: NotRequired[bool | None]
+        executionOptions: NotRequired[dict | None]
+        progressTitle: NotRequired[str | None]
 
     class GetMessageExecutionParams(RequestOptions):
         """
@@ -37,6 +40,7 @@ class MessageExecution(APIResource["MessageExecution"]):
         status: NotRequired["MessageExecution.UpdateStatusLiteral | None"]
         secondsRemaining: NotRequired[int | None]
         percentageCompleted: NotRequired[int | None]
+        progressTitle: NotRequired[str | None]
 
     id: str
     messageId: str
@@ -44,6 +48,9 @@ class MessageExecution(APIResource["MessageExecution"]):
     type: "MessageExecution.TypeLiteral"
     secondsRemaining: int | None
     percentageCompleted: int | None
+    isQueueable: bool
+    executionOptions: dict | None
+    progressTitle: str | None
     positionInQueue: int | None
     createdAt: str
     updatedAt: str

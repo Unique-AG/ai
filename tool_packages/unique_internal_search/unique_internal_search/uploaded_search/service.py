@@ -4,6 +4,7 @@ from pydantic import Field, create_model
 from typing_extensions import override
 from unique_toolkit import ContentService
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -23,6 +24,7 @@ from unique_internal_search.uploaded_search.config import UploadedSearchConfig
 
 class UploadedSearchTool(Tool[UploadedSearchConfig]):
     name = "UploadedSearch"
+    _display_name = "Uploaded Search"
 
     def __init__(
         self,
@@ -34,26 +36,21 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
     ):
         self._tool_progress_reporter = tool_progress_reporter
         self._content_service = ContentService.from_event(event)
+        self._company_id = event.company_id
         self._config = config
         config.chat_only = True
         self._internal_search_tool = InternalSearchTool(
             config, event, None, *args, **kwargs
         )
+        self._internal_search_tool._display_name = self._display_name
         if isinstance(event, ChatEvent):
             self._user_query = event.payload.user_message.text
         else:
             self._user_query = None
 
-    async def post_progress_message(
-        self, message: str, tool_call: LanguageModelFunction, **kwargs
-    ):
-        if self._tool_progress_reporter:
-            await self._tool_progress_reporter.notify_from_tool_call(
-                tool_call=tool_call,
-                name="**Search Uploaded Document**",
-                message=message,
-                state=ProgressState.RUNNING,
-            )
+    @override
+    def display_name(self) -> str:
+        return self._display_name
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
@@ -130,7 +127,12 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         if isinstance(tool_call.arguments, dict):
             search_string_data = tool_call.arguments.get("search_string", "") or ""
         tool_response = await self._internal_search_tool.run(tool_call)
-        if self._tool_progress_reporter:
+        if (
+            self._tool_progress_reporter
+            and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
+                self._company_id
+            )
+        ):
             await self._tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name="**Search Uploaded Document**",

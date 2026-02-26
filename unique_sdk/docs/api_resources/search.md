@@ -22,12 +22,14 @@ Perform semantic search with support for:
     **Search Types:**
 
     - `VECTOR` - Semantic vector search
+    - `FULL_TEXT`- Full text search in elastic search (BM25)
+    - `POSTGRES_FULL_TEXT` - Full text search in elastic search (BM25) <not recommended>
     - `COMBINED` - Vector + full-text search for enhanced precision
 
     **Parameters:**
 
     - `searchString` (str, required) - Query text to search for
-    - `searchType` (Literal["VECTOR", "COMBINED"], required) - Search mode
+    - `searchType` (Literal["VECTOR","FULL_TEXT", "POSTGRES_FULL_TEXT", "COMBINED" ], required) - Search mode
     - `chatId` (str, optional) - Include chat documents in search scope
     - `scopeIds` (List[str], optional) - List of scope IDs to search within
     - `chatOnly` (bool, optional) - Restrict search to chat documents only

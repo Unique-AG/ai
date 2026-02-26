@@ -23,12 +23,12 @@ def test_zitadel_oauth_proxy_settings__constructs_urls__with_base_url(
     settings = ZitadelOAuthProxySettings(base_url=sample_base_url)
 
     # Act & Assert
-    assert settings.jwks_uri() == f"{sample_base_url}/oauth/v2/keys"
-    assert settings.token_endpoint() == f"{sample_base_url}/oauth/v2/token"
-    assert settings.revoke_endpoint() == f"{sample_base_url}/oauth/v2/revoke"
-    assert settings.authorize_endpoint() == f"{sample_base_url}/oauth/v2/authorize"
-    assert settings.userinfo_endpoint() == f"{sample_base_url}/oidc/v1/userinfo"
-    assert settings.introspect_endpoint() == f"{sample_base_url}/oauth/v2/introspect"
+    assert settings.jwks_uri == f"{sample_base_url}/oauth/v2/keys"
+    assert settings.token_endpoint == f"{sample_base_url}/oauth/v2/token"
+    assert settings.revoke_endpoint == f"{sample_base_url}/oauth/v2/revoke"
+    assert settings.authorize_endpoint == f"{sample_base_url}/oauth/v2/authorize"
+    assert settings.userinfo_endpoint == f"{sample_base_url}/oidc/v1/userinfo"
+    assert settings.introspect_endpoint == f"{sample_base_url}/oauth/v2/introspect"
 
 
 @pytest.mark.ai
@@ -64,21 +64,19 @@ def test_create_zitadel_oauth_proxy__returns_oauth_proxy__with_correct_config(
         mock_settings_instance.base_url = "http://localhost:10116"
         mock_settings_instance.client_id = "test_client"
         mock_settings_instance.client_secret = "test_secret"
-        mock_settings_instance.jwks_uri.return_value = (
-            "http://localhost:10116/oauth/v2/keys"
-        )
-        mock_settings_instance.authorize_endpoint.return_value = (
+        mock_settings_instance.jwks_uri = "http://localhost:10116/oauth/v2/keys"
+        mock_settings_instance.authorize_endpoint = (
             "http://localhost:10116/oauth/v2/authorize"
         )
-        mock_settings_instance.token_endpoint.return_value = (
-            "http://localhost:10116/oauth/v2/token"
-        )
-        mock_settings_instance.revoke_endpoint.return_value = (
+        mock_settings_instance.token_endpoint = "http://localhost:10116/oauth/v2/token"
+        mock_settings_instance.revoke_endpoint = (
             "http://localhost:10116/oauth/v2/revoke"
         )
         mock_settings.return_value = mock_settings_instance
 
-        with patch("unique_mcp.auth.zitadel.oauth_proxy.JWTVerifier"):
+        with patch(
+            "unique_mcp.auth.zitadel.oauth_proxy.JWTVerifier"
+        ) as mock_jwt_verifier:
             with patch("unique_mcp.auth.zitadel.oauth_proxy.OAuthProxy") as mock_oauth:
                 proxy = create_zitadel_oauth_proxy(
                     mcp_server_base_url=sample_mcp_server_url
@@ -86,9 +84,31 @@ def test_create_zitadel_oauth_proxy__returns_oauth_proxy__with_correct_config(
 
                 # Assert
                 assert proxy is not None
+                mock_jwt_verifier.assert_called_once()
+                jwt_call_args = mock_jwt_verifier.call_args
+                assert (
+                    jwt_call_args.kwargs["jwks_uri"]
+                    == "http://localhost:10116/oauth/v2/keys"
+                )
+                assert jwt_call_args.kwargs["issuer"] == "http://localhost:10116"
+
                 mock_oauth.assert_called_once()
-                call_args = mock_oauth.call_args
-                assert call_args.kwargs["base_url"] == sample_mcp_server_url
+                oauth_call_args = mock_oauth.call_args
+                assert oauth_call_args.kwargs["base_url"] == sample_mcp_server_url
+                assert (
+                    oauth_call_args.kwargs["upstream_authorization_endpoint"]
+                    == "http://localhost:10116/oauth/v2/authorize"
+                )
+                assert (
+                    oauth_call_args.kwargs["upstream_token_endpoint"]
+                    == "http://localhost:10116/oauth/v2/token"
+                )
+                assert (
+                    oauth_call_args.kwargs["upstream_revocation_endpoint"]
+                    == "http://localhost:10116/oauth/v2/revoke"
+                )
+                assert oauth_call_args.kwargs["upstream_client_id"] == "test_client"
+                assert oauth_call_args.kwargs["upstream_client_secret"] == "test_secret"
 
 
 @pytest.mark.ai

@@ -3,51 +3,8 @@
 from unittest.mock import Mock
 
 from unique_swot.services.report.docx import (
-    add_citation_footer,
     convert_markdown_to_docx,
 )
-
-
-def test_add_citation_footer_with_citations():
-    """Test adding citation footer with multiple citations."""
-    markdown = "# Report\n\nContent here."
-    citations = ["[1] Document A", "[2] Document B", "[3] Document C"]
-
-    result = add_citation_footer(markdown, citations)
-
-    assert "# Report" in result
-    assert "Content here." in result
-    assert "[1] Document A" in result
-    assert "[2] Document B" in result
-    assert "[3] Document C" in result
-
-
-def test_add_citation_footer_empty_citations():
-    """Test adding citation footer with no citations."""
-    markdown = "# Report\n\nContent here."
-    citations = []
-
-    result = add_citation_footer(markdown, citations)
-
-    # Should still return the original markdown
-    assert "# Report" in result
-    assert "Content here." in result
-
-
-def test_add_citation_footer_preserves_markdown():
-    """Test that citation footer preserves original markdown formatting."""
-    markdown = "# Title\n\n## Subtitle\n\n- Bullet 1\n- Bullet 2\n\n**Bold text**"
-    citations = ["[1] Source"]
-
-    result = add_citation_footer(markdown, citations)
-
-    # Original formatting should be preserved
-    assert "# Title" in result
-    assert "## Subtitle" in result
-    assert "- Bullet 1" in result
-    assert "- Bullet 2" in result
-    assert "**Bold text**" in result
-    assert "[1] Source" in result
 
 
 def test_convert_markdown_to_docx_success():
@@ -155,20 +112,3 @@ def test_convert_markdown_to_docx_empty_markdown():
     result = convert_markdown_to_docx(markdown, docx_generator, fields)
 
     assert result == b"empty docx"
-
-
-def test_add_citation_footer_with_special_characters():
-    """Test citation footer with special characters in citations."""
-    markdown = "# Report"
-    citations = [
-        "[1] Document with & ampersand",
-        "[2] Document with < and >",
-        '[3] Document with "quotes"',
-    ]
-
-    result = add_citation_footer(markdown, citations)
-
-    # Special characters should be preserved
-    assert "& ampersand" in result
-    assert "< and >" in result
-    assert '"quotes"' in result

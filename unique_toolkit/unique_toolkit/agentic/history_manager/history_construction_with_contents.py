@@ -4,12 +4,12 @@ from datetime import datetime
 from enum import StrEnum
 
 import numpy as np
-import tiktoken
 from pydantic import RootModel
 
 from unique_toolkit._common.token.token_counting import (
     num_tokens_per_language_model_message,
 )
+from unique_toolkit._common.utils import files as FileUtils
 from unique_toolkit.app import ChatEventUserMessage
 from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.chat.schemas import ChatMessageRole as ChatRole
@@ -17,7 +17,7 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelMessageRole as LLMRole
-from unique_toolkit.language_model.infos import EncoderName
+from unique_toolkit.language_model.infos import EncoderName, LanguageModelInfo
 from unique_toolkit.language_model.schemas import LanguageModelMessages
 
 # TODO: Test this once it moves into the unique toolkit
@@ -27,29 +27,6 @@ map_chat_llm_message_role = {
     ChatRole.ASSISTANT: LLMRole.ASSISTANT,
     ChatRole.SYSTEM: LLMRole.SYSTEM,
 }
-
-
-class ImageMimeType(StrEnum):
-    JPEG = "image/jpeg"
-    PNG = "image/png"
-    GIF = "image/gif"
-    BMP = "image/bmp"
-    WEBP = "image/webp"
-    TIFF = "image/tiff"
-    SVG = "image/svg+xml"
-
-
-class FileMimeType(StrEnum):
-    PDF = "application/pdf"
-    DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    DOC = "application/msword"
-    XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    XLS = "application/vnd.ms-excel"
-    PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-    CSV = "text/csv"
-    HTML = "text/html"
-    MD = "text/markdown"
-    TXT = "text/plain"
 
 
 class ChatMessageWithContents(ChatMessage):
@@ -93,24 +70,6 @@ class ChatHistoryWithContent(RootModel):
         return self.root[item]
 
 
-def is_image_content(filename: str) -> bool:
-    mimetype, _ = mimetypes.guess_type(filename)
-
-    if not mimetype:
-        return False
-
-    return mimetype in ImageMimeType.__members__.values()
-
-
-def is_file_content(filename: str) -> bool:
-    mimetype, _ = mimetypes.guess_type(filename)
-
-    if not mimetype:
-        return False
-
-    return mimetype in FileMimeType.__members__.values()
-
-
 def get_chat_history_with_contents(
     user_message: ChatEventUserMessage,
     chat_id: str,
@@ -152,7 +111,7 @@ def download_encoded_images(
 ) -> list[str]:
     base64_encoded_images = []
     for im in contents:
-        if is_image_content(im.key):
+        if FileUtils.is_image_content(im.key):
             try:
                 file_bytes = content_service.download_content_to_bytes(
                     content_id=im.id,
@@ -224,8 +183,12 @@ def get_full_history_with_contents(
             text = ""
 
         if len(c.contents) > 0:
-            file_contents = [co for co in c.contents if is_file_content(co.key)]
-            image_contents = [co for co in c.contents if is_image_content(co.key)]
+            file_contents = [
+                co for co in c.contents if FileUtils.is_file_content(co.key)
+            ]
+            image_contents = [
+                co for co in c.contents if FileUtils.is_image_content(co.key)
+            ]
 
             content = (
                 text
@@ -282,12 +245,17 @@ def get_full_history_as_llm_messages(
 def limit_to_token_window(
     messages: LanguageModelMessages,
     token_limit: int,
+    model_info: LanguageModelInfo | None = None,
     encoding_name: EncoderName = EncoderName.O200K_BASE,
 ) -> LanguageModelMessages:
-    encoder = tiktoken.get_encoding(encoding_name)
+    if model_info is not None:
+        encode = model_info.get_encoder()
+    else:
+        encode = encoding_name.get_encoder()
+
     token_per_message_reversed = num_tokens_per_language_model_message(
         messages,
-        encode=encoder.encode,
+        encode=encode,
     )
 
     to_take: list[bool] = (np.cumsum(token_per_message_reversed) < token_limit).tolist()

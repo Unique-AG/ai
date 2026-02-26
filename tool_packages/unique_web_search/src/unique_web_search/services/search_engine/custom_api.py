@@ -1,5 +1,5 @@
 import json
-from typing import Literal, TypeVar
+from typing import Any, Literal, TypeVar
 
 from httpx import AsyncClient
 from pydantic import Field
@@ -9,6 +9,7 @@ from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
     SearchEngine,
     SearchEngineType,
+    get_search_engine_model_config,
 )
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
@@ -59,6 +60,7 @@ ApiRequestMethodType, ApiRequestMethodField = conditional_type(
 
 
 class CustomAPIConfig(BaseSearchEngineConfig[SearchEngineType.CUSTOM_API]):
+    model_config = get_search_engine_model_config(SearchEngineType.CUSTOM_API)
     search_engine_name: Literal[SearchEngineType.CUSTOM_API] = (
         SearchEngineType.CUSTOM_API
     )
@@ -86,13 +88,21 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
     async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
         params, body = self._prepare_request_params_and_body(query)
 
-        async with AsyncClient(timeout=self.config.timeout) as client:
+        async_client_params = self._client_config | {
+            "timeout": self.config.timeout,
+        }
+        async with AsyncClient(**async_client_params) as client:
             response = await client.request(
                 method=self._request_method,
                 headers=self._headers,
                 url=self.api_endpoint,
                 params=params,
                 json=body,
+            )
+
+        if not response.is_success:
+            raise ValueError(
+                f"Search engine request failed with status {response.status_code}: {response.text}"
             )
 
         validated_response = WebSearchResults.model_validate(response.json())
@@ -117,6 +127,12 @@ class CustomAPI(SearchEngine[CustomAPIConfig]):
     @property
     def _additional_body_params(self) -> dict[str, str]:
         return json.loads(self.config.api_additional_body_params)
+
+    @property
+    def _client_config(self) -> dict[str, Any]:
+        if env_settings.custom_web_search_api_client_config is None:
+            return {}
+        return json.loads(env_settings.custom_web_search_api_client_config)
 
     def _prepare_request_params_and_body(self, query: str) -> tuple[dict, dict]:
         params = self._additional_query_params

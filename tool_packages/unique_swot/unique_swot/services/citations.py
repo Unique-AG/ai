@@ -22,18 +22,16 @@ Output (DOCX mode):
 
 import re
 from logging import getLogger
-from typing import Literal
 
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
+from unique_swot.services.report.config import RendererType
 from unique_swot.services.source_management.registry import ContentChunkRegistry
 
 _LOGGER = getLogger(__name__)
 
 # Pattern to match consolidated citations in References section: [chunk_X]
 consolidated_citation_pattern = r"\[chunk_([a-zA-Z0-9\-]+)\]"
-
-type CitationType = Literal["docx", "chat", "stream"]
 
 
 class CitationManager:
@@ -80,15 +78,7 @@ class CitationManager:
         """
         return self._citations_map
 
-    def reset_maps(self):
-        """
-        Reset the citation manager.
-        """
-        self._citations_map = {}
-        self._citated_documents = {}
-        self._content_chunks = []
-
-    def add_citations_to_report(self, report: str, renderer_type: CitationType) -> str:
+    def map_citations_to_report(self, report: str, renderer_type: RendererType) -> str:
         """
         Transform consolidated references into full citations with source info.
 
@@ -118,12 +108,10 @@ class CitationManager:
                 chunk = self._content_chunk_registry.retrieve(f"chunk_{citation}")
 
                 if chunk is not None:
-                    if renderer_type == "docx":
+                    if renderer_type == RendererType.DOCX:
                         replace_with = self._citation_in_docx(chunk)
-                    elif renderer_type == "chat":
+                    elif renderer_type == RendererType.CHAT:
                         replace_with = self._citation_in_chat()
-                    elif renderer_type == "stream":
-                        replace_with = self._citation_for_stream()
                     else:
                         raise ValueError(f"Invalid renderer type: {renderer_type}")
 
@@ -167,12 +155,6 @@ class CitationManager:
             Formatted citation like "<sup>1</sup>"
         """
         return f"<sup>{len(self._citations_map) + 1}</sup>"
-
-    def _citation_for_stream(self) -> str:
-        """
-        Format a citation for stream output with superscript numbers.
-        """
-        return f"[source{len(self._citations_map) + 1}]"
 
     def get_citations_for_docx(self) -> list[str]:
         """

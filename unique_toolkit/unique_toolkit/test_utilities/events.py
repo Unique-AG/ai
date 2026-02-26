@@ -91,10 +91,12 @@ class TestEventFactory:
         *,
         translate_to_language: str | None = None,
         content_id_to_translate: str | None = None,
+        user_space_instructions: str = "",
     ) -> ChatEventAdditionalParameters:
         return ChatEventAdditionalParameters(
             translate_to_language=translate_to_language,
             content_id_to_translate=content_id_to_translate,
+            user_space_instructions=user_space_instructions,
         )
 
     def get_base_event(

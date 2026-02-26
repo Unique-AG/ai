@@ -70,7 +70,13 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
         def is_empty(self):
             return False
 
+    mock_cancellation = MagicMock()
+    mock_cancellation.is_cancelled = False
+    mock_cancellation.on_cancellation.subscribe = MagicMock(return_value=MagicMock())
+    mock_cancellation.check_cancellation_async = AsyncMock(return_value=False)
+
     mock_chat_service = MagicMock()
+    mock_chat_service.cancellation = mock_cancellation
     mock_chat_service.complete_with_references_async = AsyncMock(
         return_value=DummyStreamResponse()
     )

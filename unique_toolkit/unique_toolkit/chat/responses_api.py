@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Any, NamedTuple, Sequence
 
@@ -196,12 +197,23 @@ def _prepare_responses_params_util(
     log_exc_info=False,
     logger=logger,
 )
-def _attempt_extract_reasoning_from_options(options: dict) -> Reasoning | None:
-    reasoning = None
+def _attempt_extract_reasoning_from_options(
+    options: dict[str, Any],
+) -> Reasoning | None:
+    reasoning: dict[str, Any] | str | None = None
 
     # Responses API
     if "reasoning" in options:
         reasoning = options["reasoning"]
+        # Handle case where reasoning is stored as JSON string (UI limitation)
+        if isinstance(reasoning, str):
+            try:
+                reasoning = json.loads(reasoning)
+            except (json.JSONDecodeError, TypeError):
+                logger.warning(
+                    f"Failed to parse reasoning as JSON string: {reasoning}. "
+                    "Continuing with raw value."
+                )
 
     # Completions API
     elif "reasoning_effort" in options:
@@ -222,20 +234,28 @@ def _attempt_extract_reasoning_from_options(options: dict) -> Reasoning | None:
     logger=logger,
 )
 def _attempt_extract_verbosity_from_options(
-    options: dict,
+    options: dict[str, Any],
 ) -> ResponseTextConfigParam | None:
-    reasoning = None
+    if "verbosity" in options:
+        return TypeAdapter(ResponseTextConfigParam).validate_python(
+            {"verbosity": options["verbosity"]}
+        )
 
     # Responses API
     if "text" in options:
-        reasoning = options["text"]
-
-    # Completions API
-    elif "verbosity" in options:
-        reasoning = {"verbosity": options["verbosity"]}
-
-    if reasoning is not None:
-        return TypeAdapter(ResponseTextConfigParam).validate_python(reasoning)
+        text_config: dict[str, Any] | str = options["text"]
+        # Handle case where text is stored as JSON string (UI limitation)
+        if isinstance(text_config, str):
+            try:
+                text_config = json.loads(text_config)
+                return TypeAdapter(ResponseTextConfigParam).validate_python(text_config)
+            except (json.JSONDecodeError, TypeError):
+                logger.warning(
+                    f"Failed to parse text as JSON string: {text_config}. "
+                    "Continuing with raw value."
+                )
+        if isinstance(text_config, dict):
+            return TypeAdapter(ResponseTextConfigParam).validate_python(text_config)
 
     return None
 
@@ -283,42 +303,26 @@ def _prepare_responses_args(
 
     openai_options: unique_sdk.Integrated.CreateStreamResponsesOpenaiParams = {}
 
-    if params.temperature is not None:
-        openai_options["temperature"] = params.temperature
+    explicit_options = {
+        "temperature": params.temperature,
+        "reasoning": params.reasoning,
+        "text": params.text,
+        "include": include,
+        "instructions": instructions,
+        "max_output_tokens": max_output_tokens,
+        "metadata": metadata,
+        "parallel_tool_calls": parallel_tool_calls,
+        "tool_choice": tool_choice,
+        "tools": params.tools,
+        "top_p": top_p,
+    }
 
-    if params.reasoning is not None:
-        openai_options["reasoning"] = params.reasoning
-
-    if params.text is not None:
-        openai_options["text"] = params.text
-
-    if include is not None:
-        openai_options["include"] = include
-
-    if instructions is not None:
-        openai_options["instructions"] = instructions
-
-    if max_output_tokens is not None:
-        openai_options["max_output_tokens"] = max_output_tokens
-
-    if metadata is not None:
-        openai_options["metadata"] = metadata
-
-    if parallel_tool_calls is not None:
-        openai_options["parallel_tool_calls"] = parallel_tool_calls
-
-    if tool_choice is not None:
-        openai_options["tool_choice"] = tool_choice
-
-    if params.tools is not None:
-        openai_options["tools"] = params.tools
-
-    if top_p is not None:
-        openai_options["top_p"] = top_p
+    openai_options.update({k: v for k, v in explicit_options.items() if v is not None})  # type: ignore[arg-type]
 
     # allow any other openai.resources.responses.Response.create options
     if other_options is not None:
-        openai_options.update(other_options)  # type: ignore
+        for k, v in other_options.items():
+            openai_options.setdefault(k, v)  # type: ignore
 
     options["options"] = openai_options
 

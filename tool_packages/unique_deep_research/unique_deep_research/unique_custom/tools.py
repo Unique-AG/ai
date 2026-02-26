@@ -22,12 +22,12 @@ from unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentChunk, ContentSearchType
-from unique_web_search.client_settings import get_google_search_settings
-from unique_web_search.services.search_engine.google import GoogleConfig, GoogleSearch
+from unique_web_search.services.search_engine import get_search_engine_service
 
 from .utils import (
     get_citation_manager,
     get_content_service_from_config,
+    get_engine_config,
     write_tool_message_log,
 )
 
@@ -153,18 +153,21 @@ async def web_search(query: str, config: RunnableConfig) -> str:
     You can search again with a new query if you need more results.
     Should be followed up by web_fetch to get the complete content of the results.
     """
-    google_settings = get_google_search_settings()
+    if "configurable" not in config:
+        raise ValueError("RunnableConfig missing 'configurable' section")
 
-    if not google_settings.is_configured:
-        _LOGGER.error("Google Search not configured")
-        raise ValueError("Google Search not configured")
+    configurable = config["configurable"]
+    engine_config = configurable["engine_config"].tools.web_tools_config.search_engine
+    show_full_page_result = configurable[
+        "engine_config"
+    ].tools.web_tools_config.show_full_page_result
 
-    # Create Google search configuration and service
-    google_config = GoogleConfig(fetch_size=10)
-    google_search = GoogleSearch(google_config)
+    search_engine_service = get_search_engine_service(
+        engine_config, configurable["language_model_service"]
+    )
 
     # Perform the search
-    search_results = await google_search.search(query)
+    search_results = await search_engine_service.search(query)
     write_tool_message_log(
         config,
         "**Searching the web**",
@@ -200,13 +203,17 @@ async def web_search(query: str, config: RunnableConfig) -> str:
             url=result.url,
         )
 
-        # Format result with citation number
-        formatted_results.append(
+        result_text = (
             f"{result.title}\n"
             f"URL: {result.url}\n"
             f"Citations: <sup>{citation.number}</sup>\n"
-            f"content: {result.snippet}\n"
+            f"Snippet: {result.snippet}\n"
         )
+
+        if show_full_page_result and result.content.strip() != "":
+            result_text += f"Page content: {result.content}\n"
+
+        formatted_results.append(result_text)
 
     return f"Web search results for '{query}':\n\n" + "\n".join(formatted_results)
 
@@ -492,14 +499,17 @@ def get_research_tools(config: RunnableConfig) -> List[Any]:
         research_complete,
     ]
 
-    # Get tool configuration from the config
-    configurable = config.get("configurable", {})
-    enable_web_tools = configurable.get("enable_web_tools", True)
-    enable_internal_tools = configurable.get("enable_internal_tools", True)
+    engine_config = get_engine_config(config)
+    enable_web_tools = engine_config.tools.web_tools
+    enable_web_fetch = engine_config.tools.web_tools_config.enable_web_fetch
+    enable_internal_tools = engine_config.tools.internal_tools
 
     # Add web tools if enabled
     if enable_web_tools:
-        tools.extend([web_search, web_fetch])
+        web_tools = [web_search]
+        if enable_web_fetch:
+            web_tools.append(web_fetch)
+        tools.extend(web_tools)
 
     # Add internal tools if enabled
     if enable_internal_tools:

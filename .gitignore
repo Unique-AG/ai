@@ -85,6 +85,10 @@ ipython_config.py
 
 # Docs
 site/
+_local_docs/
+_build_log.txt
+_deploy/
+_cached_versions/
 
 # pyenv
 #   For a library or package, you might want to ignore these files since the code is
@@ -156,6 +160,9 @@ dmypy.json
 # pytype static type analyzer
 .pytype/
 
+# basedpyright (temporary baseline folder)
+.basedpyright/
+
 # Cython debug symbols
 cython_debug/
 
@@ -171,3 +178,9 @@ cython_debug/
 
 # Apple
 .DS_Store
+
+# Monorepo reference (symlink)
+monorepo-ref
+
+# JetBrains
+.idea

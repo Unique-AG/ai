@@ -83,6 +83,7 @@ class MagicTableAction(StrEnum):
     SHEET_COMPLETED = "SheetCompleted"
     LIBRARY_SHEET_ROW_VERIFIED = "LibrarySheetRowVerified"
     SHEET_CREATED = "SheetCreated"
+    RERUN_ROW = "RerunRow"
 
 
 class ActivityStatus(StrEnum):

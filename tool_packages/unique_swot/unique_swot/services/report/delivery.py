@@ -7,9 +7,8 @@ from unique_toolkit._common.docx_generator import DocxGeneratorService
 
 from unique_swot.services.citations import CitationManager
 from unique_swot.services.generation.models.base import SWOTReportComponents
-from unique_swot.services.report.config import DocxRendererType
+from unique_swot.services.report.config import RendererType, ReportRendererConfig
 from unique_swot.services.report.docx import (
-    add_citation_footer,
     convert_markdown_to_docx,
 )
 from unique_swot.services.session import SwotAnalysisSessionConfig
@@ -35,38 +34,41 @@ class ReportDeliveryService:
         chat_service: ChatService,
         docx_renderer: DocxGeneratorService,
         citation_manager: CitationManager,
-        renderer_type: DocxRendererType,
-        template_name: str,
+        renderer_config: ReportRendererConfig,
     ):
         self._chat_service = chat_service
         self._docx_renderer = docx_renderer
         self._citation_manager = citation_manager
-        self._renderer_type = renderer_type
-        self._template_name = template_name
+        self._renderer_config = renderer_config
 
     def render_report(
         self,
-        result: SWOTReportComponents,
         citation_fn: Callable[[str], str],
         executive_summary: str | None = None,
+        body: str | None = None,
     ) -> str:
         # Render using the template
-        markdown_report = Template(self._template_name).render(
-            **result.model_dump(),
+        markdown_report = Template(
+            self._renderer_config.report_structure_template
+        ).render(
             executive_summary=executive_summary,
+            body=body,
         )
         return citation_fn(markdown_report)
+
+    def render_body(self, result: SWOTReportComponents) -> str:
+        return Template(self._renderer_config.report_body_template).render(
+            **result.model_dump(),
+        )
 
     def deliver_report(
         self,
         *,
-        start_text: str,
         executive_summary: str,
-        result: SWOTReportComponents,
+        body: str,
         session_config: SwotAnalysisSessionConfig,
         docx_template_fields: dict[str, str],
         ingest_docx: bool,
-        num_existing_references: int,
     ) -> str:
         """
         Delivers a SWOT analysis report to the chat.
@@ -78,35 +80,42 @@ class ReportDeliveryService:
             ingest_docx: Whether to ingest the DOCX file
         """
 
-        markdown_report = self.render_report(
-            result=result,
-            citation_fn=lambda report: self._citation_manager.add_citations_to_report(
-                report, self._renderer_type.value
+        renderer_type = self._renderer_config.renderer_type
+
+        executive_summary, body = map(
+            lambda content: self._citation_manager.map_citations_to_report(
+                content, self._renderer_config.renderer_type
             ),
-            executive_summary=executive_summary,
+            [executive_summary, body],
         )
 
-        citations = self._citation_manager.get_citations_for_docx()
+        number_of_citations = len(self._citation_manager.get_citations_for_docx())
 
-        match self._renderer_type:
-            case DocxRendererType.DOCX:
+        full_report = Template(self._renderer_config.report_structure_template).render(
+            executive_summary=executive_summary,
+            body=body,
+            citations=self._citation_manager.get_citations_for_docx()
+            if renderer_type == RendererType.DOCX
+            else None,
+        )
+
+        match renderer_type:
+            case RendererType.DOCX:
                 self._deliver_docx_report(
-                    start_text=start_text,
                     session_config=session_config,
-                    markdown_report=markdown_report,
+                    markdown_report=full_report,
                     template_fields=docx_template_fields,
                     ingest_docx=ingest_docx,
-                    citations=citations,
-                    num_existing_references=num_existing_references,
+                    sequence_number=number_of_citations,
                 )
-            case DocxRendererType.CHAT:
+            case RendererType.CHAT:
                 self._deliver_markdown_report(
-                    markdown_report=markdown_report,
+                    markdown_report=full_report,
                 )
             case _:
-                raise ValueError(f"Invalid renderer type: {self._renderer_type}")
+                raise ValueError(f"Invalid renderer type: {renderer_type}")
 
-        return markdown_report
+        return full_report
 
     def _convert_consolidated_reports_to_markdown(
         self,
@@ -135,18 +144,13 @@ class ReportDeliveryService:
     def _deliver_docx_report(
         self,
         *,
-        start_text: str,
         markdown_report: str,
         template_fields: dict[str, str],
         session_config: SwotAnalysisSessionConfig,
         ingest_docx: bool,
-        citations: list[str],
-        num_existing_references: int,
+        sequence_number: int,
     ) -> None:
         """Converts markdown to DOCX and delivers it as an attachment"""
-
-        if citations:
-            markdown_report = add_citation_footer(markdown_report, citations)
 
         # Convert markdown to DOCX
         docx_bytes = convert_markdown_to_docx(
@@ -169,13 +173,13 @@ class ReportDeliveryService:
         # Create content reference
         content_reference = convert_content_chunk_to_reference(
             content_or_chunk=content,
-            sequence_number=num_existing_references,
+            sequence_number=sequence_number,
         )
 
         # Modify assistant message
         self._chat_service.modify_assistant_message(
             message_id=self._chat_service.assistant_message_id,
-            content=f"{start_text}\n\n Here is the full Swot Analysis report for {session_config.company_listing.name} in DOCX format <sup>{num_existing_references}</sup>.",
+            content=f"Here is the full Swot Analysis report for {session_config.company_listing.name} in DOCX format <sup>{sequence_number}</sup>.",
             references=[content_reference],
         )
 

@@ -7,6 +7,7 @@ The Space API manages conversational spaces (assistants) and their chats in Uniq
 Spaces are conversational assistants with configured tools, scope rules, and modules. Use this API to:
 
 - Create spaces
+- Delete spaces
 - Manage space access control
 - Send messages to spaces
 - Manage space chats
@@ -194,6 +195,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `chatId` (str, optional) - Continue existing chat or start new
     - `toolChoices` (List[str], optional) - List of tools to use (e.g., `["WebSearch", "InternalSearch"]`)
     - `scopeRules` (Dict[str, Any], optional) - UniqueQL filter for document scope
+    - `correlation` ([`Space.Correlation`](#spacecorrelation), optional) - Correlation data to link this message to a parent message in another chat
 
     **Returns:**
 
@@ -242,6 +244,22 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
                     "value": "uniquepathid://scope_engineering_docs"
                 }
             ]
+        }
+    )
+    ```
+
+    **Example - With Correlation:**
+
+    ```python
+    message = unique_sdk.Space.create_message(
+        user_id=user_id,
+        company_id=company_id,
+        assistantId="assistant_abc123",
+        text="Follow up on the previous analysis",
+        correlation={
+            "parentMessageId": "msg_xyz789",
+            "parentChatId": "chat_abc123",
+            "parentAssistantId": "assistant_def456",
         }
     )
     ```
@@ -349,6 +367,30 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
         company_id=company_id,
         chat_id="chat_dejfhe729br398"
     )
+    ```
+
+??? example "`unique_sdk.Space.delete_space` - Delete a space"
+
+    Delete a space (assistant) by ID. Requires manage access to the space. (compatible with release > 2026.06)
+
+    **Parameters:**
+
+    - `space_id` (str, required) - Space/assistant ID to delete
+
+    **Returns:**
+
+    Returns a [`DeleteSpaceResponse`](#deletespaceresponse) object.
+
+    **Example:**
+
+    ```python
+    result = unique_sdk.Space.delete_space(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="assistant_hjcdga64bkcjnhu4"
+    )
+
+    print(f"Deleted space: {result['id']}")
     ```
 
 ## Use Cases
@@ -644,6 +686,18 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
 
     **Used in:** `Space.assistantAccess`, `SpaceAccessResponse.access`, `AddSpaceAccessResponse.access`
 
+#### Space.Correlation {#spacecorrelation}
+
+??? note "The `Space.Correlation` type defines correlation data to link a message to a parent message in another chat"
+
+    **Fields:**
+
+    - `parentMessageId` (str, required) - The ID of the parent message
+    - `parentChatId` (str, required) - The ID of the parent chat
+    - `parentAssistantId` (str, required) - The ID of the parent assistant
+
+    **Used in:** `Space.create_message()`
+
 #### DeleteChatResponse {#deletechatresponse}
 
 ??? note "The `DeleteChatResponse` object contains the deleted chat ID"
@@ -653,6 +707,16 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `chat_id` (str) - ID of the deleted chat
 
     **Returned by:** `Space.delete_chat()`
+
+#### DeleteSpaceResponse {#deletespaceresponse}
+
+??? note "The `DeleteSpaceResponse` object contains the deleted space ID"
+
+    **Fields:**
+
+    - `id` (str) - ID of the deleted space
+
+    **Returned by:** `Space.delete_space()`
 
 ## Related Resources
 

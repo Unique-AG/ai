@@ -221,7 +221,7 @@ Work with intelligent tables that support:
     **Parameters:**
 
     - `tableId` (str, required) - Table/sheet ID
-    - `activity` (Literal["DeleteRow", "DeleteColumn", "UpdateCell", "AddQuestionText", "AddMetaData", "GenerateArtifact", "SheetCompleted", "LibrarySheetRowVerified"], required) - Activity type
+    - `activity` (Literal["DeleteRow", "DeleteColumn", "UpdateCell", "AddQuestionText", "AddMetaData", "GenerateArtifact", "SheetCompleted", "LibrarySheetRowVerified", "RerunRow"], required) - Activity type
     - `status` (Literal["IN_PROGRESS", "COMPLETED", "FAILED"], required) - Activity status
     - `text` (str, required) - Activity description text
 

@@ -167,6 +167,7 @@ class ChatEventAdditionalParameters(BaseModel):
 
     translate_to_language: Optional[str] = None
     content_id_to_translate: Optional[str] = None
+    user_space_instructions: str
 
 
 @deprecated(
@@ -177,6 +178,13 @@ class EventAdditionalParameters(ChatEventAdditionalParameters):
     """Deprecated: Use `ChatEventAdditionalParameters` instead."""
 
     pass
+
+
+class Correlation(BaseModel):
+    model_config = model_config
+    parent_message_id: str
+    parent_chat_id: str
+    parent_assistant_id: str
 
 
 class ChatEventPayload(BaseModel):
@@ -226,6 +234,10 @@ class ChatEventPayload(BaseModel):
     session_config: JsonValue | None = Field(
         default=None,
         description="The session configuration for the chat session.",
+    )
+    correlation: Correlation | None = Field(
+        default=None,
+        description="The correlation to parent message in another chat.",
     )
 
     @field_validator("raw_scope_rules", mode="before")

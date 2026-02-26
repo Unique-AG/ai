@@ -61,6 +61,8 @@ OPTIONS:
     -b, --base-ref REF   Base branch/ref for comparison
                          (default: auto-detect from GITHUB_BASE_REF or origin/main/master)
     --no-fetch           Skip fetching the base branch (useful if already fetched)
+    --exclude PATTERNS   Comma-separated list of patterns to exclude from "meaningful changes"
+                         (e.g., "poetry.lock,uv.lock,docs/,CHANGELOG.md")
 
 EXAMPLES:
     # CI usage (GitHub Actions)
@@ -74,6 +76,9 @@ EXAMPLES:
 
     # Skip fetch (if branch already fetched)
     ${SCRIPT_NAME} unique_toolkit --base-ref main --no-fetch
+
+    # With custom exclusions
+    ${SCRIPT_NAME} unique_toolkit main --exclude "poetry.lock,uv.lock,docs/"
 
 EXIT CODES:
     0    Validation passed
@@ -97,6 +102,10 @@ show_version() {
 PACKAGE=""
 BASE_REF=""
 NO_FETCH=false
+EXCLUDE_ARG=""
+
+# Default exclusion patterns (used if --exclude not provided)
+DEFAULT_EXCLUDES="poetry.lock,uv.lock,CHANGELOG.md,docs/,mkdocs.yaml,.entangled/"
 
 # Parse long options first (--help, --version, --base-ref, --no-fetch)
 while [[ $# -gt 0 ]]; do
@@ -110,6 +119,11 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         --base-ref)
+            if [ -z "${2:-}" ] || [[ "$2" == -* ]]; then
+                print_error "Option --base-ref requires an argument."
+                echo "Use --help for usage information."
+                exit 2
+            fi
             BASE_REF="$2"
             shift 2
             continue
@@ -117,6 +131,16 @@ while [[ $# -gt 0 ]]; do
         --no-fetch)
             NO_FETCH=true
             shift
+            continue
+            ;;
+        --exclude)
+            if [ -z "${2:-}" ] || [[ "$2" == -* ]]; then
+                print_error "Option --exclude requires an argument."
+                echo "Use --help for usage information."
+                exit 2
+            fi
+            EXCLUDE_ARG="$2"
+            shift 2
             continue
             ;;
         --)
@@ -229,8 +253,12 @@ if [ -z "$BASE_REF" ]; then
     fi
 fi
 
-# Ensure base_ref has origin/ prefix if it's a branch name (and not already a full ref)
-if [[ ! "$BASE_REF" =~ ^origin/ ]] && [[ ! "$BASE_REF" =~ ^refs/ ]]; then
+# Normalize base_ref to origin/<branch> format
+# Handle refs/heads/main -> origin/main, main -> origin/main
+if [[ "$BASE_REF" =~ ^refs/heads/ ]]; then
+    # Convert refs/heads/main to origin/main
+    BASE_REF="origin/${BASE_REF#refs/heads/}"
+elif [[ ! "$BASE_REF" =~ ^origin/ ]]; then
     BASE_REF="origin/$BASE_REF"
 fi
 
@@ -239,8 +267,8 @@ print_info "Base reference: $BASE_REF"
 
 # Fetch the base reference (needed for merge-base)
 if [ "$NO_FETCH" = false ]; then
-    # Extract branch name (remove origin/ prefix if present)
-    BRANCH_NAME=$(echo "$BASE_REF" | sed 's|^origin/||')
+    # Extract branch name (remove origin/ prefix)
+    BRANCH_NAME="${BASE_REF#origin/}"
     print_info "Fetching base branch: $BRANCH_NAME"
     if ! git fetch origin "$BRANCH_NAME" 2>/dev/null; then
         # If fetch fails, try without suppressing output to see the error
@@ -255,21 +283,111 @@ else
 fi
 
 # Get the merge base
-MERGE_BASE=$(git merge-base HEAD "$BASE_REF" 2>/dev/null || {
+MERGE_BASE=$(git merge-base HEAD "$BASE_REF" 2>/dev/null) || true
+
+# Check if merge-base succeeded (subshell exit doesn't stop main script)
+if [ -z "$MERGE_BASE" ]; then
     print_error "Could not find merge base between HEAD and $BASE_REF"
     print_error "Make sure you have fetched the base branch: git fetch origin <branch>"
     exit 1
-})
+fi
 
 print_info "Merge base: $MERGE_BASE"
 
+# Use provided exclusions or defaults
+if [ -n "$EXCLUDE_ARG" ]; then
+    EXCLUDE_CSV="$EXCLUDE_ARG"
+    print_info "Using provided exclusions: $EXCLUDE_CSV"
+else
+    EXCLUDE_CSV="$DEFAULT_EXCLUDES"
+    print_info "Using default exclusions: $EXCLUDE_CSV"
+fi
+
+# Convert comma-separated to array and build precise grep patterns
+IFS=',' read -ra EXCLUDED_PATTERNS <<< "$EXCLUDE_CSV"
+
+# Build regex patterns that match exact path components:
+# - For files (no trailing /): match at end of path, preceded by / or start
+# - For directories (trailing /): match as complete directory component
+EXCLUDE_REGEX_PARTS=()
+for pattern in "${EXCLUDED_PATTERNS[@]}"; do
+    # Skip empty or whitespace-only patterns (from trailing/leading/double commas)
+    # Trim whitespace and check if empty
+    trimmed="${pattern#"${pattern%%[![:space:]]*}"}"  # trim leading
+    trimmed="${trimmed%"${trimmed##*[![:space:]]}"}"  # trim trailing
+    [ -z "$trimmed" ] && continue
+    pattern="$trimmed"
+    
+    # Escape regex metacharacters (dots)
+    escaped=$(echo "$pattern" | sed 's/\./\\./g')
+    
+    if [[ "$pattern" == */ ]]; then
+        # Directory pattern (ends with /): match as complete path component
+        # e.g., "docs/" should match "foo/docs/bar" but not "foo/apidocs/bar"
+        EXCLUDE_REGEX_PARTS+=("(^|/)${escaped}")
+    else
+        # File pattern: match exact filename at end of path
+        # e.g., "poetry.lock" should match "foo/poetry.lock" but not "foo/my-poetry.lock"
+        EXCLUDE_REGEX_PARTS+=("(^|/)${escaped}$")
+    fi
+done
+
+# Handle empty regex (no valid patterns) - use pattern that matches nothing
+if [ ${#EXCLUDE_REGEX_PARTS[@]} -eq 0 ]; then
+    EXCLUDE_REGEX="^$"  # Only matches empty lines (file paths are never empty)
+else
+    EXCLUDE_REGEX=$(IFS='|'; echo "${EXCLUDE_REGEX_PARTS[*]}")
+fi
+
+# First check if there are any meaningful code changes in this package
+# Separate git diff from grep to properly detect git failures
+ALL_CHANGES=$(git diff --name-only "$MERGE_BASE"..HEAD -- "$PACKAGE") || {
+    print_error "git diff failed - merge base '$MERGE_BASE' may be invalid"
+    exit 1
+}
+# Filter out excluded patterns (grep returns 1 if no matches, which is fine)
+CODE_CHANGES=$(echo "$ALL_CHANGES" | grep -v -E "($EXCLUDE_REGEX)" || true)
+
+if [ -z "$CODE_CHANGES" ]; then
+    print_info "No code changes detected in $PACKAGE (only lock files, docs, or no changes)"
+    print_success "Skipping validation - no changelog/version bump required"
+    exit 0
+fi
+
+print_info "Detected code changes in $PACKAGE:"
+echo "$CODE_CHANGES" | head -10
+echo ""
+
 # Check CHANGELOG.md is updated
+CHANGELOG_FILE="$PACKAGE/CHANGELOG.md"
 if ! git diff --name-only "$MERGE_BASE"..HEAD | grep -q "^$PACKAGE/CHANGELOG.md$"; then
     print_error "$PACKAGE/CHANGELOG.md must be updated in this PR"
     echo "Please add an entry to the changelog describing your changes."
     exit 1
 else
     print_success "$PACKAGE/CHANGELOG.md has been updated"
+fi
+
+# Verify CHANGELOG.md wasn't deleted (diff includes deletions)
+if [ ! -f "$CHANGELOG_FILE" ]; then
+    print_error "$CHANGELOG_FILE was deleted - changelog must exist and be updated, not removed"
+    exit 1
+fi
+
+# Check for duplicate version entries in changelog
+if [ -f "$CHANGELOG_FILE" ]; then
+    # Extract all version headers (## [X.Y.Z])
+    VERSIONS=$(grep -oE '## \[[0-9]+\.[0-9]+\.[0-9]+[^]]*\]' "$CHANGELOG_FILE" | sed 's/## \[//; s/\]//' | sort)
+    UNIQUE_VERSIONS=$(echo "$VERSIONS" | uniq)
+    
+    if [ "$VERSIONS" != "$UNIQUE_VERSIONS" ]; then
+        print_error "Duplicate version entries found in $CHANGELOG_FILE"
+        echo "The following versions appear more than once:"
+        echo "$VERSIONS" | uniq -d
+        exit 1
+    else
+        print_success "No duplicate version entries in changelog"
+    fi
 fi
 
 # Check pyproject.toml exists and has been modified
@@ -280,8 +398,9 @@ if ! git diff --name-only "$MERGE_BASE"..HEAD | grep -q "^$PACKAGE/pyproject.tom
 fi
 
 # Extract and compare versions
-BASE_VERSION=$(git show "$MERGE_BASE:$PACKAGE/pyproject.toml" 2>/dev/null | grep -E '^version\s*=' | sed -E 's/version\s*=\s*"([^"]+)"/\1/' || echo "")
-CURRENT_VERSION=$(grep -E '^version\s*=' "$PACKAGE/pyproject.toml" | sed -E 's/version\s*=\s*"([^"]+)"/\1/' || echo "")
+# Note: Using [[:space:]] instead of \s for BSD/macOS sed compatibility
+BASE_VERSION=$(git show "$MERGE_BASE:$PACKAGE/pyproject.toml" 2>/dev/null | grep -E '^version[[:space:]]*=' | sed -E 's/version[[:space:]]*=[[:space:]]*"([^"]+)"/\1/' || echo "")
+CURRENT_VERSION=$(grep -E '^version[[:space:]]*=' "$PACKAGE/pyproject.toml" | sed -E 's/version[[:space:]]*=[[:space:]]*"([^"]+)"/\1/' || echo "")
 
 if [ -z "$BASE_VERSION" ]; then
     print_error "Could not extract version from base branch's pyproject.toml"
@@ -305,6 +424,18 @@ if [ "$BASE_VERSION" = "$CURRENT_VERSION" ]; then
     exit 1
 else
     print_success "Version has been updated from $BASE_VERSION to $CURRENT_VERSION"
+fi
+
+# Check that changelog has an entry for the current version
+if [ -f "$CHANGELOG_FILE" ]; then
+    # Use grep -F for literal string matching (versions may contain + or other regex chars)
+    if ! grep -qF "## [$CURRENT_VERSION]" "$CHANGELOG_FILE"; then
+        print_error "Changelog does not contain an entry for version $CURRENT_VERSION"
+        echo "Please add a '## [$CURRENT_VERSION]' section to the changelog."
+        exit 1
+    else
+        print_success "Changelog contains entry for version $CURRENT_VERSION"
+    fi
 fi
 
 print_success "All validations passed!"

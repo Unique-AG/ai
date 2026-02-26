@@ -179,7 +179,7 @@ def test_build_unique_custom_app__registers_health_check__at_root_path(
 @pytest.mark.ai
 @pytest.mark.asyncio
 async def test_health_check_endpoint__returns_healthy_status__with_service_name(
-    mocker,
+    mocker, base_settings: UniqueSettings
 ) -> None:
     """
     Purpose: Verify health check endpoint returns correct JSON response with service name.

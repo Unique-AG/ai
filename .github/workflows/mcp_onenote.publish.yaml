@@ -1,0 +1,33 @@
+name: "OneNote MCP · Publish"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/mcp_onenote.publish.yaml
+      - tutorials/mcp/mcp_onenote/**
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Publish docs to Confluence
+        uses: unique-ag/actions/atlassian/confluence/publish@8128c9a6aed91e59cab0d59d93a50a582a8bfd49
+        with:
+          confluence_api_key: ${{ secrets.ATLASSIAN_UNIQUE_CODE_PUBLISHER_APIKEY }}
+          confluence_username: ${{ secrets.ATLASSIAN_UNIQUE_CODE_PUBLISHER_USERNAME }}
+          docs_path: tutorials/mcp/mcp_onenote/docs

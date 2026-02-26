@@ -70,6 +70,6 @@ runs:
           echo "install_cmd=poetry install" >> $GITHUB_OUTPUT
         else
           echo "run_cmd=uv run" >> $GITHUB_OUTPUT
-          echo "install_cmd=uv sync" >> $GITHUB_OUTPUT
+          echo "install_cmd=uv sync --locked" >> $GITHUB_OUTPUT
         fi
 

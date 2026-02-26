@@ -5,6 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.4.1] - 2026-02-23
+- Add flag-based cancellation support via `CancellationWatcher`
+
+## [3.4.0] - 2026-02-20
+- Add option to show full page content of search results in the return of the web search tool
+
+## [3.3.2] - 2026-02-11
+- Correctly log debug info in case of error
+
+## [3.3.1] - 2026-02-09
+- Migrate to model-specific token counting from unique_toolkit 1.46.1
+
+## [3.3.0] - 2026-02-06
+- Expose configuration for custom engine config (e.g max_parallel researchers)
+- Makes prompts aware of the available tools
+- Add option to disable the web_fetch tool
+
+## [3.2.3] - 2026-02-05
+- Improve error handling and logging
+
+## [3.2.2] - 2026-02-05
+- Fix bug where deep research tool was not using the correct headers causing an authentication error
+
+## [3.2.1] - 2026-02-05
+- Use deep research logger instead of tool logger
+
+## [3.2.0] - 2026-02-03
+- Use a backwards compatible config style
+
+## [3.1.0] - 2026-01-30
+- Support other search engines than Google
+
+## [3.0.28] - 2026-01-26
+- Specify `langchain-openai` version
+
+## [3.0.27] - 2026-01-23
+- Fix bug where deep research model usage analytics were not fully exported
+
+## [3.0.26] - 2026-01-16
+- Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
+
+## [3.0.25] - 2026-01-16
+- Add unified type checking CI with basedpyright
+
+## [3.0.24] - 2026-01-15
+- Add `pytest-cov` dev dependency for coverage testing
+
+## [3.0.23] - 2026-01-13
+- Add missing `pytest-asyncio` dev dependency
+- Fix tests to use `.invoke()` method for StructuredTool objects
+
+## [3.0.22] - 2026-01-13
+- Fixing bug with message logs
 
 ## [3.0.21] - 2025-12-29
 - Bump unique_sdk version to `0.10.58`

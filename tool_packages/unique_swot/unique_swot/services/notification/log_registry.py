@@ -45,7 +45,6 @@ class MessageLogRegistryItem(BaseModel):
             status=status,
             details=MessageLogDetails(data=[]),
             uncited_references=MessageLogUncitedReferences(data=sources),
-            references=sources,
         )
 
         assert message_log.message_log_id is not None
@@ -86,7 +85,6 @@ class MessageLogRegistryItem(BaseModel):
             status=status,
             details=MessageLogDetails(data=[]),
             uncited_references=MessageLogUncitedReferences(data=self.sources),
-            references=sources,
         )
         return self
 

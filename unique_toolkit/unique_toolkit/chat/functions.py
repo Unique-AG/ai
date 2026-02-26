@@ -10,6 +10,7 @@ from typing_extensions import deprecated
 from unique_sdk._list_object import ListObject
 
 from unique_toolkit._common import _time_utils
+from unique_toolkit._common.token import count_tokens
 from unique_toolkit.chat.constants import (
     DEFAULT_MAX_MESSAGES,
 )
@@ -29,7 +30,6 @@ from unique_toolkit.chat.schemas import (
     MessageLogUncitedReferences,
 )
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
-from unique_toolkit.content.utils import count_tokens
 from unique_toolkit.language_model.constants import (
     DEFAULT_COMPLETE_TEMPERATURE,
     DEFAULT_COMPLETE_TIMEOUT,
@@ -38,6 +38,7 @@ from unique_toolkit.language_model.functions import (
     _prepare_all_completions_params_util,
 )
 from unique_toolkit.language_model.infos import (
+    LanguageModelInfo,
     LanguageModelName,
 )
 from unique_toolkit.language_model.schemas import (
@@ -399,6 +400,7 @@ def get_selection_from_history(
     full_history: list[ChatMessage],
     max_tokens: int,
     max_messages=DEFAULT_MAX_MESSAGES,
+    model_info: LanguageModelInfo | None = None,
 ) -> list[ChatMessage]:
     messages = full_history[-max_messages:]
     filtered_messages = [m for m in messages if m.content]
@@ -416,6 +418,7 @@ def get_selection_from_history(
     return pick_messages_in_reverse_for_token_window(
         messages=mapped_messages,
         limit=max_tokens,
+        model_info=model_info,
     )
 
 
@@ -426,23 +429,25 @@ def map_to_chat_messages(messages: list[dict]) -> list[ChatMessage]:
 def pick_messages_in_reverse_for_token_window(
     messages: list[ChatMessage],
     limit: int,
+    model_info: LanguageModelInfo | None = None,
 ) -> list[ChatMessage]:
     if len(messages) < 1 or limit < 1:
         return []
 
     last_index = len(messages) - 1
-    token_count = count_tokens(messages[last_index].content or "")
+    token_count = count_tokens(messages[last_index].content or "", model=model_info)
     while token_count > limit:
         logger.debug(
             f"Limit too low for the initial message. Last message TokenCount {token_count} available tokens {limit} - cutting message in half until it fits",
         )
         content = messages[last_index].content or ""
         messages[last_index].content = content[: len(content) // 2] + "..."
-        token_count = count_tokens(messages[last_index].content or "")
+        token_count = count_tokens(messages[last_index].content or "", model=model_info)
 
     while token_count <= limit and last_index > 0:
         token_count = count_tokens(
             "".join([msg.content or "" for msg in messages[:last_index]]),
+            model=model_info,
         )
         if token_count <= limit:
             last_index -= 1
@@ -1153,6 +1158,9 @@ def create_message_execution(
     type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
     seconds_remaining: int | None = None,
     percentage_completed: int | None = None,
+    is_queueable: bool = True,
+    execution_options: dict | None = None,
+    progress_title: str | None = None,
 ) -> MessageExecution:
     """Creates a message execution synchronously.
 
@@ -1164,6 +1172,9 @@ def create_message_execution(
         type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
         seconds_remaining (int | None): Estimated seconds remaining for completion.
         percentage_completed (int | None): Percentage of completion (0-100).
+        is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline. Set to False if you want to update the progress manually.
+        execution_options (dict | None): Additional execution options. Defaults to None.
+        progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
     Returns:
         MessageExecution: The created message execution.
@@ -1181,6 +1192,9 @@ def create_message_execution(
             type=type.value,
             secondsRemaining=seconds_remaining,
             percentageCompleted=percentage_completed,
+            isQueueable=is_queueable,
+            executionOptions=execution_options,
+            progressTitle=progress_title,
         )
         return MessageExecution(**message_execution)
     except Exception as e:
@@ -1196,6 +1210,9 @@ async def create_message_execution_async(
     type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
     seconds_remaining: int | None = None,
     percentage_completed: int | None = None,
+    is_queueable: bool = True,
+    execution_options: dict | None = None,
+    progress_title: str | None = None,
 ) -> MessageExecution:
     """Creates a message execution asynchronously.
 
@@ -1207,6 +1224,9 @@ async def create_message_execution_async(
         type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
         seconds_remaining (int | None): Estimated seconds remaining for completion.
         percentage_completed (int | None): Percentage of completion (0-100).
+        is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline. Set to False if you want to update the progress manually.
+        execution_options (dict | None): Additional execution options. Defaults to None.
+        progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
     Returns:
         MessageExecution: The created message execution.
@@ -1224,6 +1244,9 @@ async def create_message_execution_async(
             type=type.value,
             secondsRemaining=seconds_remaining,
             percentageCompleted=percentage_completed,
+            isQueueable=is_queueable,
+            executionOptions=execution_options,
+            progressTitle=progress_title,
         )
         return MessageExecution(**message_execution)
     except Exception as e:
@@ -1300,6 +1323,7 @@ def update_message_execution(
     status: MessageExecutionUpdateStatus | None = None,
     seconds_remaining: int | None = None,
     percentage_completed: int | None = None,
+    progress_title: str | None = None,
 ) -> MessageExecution:
     """Updates a message execution synchronously.
 
@@ -1310,6 +1334,7 @@ def update_message_execution(
         status (MessageExecutionUpdateStatus | None): The updated status (COMPLETED or FAILED). Defaults to None.
         seconds_remaining (int | None): Updated estimated seconds remaining.
         percentage_completed (int | None): Updated percentage of completion (0-100).
+        progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
     Returns:
         MessageExecution: The updated message execution.
@@ -1327,6 +1352,7 @@ def update_message_execution(
             status=status_value,
             secondsRemaining=seconds_remaining,
             percentageCompleted=percentage_completed,
+            progressTitle=progress_title,
         )
         return MessageExecution(**message_execution)
     except Exception as e:
@@ -1341,6 +1367,7 @@ async def update_message_execution_async(
     status: MessageExecutionUpdateStatus | None = None,
     seconds_remaining: int | None = None,
     percentage_completed: int | None = None,
+    progress_title: str | None = None,
 ) -> MessageExecution:
     """Updates a message execution asynchronously.
 
@@ -1351,6 +1378,7 @@ async def update_message_execution_async(
         status (MessageExecutionUpdateStatus | None): The updated status (COMPLETED or FAILED). Defaults to None.
         seconds_remaining (int | None): Updated estimated seconds remaining.
         percentage_completed (int | None): Updated percentage of completion (0-100).
+        progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
 
     Returns:
         MessageExecution: The updated message execution.
@@ -1368,6 +1396,7 @@ async def update_message_execution_async(
             status=status_value,
             secondsRemaining=seconds_remaining,
             percentageCompleted=percentage_completed,
+            progressTitle=progress_title,
         )
         return MessageExecution(**message_execution)
     except Exception as e:

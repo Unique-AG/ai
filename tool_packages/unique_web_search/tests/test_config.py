@@ -30,6 +30,64 @@ from unique_web_search.services.search_engine.base import SearchEngineType
 from unique_web_search.services.search_engine.google import GoogleConfig
 
 
+class TestQueryElicitationConfig:
+    """Test cases for QueryElicitationConfig."""
+
+    @pytest.mark.ai
+    def test_query_elicitation_config__defaults_enable_to_false__on_creation(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify QueryElicitationConfig defaults enable_elicitation to False.
+        Why this matters: Elicitation is disabled by default to avoid blocking searches without explicit opt-in.
+        Setup summary: Create config with defaults, verify enable_elicitation is False.
+        """
+        # Arrange
+        from unique_web_search.services.query_elicitation import QueryElicitationConfig
+
+        # Act
+        config = QueryElicitationConfig()
+
+        # Assert
+        assert config.enable_elicitation is False
+
+    @pytest.mark.ai
+    def test_query_elicitation_config__accepts_true__when_explicitly_enabled(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify QueryElicitationConfig can be explicitly set to True.
+        Why this matters: Users must be able to opt-in to elicitation when desired.
+        Setup summary: Create config with enable_elicitation=True, verify value.
+        """
+        # Arrange
+        from unique_web_search.services.query_elicitation import QueryElicitationConfig
+
+        # Act
+        config = QueryElicitationConfig(enable_elicitation=True)
+
+        # Assert
+        assert config.enable_elicitation is True
+
+    @pytest.mark.ai
+    def test_query_elicitation_config__defaults_timeout_to_60__on_creation(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify QueryElicitationConfig defaults timeout_seconds to 60.
+        Why this matters: Timeout governs how long the system waits for user approval.
+        Setup summary: Create config with defaults, verify timeout_seconds is 60.
+        """
+        # Arrange
+        from unique_web_search.services.query_elicitation import QueryElicitationConfig
+
+        # Act
+        config = QueryElicitationConfig()
+
+        # Assert
+        assert config.timeout_seconds == 60
+
+
 class TestAnswerGenerationConfig:
     """Test cases for AnswerGenerationConfig."""
 
@@ -115,6 +173,38 @@ class TestWebSearchV2Config:
             config.tool_description_for_system_prompt
             == "Custom system prompt description"
         )
+
+    def test_web_search_v2_config_mode_validator_with_beta_suffix(self):
+        """Test WebSearchV2Config mode validator handles 'v2 (beta)' string."""
+        config = WebSearchV2Config(mode="v2 (beta)")
+        assert config.mode == WebSearchMode.V2
+
+    def test_web_search_v2_config_mode_validator_with_uppercase(self):
+        """Test WebSearchV2Config mode validator handles uppercase variations."""
+        config = WebSearchV2Config(mode="V2")
+        assert config.mode == WebSearchMode.V2
+
+        config_beta = WebSearchV2Config(mode="V2 (BETA)")
+        assert config_beta.mode == WebSearchMode.V2
+
+    def test_web_search_v2_config_mode_validator_with_v2_substring(self):
+        """Test WebSearchV2Config mode validator handles any string containing 'v2'."""
+        config = WebSearchV2Config(mode="web search v2 mode")
+        assert config.mode == WebSearchMode.V2
+
+    def test_web_search_v2_config_mode_validator_rejects_invalid(self):
+        """Test WebSearchV2Config mode validator rejects invalid modes."""
+        with pytest.raises(ValidationError) as exc_info:
+            WebSearchV2Config(mode="v1")
+        assert "Invalid mode" in str(exc_info.value)
+
+        with pytest.raises(ValidationError) as exc_info:
+            WebSearchV2Config(mode="v3")
+        assert "Invalid mode" in str(exc_info.value)
+
+        with pytest.raises(ValidationError) as exc_info:
+            WebSearchV2Config(mode="invalid")
+        assert "Invalid mode" in str(exc_info.value)
 
 
 class TestExperimentalFeatures:
@@ -473,3 +563,67 @@ class TestWebSearchConfig:
         assert config.web_search_mode_config.mode == WebSearchMode.V2
         assert config.web_search_mode_config.max_steps == 6
         assert config.debug is True
+
+    def test_web_search_config_active_mode_validator_with_beta_suffix(
+        self, mock_language_model_info
+    ):
+        """Test WebSearchConfig active mode validator handles 'v2 (beta)' string."""
+        config = WebSearchConfig(
+            language_model=mock_language_model_info,
+            web_search_active_mode="v2 (beta)",
+        )
+        assert config.web_search_active_mode == WebSearchMode.V2
+
+    def test_web_search_config_active_mode_validator_with_uppercase(
+        self, mock_language_model_info
+    ):
+        """Test WebSearchConfig active mode validator handles uppercase variations."""
+        config_v2 = WebSearchConfig(
+            language_model=mock_language_model_info,
+            web_search_active_mode="V2",
+        )
+        assert config_v2.web_search_active_mode == WebSearchMode.V2
+
+        config_v2_beta = WebSearchConfig(
+            language_model=mock_language_model_info,
+            web_search_active_mode="V2 (BETA)",
+        )
+        assert config_v2_beta.web_search_active_mode == WebSearchMode.V2
+
+        config_v1 = WebSearchConfig(
+            language_model=mock_language_model_info,
+            web_search_active_mode="V1",
+        )
+        assert config_v1.web_search_active_mode == WebSearchMode.V1
+
+    def test_web_search_config_active_mode_validator_with_v2_substring(
+        self, mock_language_model_info
+    ):
+        """Test WebSearchConfig active mode validator handles any string containing 'v2'."""
+        config = WebSearchConfig(
+            language_model=mock_language_model_info,
+            web_search_active_mode="web search v2 mode",
+        )
+        assert config.web_search_active_mode == WebSearchMode.V2
+
+    def test_web_search_config_active_mode_validator_defaults_to_v1(
+        self, mock_language_model_info
+    ):
+        """Test WebSearchConfig active mode validator defaults to v1 for non-v2 values."""
+        config_v1 = WebSearchConfig(
+            language_model=mock_language_model_info,
+            web_search_active_mode="v1",
+        )
+        assert config_v1.web_search_active_mode == WebSearchMode.V1
+
+        config_v3 = WebSearchConfig(
+            language_model=mock_language_model_info,
+            web_search_active_mode="v3",
+        )
+        assert config_v3.web_search_active_mode == WebSearchMode.V1
+
+        config_invalid = WebSearchConfig(
+            language_model=mock_language_model_info,
+            web_search_active_mode="invalid",
+        )
+        assert config_invalid.web_search_active_mode == WebSearchMode.V1

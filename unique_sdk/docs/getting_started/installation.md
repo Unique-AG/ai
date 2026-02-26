@@ -36,5 +36,5 @@ Now that you've installed the SDK:
 
 1. **[Configure your credentials](configuration.md)** - Set up your API key and App ID
 2. **[Try the Quickstart guide](quickstart.md)** - Make your first API call
-3. **[Explore API Resources](../api_resources/)** - Learn about available APIs
+3. **[Explore API Resources](../api_resources/index.md)** - Learn about available APIs
 4. **[Check out Tutorials](../tutorials/folder_updates.md)** - See step-by-step tutorials

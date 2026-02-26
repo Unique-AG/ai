@@ -1,10 +1,10 @@
 from logging import getLogger
+from pathlib import Path
 
-from pydantic import BaseModel, Field
-from unique_toolkit.content.utils import count_tokens
+from unique_toolkit._common.token import count_tokens
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
-from unique_web_search.services.content_processing import WebPageChunk
+from unique_web_search.schema import WebPageChunk
 
 _LOGGER = getLogger(__name__)
 
@@ -72,6 +72,12 @@ def _get_max_tokens(
         )
 
 
+def load_template(parent_dir: Path, template_name: str) -> str:
+    """Load a template from a text file."""
+    with open(parent_dir / template_name, "r") as file:
+        return file.read().strip()
+
+
 def reduce_sources_to_token_limit(
     web_page_chunks: list[WebPageChunk],
     language_model_max_input_tokens: int | None,
@@ -92,37 +98,9 @@ def reduce_sources_to_token_limit(
 
     for chunk in web_page_chunks:
         if total_tokens < max_token_sources - chat_history_token_length:
-            total_tokens += count_tokens(text=chunk.content)
+            total_tokens += count_tokens(text=chunk.content, model=language_model)
             selected_chunks.append(chunk)
         else:
             break
 
     return selected_chunks
-
-
-class StepDebugInfo(BaseModel):
-    step_name: str
-    execution_time: float
-    config: str | dict
-    extra: dict = Field(default_factory=dict)
-
-
-class WebSearchDebugInfo(BaseModel):
-    parameters: dict
-    steps: list[StepDebugInfo] = []
-    web_page_chunks: list[WebPageChunk] = []
-    execution_time: float | None = None
-    num_chunks_in_final_prompts: int = 0
-
-    def model_dump(self, *, with_debug_details: bool = True, **kwargs):
-        """
-        Dump the model, dropping `additional_info` in steps when debug=False.
-        """
-        exclude = kwargs.pop("exclude", {})
-        if not with_debug_details:
-            # Build an exclude structure that applies to all steps
-            exclude = {
-                "steps": {i: {"extra"} for i in range(len(self.steps))},
-                "web_page_chunks": True,
-            } | exclude
-        return super().model_dump(exclude=exclude, **kwargs)

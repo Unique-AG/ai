@@ -36,6 +36,11 @@ class Message(APIResource["Message"]):
         sourceId: str
         source: str
 
+    class Correlation(TypedDict):
+        parentMessageId: str
+        parentChatId: str
+        parentAssistantId: str
+
     class CreateParams(RequestOptions):
         chatId: str
         assistantId: str
@@ -44,6 +49,7 @@ class Message(APIResource["Message"]):
         references: Optional[List["Message.Reference"]]
         debugInfo: Optional[Dict[str, Any]]
         completedAt: Optional[datetime]
+        correlation: NotRequired[Optional["Message.Correlation"]]
 
     class ModifyParams(RequestOptions):
         chatId: str

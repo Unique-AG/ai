@@ -11,7 +11,16 @@ from unique_web_search.services.helpers import (
 
 class WebSearchMode(StrEnum):
     V1 = "v1"
-    V2 = "v2 (Beta)"
+    V2 = "v2"
+
+    @classmethod
+    def _missing_(cls, value):
+        if isinstance(value, str):
+            aliases = {
+                "v2 (beta)": cls.V2,
+            }
+            return aliases.get(value)
+        return super()._missing_(value)
 
 
 T = TypeVar("T", bound=WebSearchMode)

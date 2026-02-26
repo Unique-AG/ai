@@ -1,0 +1,31 @@
+name: "[CI] Auto-resolve version conflicts"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/pyproject.toml'
+      - '**/CHANGELOG.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Auto-resolve version conflicts on open PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./.github/scripts/auto-resolve-version-conflicts.sh

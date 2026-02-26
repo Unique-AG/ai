@@ -166,6 +166,10 @@ class Content(APIResource["Content"]):
         title: NotRequired[str]
         metadata: NotRequired[dict[str, str | None]]
 
+    class UpdateIngestionStateParams(RequestOptions):
+        contentId: str
+        ingestionState: str
+
     class Chunk(TypedDict):
         id: str
         text: str
@@ -555,6 +559,48 @@ class Content(APIResource["Content"]):
                 user_id,
                 company_id,
                 params=params,
+            ),
+        )
+
+    @classmethod
+    def update_ingestion_state(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.UpdateIngestionStateParams"],
+    ) -> "Content.ContentInfo":
+        content_id = params.get("contentId")
+        ingestion_state = params.get("ingestionState")
+
+        return cast(
+            "Content.ContentInfo",
+            cls._static_request(
+                "patch",
+                f"/content/{content_id}/ingestion-state",
+                user_id,
+                company_id,
+                params={"ingestionState": ingestion_state},
+            ),
+        )
+
+    @classmethod
+    async def update_ingestion_state_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Content.UpdateIngestionStateParams"],
+    ) -> "Content.ContentInfo":
+        content_id = params.get("contentId")
+        ingestion_state = params.get("ingestionState")
+
+        return cast(
+            "Content.ContentInfo",
+            await cls._static_request_async(
+                "patch",
+                f"/content/{content_id}/ingestion-state",
+                user_id,
+                company_id,
+                params={"ingestionState": ingestion_state},
             ),
         )
 

@@ -55,6 +55,11 @@ class Space(APIResource["Space"]):
     class DeleteSpaceAccessParams(RequestOptions):
         accessIds: List[str]
 
+    class Correlation(TypedDict):
+        parentMessageId: str
+        parentChatId: str
+        parentAssistantId: str
+
     class CreateMessageParams(RequestOptions):
         """
         Parameters for querying the assistant for a message.
@@ -65,6 +70,7 @@ class Space(APIResource["Space"]):
         text: NotRequired[str | None]
         toolChoices: NotRequired[List[str] | None]
         scopeRules: NotRequired[dict | None]
+        correlation: NotRequired["Space.Correlation | None"]
 
     class GetChatMessagesParams(RequestOptions):
         """
@@ -197,6 +203,9 @@ class Space(APIResource["Space"]):
 
     class DeleteSpaceAccessResponse(TypedDict):
         success: bool
+
+    class DeleteSpaceResponse(TypedDict):
+        id: str
 
     id: str
     name: str
@@ -568,5 +577,45 @@ class Space(APIResource["Space"]):
                 user_id,
                 company_id,
                 params=params,
+            ),
+        )
+
+    @classmethod
+    def delete_space(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+    ) -> "Space.DeleteSpaceResponse":
+        """
+        Delete a space.
+        """
+        return cast(
+            "Space.DeleteSpaceResponse",
+            cls._static_request(
+                "delete",
+                f"/space/{space_id}",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
+    async def delete_space_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+    ) -> "Space.DeleteSpaceResponse":
+        """
+        Async delete a space.
+        """
+        return cast(
+            "Space.DeleteSpaceResponse",
+            await cls._static_request_async(
+                "delete",
+                f"/space/{space_id}",
+                user_id,
+                company_id,
             ),
         )

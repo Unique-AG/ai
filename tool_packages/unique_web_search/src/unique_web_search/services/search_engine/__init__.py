@@ -3,7 +3,6 @@ from functools import reduce
 from typing import TypeAlias
 
 from unique_toolkit import LanguageModelService
-from unique_toolkit._common.validators import LMI
 
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
@@ -38,6 +37,10 @@ from unique_web_search.services.search_engine.tavily import (
     TavilyConfig,
     TavilySearch,
 )
+from unique_web_search.services.search_engine.utils.bing import (
+    JsonConversionStrategy,
+    LLMParserStrategy,
+)
 from unique_web_search.services.search_engine.vertexai import (
     VertexAI,
     VertexAIConfig,
@@ -45,23 +48,23 @@ from unique_web_search.services.search_engine.vertexai import (
 
 SearchEngineTypes = (
     GoogleSearch
+    | BingSearch
+    | CustomAPI
     | JinaSearch
     | TavilySearch
-    | BingSearch
     | BraveSearch
     | FireCrawlSearch
-    | VertexAIConfig
-    | CustomAPIConfig
+    | VertexAI
 )
 SearchEngineConfigTypes = (
     GoogleConfig
+    | BingSearchConfig
+    | CustomAPIConfig
     | JinaConfig
     | TavilyConfig
-    | BingSearchConfig
     | BraveSearchConfig
     | FireCrawlConfig
     | VertexAIConfig
-    | CustomAPIConfig
 )
 
 ENGINE_NAME_TO_CONFIG = {
@@ -79,7 +82,6 @@ ENGINE_NAME_TO_CONFIG = {
 def get_search_engine_service(
     search_engine_config: SearchEngineConfigTypes,
     language_model_service: LanguageModelService,
-    lmi: LMI,
 ):
     match search_engine_config.search_engine_name:
         case SearchEngineType.FIRECRAWL:
@@ -91,9 +93,16 @@ def get_search_engine_service(
         case SearchEngineType.TAVILY:
             return TavilySearch(search_engine_config)
         case SearchEngineType.BING:
-            return BingSearch(search_engine_config, language_model_service, lmi)
+            response_parsers = [
+                JsonConversionStrategy(),
+                LLMParserStrategy(
+                    search_engine_config.language_model,
+                    language_model_service,
+                ),
+            ]
+            return BingSearch(search_engine_config, response_parsers)
         case SearchEngineType.BRAVE:
-            return BraveSearch(search_engine_config, language_model_service, lmi)
+            return BraveSearch(search_engine_config)
         case SearchEngineType.VERTEXAI:
             return VertexAI(search_engine_config)
         case SearchEngineType.CUSTOM_API:

@@ -1,8 +1,12 @@
 import asyncio
 from logging import Logger
+from typing import TYPE_CHECKING
 
 from pydantic import Field, create_model
 from typing_extensions import override
+
+if TYPE_CHECKING:
+    from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit._common.chunk_relevancy_sorter.exception import (
     ChunkRelevancySorterException,
 )
@@ -57,6 +61,7 @@ class InternalSearchService:
         company_id: str | None = None,
         message_step_logger: MessageStepLogger | None = None,
         display_name: str = "Internal Search",
+        language_model_orchestrator: "LanguageModelInfo | None" = None,
     ):
         self.config = config
         self.content_service = content_service
@@ -68,6 +73,8 @@ class InternalSearchService:
         self._message_step_logger = message_step_logger
         self._display_name = display_name
         self._active_message_log: MessageLog | None = None
+        # TODO: Propagate orchestrator LLM into tool initialization in separate PR
+        self.language_model_orchestrator = language_model_orchestrator
 
     async def post_progress_message(self, message: str, *args, **kwargs):
         pass
@@ -172,7 +179,7 @@ class InternalSearchService:
 
         # Apply chunk relevancy sorter if enabled
         if self.config.chunk_relevancy_sort_config.enabled:
-            if feature_flags.is_new_answers_ui_enabled(self.company_id):
+            if feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
                 self._active_message_log = (
                     await self._create_or_update_active_message_log(
                         progress_message="_Resorting search results_",
@@ -180,7 +187,9 @@ class InternalSearchService:
                     )
                 )
             for i, result in enumerate(found_chunks_per_search_string):
-                if not feature_flags.is_new_answers_ui_enabled(self.company_id):
+                if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
+                    self.company_id
+                ):
                     await self.post_progress_message(
                         f"{result.query} (_Resorting {len(result.chunks)} search results_ 🔄 in query {i + 1}/{len(found_chunks_per_search_string)})",
                         **kwargs,
@@ -194,14 +203,14 @@ class InternalSearchService:
         # 3. Pick a subset of the search results
         ###
         if (
-            self.config.experimental_features.enable_multiple_search_strings_execution
+            self.config.enable_multiple_search_strings_execution
             and len(found_chunks_per_search_string) > 1
         ):
             found_chunks_per_search_string = interleave_search_results_round_robin(
                 found_chunks_per_search_string
             )
 
-        if feature_flags.is_new_answers_ui_enabled(self.company_id):
+        if feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
             progress_message = "_Postprocessing search results_"
             self._active_message_log = await self._create_or_update_active_message_log(
                 progress_message=progress_message,
@@ -218,7 +227,9 @@ class InternalSearchService:
             for chunk in result.chunks
         ]
         selected_chunks = pick_content_chunks_for_token_window(
-            found_chunks, self._get_max_tokens()
+            found_chunks,
+            self._get_max_tokens(),
+            model_info=self.language_model_orchestrator,
         )
 
         ###
@@ -459,7 +470,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     @override
     def tool_description(self) -> LanguageModelToolDescription:
         # Conditionally set the type based on config
-        if self.config.experimental_features.enable_multiple_search_strings_execution:
+        if self.config.enable_multiple_search_strings_execution:
             search_string_field = (
                 list[str],
                 Field(
@@ -543,11 +554,11 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         search_strings_list = search_strings_list[: self.config.max_search_strings]
 
         self._active_message_log = await self._create_or_update_active_message_log(
-            progress_message="Retrieving search results...",
+            progress_message="_Retrieving search results_",
             search_strings_list=search_strings_list,
         )
 
-        if not feature_flags.is_new_answers_ui_enabled(self.company_id):
+        if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
             await self.post_progress_message(
                 f"{'; '.join(search_strings_list)}", tool_call
             )
@@ -577,8 +588,11 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             debug_info=self.debug_info,
         )
 
-        if self.tool_progress_reporter and not feature_flags.is_new_answers_ui_enabled(
-            self.company_id
+        if (
+            self.tool_progress_reporter
+            and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
+                self.company_id
+            )
         ):
             await self.tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,

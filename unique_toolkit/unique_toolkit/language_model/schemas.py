@@ -168,6 +168,7 @@ class LanguageModelStreamResponse(BaseModel):
 
     message: LanguageModelStreamResponseMessage
     tool_calls: list[LanguageModelFunction] | None = None
+    stopped_by_user: bool = False
 
     def is_empty(self) -> bool:
         """
@@ -280,7 +281,7 @@ class LanguageModelSystemMessage(LanguageModelMessage):
         if mode == "completions":
             return ChatCompletionSystemMessageParam(role="system", content=content)
         elif mode == "responses":
-            return EasyInputMessageParam(role="user", content=content)
+            return EasyInputMessageParam(role="system", content=content)
 
 
 # Equivalent to

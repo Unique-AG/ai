@@ -13,10 +13,17 @@ class DebugInfoManager:
         loop_iteration_index: int | None = None,
     ):
         for tool_call_response in tool_call_responses:
-            tool_info = {
+            debug_info = (
+                tool_call_response.debug_info.copy()
+                if tool_call_response.debug_info
+                else {}
+            )
+            tool_info: dict = {
                 "name": tool_call_response.name,
-                "info": tool_call_response.debug_info,
+                "info": debug_info,
             }
+            if debug_info.get("mcp_server"):
+                tool_info["mcp_server"] = debug_info["mcp_server"]
             if loop_iteration_index is not None:
                 tool_info["info"]["loop_iteration"] = loop_iteration_index
             self.debug_info["tools"].append(tool_info)

@@ -1,0 +1,61 @@
+{% set counter = namespace(value=0) %}
+{% if strengths |length > 0 %}
+{% set counter.value = counter.value + 1 %}
+## {{ counter.value }}. Strengths
+
+{% for section in strengths %}
+### {{ counter.value }}.{{ loop.index }} {{ section.h2 }}
+
+{% for entry in section.entries %}
+- **{{ entry.preview }}** {{ entry.content }}
+{% endfor %}
+
+{% endfor %}
+---
+
+{% endif %}
+{% if weaknesses |length > 0 %}
+{% set counter.value = counter.value + 1 %}
+## {{ counter.value }}. Weaknesses
+
+{% for section in weaknesses %}
+### {{ counter.value }}.{{ loop.index }} {{ section.h2 }}
+
+{% for entry in section.entries %}
+- **{{ entry.preview }}** {{ entry.content }}
+{% endfor %}
+
+{% endfor %}
+---
+
+{% endif %}
+{% if opportunities |length > 0 %}
+{% set counter.value = counter.value + 1 %}
+## {{ counter.value }}. Opportunities
+
+{% for section in opportunities %}
+### {{ counter.value }}.{{ loop.index }} {{ section.h2 }}
+
+{% for entry in section.entries %}
+- **{{ entry.preview }}** {{ entry.content }}
+{% endfor %}
+
+{% endfor %}
+---
+
+{% endif %}
+{% if threats |length > 0 %}
+{% set counter.value = counter.value + 1 %}
+## {{ counter.value }}. Threats
+
+{% for section in threats %}
+### {{ counter.value }}.{{ loop.index }} {{ section.h2 }}
+
+{% for entry in section.entries %}
+- **{{ entry.preview }}** {{ entry.content }}
+{% endfor %}
+
+{% endfor %}
+---
+
+{% endif %}

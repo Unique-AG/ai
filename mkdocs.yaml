@@ -41,8 +41,8 @@ theme:
 nav:
   - Home: 'index.md'
   - Implementation Guidelines: 'usecase_realization_guidelines.md'
-  - Unique SDK: '!include ./unique_sdk/mkdocs.yaml'
-  - Unique Toolkit: '!include ./unique_toolkit/mkdocs.yaml'
+  - Unique SDK: https://unique-ag.github.io/ai/unique-sdk/latest/
+  - Unique Toolkit: https://unique-ag.github.io/ai/unique-toolkit/latest/
   - Tutorials: '!include ./tutorials/mkdocs.yaml'
 
 
@@ -74,6 +74,7 @@ plugins:
                 schema: true
 
 markdown_extensions:
+  - md_in_html          # Parse markdown inside HTML (e.g. grid cards)
   - admonition
   - footnotes
   - meta

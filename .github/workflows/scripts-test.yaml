@@ -1,0 +1,32 @@
+name: "[chore] Test CI Scripts"
+
+on:
+  pull_request:
+    paths:
+      - ".github/scripts/**"
+      - ".github/workflows/scripts-test.yaml"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/scripts/**"
+      - ".github/workflows/scripts-test.yaml"
+
+jobs:
+  test-scripts:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Install BATS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats
+      
+      - name: Run BATS tests
+        run: |
+          bats .github/scripts/tests/*.bats --tap

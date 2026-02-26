@@ -10,6 +10,7 @@ from unique_swot.services.generation.agentic.commands import (
     create_new_section,
     update_existing_section,
 )
+from unique_swot.services.generation.agentic.config import AgenticGeneratorConfig
 from unique_swot.services.generation.agentic.exceptions import (
     FailedToExtractFactsException,
     FailedToGeneratePlanException,
@@ -19,7 +20,6 @@ from unique_swot.services.generation.agentic.executor import AgenticPlanExecutor
 from unique_swot.services.generation.agentic.prompts.commands.config import (
     CommandsPromptConfig,
 )
-from unique_swot.services.generation.agentic.prompts.config import AgenticPromptsConfig
 from unique_swot.services.generation.agentic.prompts.definition.config import (
     ComponentDefinitionPromptConfig,
     get_component_definition,
@@ -52,7 +52,7 @@ async def handle_generate_operation(
     notification_title: str,
     swot_report_registry: SWOTReportRegistry,
     executor: AgenticPlanExecutor,
-    prompts_config: AgenticPromptsConfig,
+    config: AgenticGeneratorConfig,
 ) -> None:
     try:
         # Extract the items for the component
@@ -64,8 +64,8 @@ async def handle_generate_operation(
             llm=llm,
             llm_service=llm_service,
             notification_title=notification_title,
-            prompts_config=prompts_config.extraction_prompt_config,
-            component_definition_prompt_config=prompts_config.definition_prompt_config,
+            prompts_config=config.prompts_config.extraction_prompt_config,
+            component_definition_prompt_config=config.prompts_config.definition_prompt_config,
         )
 
         # Skip if list of facts is empty
@@ -87,7 +87,7 @@ async def handle_generate_operation(
             llm_service=llm_service,
             notification_title=notification_title,
             swot_report_registry=swot_report_registry,
-            prompts_config=prompts_config.plan_prompt_config,
+            prompts_config=config.prompts_config.plan_prompt_config,
         )
 
         # Execute the generation for the component
@@ -100,7 +100,7 @@ async def handle_generate_operation(
             llm_service=llm_service,
             company_name=company_name,
             executor=executor,
-            prompts_config=prompts_config.commands_prompt_config,
+            prompts_config=config.prompts_config.commands_prompt_config,
         )
         # Register or update the sections in the registry
         _handle_execution_results(
@@ -156,6 +156,7 @@ async def _extract_facts(
         component=component,
         component_definition=component_definition,
     )
+
     user_message = Template(prompts_config.user_prompt).render(
         company_name=company_name,
         component=component,
@@ -172,14 +173,14 @@ async def _extract_facts(
 
     if extracted_facts is None:
         _LOGGER.error(f"Failed to extract facts for component {component}")
-        raise FailedToExtractFactsException(
-            f"Failed to extract facts for component {component}"
+        await step_notifier.notify(
+            title=notification_title,
+            description=f"Failed to extract facts for component {component} from this batch.",
         )
-    _LOGGER.info(f"Extracted facts for component {component}")
-    await step_notifier.notify(
-        title=notification_title,
-        description=extracted_facts.notification_message,
-    )
+        raise FailedToExtractFactsException(
+            f"No facts extracted for component {component}"
+        )
+
     return extracted_facts.facts
 
 

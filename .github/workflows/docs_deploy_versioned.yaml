@@ -1,0 +1,506 @@
+name: "[docs] Deploy Versioned GitHub Pages"
+
+# Deploy multi-version documentation with version dropdowns for SDK and Toolkit.
+# Uses gh-pages branch as persistent cache for old versions.
+
+concurrency:
+  group: docs-deployment
+  cancel-in-progress: false  # Queue deployments, don't cancel
+
+on:
+  # Trigger on docs content changes
+  push:
+    branches:
+      - main
+    paths:
+      # Root docs
+      - 'docs/**'
+      - 'mkdocs.yaml'
+      # SDK docs
+      - 'unique_sdk/docs/**'
+      - 'unique_sdk/mkdocs.yaml'
+      # Toolkit docs
+      - 'unique_toolkit/docs/**'
+      - 'unique_toolkit/mkdocs.yaml'
+      # Tutorials
+      - 'tutorials/docs/**'
+      - 'tutorials/mkdocs.yaml'
+      # Workflow itself
+      - '.github/workflows/docs_deploy_versioned.yaml'
+      # Build script
+      - 'scripts/docs_build_versioned.sh'
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yaml'
+      - 'unique_sdk/docs/**'
+      - 'unique_sdk/mkdocs.yaml'
+      - 'unique_toolkit/docs/**'
+      - 'unique_toolkit/mkdocs.yaml'
+      - 'tutorials/docs/**'
+      - 'tutorials/mkdocs.yaml'
+      - '.github/workflows/docs_deploy_versioned.yaml'
+      - 'scripts/docs_build_versioned.sh'
+
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Force rebuild all versions (ignore cache)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # For committing to gh-pages
+      pages: write     # For deploying to Pages
+      id-token: write  # For Pages deployment
+
+    steps:
+      # ============================================================================
+      # 1. Checkout and Setup
+      # ============================================================================
+      
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for gh-pages branch
+
+      - name: Setup Python and Poetry
+        uses: ./.github/actions/setup-python-poetry
+
+      - name: Install dependencies
+        run: poetry install --with dev
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # ============================================================================
+      # 2. Fetch Cached Versions from gh-pages Branch
+      # ============================================================================
+
+      - name: Fetch gh-pages cache
+        id: fetch_cache
+        run: |
+          set +e  # Don't fail if branch doesn't exist yet
+          
+          # Try to fetch gh-pages branch
+          if git fetch origin gh-pages:gh-pages 2>/dev/null; then
+            echo "✓ Found gh-pages branch"
+            
+            # Extract cached versions
+            git checkout gh-pages -- unique-sdk/ unique-toolkit/ 2>/dev/null || true
+            
+            if [ -d "unique-sdk" ] || [ -d "unique-toolkit" ]; then
+              mkdir -p _cached_versions
+              [ -d "unique-sdk" ] && mv unique-sdk _cached_versions/
+              [ -d "unique-toolkit" ] && mv unique-toolkit _cached_versions/
+              echo "✓ Restored cached versions"
+              echo "cache_found=true" >> $GITHUB_OUTPUT
+            else
+              echo "⚠ No cached versions found"
+              echo "cache_found=false" >> $GITHUB_OUTPUT
+            fi
+            
+            # Return to original state (important for PRs)
+            git checkout -f ${{ github.sha }}
+          else
+            echo "⚠ No gh-pages branch yet (first run)"
+            echo "cache_found=false" >> $GITHUB_OUTPUT
+          fi
+
+      # ============================================================================
+      # 3. Get Current Versions
+      # ============================================================================
+
+      - name: Get package versions
+        id: versions
+        run: |
+          SDK_VERSION=$(poetry version -s --directory unique_sdk)
+          TOOLKIT_VERSION=$(poetry version -s --directory unique_toolkit)
+          
+          echo "sdk_version=$SDK_VERSION" >> $GITHUB_OUTPUT
+          echo "toolkit_version=$TOOLKIT_VERSION" >> $GITHUB_OUTPUT
+          
+          echo "📦 SDK version: $SDK_VERSION"
+          echo "📦 Toolkit version: $TOOLKIT_VERSION"
+
+      # ============================================================================
+      # 4. Build Root Site
+      # ============================================================================
+
+      - name: Build root site
+        run: |
+          echo "🏗️ Building root site..."
+          poetry run mkdocs build -d _deploy
+          echo "✓ Root site built"
+
+      # ============================================================================
+      # 5. Build SDK Documentation
+      # ============================================================================
+
+      - name: Build SDK docs
+        run: |
+          VERSION="${{ steps.versions.outputs.sdk_version }}"
+          OUTPUT_DIR="$(pwd)/_deploy/unique-sdk/$VERSION"
+          
+          # Check if version already exists in cache (skip if force_rebuild is true)
+          if [ -d "_cached_versions/unique-sdk/$VERSION" ] && [ "${{ inputs.force_rebuild }}" != "true" ]; then
+            echo "✓ SDK v$VERSION exists in cache, copying..."
+            mkdir -p "_deploy/unique-sdk"
+            cp -r "_cached_versions/unique-sdk/$VERSION" "$OUTPUT_DIR"
+          else
+            echo "🏗️ Building SDK v$VERSION..."
+            
+            # Update site_url in mkdocs.yaml
+            SITE_URL="https://unique-ag.github.io/ai/unique-sdk/$VERSION/"
+            sed "s|site_url:.*|site_url: $SITE_URL|g" unique_sdk/mkdocs.yaml > unique_sdk/mkdocs.temp.yaml
+            
+            # Build
+            poetry run mkdocs build -f unique_sdk/mkdocs.temp.yaml -d "$OUTPUT_DIR" --clean
+            
+            # Cleanup
+            rm -f unique_sdk/mkdocs.temp.yaml
+            
+            echo "✓ SDK v$VERSION built"
+          fi
+
+      # ============================================================================
+      # 6. Build Toolkit Documentation
+      # ============================================================================
+
+      - name: Build Toolkit docs
+        run: |
+          VERSION="${{ steps.versions.outputs.toolkit_version }}"
+          OUTPUT_DIR="$(pwd)/_deploy/unique-toolkit/$VERSION"
+          
+          # Check if version already exists in cache (skip if force_rebuild is true)
+          if [ -d "_cached_versions/unique-toolkit/$VERSION" ] && [ "${{ inputs.force_rebuild }}" != "true" ]; then
+            echo "✓ Toolkit v$VERSION exists in cache, copying..."
+            mkdir -p "_deploy/unique-toolkit"
+            cp -r "_cached_versions/unique-toolkit/$VERSION" "$OUTPUT_DIR"
+          else
+            echo "🏗️ Building Toolkit v$VERSION..."
+            
+            # Update site_url in mkdocs.yaml
+            SITE_URL="https://unique-ag.github.io/ai/unique-toolkit/$VERSION/"
+            sed "s|site_url:.*|site_url: $SITE_URL|g" unique_toolkit/mkdocs.yaml > unique_toolkit/mkdocs.temp.yaml
+            
+            # Build
+            poetry run mkdocs build -f unique_toolkit/mkdocs.temp.yaml -d "$OUTPUT_DIR" --clean
+            
+            # Cleanup
+            rm -f unique_toolkit/mkdocs.temp.yaml
+            
+            echo "✓ Toolkit v$VERSION built"
+          fi
+
+      # ============================================================================
+      # 7. Copy All Cached Versions to Deploy
+      # ============================================================================
+
+      - name: Copy cached versions
+        if: steps.fetch_cache.outputs.cache_found == 'true'
+        run: |
+          echo "📦 Copying all cached versions..."
+          
+          # Copy SDK versions (excluding current, already built)
+          if [ -d "_cached_versions/unique-sdk" ]; then
+            mkdir -p "_deploy/unique-sdk"
+            find _cached_versions/unique-sdk/ -mindepth 1 -maxdepth 1 -type d | while read -r version_dir; do
+              version=$(basename "$version_dir")
+              if [ "$version" != "${{ steps.versions.outputs.sdk_version }}" ] && [ "$version" != "latest" ]; then
+                echo "  - SDK v$version"
+                cp -r "$version_dir" "_deploy/unique-sdk/$version"
+              fi
+            done
+          fi
+          
+          # Copy Toolkit versions (excluding current, already built)
+          if [ -d "_cached_versions/unique-toolkit" ]; then
+            mkdir -p "_deploy/unique-toolkit"
+            find _cached_versions/unique-toolkit/ -mindepth 1 -maxdepth 1 -type d | while read -r version_dir; do
+              version=$(basename "$version_dir")
+              if [ "$version" != "${{ steps.versions.outputs.toolkit_version }}" ] && [ "$version" != "latest" ]; then
+                echo "  - Toolkit v$version"
+                cp -r "$version_dir" "_deploy/unique-toolkit/$version"
+              fi
+            done
+          fi
+          
+          echo "✓ Cached versions copied"
+
+      # ============================================================================
+      # 8. Generate versions.json Files
+      # ============================================================================
+
+      - name: Generate versions.json
+        run: |
+          # Function to generate versions.json
+          generate_versions_json() {
+            local project_dir=$1
+            local current_version=$2
+            local output_file=$3
+            
+            echo "📝 Generating $output_file..."
+            mkdir -p "$(dirname "$output_file")"
+            
+            # Only include semver-like directories (e.g. 1.46.4, 0.10.80). Exclude latest, unique_toolkit, etc.
+            versions=()
+            if [ -d "$project_dir" ]; then
+              # Use find to safely iterate over directories
+              while IFS= read -r dir; do
+                [ -z "$dir" ] && continue
+                version=$(basename "$dir")
+                if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
+                  versions+=("$version")
+                fi
+              done < <(find "$project_dir" -mindepth 1 -maxdepth 1 -type d)
+            fi
+            
+            # Add current version if not already present
+            found=false
+            for v in "${versions[@]}"; do
+              if [ "$v" = "$current_version" ]; then
+                found=true
+                break
+              fi
+            done
+            if [ "$found" = false ]; then
+              versions+=("$current_version")
+            fi
+            
+            # Sort versions (reverse semantic sort)
+            if [ ${#versions[@]} -eq 0 ]; then
+              sorted_versions=()
+            else
+              IFS=$'\n' sorted_versions=($(printf '%s\n' "${versions[@]}" | sort -V -r))
+              unset IFS
+            fi
+            
+            # Generate JSON
+            echo "[" > "$output_file"
+            first=true
+            for version in "${sorted_versions[@]}"; do
+              if [ "$first" = false ]; then
+                echo "," >> "$output_file"
+              fi
+              first=false
+              
+              title="$version"
+              aliases="[]"
+              if [ "$version" = "$current_version" ]; then
+                aliases='["latest"]'   # Theme shows "(latest)" via alias; keep title as plain version
+              fi
+              
+              echo -n "  {\"version\": \"$version\", \"title\": \"$title\", \"aliases\": $aliases}" >> "$output_file"
+            done
+            echo "" >> "$output_file"
+            echo "]" >> "$output_file"
+            
+            echo "  ✓ Generated with ${#sorted_versions[@]} version(s)"
+          }
+          
+          # Generate for SDK
+          generate_versions_json \
+            "_deploy/unique-sdk" \
+            "${{ steps.versions.outputs.sdk_version }}" \
+            "_deploy/unique-sdk/versions.json"
+          
+          # Generate for Toolkit
+          generate_versions_json \
+            "_deploy/unique-toolkit" \
+            "${{ steps.versions.outputs.toolkit_version }}" \
+            "_deploy/unique-toolkit/versions.json"
+
+      # ============================================================================
+      # 9. Copy version to latest/ and create base redirects
+      # ============================================================================
+      # Copy current version into latest/ so .../latest/ and .../latest/any/subpath/ both work
+
+      - name: Create latest copies and base redirects
+        run: |
+          copy_to_latest() {
+            local project_path=$1
+            local version=$2
+            echo "📋 Copying $project_path/$version/ -> $project_path/latest/"
+            if [ -d "$project_path/$version" ]; then
+              rm -rf "$project_path/latest"
+              cp -r "$project_path/$version" "$project_path/latest"
+            else
+              echo "  ⚠ $project_path/$version not found, skipping latest copy"
+            fi
+          }
+          copy_to_latest "_deploy/unique-sdk" "${{ steps.versions.outputs.sdk_version }}"
+          copy_to_latest "_deploy/unique-toolkit" "${{ steps.versions.outputs.toolkit_version }}"
+          
+          # Redirect /unique-sdk/ and /unique-toolkit/ -> .../latest/ (avoid listing subfolders)
+          create_base_redirect() {
+            local project_path=$1
+            mkdir -p "$project_path"
+            cat > "$project_path/index.html" <<EOF
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <meta http-equiv="refresh" content="0; url=latest/">
+              <link rel="canonical" href="latest/">
+              <title>Redirecting to latest</title>
+            </head>
+            <body>
+              <p>Redirecting to <a href="latest/">latest</a>...</p>
+            </body>
+          </html>
+          EOF
+          }
+          create_base_redirect "_deploy/unique-sdk"
+          create_base_redirect "_deploy/unique-toolkit"
+          
+          echo "✓ Latest copies and redirects created"
+          
+      # ============================================================================
+      # 10. Verify Deployment Structure
+      # ============================================================================
+
+      - name: Verify build structure
+        run: |
+          echo "🔍 Verifying deployment structure in _deploy/..."
+          
+          # Check SDK
+          SDK_VER="${{ steps.versions.outputs.sdk_version }}"
+          if [ -d "_deploy/unique-sdk/$SDK_VER" ] && [ -f "_deploy/unique-sdk/latest/index.html" ] && [ -f "_deploy/unique-sdk/versions.json" ]; then
+            echo "✅ SDK documentation structure is valid"
+            echo "   - Version: $SDK_VER"
+            echo "   - Latest redirect exists"
+            echo "   - versions.json exists"
+          else
+            echo "❌ SDK documentation structure is INVALID"
+            ls -R _deploy/unique-sdk/ || echo "   (unique-sdk directory missing)"
+            exit 1
+          fi
+          
+          # Check Toolkit
+          TOOLKIT_VER="${{ steps.versions.outputs.toolkit_version }}"
+          if [ -d "_deploy/unique-toolkit/$TOOLKIT_VER" ] && [ -f "_deploy/unique-toolkit/latest/index.html" ] && [ -f "_deploy/unique-toolkit/versions.json" ]; then
+            echo "✅ Toolkit documentation structure is valid"
+            echo "   - Version: $TOOLKIT_VER"
+            echo "   - Latest redirect exists"
+            echo "   - versions.json exists"
+          else
+            echo "❌ Toolkit documentation structure is INVALID"
+            ls -R _deploy/unique-toolkit/ || echo "   (unique-toolkit directory missing)"
+            exit 1
+          fi
+          
+          # Check Root
+          if [ -f "_deploy/index.html" ]; then
+            echo "✅ Root site exists"
+          else
+            echo "❌ Root site index.html is MISSING"
+            exit 1
+          fi
+
+      # ============================================================================
+      # 11. Save to gh-pages Branch (Cache for Next Run)
+      # ============================================================================
+
+      - name: Update gh-pages cache
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "💾 Saving versions to gh-pages branch..."
+          
+          # Move _deploy to a safe location outside the repo
+          mv _deploy ../_docs_deploy_temp
+          
+          # Clean the current directory entirely to prevent checkout conflicts
+          # Keep .git and .github (needed for composite action POST steps)
+          find . -maxdepth 1 ! -name ".git" ! -name ".github" ! -name "." -exec rm -rf {} +
+          
+          # Checkout or create gh-pages branch
+          if git fetch origin gh-pages 2>/dev/null; then
+            git checkout -f gh-pages
+            git reset --hard origin/gh-pages
+            # Clean everything except .git and .github to start fresh with new files
+            find . -maxdepth 1 ! -name ".git" ! -name ".github" ! -name "." -exec rm -rf {} +
+          else
+            echo "Creating new gh-pages branch"
+            git checkout --orphan gh-pages
+            git rm -rf . || true
+          fi
+          
+          # Copy only the versioned sub-projects to the cache branch
+          echo "📋 Copying versioned docs to gh-pages cache..."
+          [ -d "../_docs_deploy_temp/unique-sdk" ] && cp -r ../_docs_deploy_temp/unique-sdk .
+          [ -d "../_docs_deploy_temp/unique-toolkit" ] && cp -r ../_docs_deploy_temp/unique-toolkit .
+          
+          # Commit if changes
+          # Use -A to ensure deletions are tracked if a version was removed
+          git add -A unique-sdk/ unique-toolkit/ 2>/dev/null || true
+          
+          if git diff --staged --quiet; then
+            echo "⚠ No changes to cache"
+          else
+            git commit -m "Update docs cache from ${{ github.sha }}" \
+              -m "SDK: ${{ steps.versions.outputs.sdk_version }}" \
+              -m "Toolkit: ${{ steps.versions.outputs.toolkit_version }}"
+            git push origin gh-pages
+            echo "✓ Cache updated"
+          fi
+          
+          # Return to the original commit and restore _deploy for the following steps
+          git checkout -f ${{ github.sha }}
+          mv ../_docs_deploy_temp _deploy
+
+      # ============================================================================
+      # 12. Deploy to GitHub Pages
+      # ============================================================================
+
+      - name: Setup Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _deploy
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name != 'pull_request'
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      # ============================================================================
+      # 13. Summary
+      # ============================================================================
+
+      - name: Deployment summary
+        run: |
+          echo "## 🚀 Build Check Complete" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "⚠️ This was a Pull Request. No files were deployed or cached." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**SDK Version:** ${{ steps.versions.outputs.sdk_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Toolkit Version:** ${{ steps.versions.outputs.toolkit_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          PAGE_URL="${{ steps.deployment.outputs.page_url }}"
+          if [ -n "$PAGE_URL" ]; then
+            echo "### 📚 Links" >> $GITHUB_STEP_SUMMARY
+            echo "- [Root Site]($PAGE_URL)" >> $GITHUB_STEP_SUMMARY
+            echo "- [SDK Documentation](${PAGE_URL}unique-sdk/latest/)" >> $GITHUB_STEP_SUMMARY
+            echo "- [Toolkit Documentation](${PAGE_URL}unique-toolkit/latest/)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+    environment:
+      name: ${{ github.event_name == 'pull_request' && 'docs-build' || 'github-pages' }}
+      url: ${{ steps.deployment.outputs.page_url }}

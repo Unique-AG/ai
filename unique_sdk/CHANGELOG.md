@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.82] - 2026-02-12
+- Add `User.get_by_id` method to retrieve a user by their ID
+
+## [0.10.81] - 2026-02-13
+- Add documentation versioning support using `mike`
+- Add versioned documentation build and deploy workflows
+
+## [0.10.80] - 2026-02-12
+- Add support for creating folders by scope using `parentScopeId` and `relativePaths` parameters in `Folder.create_paths`
+
+## [0.10.79] - 2026-02-05
+- Add update_ingestion_state function to update content ingestion state.
+
+## [0.10.78] - 2026-02-05
+- Internal Improvements.
+
+## [0.10.77] - 2026-02-05
+- Add `RERUN_ROW` action to `MagicTableAction` enum for targeted row re-execution in Agentic Tables
+
+## [0.10.76] - 2026-02-05
+- Use literals for action source and mode in Elicitation for better API clarity
+
+## [0.10.75] - 2026-02-02
+- Add correlation parameter to Message.create for linking messages to parent messages in other chats.
+- Add correlation parameter to Space.create_message and send_message_and_wait_for_completion utility.
+
+## [0.10.74] - 2026-01-22
+- Add delete space function.
+
+## [0.10.73] - 2026-01-21
+- added searchtype `FULL_TEXT` and `POSTGRES_FULL_TEXT`
+
+## [0.10.72] - 2026-01-20
+- Expose elicitation functions [BETA feature].
+
+## [0.10.71] - 2026-01-16
+- Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
+
+## [0.10.70] - 2026-01-13
+- Adding additional parameters `isQueueable`, `executionOptions` and `progressTitle` to the message execution
+
+## [0.10.69] - 2026-01-16
+- Add unified type checking CI with basedpyright
+
+## [0.10.68] - 2026-01-13
+- Add missing direct dependencies (httpx, anyio, aiohttp, regex, tiktoken) for deptry compliance
+
+## [0.10.67] - 2026-01-14
+- chore(deps): bump requests from 2.31.0 to 2.32.4 in examples/custom-assistant
+
 ## [0.10.66] - 2026-01-05
 - Expose appliedIngestionConfig field on content search.
 

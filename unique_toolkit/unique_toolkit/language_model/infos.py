@@ -4,16 +4,35 @@ import os
 from datetime import date
 from enum import StrEnum
 from functools import lru_cache
-from typing import Annotated, Any, ClassVar, Optional, Self
+from pathlib import Path
+from typing import Annotated, Any, Callable, ClassVar, Optional, Self
 
+import tiktoken
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
+from tokenizers import Tokenizer
 from typing_extensions import deprecated
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 
 _LOGGER = logging.getLogger(__name__)
+
+
+TypeEncoder = Callable[[str], list[int]]
+TypeDecoder = Callable[[list[int]], str]
+
+
+@lru_cache(maxsize=10)
+def get_tokenizer_from_path(path: Path) -> Tokenizer:
+    if not path.exists():
+        raise FileNotFoundError(f"Tokenizer not found: {path}")
+    return Tokenizer.from_file(str(path))
+
+
+@lru_cache(maxsize=10)
+def get_tokenizer_from_tiktoken(tokenizer_name: str) -> tiktoken.Encoding:
+    return tiktoken.get_encoding(tokenizer_name)
 
 
 class LanguageModelName(StrEnum):
@@ -46,6 +65,7 @@ class LanguageModelName(StrEnum):
     AZURE_GPT_41_NANO_2025_0414 = "AZURE_GPT_41_NANO_2025_0414"
     AZURE_o3_2025_0416 = "AZURE_o3_2025_0416"
     AZURE_o4_MINI_2025_0416 = "AZURE_o4_MINI_2025_0416"
+    AZURE_MODEL_ROUTER_2025_1118 = "AZURE_MODEL_ROUTER_2025_1118"
     ANTHROPIC_CLAUDE_3_7_SONNET = "litellm:anthropic-claude-3-7-sonnet"
     ANTHROPIC_CLAUDE_3_7_SONNET_THINKING = (
         "litellm:anthropic-claude-3-7-sonnet-thinking"
@@ -53,9 +73,11 @@ class LanguageModelName(StrEnum):
     ANTHROPIC_CLAUDE_HAIKU_4_5 = "litellm:anthropic-claude-haiku-4-5"
     ANTHROPIC_CLAUDE_SONNET_4 = "litellm:anthropic-claude-sonnet-4"
     ANTHROPIC_CLAUDE_SONNET_4_5 = "litellm:anthropic-claude-sonnet-4-5"
+    ANTHROPIC_CLAUDE_SONNET_4_6 = "litellm:anthropic-claude-sonnet-4-6"
     ANTHROPIC_CLAUDE_OPUS_4 = "litellm:anthropic-claude-opus-4"
     ANTHROPIC_CLAUDE_OPUS_4_1 = "litellm:anthropic-claude-opus-4-1"
     ANTHROPIC_CLAUDE_OPUS_4_5 = "litellm:anthropic-claude-opus-4-5"
+    ANTHROPIC_CLAUDE_OPUS_4_6 = "litellm:anthropic-claude-opus-4-6"
     GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
     GEMINI_2_5_FLASH = "litellm:gemini-2-5-flash"
     GEMINI_2_5_FLASH_LITE = "litellm:gemini-2-5-flash-lite"
@@ -64,8 +86,11 @@ class LanguageModelName(StrEnum):
     GEMINI_2_5_PRO = "litellm:gemini-2-5-pro"
     GEMINI_2_5_PRO_EXP_0325 = "litellm:gemini-2-5-pro-exp-03-25"
     GEMINI_2_5_PRO_PREVIEW_0605 = "litellm:gemini-2-5-pro-preview-06-05"
+    GEMINI_3_1_PRO_PREVIEW = "litellm:gemini-3-1-pro-preview"
     GEMINI_3_FLASH_PREVIEW = "litellm:gemini-3-flash-preview"
     GEMINI_3_PRO_PREVIEW = "litellm:gemini-3-pro-preview"
+    GROK_4_1_FAST_NON_REASONING = "litellm:grok-4-1-fast-non-reasoning"
+    GROK_4_1_FAST_REASONING = "litellm:grok-4-1-fast-reasoning"
     LITELLM_OPENAI_GPT_5 = "litellm:openai-gpt-5"
     LITELLM_OPENAI_GPT_5_MINI = "litellm:openai-gpt-5-mini"
     LITELLM_OPENAI_GPT_5_NANO = "litellm:openai-gpt-5-nano"
@@ -92,6 +117,29 @@ class LanguageModelName(StrEnum):
 class EncoderName(StrEnum):
     O200K_BASE = "o200k_base"
     CL100K_BASE = "cl100k_base"
+    QWEN = "qwen"
+    DEEPSEEK = "deepseek"
+
+    @property
+    def tokenizer_path(self) -> Path:
+        base_path = Path(__file__).parent.parent / "_common" / "token" / "tokenizers"
+        return base_path / self.value / "tokenizer.json"
+
+    def get_encoder(self) -> TypeEncoder:
+        if self.value in {"cl100k_base", "o200k_base"}:
+            tokenizer = get_tokenizer_from_tiktoken(self.value)
+            return tokenizer.encode
+
+        tokenizer = get_tokenizer_from_path(self.tokenizer_path)
+        return lambda text: tokenizer.encode(text).ids
+
+    def get_decoder(self) -> TypeDecoder:
+        if self.value in {"cl100k_base", "o200k_base"}:
+            tokenizer = get_tokenizer_from_tiktoken(self.value)
+            return tokenizer.decode
+
+        tokenizer = get_tokenizer_from_path(self.tokenizer_path)
+        return tokenizer.decode
 
 
 def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
@@ -122,6 +170,7 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.AZURE_GPT_51_CODEX_MINI_2025_1113
             | LMN.AZURE_GPT_52_2025_1211
             | LMN.AZURE_GPT_52_CHAT_2025_1211
+            | LMN.AZURE_MODEL_ROUTER_2025_1118
             | LMN.LITELLM_OPENAI_GPT_5
             | LMN.LITELLM_OPENAI_GPT_5_MINI
             | LMN.LITELLM_OPENAI_GPT_5_NANO
@@ -171,6 +220,32 @@ class TemperatureBounds(BaseModel):
     max_temperature: float
 
 
+def _load_custom_encoder(tokenizer_name: str) -> TypeEncoder:
+    """Load a custom tokenizer from UNIQUE_CUSTOM_TOKENIZERS_PATH."""
+    custom_path = os.getenv("UNIQUE_CUSTOM_TOKENIZERS_PATH")
+    if not custom_path:
+        raise ValueError(
+            "UNIQUE_CUSTOM_TOKENIZERS_PATH must be set to use custom tokenizers"
+        )
+
+    tokenizer_path = Path(custom_path) / tokenizer_name / "tokenizer.json"
+
+    tokenizer = get_tokenizer_from_path(tokenizer_path)
+    return lambda text: tokenizer.encode(text).ids
+
+
+def _load_custom_decoder(tokenizer_name: str) -> TypeDecoder:
+    """Load a custom tokenizer from UNIQUE_CUSTOM_TOKENIZERS_PATH."""
+    custom_path = os.getenv("UNIQUE_CUSTOM_TOKENIZERS_PATH")
+    if not custom_path:
+        raise ValueError(
+            "UNIQUE_CUSTOM_TOKENIZERS_PATH must be set to use custom tokenizers"
+        )
+    tokenizer_path = Path(custom_path) / tokenizer_name / "tokenizer.json"
+    tokenizer = get_tokenizer_from_path(tokenizer_path)
+    return tokenizer.decode
+
+
 class LanguageModelInfo(BaseModel):
     model_config = get_configuration_dict()
     name: (
@@ -180,7 +255,9 @@ class LanguageModelInfo(BaseModel):
     provider: LanguageModelProvider = LanguageModelProvider.AZURE
     version: str = Field(title="Model Version", default="")
 
-    encoder_name: EncoderName = EncoderName.CL100K_BASE
+    encoder_name: EncoderName | Annotated[str, Field(title="Custom Encoder Name")] = (
+        Field(default=EncoderName.CL100K_BASE, union_mode="left_to_right")
+    )
 
     # TODO: Discuss if this is a sensible defaut
     token_limits: LanguageModelTokenLimits = LanguageModelTokenLimits(
@@ -218,7 +295,17 @@ class LanguageModelInfo(BaseModel):
     default_options: dict[str, Any] = {}
 
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
-    """Environment variable name for custom language model infos."""
+
+    def get_encoder(self) -> TypeEncoder:
+        """Get an encode callable for this model's tokenizer."""
+        if isinstance(self.encoder_name, EncoderName):
+            return self.encoder_name.get_encoder()
+        return _load_custom_encoder(self.encoder_name)
+
+    def get_decoder(self) -> TypeDecoder:
+        if isinstance(self.encoder_name, EncoderName):
+            return self.encoder_name.get_decoder()
+        return _load_custom_decoder(self.encoder_name)
 
     @classmethod
     @lru_cache(maxsize=1)
@@ -701,6 +788,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.RESPONSES_API,
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.VISION,
                     ],
@@ -718,10 +806,11 @@ class LanguageModelInfo(BaseModel):
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
                         ModelCapabilities.CHAT_COMPLETIONS_API,
-                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.RESPONSES_API,
                         ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
@@ -738,10 +827,11 @@ class LanguageModelInfo(BaseModel):
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
                         ModelCapabilities.CHAT_COMPLETIONS_API,
-                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.RESPONSES_API,
                         ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
                     ],
                     provider=LanguageModelProvider.AZURE,
@@ -759,6 +849,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.RESPONSES_API,
                         ModelCapabilities.STREAMING,
                         ModelCapabilities.VISION,
                     ],
@@ -968,6 +1059,26 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2024, 5, 31),
                     published_at=date(2025, 4, 14),
                 )
+            case LanguageModelName.AZURE_MODEL_ROUTER_2025_1118:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    provider=LanguageModelProvider.AZURE,
+                    version="2025-11-18",
+                    encoder_name=EncoderName.O200K_BASE,
+                    token_limits=LanguageModelTokenLimits(
+                        # Limit of smallest underlying model; router can route to larger contexts
+                        token_limit_input=272_000,
+                        token_limit_output=32_768,
+                    ),
+                )
             case LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET:
                 return cls(
                     name=model_name,
@@ -1067,6 +1178,26 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2025, 7, 1),
                     published_at=date(2025, 9, 29),
                 )
+            case LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_6:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="claude-sonnet-4-6",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=180_000,
+                        token_limit_output=64_000,
+                    ),
+                    info_cutoff_at=date(2026, 1, 1),
+                    published_at=date(2026, 2, 17),
+                )
             case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4:
                 return cls(
                     name=model_name,
@@ -1126,6 +1257,26 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 8, 1),
                     published_at=date(2025, 11, 13),
+                )
+            case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_6:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="claude-opus-4-6",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=180_000,
+                        token_limit_output=128_000,
+                    ),
+                    info_cutoff_at=date(2025, 8, 1),
+                    published_at=date(2026, 2, 5),
                 )
             case LanguageModelName.GEMINI_2_0_FLASH:
                 return cls(
@@ -1279,6 +1430,25 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 6, 5),
                 )
+            case LanguageModelName.GEMINI_3_1_PRO_PREVIEW:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gemini-3-1-pro-preview",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_048_576, token_limit_output=65_536
+                    ),
+                    info_cutoff_at=date(2025, 1, day=1),
+                    published_at=date(2026, 1, 19),
+                )
             case LanguageModelName.GEMINI_3_FLASH_PREVIEW:
                 return cls(
                     name=model_name,
@@ -1316,6 +1486,47 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 11, 13),
+                )
+            case LanguageModelName.GROK_4_1_FAST_NON_REASONING:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="grok-4-1-fast-non-reasoning",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with grok tokenizer
+                    token_limits=LanguageModelTokenLimits(
+                        # Context window is 2_000_000, we leave 200_000 tokens as buffer due to tokenizer mismatch
+                        # Assign 90% for input and 10% for output
+                        token_limit_input=int(1_800_000 * 0.9),
+                        token_limit_output=int(1_800_000 * 0.1),
+                    ),
+                    info_cutoff_at=date(2024, 11, day=4),
+                    published_at=date(2025, 11, 19),
+                )
+            case LanguageModelName.GROK_4_1_FAST_REASONING:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="grok-4-1-fast-reasoning",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with grok tokenizer
+                    token_limits=LanguageModelTokenLimits(
+                        # Context window is 2_000_000, we leave 200_000 tokens as buffer due to tokenizer mismatch
+                        # Assign 90% for input and 10% for output
+                        token_limit_input=int(1_800_000 * 0.9),
+                        token_limit_output=int(1_800_000 * 0.1),
+                    ),
+                    info_cutoff_at=date(2024, 11, day=4),
+                    published_at=date(2025, 11, 19),
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_5:
                 return cls(
@@ -1736,6 +1947,7 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
                     version="deepseek-r1",
+                    encoder_name=EncoderName.DEEPSEEK,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
@@ -1752,6 +1964,7 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
                     version="deepseek-v3-1",
+                    encoder_name=EncoderName.DEEPSEEK,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
@@ -1767,6 +1980,7 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
                     version="qwen-3",
+                    encoder_name=EncoderName.QWEN,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
@@ -1783,6 +1997,7 @@ class LanguageModelInfo(BaseModel):
                     name=model_name,
                     provider=LanguageModelProvider.LITELLM,
                     version="qwen-3-thinking",
+                    encoder_name=EncoderName.QWEN,
                     capabilities=[
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STRUCTURED_OUTPUT,
@@ -1874,7 +2089,7 @@ class LanguageModel:
         return self._model_info.version
 
     @property
-    def encoder_name(self) -> Optional[EncoderName]:
+    def encoder_name(self) -> EncoderName | str:
         """
         Returns the encoder_name used for the model.
         """

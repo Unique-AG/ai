@@ -16,6 +16,10 @@ class AgenticGeneratorConfig(BaseModel):
         default=10,
         description="The maximum number of concurrent tasks to use for the agentic generator. Only used if execution mode is concurrent.",
     )
+    max_tokens_per_extraction_batch: int = Field(
+        default=262_144,
+        description="The maximum number of tokens to use for the extraction batch. Only used if execution mode is sequential.",
+    )
     prompts_config: AgenticPromptsConfig = Field(
         default=AgenticPromptsConfig(),
         description="The prompts config for the agentic generator.",

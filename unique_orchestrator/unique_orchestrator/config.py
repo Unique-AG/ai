@@ -2,7 +2,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
+from pydantic import Field, ValidationInfo, field_validator, model_validator
+from pydantic.json_schema import SkipJsonSchema
 from unique_deep_research.config import DeepResearchToolConfig
 from unique_deep_research.service import DeepResearchTool
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
@@ -18,33 +19,31 @@ from unique_toolkit._common.validators import (
 from unique_toolkit.agentic.evaluation.hallucination.constants import (
     HallucinationConfig,
 )
-from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.history_manager.history_manager import (
     UploadedContentConfig,
 )
 from unique_toolkit.agentic.loop_runner import (
     QWEN_FORCED_TOOL_CALL_INSTRUCTION,
     QWEN_LAST_ITERATION_INSTRUCTION,
+    QWEN_MAX_LOOP_ITERATIONS,
     PlanningConfig,
-)
-from unique_toolkit.agentic.responses_api import (
-    DisplayCodeInterpreterFilesPostProcessorConfig,
-    ShowExecutedCodePostprocessorConfig,
 )
 from unique_toolkit.agentic.tools.a2a import (
     REFERENCING_INSTRUCTIONS_FOR_SYSTEM_PROMPT,
     REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
-from unique_toolkit.agentic.tools.config import get_configuration_dict
-from unique_toolkit.agentic.tools.openai_builtin.manager import (
-    OpenAICodeInterpreterConfig,
+from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+    CodeInterpreterExtendedConfig,
 )
+from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporterConfig,
 )
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
+from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
 
@@ -64,10 +63,9 @@ class SpaceType(StrEnum):
 T = TypeVar("T", bound=SpaceType)
 
 
-class SpaceConfigBase(BaseModel, Generic[T]):
+class SpaceConfigBase(BaseToolConfig, Generic[T]):
     """Base class for space configuration."""
 
-    model_config = get_configuration_dict(frozen=True)
     type: T = Field(description="The type of the space.")
 
     project_name: str = Field(
@@ -80,6 +78,11 @@ class SpaceConfigBase(BaseModel, Generic[T]):
     custom_instructions: str = Field(
         default="",
         description="A custom instruction provided by the system admin.",
+    )
+
+    user_space_instructions: str | None = Field(
+        default=None,
+        description="User instructions for the space provided by the user.",
     )
 
     tools: list[ToolBuildConfig] = Field(
@@ -131,12 +134,18 @@ class UniqueAISpaceConfig(SpaceConfigBase):
 UniqueAISpaceConfig.model_rebuild()
 
 LIMIT_MAX_TOOL_CALLS_PER_ITERATION = 50
+LIMIT_MAX_LOOP_ITERATIONS = 10
 
 
-class QwenConfig(BaseModel):
+class QwenConfig(BaseToolConfig):
     """Qwen specific configuration."""
 
-    model_config = get_configuration_dict()
+    max_loop_iterations: Annotated[
+        int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
+    ] = Field(
+        default=QWEN_MAX_LOOP_ITERATIONS,
+        description="Maximum number of agentic loop iterations for Qwen models.",
+    )
 
     forced_tool_call_instruction: str = Field(
         default=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
@@ -149,17 +158,13 @@ class QwenConfig(BaseModel):
     )
 
 
-class ModelSpecificConfig(BaseModel):
+class ModelSpecificConfig(BaseToolConfig):
     """Model-specific loop configurations."""
-
-    model_config = get_configuration_dict()
 
     qwen: QwenConfig = QwenConfig()
 
 
-class LoopConfiguration(BaseModel):
-    model_config = get_configuration_dict()
-
+class LoopConfiguration(BaseToolConfig):
     max_tool_calls_per_iteration: Annotated[
         int,
         *ClipInt(min_value=1, max_value=LIMIT_MAX_TOOL_CALLS_PER_ITERATION),
@@ -172,9 +177,7 @@ class LoopConfiguration(BaseModel):
     model_specific: ModelSpecificConfig = ModelSpecificConfig()
 
 
-class EvaluationConfig(BaseModel):
-    model_config = get_configuration_dict()
-    max_review_steps: int = 3
+class EvaluationConfig(BaseToolConfig):
     hallucination_config: HallucinationConfig = HallucinationConfig()
 
 
@@ -183,9 +186,7 @@ class EvaluationConfig(BaseModel):
 # ------------------------------------------------------------
 
 
-class UniqueAIPromptConfig(BaseModel):
-    model_config = get_configuration_dict(frozen=True)
-
+class UniqueAIPromptConfig(BaseToolConfig):
     system_prompt_template: str = Field(
         default_factory=lambda: (
             Path(__file__).parent / "prompts" / "system_prompt.jinja2"
@@ -207,49 +208,58 @@ class UniqueAIPromptConfig(BaseModel):
     )
 
 
-class UniqueAIServices(BaseModel):
+class UniqueAIServices(BaseToolConfig):
     """Determine the services the agent is using
 
     All services are optional and can be disabled by setting them to None.
     """
 
-    model_config = get_configuration_dict(frozen=True)
+    follow_up_questions_config: FollowUpQuestionsConfig = FollowUpQuestionsConfig()
 
-    follow_up_questions_config: (
-        Annotated[
-            FollowUpQuestionsConfig,
-            Field(
-                title="Active",
-            ),
-        ]
-        | DeactivatedNone
-    ) = FollowUpQuestionsConfig()
+    stock_ticker_config: StockTickerConfig = StockTickerConfig()
 
-    stock_ticker_config: (
-        Annotated[StockTickerConfig, Field(title="Active")] | DeactivatedNone
-    ) = StockTickerConfig()
-
-    evaluation_config: (
-        Annotated[
-            EvaluationConfig,
-            Field(title="Active"),
-        ]
-        | DeactivatedNone
-    ) = EvaluationConfig(
+    evaluation_config: EvaluationConfig = EvaluationConfig(
         hallucination_config=HallucinationConfig(),
-        max_review_steps=0,
     )
 
-    uploaded_content_config: UploadedContentConfig = UploadedContentConfig()
+    uploaded_content_config: SkipJsonSchema[UploadedContentConfig] = (
+        UploadedContentConfig()
+    )
 
-    tool_progress_reporter_config: ToolProgressReporterConfig = (
+    tool_progress_reporter_config: SkipJsonSchema[ToolProgressReporterConfig] = (
         ToolProgressReporterConfig()
     )
 
+    @field_validator("stock_ticker_config", mode="before")
+    @classmethod
+    def check_if_stock_ticker_config_is_none(cls, stock_ticker_config):
+        """Check if the stock ticker config is none and return a default config. Required for backward compatibility."""
+        if not stock_ticker_config:
+            return StockTickerConfig(
+                enabled=False,
+            )
+        return stock_ticker_config
 
-class InputTokenDistributionConfig(BaseModel):
-    model_config = get_configuration_dict(frozen=True)
+    @field_validator("follow_up_questions_config", mode="before")
+    @classmethod
+    def check_if_follow_up_questions_config_is_none(cls, follow_up_questions_config):
+        """Check if the follow up questions config is none and return a default config. Required for backward compatibility."""
+        if not follow_up_questions_config:
+            return FollowUpQuestionsConfig(
+                number_of_questions=0,
+            )
+        return follow_up_questions_config
 
+    @field_validator("evaluation_config", mode="before")
+    @classmethod
+    def check_if_evaluation_config_is_none(cls, evaluation_config):
+        """Check if the evaluation config is none and return a default config. Required for backward compatibility."""
+        if not evaluation_config:
+            return EvaluationConfig()
+        return evaluation_config
+
+
+class InputTokenDistributionConfig(BaseToolConfig):
     percent_for_history: float = Field(
         default=0.2,
         ge=0.0,
@@ -261,9 +271,7 @@ class InputTokenDistributionConfig(BaseModel):
         return int(self.percent_for_history * max_input_token)
 
 
-class SubAgentsReferencingConfig(BaseModel):
-    model_config = get_configuration_dict()
-
+class SubAgentsReferencingConfig(BaseToolConfig):
     referencing_instructions_for_system_prompt: str = Field(
         default=REFERENCING_INSTRUCTIONS_FOR_SYSTEM_PROMPT,
         description="Referencing instructions for the main agent's system prompt.",
@@ -274,9 +282,7 @@ class SubAgentsReferencingConfig(BaseModel):
     )
 
 
-class SubAgentsConfig(BaseModel):
-    model_config = get_configuration_dict()
-
+class SubAgentsConfig(BaseToolConfig):
     referencing_config: (
         Annotated[SubAgentsReferencingConfig, Field(title="Active")] | DeactivatedNone
     ) = SubAgentsReferencingConfig()
@@ -291,35 +297,7 @@ class SubAgentsConfig(BaseModel):
     )
 
 
-class CodeInterpreterExtendedConfig(BaseModel):
-    model_config = get_configuration_dict()
-
-    generated_files_config: DisplayCodeInterpreterFilesPostProcessorConfig = Field(
-        default=DisplayCodeInterpreterFilesPostProcessorConfig(),
-        title="Generated files config",
-        description="Display config for generated files",
-    )
-
-    executed_code_display_config: (
-        Annotated[
-            ShowExecutedCodePostprocessorConfig,
-            Field(title="Active"),
-        ]
-        | DeactivatedNone
-    ) = Field(
-        ShowExecutedCodePostprocessorConfig(),
-        description="If active, generated code will be prepended to the LLM answer",
-    )
-
-    tool_config: OpenAICodeInterpreterConfig = Field(
-        default=OpenAICodeInterpreterConfig(),
-        title="Tool config",
-    )
-
-
-class ResponsesApiConfig(BaseModel):
-    model_config = get_configuration_dict(frozen=True)
-
+class ResponsesApiConfig(BaseToolConfig):
     code_interpreter: (
         Annotated[CodeInterpreterExtendedConfig, Field(title="Active")]
         | DeactivatedNone
@@ -334,18 +312,10 @@ class ResponsesApiConfig(BaseModel):
     )
 
 
-class ExperimentalConfig(BaseModel):
+class ExperimentalConfig(BaseToolConfig):
     """Experimental features this part of the configuration might evolve in the future continuously"""
 
-    model_config = get_configuration_dict(frozen=True)
-
-    thinking_steps_display: bool = False
-
-    # TODO: @gustavhartz, the Hallucination check should be triggered if enabled and the answer contains references.
-    force_checks_on_stream_response_references: list[EvaluationMetricName] = Field(
-        default=[EvaluationMetricName.HALLUCINATION],
-        description="A list of checks to force on references. This is used to add hallucination check to references without new tool calls.",
-    )
+    thinking_steps_display: SkipJsonSchema[bool] = False
 
     # TODO: The temperature should be used via the additional_llm_options
     # then the additional_llm_options migth should eventually be closer to the LangaugeModelInfo
@@ -367,13 +337,13 @@ class ExperimentalConfig(BaseModel):
 
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
 
-    responses_api_config: ResponsesApiConfig = ResponsesApiConfig()
+    responses_api_config: SkipJsonSchema[ResponsesApiConfig] = ResponsesApiConfig()
 
 
-class UniqueAIAgentConfig(BaseModel):
-    model_config = get_configuration_dict(frozen=True)
-
-    max_loop_iterations: int = 8
+class UniqueAIAgentConfig(BaseToolConfig):
+    max_loop_iterations: Annotated[
+        int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
+    ] = 5
 
     input_token_distribution: InputTokenDistributionConfig = Field(
         default=InputTokenDistributionConfig(),
@@ -387,9 +357,7 @@ class UniqueAIAgentConfig(BaseModel):
     experimental: ExperimentalConfig = ExperimentalConfig()
 
 
-class UniqueAIConfig(BaseModel):
-    model_config = get_configuration_dict(frozen=True)
-
+class UniqueAIConfig(BaseToolConfig):
     space: UniqueAISpaceConfig = UniqueAISpaceConfig()
 
     agent: UniqueAIAgentConfig = UniqueAIAgentConfig()
@@ -398,4 +366,32 @@ class UniqueAIConfig(BaseModel):
     def disable_sub_agent_referencing_if_not_used(self) -> "UniqueAIConfig":
         if not any(tool.is_sub_agent for tool in self.space.tools):
             self.agent.experimental.sub_agents_config.referencing_config = None
+        return self
+
+    @model_validator(mode="after")
+    def enable_responses_api_for_code_interpreter_tool(self) -> "UniqueAIConfig":
+        """Auto-enable the Responses API when Code Interpreter is added directly as a tool.
+
+        When Code Interpreter is configured via the UI tool selector (i.e. as an entry in
+        space.tools), neither `use_responses_api` nor `responses_api_config.code_interpreter`
+        are set.  This validator detects that combination and fills in the required defaults so
+        that `unique_ai_builder` routes the request correctly and registers all postprocessors.
+
+        The validator only activates when the selected model actually supports the Responses API;
+        models that do not support it are left untouched so that an invalid configuration is not
+        silently promoted.
+        """
+        # Only consider enabled tools — a disabled entry (toggle off) means the user
+        # has not intentionally activated Code Interpreter via the UI toggle.
+        tool_names = [tool.name for tool in self.space.tools if tool.is_enabled]
+        model_supports_responses_api = (
+            ModelCapabilities.RESPONSES_API in self.space.language_model.capabilities
+        )
+
+        if (
+            OpenAIBuiltInToolName.CODE_INTERPRETER in tool_names
+            and model_supports_responses_api
+        ):
+            self.agent.experimental.responses_api_config.use_responses_api = True
+
         return self

@@ -15,7 +15,7 @@ When clicked, the text will appear in the user prompt window:
 
 ![alt text](./images/chat_prompt_window_after_press.png)
 
-For implementation examples, see the [Prompt Buttons Examples](../../modules/examples/chat/advanced_rendering#prompt-buttons).
+For implementation examples, see the [Prompt Buttons Examples](../modules/examples/chat/advanced_rendering.md#prompt-buttons).
 
 ## LaTeX Formulas
 
@@ -81,7 +81,7 @@ The `create_latex_formula_string` helper function creates block math formulas. H
 
 ![alt text](./images/chat_latex_formula.png)
 
-For detailed implementation examples including helper functions, manual formatting, inline math, and complex formulas, see the [LaTeX Formulas Examples](../../modules/examples/chat/advanced_rendering#latex-formulas).
+For detailed implementation examples including helper functions, manual formatting, inline math, and complex formulas, see the [LaTeX Formulas Examples](../modules/examples/chat/advanced_rendering.md#latex-formulas).
 
 ### Tips & Tricks
 
@@ -109,7 +109,7 @@ Images can be rendered directly within chat messages using Markdown syntax. This
 2. **Copy the Image URL**: Once the image is uploaded, it will be assigned a unique URL in the format `unique://content/content_id`. Copy this URL.
 3. **Insert the Markdown**: In your chat message, use the Markdown syntax to embed the image. Replace `unique://content/cont_1234` with the actual URL of your uploaded image.
 
-For implementation examples, see the [Images Examples](../../modules/examples/chat/advanced_rendering#images).
+For implementation examples, see the [Images Examples](../modules/examples/chat/advanced_rendering.md#images).
 
 ### Tips & Tricks
 
@@ -129,6 +129,61 @@ For implementation examples, see the [Images Examples](../../modules/examples/ch
   * Images must follow the `unique://content/content_id` format.
   * Images not part of the current chat cannot be rendered.
 * **Content ID**: Ensure you use the correct `content_id` associated with the image you want to display.
+
+## HTML Rendering
+
+The chat supports rendering HTML content directly within messages using the `HtmlRendering` code block syntax. This enables rich, interactive content such as charts, reports, or custom visualizations to be displayed inline in the conversation.
+
+### Two Modes
+
+There are two ways to include HTML in a message:
+
+* **Inline HTML**: Embed the full HTML markup directly inside the message. This is useful for dynamically generated content such as interactive charts.
+* **Content Reference**: Reference an HTML file that has been uploaded to the chat or to a knowledge base using a `unique://content/<content_id>` URI. The file is fetched and rendered at display time.
+
+### Syntax
+
+Wrap the content in a fenced code block tagged with `HtmlRendering`. The first two lines inside the block specify the **width** and **height** of the rendered frame, followed by an empty line, and then either the HTML content or a content URI:
+
+````
+```HtmlRendering
+<width>
+<height>
+
+<html content or unique://content/content_id>
+```
+````
+
+* **Width**: CSS width value (e.g. `100%`, `600px`).
+* **Height**: CSS height value (e.g. `800px`, `500px`).
+
+### Size Limit
+
+The maximum renderable HTML size is **2 MB** by default. Content exceeding this limit will not be rendered.
+
+### Access Control
+
+When using a content reference (`unique://content/<content_id>`), the HTML file is only rendered if the current user has access to it. This means:
+
+* The content must be part of the user's current chat, **or**
+* The content must be accessible from a knowledge base the user has access to.
+
+If the user does not have access to the referenced content, it will not be displayed.
+
+### Tips & Tricks
+
+* Use **inline HTML** for self-contained, dynamically generated content (e.g. Plotly charts, custom tables).
+* Use **content references** when the HTML file already exists in the chat or knowledge base.
+* Adjust the `width` and `height` parameters to fit the content — `100%` width works well for responsive layouts.
+* External scripts (e.g. CDN-hosted libraries like Plotly) can be included in inline HTML via `<script>` tags.
+
+### Limitations
+
+* **Size**: HTML content larger than 2 MB will not be rendered.
+* **Access**: Referenced content must be accessible to the user viewing the message.
+* **Rendering**: Complex or heavily interactive HTML may behave differently depending on the frontend environment.
+
+For implementation examples, see the [HTML Rendering Examples](../../modules/examples/chat/advanced_rendering#html-rendering).
 
 ## Financial Chart
 
@@ -159,7 +214,7 @@ The payload must be an **array of objects**, each describing a single financial 
 - `lastUpdated`: Timestamp of when the data was last updated
 - `version`: Version number of the data structure
 
-For detailed implementation examples, see the [Financial Chart Examples](../../modules/examples/chat/advanced_rendering#financial-chart).
+For detailed implementation examples, see the [Financial Chart Examples](../modules/examples/chat/advanced_rendering.md#financial-chart).
 
 ### Supported Metric Names
 
@@ -178,7 +233,7 @@ For detailed implementation examples, see the [Financial Chart Examples](../../m
 
 ## Full Examples
 
-For complete, runnable examples of all advanced rendering features, see the [Advanced Rendering Examples](../../modules/examples/chat/advanced_rendering) section.
+For complete, runnable examples of all advanced rendering features, see the [Advanced Rendering Examples](../modules/examples/chat/advanced_rendering.md) section.
 
 
 

@@ -10,7 +10,10 @@ from tests.test_obj_factory import get_event_obj
 from unique_toolkit.chat.service import ChatService
 
 # Import tool fixtures to make them available to all tests
-pytest_plugins = ["tests.agentic.tools.tool_fixtures"]
+pytest_plugins = [
+    "tests.agentic.tools.tool_fixtures",
+    "unique_toolkit.agentic.evaluation.tests.fixtures",
+]
 
 collect_ignore_glob = []
 RUN_INTEGRATION_TEST = False

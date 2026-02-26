@@ -9,7 +9,6 @@ import asyncio
 import logging
 from typing import Any, Dict, List, Optional, Union
 
-import tiktoken
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
@@ -19,6 +18,7 @@ from langchain_core.messages import (
 )
 from langchain_core.runnables import Runnable, RunnableConfig
 from langchain_core.tools import BaseTool
+from unique_toolkit._common.token import count_tokens
 from unique_toolkit.chat.schemas import (
     MessageLogDetails,
     MessageLogStatus,
@@ -28,7 +28,7 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
-from ..config import BaseEngine
+from ..config import UniqueEngine
 from .citation import GlobalCitationManager
 from .state import AgentState, ResearcherState, SupervisorState
 
@@ -172,7 +172,7 @@ def get_message_id_from_config(config: RunnableConfig) -> str:
     return str(message_id)
 
 
-def get_engine_config(config: RunnableConfig) -> BaseEngine:
+def get_engine_config(config: RunnableConfig) -> UniqueEngine:
     """
     Extract custom engine configuration from RunnableConfig.
 
@@ -194,11 +194,11 @@ def get_engine_config(config: RunnableConfig) -> BaseEngine:
 
     custom_config = config["configurable"].get("engine_config")
     if not custom_config:
-        raise KeyError("custom_engine_config missing from RunnableConfig")
+        raise KeyError("engine_config missing from RunnableConfig")
 
-    if not isinstance(custom_config, BaseEngine):
+    if not isinstance(custom_config, UniqueEngine):
         raise TypeError(
-            f"engine_config is {type(custom_config)}, expected DeepResearchToolConfig"
+            f"engine_config is {type(custom_config)}, expected UniqueEngine"
         )
 
     return custom_config
@@ -355,7 +355,7 @@ async def execute_tool_safely(
             _LOGGER.warning(f"Token limit exceeded in tool {tool_name}: {str(e)}")
             return f"Tool {tool_name} failed due to token limit: {str(e)}"
         else:
-            _LOGGER.error(f"Error executing tool {tool_name}: {str(e)}")
+            _LOGGER.exception(f"Error executing tool {tool_name}: {str(e)}")
             return f"Error executing tool {tool_name}: {str(e)}"
 
 
@@ -398,34 +398,22 @@ def get_notes_from_tool_calls(messages: List[MessageLikeRepresentation]) -> List
     ]
 
 
-def count_tokens(text: str, model_info: LanguageModelInfo) -> int:
-    """Count tokens in text using the model's encoder."""
-    if not text:
-        return 0
-    try:
-        encoder = tiktoken.get_encoding(model_info.encoder_name)
-        return len(encoder.encode(text))
-    except Exception as e:
-        _LOGGER.warning(f"Error counting tokens: {e}")
-        return len(str(text)) // 4  # Rough fallback
-
-
 def count_message_tokens(message: BaseMessage, model_info: LanguageModelInfo) -> int:
     """Count tokens in a message including content, tool calls, and tool responses."""
     total_tokens = 4  # Base overhead per message
 
     # Count content
     if message.content:
-        total_tokens += count_tokens(str(message.content), model_info)
+        total_tokens += count_tokens(str(message.content), model=model_info)
 
     # Count tool calls (AIMessage with tool_calls)
     if isinstance(message, AIMessage) and message.tool_calls:
         for tool_call in message.tool_calls:
             # Count tool name and arguments
             if isinstance(tool_call, dict):
-                total_tokens += count_tokens(str(tool_call), model_info)
+                total_tokens += count_tokens(str(tool_call), model=model_info)
             else:
-                total_tokens += count_tokens(str(tool_call), model_info)
+                total_tokens += count_tokens(str(tool_call), model=model_info)
             total_tokens += 4  # Base overhead per tool call
 
     return total_tokens
@@ -570,6 +558,7 @@ async def ainvoke_with_token_handling(
         try:
             return await model.ainvoke(prepared_messages)
         except Exception as e:
+            _LOGGER.exception(f"Error invoking model: {e}")
             # Handle token errors by truncating history and retrying
             if is_token_error(e):
                 # Filtering is not perfect, so in unlikely case we need to truncate the message history to the last AI message
@@ -588,7 +577,7 @@ async def ainvoke_with_token_handling(
                 )
                 await asyncio.sleep(delay)
             else:
-                _LOGGER.error(
+                _LOGGER.exception(
                     f"Model invocation failed after {max_retries + 1} attempts: {str(e)}"
                 )
                 raise e

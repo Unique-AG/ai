@@ -21,5 +21,10 @@ Return your analysis in the structured format with:
 - ordered_sources: A list containing each source's id, order number, and reasoning
 - notification_message: A concise summary of the ordering (e.g., "Successfully ordered 5 sources from oldest to newest based on publication dates")
 
-Note: If you cannot confidently determine the order for certain sources, you may exclude them from the ordered_sources list.
+⚠️ CRITICAL: When returning ordered_sources, you MUST use the EXACT Source ID shown above for each source. 
+- Copy the Source ID exactly as provided - character-for-character, including any special characters, numbers, or formatting
+- Do NOT modify, shorten, or create new IDs
+- Do NOT hallucinate or make up IDs that were not explicitly provided above
+- Each "id" field in your response must match exactly with one of the "Source ID" values listed above
 
+Note: If you cannot confidently determine the order for certain sources, you may exclude them from the ordered_sources list.

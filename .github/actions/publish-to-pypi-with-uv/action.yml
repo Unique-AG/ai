@@ -37,7 +37,7 @@ runs:
     - name: Install dependencies
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: uv sync
+      run: uv sync --locked
 
     - name: Build Package
       shell: bash

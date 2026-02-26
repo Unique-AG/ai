@@ -4,10 +4,14 @@ from typing import overload
 from pydantic import BaseModel, ValidationError
 from typing_extensions import deprecated
 
+from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit._common.validate_required_values import (
     validate_required_values,
 )
-from unique_toolkit.agentic.evaluation.config import EvaluationMetricConfig
+from unique_toolkit.agentic.evaluation.config import (
+    EvaluationMetricConfig,
+    EvaluationMetricPromptsConfig,
+)
 from unique_toolkit.agentic.evaluation.context_relevancy.schema import (
     EvaluationSchemaStructuredOutput,
 )
@@ -28,32 +32,25 @@ from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     ModelCapabilities,
 )
-from unique_toolkit.language_model.prompt import Prompt
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
+    LanguageModelSystemMessage,
+    LanguageModelUserMessage,
 )
 from unique_toolkit.language_model.service import (
     LanguageModelService,
 )
 
-from .prompts import (
-    CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
-    CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG_STRUCTURED_OUTPUT,
-    CONTEXT_RELEVANCY_METRIC_USER_MSG,
-    CONTEXT_RELEVANCY_METRIC_USER_MSG_STRUCTURED_OUTPUT,
-)
-
-SYSTEM_MSG_KEY = "systemPrompt"
-USER_MSG_KEY = "userPrompt"
+from .prompts import system_prompt_loader, user_prompt_loader
 
 default_config = EvaluationMetricConfig(
     enabled=False,
     name=EvaluationMetricName.CONTEXT_RELEVANCY,
     language_model=LanguageModelInfo.from_name(DEFAULT_GPT_4o),
-    custom_prompts={
-        SYSTEM_MSG_KEY: CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
-        USER_MSG_KEY: CONTEXT_RELEVANCY_METRIC_USER_MSG,
-    },
+    prompts_config=EvaluationMetricPromptsConfig(
+        system_prompt_template=system_prompt_loader(),
+        user_prompt_template=user_prompt_loader(),
+    ),
 )
 
 relevancy_required_input_fields = [
@@ -225,49 +222,20 @@ class ContextRelevancyEvaluator:
         """
         Composes the messages for the relevancy metric.
         """
-        system_msg_content = self._get_system_prompt(config, enable_structured_output)
-        system_msg = Prompt(system_msg_content).to_system_msg()
+        # Render system message
+        system_msg_content = render_template(
+            config.prompts_config.system_prompt_template,
+            structured_output=enable_structured_output,
+        )
+        system_msg = LanguageModelSystemMessage(content=system_msg_content)
 
-        user_msg = Prompt(
-            self._get_user_prompt(config, enable_structured_output),
+        # Render user message
+        user_msg_content = render_template(
+            config.prompts_config.user_prompt_template,
             input_text=input.input_text,
             context_texts=input.get_joined_context_texts(),
-        ).to_user_msg()
+            structured_output=enable_structured_output,
+        )
+        user_msg = LanguageModelUserMessage(content=user_msg_content)
 
         return LanguageModelMessages([system_msg, user_msg])
-
-    def _get_system_prompt(
-        self,
-        config: EvaluationMetricConfig,
-        enable_structured_output: bool,
-    ):
-        if (
-            enable_structured_output
-            and ModelCapabilities.STRUCTURED_OUTPUT
-            in config.language_model.capabilities
-        ):
-            return config.custom_prompts.setdefault(
-                SYSTEM_MSG_KEY,
-                CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG_STRUCTURED_OUTPUT,
-            )
-        else:
-            return config.custom_prompts.setdefault(
-                SYSTEM_MSG_KEY,
-                CONTEXT_RELEVANCY_METRIC_SYSTEM_MSG,
-            )
-
-    def _get_user_prompt(
-        self,
-        config: EvaluationMetricConfig,
-        enable_structured_output: bool,
-    ):
-        if enable_structured_output:
-            return config.custom_prompts.setdefault(
-                USER_MSG_KEY,
-                CONTEXT_RELEVANCY_METRIC_USER_MSG_STRUCTURED_OUTPUT,
-            )
-        else:
-            return config.custom_prompts.setdefault(
-                USER_MSG_KEY,
-                CONTEXT_RELEVANCY_METRIC_USER_MSG,
-            )

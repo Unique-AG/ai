@@ -486,3 +486,79 @@ class TestUploadedSearchTool:
             # Make sure both documents appear in the valid section
             assert "Q2 Financial Report" in valid_section
             assert "policy_document.pdf" in valid_section
+
+    @pytest.mark.ai
+    def test_display_name__returns_uploaded_search(
+        self,
+        uploaded_search_config: UploadedSearchConfig,
+        mock_chat_event: ChatEvent,
+        mock_tool_progress_reporter: ToolProgressReporter,
+    ) -> None:
+        """
+        Purpose: Verify display_name() returns the correct display name "Uploaded Search".
+        Why this matters: Ensures the tool has a user-friendly display name for UI/UX purposes.
+        Setup summary: Create tool and verify display_name() method returns expected value.
+        """
+        # Arrange
+        with patch(
+            "unique_internal_search.uploaded_search.service.ContentService"
+        ) as mock_content_service_class:
+            mock_content_service = Mock(spec=ContentService)
+            mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
+            mock_content_service_class.from_event.return_value = mock_content_service
+
+            # Act
+            tool = UploadedSearchTool(
+                config=uploaded_search_config,
+                event=mock_chat_event,
+                tool_progress_reporter=mock_tool_progress_reporter,
+            )
+
+            # Assert
+            assert tool.display_name() == "Uploaded Search"
+            assert tool._display_name == "Uploaded Search"
+
+    @pytest.mark.ai
+    def test_init__sets_display_name_on_internal_search_tool(
+        self,
+        uploaded_search_config: UploadedSearchConfig,
+        mock_chat_event: ChatEvent,
+        mock_tool_progress_reporter: ToolProgressReporter,
+    ) -> None:
+        """
+        Purpose: Verify that the display name is propagated to the internal search tool during initialization.
+        Why this matters: Ensures consistent display naming across the tool hierarchy.
+        Setup summary: Create tool and verify internal search tool has the same display name.
+        """
+        # Arrange
+        with patch(
+            "unique_internal_search.uploaded_search.service.ContentService"
+        ) as mock_content_service_class:
+            mock_content_service = Mock(spec=ContentService)
+            mock_content_service.get_documents_uploaded_to_chat = Mock(return_value=[])
+            mock_content_service_class.from_event.return_value = mock_content_service
+
+            # Act
+            tool = UploadedSearchTool(
+                config=uploaded_search_config,
+                event=mock_chat_event,
+                tool_progress_reporter=mock_tool_progress_reporter,
+            )
+
+            # Assert
+            assert hasattr(tool._internal_search_tool, "_display_name")
+            assert tool._internal_search_tool._display_name == "Uploaded Search"
+            assert tool._internal_search_tool._display_name == tool._display_name
+
+    @pytest.mark.ai
+    def test_class_attribute_display_name__is_set_correctly(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify that the _display_name class attribute is set to "Uploaded Search".
+        Why this matters: Ensures the class-level display name is properly defined.
+        Setup summary: Check class attribute without instantiation.
+        """
+        # Act & Assert
+        assert UploadedSearchTool._display_name == "Uploaded Search"
+        assert hasattr(UploadedSearchTool, "_display_name")

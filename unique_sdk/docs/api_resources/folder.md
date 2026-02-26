@@ -129,14 +129,16 @@ Organize content into folder structures with:
 
     **Parameters:**
 
-    - `paths` (List[str], required) - List of folder paths to create
+    - `paths` (List[str], optional) - List of full folder paths starting from root. Either this or `parentScopeId` + `relativePaths` must be provided.
+    - `parentScopeId` (str, optional) - Parent scope ID to create folders under. Must be provided together with `relativePaths`.
+    - `relativePaths` (List[str], optional) - List of relative paths to create under `parentScopeId`. Must be provided together with `parentScopeId`. Each path must not start with `/` and cannot be empty.
     - `inheritAccess` (bool, optional) - Whether to inherit access permissions from parent folders (default: `True`)
 
     **Returns:**
 
     Returns a [`CreateFolderStructureResponse`](#createfolderstructureresponse) object.
 
-    **Example - Basic Creation:**
+    **Example - Basic Creation with Full Paths:**
 
     ```python
     unique_sdk.Folder.create_paths(
@@ -146,6 +148,20 @@ Organize content into folder structures with:
             "/Company/Reports/Q1",
             "/Company/Reports/Q2",
             "/Company/Policies"
+        ]
+    )
+    ```
+
+    **Create Folders by Scope:**
+
+    ```python
+    unique_sdk.Folder.create_paths(
+        user_id=user_id,
+        company_id=company_id,
+        parentScopeId="scope_fctg9an96pixkij6da9rwaiw",
+        relativePaths=[
+            "subject/date",
+            "another-folder"
         ]
     )
     ```

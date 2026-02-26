@@ -27,6 +27,13 @@ class TestLanguageModelSchemas:
         expected = """{"role":"system","content":"blah"}"""
         assert message.model_dump_json(exclude_none=True) == expected
 
+    def test_system_message_to_openai_responses_mode(self):
+        """Test that system messages use role='system' in responses API mode."""
+        message = LanguageModelSystemMessage(content="You are a helpful assistant")
+        result = message.to_openai(mode="responses")
+        assert result["role"] == "system"
+        assert result["content"] == "You are a helpful assistant"
+
     def test_can_serialize_user_message(self):
         message = LanguageModelUserMessage(content="blah")
         expected = """{"role":"user","content":"blah"}"""

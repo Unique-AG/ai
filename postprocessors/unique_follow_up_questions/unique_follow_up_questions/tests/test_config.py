@@ -1,11 +1,11 @@
 import pytest
 from pydantic import ValidationError
-from schema import FollowUpCategory, FollowUpQuestion
 from unique_toolkit._common.utils.jinja.utils import validate_template_placeholders
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
+from unique_follow_up_questions.schema import FollowUpCategory, FollowUpQuestion
 
 
 @pytest.fixture
@@ -25,16 +25,17 @@ def test_default_config_values(valid_config):
 
 def test_use_structured_output_property(valid_config):
     """Test the use_structured_output property."""
-    # Test with default model (GPT-3.5 Turbo)
+    # Test with default model (GPT-4o) which supports structured output
     assert valid_config.use_structured_output is True
 
-    # Test with a model that doesn't support structured output
-    config_without_structured = FollowUpQuestionsConfig(
+    # Test that the property checks for STRUCTURED_OUTPUT capability
+    config_with_gpt4o = FollowUpQuestionsConfig(
         language_model=LanguageModelInfo.from_name(
             DEFAULT_GPT_4o,
-        )  # This model doesn't support structured output  # noqa: F821
+        )
     )
-    assert config_without_structured.use_structured_output is False
+    # GPT-4o now supports structured output
+    assert config_with_gpt4o.use_structured_output is True
 
 
 def test_validate_user_prompt():

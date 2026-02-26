@@ -1,14 +1,16 @@
 import asyncio
 import logging
-from typing import Literal
+from typing import Annotated, Literal
 
 from httpx import AsyncClient, HTTPError
 from pydantic import Field
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
     SearchEngine,
     SearchEngineType,
+    get_search_engine_model_config,
 )
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
@@ -30,17 +32,28 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class VertexAIConfig(BaseSearchEngineConfig[SearchEngineType.VERTEXAI]):
+    model_config = get_search_engine_model_config(SearchEngineType.VERTEXAI)
     search_engine_name: Literal[SearchEngineType.VERTEXAI] = SearchEngineType.VERTEXAI
 
     model_name: str = Field(
         default="gemini-2.5-flash",
         description="The name of the model to use for the search.",
     )
-    grounding_system_instruction: str = Field(
+    grounding_system_instruction: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(VERTEX_GROUNDING_SYSTEM_INSTRUCTION.split("\n"))
+        ),
+    ] = Field(
         default=VERTEX_GROUNDING_SYSTEM_INSTRUCTION,
         description="The system instruction to use for the grounding.",
     )
-    structured_results_system_instruction: str | None = Field(
+    structured_results_system_instruction: Annotated[
+        str | None,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(VERTEX_STRUCTURED_RESULTS_SYSTEM_INSTRUCTION.split("\n"))
+        ),
+    ] = Field(
         default=VERTEX_STRUCTURED_RESULTS_SYSTEM_INSTRUCTION,
         description="The system instruction to use for the structured results.",
     )
@@ -65,7 +78,7 @@ class VertexAI(SearchEngine[VertexAIConfig]):
         self,
         config: VertexAIConfig,
     ):
-        super().__init__(config)
+        super().__init__(config=config)
         self._client = get_vertex_client()
         self.is_configured = self._client is not None
 

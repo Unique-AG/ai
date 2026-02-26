@@ -1,3 +1,5 @@
+import logging
+import traceback
 from typing import Any, Optional
 
 from httpx import AsyncClient
@@ -26,6 +28,7 @@ from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.cancellation import CancellationEvent
 from unique_toolkit.chat.schemas import (
     MessageExecutionType,
     MessageExecutionUpdateStatus,
@@ -64,6 +67,8 @@ from .unique_custom.utils import (
     create_message_log_entry,
     get_next_message_order,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class DeepResearchToolInput(BaseModel):
@@ -107,9 +112,16 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         self.company_id = event.company_id
         self.user_id = event.user_id
 
-        self.client = get_async_openai_client()
+        self.client = get_async_openai_client(
+            additional_headers={
+                "x-company-id": self.company_id,
+                "x-user-id": self.user_id,
+                "x-assistant-id": self.event.payload.assistant_id,
+                "x-chat-id": self.chat_id,
+            }
+        )
 
-        self.logger.info(f"Using async OpenAI client pointed to {self.client.base_url}")
+        _LOGGER.info(f"Using async OpenAI client pointed to {self.client.base_url}")
 
         self.content_service = ContentService(
             company_id=self.company_id,
@@ -145,6 +157,20 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Check if the execution id is valid.
         """
         return self.execution_id is not None
+
+    @property
+    def has_web_tools(self) -> bool:
+        """Check if web tools are available. Defaults to True for OpenAI engine."""
+        if isinstance(self.config.engine, UniqueEngine):
+            return self.config.engine.tools.web_tools
+        return True
+
+    @property
+    def has_internal_tools(self) -> bool:
+        """Check if internal tools are available. Defaults to False for OpenAI engine."""
+        if isinstance(self.config.engine, UniqueEngine):
+            return self.config.engine.tools.internal_tools
+        return False
 
     async def get_followup_question_message_id(self) -> str | None:
         """
@@ -201,17 +227,51 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             return []
         return evaluation_check_list
 
+    async def _on_cancellation(self, _event: CancellationEvent) -> None:
+        """Subscriber called by the cancellation event bus."""
+        _LOGGER.info("Deep Research cancelled by user")
+        self.write_message_log_text_message("**Research stopped by user**")
+        if self.is_message_execution():
+            await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
+        await self.chat_service.modify_assistant_message_async(
+            content="Research was stopped.",
+        )
+
+    def _cancelled_response(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        return ToolCallResponse(
+            id=tool_call.id or "",
+            name=self.name,
+            content="Research was stopped.",
+        )
+
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        sub = self.chat_service.cancellation.on_cancellation.subscribe(
+            self._on_cancellation
+        )
         try:
             return await self._run(tool_call)
         except Exception as e:
+            self.write_message_log_text_message(
+                "**Research failed for an unknown reason**"
+            )
             if self.is_message_execution():
                 await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
-            self.logger.error(f"Deep Research tool run failed: {e}")
+
+            _LOGGER.exception(f"Deep Research tool run failed: {e}")
+
+            debug_info = {
+                **self._get_tool_debug_info(),
+                "error": str(e),
+                "traceback": traceback.format_exc(),
+            }
+            await self.chat_service.update_debug_info_async(debug_info)
             await self.chat_service.modify_assistant_message_async(
                 content="Deep Research failed to complete for an unknown reason",
                 set_completed_at=True,
             )
+        finally:
+            sub.cancel()
+
         return ToolCallResponse(
             id=tool_call.id or "",
             name=self.name,
@@ -220,19 +280,19 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         )
 
     async def _run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        self.logger.info("Starting Deep Research tool run")
+        _LOGGER.info("Starting Deep Research tool run")
 
         await self._clear_original_message()
 
         # Question answer and message execution will have the same message id, so we need to check if it is a message execution
         if await self.is_followup_question_answer() and not self.is_message_execution():
-            self.logger.info("This is a follow-up question answer")
-            self.write_message_log_text_message(
-                "**Waiting for deep research to start**"
-            )
+            _LOGGER.info("This is a follow-up question answer")
             self.chat_service.create_message_execution(
                 message_id=self.event.payload.assistant_message.id,
                 type=MessageExecutionType.DEEP_RESEARCH,
+            )
+            self.write_message_log_text_message(
+                "**Waiting for deep research to start**"
             )
             return ToolCallResponse(
                 id=tool_call.id or "",
@@ -240,30 +300,26 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 content="",
             )
         if self.is_message_execution():
-            self.logger.info("Starting research")
-            # Run research
+            _LOGGER.info("Starting research")
+
+            if await self.chat_service.cancellation.check_cancellation_async():
+                return self._cancelled_response(tool_call)
+
             self.write_message_log_text_message("**Generating research plan**")
             research_brief = await self.generate_research_brief_from_dict(
                 self.get_visible_history_messages()
             )
+
+            if await self.chat_service.cancellation.check_cancellation_async():
+                return self._cancelled_response(tool_call)
+
             processed_result, content_chunks = await self.run_research(research_brief)
 
-            # Handle success/failure status updates centrally
-            if not processed_result:
-                await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
-                self.write_message_log_text_message(
-                    "**Research failed for an unknown reason**"
-                )
-                await self.chat_service.modify_assistant_message_async(
-                    content="Deep Research failed to complete for an unknown reason",
-                    set_completed_at=True,
-                )
-                return ToolCallResponse(
-                    id=tool_call.id or "",
-                    name=self.name,
-                    content=processed_result or "Failed to complete research",
-                    error_message="Research process failed or returned empty results",
-                )
+            if self.chat_service.cancellation.is_cancelled:
+                return self._cancelled_response(tool_call)
+
+            if processed_result == "":
+                raise ValueError("Research returned empty result")
 
             await self.chat_service.modify_assistant_message_async(
                 set_completed_at=True,
@@ -271,7 +327,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
             await self._update_execution_status(MessageExecutionUpdateStatus.COMPLETED)
 
-            # Return the results
             return ToolCallResponse(
                 id=tool_call.id or "",
                 name=self.name,
@@ -284,7 +339,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         await self.chat_service.modify_assistant_message_async(
             set_completed_at=True,
         )
-        await self._update_tool_debug_info()
+        await self.chat_service.update_debug_info_async(
+            debug_info=self._get_tool_debug_info()
+        )
+
         # put message in short term memory to remember that we asked the followup questions
         await self.memory_service.save_async(
             MemorySchema(message_id=self.event.payload.assistant_message.id),
@@ -314,7 +372,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             percentage_completed=percentage,
         )
 
-    async def _update_tool_debug_info(self) -> None:
+    def _get_tool_debug_info(self) -> dict[str, Any]:
         """
         Update debug info for the tool execution.
         Note: Tool call logging should be handled by the orchestrator.
@@ -340,7 +398,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             "userMetadata": self.event.payload.user_metadata,
             "toolParameters": self.event.payload.tool_parameters,
         }
-        await self.chat_service.update_debug_info_async(debug_info=debug_info_event)
+        return debug_info_event
 
     def write_message_log_text_message(self, text: str):
         create_message_log_entry(
@@ -382,95 +440,81 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         Run the research using the configured strategy.
         Returns a tuple of (processed_result, content_chunks)
         """
-        try:
-            result = "", []
-            match self.config.engine.get_type():
-                case DeepResearchEngine.OPENAI:
-                    self.logger.info("Running OpenAI research")
-                    result = await self.openai_research(research_brief)
-                case DeepResearchEngine.UNIQUE:
-                    self.logger.info("Running Custom research")
-                    result = await self.custom_research(research_brief)
-            self.write_message_log_text_message("**Research done**")
-            return result
-        except Exception as e:
-            self.logger.error(f"Research failed: {e}")
-            return "", []
+        result = "", []
+        match self.config.engine.get_type():
+            case DeepResearchEngine.OPENAI:
+                _LOGGER.info("Running OpenAI research")
+                result = await self.openai_research(research_brief)
+            case DeepResearchEngine.UNIQUE:
+                _LOGGER.info("Running Custom research")
+                result = await self.custom_research(research_brief)
+        self.write_message_log_text_message("**Research done**")
+        return result
 
     async def custom_research(self, research_brief: str) -> tuple[str, list[Any]]:
         """
         Run Custom research using LangGraph multi-agent orchestration.
         Returns a tuple of (processed_result, content_chunks)
         """
-        try:
-            # Create citation manager for this research session
-            citation_manager = GlobalCitationManager()
+        # Create citation manager for this research session
+        citation_manager = GlobalCitationManager()
 
-            # Initialize LangGraph state with required services
-            initial_state = {
-                "messages": [HumanMessage(content=research_brief)],
-                "research_brief": research_brief,
-                "notes": [],
-                "final_report": "",
+        # Initialize LangGraph state with required services
+        initial_state = {
+            "messages": [HumanMessage(content=research_brief)],
+            "research_brief": research_brief,
+            "notes": [],
+            "final_report": "",
+            "chat_service": self.chat_service,
+            "message_id": self.event.payload.assistant_message.id,
+        }
+
+        # Prepare configuration for LangGraph
+        additional_openai_proxy_headers = {
+            "x-company-id": self.company_id,
+            "x-user-id": self.user_id,
+            "x-assistant-id": self.event.payload.assistant_id,
+            "x-chat-id": self.chat_id,
+        }
+
+        config = {
+            "configurable": {
+                "engine_config": self.config.engine,
+                "language_model_service": self.language_model_service,
+                "openai_client": self.client,
                 "chat_service": self.chat_service,
+                "content_service": self.content_service,
                 "message_id": self.event.payload.assistant_message.id,
-            }
+                "citation_manager": citation_manager,
+                "additional_openai_proxy_headers": additional_openai_proxy_headers,
+            },
+        }
 
-            # Prepare configuration for LangGraph
-            additional_openai_proxy_headers = {
-                "x-user-id": self.user_id,
-                "x-chat-id": self.chat_id,
-                "x-assistant-id": self.event.payload.assistant_id,
-            }
-            # Extract tool enablement settings from engine config if it's a UniqueEngine
-            enable_web_tools = True
-            enable_internal_tools = True
-            if isinstance(self.config.engine, UniqueEngine):
-                enable_web_tools = self.config.engine.tools.web_tools
-                enable_internal_tools = self.config.engine.tools.internal_tools
+        result = await self.chat_service.cancellation.run_with_cancellation(
+            custom_agent.ainvoke(initial_state, config=config),  # type: ignore[arg-type]
+            cancel_result={"final_report": ""},
+        )
 
-            config = {
-                "configurable": {
-                    "engine_config": self.config.engine,
-                    "openai_client": self.client,
-                    "chat_service": self.chat_service,
-                    "content_service": self.content_service,
-                    "message_id": self.event.payload.assistant_message.id,
-                    "citation_manager": citation_manager,
-                    "additional_openai_proxy_headers": additional_openai_proxy_headers,
-                    "enable_web_tools": enable_web_tools,
-                    "enable_internal_tools": enable_internal_tools,
-                },
-            }
+        research_result = result.get("final_report", "")
 
-            result = await custom_agent.ainvoke(initial_state, config=config)  # type: ignore[arg-type]
+        if not research_result:
+            return "", []
 
-            # Extract final report (citations already refined by agents.py)
-            research_result = result.get("final_report", "")
+        # Validate and map citations using the citation registry
+        citation_registry = citation_manager.get_all_citations()
+        processed_result, references = validate_and_map_citations(
+            research_result, citation_registry
+        )
 
-            if not research_result:
-                return "", []
-
-            # Validate and map citations using the citation registry
-            citation_registry = citation_manager.get_all_citations()
-            processed_result, references = validate_and_map_citations(
-                research_result, citation_registry
-            )
-
-            # Update the assistant message with the results
-            await self.chat_service.modify_assistant_message_async(
-                content=processed_result,
-                references=references,
-            )
-            self.logger.info(
-                f"Custom research completed with {len(references)} validated citations"
-            )
-            return processed_result, []
-
-        except Exception as e:
-            error_msg = f"Custom research failed: {str(e)}"
-            self.logger.error(error_msg, exc_info=True)
-            return error_msg, []
+        # Update the assistant message with the results
+        await self.chat_service.modify_assistant_message_async(
+            content=processed_result,
+            references=references,
+        )
+        _LOGGER.info(
+            f"Custom research completed with {len(references)} validated citations"
+        )
+        return processed_result, []
 
     async def openai_research(self, research_brief: str) -> tuple[str, list[Any]]:
         """
@@ -509,8 +553,13 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             stream=True,
         )
 
-        # Process the stream
-        research_result, annotations = await self._process_research_stream(stream)
+        (
+            research_result,
+            annotations,
+        ) = await self.chat_service.cancellation.run_with_cancellation(
+            self._process_research_stream(stream),
+            cancel_result=("", []),
+        )
 
         if not research_result:
             return "", []
@@ -551,14 +600,14 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 match event.type:
                     case "response.completed":
                         if event.response.usage:
-                            self.logger.info(
+                            _LOGGER.info(
                                 f"OpenAI research token usage: {event.response.usage}"
                             )
                         # Extract the final output with annotations
                         if event.response.output and len(event.response.output) > 0:
                             final_output = event.response.output[-1]
                             if not isinstance(final_output, ResponseOutputMessage):
-                                self.logger.warning(
+                                _LOGGER.warning(
                                     f"Unexpected output type: {type(final_output)}"
                                 )
                                 continue
@@ -571,9 +620,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                             # Extract final report and references
                             report_text = content_item.text
                             annotations = content_item.annotations or []
-                            self.logger.info(
-                                "Final report extracted from OpenAI stream"
-                            )
+                            _LOGGER.info("Final report extracted from OpenAI stream")
                             return report_text, annotations
                         return event.response.output_text or "", []
                     case "response.incomplete":
@@ -605,7 +652,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                             if isinstance(
                                 event.item.action, ActionSearch
                             ) and isinstance(event.item.action.query, str):
-                                self.logger.info("OpenAI web search")
+                                _LOGGER.info("OpenAI web search")
                                 self.chat_service.create_message_log(
                                     message_id=self.event.payload.assistant_message.id,
                                     text="**Searching the web**",
@@ -628,13 +675,13 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                             elif isinstance(
                                 event.item.action, ActionOpenPage
                             ) or isinstance(event.item.action, ActionFind):
-                                self.logger.info("OpenAI reading web page")
+                                _LOGGER.info("OpenAI reading web page")
                                 if (
                                     not event.item.action.url
                                     or not isinstance(event.item.action.url, str)
                                     or "https://" not in event.item.action.url
                                 ):
-                                    self.logger.warning(
+                                    _LOGGER.warning(
                                         f"Invalid URL from OpenAI: {event.item.action}"
                                     )
                                     continue
@@ -644,12 +691,12 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                     event.item.action.url,
                                 )
                                 if not success:
-                                    self.logger.info(
+                                    _LOGGER.info(
                                         f"Failed to crawl URL: {event.item.action.url} but openai still opened the page"
                                     )
                                     continue
                                 if not title:
-                                    self.logger.info(
+                                    _LOGGER.info(
                                         f"No title found for URL: {event.item.action.url}"
                                     )
                                     continue
@@ -676,7 +723,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                                     ),
                                 )
                             else:
-                                self.logger.info(
+                                _LOGGER.info(
                                     f"OpenAI web action unexpected type: {type(event.item)}"
                                 )
                     case "response.failed":
@@ -697,9 +744,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                         if event.response.error:
                             return event.response.error.message, []
             except Exception as e:
-                self.logger.error(f"Error processing research stream event: {e}")
+                _LOGGER.exception(f"Error processing research stream event: {e}")
 
-        self.logger.error("Stream ended without completion")
+        _LOGGER.error("Stream ended without completion")
         return "", []
 
     async def _postprocess_report_with_gpt(self, research_result: str) -> str:
@@ -735,10 +782,10 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
         formatted_result = response.choices[0].message.content
         if formatted_result:
-            self.logger.info("Successfully post-processed research report")
+            _LOGGER.info("Successfully post-processed research report")
             return formatted_result
         else:
-            self.logger.warning("Post-processing returned empty result, using original")
+            _LOGGER.warning("Post-processing returned empty result, using original")
             return research_result
 
     def get_tool_call_result_for_loop_history(
@@ -779,7 +826,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             {
                 "role": "system",
                 "content": self.env.get_template("clarifying_agent.j2").render(
-                    engine_type=self.config.engine.get_type().value
+                    engine_type=self.config.engine.get_type().value,
+                    has_web_tools=self.has_web_tools,
+                    has_internal_tools=self.has_internal_tools,
                 ),
             },
             *relevant_interactions,
@@ -803,7 +852,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "role": "system",
                 "content": self.env.get_template(
                     "research_instructions_agent.j2"
-                ).render(engine_type=self.config.engine.get_type().value),
+                ).render(
+                    engine_type=self.config.engine.get_type().value,
+                    has_web_tools=self.has_web_tools,
+                    has_internal_tools=self.has_internal_tools,
+                ),
             }
         ] + messages
 

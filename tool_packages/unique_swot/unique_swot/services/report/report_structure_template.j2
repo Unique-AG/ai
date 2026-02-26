@@ -1,0 +1,22 @@
+{% if executive_summary |length > 0 %}
+# Executive Overview
+
+{{ executive_summary }}
+{% endif %}
+
+
+{%if body |length > 0 %}
+# In-Depth SWOT Assessment
+
+{{ body }}
+{% endif %}
+
+
+{% if citations |length > 0 %}
+# Citations
+
+{% for citation in citations %}
+- {{ citation }}
+{% endfor %}
+
+{% endif %}

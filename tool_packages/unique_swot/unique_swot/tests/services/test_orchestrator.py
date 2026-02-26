@@ -113,6 +113,11 @@ async def test_orchestrator_full_workflow():
     source_registry = Mock()
     memory_service = Mock()
 
+    progress_notifier = Mock()
+    progress_notifier.update = AsyncMock()
+
+    chat_service = Mock()
+
     # Create orchestrator
     orchestrator = SWOTOrchestrator(
         step_notifier=step_notifier,
@@ -121,7 +126,9 @@ async def test_orchestrator_full_workflow():
         source_iterator=source_iterator,
         reporting_agent=reporting_agent,
         source_registry=source_registry,
+        progress_notifier=progress_notifier,
         memory_service=memory_service,
+        chat_service=chat_service,
     )
 
     # Run orchestration
@@ -185,6 +192,11 @@ async def test_orchestrator_skips_unselected_sources():
     source_registry = Mock()
     memory_service = Mock()
 
+    progress_notifier = Mock()
+    progress_notifier.update = AsyncMock()
+
+    chat_service = Mock()
+
     orchestrator = SWOTOrchestrator(
         step_notifier=step_notifier,
         source_collector=source_collector,
@@ -192,7 +204,9 @@ async def test_orchestrator_skips_unselected_sources():
         source_iterator=source_iterator,
         reporting_agent=reporting_agent,
         source_registry=source_registry,
+        progress_notifier=progress_notifier,
         memory_service=memory_service,
+        chat_service=chat_service,
     )
 
     plan = _make_plan()
@@ -204,7 +218,7 @@ async def test_orchestrator_skips_unselected_sources():
 
 @pytest.mark.asyncio
 async def test_orchestrator_handles_empty_sources():
-    """Test that orchestrator handles empty source list gracefully."""
+    """Test that orchestrator raises ValueError when there are no sources to process."""
     step_notifier = Mock()
     step_notifier.notify = AsyncMock()
 
@@ -231,6 +245,11 @@ async def test_orchestrator_handles_empty_sources():
     source_registry = Mock()
     memory_service = Mock()
 
+    progress_notifier = Mock()
+    progress_notifier.update = AsyncMock()
+
+    chat_service = Mock()
+
     orchestrator = SWOTOrchestrator(
         step_notifier=step_notifier,
         source_collector=source_collector,
@@ -238,15 +257,19 @@ async def test_orchestrator_handles_empty_sources():
         source_iterator=source_iterator,
         reporting_agent=reporting_agent,
         source_registry=source_registry,
+        progress_notifier=progress_notifier,
         memory_service=memory_service,
+        chat_service=chat_service,
     )
 
     plan = _make_plan()
-    result = await orchestrator.run(company_name="ACME Corp", plan=plan)
 
-    # Should complete without errors
+    # Should raise ValueError when there are no sources
+    with pytest.raises(ValueError, match="No sources to process"):
+        await orchestrator.run(company_name="ACME Corp", plan=plan)
+
+    # Verify collection was attempted
     source_collector.collect.assert_awaited_once()
-    assert result.is_empty()
 
 
 @pytest.mark.asyncio
@@ -286,6 +309,11 @@ async def test_orchestrator_passes_correct_parameters():
     source_registry = Mock()
     memory_service = Mock()
 
+    progress_notifier = Mock()
+    progress_notifier.update = AsyncMock()
+
+    chat_service = Mock()
+
     orchestrator = SWOTOrchestrator(
         step_notifier=step_notifier,
         source_collector=source_collector,
@@ -293,7 +321,9 @@ async def test_orchestrator_passes_correct_parameters():
         source_iterator=source_iterator,
         reporting_agent=reporting_agent,
         source_registry=source_registry,
+        progress_notifier=progress_notifier,
         memory_service=memory_service,
+        chat_service=chat_service,
     )
 
     company_name = "ACME Corp"
@@ -368,6 +398,11 @@ async def test_orchestrator_with_multiple_components():
     source_registry = Mock()
     memory_service = Mock()
 
+    progress_notifier = Mock()
+    progress_notifier.update = AsyncMock()
+
+    chat_service = Mock()
+
     orchestrator = SWOTOrchestrator(
         step_notifier=step_notifier,
         source_collector=source_collector,
@@ -375,7 +410,9 @@ async def test_orchestrator_with_multiple_components():
         source_iterator=source_iterator,
         reporting_agent=reporting_agent,
         source_registry=source_registry,
+        progress_notifier=progress_notifier,
         memory_service=memory_service,
+        chat_service=chat_service,
     )
 
     # Plan with multiple components

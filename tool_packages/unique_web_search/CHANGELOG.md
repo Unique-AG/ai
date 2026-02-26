@@ -5,6 +5,98 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.1] - 2026-02-23
+### Changed
+- Improved LLM Guard accuracy through prompt restructuring, query-level refusal for Art. 9 sensitive queries, and more precise structured output field descriptions
+
+## [1.12.0] - 2026-02-23
+### Added
+- LLM-based content processing strategy (`LLMProcess`) that summarizes web page content using an AI model before injecting it into the prompt context
+- Privacy filtering (sanitization) mode for the LLM processor: when enabled, instructs the AI to redact GDPR Art. 9 sensitive personal data from web search content
+- Configurable Jinja2 prompt templates for the LLM content processor (system, user, and sanitization guidelines)
+- `Truncate` strategy as a standalone, configurable processing step with its own `TruncateConfig`
+- Content cleaning pipeline with separate `LineRemoval` and `MarkdownTransform` strategies, each independently configurable
+
+### Changed
+- Refactored `ContentProcessor` into a strategy-based architecture: cleaning strategies run first, then processing strategies (`Truncate`, `LLMProcess`) are applied sequentially
+- `ContentProcessorConfig` replaced monolithic fields (`strategy`, `language_model`, `max_tokens`, `summarization_prompt`) with composable sub-configs (`CleaningConfig`, `ProcessingStrategiesConfig`)
+- Improved all config field descriptions and titles across V1/V2 configs for better UI readability
+
+## [1.11.4] - 2026-02-16
+- Messagelog alignment
+
+## [1.11.3] - 2026-02-13
+- method `_create_agent_run_with_agent_id` in `runner.py` shouldn't use model from settings
+
+## [1.11.2] - 2026-02-13
+- Purely Cosmetic Change to improve Search Engine names in the UI
+- MessageLog get updated at the end of the the execution of websearch
+- Query Elicitation disabled by default
+
+## [1.11.1] - 2026-02-13
+- `agent_id` and `endpoint` fields on `BingSearchConfig` to allow using a pre-configured agent and project endpoint from config instead of relying solely on auto-provisioning
+- Citation replacement in Bing agent responses: `MessageTextUrlCitationAnnotation` placeholders are now converted to readable markdown links
+- `validate_custom_web_search_api_method` field validator on settings to gracefully coerce invalid method values to `None` instead of failing at startup
+- Migrated Bing client and runner to fully async Azure SDK (`azure.ai.projects.aio`, `azure.identity.aio`), eliminating thread-blocking synchronous calls
+- `get_project_client` now accepts an `endpoint` parameter with fallback: environment variable takes precedence, then config value
+- `create_and_process_run` now branches on `agent_id`: when provided, uses the existing agent directly; when empty, auto-provisions via `get_or_create_agent_id`
+- `LLMParserStrategy` now uses `GroundingWithBingResults` as its structured output model instead of `WebSearchResults`
+- `ResultItem` and `GroundingWithBingResults` models now enforce `extra="forbid"` to reject unexpected fields
+
+## [1.11.0] - 2026-02-12
+- Automatic Bing grounding agent creation and discovery via Azure AI Agents SDK
+- `BingGroundingTool` integration for native Bing search within agent runs
+- Strategy-pattern response parsing: `JsonConversionStrategy` with `LLMParserStrategy` fallback
+- Configurable `generation_instructions` field on `BingSearchConfig`
+- Refactored Bing client: merged `identity.py` and `project.py` into `client.py`
+- Removed manual `agent_id` and `endpoint` config fields (now auto-managed)
+- New env settings: `azure_ai_bing_agent_model`, `azure_ai_project_endpoint`, `azure_ai_bing_ressource_connection_string`
+
+## [1.10.1] - 2026-02-09
+- Migrate to model-specific token counting from unique_toolkit 1.46.1
+- Add optional `language_model_orchestrator` parameter to use orchestrator's LLM for token counting
+
+## [1.10.0] - 2026-02-05
+
+### Added
+- **Query Elicitation**: New `QueryElicitationService` for user approval of search queries before execution
+  - Users can review and modify proposed queries through an interactive form
+  - Configurable timeout and enable/disable options
+  - Support for handling declined, cancelled, expired, or failed elicitations
+  - Query Elicitation is behind a feature flag
+- **Message Logging Service**: New `WebSearchMessageLogger` for improved progress tracking and state management
+
+### Changed
+- Refactored executor architecture to use dependency injection with context objects
+- Updated feature flag from `is_new_answers_ui_enabled` to `enable_new_answers_ui_un_14411.is_enabled`
+
+## [1.9.1] - 2025-01-30
+- Raise error for failed Custom API search engine requests
+
+## [1.9.0] - 2025-01-29
+- Add language model config option to bing search
+
+## [1.8.3] - 2025-01-28
+- Add setting params to pass configuration to async_client in custom_api search engine
+
+## [1.8.2] - 2025-01-19
+- Parse mode "v2 (beta)" as "v2" for search mode
+
+## [1.8.1] - 2026-01-16
+- Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
+
+## [1.8.0] - 2026-01-16
+- Make V2 mode as default search mode
+
+## [1.7.8] - 2026-01-16
+- Add unified type checking CI with basedpyright
+
+## [1.7.7] - 2026-01-15
+- Add `pytest-cov` dev dependency for coverage testing
+
+## [1.7.6] - 2026-01-13
+- Cleanup configuration
+
 ## [1.7.5] - 2026-01-12
 - Include feature flag to have message logs compatible with new ChatUI
 

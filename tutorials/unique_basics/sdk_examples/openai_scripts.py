@@ -129,7 +129,7 @@ def run_assistants():
 def run_responses():
     client, extra_headers, model = get_client_and_headers()
     logger.info("Running responses flow...")
-    
+
     try:
         response = client.responses.create(
             extra_headers=extra_headers,

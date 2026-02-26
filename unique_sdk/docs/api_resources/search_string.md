@@ -1,4 +1,4 @@
-# SearchString API
+# SearchString API {#searchstring}
 
 The SearchString API transforms and optimizes user queries for better search results by adding conversational context and translating to English.
 

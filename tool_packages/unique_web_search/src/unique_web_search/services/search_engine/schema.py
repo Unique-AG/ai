@@ -12,8 +12,14 @@ def extract_root_domain(url: str) -> str:
 
 
 class WebSearchResult(BaseModel):
-    url: str
-    title: str
+    url: str = Field(
+        ...,
+        description="The URL of the website",
+    )
+    title: str = Field(
+        ...,
+        description="The title of the website",
+    )
     snippet: str = Field(
         ...,
         description="A short description of the content found on this website",

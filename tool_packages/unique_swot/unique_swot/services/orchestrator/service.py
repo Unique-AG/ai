@@ -1,7 +1,8 @@
 from logging import getLogger
-from typing import AsyncIterator, Protocol
+from typing import AsyncIterator, Generator, Protocol
 
 from tqdm.asyncio import tqdm
+from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content, ContentChunk, ContentReference
 
 from unique_swot.services.generation.models.base import SWOTReportComponents
@@ -25,6 +26,20 @@ class StepNotifier(Protocol):
         progress: int | None = None,
         completed: bool = False,
     ): ...
+
+
+class ProgressNotifier(Protocol):
+    """This class is responsible for notifying the user of the progress of the SWOT analysis."""
+
+    async def update(self, *, progress: int | float, title: str | None = None): ...
+
+    async def increment(self, fraction: float): ...
+
+    @property
+    def step_size(self) -> int | float: ...
+
+    @step_size.setter
+    def step_size(self, value: int | float) -> None: ...
 
 
 class SourceCollector(Protocol):
@@ -67,6 +82,7 @@ class ReportingAgent(Protocol):
         content: Content,
         source_registry: SourceRegistry,
         step_notifier: StepNotifier,
+        progress_notifier: ProgressNotifier,
     ) -> None: ...
 
     def get_reports(self) -> SWOTReportComponents: ...
@@ -81,7 +97,9 @@ class SWOTOrchestrator:
         source_iterator: SourceIterator,
         reporting_agent: ReportingAgent,
         source_registry: SourceRegistry,
+        progress_notifier: ProgressNotifier,
         memory_service: SwotMemoryService,
+        chat_service: ChatService,
     ):
         self._source_collector = source_collector
         self._source_selector = source_selector
@@ -90,21 +108,42 @@ class SWOTOrchestrator:
         self._memory_service = memory_service
         self._step_notifier = step_notifier
         self._source_registry = source_registry
+        self._progress_notifier = progress_notifier
+        self._chat_service = chat_service
 
     async def run(self, *, company_name: str, plan: SWOTPlan) -> SWOTReportComponents:
         contents = await self._source_collector.collect(
             step_notifier=self._step_notifier
         )
 
+        await self._progress_notifier.update(progress=5)
+
         source_iterator = await self._source_iterator.iterate(
             contents=contents, step_notifier=self._step_notifier
         )
 
+        await self._progress_notifier.update(progress=10)
+
         total_steps = len(contents)
+
+        if total_steps == 0:
+            # Early return if there are no sources to process (this should never happen)
+            raise ValueError("No sources to process")
+
+        step_size, progress_sequence = _create_progress_sequence(
+            start=10, stop=80, steps=total_steps
+        )
+
+        # This is for "agent generating" progress tracking
+        self._progress_notifier.step_size = step_size
 
         async for content in tqdm(
             source_iterator, total=total_steps, desc="Processing sources"
         ):
+            await self._progress_notifier.update(
+                progress=next(progress_sequence),
+            )
+
             source_selection_result = await self._source_selector.select(
                 company_name=company_name,
                 content=content,
@@ -113,24 +152,32 @@ class SWOTOrchestrator:
 
             if not source_selection_result.should_select:
                 # Skip the source if it is not selected
-                _LOGGER.info(
-                    f"Skipping source `{_get_content_title(content)}` as it is not selected"
-                )
+                _LOGGER.info("Skipping source because it is not selected")
                 continue
-            else:
-                _LOGGER.info(
-                    f"Selecting source `{_get_content_title(content)}` as it is selected"
-                )
+
+            _LOGGER.info("Selecting source because it is selected")
 
             await self._reporting_agent.generate(
                 plan=plan,
                 content=content,
                 step_notifier=self._step_notifier,
                 source_registry=self._source_registry,
+                progress_notifier=self._progress_notifier,
             )
 
         return self._reporting_agent.get_reports()
 
 
-def _get_content_title(content: Content) -> str:
-    return content.title or content.key or "Unknown Title"
+def _create_progress_sequence(
+    start: int, stop: int, steps: int
+) -> tuple[float, Generator[float, None, None]]:
+    step_size = (stop - start) / steps
+
+    def frange(start):
+        if steps == 0:
+            raise ValueError("step must not be zero")
+
+        for i in range(steps):
+            yield start + i * step_size
+
+    return step_size, frange(start)

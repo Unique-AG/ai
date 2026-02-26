@@ -103,11 +103,23 @@ class SourceCollectionManager:
             _LOGGER.error(
                 "Quartr service is not provided. Check that your company has access to Quartr API."
             )
+            await step_notifier.notify(
+                title=self.notification_title,
+                description="Cannot collect earnings calls. Quartr service is not provided. Check that your company has access to Quartr API.",
+                progress=0,
+                completed=True,
+            )
             return []
 
         if not upload_scope_id_earnings_calls:
             _LOGGER.error(
                 "Upload scope ID for earnings calls is not provided. This is a mandatory parameter when using earnings calls as a data source."
+            )
+            await step_notifier.notify(
+                title=self.notification_title,
+                description="Cannot collect earnings calls. Upload scope ID for earnings calls is not provided. This is a mandatory parameter when using earnings calls as a data source.",
+                progress=0,
+                completed=True,
             )
             return []
 

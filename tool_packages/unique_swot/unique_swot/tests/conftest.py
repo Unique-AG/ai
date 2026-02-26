@@ -312,8 +312,21 @@ def mock_llm():
     """Mock LLM (Language Model Interface) for testing."""
     llm = Mock()
     llm.name = "test-model"
-    llm.encoder_name = "cl100k_base"
+    encoder_name_mock = Mock()
+    encoder_name_mock.value = "cl100k_base"
+    llm.encoder_name = encoder_name_mock
+    llm.get_encoder.return_value = lambda text: list(range(len(text.split())))
     return llm
+
+
+@pytest.fixture
+def mock_progress_notifier():
+    """Mock ProgressNotifier for testing."""
+    notifier = Mock()
+    notifier.update = AsyncMock()
+    notifier.increment = AsyncMock()
+    notifier.step_size = 0
+    return notifier
 
 
 # ============================================================================
