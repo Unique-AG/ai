@@ -64,6 +64,29 @@ class ToolCall(BaseModel):
         )
 
 
+class ToolResponseRecord(BaseModel):
+    model_config = model_config
+
+    id: str | None = None
+    content: str | None = None
+    tool_call_id: str | None = None
+    created_at: datetime | None = None
+
+
+class ToolCallRecord(BaseModel):
+    model_config = model_config
+
+    id: str | None = None
+    external_tool_call_id: str
+    function_name: str
+    arguments: dict[str, Any] | None = None
+    round_index: int
+    sequence_index: int
+    message_id: str | None = None
+    response: ToolResponseRecord | None = None
+    created_at: datetime | None = None
+
+
 class ChatMessage(BaseModel):
     # TODO: The below seems not to be True anymore @irina-unique. To be checked in separate PR
     # This model should strictly meets https://github.com/Unique-AG/monorepo/blob/master/node/apps/node-chat/src/public-api/2023-12-06/dtos/message/public-message.dto.ts
@@ -83,7 +106,6 @@ class ChatMessage(BaseModel):
     user_aborted_at: datetime | None = None
     updated_at: datetime | None = None
     references: list[ContentReference] | None = None
-    tool_call_records: list[ToolCallRecord] | None = None
 
     # TODO make sdk return role consistently in lowercase
     # Currently needed as sdk returns role in uppercase
@@ -119,30 +141,6 @@ class ChatMessage(BaseModel):
                     )
 
                 return assistant_message
-
-
-
-class ToolResponseRecord(BaseModel):
-    model_config = model_config
-
-    id: str | None = None
-    content: str | None = None
-    tool_call_id: str | None = None
-    created_at: datetime | None = None
-
-
-class ToolCallRecord(BaseModel):
-    model_config = model_config
-
-    id: str | None = None
-    external_tool_call_id: str
-    function_name: str
-    arguments: dict[str, Any] | None = None
-    round_index: int
-    sequence_index: int
-    message_id: str | None = None
-    response: ToolResponseRecord | None = None
-    created_at: datetime | None = None
 
 
 class ChatMessageAssessmentStatus(StrEnum):

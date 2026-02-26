@@ -1,334 +1,185 @@
-import json
+from collections import defaultdict
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
-    _parse_tool_calls_from_gpt_request,
     get_full_history_with_contents_and_tool_calls,
 )
-from unique_toolkit.chat.functions import (
-    _construct_message_create_params,
-    _filter_valid_messages_including_tools,
-    create_tool_call_message,
-    create_tool_message,
-    filter_valid_messages,
+from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
+from unique_toolkit.chat.schemas import (
+    ChatMessage,
+    ChatMessageRole,
+    ToolCallRecord,
+    ToolResponseRecord,
 )
-from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
+    LanguageModelFunction,
     LanguageModelFunctionCall,
     LanguageModelMessages,
     LanguageModelToolMessage,
 )
 
 
-class TestChatMessageRole:
-    def test_tool_call_role_exists(self):
-        assert ChatMessageRole.TOOL_CALL == "tool_call"
-        assert ChatMessageRole.TOOL_CALL.value == "tool_call"
+class TestExtractToolCallRecords:
+    def _make_history_manager(self) -> HistoryManager:
+        hm = HistoryManager.__new__(HistoryManager)
+        hm._loop_history = []
+        return hm
 
-    def test_tool_role_exists(self):
-        assert ChatMessageRole.TOOL == "tool"
+    def test_empty_history(self):
+        hm = self._make_history_manager()
+        assert hm.extract_tool_call_records() == []
 
-    def test_tool_call_role_uppercased(self):
-        assert ChatMessageRole.TOOL_CALL.value.upper() == "TOOL_CALL"
-
-
-class TestConstructMessageCreateParams:
-    def test_tool_call_role_param(self):
-        params = _construct_message_create_params(
-            user_id="u1",
-            company_id="c1",
-            chat_id="chat1",
-            assistant_id="a1",
-            role=ChatMessageRole.TOOL_CALL,
-            gpt_request={"tool_calls": [{"id": "tc1", "type": "function"}]},
-        )
-        assert params["role"] == "TOOL_CALL"
-        assert params["gptRequest"] == {
-            "tool_calls": [{"id": "tc1", "type": "function"}]
-        }
-
-    def test_tool_role_param(self):
-        params = _construct_message_create_params(
-            user_id="u1",
-            company_id="c1",
-            chat_id="chat1",
-            assistant_id="a1",
-            role=ChatMessageRole.TOOL,
-            content="tool response",
-            gpt_request={"tool_call_id": "tc1", "name": "search"},
-        )
-        assert params["role"] == "TOOL"
-        assert params["text"] == "tool response"
-        assert params["gptRequest"] == {"tool_call_id": "tc1", "name": "search"}
-
-    def test_assistant_role_param_unchanged(self):
-        params = _construct_message_create_params(
-            user_id="u1",
-            company_id="c1",
-            chat_id="chat1",
-            assistant_id="a1",
-            role=ChatMessageRole.ASSISTANT,
-            content="hello",
-        )
-        assert params["role"] == "ASSISTANT"
-        assert "gptRequest" not in params
-
-    def test_gpt_request_omitted_when_none(self):
-        params = _construct_message_create_params(
-            user_id="u1",
-            company_id="c1",
-            chat_id="chat1",
-            assistant_id="a1",
-            role=ChatMessageRole.ASSISTANT,
-        )
-        assert "gptRequest" not in params
-
-
-class TestCreateToolCallMessage:
-    @patch("unique_toolkit.chat.functions.unique_sdk")
-    def test_creates_tool_call_message(self, mock_sdk):
-        mock_sdk.Message.create.return_value = {
-            "id": "msg1",
-            "chatId": "chat1",
-            "role": "TOOL_CALL",
-            "text": None,
-            "gptRequest": [{"tool_calls": []}],
-        }
-
-        result = create_tool_call_message(
-            user_id="u1",
-            company_id="c1",
-            chat_id="chat1",
-            assistant_id="a1",
-            tool_calls_data=[
-                {
-                    "id": "tc1",
-                    "type": "function",
-                    "function": {"name": "search", "arguments": {"q": "test"}},
-                }
-            ],
-        )
-
-        assert isinstance(result, ChatMessage)
-        mock_sdk.Message.create.assert_called_once()
-        call_kwargs = mock_sdk.Message.create.call_args
-        assert call_kwargs.kwargs.get("role") == "TOOL_CALL"
-
-
-class TestCreateToolMessage:
-    @patch("unique_toolkit.chat.functions.unique_sdk")
-    def test_creates_tool_message(self, mock_sdk):
-        mock_sdk.Message.create.return_value = {
-            "id": "msg2",
-            "chatId": "chat1",
-            "role": "TOOL",
-            "text": "search results...",
-            "toolCallId": "tc1",
-            "gptRequest": [{"tool_call_id": "tc1", "name": "search"}],
-        }
-
-        result = create_tool_message(
-            user_id="u1",
-            company_id="c1",
-            chat_id="chat1",
-            assistant_id="a1",
-            tool_call_id="tc1",
-            tool_name="search",
-            content="search results...",
-        )
-
-        assert isinstance(result, ChatMessage)
-        mock_sdk.Message.create.assert_called_once()
-
-
-class TestFilterValidMessages:
-    def _make_messages(self, roles_and_texts):
-        data = []
-        for role, text in roles_and_texts:
-            data.append({"role": role, "text": text})
-        return {
-            "data": data
-            + [
-                {"role": "USER", "text": "last1"},
-                {"role": "ASSISTANT", "text": "last2"},
-            ]
-        }
-
-    def test_filters_tool_call_and_tool(self):
-        msgs = self._make_messages(
-            [
-                ("USER", "hello"),
-                ("ASSISTANT", "world"),
-                ("TOOL_CALL", None),
-                ("TOOL", "tool response"),
-            ]
-        )
-        result = filter_valid_messages(msgs)
-        roles = [m["role"] for m in result]
-        assert "TOOL_CALL" not in [r.lower() for r in roles]
-        assert "TOOL" not in [r.lower() for r in roles]
-        assert len(result) == 2
-
-    def test_keeps_user_and_assistant(self):
-        msgs = self._make_messages(
-            [
-                ("USER", "q1"),
-                ("ASSISTANT", "a1"),
-            ]
-        )
-        result = filter_valid_messages(msgs)
-        assert len(result) == 2
-
-
-class TestFilterValidMessagesIncludingTools:
-    def _make_messages(self, roles_and_texts):
-        data = []
-        for role, text in roles_and_texts:
-            data.append({"role": role, "text": text})
-        return {
-            "data": data
-            + [
-                {"role": "USER", "text": "last1"},
-                {"role": "ASSISTANT", "text": "last2"},
-            ]
-        }
-
-    def test_keeps_tool_call_and_tool(self):
-        msgs = self._make_messages(
-            [
-                ("USER", "hello"),
-                ("TOOL_CALL", None),
-                ("TOOL", "tool response"),
-                ("ASSISTANT", "final answer"),
-            ]
-        )
-        result = _filter_valid_messages_including_tools(msgs)
-        roles = [m["role"] for m in result]
-        assert "TOOL_CALL" in roles
-        assert "TOOL" in roles
-        assert len(result) == 4
-
-    def test_filters_system(self):
-        msgs = self._make_messages(
-            [
-                ("SYSTEM", "system msg"),
-                ("USER", "hello"),
-            ]
-        )
-        result = _filter_valid_messages_including_tools(msgs)
-        assert len(result) == 1
-        assert result[0]["role"] == "USER"
-
-    def test_tool_call_with_null_text_kept(self):
-        msgs = self._make_messages(
-            [
-                ("TOOL_CALL", None),
-            ]
-        )
-        result = _filter_valid_messages_including_tools(msgs)
-        assert len(result) == 1
-
-
-class TestParseToolCallsFromGptRequest:
-    def test_parses_tool_calls(self):
-        data = [
-            {
-                "id": "call_1",
-                "type": "function",
-                "function": {
-                    "name": "web_search",
-                    "arguments": {"query": "test"},
-                },
-            }
+    def test_single_round_single_tool(self):
+        hm = self._make_history_manager()
+        fn = LanguageModelFunction(id="call_1", name="search", arguments={"q": "test"})
+        hm._loop_history = [
+            LanguageModelAssistantMessage.from_functions(tool_calls=[fn]),
+            LanguageModelToolMessage(
+                tool_call_id="call_1", content="result", name="search"
+            ),
         ]
-        result = _parse_tool_calls_from_gpt_request(data)
-        assert len(result) == 1
-        assert isinstance(result[0], LanguageModelFunctionCall)
-        assert result[0].function.name == "web_search"
-        assert result[0].function.arguments == {"query": "test"}
+        records = hm.extract_tool_call_records()
+        assert len(records) == 1
+        assert records[0].external_tool_call_id == "call_1"
+        assert records[0].function_name == "search"
+        assert records[0].arguments == {"q": "test"}
+        assert records[0].round_index == 0
+        assert records[0].sequence_index == 0
+        assert records[0].response is not None
+        assert records[0].response.content == "result"
 
-    def test_parses_string_arguments(self):
-        data = [
-            {
-                "id": "call_2",
-                "type": "function",
-                "function": {
-                    "name": "search",
-                    "arguments": json.dumps({"q": "hello"}),
-                },
-            }
+    def test_single_round_parallel_tools(self):
+        hm = self._make_history_manager()
+        fn_a = LanguageModelFunction(id="call_a", name="search", arguments={"q": "a"})
+        fn_b = LanguageModelFunction(id="call_b", name="calc", arguments={"x": 1})
+        hm._loop_history = [
+            LanguageModelAssistantMessage.from_functions(tool_calls=[fn_a, fn_b]),
+            LanguageModelToolMessage(tool_call_id="call_a", content="res_a", name="search"),
+            LanguageModelToolMessage(tool_call_id="call_b", content="res_b", name="calc"),
         ]
-        result = _parse_tool_calls_from_gpt_request(data)
-        assert result[0].function.arguments == {"q": "hello"}
+        records = hm.extract_tool_call_records()
+        assert len(records) == 2
+        assert records[0].sequence_index == 0
+        assert records[1].sequence_index == 1
+        assert records[0].round_index == records[1].round_index == 0
 
-    def test_empty_input(self):
-        assert _parse_tool_calls_from_gpt_request([]) == []
+    def test_multiple_rounds(self):
+        hm = self._make_history_manager()
+        fn1 = LanguageModelFunction(id="c1", name="t1", arguments=None)
+        fn2 = LanguageModelFunction(id="c2", name="t2", arguments=None)
+        hm._loop_history = [
+            LanguageModelAssistantMessage.from_functions(tool_calls=[fn1]),
+            LanguageModelToolMessage(tool_call_id="c1", content="r1", name="t1"),
+            LanguageModelAssistantMessage.from_functions(tool_calls=[fn2]),
+            LanguageModelToolMessage(tool_call_id="c2", content="r2", name="t2"),
+        ]
+        records = hm.extract_tool_call_records()
+        assert len(records) == 2
+        assert records[0].round_index == 0
+        assert records[1].round_index == 1
+
+    def test_missing_response(self):
+        hm = self._make_history_manager()
+        fn = LanguageModelFunction(id="c1", name="t1", arguments=None)
+        hm._loop_history = [
+            LanguageModelAssistantMessage.from_functions(tool_calls=[fn]),
+        ]
+        records = hm.extract_tool_call_records()
+        assert len(records) == 1
+        assert records[0].response is None
+
+    def test_none_id_becomes_empty_string(self):
+        hm = self._make_history_manager()
+        tc = LanguageModelFunctionCall(
+            id=None,
+            type="function",
+            function=LanguageModelFunction(name="t1", arguments=None),
+        )
+        assistant_msg = LanguageModelAssistantMessage(content="", tool_calls=[tc])
+        hm._loop_history = [assistant_msg]
+        records = hm.extract_tool_call_records()
+        assert len(records) == 1
+        assert records[0].external_tool_call_id == ""
 
 
 class TestGetFullHistoryWithContentsAndToolCalls:
     @patch(
-        "unique_toolkit.agentic.history_manager.history_construction_with_contents.get_full_history_including_tool_messages"
+        "unique_toolkit.agentic.history_manager.history_construction_with_contents.get_chat_history_with_contents"
     )
-    def test_builds_history_with_tool_messages(self, mock_get_history):
+    def test_interleaves_tool_calls_from_db(self, mock_get_contents):
         mock_chat_service = MagicMock()
-        mock_chat_service._user_id = "u1"
-        mock_chat_service._company_id = "c1"
-
         mock_content_service = MagicMock()
         mock_content_service.search_contents.return_value = []
 
         user_msg = MagicMock()
-        user_msg.id = "msg5"
-        user_msg.text = "And what is 3+3?"
-        user_msg.original_text = "And what is 3+3?"
-        user_msg.created_at = "2026-01-01T00:00:04"
+        user_msg.id = "msg3"
+        user_msg.text = "follow up"
+        user_msg.original_text = "follow up"
+        user_msg.created_at = "2026-01-01T00:00:02"
 
-        mock_get_history.return_value = [
+        mock_chat_service.get_full_history.return_value = [
             ChatMessage(
                 id="msg1",
                 chat_id="chat1",
                 role=ChatMessageRole.USER,
-                text="What is 2+2?",
+                text="hello",
                 created_at=datetime(2026, 1, 1, 0, 0, 0),
             ),
             ChatMessage(
                 id="msg2",
                 chat_id="chat1",
-                role=ChatMessageRole.TOOL_CALL,
-                text=None,
-                gpt_request={
-                    "tool_calls": [
-                        {
-                            "id": "tc1",
-                            "type": "function",
-                            "function": {
-                                "name": "calculator",
-                                "arguments": {"expr": "2+2"},
-                            },
-                        }
-                    ]
-                },
-                created_at=datetime(2026, 1, 1, 0, 0, 1),
-            ),
-            ChatMessage(
-                id="msg3",
-                chat_id="chat1",
-                role=ChatMessageRole.TOOL,
-                text="4",
-                tool_call_id="tc1",
-                gpt_request={"tool_call_id": "tc1", "name": "calculator"},
-                created_at=datetime(2026, 1, 1, 0, 0, 2),
-            ),
-            ChatMessage(
-                id="msg4",
-                chat_id="chat1",
                 role=ChatMessageRole.ASSISTANT,
                 text="The answer is 4.",
-                created_at=datetime(2026, 1, 1, 0, 0, 3),
+                created_at=datetime(2026, 1, 1, 0, 0, 1),
             ),
         ]
+
+        tool_call_records = [
+            ToolCallRecord(
+                external_tool_call_id="tc1",
+                function_name="calculator",
+                arguments={"expr": "2+2"},
+                round_index=0,
+                sequence_index=0,
+                message_id="msg2",
+                response=ToolResponseRecord(content="4"),
+            ),
+        ]
+        mock_chat_service.list_tool_calls_by_message_ids.return_value = tool_call_records
+
+        from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
+            ChatHistoryWithContent,
+            ChatMessageWithContents,
+        )
+
+        mock_get_contents.return_value = ChatHistoryWithContent(
+            root=[
+                ChatMessageWithContents(
+                    chat_id="chat1",
+                    role=ChatMessageRole.USER,
+                    text="hello",
+                    originalText="hello",
+                    created_at=datetime(2026, 1, 1, 0, 0, 0),
+                ),
+                ChatMessageWithContents(
+                    id="msg2",
+                    chat_id="chat1",
+                    role=ChatMessageRole.ASSISTANT,
+                    text="The answer is 4.",
+                    originalText="The answer is 4.",
+                    created_at=datetime(2026, 1, 1, 0, 0, 1),
+                ),
+                ChatMessageWithContents(
+                    chat_id="chat1",
+                    role=ChatMessageRole.USER,
+                    text="follow up",
+                    originalText="follow up",
+                    created_at=datetime(2026, 1, 1, 0, 0, 2),
+                ),
+            ]
+        )
 
         result = get_full_history_with_contents_and_tool_calls(
             user_message=user_msg,
@@ -338,32 +189,22 @@ class TestGetFullHistoryWithContentsAndToolCalls:
         )
 
         assert isinstance(result, LanguageModelMessages)
+        # user -> assistant_with_tool_calls -> tool_response -> assistant_final -> user
         assert len(result.root) == 5
-
-        # msg1: user "What is 2+2?"
         assert result.root[0].role.value == "user"
-        # msg2: TOOL_CALL -> mapped to assistant with tool_calls
         assert isinstance(result.root[1], LanguageModelAssistantMessage)
         assert result.root[1].tool_calls is not None
-        assert len(result.root[1].tool_calls) == 1
         assert result.root[1].tool_calls[0].function.name == "calculator"
-        # msg3: TOOL -> mapped to tool message
         assert isinstance(result.root[2], LanguageModelToolMessage)
         assert result.root[2].content == "4"
-        assert result.root[2].tool_call_id == "tc1"
-        # msg4: assistant "The answer is 4."
         assert result.root[3].role.value == "assistant"
-        # msg5: new user message "And what is 3+3?"
         assert result.root[4].role.value == "user"
 
     @patch(
-        "unique_toolkit.agentic.history_manager.history_construction_with_contents.get_full_history_including_tool_messages"
+        "unique_toolkit.agentic.history_manager.history_construction_with_contents.get_chat_history_with_contents"
     )
-    def test_user_only_history(self, mock_get_history):
+    def test_user_only_history(self, mock_get_contents):
         mock_chat_service = MagicMock()
-        mock_chat_service._user_id = "u1"
-        mock_chat_service._company_id = "c1"
-
         mock_content_service = MagicMock()
         mock_content_service.search_contents.return_value = []
 
@@ -373,7 +214,25 @@ class TestGetFullHistoryWithContentsAndToolCalls:
         user_msg.original_text = "Hello"
         user_msg.created_at = "2026-01-01T00:00:00"
 
-        mock_get_history.return_value = []
+        mock_chat_service.get_full_history.return_value = []
+        mock_chat_service.list_tool_calls_by_message_ids.return_value = []
+
+        from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
+            ChatHistoryWithContent,
+            ChatMessageWithContents,
+        )
+
+        mock_get_contents.return_value = ChatHistoryWithContent(
+            root=[
+                ChatMessageWithContents(
+                    chat_id="chat1",
+                    role=ChatMessageRole.USER,
+                    text="Hello",
+                    originalText="Hello",
+                    created_at=datetime(2026, 1, 1, 0, 0, 0),
+                ),
+            ]
+        )
 
         result = get_full_history_with_contents_and_tool_calls(
             user_message=user_msg,

@@ -1514,3 +1514,43 @@ async def list_tool_calls_async(
     except Exception as e:
         logger.error(f"Failed to list tool calls: {e}")
         raise e
+
+
+def list_tool_calls_by_message_ids(
+    user_id: str,
+    company_id: str,
+    message_ids: list[str],
+) -> list[ToolCallRecord]:
+    """Lists tool calls for multiple messages in a single request."""
+    if not message_ids:
+        return []
+    try:
+        result = unique_sdk.ToolCall.list_by_message_ids(
+            user_id=user_id,
+            company_id=company_id,
+            messageIds=",".join(message_ids),
+        )
+        return [ToolCallRecord(**item) for item in result["data"]]
+    except Exception as e:
+        logger.error(f"Failed to list tool calls by message ids: {e}")
+        raise e
+
+
+async def list_tool_calls_by_message_ids_async(
+    user_id: str,
+    company_id: str,
+    message_ids: list[str],
+) -> list[ToolCallRecord]:
+    """Lists tool calls for multiple messages in a single request (async)."""
+    if not message_ids:
+        return []
+    try:
+        result = await unique_sdk.ToolCall.list_by_message_ids_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageIds=",".join(message_ids),
+        )
+        return [ToolCallRecord(**item) for item in result["data"]]
+    except Exception as e:
+        logger.error(f"Failed to list tool calls by message ids: {e}")
+        raise e

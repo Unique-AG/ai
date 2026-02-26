@@ -271,9 +271,9 @@ class HistoryManager:
                     response = ToolResponseRecord(content=response_content) if response_content is not None else None
                     records.append(
                         ToolCallRecord(
-                            external_tool_call_id=tc.id,
-                            function_name=tc.name,
-                            arguments=tc.arguments,
+                            external_tool_call_id=tc.id or "",
+                            function_name=tc.function.name,
+                            arguments=tc.function.arguments,
                             round_index=round_index,
                             sequence_index=seq_index,
                             response=response,

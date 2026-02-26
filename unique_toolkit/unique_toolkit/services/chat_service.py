@@ -52,6 +52,8 @@ from unique_toolkit.chat.functions import (
     create_tool_calls_async,
     list_tool_calls,
     list_tool_calls_async,
+    list_tool_calls_by_message_ids,
+    list_tool_calls_by_message_ids_async,
 )
 from unique_toolkit.chat.responses_api import (
     stream_responses_with_references,
@@ -2214,4 +2216,28 @@ class ChatService(ChatServiceDeprecated):
             user_id=self._user_id,
             company_id=self._company_id,
             message_id=message_id,
+        )
+
+    def list_tool_calls_by_message_ids(
+        self,
+        *,
+        message_ids: list[str],
+    ) -> list[ToolCallRecord]:
+        """Lists tool calls for multiple messages in a single request."""
+        return list_tool_calls_by_message_ids(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_ids=message_ids,
+        )
+
+    async def list_tool_calls_by_message_ids_async(
+        self,
+        *,
+        message_ids: list[str],
+    ) -> list[ToolCallRecord]:
+        """Lists tool calls for multiple messages in a single request (async)."""
+        return await list_tool_calls_by_message_ids_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_ids=message_ids,
         )

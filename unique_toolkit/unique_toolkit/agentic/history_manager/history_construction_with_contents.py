@@ -242,19 +242,21 @@ def get_full_history_with_contents_and_tool_calls(
     """
     chat_history = chat_service.get_full_history()
 
-    # Load tool calls for all assistant messages in one batch
     assistant_message_ids = [
         msg.id for msg in chat_history
         if msg.role == ChatRole.ASSISTANT and msg.id
     ]
     tool_calls_by_message: dict[str, list[ToolCallRecord]] = {}
-    for msg_id in assistant_message_ids:
+    if assistant_message_ids:
         try:
-            tool_calls_by_message[msg_id] = chat_service.list_tool_calls(
-                message_id=msg_id,
+            all_tool_calls = chat_service.list_tool_calls_by_message_ids(
+                message_ids=assistant_message_ids,
             )
+            for tc in all_tool_calls:
+                if tc.message_id:
+                    tool_calls_by_message.setdefault(tc.message_id, []).append(tc)
         except Exception:
-            tool_calls_by_message[msg_id] = []
+            logger.warning("Failed to batch-load tool calls, falling back to empty", exc_info=True)
 
     grouped_elements = get_chat_history_with_contents(
         user_message=user_message,

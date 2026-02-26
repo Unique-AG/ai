@@ -29,6 +29,9 @@ class ToolCall(APIResource["ToolCall"]):
     class ListParams(RequestOptions):
         messageId: str
 
+    class ListByMessageIdsParams(RequestOptions):
+        messageIds: str
+
     id: str
     externalToolCallId: str
     functionName: str
@@ -111,6 +114,50 @@ class ToolCall(APIResource["ToolCall"]):
         user_id: str,
         company_id: str,
         **params: Unpack["ToolCall.ListParams"],
+    ) -> ListObject["ToolCall"]:
+        result = await cls._static_request_async(
+            "get",
+            cls.RESOURCE_URL,
+            user_id,
+            company_id,
+            params=params,
+        )
+
+        if not isinstance(result, ListObject):
+            raise TypeError(
+                "Expected list object from API, got %s" % (type(result).__name__)
+            )
+
+        return result
+
+    @classmethod
+    def list_by_message_ids(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["ToolCall.ListByMessageIdsParams"],
+    ) -> ListObject["ToolCall"]:
+        result = cls._static_request(
+            "get",
+            cls.RESOURCE_URL,
+            user_id,
+            company_id,
+            params=params,
+        )
+
+        if not isinstance(result, ListObject):
+            raise TypeError(
+                "Expected list object from API, got %s" % (type(result).__name__)
+            )
+
+        return result
+
+    @classmethod
+    async def list_by_message_ids_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["ToolCall.ListByMessageIdsParams"],
     ) -> ListObject["ToolCall"]:
         result = await cls._static_request_async(
             "get",
