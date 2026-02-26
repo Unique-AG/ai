@@ -1,0 +1,9 @@
+node_modules
+src/node_modules
+.git
+*.txt
+*.json.bak
+**/.msal-cache.json
+**/.access-token.txt
+**/.cache-id
+**/.env

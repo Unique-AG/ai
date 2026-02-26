@@ -161,6 +161,46 @@ class User(APIResource["User"]):
         )
 
     @classmethod
+    def get_by_id(
+        cls,
+        user_id: str,
+        company_id: str,
+        target_user_id: str,
+    ) -> "User.User":
+        """
+        Get a user by their ID.
+        """
+        return cast(
+            "User.User",
+            cls._static_request(
+                "get",
+                f"/users/{target_user_id}",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
+    async def get_by_id_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        target_user_id: str,
+    ) -> "User.User":
+        """
+        Async get a user by their ID.
+        """
+        return cast(
+            "User.User",
+            await cls._static_request_async(
+                "get",
+                f"/users/{target_user_id}",
+                user_id,
+                company_id,
+            ),
+        )
+
+    @classmethod
     def get_user_groups(
         cls,
         user_id: str,

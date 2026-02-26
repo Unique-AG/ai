@@ -3,6 +3,8 @@ from typing import Any
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from unique_toolkit._common.config_checker import register_config
+
 
 class FeatureFlag:
     """A feature flag that can be enabled globally or for specific company IDs.
@@ -44,6 +46,7 @@ class FeatureFlag:
         return f"FeatureFlag({self.value})"
 
 
+@register_config()
 class FeatureFlags(BaseSettings):
     """Feature flags loaded from environment variables.
 

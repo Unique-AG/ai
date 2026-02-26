@@ -11,7 +11,7 @@ from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
 )
 
-from unique_web_search.services.content_processing import WebPageChunk
+from unique_web_search.schema import WebPageChunk, WebSearchDebugInfo
 from unique_web_search.services.executors.context import (
     ContentReducer,
     ExecutorCallbacks,
@@ -21,7 +21,6 @@ from unique_web_search.services.executors.context import (
     QueryElicitationProtocol,
 )
 from unique_web_search.services.search_engine.schema import WebSearchResult
-from unique_web_search.utils import WebSearchDebugInfo
 
 
 class TestExecutorServiceContext:

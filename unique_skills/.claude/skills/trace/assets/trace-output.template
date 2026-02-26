@@ -1,0 +1,127 @@
+# Trace Output Template
+
+<!--
+  This is an annotated example of /trace output.
+  It uses a fictional e-commerce checkout flow to show every possible node type.
+  Copy and adapt the structure when producing real trace output.
+-->
+
+---
+
+## Trace: `process_order()` in `src/payments/checkout.py`
+
+<!-- Part 1: Always produce the Mermaid diagram first -->
+
+```mermaid
+graph TD
+    checkout["src/payments/checkout.py\nprocess_order()"]
+    validate["src/validators.py\nvalidate_cart()"]
+    inventory["src/inventory.py\ncheck_stock()"]
+    payment["src/payment.py\ncharge()"]
+    notify["src/notifications.py\nsend_confirmation()"]
+
+    stripe["[EXTERNAL]\nStripe API\n(HTTP POST /v1/charges)"]:::external
+    db["[EXTERNAL]\nPostgreSQL\n(SQL INSERT orders)"]:::external
+    ambig["[AMBIGUOUS]\ndynamic_handler()\n(DI — runtime callee)"]:::ambiguous
+    truncated["[TRUNCATED at depth 3]\nnotify branch cut off"]:::truncated
+    cycle["[CYCLE → checkout]"]:::cycle
+
+    checkout --> validate
+    checkout --> inventory
+    checkout --> payment
+    checkout --> db
+    payment --> stripe
+    inventory --> ambig
+    notify --> truncated
+    checkout -.-> cycle
+
+    classDef external fill:#fef3c7,stroke:#d97706,stroke-dasharray: 5 5
+    classDef ambiguous fill:#fee2e2,stroke:#dc2626,stroke-dasharray: 3 3
+    classDef truncated fill:#f3f4f6,stroke:#9ca3af
+    classDef cycle fill:#ede9fe,stroke:#7c3aed
+```
+
+<!--
+  Node labelling rules:
+  - Internal nodes: "filename.py\nfunction_name()"
+  - External nodes: "[EXTERNAL]\nSystem Name\n(protocol + method)"  — use :::external class
+  - Ambiguous nodes: "[AMBIGUOUS]\nfunction_name()\n(reason)" — use :::ambiguous class
+  - Truncated nodes: "[TRUNCATED at depth N]\ndescription" — use :::truncated class
+  - Cycle nodes: "[CYCLE → original-node-id]" — use :::cycle class; dashed arrow (-.->) from source
+-->
+
+---
+
+<!-- Part 2: Structured summary — include all eight sections; use "None" for empty sections -->
+
+**Entry point**: `process_order()` in `src/payments/checkout.py`
+
+<!-- One sentence identifying the function and its file -->
+
+---
+
+**Call chain**:
+
+`process_order` first calls `validate_cart()` to confirm the cart contains valid items and quantities. It then checks inventory via `check_stock()`, which delegates to a dynamically resolved handler through the DI container. If validation and stock checks pass, `process_order` calls `charge()` in `src/payment.py`, which synchronously calls the Stripe API to complete the transaction. On success, the order is persisted to PostgreSQL and a confirmation notification is dispatched (trace truncated at depth 3 inside `send_confirmation()`).
+
+<!-- Prose narrative — describe the execution path in plain English. Write for someone who has never seen this code. Cover: what the function does, the order of calls, the key decision points, and how it exits. -->
+
+---
+
+**Key files & their roles**:
+
+| File | Role |
+|---|---|
+| `src/payments/checkout.py` | Entry point — orchestrates the full order flow |
+| `src/validators.py` | Validates cart contents (items, quantities, prices) |
+| `src/inventory.py` | Checks product stock availability; uses DI for the underlying store |
+| `src/payment.py` | Handles Stripe API integration for charging |
+| `src/notifications.py` | Sends order confirmation (truncated; full flow not traced) |
+
+<!-- List every file touched in the trace. Two columns: relative file path | one-sentence role description -->
+
+---
+
+**External dependencies**:
+
+- **Stripe API** — HTTP POST `/v1/charges` — called from `src/payment.py::charge()`
+- **PostgreSQL** — SQL INSERT into `orders` table — called from `src/payments/checkout.py::process_order()` via ORM
+
+<!-- List each external system: name | protocol + method | call site (file::function) -->
+
+---
+
+**Side effects**:
+
+- Database write: order record inserted into `orders` table
+- Network call: Stripe charge initiated (synchronous; blocks until Stripe responds)
+- State mutation: cart session cleared after successful order (in `process_order`)
+
+<!-- List concrete side effects: file writes, network calls, state mutations, external integrations. Be specific about what is written/called/mutated. -->
+
+---
+
+**Ambiguities & truncations**:
+
+- `[AMBIGUOUS]` `dynamic_handler()` in `src/inventory.py::check_stock()` — callee resolved at runtime via dependency injection container; the actual implementation could not be statically determined. Likely candidates: `WarehouseInventoryStore`, `CachedInventoryStore` (both registered in `src/container.py`).
+- `[TRUNCATED]` `send_confirmation()` branch in `src/notifications.py` — depth limit (3) reached before tracing the notification internals. This function may contain additional side effects (e.g., email API calls, SMS gateway). Trace deeper with: `/trace src/notifications.py send_confirmation`
+- `[CYCLE]` Back-edge detected from `checkout.py` → `process_order()` (already the entry point) — cycle noted, not re-entered.
+
+<!--
+  For each ambiguity: explain WHY the callee could not be determined and suggest how to investigate.
+  For each truncation: name the function cut off, explain what might be below it, and show how to trace it further.
+  For each cycle: show the back-edge and confirm it was not re-entered.
+  Write "None" if no ambiguities or truncations exist.
+-->
+
+---
+
+**Narrative**:
+
+`process_order` is the top-level checkout orchestrator. It runs synchronously: validate cart → check stock → charge → persist → notify. The two most important external calls are the Stripe API charge (network, synchronous, blocking) and the PostgreSQL INSERT (database write). The DI-resolved inventory handler is the main ambiguity — its implementation depends on the application container configuration, which is not traceable statically. The notification flow is truncated at depth 3 and may contain additional side effects worth tracing separately before any refactor that touches the notification path.
+
+<!--
+  One paragraph summarising the full entry-to-exit flow for a developer who has never seen this code.
+  Cover: what the function does, the key call path, which external systems are touched (and how),
+  any important ambiguities, and what a developer needs to know before modifying this code.
+-->

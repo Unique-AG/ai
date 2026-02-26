@@ -67,6 +67,7 @@ nav:
     - Events: events/events.md
     - Chat:
       - Overview: chat/index.md
+      - Task Cancellation: chat/cancellation.md
       - Advanced Rendering: chat/advanced_rendering.md
     - Knowledge Base:
       - Overview: knowledge_base/index.md

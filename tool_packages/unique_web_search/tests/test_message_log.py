@@ -232,7 +232,7 @@ class TestWebSearchMessageLoggerFinished:
         mock_message_log: MessageLog,
     ) -> None:
         """
-        Purpose: Verify finished() sets progress message to "Search completed!".
+        Purpose: Verify finished() sets progress message to "".
         Why this matters: Progress message communicates completion state to the UI.
         Setup summary: Create logger, call finished(), verify progress message.
         """
@@ -249,7 +249,7 @@ class TestWebSearchMessageLoggerFinished:
         await logger.finished()
 
         # Assert
-        assert logger._progress_message == "Search completed!"
+        assert logger._progress_message == ""
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -259,7 +259,7 @@ class TestWebSearchMessageLoggerFinished:
         mock_message_log: MessageLog,
     ) -> None:
         """
-        Purpose: Verify finished() overwrites any prior progress message with "Search completed!".
+        Purpose: Verify finished() overwrites any prior progress message with "".
         Why this matters: Final progress message must reflect completion regardless of prior state.
         Setup summary: Set a progress message, call finished(), verify overwrite.
         """
@@ -277,11 +277,11 @@ class TestWebSearchMessageLoggerFinished:
         await logger.finished()
 
         # Assert
-        assert logger._progress_message == "Search completed!"
+        assert logger._progress_message == ""
         call_kwargs = (
             mock_message_step_logger.create_or_update_message_log_async.call_args.kwargs
         )
-        assert call_kwargs["progress_message"] == "Search completed!"
+        assert call_kwargs["progress_message"] == ""
 
 
 class TestWebSearchMessageLoggerFailed:
@@ -353,7 +353,7 @@ class TestWebSearchMessageLoggerFailed:
         mock_message_log: MessageLog,
     ) -> None:
         """
-        Purpose: Verify failed() sets progress message to "Search failed!".
+        Purpose: Verify failed() sets progress message to "_Search failed_".
         Why this matters: Progress message communicates failure state to the UI.
         Setup summary: Create logger, call failed(), verify progress message.
         """
@@ -370,7 +370,7 @@ class TestWebSearchMessageLoggerFailed:
         await logger.failed()
 
         # Assert
-        assert logger._progress_message == "Search failed!"
+        assert logger._progress_message == "_Search failed_"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -380,7 +380,7 @@ class TestWebSearchMessageLoggerFailed:
         mock_message_log: MessageLog,
     ) -> None:
         """
-        Purpose: Verify failed() overwrites any prior progress message with "Search failed!".
+        Purpose: Verify failed() overwrites any prior progress message with "_Search failed_".
         Why this matters: Final progress message must reflect failure regardless of prior state.
         Setup summary: Set a progress message, call failed(), verify overwrite.
         """
@@ -398,11 +398,11 @@ class TestWebSearchMessageLoggerFailed:
         await logger.failed()
 
         # Assert
-        assert logger._progress_message == "Search failed!"
+        assert logger._progress_message == "_Search failed_"
         call_kwargs = (
             mock_message_step_logger.create_or_update_message_log_async.call_args.kwargs
         )
-        assert call_kwargs["progress_message"] == "Search failed!"
+        assert call_kwargs["progress_message"] == "_Search failed_"
 
 
 class TestWebSearchMessageLoggerLogProgress:
@@ -801,7 +801,7 @@ class TestWebSearchMessageLoggerIntegration:
         assert logger._status == MessageLogStatus.COMPLETED
         assert len(logger._details.data) == 1
         assert len(logger._references) == 2
-        assert logger._progress_message == "Search completed!"
+        assert logger._progress_message == ""
         assert (
             mock_message_step_logger.create_or_update_message_log_async.call_count == 4
         )
@@ -835,7 +835,7 @@ class TestWebSearchMessageLoggerIntegration:
         # Assert
         assert logger._status == MessageLogStatus.FAILED
         assert len(logger._details.data) == 1
-        assert logger._progress_message == "Search failed!"
+        assert logger._progress_message == "_Search failed_"
         assert (
             mock_message_step_logger.create_or_update_message_log_async.call_count == 3
         )

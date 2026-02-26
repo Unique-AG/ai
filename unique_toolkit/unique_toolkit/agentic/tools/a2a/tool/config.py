@@ -5,6 +5,7 @@ from typing import Annotated, Generic, Literal, TypeVar
 from pydantic import Field
 from pydantic.main import BaseModel
 
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
@@ -118,27 +119,37 @@ class SubAgentToolConfig(BaseToolConfig):
         description="The list of tool names that will be forced to be called for this sub-agent.",
     )
 
-    tool_description_for_system_prompt: str = Field(
+    tool_description_for_system_prompt: Annotated[
+        str, RJSFMetaTag.StringWidget.textarea(rows=5)
+    ] = Field(
         default="",
         description="Description of the tool that will be included in the system prompt.",
     )
-    tool_description: str = Field(
+    tool_description: Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=5)] = Field(
         default="",
         description="Description of the tool that will be included in the tools sent to the model.",
     )
-    param_description_sub_agent_user_message: str = Field(
+    param_description_sub_agent_user_message: Annotated[
+        str, RJSFMetaTag.StringWidget.textarea(rows=5)
+    ] = Field(
         default=DEFAULT_PARAM_DESCRIPTION_SUB_AGENT_USER_MESSAGE,
         description="Description of the user message parameter that will be sent to the model.",
     )
-    tool_format_information_for_system_prompt: str = Field(
+    tool_format_information_for_system_prompt: Annotated[
+        str, RJSFMetaTag.StringWidget.textarea(rows=5)
+    ] = Field(
         default="",
         description="Format information that will be included in the system prompt to guide response formatting.",
     )
-    tool_description_for_user_prompt: str = Field(
+    tool_description_for_user_prompt: Annotated[
+        str, RJSFMetaTag.StringWidget.textarea(rows=5)
+    ] = Field(
         default="",
         description="Description of the tool that will be included in the user prompt.",
     )
-    tool_format_information_for_user_prompt: str = Field(
+    tool_format_information_for_user_prompt: Annotated[
+        str, RJSFMetaTag.StringWidget.textarea(rows=5)
+    ] = Field(
         default="",
         description="Format information that will be included in the user prompt to guide response formatting.",
     )
@@ -156,7 +167,9 @@ class SubAgentToolConfig(BaseToolConfig):
         description="The condition that will be used to stop the polling for the sub-agent response.",
     )
 
-    tool_input_json_schema: str | None = Field(
+    tool_input_json_schema: (
+        Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=5)] | None
+    ) = Field(
         default=None,
         description="A custom JSON schema to send to the llm as the tool input schema.",
     )

@@ -9,6 +9,8 @@ from platformdirs import user_config_dir
 from pydantic import AliasChoices, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from unique_toolkit._common.config_checker import register_config
+
 if TYPE_CHECKING:
     from unique_toolkit.app.schemas import BaseEvent
 
@@ -35,6 +37,7 @@ def warn_about_defaults(instance: T) -> T:
     return instance
 
 
+@register_config()
 class UniqueApp(BaseSettings):
     id: SecretStr = Field(
         default=SecretStr("dummy_id"),
@@ -76,6 +79,7 @@ class UniqueApp(BaseSettings):
     )
 
 
+@register_config()
 class UniqueApi(BaseSettings):
     base_url: str = Field(
         default="http://localhost:8092/",
@@ -143,6 +147,7 @@ class UniqueApi(BaseSettings):
         return urlunparse(parsed._replace(path=path, query=None, fragment=None))
 
 
+@register_config()
 class UniqueAuth(BaseSettings):
     company_id: SecretStr = Field(
         default=SecretStr("dummy_company_id"),

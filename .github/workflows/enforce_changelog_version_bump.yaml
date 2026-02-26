@@ -1,8 +1,7 @@
-name: "[chore] Enforce Changelog and Version Bump"
+name: "[CI] Changelog and Version Bump"
 
 on:
-  pull_request:
-  merge_group:
+  workflow_call:
 
 jobs:
   detect-packages:
