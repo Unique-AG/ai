@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_internal_search"
-version = "1.2.27"
+version = "1.2.28"
 description = ""
 authors = [
     "Martin Fadler <martin.fadler@unique.ch>",
