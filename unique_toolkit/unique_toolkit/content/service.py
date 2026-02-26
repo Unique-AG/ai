@@ -112,6 +112,10 @@ class ContentService:
             isinstance(event, (ChatEvent, Event))
             and getattr(event.payload, "correlation", None) is not None
         ):
+            if event.payload.correlation is None:
+                raise ValueError(
+                    "correlation attribute is not defined in the event payload"
+                )
             return cls.from_correlation(
                 event.company_id,
                 event.user_id,

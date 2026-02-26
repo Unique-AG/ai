@@ -36,7 +36,7 @@ class ChatServiceDeprecated:
         if content_scope_chat_id is not None:
             self._content_scope_chat_id: str = content_scope_chat_id
         else:
-            correlation = getattr(event.payload, "correlation", None)
+            correlation = event.payload.correlation
             if correlation is not None:
                 self._content_scope_chat_id = correlation.parent_chat_id
             else:
@@ -57,11 +57,9 @@ class ChatServiceDeprecated:
             ChatServiceDeprecated: Instance configured for this event (and
                 parent chat content scope when correlation is present).
         """
-        correlation = getattr(event.payload, "correlation", None)
+        correlation = event.payload.correlation
         if correlation is not None:
             return cls.from_correlation(
-                event.company_id,
-                event.user_id,
                 correlation,
                 event,
             )
@@ -70,8 +68,6 @@ class ChatServiceDeprecated:
     @classmethod
     def from_correlation(
         cls,
-        company_id: str,
-        user_id: str,
         correlation: Correlation,
         event: ChatEvent | Event,
     ) -> "ChatServiceDeprecated":
@@ -82,8 +78,6 @@ class ChatServiceDeprecated:
         so files uploaded in the primary session are accessible.
 
         Args:
-            company_id: Company id (from event).
-            user_id: User id (from event).
             correlation: Parent chat/message/assistant ids.
             event: The subagent's chat event.
 
