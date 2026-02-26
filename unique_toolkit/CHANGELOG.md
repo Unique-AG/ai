@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add uncited source stripping to remove unreferenced source data from tool messages, reducing token usage
 - Wire up tool-call-aware history construction in `LoopTokenReducer`
 
+## [1.47.11] - 2026-02-26
+- Add `DocxGeneratorService` migration surface: `DocxGeneratorResult`, `generate_from_template_with_result()`, `upload_and_create_reference()`, `resolve_template()`, `normalize_heading_levels()`
+- Fix error handling in `DocxGeneratorService`; tighten `DocxGeneratorConfig.template_fields` to `dict[str, str]`
+
 ## [1.47.10] - 2026-02-26
 - Code interpreter: bound `expires_after_minutes` to 1–20 (OpenAI API max), add RJSF `NumberWidget.updown` for UI
 
