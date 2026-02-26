@@ -229,8 +229,7 @@ resolve_pr() {
     local new_entry
     new_entry=$(extract_new_changelog_entry "$ancestor" "origin/$pr_branch" "$changelog")
 
-    git show "origin/main:$pyproject" > "$pyproject"
-    sed -i -E "s/^(version[[:space:]]*=[[:space:]]*)\"[^\"]+\"/\1\"$new_ver\"/" "$pyproject"
+    git show "origin/main:$pyproject" | sed -E "s/^(version[[:space:]]*=[[:space:]]*)\"[^\"]+\"/\1\"$new_ver\"/" > "$pyproject"
 
     if [[ -n "$new_entry" ]]; then
       local updated_entry
