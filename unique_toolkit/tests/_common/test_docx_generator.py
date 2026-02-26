@@ -638,7 +638,7 @@ class TestUploadAndCreateReference:
         uploaded = Mock()
         uploaded.id = "cont_abc123"
         svc.upload_to_chat_from_bytes.return_value = uploaded
-        svc.assistant_message_id = "msg_001"
+        svc._assistant_message_id = "msg_001"
         return svc
 
     @pytest.fixture
