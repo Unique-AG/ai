@@ -1,5 +1,4 @@
 import base64
-import json
 import logging
 import mimetypes
 from datetime import datetime
@@ -13,10 +12,7 @@ from unique_toolkit._common.token.token_counting import (
 )
 from unique_toolkit._common.utils import files as FileUtils
 from unique_toolkit.app import ChatEventUserMessage
-from unique_toolkit.chat.functions import (
-    get_full_history_including_tool_messages,
-)
-from unique_toolkit.chat.schemas import ChatMessage
+from unique_toolkit.chat.schemas import ChatMessage, ToolCallRecord
 from unique_toolkit.chat.schemas import ChatMessageRole as ChatRole
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import Content
@@ -25,7 +21,7 @@ from unique_toolkit.language_model import LanguageModelMessageRole as LLMRole
 from unique_toolkit.language_model.infos import EncoderName, LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
-    LanguageModelFunctionCall,
+    LanguageModelFunction,
     LanguageModelMessages,
     LanguageModelToolMessage,
 )
@@ -183,9 +179,6 @@ def get_full_history_with_contents(
 
     builder = LanguageModelMessages([]).builder()
     for c in grouped_elements:
-        if c.role in (ChatRole.TOOL_CALL, ChatRole.TOOL):
-            continue
-
         # LanguageModelUserMessage has not field original content
         text = c.original_content if c.original_content else c.content
         if text is None:
@@ -236,25 +229,6 @@ def get_full_history_with_contents(
     return builder.build()
 
 
-def get_full_history_as_llm_messages(
-    chat_service: ChatService,
-) -> LanguageModelMessages:
-    chat_history = chat_service.get_full_history()
-
-    map_chat_llm_message_role = {
-        ChatRole.USER: LLMRole.USER,
-        ChatRole.ASSISTANT: LLMRole.ASSISTANT,
-    }
-
-    builder = LanguageModelMessages([]).builder()
-    for c in chat_history:
-        builder.message_append(
-            role=map_chat_llm_message_role[c.role],
-            content=c.content or "",
-        )
-    return builder.build()
-
-
 def get_full_history_with_contents_and_tool_calls(
     user_message: ChatEventUserMessage,
     chat_id: str,
@@ -263,69 +237,34 @@ def get_full_history_with_contents_and_tool_calls(
     include_images: ImageContentInclusion = ImageContentInclusion.ALL,
     file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
 ) -> LanguageModelMessages:
-    """Build LLM history including tool call/response messages from DB.
-
-    Reads all messages (including TOOL_CALL and TOOL) from the database and
-    maps them to the correct LLM message format:
-    - USER -> LanguageModelUserMessage
-    - ASSISTANT -> LanguageModelAssistantMessage
-    - TOOL_CALL -> LanguageModelAssistantMessage with tool_calls
-    - TOOL -> LanguageModelToolMessage
+    """Like get_full_history_with_contents, but also loads tool calls from the DB
+    and interleaves them into the history before each assistant message.
     """
-    all_messages = get_full_history_including_tool_messages(
-        event_user_id=chat_service._user_id,
-        event_company_id=chat_service._company_id,
-        event_payload_chat_id=chat_id,
-    )
+    chat_history = chat_service.get_full_history()
 
-    last_user_message = ChatMessage(
-        id=user_message.id,
+    # Load tool calls for all assistant messages in one batch
+    assistant_message_ids = [
+        msg.id for msg in chat_history
+        if msg.role == ChatRole.ASSISTANT and msg.id
+    ]
+    tool_calls_by_message: dict[str, list[ToolCallRecord]] = {}
+    for msg_id in assistant_message_ids:
+        try:
+            tool_calls_by_message[msg_id] = chat_service.list_tool_calls(
+                message_id=msg_id,
+            )
+        except Exception:
+            tool_calls_by_message[msg_id] = []
+
+    grouped_elements = get_chat_history_with_contents(
+        user_message=user_message,
         chat_id=chat_id,
-        text=user_message.text,
-        originalText=user_message.original_text,
-        role=ChatRole.USER,
-        gpt_request=None,
-        created_at=datetime.fromisoformat(user_message.created_at),
-    )
-    if not all_messages or all_messages[-1].id != last_user_message.id:
-        all_messages.append(last_user_message)
-
-    chat_contents = content_service.search_contents(
-        where={"ownerId": {"equals": chat_id}},
-    )
-    grouped_elements = ChatHistoryWithContent.from_chat_history_and_contents(
-        all_messages,
-        chat_contents,
+        chat_history=chat_history,
+        content_service=content_service,
     )
 
     builder = LanguageModelMessages([]).builder()
     for c in grouped_elements:
-        if c.role == ChatRole.TOOL_CALL:
-            gpt_req = _get_gpt_request_as_dict(c.gpt_request)
-            tool_calls_data = gpt_req.get("tool_calls", [])
-            lm_function_calls = _parse_tool_calls_from_gpt_request(tool_calls_data)
-            if lm_function_calls:
-                builder.messages.append(
-                    LanguageModelAssistantMessage(
-                        content="",
-                        tool_calls=lm_function_calls,
-                    )
-                )
-            continue
-
-        if c.role == ChatRole.TOOL:
-            gpt_req = _get_gpt_request_as_dict(c.gpt_request)
-            tool_call_id = gpt_req.get("tool_call_id", "")
-            tool_name = gpt_req.get("name", "")
-            builder.messages.append(
-                LanguageModelToolMessage(
-                    content=c.content or "",
-                    name=tool_name,
-                    tool_call_id=tool_call_id,
-                )
-            )
-            continue
-
         text = c.original_content if c.original_content else c.content
         if text is None:
             if c.role == ChatRole.USER:
@@ -334,6 +273,30 @@ def get_full_history_with_contents_and_tool_calls(
                 )
             text = ""
 
+        # For assistant messages, interleave tool calls before the final response
+        if c.role == ChatRole.ASSISTANT and c.id and c.id in tool_calls_by_message:
+            tc_records = tool_calls_by_message[c.id]
+            if tc_records:
+                for tc in tc_records:
+                    fn = LanguageModelFunction(
+                        id=tc.external_tool_call_id,
+                        name=tc.function_name,
+                        arguments=tc.arguments,
+                    )
+                    builder.messages.append(
+                        LanguageModelAssistantMessage.from_functions(
+                            tool_calls=[fn]
+                        )
+                    )
+                    if tc.response and tc.response.content:
+                        builder.messages.append(
+                            LanguageModelToolMessage(
+                                tool_call_id=tc.external_tool_call_id,
+                                content=tc.response.content,
+                                name=tc.function_name,
+                            )
+                        )
+
         if len(c.contents) > 0:
             file_contents = [
                 co for co in c.contents if FileUtils.is_file_content(co.key)
@@ -341,7 +304,6 @@ def get_full_history_with_contents_and_tool_calls(
             image_contents = [
                 co for co in c.contents if FileUtils.is_image_content(co.key)
             ]
-
             content = (
                 text
                 + "\n\n"
@@ -349,8 +311,7 @@ def get_full_history_with_contents_and_tool_calls(
                     file_contents,
                     file_content_serialization_type,
                 )
-            )
-            content = content.strip()
+            ).strip()
 
             if include_images and len(image_contents) > 0:
                 builder.image_message_append(
@@ -375,44 +336,23 @@ def get_full_history_with_contents_and_tool_calls(
     return builder.build()
 
 
-def _get_gpt_request_as_dict(gpt_request: list | dict | None) -> dict:
-    """Extract the gpt_request metadata as a dict, handling both list and dict formats."""
-    if gpt_request is None:
-        return {}
-    if isinstance(gpt_request, dict):
-        return gpt_request
-    if isinstance(gpt_request, list) and len(gpt_request) > 0:
-        return gpt_request[0] if isinstance(gpt_request[0], dict) else {}
-    return {}
+def get_full_history_as_llm_messages(
+    chat_service: ChatService,
+) -> LanguageModelMessages:
+    chat_history = chat_service.get_full_history()
 
+    map_chat_llm_message_role = {
+        ChatRole.USER: LLMRole.USER,
+        ChatRole.ASSISTANT: LLMRole.ASSISTANT,
+    }
 
-def _parse_tool_calls_from_gpt_request(
-    tool_calls_data: list[dict],
-) -> list[LanguageModelFunctionCall]:
-    """Parse tool_calls stored in gptRequest into LanguageModelFunctionCall objects."""
-    from unique_toolkit.language_model.schemas import LanguageModelFunction
-
-    result = []
-    for tc in tool_calls_data:
-        func_data = tc.get("function", {})
-        arguments = func_data.get("arguments")
-        if isinstance(arguments, str):
-            try:
-                arguments = json.loads(arguments)
-            except (json.JSONDecodeError, TypeError):
-                pass
-        result.append(
-            LanguageModelFunctionCall(
-                id=tc.get("id"),
-                type=tc.get("type", "function"),
-                function=LanguageModelFunction(
-                    id=tc.get("id", ""),
-                    name=func_data.get("name", ""),
-                    arguments=arguments,
-                ),
-            )
+    builder = LanguageModelMessages([]).builder()
+    for c in chat_history:
+        builder.message_append(
+            role=map_chat_llm_message_role[c.role],
+            content=c.content or "",
         )
-    return result
+    return builder.build()
 
 
 def limit_to_token_window(

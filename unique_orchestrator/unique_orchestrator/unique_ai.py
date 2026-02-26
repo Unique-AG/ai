@@ -224,6 +224,7 @@ class UniqueAI:
                 )
 
             if not self._chat_service.cancellation.is_cancelled:
+                await self._persist_tool_calls()
                 await self._update_debug_info_if_tool_took_control()
                 await self._chat_service.modify_assistant_message_async(
                     set_completed_at=not self._tool_took_control,
@@ -439,6 +440,23 @@ class UniqueAI:
 
         return True
 
+    async def _persist_tool_calls(self) -> None:
+        """Persist tool calls and responses from the loop to the database."""
+        records = self._history_manager.extract_tool_call_records()
+        if not records:
+            return
+        try:
+            assistant_message_id = self._chat_service._assistant_message_id
+            await self._chat_service.create_tool_calls_async(
+                message_id=assistant_message_id,
+                tool_calls=records,
+            )
+            self._logger.info(
+                f"Persisted {len(records)} tool call records for message {assistant_message_id}"
+            )
+        except Exception as e:
+            self._logger.error(f"Failed to persist tool calls: {e}")
+
     def _log_tool_calls(self, tool_calls: list) -> None:
         # Create dictionary mapping tool names to display names for efficient lookup
         all_tools_dict: dict[str, str] = {
@@ -488,25 +506,6 @@ class UniqueAI:
         # Append function calls to history
         self._history_manager._append_tool_calls_to_history(tool_calls)
 
-        # Persist TOOL_CALL message to DB
-        tool_calls_data = [
-            {
-                "id": tc.id,
-                "type": "function",
-                "function": {
-                    "name": tc.name,
-                    "arguments": tc.arguments,
-                },
-            }
-            for tc in tool_calls
-        ]
-        try:
-            await self._chat_service.create_tool_call_message_async(
-                tool_calls_data=tool_calls_data,
-            )
-        except Exception:
-            self._logger.warning("Failed to persist TOOL_CALL message", exc_info=True)
-
         # Log tool calls
         self._log_tool_calls(tool_calls)
         # Execute tool calls
@@ -522,20 +521,6 @@ class UniqueAI:
         self._debug_info_manager.extract_tool_debug_info(
             tool_call_responses, self.current_iteration_index
         )
-
-        # Persist TOOL messages to DB (one per tool response)
-        for response in tool_call_responses:
-            try:
-                await self._chat_service.create_tool_message_async(
-                    tool_call_id=response.id,
-                    tool_name=response.name,
-                    content=response.content or response.error_message,
-                )
-            except Exception:
-                self._logger.warning(
-                    f"Failed to persist TOOL message for {response.name}",
-                    exc_info=True,
-                )
 
         self._tool_took_control = self._tool_manager.does_a_tool_take_control(
             tool_calls

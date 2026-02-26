@@ -28,6 +28,7 @@ from unique_toolkit.chat.schemas import (
     MessageLogDetails,
     MessageLogStatus,
     MessageLogUncitedReferences,
+    ToolCallRecord,
 )
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model.constants import (
@@ -378,14 +379,11 @@ def _construct_message_create_params(
     references: list[ContentReference] | None = None,
     debug_info: dict | None = None,
     set_completed_at: bool | None = False,
-    gpt_request: dict | None = None,
 ) -> dict[str, Any]:
     if original_content is None:
         original_content = content
 
     role_value = role.value.upper()
-    if role == ChatMessageRole.TOOL_CALL:
-        role_value = "TOOL_CALL"
 
     params: dict[str, Any] = {
         "user_id": user_id,
@@ -399,163 +397,7 @@ def _construct_message_create_params(
         "debugInfo": debug_info or {},
         "completedAt": _time_utils.get_datetime_now() if set_completed_at else None,
     }
-    if gpt_request is not None:
-        params["gptRequest"] = gpt_request
     return params
-
-
-def create_tool_call_message(
-    user_id: str,
-    company_id: str,
-    chat_id: str,
-    assistant_id: str,
-    tool_calls_data: list[dict],
-) -> ChatMessage:
-    """Persists a TOOL_CALL message representing the assistant's tool invocation request.
-
-    Args:
-        user_id: The user ID.
-        company_id: The company ID.
-        chat_id: The chat ID.
-        assistant_id: The assistant ID.
-        tool_calls_data: Serialised tool_calls array (function names, args, IDs).
-
-    Returns:
-        ChatMessage: The created TOOL_CALL message.
-    """
-    try:
-        params = _construct_message_create_params(
-            user_id=user_id,
-            company_id=company_id,
-            chat_id=chat_id,
-            assistant_id=assistant_id,
-            role=ChatMessageRole.TOOL_CALL,
-            gpt_request={"tool_calls": tool_calls_data},
-            set_completed_at=True,
-        )
-        message = unique_sdk.Message.create(**params)
-        return ChatMessage(**message)
-    except Exception as e:
-        logger.error(f"Failed to create tool call message: {e}")
-        raise e
-
-
-async def create_tool_call_message_async(
-    user_id: str,
-    company_id: str,
-    chat_id: str,
-    assistant_id: str,
-    tool_calls_data: list[dict],
-) -> ChatMessage:
-    """Persists a TOOL_CALL message representing the assistant's tool invocation request (async).
-
-    Args:
-        user_id: The user ID.
-        company_id: The company ID.
-        chat_id: The chat ID.
-        assistant_id: The assistant ID.
-        tool_calls_data: Serialised tool_calls array (function names, args, IDs).
-
-    Returns:
-        ChatMessage: The created TOOL_CALL message.
-    """
-    try:
-        params = _construct_message_create_params(
-            user_id=user_id,
-            company_id=company_id,
-            chat_id=chat_id,
-            assistant_id=assistant_id,
-            role=ChatMessageRole.TOOL_CALL,
-            gpt_request={"tool_calls": tool_calls_data},
-            set_completed_at=True,
-        )
-        message = await unique_sdk.Message.create_async(**params)
-        return ChatMessage(**message)
-    except Exception as e:
-        logger.error(f"Failed to create tool call message: {e}")
-        raise e
-
-
-def create_tool_message(
-    user_id: str,
-    company_id: str,
-    chat_id: str,
-    assistant_id: str,
-    tool_call_id: str,
-    tool_name: str,
-    content: str,
-) -> ChatMessage:
-    """Persists a TOOL message representing a tool's response.
-
-    Args:
-        user_id: The user ID.
-        company_id: The company ID.
-        chat_id: The chat ID.
-        assistant_id: The assistant ID.
-        tool_call_id: The ID of the tool call this is a response to.
-        tool_name: The name of the tool that produced this response.
-        content: The tool response content.
-
-    Returns:
-        ChatMessage: The created TOOL message.
-    """
-    try:
-        params = _construct_message_create_params(
-            user_id=user_id,
-            company_id=company_id,
-            chat_id=chat_id,
-            assistant_id=assistant_id,
-            role=ChatMessageRole.TOOL,
-            content=content,
-            gpt_request={"tool_call_id": tool_call_id, "name": tool_name},
-            set_completed_at=True,
-        )
-        message = unique_sdk.Message.create(**params)
-        return ChatMessage(**message)
-    except Exception as e:
-        logger.error(f"Failed to create tool message: {e}")
-        raise e
-
-
-async def create_tool_message_async(
-    user_id: str,
-    company_id: str,
-    chat_id: str,
-    assistant_id: str,
-    tool_call_id: str,
-    tool_name: str,
-    content: str,
-) -> ChatMessage:
-    """Persists a TOOL message representing a tool's response (async).
-
-    Args:
-        user_id: The user ID.
-        company_id: The company ID.
-        chat_id: The chat ID.
-        assistant_id: The assistant ID.
-        tool_call_id: The ID of the tool call this is a response to.
-        tool_name: The name of the tool that produced this response.
-        content: The tool response content.
-
-    Returns:
-        ChatMessage: The created TOOL message.
-    """
-    try:
-        params = _construct_message_create_params(
-            user_id=user_id,
-            company_id=company_id,
-            chat_id=chat_id,
-            assistant_id=assistant_id,
-            role=ChatMessageRole.TOOL,
-            content=content,
-            gpt_request={"tool_call_id": tool_call_id, "name": tool_name},
-            set_completed_at=True,
-        )
-        message = await unique_sdk.Message.create_async(**params)
-        return ChatMessage(**message)
-    except Exception as e:
-        logger.error(f"Failed to create tool message: {e}")
-        raise e
 
 
 def get_selection_from_history(
@@ -678,63 +520,12 @@ async def get_full_history_async(
     return map_to_chat_messages(messages)
 
 
-def get_full_history_including_tool_messages(
-    event_user_id: str,
-    event_company_id: str,
-    event_payload_chat_id: str,
-) -> list[ChatMessage]:
-    """Get full history including TOOL_CALL and TOOL messages for agentic reconstruction."""
-    messages = list_messages(event_user_id, event_company_id, event_payload_chat_id)
-    messages = _filter_valid_messages_including_tools(messages)
-    return map_to_chat_messages(messages)
-
-
-async def get_full_history_including_tool_messages_async(
-    event_user_id: str,
-    event_company_id: str,
-    event_payload_chat_id: str,
-) -> list[ChatMessage]:
-    """Get full history including TOOL_CALL and TOOL messages for agentic reconstruction (async)."""
-    messages = await list_messages_async(
-        event_user_id,
-        event_company_id,
-        event_payload_chat_id,
-    )
-    messages = _filter_valid_messages_including_tools(messages)
-    return map_to_chat_messages(messages)
-
-
-def _filter_valid_messages_including_tools(
-    messages: ListObject[unique_sdk.Message],
-) -> list[dict[str, Any]]:
-    """Like filter_valid_messages but keeps TOOL_CALL and TOOL roles."""
-    SYSTEM_MESSAGE_PREFIX = "[SYSTEM] "
-    roles_to_filter = [ChatMessageRole.SYSTEM.value.lower()]
-
-    messages = messages["data"][:-2]  # type: ignore
-    filtered_messages = []
-    for message in messages:
-        role = message["role"].lower()
-        if role in roles_to_filter:
-            continue
-        if role in ("tool_call", "tool"):
-            filtered_messages.append(message)
-            continue
-        if message["text"] is None or SYSTEM_MESSAGE_PREFIX in message["text"]:
-            continue
-        filtered_messages.append(message)
-
-    return filtered_messages
-
-
 def filter_valid_messages(
     messages: ListObject[unique_sdk.Message],
 ) -> list[dict[str, Any]]:
     SYSTEM_MESSAGE_PREFIX = "[SYSTEM] "
     roles_to_filter = [
         ChatMessageRole.SYSTEM.value.lower(),
-        ChatMessageRole.TOOL_CALL.value.lower(),
-        ChatMessageRole.TOOL.value.lower(),
     ]
 
     # Remove the last two messages
@@ -1616,4 +1407,110 @@ async def update_message_execution_async(
         return MessageExecution(**message_execution)
     except Exception as e:
         logger.error(f"Failed to update message execution: {e}")
+        raise e
+
+
+def create_tool_calls(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    tool_calls: list[ToolCallRecord],
+) -> list[ToolCallRecord]:
+    """Persists tool calls (with optional responses) for an assistant message."""
+    try:
+        tool_call_items = [
+            {
+                "externalToolCallId": tc.external_tool_call_id,
+                "functionName": tc.function_name,
+                "arguments": tc.arguments,
+                "roundIndex": tc.round_index,
+                "sequenceIndex": tc.sequence_index,
+                **(
+                    {"response": {"content": tc.response.content}}
+                    if tc.response
+                    else {}
+                ),
+            }
+            for tc in tool_calls
+        ]
+        result = unique_sdk.ToolCall.create_many(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            toolCalls=tool_call_items,  # type: ignore
+        )
+        return [ToolCallRecord(**item) for item in result["data"]]
+    except Exception as e:
+        logger.error(f"Failed to create tool calls: {e}")
+        raise e
+
+
+async def create_tool_calls_async(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    tool_calls: list[ToolCallRecord],
+) -> list[ToolCallRecord]:
+    """Persists tool calls (with optional responses) for an assistant message (async)."""
+    try:
+        tool_call_items = [
+            {
+                "externalToolCallId": tc.external_tool_call_id,
+                "functionName": tc.function_name,
+                "arguments": tc.arguments,
+                "roundIndex": tc.round_index,
+                "sequenceIndex": tc.sequence_index,
+                **(
+                    {"response": {"content": tc.response.content}}
+                    if tc.response
+                    else {}
+                ),
+            }
+            for tc in tool_calls
+        ]
+        result = await unique_sdk.ToolCall.create_many_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            toolCalls=tool_call_items,  # type: ignore
+        )
+        return [ToolCallRecord(**item) for item in result["data"]]
+    except Exception as e:
+        logger.error(f"Failed to create tool calls: {e}")
+        raise e
+
+
+def list_tool_calls(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+) -> list[ToolCallRecord]:
+    """Lists tool calls for a given message."""
+    try:
+        result = unique_sdk.ToolCall.list(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+        )
+        return [ToolCallRecord(**item) for item in result["data"]]
+    except Exception as e:
+        logger.error(f"Failed to list tool calls: {e}")
+        raise e
+
+
+async def list_tool_calls_async(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+) -> list[ToolCallRecord]:
+    """Lists tool calls for a given message (async)."""
+    try:
+        result = await unique_sdk.ToolCall.list_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+        )
+        return [ToolCallRecord(**item) for item in result["data"]]
+    except Exception as e:
+        logger.error(f"Failed to list tool calls: {e}")
         raise e

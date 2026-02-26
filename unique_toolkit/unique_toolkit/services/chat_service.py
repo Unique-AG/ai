@@ -33,10 +33,6 @@ from unique_toolkit.chat.functions import (
     create_message_execution_async,
     create_message_log,
     create_message_log_async,
-    create_tool_call_message,
-    create_tool_call_message_async,
-    create_tool_message,
-    create_tool_message_async,
     get_full_history,
     get_full_history_async,
     get_message_execution,
@@ -52,6 +48,10 @@ from unique_toolkit.chat.functions import (
     update_message_execution_async,
     update_message_log,
     update_message_log_async,
+    create_tool_calls,
+    create_tool_calls_async,
+    list_tool_calls,
+    list_tool_calls_async,
 )
 from unique_toolkit.chat.responses_api import (
     stream_responses_with_references,
@@ -71,6 +71,7 @@ from unique_toolkit.chat.schemas import (
     MessageLogDetails,
     MessageLogStatus,
     MessageLogUncitedReferences,
+    ToolCallRecord,
 )
 from unique_toolkit.content.functions import (
     download_content_to_bytes,
@@ -502,66 +503,6 @@ class ChatService(ChatServiceDeprecated):
         # Update the user message id
         self._user_message_id = chat_message.id or "unknown"
         return chat_message
-
-    def create_tool_call_message(
-        self,
-        tool_calls_data: list[dict],
-    ) -> ChatMessage:
-        """Persists a TOOL_CALL message for the assistant's tool invocation request."""
-        return create_tool_call_message(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            chat_id=self._chat_id,
-            assistant_id=self._assistant_id,
-            tool_calls_data=tool_calls_data,
-        )
-
-    async def create_tool_call_message_async(
-        self,
-        tool_calls_data: list[dict],
-    ) -> ChatMessage:
-        """Persists a TOOL_CALL message for the assistant's tool invocation request (async)."""
-        return await create_tool_call_message_async(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            chat_id=self._chat_id,
-            assistant_id=self._assistant_id,
-            tool_calls_data=tool_calls_data,
-        )
-
-    def create_tool_message(
-        self,
-        tool_call_id: str,
-        tool_name: str,
-        content: str,
-    ) -> ChatMessage:
-        """Persists a TOOL message representing a tool's response."""
-        return create_tool_message(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            chat_id=self._chat_id,
-            assistant_id=self._assistant_id,
-            tool_call_id=tool_call_id,
-            tool_name=tool_name,
-            content=content,
-        )
-
-    async def create_tool_message_async(
-        self,
-        tool_call_id: str,
-        tool_name: str,
-        content: str,
-    ) -> ChatMessage:
-        """Persists a TOOL message representing a tool's response (async)."""
-        return await create_tool_message_async(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            chat_id=self._chat_id,
-            assistant_id=self._assistant_id,
-            tool_call_id=tool_call_id,
-            tool_name=tool_name,
-            content=content,
-        )
 
     def free_user_input(self) -> None:
         """Unblocks the next user input"""
@@ -2202,4 +2143,75 @@ class ChatService(ChatServiceDeprecated):
         return await self.find_message_memory_by_id_async(
             message_id=message_id or self._assistant_message_id,
             key=key,
+        )
+
+    # Tool Call Methods
+    ############################################################################
+
+    def create_tool_calls(
+        self,
+        *,
+        message_id: str,
+        tool_calls: list[ToolCallRecord],
+    ) -> list[ToolCallRecord]:
+        """Persists tool calls for an assistant message synchronously.
+
+        Args:
+            message_id: The assistant message ID these tool calls belong to.
+            tool_calls: The tool call records to persist.
+
+        Returns:
+            The created tool call records.
+        """
+        return create_tool_calls(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            tool_calls=tool_calls,
+        )
+
+    async def create_tool_calls_async(
+        self,
+        *,
+        message_id: str,
+        tool_calls: list[ToolCallRecord],
+    ) -> list[ToolCallRecord]:
+        """Persists tool calls for an assistant message asynchronously.
+
+        Args:
+            message_id: The assistant message ID these tool calls belong to.
+            tool_calls: The tool call records to persist.
+
+        Returns:
+            The created tool call records.
+        """
+        return await create_tool_calls_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            tool_calls=tool_calls,
+        )
+
+    def list_tool_calls(
+        self,
+        *,
+        message_id: str,
+    ) -> list[ToolCallRecord]:
+        """Lists tool calls for a given message synchronously."""
+        return list_tool_calls(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+        )
+
+    async def list_tool_calls_async(
+        self,
+        *,
+        message_id: str,
+    ) -> list[ToolCallRecord]:
+        """Lists tool calls for a given message asynchronously."""
+        return await list_tool_calls_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
         )

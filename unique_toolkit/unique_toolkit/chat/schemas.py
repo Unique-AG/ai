@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
 from humps import camelize
 from openai.types.chat import (
@@ -19,7 +19,6 @@ from pydantic import (
     ConfigDict,
     Field,
     field_validator,
-    model_validator,
 )
 
 from unique_toolkit.content.schemas import ContentReference
@@ -34,8 +33,6 @@ model_config = ConfigDict(
 class ChatMessageRole(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
-    TOOL_CALL = "tool_call"
-    TOOL = "tool"
     SYSTEM = "system"  # Note: These messages are appended by the backend and should not be confused with the LLM’s system message.
 
 
@@ -80,26 +77,19 @@ class ChatMessage(BaseModel):
     role: ChatMessageRole
     gpt_request: list[dict] | dict | None = None
     tool_calls: list[ToolCall] | None = None
-    tool_call_id: str | None = None
     debug_info: dict | None = {}
     created_at: datetime | None = None
     completed_at: datetime | None = None
     user_aborted_at: datetime | None = None
     updated_at: datetime | None = None
     references: list[ContentReference] | None = None
+    tool_call_records: list[ToolCallRecord] | None = None
 
     # TODO make sdk return role consistently in lowercase
     # Currently needed as sdk returns role in uppercase
     @field_validator("role", mode="before")
     def set_role(cls, value: str):
         return value.lower()
-
-    # Ensure tool_call_ids is required if role is 'tool'
-    @model_validator(mode="after")
-    def check_tool_call_ids_for_tool_role(self):
-        if self.role == ChatMessageRole.TOOL and not self.tool_call_id:
-            raise ValueError("tool_call_ids is required when role is 'tool'")
-        return self
 
     def to_openai_param(self) -> ChatCompletionMessageParam:
         match self.role:
@@ -130,26 +120,29 @@ class ChatMessage(BaseModel):
 
                 return assistant_message
 
-            case ChatMessageRole.TOOL_CALL:
-                if self.tool_calls:
-                    return ChatCompletionAssistantMessageParam(
-                        role="assistant",
-                        audio=None,
-                        content=self.content or "",
-                        function_call=None,
-                        refusal=None,
-                        tool_calls=[t.to_openai_param() for t in self.tool_calls],
-                    )
-                return ChatCompletionAssistantMessageParam(
-                    role="assistant",
-                    audio=None,
-                    content="",
-                    function_call=None,
-                    refusal=None,
-                )
 
-            case ChatMessageRole.TOOL:
-                raise NotImplementedError
+
+class ToolResponseRecord(BaseModel):
+    model_config = model_config
+
+    id: str | None = None
+    content: str | None = None
+    tool_call_id: str | None = None
+    created_at: datetime | None = None
+
+
+class ToolCallRecord(BaseModel):
+    model_config = model_config
+
+    id: str | None = None
+    external_tool_call_id: str
+    function_name: str
+    arguments: dict[str, Any] | None = None
+    round_index: int
+    sequence_index: int
+    message_id: str | None = None
+    response: ToolResponseRecord | None = None
+    created_at: datetime | None = None
 
 
 class ChatMessageAssessmentStatus(StrEnum):
