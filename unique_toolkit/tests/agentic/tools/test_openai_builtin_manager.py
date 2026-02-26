@@ -38,7 +38,7 @@ async def test_build_tool_code_interpreter_passes_tool_config_not_extended_confi
     ToolBuildConfig but tool config was refactored to CodeInterpreterExtendedConfig.
     """
     extended = CodeInterpreterExtendedConfig(
-        tool_config=OpenAICodeInterpreterConfig(expires_after_minutes=30),
+        tool_config=OpenAICodeInterpreterConfig(expires_after_minutes=15),
     )
     tool_config = ToolBuildConfig.model_validate(
         {
@@ -70,7 +70,7 @@ async def test_build_tool_code_interpreter_passes_tool_config_not_extended_confi
     call_kwargs = build_tool_async.call_args.kwargs
     assert call_kwargs["config"] is tool_config.configuration.tool_config
     assert isinstance(call_kwargs["config"], OpenAICodeInterpreterConfig)
-    assert call_kwargs["config"].expires_after_minutes == 30
+    assert call_kwargs["config"].expires_after_minutes == 15
     assert call_kwargs["is_exclusive"] is True
 
 
