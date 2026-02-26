@@ -38,13 +38,13 @@ PUBLISHABLE_PACKAGES=(
 
 extract_version() {
   local file="$1"
-  grep -E '^version[[:space:]]*=' "$file" | head -1 | sed -E 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/'
+  grep -E -m1 '^version[[:space:]]*=' "$file" | sed -E 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/'
 }
 
 extract_version_from_ref() {
   local ref="$1"
   local path="$2"
-  git show "$ref:$path" 2>/dev/null | grep -E '^version[[:space:]]*=' | head -1 | sed -E 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/'
+  git show "$ref:$path" 2>/dev/null | grep -E -m1 '^version[[:space:]]*=' | sed -E 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/'
 }
 
 parse_semver() {
@@ -88,7 +88,7 @@ apply_bump() {
 first_changelog_version() {
   local ref="$1"
   local path="$2"
-  git show "$ref:$path" 2>/dev/null | grep -oE '## \[[0-9]+\.[0-9]+\.[0-9]+\]' | head -1 | sed -E 's/## \[([0-9.]+)\]/\1/'
+  git show "$ref:$path" 2>/dev/null | grep -oE -m1 '## \[[0-9]+\.[0-9]+\.[0-9]+\]' | sed -E 's/## \[([0-9.]+)\]/\1/'
 }
 
 extract_new_changelog_entry() {
@@ -103,13 +103,15 @@ extract_new_changelog_entry() {
     return
   fi
 
-  git show "$pr_ref:$changelog_path" | awk -v stop_ver="$ancestor_first_version" '
+  local pr_changelog
+  pr_changelog=$(git show "$pr_ref:$changelog_path")
+  awk -v stop_ver="$ancestor_first_version" '
     /^## \[/ {
       if (index($0, "[" stop_ver "]") > 0) { exit }
       found=1
     }
     found { print }
-  '
+  ' <<< "$pr_changelog"
 }
 
 resolve_pr() {
@@ -128,9 +130,10 @@ resolve_pr() {
   local ancestor
   ancestor=$(git merge-base "origin/main" "origin/$pr_branch" 2>/dev/null) || { echo "No common ancestor — skipping"; echo "::endgroup::"; return 0; }
 
-  # In-memory conflict detection via git merge-tree (no working tree changes)
+  # In-memory conflict detection via git merge-tree (no working tree changes).
+  # --name-only provides a stable, machine-friendly list of conflicted file paths.
   local merge_output merge_exit
-  merge_output=$(git merge-tree --write-tree "origin/$pr_branch" origin/main 2>&1) && merge_exit=0 || merge_exit=$?
+  merge_output=$(git merge-tree --write-tree --name-only "origin/$pr_branch" origin/main 2>/dev/null) && merge_exit=0 || merge_exit=$?
 
   if [[ $merge_exit -eq 0 ]]; then
     echo "No conflicts — skipping"
@@ -138,24 +141,13 @@ resolve_pr() {
     return 0
   fi
 
-  local all_conflict_lines
-  all_conflict_lines=$(echo "$merge_output" | grep 'CONFLICT' || true)
-
-  if [[ -z "$all_conflict_lines" ]]; then
-    echo "merge-tree indicated issues but no CONFLICT lines — skipping"
-    echo "::endgroup::"
-    return 0
-  fi
-
+  # Output: line 1 = tree OID, then conflicted file paths, then blank line + messages.
+  # Extract only the file paths (between OID and first blank line).
   local conflicted_files
-  conflicted_files=$(echo "$all_conflict_lines" | sed -nE 's/.*Merge conflict in (.+)/\1/p')
+  conflicted_files=$(echo "$merge_output" | awk 'NR==1{next} /^$/{exit} {print}')
 
-  local total_conflicts parsed_conflicts
-  total_conflicts=$(echo "$all_conflict_lines" | wc -l | tr -d ' ')
-  parsed_conflicts=$(echo "$conflicted_files" | grep -c . 2>/dev/null || echo 0)
-
-  if [[ "$parsed_conflicts" -lt "$total_conflicts" ]]; then
-    echo "Has non-standard conflicts (modify/delete, rename, etc.) — skipping"
+  if [[ -z "$conflicted_files" ]]; then
+    echo "merge-tree indicated issues but no conflicted files listed — skipping"
     echo "::endgroup::"
     return 0
   fi
@@ -237,8 +229,7 @@ resolve_pr() {
     local new_entry
     new_entry=$(extract_new_changelog_entry "$ancestor" "origin/$pr_branch" "$changelog")
 
-    git show "origin/main:$pyproject" > "$pyproject"
-    sed -i -E "s/^(version[[:space:]]*=[[:space:]]*)\"[^\"]+\"/\1\"$new_ver\"/" "$pyproject"
+    git show "origin/main:$pyproject" | sed -E "s/^(version[[:space:]]*=[[:space:]]*)\"[^\"]+\"/\1\"$new_ver\"/" > "$pyproject"
 
     if [[ -n "$new_entry" ]]; then
       local updated_entry
@@ -247,9 +238,9 @@ resolve_pr() {
       local main_changelog
       main_changelog=$(git show "origin/main:$changelog")
       local header
-      header=$(echo "$main_changelog" | awk '/^## \[/{exit} {print}')
+      header=$(awk '/^## \[/{exit} {print}' <<< "$main_changelog")
       local rest
-      rest=$(echo "$main_changelog" | awk '/^## \[/{found=1} found{print}')
+      rest=$(awk '/^## \[/{found=1} found{print}' <<< "$main_changelog")
 
       {
         echo "$header"
@@ -263,6 +254,14 @@ resolve_pr() {
 
     git add "$pyproject" "$changelog"
   done
+
+  if git diff --name-only --diff-filter=U 2>/dev/null | grep -q .; then
+    echo "Unresolved files remain after version resolution — aborting"
+    git merge --abort 2>/dev/null || true
+    git checkout - -q 2>/dev/null || true
+    echo "::endgroup::"
+    return 0
+  fi
 
   if git diff --cached --quiet; then
     echo "No changes to commit after resolution"
