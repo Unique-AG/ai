@@ -128,9 +128,10 @@ resolve_pr() {
   local ancestor
   ancestor=$(git merge-base "origin/main" "origin/$pr_branch" 2>/dev/null) || { echo "No common ancestor — skipping"; echo "::endgroup::"; return 0; }
 
-  # In-memory conflict detection via git merge-tree (no working tree changes)
+  # In-memory conflict detection via git merge-tree (no working tree changes).
+  # --name-only provides a stable, machine-friendly list of conflicted file paths.
   local merge_output merge_exit
-  merge_output=$(git merge-tree --write-tree "origin/$pr_branch" origin/main 2>&1) && merge_exit=0 || merge_exit=$?
+  merge_output=$(git merge-tree --write-tree --name-only "origin/$pr_branch" origin/main 2>/dev/null) && merge_exit=0 || merge_exit=$?
 
   if [[ $merge_exit -eq 0 ]]; then
     echo "No conflicts — skipping"
@@ -138,24 +139,13 @@ resolve_pr() {
     return 0
   fi
 
-  local all_conflict_lines
-  all_conflict_lines=$(echo "$merge_output" | grep 'CONFLICT' || true)
-
-  if [[ -z "$all_conflict_lines" ]]; then
-    echo "merge-tree indicated issues but no CONFLICT lines — skipping"
-    echo "::endgroup::"
-    return 0
-  fi
-
+  # Output: line 1 = tree OID, then conflicted file paths, then blank line + messages.
+  # Extract only the file paths (between OID and first blank line).
   local conflicted_files
-  conflicted_files=$(echo "$all_conflict_lines" | sed -nE 's/.*Merge conflict in (.+)/\1/p')
+  conflicted_files=$(echo "$merge_output" | awk 'NR==1{next} /^$/{exit} {print}')
 
-  local total_conflicts parsed_conflicts
-  total_conflicts=$(echo "$all_conflict_lines" | wc -l | tr -d ' ')
-  parsed_conflicts=$(echo "$conflicted_files" | grep -c . 2>/dev/null || echo 0)
-
-  if [[ "$parsed_conflicts" -lt "$total_conflicts" ]]; then
-    echo "Has non-standard conflicts (modify/delete, rename, etc.) — skipping"
+  if [[ -z "$conflicted_files" ]]; then
+    echo "merge-tree indicated issues but no conflicted files listed — skipping"
     echo "::endgroup::"
     return 0
   fi
