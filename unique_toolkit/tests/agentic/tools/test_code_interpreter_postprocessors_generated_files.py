@@ -34,16 +34,16 @@ def test_display_code_interpreter_files_config__has_defaults__when_constructed_w
 
 
 @pytest.mark.ai
-def test_display_code_interpreter_files_post_processor__raises__when_upload_to_chat_true_and_no_chat_service() -> (
+def test_display_code_interpreter_files_post_processor__raises__when_no_chat_service() -> (
     None
 ):
     """
-    Purpose: Verify ValueError when upload_to_chat is True but chat_service is None.
-    Why this matters: Prevents misconfiguration that would fail at runtime.
-    Setup summary: Construct with upload_to_chat=True, chat_service=None; assert ValueError.
+    Purpose: Verify ValueError when chat_service is None.
+    Why this matters: ChatService is always required; prevents misconfiguration that would fail at runtime.
+    Setup summary: Construct with chat_service=None; assert ValueError.
     """
     # Arrange
-    config = DisplayCodeInterpreterFilesPostProcessorConfig(upload_to_chat=True)
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
     mock_client = MagicMock()
     mock_content_service = MagicMock()
 
@@ -56,33 +56,6 @@ def test_display_code_interpreter_files_post_processor__raises__when_upload_to_c
             chat_service=None,
         )
     assert "ChatService" in str(exc_info.value)
-
-
-@pytest.mark.ai
-def test_display_code_interpreter_files_post_processor__accepts_no_chat_service__when_upload_to_chat_false() -> (
-    None
-):
-    """
-    Purpose: Verify constructor succeeds when upload_to_chat is False and chat_service is None.
-    Why this matters: Upload to scope path does not require ChatService.
-    Setup summary: Construct with upload_to_chat=False, chat_service=None; assert no raise.
-    """
-    # Arrange
-    config = DisplayCodeInterpreterFilesPostProcessorConfig(upload_to_chat=False)
-    mock_client = MagicMock()
-    mock_content_service = MagicMock()
-
-    # Act
-    processor = DisplayCodeInterpreterFilesPostProcessor(
-        client=mock_client,
-        content_service=mock_content_service,
-        config=config,
-        chat_service=None,
-    )
-
-    # Assert
-    assert processor._chat_service is None
-    assert processor._config.upload_to_chat is False
 
 
 @pytest.mark.ai

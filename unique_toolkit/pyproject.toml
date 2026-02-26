@@ -94,6 +94,16 @@ coverage = "pytest --cov=unique_toolkit --cov-report=term-missing"
 ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
 ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+asyncio_mode = "auto"
+markers = [
+    "ai: AI-generated tests",
+    "verified: AI-generated tests with human verification",
+    "wip: Work in progress tests"
+]
+filterwarnings = ["ignore::DeprecationWarning"]
+
 [tool.deptry]
 known_first_party = ["unique_toolkit"]
 extend_exclude = ["docs", "tests", "unique_toolkit/.*/test", "unique_toolkit/.*/tests"]

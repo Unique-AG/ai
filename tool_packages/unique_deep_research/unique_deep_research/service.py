@@ -28,6 +28,7 @@ from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.cancellation import CancellationEvent
 from unique_toolkit.chat.schemas import (
     MessageExecutionType,
     MessageExecutionUpdateStatus,
@@ -226,7 +227,27 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             return []
         return evaluation_check_list
 
+    async def _on_cancellation(self, _event: CancellationEvent) -> None:
+        """Subscriber called by the cancellation event bus."""
+        _LOGGER.info("Deep Research cancelled by user")
+        self.write_message_log_text_message("**Research stopped by user**")
+        if self.is_message_execution():
+            await self._update_execution_status(MessageExecutionUpdateStatus.FAILED)
+        await self.chat_service.modify_assistant_message_async(
+            content="Research was stopped.",
+        )
+
+    def _cancelled_response(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        return ToolCallResponse(
+            id=tool_call.id or "",
+            name=self.name,
+            content="Research was stopped.",
+        )
+
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        sub = self.chat_service.cancellation.on_cancellation.subscribe(
+            self._on_cancellation
+        )
         try:
             return await self._run(tool_call)
         except Exception as e:
@@ -248,6 +269,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 content="Deep Research failed to complete for an unknown reason",
                 set_completed_at=True,
             )
+        finally:
+            sub.cancel()
 
         return ToolCallResponse(
             id=tool_call.id or "",
@@ -278,12 +301,22 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             )
         if self.is_message_execution():
             _LOGGER.info("Starting research")
-            # Run research
+
+            if await self.chat_service.cancellation.check_cancellation_async():
+                return self._cancelled_response(tool_call)
+
             self.write_message_log_text_message("**Generating research plan**")
             research_brief = await self.generate_research_brief_from_dict(
                 self.get_visible_history_messages()
             )
+
+            if await self.chat_service.cancellation.check_cancellation_async():
+                return self._cancelled_response(tool_call)
+
             processed_result, content_chunks = await self.run_research(research_brief)
+
+            if self.chat_service.cancellation.is_cancelled:
+                return self._cancelled_response(tool_call)
 
             if processed_result == "":
                 raise ValueError("Research returned empty result")
@@ -294,7 +327,6 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
 
             await self._update_execution_status(MessageExecutionUpdateStatus.COMPLETED)
 
-            # Return the results
             return ToolCallResponse(
                 id=tool_call.id or "",
                 name=self.name,
@@ -458,9 +490,11 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             },
         }
 
-        result = await custom_agent.ainvoke(initial_state, config=config)  # type: ignore[arg-type]
+        result = await self.chat_service.cancellation.run_with_cancellation(
+            custom_agent.ainvoke(initial_state, config=config),  # type: ignore[arg-type]
+            cancel_result={"final_report": ""},
+        )
 
-        # Extract final report (citations already refined by agents.py)
         research_result = result.get("final_report", "")
 
         if not research_result:
@@ -519,8 +553,13 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             stream=True,
         )
 
-        # Process the stream
-        research_result, annotations = await self._process_research_stream(stream)
+        (
+            research_result,
+            annotations,
+        ) = await self.chat_service.cancellation.run_with_cancellation(
+            self._process_research_stream(stream),
+            cancel_result=("", []),
+        )
 
         if not research_result:
             return "", []
