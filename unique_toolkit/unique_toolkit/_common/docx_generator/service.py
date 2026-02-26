@@ -46,8 +46,8 @@ class DocxGeneratorService:
         renaming "# Proposed answer") are caller concerns and should be applied
         separately before calling this method.
         """
-        markdown = re.sub(r"(?m)^\s*## ", "#### ", markdown)
-        markdown = re.sub(r"(?m)^\s*### ", "##### ", markdown)
+        markdown = re.sub(r"(?m)^[ \t]*## ", "#### ", markdown)
+        markdown = re.sub(r"(?m)^[ \t]*### ", "##### ", markdown)
         return markdown
 
     @staticmethod
