@@ -198,24 +198,70 @@ class TestBuildOptions:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Stub methods raise NotImplementedError
+# _build_system_prompt
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class TestStubMethods:
+class TestBuildSystemPrompt:
     @pytest.mark.asyncio
-    async def test_build_system_prompt_raises_not_implemented(self) -> None:
-        """_build_system_prompt() is a Step 2b stub."""
-        runner = _make_runner()
-        with pytest.raises(NotImplementedError, match="Step 2b"):
-            await runner._build_system_prompt()
+    async def test_build_system_prompt_returns_override_when_set(self) -> None:
+        """When system_prompt_override is non-empty it is returned verbatim."""
+        config = ClaudeAgentConfig(system_prompt_override="My custom prompt")
+        runner = _make_runner(config)
+        runner._history_manager._loop_history = []
 
-    def test_build_history_raises_not_implemented(self) -> None:
-        """_build_history() is a Step 2b stub."""
-        runner = _make_runner()
-        with pytest.raises(NotImplementedError, match="Step 2b"):
-            runner._build_history()
+        result = await runner._build_system_prompt()
 
+        assert result == "My custom prompt"
+
+    @pytest.mark.asyncio
+    async def test_build_system_prompt_composes_sections_when_no_override(self) -> None:
+        """Default config with no override produces a composed prompt with key sections."""
+        runner = _make_runner()
+        runner._history_manager._loop_history = []
+        # Ensure user_metadata returns empty (no payload metadata)
+        runner._event.payload.user_metadata = None
+
+        result = await runner._build_system_prompt()
+
+        assert "# System" in result
+        assert "# Answer Style" in result
+        assert "# Reference Guidelines" in result
+        assert "HtmlRendering" in result
+        assert isinstance(result, str)
+        assert len(result) > 100
+
+    @pytest.mark.asyncio
+    async def test_build_system_prompt_includes_model_name(self) -> None:
+        """The configured model name appears in the composed prompt."""
+        config = ClaudeAgentConfig(model="claude-opus-4-20250514")
+        runner = _make_runner(config)
+        runner._history_manager._loop_history = []
+        runner._event.payload.user_metadata = None
+
+        result = await runner._build_system_prompt()
+
+        assert "claude-opus-4-20250514" in result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _build_history
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestBuildHistory:
+    def test_build_history_returns_empty_list(self) -> None:
+        """_build_history() returns [] — history is injected via system prompt for MVP."""
+        runner = _make_runner()
+        assert runner._build_history() == []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Remaining stub method
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestRemainingStub:
     @pytest.mark.asyncio
     async def test_run_claude_loop_raises_not_implemented(self) -> None:
         """_run_claude_loop() is a Step 3 stub."""

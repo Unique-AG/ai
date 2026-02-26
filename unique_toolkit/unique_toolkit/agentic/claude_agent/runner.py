@@ -20,6 +20,7 @@ Design constraints (enforce throughout):
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from logging import Logger
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -40,6 +41,8 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
 
 from .config import ClaudeAgentConfig, build_tool_policy
+from .history import format_history_as_text
+from .prompts import PromptContext, build_system_prompt
 
 if TYPE_CHECKING:
     from unique_orchestrator.config import UniqueAIConfig
@@ -156,26 +159,64 @@ class ClaudeAgentRunner:
         return None
 
     async def _build_system_prompt(self) -> str:
-        """Render the system prompt from Jinja2 templates.
+        """Compose the system prompt from platform context.
 
-        Step 2b will implement this by rendering the existing orchestrator Jinja2
-        templates (system_prompt.jinja2, generic_reference_prompt.jinja2) that
-        Abi's claude-agent-prompts.ts already ports verbatim.
+        Returns system_prompt_override verbatim when set. Otherwise builds
+        a structured prompt via build_system_prompt() matching Abi's
+        buildClaudeAgentSystemPrompt() output.
         """
-        raise NotImplementedError(
-            "System prompt rendering not yet implemented — see Step 2b"
+        if self._claude_config.system_prompt_override:
+            return self._claude_config.system_prompt_override
+
+        context = PromptContext(
+            model_name=self._claude_config.model,
+            date_string=datetime.now().strftime("%A %B %d, %Y"),
+            user_metadata=self._get_user_metadata(),
+            custom_instructions=self._claude_config.custom_instructions or None,
+            user_instructions=self._claude_config.user_instructions,
+            project_name=(
+                getattr(self._config, "space", None)
+                and getattr(self._config.space, "project_name", "Unique AI")
+                or "Unique AI"
+            ),
+            history_text=self._format_history(),
         )
+        return build_system_prompt(context)
 
     def _build_history(self) -> list[dict[str, Any]]:
-        """Convert platform history to Anthropic-shaped message list.
+        """Return placeholder for future structured Anthropic-format history.
 
-        Step 2b will implement this using HistoryManager to load past messages
-        and a format converter (history.py) to translate from the platform's
-        LanguageModelMessage format to Anthropic's [{role, content}] shape.
+        For MVP, history is injected as a text section inside the system prompt
+        via _format_history() / _build_system_prompt(). Structured Anthropic
+        messages ([{role, content}]) will be returned here in a later step once
+        the SDK streaming loop (Step 3) is in place.
         """
-        raise NotImplementedError(
-            "History conversion not yet implemented — see Step 2b"
+        return []
+
+    def _format_history(self) -> str:
+        """Get formatted history text for system prompt injection."""
+        if not self._claude_config.history_included:
+            return ""
+
+        messages = (
+            self._history_manager._loop_history
+        )  # TODO: use public API when available
+        return format_history_as_text(
+            messages=messages,
+            max_interactions=self._claude_config.max_history_interactions,
         )
+
+    def _get_user_metadata(self) -> dict[str, str]:
+        """Extract user metadata from the event payload.
+
+        TODO: filter to only the keys listed in config.agent.prompt_config.user_metadata
+        (see unique_ai.py::_get_filtered_user_metadata). For MVP, returns all
+        available metadata as str values.
+        """
+        raw = getattr(self._event.payload, "user_metadata", None)
+        if not raw:
+            return {}
+        return {k: str(v) for k, v in raw.items()}
 
     def _build_options(
         self,
