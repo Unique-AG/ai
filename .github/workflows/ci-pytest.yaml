@@ -1,8 +1,7 @@
-name: "[CI] Pytest - All Packages"
+name: "[CI] Test"
 
 on:
-  pull_request:
-  merge_group:
+  workflow_call:
   workflow_dispatch:
     inputs:
       package:

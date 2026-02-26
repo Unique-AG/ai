@@ -1,10 +1,10 @@
-name: "[chore] Validate PR title"
+name: "[CI] PR Title"
+
+on:
+  workflow_call:
 
 permissions:
   pull-requests: read
-
-on:
-  pull_request:
 
 jobs:
   main:

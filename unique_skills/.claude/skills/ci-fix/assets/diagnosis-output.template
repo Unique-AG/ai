@@ -1,0 +1,25 @@
+## CI Diagnosis Summary
+
+**Workflow**: <!-- workflow name, e.g. "CI / lint" -->
+**Run ID**:   <!-- GitHub Actions run ID -->
+**Branch**:   <!-- branch name -->
+
+**Failure type**: <!-- lint | format | pre-commit | lock-file | test | environment -->
+
+**Root cause**:
+> <!-- quoted excerpt from the CI log that identifies the failure -->
+
+**Action**: <!-- fixed-and-staged | proposed | explained -->
+
+**What was done / proposed**:
+<!-- description of the fix applied or proposed -->
+
+**Why this resolves it**:
+<!-- rationale — why the fix addresses the root cause, not just what was changed -->
+
+**Next step**:
+<!-- Choose one:
+  - "Review staged changes with `git diff --staged` then commit and push"
+  - "Apply the proposed fix above, then commit and push"
+  - "Contact [person/team] / re-run the CI job"
+-->

@@ -28,6 +28,7 @@ from unique_toolkit.agentic.tools.tool_manager import (
     ToolManager,
 )
 from unique_toolkit.app.schemas import ChatEvent, McpServer
+from unique_toolkit.chat.cancellation import CancellationEvent
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelAssistantMessage
@@ -155,6 +156,13 @@ class UniqueAI:
     ############################################################
     # Override of base methods
     ############################################################
+    async def _on_cancellation(self, _event: CancellationEvent) -> None:
+        """Subscriber called by the cancellation event bus."""
+        self._logger.info("Agent stopped by user request.")
+        await self._chat_service.modify_assistant_message_async(
+            set_completed_at=True,
+        )
+
     # @track(name="loop_agent_run")  # Group traces together
     async def run(self):
         """
@@ -170,47 +178,58 @@ class UniqueAI:
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )
 
-        ## Loop iteration
-        max_iterations = self._effective_max_loop_iterations
-        for i in range(max_iterations):
-            self.current_iteration_index = i
-            self._logger.info(f"Starting iteration {i + 1}...")
-
-            # Plan execution
-            loop_response = await self._plan_or_execute()
-            self._logger.info("Done with _plan_or_execute")
-
-            self._reference_manager.add_references(loop_response.message.references)
-            self._logger.info("Done with adding references")
-
-            # Update tool progress reporter
-            self._thinking_manager.update_tool_progress_reporter(loop_response)
-
-            # Execute the plan
-            exit_loop = await self._process_plan(loop_response)
-            self._logger.info("Done with _process_plan")
-
-            if exit_loop:
-                self._thinking_manager.close_thinking_steps(loop_response)
-                self._logger.info("Exiting loop.")
-                break
-
-            if i == max_iterations - 1:
-                self._logger.error("Max iterations reached.")
-                await self._chat_service.modify_assistant_message_async(
-                    content="I have reached the maximum number of self-reflection iterations. Please clarify your request and try again...",
-                )
-                break
-
-            self.start_text = self._thinking_manager.update_start_text(
-                self.start_text, loop_response
-            )
-        await self._update_debug_info_if_tool_took_control()
-
-        # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
-        await self._chat_service.modify_assistant_message_async(
-            set_completed_at=not self._tool_took_control,
+        sub = self._chat_service.cancellation.on_cancellation.subscribe(
+            self._on_cancellation
         )
+        try:
+            max_iterations = self._effective_max_loop_iterations
+            for i in range(max_iterations):
+                if self._chat_service.cancellation.is_cancelled:
+                    break
+
+                self.current_iteration_index = i
+                self._logger.info(f"Starting iteration {i + 1}...")
+
+                loop_response = await self._plan_or_execute()
+                self._logger.info("Done with _plan_or_execute")
+
+                if self._chat_service.cancellation.is_cancelled:
+                    break
+
+                self._reference_manager.add_references(loop_response.message.references)
+                self._logger.info("Done with adding references")
+
+                self._thinking_manager.update_tool_progress_reporter(loop_response)
+
+                exit_loop = await self._process_plan(loop_response)
+                self._logger.info("Done with _process_plan")
+
+                if self._chat_service.cancellation.is_cancelled:
+                    break
+
+                if exit_loop:
+                    self._thinking_manager.close_thinking_steps(loop_response)
+                    self._logger.info("Exiting loop.")
+                    break
+
+                if i == max_iterations - 1:
+                    self._logger.error("Max iterations reached.")
+                    await self._chat_service.modify_assistant_message_async(
+                        content="I have reached the maximum number of self-reflection iterations. Please clarify your request and try again...",
+                    )
+                    break
+
+                self.start_text = self._thinking_manager.update_start_text(
+                    self.start_text, loop_response
+                )
+
+            if not self._chat_service.cancellation.is_cancelled:
+                await self._update_debug_info_if_tool_took_control()
+                await self._chat_service.modify_assistant_message_async(
+                    set_completed_at=not self._tool_took_control,
+                )
+        finally:
+            sub.cancel()
 
     # @track()
     async def _plan_or_execute(self) -> LanguageModelStreamResponse:
@@ -359,13 +378,21 @@ class UniqueAI:
             and doc.expired_at <= datetime.now(timezone.utc)
         ]
 
+        # Combine custom instructions and user instructions
+        custom_instructions = self._config.space.custom_instructions
+        if self._config.space.user_space_instructions:
+            custom_instructions += (
+                "\n\nAdditional instructions provided by the user:\n"
+                + self._config.space.user_space_instructions
+            )
+
         system_message = system_prompt_template.render(
             model_info=self._config.space.language_model.model_dump(mode="json"),
             date_string=date_string,
             tool_descriptions=tool_descriptions,
             used_tools=used_tools,
             project_name=self._config.space.project_name,
-            custom_instructions=self._config.space.custom_instructions,
+            custom_instructions=custom_instructions,
             max_tools_per_iteration=self._config.agent.experimental.loop_configuration.max_tool_calls_per_iteration,
             max_loop_iterations=self._effective_max_loop_iterations,
             current_iteration=self.current_iteration_index + 1,

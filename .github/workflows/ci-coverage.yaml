@@ -1,7 +1,7 @@
-name: "[CI] Coverage - All Packages"
+name: "[CI] Coverage"
 
 on:
-  pull_request:
+  workflow_call:
   workflow_dispatch:
     inputs:
       package:

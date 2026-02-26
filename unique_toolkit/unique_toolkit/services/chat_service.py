@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from typing_extensions import deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
+from unique_toolkit.chat.cancellation import CancellationWatcher
 from unique_toolkit.chat.constants import (
     DEFAULT_MAX_MESSAGES,
     DEFAULT_PERCENT_OF_MAX_TOKENS,
@@ -114,13 +115,24 @@ class ChatService(ChatServiceDeprecated):
         super().__init__(*args, **kwargs)
         self._elicitation_service: ElicitationService | None = None
 
+        self._cancellation_watcher = CancellationWatcher(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._chat_id,
+            assistant_message_id=self._assistant_message_id,
+        )
+
+    @property
+    def cancellation(self) -> CancellationWatcher:
+        """Cancellation watcher for this chat session."""
+        return self._cancellation_watcher
+
     @property
     def elicitation(self) -> ElicitationService:
         """Get the ElicitationService for this chat session."""
         if self._elicitation_service is not None:
             return self._elicitation_service
 
-        # Create the ElicitationService from the chat event (dynamically selects correlation or chat and message)
         self._elicitation_service = ElicitationService.from_chat_event(self._event)
 
         return self._elicitation_service

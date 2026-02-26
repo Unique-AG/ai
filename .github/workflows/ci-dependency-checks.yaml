@@ -1,8 +1,7 @@
-name: "[CI] Dependency Checks"
+name: "[CI] Dependencies"
 
 on:
-  pull_request:
-  merge_group:
+  workflow_call:
   workflow_dispatch:
     inputs:
       package:

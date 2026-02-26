@@ -1,10 +1,19 @@
-from pydantic import Field
+from typing import Annotated
+
+from pydantic import Field, field_validator
 from pydantic.json_schema import SkipJsonSchema
 
 from unique_toolkit._common.config_checker import register_config
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInToolName,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
+    ShowExecutedCodePostprocessorConfig,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files import (
+    DisplayCodeInterpreterFilesPostProcessorConfig,
 )
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
@@ -58,11 +67,21 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
         default=True,
         description="If set, the files uploaded to the chat will be uploaded to the container where code is executed.",
     )
-    tool_description: str = Field(
+    tool_description: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(DEFAULT_TOOL_DESCRIPTION.split("\n"))
+        ),
+    ] = Field(
         default=DEFAULT_TOOL_DESCRIPTION,
         description="The description of the tool that will be included in the system prompt.",
     )
-    tool_description_for_system_prompt: str = Field(
+    tool_description_for_system_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT.split("\n")) / 2)
+        ),
+    ] = Field(
         default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
         description="The description of the tool that will be included in the system prompt.",
     )
@@ -72,9 +91,14 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
             description="The description of the tool that will be included in the user prompt.",
         )
     )
-    expires_after_minutes: int = Field(
+    expires_after_minutes: Annotated[
+        int,
+        RJSFMetaTag.NumberWidget.updown(min=1, max=20),
+    ] = Field(
         default=20,
-        description="The number of minutes after which the container will be deleted.",
+        ge=1,
+        le=20,
+        description="Minutes of inactivity after which the container is deleted. Maximum allowed by OpenAI is 20.",
     )
     use_auto_container: bool = Field(
         default=False,
@@ -82,6 +106,31 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
     )
 
 
+@register_config()
+class CodeInterpreterExtendedConfig(BaseToolConfig):
+    generated_files_config: DisplayCodeInterpreterFilesPostProcessorConfig = Field(
+        default=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        title="Generated files",
+    )
+
+    executed_code_display_config: ShowExecutedCodePostprocessorConfig = Field(
+        default=ShowExecutedCodePostprocessorConfig(),
+        title="Code display",
+    )
+
+    @field_validator("executed_code_display_config", mode="before")
+    @classmethod
+    def _default_executed_code_display_config(cls, v):
+        if v is None:
+            return ShowExecutedCodePostprocessorConfig()
+        return v
+
+    tool_config: OpenAICodeInterpreterConfig = Field(
+        default=OpenAICodeInterpreterConfig(),
+        title="Tool",
+    )
+
+
 ToolFactory.register_tool_config(
-    OpenAIBuiltInToolName.CODE_INTERPRETER, OpenAICodeInterpreterConfig
+    OpenAIBuiltInToolName.CODE_INTERPRETER, CodeInterpreterExtendedConfig
 )

@@ -19,6 +19,22 @@ from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 _LOGGER = logging.getLogger(__name__)
 
 
+TypeEncoder = Callable[[str], list[int]]
+TypeDecoder = Callable[[list[int]], str]
+
+
+@lru_cache(maxsize=10)
+def get_tokenizer_from_path(path: Path) -> Tokenizer:
+    if not path.exists():
+        raise FileNotFoundError(f"Tokenizer not found: {path}")
+    return Tokenizer.from_file(str(path))
+
+
+@lru_cache(maxsize=10)
+def get_tokenizer_from_tiktoken(tokenizer_name: str) -> tiktoken.Encoding:
+    return tiktoken.get_encoding(tokenizer_name)
+
+
 class LanguageModelName(StrEnum):
     AZURE_GPT_35_TURBO_0125 = "AZURE_GPT_35_TURBO_0125"
     AZURE_GPT_4_0613 = "AZURE_GPT_4_0613"
@@ -57,6 +73,7 @@ class LanguageModelName(StrEnum):
     ANTHROPIC_CLAUDE_HAIKU_4_5 = "litellm:anthropic-claude-haiku-4-5"
     ANTHROPIC_CLAUDE_SONNET_4 = "litellm:anthropic-claude-sonnet-4"
     ANTHROPIC_CLAUDE_SONNET_4_5 = "litellm:anthropic-claude-sonnet-4-5"
+    ANTHROPIC_CLAUDE_SONNET_4_6 = "litellm:anthropic-claude-sonnet-4-6"
     ANTHROPIC_CLAUDE_OPUS_4 = "litellm:anthropic-claude-opus-4"
     ANTHROPIC_CLAUDE_OPUS_4_1 = "litellm:anthropic-claude-opus-4-1"
     ANTHROPIC_CLAUDE_OPUS_4_5 = "litellm:anthropic-claude-opus-4-5"
@@ -69,6 +86,7 @@ class LanguageModelName(StrEnum):
     GEMINI_2_5_PRO = "litellm:gemini-2-5-pro"
     GEMINI_2_5_PRO_EXP_0325 = "litellm:gemini-2-5-pro-exp-03-25"
     GEMINI_2_5_PRO_PREVIEW_0605 = "litellm:gemini-2-5-pro-preview-06-05"
+    GEMINI_3_1_PRO_PREVIEW = "litellm:gemini-3-1-pro-preview"
     GEMINI_3_FLASH_PREVIEW = "litellm:gemini-3-flash-preview"
     GEMINI_3_PRO_PREVIEW = "litellm:gemini-3-pro-preview"
     GROK_4_1_FAST_NON_REASONING = "litellm:grok-4-1-fast-non-reasoning"
@@ -102,20 +120,26 @@ class EncoderName(StrEnum):
     QWEN = "qwen"
     DEEPSEEK = "deepseek"
 
-    @lru_cache(maxsize=10)
-    def get_encoder(self) -> Callable[[str], list[int]]:
-        if self.value in {"cl100k_base", "o200k_base"}:
-            enc = tiktoken.get_encoding(self.value)
-            return enc.encode
-
+    @property
+    def tokenizer_path(self) -> Path:
         base_path = Path(__file__).parent.parent / "_common" / "token" / "tokenizers"
-        tokenizer_path = base_path / self.value / "tokenizer.json"
+        return base_path / self.value / "tokenizer.json"
 
-        if not tokenizer_path.exists():
-            raise FileNotFoundError(f"Tokenizer not found: {tokenizer_path}")
+    def get_encoder(self) -> TypeEncoder:
+        if self.value in {"cl100k_base", "o200k_base"}:
+            tokenizer = get_tokenizer_from_tiktoken(self.value)
+            return tokenizer.encode
 
-        tokenizer = Tokenizer.from_file(str(tokenizer_path))
+        tokenizer = get_tokenizer_from_path(self.tokenizer_path)
         return lambda text: tokenizer.encode(text).ids
+
+    def get_decoder(self) -> TypeDecoder:
+        if self.value in {"cl100k_base", "o200k_base"}:
+            tokenizer = get_tokenizer_from_tiktoken(self.value)
+            return tokenizer.decode
+
+        tokenizer = get_tokenizer_from_path(self.tokenizer_path)
+        return tokenizer.decode
 
 
 def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
@@ -196,7 +220,7 @@ class TemperatureBounds(BaseModel):
     max_temperature: float
 
 
-def _load_custom_encoder(tokenizer_name: str) -> Callable[[str], list[int]]:
+def _load_custom_encoder(tokenizer_name: str) -> TypeEncoder:
     """Load a custom tokenizer from UNIQUE_CUSTOM_TOKENIZERS_PATH."""
     custom_path = os.getenv("UNIQUE_CUSTOM_TOKENIZERS_PATH")
     if not custom_path:
@@ -205,11 +229,21 @@ def _load_custom_encoder(tokenizer_name: str) -> Callable[[str], list[int]]:
         )
 
     tokenizer_path = Path(custom_path) / tokenizer_name / "tokenizer.json"
-    if not tokenizer_path.exists():
-        raise FileNotFoundError(f"Custom tokenizer not found: {tokenizer_path}")
 
-    tokenizer = Tokenizer.from_file(str(tokenizer_path))
+    tokenizer = get_tokenizer_from_path(tokenizer_path)
     return lambda text: tokenizer.encode(text).ids
+
+
+def _load_custom_decoder(tokenizer_name: str) -> TypeDecoder:
+    """Load a custom tokenizer from UNIQUE_CUSTOM_TOKENIZERS_PATH."""
+    custom_path = os.getenv("UNIQUE_CUSTOM_TOKENIZERS_PATH")
+    if not custom_path:
+        raise ValueError(
+            "UNIQUE_CUSTOM_TOKENIZERS_PATH must be set to use custom tokenizers"
+        )
+    tokenizer_path = Path(custom_path) / tokenizer_name / "tokenizer.json"
+    tokenizer = get_tokenizer_from_path(tokenizer_path)
+    return tokenizer.decode
 
 
 class LanguageModelInfo(BaseModel):
@@ -262,11 +296,16 @@ class LanguageModelInfo(BaseModel):
 
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
 
-    def get_encoder(self) -> Callable[[str], list[int]]:
+    def get_encoder(self) -> TypeEncoder:
         """Get an encode callable for this model's tokenizer."""
         if isinstance(self.encoder_name, EncoderName):
             return self.encoder_name.get_encoder()
         return _load_custom_encoder(self.encoder_name)
+
+    def get_decoder(self) -> TypeDecoder:
+        if isinstance(self.encoder_name, EncoderName):
+            return self.encoder_name.get_decoder()
+        return _load_custom_decoder(self.encoder_name)
 
     @classmethod
     @lru_cache(maxsize=1)
@@ -1139,6 +1178,26 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2025, 7, 1),
                     published_at=date(2025, 9, 29),
                 )
+            case LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_6:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="claude-sonnet-4-6",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # Input limit is 200_000, we leave 20_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=180_000,
+                        token_limit_output=64_000,
+                    ),
+                    info_cutoff_at=date(2026, 1, 1),
+                    published_at=date(2026, 2, 17),
+                )
             case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4:
                 return cls(
                     name=model_name,
@@ -1370,6 +1429,25 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 6, 5),
+                )
+            case LanguageModelName.GEMINI_3_1_PRO_PREVIEW:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="gemini-3-1-pro-preview",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=1_048_576, token_limit_output=65_536
+                    ),
+                    info_cutoff_at=date(2025, 1, day=1),
+                    published_at=date(2026, 1, 19),
                 )
             case LanguageModelName.GEMINI_3_FLASH_PREVIEW:
                 return cls(

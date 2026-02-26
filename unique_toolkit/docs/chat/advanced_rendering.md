@@ -130,6 +130,61 @@ For implementation examples, see the [Images Examples](../modules/examples/chat/
   * Images not part of the current chat cannot be rendered.
 * **Content ID**: Ensure you use the correct `content_id` associated with the image you want to display.
 
+## HTML Rendering
+
+The chat supports rendering HTML content directly within messages using the `HtmlRendering` code block syntax. This enables rich, interactive content such as charts, reports, or custom visualizations to be displayed inline in the conversation.
+
+### Two Modes
+
+There are two ways to include HTML in a message:
+
+* **Inline HTML**: Embed the full HTML markup directly inside the message. This is useful for dynamically generated content such as interactive charts.
+* **Content Reference**: Reference an HTML file that has been uploaded to the chat or to a knowledge base using a `unique://content/<content_id>` URI. The file is fetched and rendered at display time.
+
+### Syntax
+
+Wrap the content in a fenced code block tagged with `HtmlRendering`. The first two lines inside the block specify the **width** and **height** of the rendered frame, followed by an empty line, and then either the HTML content or a content URI:
+
+````
+```HtmlRendering
+<width>
+<height>
+
+<html content or unique://content/content_id>
+```
+````
+
+* **Width**: CSS width value (e.g. `100%`, `600px`).
+* **Height**: CSS height value (e.g. `800px`, `500px`).
+
+### Size Limit
+
+The maximum renderable HTML size is **2 MB** by default. Content exceeding this limit will not be rendered.
+
+### Access Control
+
+When using a content reference (`unique://content/<content_id>`), the HTML file is only rendered if the current user has access to it. This means:
+
+* The content must be part of the user's current chat, **or**
+* The content must be accessible from a knowledge base the user has access to.
+
+If the user does not have access to the referenced content, it will not be displayed.
+
+### Tips & Tricks
+
+* Use **inline HTML** for self-contained, dynamically generated content (e.g. Plotly charts, custom tables).
+* Use **content references** when the HTML file already exists in the chat or knowledge base.
+* Adjust the `width` and `height` parameters to fit the content — `100%` width works well for responsive layouts.
+* External scripts (e.g. CDN-hosted libraries like Plotly) can be included in inline HTML via `<script>` tags.
+
+### Limitations
+
+* **Size**: HTML content larger than 2 MB will not be rendered.
+* **Access**: Referenced content must be accessible to the user viewing the message.
+* **Rendering**: Complex or heavily interactive HTML may behave differently depending on the frontend environment.
+
+For implementation examples, see the [HTML Rendering Examples](../../modules/examples/chat/advanced_rendering#html-rendering).
+
 ## Financial Chart
 
 The `financialchart` block enables rich visualization of stock market data within chat messages using a JSON structure. This feature supports time-series price charts along with detailed financial metrics — perfect for financial bots, stock monitoring tools, or investment platforms.
