@@ -337,7 +337,7 @@ class ExperimentalConfig(BaseToolConfig):
 
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
 
-    responses_api_config: ResponsesApiConfig = ResponsesApiConfig()
+    responses_api_config: SkipJsonSchema[ResponsesApiConfig] = ResponsesApiConfig()
 
 
 class UniqueAIAgentConfig(BaseToolConfig):
