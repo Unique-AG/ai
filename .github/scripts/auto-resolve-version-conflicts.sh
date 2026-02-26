@@ -255,6 +255,14 @@ resolve_pr() {
     git add "$pyproject" "$changelog"
   done
 
+  if git diff --name-only --diff-filter=U 2>/dev/null | grep -q .; then
+    echo "Unresolved files remain after version resolution — aborting"
+    git merge --abort 2>/dev/null || true
+    git checkout - -q 2>/dev/null || true
+    echo "::endgroup::"
+    return 0
+  fi
+
   if git diff --cached --quiet; then
     echo "No changes to commit after resolution"
     git merge --abort 2>/dev/null || true
