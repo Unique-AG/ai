@@ -19,7 +19,7 @@ from unique_toolkit._common.docx_generator.schemas import (
 from unique_toolkit._common.utils.files import FileMimeType
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import ContentReference
-from unique_toolkit.content.service import ContentService
+from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 generator_dir_path = Path(__file__).resolve().parent
 
@@ -249,21 +249,22 @@ class DocxGeneratorService:
         docx_object: bytes,
         sequence_number: int,
         file_name: str,
-        content_service: ContentService,
         chat_service: ChatService,
+        knowledge_base_service: KnowledgeBaseService | None = None,
     ) -> ContentReference | None:
         """
         Upload a generated DOCX and create a ContentReference for use in chat.
 
-        Uploads to chat if config.upload_to_chat is True, and additionally to
-        a scope if config.upload_scope_id is set. At least one must be configured.
+        Uploads to chat if config.upload_to_chat is True (via chat_service), and
+        additionally to a scope if config.upload_scope_id is set (via
+        knowledge_base_service). At least one must be configured.
 
         Args:
             docx_object: The generated DOCX bytes to upload.
             sequence_number: The sequence number for the ContentReference.
             file_name: The original file name (chat prefix will be stripped).
-            content_service: The ContentService to use for uploading.
-            chat_service: The ChatService used to obtain chat_id and message_id.
+            chat_service: Used for chat uploads and to resolve the message ID.
+            knowledge_base_service: Required when config.upload_scope_id is set.
 
         Returns:
             A ContentReference, or None if an error occurs.
@@ -279,17 +280,20 @@ class DocxGeneratorService:
             content_id: str | None = None
 
             if self._config.upload_to_chat:
-                created = content_service.upload_content_from_bytes(
+                created = chat_service.upload_to_chat_from_bytes(
                     content=docx_object,
                     content_name=content_name,
-                    chat_id=chat_service.chat_id,
                     mime_type=mime_type,
                     skip_ingestion=self._config.skip_ingestion,
                 )
                 content_id = created.id
 
             if self._config.upload_scope_id:
-                created = content_service.upload_content_from_bytes(
+                if knowledge_base_service is None:
+                    raise ValueError(
+                        "knowledge_base_service is required when upload_scope_id is set."
+                    )
+                created = knowledge_base_service.upload_content_from_bytes(
                     content=docx_object,
                     content_name=content_name,
                     scope_id=self._config.upload_scope_id,
@@ -303,6 +307,8 @@ class DocxGeneratorService:
                     "No upload destination configured: set upload_to_chat=True or upload_scope_id."
                 )
 
+            # TODO: assistant_message_id has no non-deprecated public accessor on
+            # ChatService yet; update once a replacement is available.
             return ContentReference(
                 id=content_id,
                 sequence_number=sequence_number,
@@ -320,7 +326,7 @@ class DocxGeneratorService:
     @staticmethod
     def resolve_template(
         config: DocxGeneratorConfig,
-        content_service: ContentService,
+        knowledge_base_service: KnowledgeBaseService,
     ) -> bytes | None:
         """
         Fetch template bytes using config's template_content_id or
@@ -331,7 +337,7 @@ class DocxGeneratorService:
 
         Args:
             config: The DocxGeneratorConfig with template resolution settings.
-            content_service: The ContentService to use for downloading.
+            knowledge_base_service: The KnowledgeBaseService to use for downloading.
 
         Returns:
             Template bytes, or None to use the default template.
@@ -339,11 +345,13 @@ class DocxGeneratorService:
         try:
             if config.template_content_id:
                 return DocxGeneratorService._fetch_template_by_content_id(
-                    config.template_content_id, content_service
+                    config.template_content_id, knowledge_base_service
                 )
             elif config.template_name and config.template_scope_id:
                 return DocxGeneratorService._fetch_template_by_name(
-                    config.template_name, config.template_scope_id, content_service
+                    config.template_name,
+                    config.template_scope_id,
+                    knowledge_base_service,
                 )
         except Exception as e:
             _LOGGER.exception(f"Error resolving template, falling back to default: {e}")
@@ -352,21 +360,19 @@ class DocxGeneratorService:
 
     @staticmethod
     def _fetch_template_by_content_id(
-        content_id: str, content_service: ContentService
+        content_id: str, knowledge_base_service: KnowledgeBaseService
     ) -> bytes:
-        response = content_service.request_content_by_id(content_id)
-        if response.status_code != 200:
-            raise ValueError(
-                f"Failed to download template from content ID: {content_id}"
-            )
+        content = knowledge_base_service.download_content_to_bytes(
+            content_id=content_id
+        )
         _LOGGER.info(f"Template downloaded from content ID: {content_id}")
-        return response.content
+        return content
 
     @staticmethod
     def _fetch_template_by_name(
         template_name: str,
         template_scope_id: str,
-        content_service: ContentService,
+        knowledge_base_service: KnowledgeBaseService,
     ) -> bytes:
         where_clause: dict = {
             "OR": [
@@ -381,7 +387,7 @@ class DocxGeneratorService:
             ]
         }
 
-        contents = content_service.search_contents(where=where_clause)
+        contents = knowledge_base_service.search_contents(where=where_clause)
         if len(contents) == 0:
             raise ValueError(
                 f"No template found with the name `{template_name}` in knowledge base."
@@ -392,7 +398,7 @@ class DocxGeneratorService:
             )
 
         result = DocxGeneratorService._fetch_template_by_content_id(
-            contents[0].id, content_service
+            contents[0].id, knowledge_base_service
         )
         _LOGGER.info(f"Template downloaded from template name: {template_name}")
         return result

@@ -607,28 +607,27 @@ class TestUploadAndCreateReference:
         return DocxGeneratorService(config=DocxGeneratorConfig())
 
     @pytest.fixture
-    def mock_content_service(self):
+    def mock_chat_service(self):
+        svc = Mock()
+        uploaded = Mock()
+        uploaded.id = "cont_abc123"
+        svc.upload_to_chat_from_bytes.return_value = uploaded
+        svc.assistant_message_id = "msg_001"
+        return svc
+
+    @pytest.fixture
+    def mock_knowledge_base_service(self):
         svc = Mock()
         uploaded = Mock()
         uploaded.id = "cont_abc123"
         svc.upload_content_from_bytes.return_value = uploaded
         return svc
 
-    @pytest.fixture
-    def mock_chat_service(self):
-        svc = Mock()
-        svc.chat_id = "chat_001"
-        svc.assistant_message_id = "msg_001"
-        return svc
-
-    def test_upload_to_chat_returns_reference(
-        self, service, mock_content_service, mock_chat_service
-    ):
+    def test_upload_to_chat_returns_reference(self, service, mock_chat_service):
         ref = service.upload_and_create_reference(
             docx_object=b"docx",
             sequence_number=1,
             file_name="report.docx",
-            content_service=mock_content_service,
             chat_service=mock_chat_service,
         )
 
@@ -637,10 +636,10 @@ class TestUploadAndCreateReference:
         assert ref.sequence_number == 1
         assert ref.message_id == "msg_001"
         assert ref.url == "unique://content/cont_abc123"
-        mock_content_service.upload_content_from_bytes.assert_called_once()
+        mock_chat_service.upload_to_chat_from_bytes.assert_called_once()
 
     def test_upload_to_scope_uses_scope_id(
-        self, mock_content_service, mock_chat_service
+        self, mock_chat_service, mock_knowledge_base_service
     ):
         config = DocxGeneratorConfig(upload_to_chat=False, upload_scope_id="scope_xyz")
         service = DocxGeneratorService(config=config)
@@ -649,40 +648,36 @@ class TestUploadAndCreateReference:
             docx_object=b"docx",
             sequence_number=2,
             file_name="report.docx",
-            content_service=mock_content_service,
             chat_service=mock_chat_service,
+            knowledge_base_service=mock_knowledge_base_service,
         )
 
         assert ref is not None
-        call_kwargs = mock_content_service.upload_content_from_bytes.call_args.kwargs
+        call_kwargs = (
+            mock_knowledge_base_service.upload_content_from_bytes.call_args.kwargs
+        )
         assert call_kwargs["scope_id"] == "scope_xyz"
 
-    def test_returns_none_on_exception(
-        self, service, mock_content_service, mock_chat_service
-    ):
-        mock_content_service.upload_content_from_bytes.side_effect = RuntimeError(
+    def test_returns_none_on_exception(self, service, mock_chat_service):
+        mock_chat_service.upload_to_chat_from_bytes.side_effect = RuntimeError(
             "upload failed"
         )
         ref = service.upload_and_create_reference(
             docx_object=b"docx",
             sequence_number=1,
             file_name="report.docx",
-            content_service=mock_content_service,
             chat_service=mock_chat_service,
         )
         assert ref is None
 
-    def test_chat_prefix_stripped_from_file_name(
-        self, service, mock_content_service, mock_chat_service
-    ):
+    def test_chat_prefix_stripped_from_file_name(self, service, mock_chat_service):
         service.upload_and_create_reference(
             docx_object=b"docx",
             sequence_number=1,
             file_name="Chat_2026-01-15_09:30_report",
-            content_service=mock_content_service,
             chat_service=mock_chat_service,
         )
-        call_kwargs = mock_content_service.upload_content_from_bytes.call_args.kwargs
+        call_kwargs = mock_chat_service.upload_to_chat_from_bytes.call_args.kwargs
         assert "Chat_2026" not in call_kwargs["content_name"]
         assert "report" in call_kwargs["content_name"]
 
@@ -692,23 +687,22 @@ class TestResolveTemplate:
 
     def test_returns_none_when_no_template_configured(self):
         config = DocxGeneratorConfig()
-        mock_cs = Mock()
-        result = DocxGeneratorService.resolve_template(config, mock_cs)
+        mock_kbs = Mock()
+        result = DocxGeneratorService.resolve_template(config, mock_kbs)
         assert result is None
-        mock_cs.request_content_by_id.assert_not_called()
+        mock_kbs.download_content_to_bytes.assert_not_called()
 
     def test_resolves_by_content_id(self):
         config = DocxGeneratorConfig(template_content_id="cont_tmpl123")
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.content = b"template-bytes"
-        mock_cs = Mock()
-        mock_cs.request_content_by_id.return_value = mock_response
+        mock_kbs = Mock()
+        mock_kbs.download_content_to_bytes.return_value = b"template-bytes"
 
-        result = DocxGeneratorService.resolve_template(config, mock_cs)
+        result = DocxGeneratorService.resolve_template(config, mock_kbs)
 
         assert result == b"template-bytes"
-        mock_cs.request_content_by_id.assert_called_once_with("cont_tmpl123")
+        mock_kbs.download_content_to_bytes.assert_called_once_with(
+            content_id="cont_tmpl123"
+        )
 
     def test_resolves_by_template_name(self):
         config = DocxGeneratorConfig(
@@ -717,26 +711,21 @@ class TestResolveTemplate:
         )
         found_content = Mock()
         found_content.id = "cont_found"
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.content = b"template-by-name"
-        mock_cs = Mock()
-        mock_cs.search_contents.return_value = [found_content]
-        mock_cs.request_content_by_id.return_value = mock_response
+        mock_kbs = Mock()
+        mock_kbs.search_contents.return_value = [found_content]
+        mock_kbs.download_content_to_bytes.return_value = b"template-by-name"
 
-        result = DocxGeneratorService.resolve_template(config, mock_cs)
+        result = DocxGeneratorService.resolve_template(config, mock_kbs)
 
         assert result == b"template-by-name"
-        mock_cs.search_contents.assert_called_once()
+        mock_kbs.search_contents.assert_called_once()
 
     def test_returns_none_on_download_error(self):
         config = DocxGeneratorConfig(template_content_id="cont_bad")
-        mock_response = Mock()
-        mock_response.status_code = 404
-        mock_cs = Mock()
-        mock_cs.request_content_by_id.return_value = mock_response
+        mock_kbs = Mock()
+        mock_kbs.download_content_to_bytes.side_effect = Exception("not found")
 
-        result = DocxGeneratorService.resolve_template(config, mock_cs)
+        result = DocxGeneratorService.resolve_template(config, mock_kbs)
 
         assert result is None
 
@@ -744,10 +733,10 @@ class TestResolveTemplate:
         config = DocxGeneratorConfig(
             template_name="ambiguous.docx", template_scope_id="scope_abc"
         )
-        mock_cs = Mock()
-        mock_cs.search_contents.return_value = [Mock(), Mock()]
+        mock_kbs = Mock()
+        mock_kbs.search_contents.return_value = [Mock(), Mock()]
 
-        result = DocxGeneratorService.resolve_template(config, mock_cs)
+        result = DocxGeneratorService.resolve_template(config, mock_kbs)
 
         assert result is None
 
