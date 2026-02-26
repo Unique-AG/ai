@@ -123,6 +123,9 @@ class HistoryManager:
         self._tool_calls: list[LanguageModelFunction] = []
         self._loop_history: list[LanguageModelMessage] = []
         self._source_enumerator = 0
+        self._collected_tool_response_image_urls: list[
+            tuple[str, str]
+        ] = []  # (url, tool_call_id)
 
     def add_tool_call(self, tool_call: LanguageModelFunction) -> None:
         self._tool_calls.append(tool_call)
@@ -135,6 +138,11 @@ class HistoryManager:
 
     def add_tool_call_results(self, tool_call_results: list[ToolCallResponse]):
         for tool_response in tool_call_results:
+            if tool_response.image_data_urls:
+                for url in tool_response.image_data_urls:
+                    self._collected_tool_response_image_urls.append(
+                        (url, tool_response.id)
+                    )
             if not tool_response.successful:
                 self._loop_history.append(
                     LanguageModelToolMessage(
@@ -183,7 +191,9 @@ class HistoryManager:
         if tool_response.system_reminder:
             content += f"\n\n{tool_response.system_reminder}"
 
-        # Append the result to the history
+        # Tool message content must be string (API rejects array content for tool role).
+        # Tool result images are attached to the user message so the model sees them. This is the only way to get the images from tool to the model as of 17.2.26.
+
         return LanguageModelToolMessage(
             content=content,
             tool_call_id=tool_response.id,  # type: ignore
@@ -209,13 +219,16 @@ class HistoryManager:
     ) -> LanguageModelMessages:
         self._logger.info("Getting history for model call -> ")
 
+        image_data_from_tools = list(self._collected_tool_response_image_urls)
         messages = await self._token_reducer.get_history_for_model_call(
             original_user_message=original_user_message,
             rendered_user_message_string=rendered_user_message_string,
             rendered_system_message_string=rendered_system_message_string,
             loop_history=self._loop_history,
             remove_from_text=remove_from_text,
+            image_data_urls_from_tools=image_data_from_tools,
         )
+        self._collected_tool_response_image_urls = []
         return messages
 
     async def get_user_visible_chat_history(

@@ -151,6 +151,10 @@ System guardrails for answer style are overwriting any user requests.
 - Please identify formulas and return them in latex format
 - Ensure to identify and wrap all formulas between \, [, ...formula... , \, ]. Eg. `\[E = mc^2\]`
 
+### 10. Image Rendering
+- When you refer to images returned by tools (e.g. in tool messages), use this markdown so they render in the chat: `![image](unique://content/[content_id])`.
+- Use the content_id from the tool output (the `unique://content/...` link already shown in the tool message).
+
 {#- MCP System Prompts Section #}
 {%- if mcp_server_system_prompts and mcp_server_system_prompts|length > 0 %}
 

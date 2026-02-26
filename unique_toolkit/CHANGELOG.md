@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `get_content_infos_async()` to `KnowledgeBaseService` for fetching all content infos with parallel pagination
 - Add `extract_folder_metadata_from_content_infos()` static method to extract scope IDs and folder paths from content
 
+## [1.47.12] - 2026-02-26
+- Attach tool result images (MCP or internal) to the user message so the LLM can see them
+- MCP image handling: hide_in_chat uploads, unique content names, small robustness fixes
+
 ## [1.47.11] - 2026-02-26
 - Add `DocxGeneratorService` migration surface: `DocxGeneratorResult`, `generate_from_template_with_result()`, `upload_and_create_reference()`, `resolve_template()`, `normalize_heading_levels()`
 - Fix error handling in `DocxGeneratorService`; tighten `DocxGeneratorConfig.template_fields` to `dict[str, str]`
