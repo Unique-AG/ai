@@ -554,7 +554,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         search_strings_list = search_strings_list[: self.config.max_search_strings]
 
         self._active_message_log = await self._create_or_update_active_message_log(
-            progress_message="Retrieving search results...",
+            progress_message="_Retrieving search results_",
             search_strings_list=search_strings_list,
         )
 
