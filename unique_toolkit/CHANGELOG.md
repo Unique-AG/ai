@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.47.9] - 2026-02-26
+- Code interpreter: bound `expires_after_minutes` to 1–20 (OpenAI API max), add RJSF `NumberWidget.updown` for UI
+
 ## [1.47.8] - 2026-02-25
 - Use `AliasGenerator` to create the sort keys in `ui_schema_for_model`
 
