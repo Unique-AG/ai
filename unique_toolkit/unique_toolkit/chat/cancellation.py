@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class CancellationWatcher:
-    """Polls the database for ``cancelledAt`` and publishes to an event bus.
+    """Polls the database for ``userAbortedAt`` and publishes to an event bus.
 
     The watcher never raises exceptions for cancellation. Instead it:
     - publishes a :class:`CancellationEvent` on the bus
@@ -72,8 +72,8 @@ class CancellationWatcher:
                 id=self._assistant_message_id,
                 chatId=self._chat_id,
             )
-            cancelled_at = getattr(raw_msg, "cancelledAt", None)
-            if cancelled_at is not None:
+            user_aborted_at = getattr(raw_msg, "userAbortedAt", None)
+            if user_aborted_at is not None:
                 self._cancelled = True
                 event = CancellationEvent(message_id=self._assistant_message_id)
                 await self._bus.publish_and_wait_async(event)
@@ -101,8 +101,8 @@ class CancellationWatcher:
                 id=self._assistant_message_id,
                 chatId=self._chat_id,
             )
-            cancelled_at = getattr(raw_msg, "cancelledAt", None)
-            if cancelled_at is not None:
+            user_aborted_at = getattr(raw_msg, "userAbortedAt", None)
+            if user_aborted_at is not None:
                 self._cancelled = True
                 event = CancellationEvent(message_id=self._assistant_message_id)
                 self._bus.publish_and_wait(event)

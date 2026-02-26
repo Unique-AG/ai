@@ -70,7 +70,7 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
 from unique_orchestrator._builders import build_loop_iteration_runner
-from unique_orchestrator.config import UniqueAIConfig
+from unique_orchestrator.config import CodeInterpreterExtendedConfig, UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
 
 
@@ -258,14 +258,26 @@ async def _build_responses(
 
     assert config.agent.experimental.responses_api_config is not None
 
-    code_interpreter_config = (
+    postprocessor_manager = common_components.postprocessor_manager
+
+    code_interpreter_config_tools = None
+    for tool in config.space.tools:
+        if tool.is_enabled and tool.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
+            code_interpreter_config_tools = cast(
+                CodeInterpreterExtendedConfig, tool.configuration
+            )
+            break
+
+    code_interpreter_config_experimental = (
         config.agent.experimental.responses_api_config.code_interpreter
     )
-    postprocessor_manager = common_components.postprocessor_manager
-    tool_names = [tool.name for tool in config.space.tools]
+
+    code_interpreter_config = (
+        code_interpreter_config_tools or code_interpreter_config_experimental
+    )
 
     if code_interpreter_config is not None:
-        if OpenAIBuiltInToolName.CODE_INTERPRETER not in tool_names:
+        if code_interpreter_config_tools is None:
             logger.info("Automatically adding code interpreter to the tools")
             config = config.model_copy(deep=True)
             config.space.tools.append(

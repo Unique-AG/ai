@@ -9,8 +9,12 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 
-from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
-from unique_web_search.services.content_processing import WebPageChunk
+from unique_web_search.schema import (
+    StepDebugInfo,
+    WebPageChunk,
+    WebSearchPlan,
+    WebSearchToolParameters,
+)
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
     ExecutorConfiguration,
@@ -19,7 +23,6 @@ from unique_web_search.services.executors.context import (
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-from unique_web_search.utils import StepDebugInfo
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -97,7 +100,7 @@ class BaseWebSearchExecutor(ABC):
     ) -> list[WebPageChunk]:
         start_time = time()
         _LOGGER.info(
-            f"Company {self.company_id} Content processing with {self.content_processor.config.strategy}"
+            f"Company {self.company_id} Content processing with {self.content_processor.config.active_processing_strategies}"
         )
         content_results = await self.content_processor.run(
             objective, web_search_results
@@ -105,13 +108,13 @@ class BaseWebSearchExecutor(ABC):
         end_time = time()
         delta_time = end_time - start_time
         _LOGGER.info(
-            f"Content processed with {self.content_processor.config.strategy} completed in {delta_time} seconds"
+            f"Content processed with {self.content_processor.config.active_processing_strategies} completed in {delta_time} seconds"
         )
         self.debug_info.steps.append(
             StepDebugInfo(
                 step_name="content_processing",
                 execution_time=delta_time,
-                config=self.content_processor.config.strategy.name,
+                config=str(self.content_processor.config.active_processing_strategies),
                 extra={
                     "number_of_results": len(web_search_results),
                     "web_page_chunks": [elem.model_dump() for elem in content_results],
