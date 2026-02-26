@@ -379,6 +379,32 @@ Paragraph 3"""
             assert isinstance(item, RunsField)
 
 
+class TestNormalizeHeadingLevels:
+    """Test normalize_heading_levels() static method."""
+
+    def test_demotes_h2_to_h4(self):
+        result = DocxGeneratorService.normalize_heading_levels("## Section")
+        assert result.startswith("#### Section")
+
+    def test_demotes_h3_to_h5(self):
+        result = DocxGeneratorService.normalize_heading_levels("### Sub")
+        assert result.startswith("##### Sub")
+
+    def test_leaves_h1_unchanged(self):
+        result = DocxGeneratorService.normalize_heading_levels("# Title")
+        assert result.startswith("# Title")
+
+    def test_parse_flag_applies_normalization(self):
+        markdown = "# Title\n\n## Section\n\ntext"
+        result = DocxGeneratorService.parse_markdown_to_list_content_fields(
+            markdown, normalize_heading_levels=True
+        )
+        headings = [r for r in result if isinstance(r, HeadingField)]
+        levels = {h.text: h.level for h in headings}
+        assert levels["Title"] == 1  # H1 unchanged
+        assert levels["Section"] == 4  # H2 → H4
+
+
 class TestDocxGeneratorServiceGeneration:
     """Test cases for DocxGeneratorService document generation."""
 

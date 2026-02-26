@@ -2,6 +2,7 @@ import io
 import logging
 import re
 from pathlib import Path
+from typing import Any
 
 from docxtpl import DocxTemplate
 from markdown_it import MarkdownIt
@@ -34,9 +35,30 @@ class DocxGeneratorService:
         self._template = template
 
     @staticmethod
+    def normalize_heading_levels(markdown: str) -> str:
+        """Demote H2 and H3 headings by two levels (## → ####, ### → #####).
+
+        H1 headings are left unchanged. This replicates the heading normalization
+        that was baked into the monorepo's parse_markdown_to_list_content_fields()
+        and is useful when migrating callers that relied on that behaviour.
+
+        Content-specific substitutions (e.g. removing "# Relevant sources" or
+        renaming "# Proposed answer") are caller concerns and should be applied
+        separately before calling this method.
+        """
+        markdown = re.sub(r"(?m)^\s*## ", "#### ", markdown)
+        markdown = re.sub(r"(?m)^\s*### ", "##### ", markdown)
+        return markdown
+
+    @staticmethod
     def parse_markdown_to_list_content_fields(
-        markdown: str, offset_header_lvl: int = 0
+        markdown: str,
+        offset_header_lvl: int = 0,
+        normalize_heading_levels: bool = False,
     ) -> list[HeadingField | ParagraphField | RunsField]:
+        if normalize_heading_levels:
+            markdown = DocxGeneratorService.normalize_heading_levels(markdown)
+
         # Initialize markdown-it parser
         md = MarkdownIt()
 
@@ -186,11 +208,11 @@ class DocxGeneratorService:
         Returns:
             The generated docx file as bytes, or None on error.
         """
-        doc = DocxTemplate(io.BytesIO(self.template))
-
         try:
+            doc = DocxTemplate(io.BytesIO(self.template))
+
             # Seed context with config template_fields (e.g. date, document_title)
-            content = dict(self._config.template_fields)
+            content: dict[str, Any] = dict(self._config.template_fields)
             content["body"] = ContentField(contents=subdoc_content)
 
             if fields:
@@ -208,8 +230,8 @@ class DocxGeneratorService:
 
             return docx_rendered_object.getvalue()
 
-        except Exception as e:
-            _LOGGER.error(f"Error generating docx: {e}")
+        except Exception:
+            _LOGGER.exception("Error generating docx")
             return None
 
     def generate_from_template_with_result(
@@ -269,6 +291,7 @@ class DocxGeneratorService:
         Returns:
             A ContentReference, or None if an error occurs.
         """
+        content_id: str | None = None
         try:
             mime_type = FileMimeType.DOCX.value
 
@@ -276,8 +299,6 @@ class DocxGeneratorService:
                 re.sub(_CHAT_FILE_PREFIX_PATTERN, "", Path(file_name).stem)
                 + self._config.upload_suffix
             )
-
-            content_id: str | None = None
 
             if self._config.upload_to_chat:
                 created = chat_service.upload_to_chat_from_bytes(
@@ -307,20 +328,25 @@ class DocxGeneratorService:
                     "No upload destination configured: set upload_to_chat=True or upload_scope_id."
                 )
 
-            # TODO: assistant_message_id has no non-deprecated public accessor on
-            # ChatService yet; update once a replacement is available.
             return ContentReference(
                 id=content_id,
                 sequence_number=sequence_number,
-                message_id=chat_service.assistant_message_id,
+                message_id=chat_service._assistant_message_id,
                 name=content_name,
                 source=content_name,
                 source_id=content_id,
                 url=f"unique://content/{content_id}",
             )
 
-        except Exception as e:
-            _LOGGER.error(f"Error uploading content: {e}")
+        except Exception:
+            if content_id is not None:
+                _LOGGER.exception(
+                    "Scope upload failed after chat upload succeeded "
+                    "(chat content_id=%s); chat content was not rolled back",
+                    content_id,
+                )
+            else:
+                _LOGGER.exception("Error uploading content")
             return None
 
     @staticmethod
@@ -353,8 +379,8 @@ class DocxGeneratorService:
                     config.template_scope_id,
                     knowledge_base_service,
                 )
-        except Exception as e:
-            _LOGGER.exception(f"Error resolving template, falling back to default: {e}")
+        except Exception:
+            _LOGGER.exception("Error resolving template, falling back to default")
 
         return None
 
