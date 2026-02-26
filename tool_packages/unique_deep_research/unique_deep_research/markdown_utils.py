@@ -10,9 +10,15 @@ import logging
 import re
 from typing import Dict, NamedTuple
 
+from unique_toolkit import ChatService, ContentService
+from unique_toolkit._common.docx_generator import (
+    pandoc_markdown_to_docx_async,
+)
+from unique_toolkit._common.referencing import get_all_ref_numbers, replace_ref_number
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
-from .unique_custom.citation import CitationMetadata
+from unique_deep_research.config import DocxExportConfig
+from unique_deep_research.unique_custom.citation import CitationMetadata
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -338,3 +344,113 @@ def validate_and_map_citations(
             )
         )
     return processed_report, references
+
+
+async def export_report_to_docx(
+    report: str,
+    references: list[ContentReference],
+    config: DocxExportConfig,
+    content_service: ContentService,
+    chat_service: ChatService,
+) -> tuple[str, ContentReference]:
+    """Export the final report to a DOCX file and append it to the final report message."""
+
+    template = None
+    if config.template_content_id.strip() != "":
+        template = content_service.download_content_to_bytes(config.template_content_id)
+
+    reference_dict = {ref.sequence_number: ref for ref in references}
+
+    docx_report = report
+    if config.strip_markdown_dividers:
+        docx_report = _remove_horizontal_rules(docx_report)
+
+    docx_report = _remap_and_append_docx_references(
+        report=docx_report, references=reference_dict
+    )
+    docx_bytes = await pandoc_markdown_to_docx_async(
+        source=docx_report, template=template
+    )
+
+    content = await chat_service.upload_to_chat_from_bytes_async(
+        content=docx_bytes,
+        content_name="Deep Research Report",
+        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        skip_ingestion=True,
+        hide_in_chat=True,
+    )
+
+    next_reference_number = max(reference_dict, default=0) + 1
+
+    reference = ContentReference(
+        name="Deep Research Report",
+        url=f"unique://content/{content.id}",
+        sequence_number=next_reference_number,
+        source="deep-research-report",
+        source_id=content.id,
+    )
+
+    report = f"{report}\n\n> *Please use the following link to download the report:* <sup>{next_reference_number}</sup>"
+
+    return report, reference
+
+
+def _remap_and_append_docx_references(
+    report: str, references: dict[int, ContentReference]
+) -> str:
+    """
+    Remap <sup>N</sup> references to markdown links and append a Sources section.
+
+    For each reference found in the report:
+    - URL starting with https:// -> [[N]](url)
+    - Otherwise -> [[N]](#source-N) (anchor to the Sources section)
+
+    A Sources section is appended at the bottom with anchored entries.
+    """
+    ref_numbers = get_all_ref_numbers(text=report)
+    if len(ref_numbers) == 0:
+        return report
+
+    used_references: list[tuple[int, ContentReference]] = []
+
+    for num in ref_numbers:
+        ref = references.get(num)
+        if ref is None:
+            report = replace_ref_number(text=report, ref_number=num, replacement="")
+            continue
+
+        used_references.append((num, ref))
+
+        if ref.url.startswith("https://"):
+            replacement = f"[[{num}]]({ref.url})"
+        else:
+            replacement = f"[{num}]"
+
+        report = replace_ref_number(
+            text=report, ref_number=num, replacement=replacement
+        )
+
+    if len(used_references) > 0:
+        lines = [
+            "",
+            "---",
+            "# Sources",
+        ]
+
+        for num, ref in used_references:
+            if ref.url.startswith("https://"):
+                lines.append(f"{num}. [{ref.name}]({ref.url})")
+            else:
+                lines.append(f"{num}. {ref.name}")
+
+        report = report.rstrip() + "\n" + "\n".join(lines) + "\n"
+
+    return report
+
+
+_HORIZONTAL_RULE_PATTERN = re.compile(r"^\s*[-*_]{3,}\s*$", re.MULTILINE)
+
+
+def _remove_horizontal_rules(text: str) -> str:
+    """Remove markdown horizontal rule lines (---, ***, ___) from the input."""
+    return _HORIZONTAL_RULE_PATTERN.sub("", text)

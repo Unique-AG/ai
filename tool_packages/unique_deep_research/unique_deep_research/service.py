@@ -19,6 +19,7 @@ from openai.types.responses.response_output_text import (
 )
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import override
+from unique_toolkit._common.execution import safe_execute_async
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
@@ -58,6 +59,7 @@ from .config import (
     UniqueEngine,
 )
 from .markdown_utils import (
+    export_report_to_docx,
     postprocess_research_result_with_chunks,
     validate_and_map_citations,
 )
@@ -505,6 +507,21 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         processed_result, references = validate_and_map_citations(
             research_result, citation_registry
         )
+
+        assert isinstance(self.config.engine, UniqueEngine)
+
+        if self.config.engine.report_export is not None:
+            result = await safe_execute_async(
+                export_report_to_docx,
+                report=processed_result,
+                references=references,
+                config=self.config.engine.report_export,
+                content_service=self.content_service,
+                chat_service=self.chat_service,
+            )
+            if result.success:
+                processed_result, reference = result.unpack()
+                references.append(reference)
 
         # Update the assistant message with the results
         await self.chat_service.modify_assistant_message_async(
