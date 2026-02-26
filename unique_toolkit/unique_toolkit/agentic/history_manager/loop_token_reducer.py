@@ -88,6 +88,7 @@ class LoopTokenReducer:
         rendered_system_message_string: str,
         loop_history: list[HistoryItem],
         remove_from_text: Callable[[str], Awaitable[str]],
+        image_data_urls_from_tools: list[tuple[str, str]] | None = None,
     ) -> LanguageModelMessages:
         """Compose the system and user messages for the plan execution step, which is evaluating if any further tool calls are required."""
 
@@ -96,6 +97,7 @@ class LoopTokenReducer:
             rendered_user_message_string,
             rendered_system_message_string,
             remove_from_text,
+            image_data_urls_from_tools=image_data_urls_from_tools or [],
         )
 
         messages = self._construct_history(
@@ -163,10 +165,14 @@ class LoopTokenReducer:
         rendered_user_message_string: str,
         rendered_system_message_string: str,
         remove_from_text: Callable[[str], Awaitable[str]],
+        image_data_urls_from_tools: list[tuple[str, str]],
     ) -> list[LanguageModelMessage]:
         history_from_db = await self.get_history_from_db(remove_from_text)
         history_from_db = self._replace_user_message(
-            history_from_db, original_user_message, rendered_user_message_string
+            history_from_db,
+            original_user_message,
+            rendered_user_message_string,
+            image_data_urls_from_tools,
         )
         system_message = LanguageModelSystemMessage(
             content=rendered_system_message_string
@@ -214,38 +220,84 @@ class LoopTokenReducer:
         history: list[LanguageModelMessage],
         original_user_message: str,
         rendered_user_message_string: str,
+        image_data_urls_from_tools: list[tuple[str, str]] | None = None,
     ) -> list[LanguageModelMessage]:
         """
-        Replaces the original user message in the history with the rendered user message string.
+        Replaces the original user message with the rendered string.
+        When image_data_urls_from_tools is set (from any tool—MCP or internal—that
+        returns ToolCallResponse.image_data_urls), appends those as image_url parts to
+        the last user message so the model can see tool result images. This is only used
+        for the outgoing model request (in-memory); the enriched message is never persisted.
         """
-        if history[-1].role == LanguageModelMessageRole.USER:
+        if image_data_urls_from_tools is None:
+            image_data_urls_from_tools = []
+        text_content = rendered_user_message_string
+        if history and history[-1].role == LanguageModelMessageRole.USER:
             m = history[-1]
-
             if isinstance(m.content, list):
-                # Replace the last text element but be careful not to delete data added when merging with contents
                 for t in reversed(m.content):
-                    field = t.get("type", "")
-                    if field == "text" and isinstance(field, dict):
-                        inner_field = field.get("text", "")
+                    if isinstance(t, dict) and t.get("type") == "text":
+                        inner_field = t.get("text", "")
                         if isinstance(inner_field, str):
                             added_to_message_by_history = inner_field.replace(
                                 original_user_message,
                                 "",
                             )
-                            t["text"] = (
+                            text_content = (
                                 rendered_user_message_string
                                 + added_to_message_by_history
                             )
                         break
             elif m.content:
-                added_to_message_by_history = m.content.replace(
+                added_to_message_by_history = str(m.content).replace(
                     original_user_message, ""
                 )
-                m.content = rendered_user_message_string + added_to_message_by_history
+                text_content = (
+                    rendered_user_message_string + added_to_message_by_history
+                )
+
+        if image_data_urls_from_tools:
+            content: list[dict[str, object]]
+            if history and history[-1].role == LanguageModelMessageRole.USER:
+                m = history[-1]
+                if isinstance(m.content, list):
+                    content = [dict(part) for part in m.content]
+                    for t in reversed(content):
+                        if isinstance(t, dict) and t.get("type") == "text":
+                            t["text"] = text_content
+                            break
+                else:
+                    content = [{"type": "text", "text": text_content}]
+            else:
+                content = [{"type": "text", "text": text_content}]
+            for url, tool_call_id in image_data_urls_from_tools:
+                label = (
+                    f"Image below is the tool's output (tool call ID: {tool_call_id}). "
+                    "See the following tool message for the full result."
+                )
+                content.append({"type": "text", "text": label})
+                content.append(
+                    {"type": "image_url", "imageUrl": {"url": url}},
+                )
+            user_msg = LanguageModelUserMessage(content=content)
+            if history and history[-1].role == LanguageModelMessageRole.USER:
+                history = history[:-1] + [user_msg]
+            else:
+                history = history + [user_msg]
         else:
-            history = history + [
-                LanguageModelUserMessage(content=rendered_user_message_string),
-            ]
+            if history and history[-1].role == LanguageModelMessageRole.USER:
+                m = history[-1]
+                if isinstance(m.content, list):
+                    for t in reversed(m.content):
+                        if isinstance(t, dict) and t.get("type") == "text":
+                            t["text"] = text_content
+                            break
+                else:
+                    m.content = text_content
+            else:
+                history = history + [
+                    LanguageModelUserMessage(content=text_content),
+                ]
         return history
 
     async def get_history_from_db(

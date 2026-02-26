@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.05] - 2026-02-26
+- Add system prompt instruction for image rendering: use `![image](unique://content/[content_id])` when referring to tool-returned images
+
 ## [1.13.04] - 2026-02-26
 - Hide Responses API config from experimental section in UI (SkipJsonSchema); Code Interpreter is now configured via tools section only
 
