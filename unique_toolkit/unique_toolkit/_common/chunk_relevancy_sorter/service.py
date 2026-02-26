@@ -42,6 +42,11 @@ from unique_toolkit.app.schemas import BaseEvent, ChatEvent
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
+_default_prompts_config = EvaluationMetricPromptsConfig(
+    system_prompt_template=system_prompt_loader(),
+    user_prompt_template=user_prompt_loader(),
+)
+
 
 class ChunkRelevancySorter:
     @deprecated(
@@ -219,10 +224,7 @@ class ChunkRelevancySorter:
             name=EvaluationMetricName.CONTEXT_RELEVANCY,
             language_model=langugage_model,
             additional_llm_options=additional_llm_options,
-            prompts_config=EvaluationMetricPromptsConfig(
-                system_prompt_template=system_prompt_loader(),
-                user_prompt_template=user_prompt_loader(),
-            ),
+            prompts_config=_default_prompts_config,
         )
         relevancy_input = EvaluationMetricInput(
             input_text=input_text,
