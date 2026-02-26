@@ -91,9 +91,14 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
             description="The description of the tool that will be included in the user prompt.",
         )
     )
-    expires_after_minutes: int = Field(
+    expires_after_minutes: Annotated[
+        int,
+        RJSFMetaTag.NumberWidget.updown(min=1, max=20),
+    ] = Field(
         default=20,
-        description="The number of minutes after which the container will be deleted.",
+        ge=1,
+        le=20,
+        description="Minutes of inactivity after which the container is deleted. Maximum allowed by OpenAI is 20.",
     )
     use_auto_container: bool = Field(
         default=False,
