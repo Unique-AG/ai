@@ -139,6 +139,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 name=self.name,
                 debug_info={
                     "mcp_tool": self.name,
+                    "mcp_server": self._mcp_server.name,
                     "arguments": arguments,
                 },
                 error_message="",
@@ -196,6 +197,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 name=self.name,
                 debug_info={
                     "mcp_tool": self.name,
+                    "mcp_server": self._mcp_server.name,
                     "error": str(e),
                     "original_arguments": getattr(tool_call, "arguments", None),
                 },

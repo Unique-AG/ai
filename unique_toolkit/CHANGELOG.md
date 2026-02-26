@@ -4,9 +4,47 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.47.11] - 2026-02-23
+- Config checker: report default-value changes for invalid configs as well; CLI and markdown report no longer restrict default-changes section to valid configs only
+
+## [1.47.10] - 2026-02-26
+- Code interpreter: bound `expires_after_minutes` to 1–20 (OpenAI API max), add RJSF `NumberWidget.updown` for UI
+
+## [1.47.9] - 2026-02-26
+- Fixing bug with chunk relevancy sorter
+
+## [1.47.8] - 2026-02-25
+- Use `AliasGenerator` to create the sort keys in `ui_schema_for_model`
+
+## [1.47.7] - 2026-02-25
+- Additional `user_space_instructions` to `ChatEventAdditionalParameters`
+
+## [1.47.6] - 2026-02-25
+- Rename `cancelled_at` to `user_aborted_at` on `ChatMessage` and update `CancellationWatcher` to poll `userAbortedAt`
+
+## [1.47.5] - 2026-02-25
+- Code execution updates:
+  - Always upload to chat. Remove ability to upload to scope.
+  - Cleanup displayed config
+
+## [1.47.4] - 2026-02-24
+- Extend RJSF tags: add `CustomWidget.custom()` with `CustomWidgetName`, `ObjectWidget.collapsible()`, `SpecialWidget.hidden()`
+- Add RJSF meta tags to `SubAgentToolConfig` text fields (textarea with rows=5 for tool descriptions and format info)
+
+## [1.47.3] - 2026-02-24
+- Add `mcp_server` name to debug info for analytics
+
+## [1.47.2] - 2026-02-23
+- Add HTML rendering documentation (inline HTML and content references)
+
+## [1.47.1] - 2026-02-23
+- Fix bug with OpenAIBuiltinToolManager
+
+## [1.47.0] - 2026-02-23
+- Move `CodeInterpreterExtendedConfig` to toolkit for validation in `ToolBuildConfig`
 
 ## [1.46.13] - 2026-02-23
-- Config checker: report default-value changes for invalid configs as well; CLI and markdown report no longer restrict default-changes section to valid configs only
+- Add easy access to decoder from llm info
 
 ## [1.46.12] - 2026-02-21
 - Add `litellm:gemini-3-1-pro-preview` to `info.py`
@@ -20,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.46.10] - 2026-02-19
 - Add flag-based cancellation support via `CancellationWatcher` and `TypedEventBus`
 - Expose `ChatService.cancellation` property for polling, event subscription, and `run_with_cancellation` helper
-- Add `CancellationEvent`, `cancelled_at` on `ChatMessage`, and `stopped_by_user` on `LanguageModelStreamResponse`
+- Add `CancellationEvent`, `user_aborted_at` on `ChatMessage`, and `stopped_by_user` on `LanguageModelStreamResponse`
 
 ## [1.46.9] - 2026-02-19
 - Add `litellm:anthropic-claude-sonnet-4-6` to `info.py`

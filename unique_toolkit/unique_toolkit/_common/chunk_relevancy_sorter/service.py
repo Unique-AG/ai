@@ -16,7 +16,14 @@ from unique_toolkit._common.chunk_relevancy_sorter.schemas import (
     ChunkRelevancySorterResult,
 )
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.agentic.evaluation.config import EvaluationMetricConfig
+from unique_toolkit.agentic.evaluation.config import (
+    EvaluationMetricConfig,
+    EvaluationMetricPromptsConfig,
+)
+from unique_toolkit.agentic.evaluation.context_relevancy.prompts import (
+    system_prompt_loader,
+    user_prompt_loader,
+)
 from unique_toolkit.agentic.evaluation.context_relevancy.schema import (
     EvaluationSchemaStructuredOutput,
     StructuredOutputConfig,
@@ -34,6 +41,11 @@ from unique_toolkit.app.performance.async_tasks import run_async_tasks_parallel
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.infos import LanguageModelInfo
+
+_default_prompts_config = EvaluationMetricPromptsConfig(
+    system_prompt_template=system_prompt_loader(),
+    user_prompt_template=user_prompt_loader(),
+)
 
 
 class ChunkRelevancySorter:
@@ -212,6 +224,7 @@ class ChunkRelevancySorter:
             name=EvaluationMetricName.CONTEXT_RELEVANCY,
             language_model=langugage_model,
             additional_llm_options=additional_llm_options,
+            prompts_config=_default_prompts_config,
         )
         relevancy_input = EvaluationMetricInput(
             input_text=input_text,
