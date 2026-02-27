@@ -407,7 +407,7 @@ def _remap_and_append_docx_references(
 
     A Sources section is appended at the bottom with anchored entries.
     """
-    ref_numbers = get_all_ref_numbers(text=report)
+    ref_numbers = list(sorted(set(get_all_ref_numbers(text=report))))
     if len(ref_numbers) == 0:
         return report
 
@@ -439,9 +439,9 @@ def _remap_and_append_docx_references(
 
         for num, ref in used_references:
             if ref.url.startswith("https://"):
-                lines.append(f"{num}. [{ref.name}]({ref.url})")
+                lines.append(f"[{num}] [{ref.name}]({ref.url})  ")
             else:
-                lines.append(f"{num}. {ref.name}")
+                lines.append(f"[{num}] {ref.name}  ")
 
         report = report.rstrip() + "\n" + "\n".join(lines) + "\n"
 
