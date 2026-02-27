@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add uncited source stripping to remove unreferenced source data from tool messages, reducing token usage
 - Wire up tool-call-aware history construction in `LoopTokenReducer`
 
+## [1.47.13] - 2026-02-26
+- Added support for subagent file access to the ContentService and ChatService based on correlation component of the event.
+
 ## [1.47.12] - 2026-02-26
 - Attach tool result images (MCP or internal) to the user message so the LLM can see them
 - MCP image handling: hide_in_chat uploads, unique content names, small robustness fixes
