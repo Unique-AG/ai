@@ -18,6 +18,19 @@ class ToolCallItem(TypedDict):
     response: NotRequired[Optional[ToolCallResponse]]
 
 
+# Max messageIds per GET request (monorepo API limit); we paginate above this.
+MESSAGE_IDS_PAGE_SIZE = 200
+
+
+def _chunk_message_ids(message_ids_str: str) -> List[str]:
+    """Split comma-separated message IDs into chunks of at most MESSAGE_IDS_PAGE_SIZE."""
+    ids = [s.strip() for s in message_ids_str.split(",") if s.strip()]
+    chunks: List[str] = []
+    for i in range(0, len(ids), MESSAGE_IDS_PAGE_SIZE):
+        chunks.append(",".join(ids[i : i + MESSAGE_IDS_PAGE_SIZE]))
+    return chunks
+
+
 class ToolCall(APIResource["ToolCall"]):
     OBJECT_NAME: ClassVar[Literal["tool_call"]] = "tool_call"
     RESOURCE_URL = "/tool-calls"
@@ -137,20 +150,53 @@ class ToolCall(APIResource["ToolCall"]):
         company_id: str,
         **params: Unpack["ToolCall.ListByMessageIdsParams"],
     ) -> ListObject["ToolCall"]:
-        result = cls._static_request(
-            "get",
-            cls.RESOURCE_URL,
-            user_id,
-            company_id,
-            params=params,
-        )
-
-        if not isinstance(result, ListObject):
-            raise TypeError(
-                "Expected list object from API, got %s" % (type(result).__name__)
+        message_ids_str = params.get("messageIds") or ""
+        chunks = _chunk_message_ids(message_ids_str)
+        if not chunks:
+            return ListObject.construct_from(
+                {"data": [], "has_more": False, "url": cls.RESOURCE_URL},
+                user_id=user_id,
+                company_id=company_id,
+                last_response=None,
             )
-
-        return result
+        if len(chunks) == 1:
+            result = cls._static_request(
+                "get",
+                cls.RESOURCE_URL,
+                user_id,
+                company_id,
+                params=params,
+            )
+            if not isinstance(result, ListObject):
+                raise TypeError(
+                    "Expected list object from API, got %s" % (type(result).__name__)
+                )
+            return result
+        # Paginate: request each chunk and merge data
+        all_data: List[Any] = []
+        for chunk in chunks:
+            page = cls._static_request(
+                "get",
+                cls.RESOURCE_URL,
+                user_id,
+                company_id,
+                params={"messageIds": chunk},
+            )
+            if not isinstance(page, ListObject):
+                raise TypeError(
+                    "Expected list object from API, got %s" % (type(page).__name__)
+                )
+            all_data.extend(page.get("data", []))
+        return ListObject.construct_from(
+            {
+                "data": all_data,
+                "has_more": False,
+                "url": cls.RESOURCE_URL,
+            },
+            user_id=user_id,
+            company_id=company_id,
+            last_response=None,
+        )
 
     @classmethod
     async def list_by_message_ids_async(
@@ -159,17 +205,50 @@ class ToolCall(APIResource["ToolCall"]):
         company_id: str,
         **params: Unpack["ToolCall.ListByMessageIdsParams"],
     ) -> ListObject["ToolCall"]:
-        result = await cls._static_request_async(
-            "get",
-            cls.RESOURCE_URL,
-            user_id,
-            company_id,
-            params=params,
-        )
-
-        if not isinstance(result, ListObject):
-            raise TypeError(
-                "Expected list object from API, got %s" % (type(result).__name__)
+        message_ids_str = params.get("messageIds") or ""
+        chunks = _chunk_message_ids(message_ids_str)
+        if not chunks:
+            return ListObject.construct_from(
+                {"data": [], "has_more": False, "url": cls.RESOURCE_URL},
+                user_id=user_id,
+                company_id=company_id,
+                last_response=None,
             )
-
-        return result
+        if len(chunks) == 1:
+            result = await cls._static_request_async(
+                "get",
+                cls.RESOURCE_URL,
+                user_id,
+                company_id,
+                params=params,
+            )
+            if not isinstance(result, ListObject):
+                raise TypeError(
+                    "Expected list object from API, got %s" % (type(result).__name__)
+                )
+            return result
+        # Paginate: request each chunk and merge data
+        all_data: List[Any] = []
+        for chunk in chunks:
+            page = await cls._static_request_async(
+                "get",
+                cls.RESOURCE_URL,
+                user_id,
+                company_id,
+                params={"messageIds": chunk},
+            )
+            if not isinstance(page, ListObject):
+                raise TypeError(
+                    "Expected list object from API, got %s" % (type(page).__name__)
+                )
+            all_data.extend(page.get("data", []))
+        return ListObject.construct_from(
+            {
+                "data": all_data,
+                "has_more": False,
+                "url": cls.RESOURCE_URL,
+            },
+            user_id=user_id,
+            company_id=company_id,
+            last_response=None,
+        )
