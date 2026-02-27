@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-## [1.47.13] - 2026-02-16
+## [1.47.14] - 2026-02-16
 ### Added
 - Add support for Responses API output items in loop history (UN-16164 Stage 1)
 - Add `HistoryManager.append_responses_output_to_history()` to store ResponseOutputItem objects from Responses API streams
@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Widen type system: loop history accepts `Union[LanguageModelMessage, ResponseOutputItem]`; all concrete ResponseOutputItem types added to `LanguageModelMessageOptions`
 - LoopTokenReducer preserves ResponseOutputItem instances during reduction (no source reduction applied)
 - Add unit tests for HistoryManager and LoopTokenReducer with Responses API output items
+
+## [1.47.13] - 2026-02-26
+- Added support for subagent file access to the ContentService and ChatService based on correlation component of the event.
 
 ## [1.47.12] - 2026-02-26
 - Attach tool result images (MCP or internal) to the user message so the LLM can see them

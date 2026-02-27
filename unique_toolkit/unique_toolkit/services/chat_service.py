@@ -1718,21 +1718,42 @@ class ChatService(ChatServiceDeprecated):
         )
 
     def download_chat_content_to_bytes(self, *, content_id: str) -> bytes:
+        """Download content by id from the content-scope chat (e.g. parent chat when subagent).
+
+        Uses the service's content-scope chat id, so when running as a subagent
+        with correlation, this accesses files from the primary chat session.
+
+        Args:
+            content_id: The content id to download.
+
+        Returns:
+            bytes: The raw content bytes.
+        """
         return download_content_to_bytes(
             user_id=self._user_id,
             company_id=self._company_id,
             content_id=content_id,
-            chat_id=self._chat_id,
+            chat_id=self._content_scope_chat_id,
         )
 
     def download_chat_images_and_documents(self) -> tuple[list[Content], list[Content]]:
+        """Return images and documents from the content-scope chat (e.g. parent chat when subagent).
+
+        Searches content owned by the content-scope chat id, so when running as
+        a subagent with correlation, this returns files uploaded in the
+        primary chat session.
+
+        Returns:
+            tuple[list[Content], list[Content]]: (images, documents) from the
+                content-scope chat.
+        """
         images: list[Content] = []
         files: list[Content] = []
         for c in search_contents(
             user_id=self._user_id,
             company_id=self._company_id,
-            chat_id=self._chat_id,
-            where={"ownerId": {"equals": self._chat_id}},
+            chat_id=self._content_scope_chat_id,
+            where={"ownerId": {"equals": self._content_scope_chat_id}},
         ):
             if is_file_content(filename=c.key):
                 files.append(c)
