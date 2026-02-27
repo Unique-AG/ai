@@ -3310,6 +3310,18 @@ files = [
 ]
 
 [[package]]
+name = "pypandoc"
+version = "1.16.2"
+description = "Thin wrapper for pandoc."
+optional = false
+python-versions = ">=3.7"
+groups = ["main"]
+files = [
+    {file = "pypandoc-1.16.2-py3-none-any.whl", hash = "sha256:c200c1139c8e3247baf38d1e9279e85d9f162499d1999c6aa8418596558fe79b"},
+    {file = "pypandoc-1.16.2.tar.gz", hash = "sha256:7a72a9fbf4a5dc700465e384c3bb333d22220efc4e972cb98cf6fc723cdca86b"},
+]
+
+[[package]]
 name = "pyproject-api"
 version = "1.10.0"
 description = "API to interact with the python pyproject.toml based projects"
@@ -4799,4 +4811,4 @@ cffi = ["cffi (>=1.17,<2.0)", "cffi (>=2.0.0b)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "f5fa5cf0fb5d237d86938af596580a552435ad24e09d8a2691a5cdaccaa5c08f"
+content-hash = "7c0dd9f48be2a1bfa68259c9d744d929e2ed1ef1f697f4fe2770c3179181f661"
