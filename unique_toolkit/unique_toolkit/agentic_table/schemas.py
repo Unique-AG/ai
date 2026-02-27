@@ -23,6 +23,7 @@ from unique_toolkit.app.schemas import (
     ChatEvent,
     ChatEventAssistantMessage,
     ChatEventUserMessage,
+    Correlation,
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
@@ -120,6 +121,7 @@ class MagicTableBasePayload(BaseModel, Generic[A, T]):
     configuration: dict[str, Any] = {}
     metadata: T
     metadata_filter: dict[str, Any] | None = None
+    correlation: Correlation | None = None
 
 
 ########### Specialized Payload definitions ###########
