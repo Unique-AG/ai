@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `get_content_infos_async()` to `KnowledgeBaseService` for fetching all content infos with parallel pagination
 - Add `extract_folder_metadata_from_content_infos()` static method to extract scope IDs and folder paths from content
 
+## [1.47.13] - 2026-02-26
+- Added support for subagent file access to the ContentService and ChatService based on correlation component of the event.
+
 ## [1.47.12] - 2026-02-26
 - Attach tool result images (MCP or internal) to the user message so the LLM can see them
 - MCP image handling: hide_in_chat uploads, unique content names, small robustness fixes
