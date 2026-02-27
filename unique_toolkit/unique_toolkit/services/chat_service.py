@@ -49,6 +49,12 @@ from unique_toolkit.chat.functions import (
     update_message_execution_async,
     update_message_log,
     update_message_log_async,
+    create_tool_calls,
+    create_tool_calls_async,
+    list_tool_calls,
+    list_tool_calls_async,
+    list_tool_calls_by_message_ids,
+    list_tool_calls_by_message_ids_async,
 )
 from unique_toolkit.chat.responses_api import (
     rate_limit_retry_config,
@@ -69,6 +75,7 @@ from unique_toolkit.chat.schemas import (
     MessageLogDetails,
     MessageLogStatus,
     MessageLogUncitedReferences,
+    ToolCallRecord,
 )
 from unique_toolkit.content.functions import (
     download_content_to_bytes,
@@ -1749,22 +1756,11 @@ class ChatService(ChatServiceDeprecated):
         )
 
     def download_chat_content_to_bytes(self, *, content_id: str) -> bytes:
-        """Download content by id from the content-scope chat (e.g. parent chat when subagent).
-
-        Uses the service's content-scope chat id, so when running as a subagent
-        with correlation, this accesses files from the primary chat session.
-
-        Args:
-            content_id: The content id to download.
-
-        Returns:
-            bytes: The raw content bytes.
-        """
         return download_content_to_bytes(
             user_id=self._user_id,
             company_id=self._company_id,
             content_id=content_id,
-            chat_id=self._content_scope_chat_id,
+            chat_id=self._chat_id,
         )
 
     async def download_chat_content_to_bytes_async(self, *, content_id: str) -> bytes:
@@ -1787,23 +1783,13 @@ class ChatService(ChatServiceDeprecated):
         )
 
     def download_chat_images_and_documents(self) -> tuple[list[Content], list[Content]]:
-        """Return images and documents from the content-scope chat (e.g. parent chat when subagent).
-
-        Searches content owned by the content-scope chat id, so when running as
-        a subagent with correlation, this returns files uploaded in the
-        primary chat session.
-
-        Returns:
-            tuple[list[Content], list[Content]]: (images, documents) from the
-                content-scope chat.
-        """
         images: list[Content] = []
         files: list[Content] = []
         for c in search_contents(
             user_id=self._user_id,
             company_id=self._company_id,
-            chat_id=self._content_scope_chat_id,
-            where={"ownerId": {"equals": self._content_scope_chat_id}},
+            chat_id=self._chat_id,
+            where={"ownerId": {"equals": self._chat_id}},
         ):
             if is_file_content(filename=c.key):
                 files.append(c)
@@ -2209,4 +2195,99 @@ class ChatService(ChatServiceDeprecated):
         return await self.find_message_memory_by_id_async(
             message_id=message_id or self._assistant_message_id,
             key=key,
+        )
+
+    # Tool Call Methods
+    ############################################################################
+
+    def create_tool_calls(
+        self,
+        *,
+        message_id: str,
+        tool_calls: list[ToolCallRecord],
+    ) -> list[ToolCallRecord]:
+        """Persists tool calls for an assistant message synchronously.
+
+        Args:
+            message_id: The assistant message ID these tool calls belong to.
+            tool_calls: The tool call records to persist.
+
+        Returns:
+            The created tool call records.
+        """
+        return create_tool_calls(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            tool_calls=tool_calls,
+        )
+
+    async def create_tool_calls_async(
+        self,
+        *,
+        message_id: str,
+        tool_calls: list[ToolCallRecord],
+    ) -> list[ToolCallRecord]:
+        """Persists tool calls for an assistant message asynchronously.
+
+        Args:
+            message_id: The assistant message ID these tool calls belong to.
+            tool_calls: The tool call records to persist.
+
+        Returns:
+            The created tool call records.
+        """
+        return await create_tool_calls_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            tool_calls=tool_calls,
+        )
+
+    def list_tool_calls(
+        self,
+        *,
+        message_id: str,
+    ) -> list[ToolCallRecord]:
+        """Lists tool calls for a given message synchronously."""
+        return list_tool_calls(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+        )
+
+    async def list_tool_calls_async(
+        self,
+        *,
+        message_id: str,
+    ) -> list[ToolCallRecord]:
+        """Lists tool calls for a given message asynchronously."""
+        return await list_tool_calls_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+        )
+
+    def list_tool_calls_by_message_ids(
+        self,
+        *,
+        message_ids: list[str],
+    ) -> list[ToolCallRecord]:
+        """Lists tool calls for multiple messages in a single request."""
+        return list_tool_calls_by_message_ids(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_ids=message_ids,
+        )
+
+    async def list_tool_calls_by_message_ids_async(
+        self,
+        *,
+        message_ids: list[str],
+    ) -> list[ToolCallRecord]:
+        """Lists tool calls for multiple messages in a single request (async)."""
+        return await list_tool_calls_by_message_ids_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_ids=message_ids,
         )
