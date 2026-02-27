@@ -511,7 +511,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
         assert isinstance(self.config.engine, UniqueEngine)
 
         if self.config.engine.report_export is not None:
-            result = await safe_execute_async(
+            docx_result = await safe_execute_async(
                 export_report_to_docx,
                 report=processed_result,
                 references=references,
@@ -519,8 +519,8 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 content_service=self.content_service,
                 chat_service=self.chat_service,
             )
-            if result.success:
-                processed_result, reference = result.unpack()
+            if docx_result.success:
+                processed_result, reference = docx_result.unpack()
                 references.append(reference)
 
         # Update the assistant message with the results
