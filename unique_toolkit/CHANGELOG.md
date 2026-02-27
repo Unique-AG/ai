@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-## [1.47.14] - 2026-02-16
+## [1.48.1] - 2026-02-16
 ### Added
 - Add support for Responses API output items in loop history (UN-16164 Stage 1)
 - Add `HistoryManager.append_responses_output_to_history()` to store ResponseOutputItem objects from Responses API streams
@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.47.12] - 2026-02-26
 - Attach tool result images (MCP or internal) to the user message so the LLM can see them
 - MCP image handling: hide_in_chat uploads, unique content names, small robustness fixes
+
+## [1.48.0] - 2026-02-26
+- Add pandoc markdown to docx conversion utility
 
 ## [1.47.11] - 2026-02-26
 - Add `DocxGeneratorService` migration surface: `DocxGeneratorResult`, `generate_from_template_with_result()`, `upload_and_create_reference()`, `resolve_template()`, `normalize_heading_levels()`
