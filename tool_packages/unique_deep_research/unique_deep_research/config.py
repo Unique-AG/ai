@@ -4,6 +4,7 @@ from typing import Generic, Literal, TypeVar
 
 from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel, Field
+from unique_toolkit._common.config_checker import register_config
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
@@ -55,6 +56,7 @@ class BaseEngine(BaseModel, Generic[T]):
         return DeepResearchEngine(self.engine_type)
 
 
+@register_config()
 class OpenAIEngine(BaseEngine[Literal[DeepResearchEngine.OPENAI]]):
     model_config = get_configuration_dict()
 
@@ -67,6 +69,7 @@ class OpenAIEngine(BaseEngine[Literal[DeepResearchEngine.OPENAI]]):
     )
 
 
+@register_config()
 class WebToolsConfig(BaseModel):
     model_config = get_configuration_dict()
 
@@ -91,6 +94,7 @@ class WebToolsConfig(BaseModel):
     )
 
 
+@register_config()
 class Tools(BaseModel):
     model_config = get_configuration_dict()
 
@@ -108,6 +112,7 @@ class Tools(BaseModel):
     )
 
 
+@register_config()
 class UniqueEngineAdvancedConfig(BaseModel):
     model_config = get_configuration_dict()
 
@@ -128,6 +133,7 @@ class UniqueEngineAdvancedConfig(BaseModel):
     )
 
 
+@register_config()
 class UniqueEngine(BaseEngine[Literal[DeepResearchEngine.UNIQUE]]):
     model_config = get_configuration_dict()
 
@@ -144,6 +150,7 @@ class UniqueEngine(BaseEngine[Literal[DeepResearchEngine.UNIQUE]]):
     )
 
 
+@register_config()
 class DeepResearchToolConfig(BaseToolConfig):
     engine: UniqueEngine | OpenAIEngine = Field(
         description="The deep research engine to use. Please be aware that OpenAI engine requires particular models to be used as the research model and they have different tools available.",
