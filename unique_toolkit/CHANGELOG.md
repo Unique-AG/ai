@@ -4,10 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-## [1.48.0] - 2026-02-23
+## [1.49.0] - 2026-02-23
 - Add `get_full_history_with_contents_and_tool_calls` to reconstruct conversation history including intermediate tool call/response messages from `gpt_request`
 - Add uncited source stripping to remove unreferenced source data from tool messages, reducing token usage
 - Wire up tool-call-aware history construction in `LoopTokenReducer`
+
+## [1.48.0] - 2026-02-26
+- Add pandoc markdown to docx conversion utility
 
 ## [1.47.13] - 2026-02-26
 - Added support for subagent file access to the ContentService and ChatService based on correlation component of the event.
