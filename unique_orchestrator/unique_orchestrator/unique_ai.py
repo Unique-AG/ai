@@ -141,6 +141,7 @@ class UniqueAI:
         # Helper variable to support control loop
         self._tool_took_control = False
         self._loop_iteration_runner = loop_iteration_runner
+        self._last_assistant_text: str | None = None
 
     ############################################################
     # Override of base methods
@@ -186,6 +187,7 @@ class UniqueAI:
                     break
 
                 self._reference_manager.add_references(loop_response.message.references)
+                self._last_assistant_text = loop_response.message.original_text or loop_response.message.text
                 self._logger.info("Done with adding references")
 
                 self._thinking_manager.update_tool_progress_reporter(loop_response)
@@ -430,10 +432,18 @@ class UniqueAI:
         return True
 
     async def _persist_tool_calls(self) -> None:
-        """Persist tool calls and responses from the loop to the database."""
+        """Persist tool calls and responses from the loop to the database.
+
+        Before persisting, uncited sources are stripped from tool response
+        content so that only sources referenced in the final assistant message
+        are kept (compaction).
+        """
         records = self._history_manager.extract_tool_call_records()
         if not records:
             return
+        records = self._history_manager.compact_tool_call_records(
+            records, self._last_assistant_text
+        )
         try:
             assistant_message_id = self._chat_service._assistant_message_id
             await self._chat_service.create_tool_calls_async(
