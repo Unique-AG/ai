@@ -1,3 +1,5 @@
+"""Tool call persistence API. Backend stores tool data in a single table (MessageTool) with type + jsonb payload."""
+
 from typing import Any, ClassVar, Dict, List, Literal, NotRequired, Optional, TypedDict, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
