@@ -1,3 +1,4 @@
+import json
 from collections import defaultdict
 from datetime import datetime
 from unittest.mock import MagicMock, patch
@@ -244,3 +245,102 @@ class TestGetFullHistoryWithContentsAndToolCalls:
         assert isinstance(result, LanguageModelMessages)
         assert len(result.root) == 1
         assert result.root[0].role.value == "user"
+
+
+class TestCompactToolCallRecords:
+    def _make_sources(self, source_numbers: list[int]) -> str:
+        return json.dumps(
+            [{"source_number": n, "content": f"content for {n}"} for n in source_numbers]
+        )
+
+    def _make_record(self, response_content: str | None = None) -> ToolCallRecord:
+        return ToolCallRecord(
+            external_tool_call_id="call_1",
+            function_name="search",
+            arguments={"q": "test"},
+            round_index=0,
+            sequence_index=0,
+            response=ToolResponseRecord(content=response_content) if response_content is not None else None,
+        )
+
+    def test_no_assistant_text_returns_records_unchanged(self):
+        content = self._make_sources([0, 1, 2])
+        records = [self._make_record(content)]
+        result = HistoryManager.compact_tool_call_records(records, None)
+        assert result[0].response.content == content
+
+    def test_empty_assistant_text_returns_records_unchanged(self):
+        content = self._make_sources([0, 1, 2])
+        records = [self._make_record(content)]
+        result = HistoryManager.compact_tool_call_records(records, "")
+        assert result[0].response.content == content
+
+    def test_no_citations_returns_records_unchanged(self):
+        content = self._make_sources([0, 1, 2])
+        records = [self._make_record(content)]
+        result = HistoryManager.compact_tool_call_records(records, "No sources used here.")
+        assert result[0].response.content == content
+
+    def test_strips_uncited_sources(self):
+        content = self._make_sources([0, 1, 2, 3, 4])
+        records = [self._make_record(content)]
+        result = HistoryManager.compact_tool_call_records(
+            records, "The answer is sunny [source0] and warm [source3]."
+        )
+        parsed = json.loads(result[0].response.content)
+        assert len(parsed) == 2
+        assert {item["source_number"] for item in parsed} == {0, 3}
+
+    def test_keeps_all_when_all_cited(self):
+        content = self._make_sources([5, 6])
+        records = [self._make_record(content)]
+        result = HistoryManager.compact_tool_call_records(
+            records, "Info from [source5] and [source6]."
+        )
+        parsed = json.loads(result[0].response.content)
+        assert len(parsed) == 2
+
+    def test_non_json_content_left_unchanged(self):
+        records = [self._make_record("plain text result")]
+        result = HistoryManager.compact_tool_call_records(
+            records, "Used [source0] here."
+        )
+        assert result[0].response.content == "plain text result"
+
+    def test_no_response_record_is_safe(self):
+        records = [self._make_record(None)]
+        records[0].response = None
+        result = HistoryManager.compact_tool_call_records(
+            records, "Used [source0] here."
+        )
+        assert result[0].response is None
+
+    def test_multiple_records_compacted_independently(self):
+        r1 = self._make_record(self._make_sources([0, 1, 2]))
+        r2 = ToolCallRecord(
+            external_tool_call_id="call_2",
+            function_name="web_search",
+            arguments={"q": "weather"},
+            round_index=1,
+            sequence_index=0,
+            response=ToolResponseRecord(content=self._make_sources([3, 4, 5])),
+        )
+        result = HistoryManager.compact_tool_call_records(
+            [r1, r2], "From [source1] and [source4] we know..."
+        )
+        parsed_r1 = json.loads(result[0].response.content)
+        parsed_r2 = json.loads(result[1].response.content)
+        assert len(parsed_r1) == 1
+        assert parsed_r1[0]["source_number"] == 1
+        assert len(parsed_r2) == 1
+        assert parsed_r2[0]["source_number"] == 4
+
+    def test_case_insensitive_citation_matching(self):
+        content = self._make_sources([0, 1])
+        records = [self._make_record(content)]
+        result = HistoryManager.compact_tool_call_records(
+            records, "Per [Source0] this is correct."
+        )
+        parsed = json.loads(result[0].response.content)
+        assert len(parsed) == 1
+        assert parsed[0]["source_number"] == 0
