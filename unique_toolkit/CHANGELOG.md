@@ -4,8 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-## [1.47.13] - 2026-02-24
+## [1.47.14] - 2026-02-24
 - Handle tool init failures gracefully: skip misconfigured/failing tools instead of crashing the orchestrator (UN-17197)
+
+## [1.47.13] - 2026-02-26
+- Added support for subagent file access to the ContentService and ChatService based on correlation component of the event.
 
 ## [1.47.12] - 2026-02-26
 - Attach tool result images (MCP or internal) to the user message so the LLM can see them
