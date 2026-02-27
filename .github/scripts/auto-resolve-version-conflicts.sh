@@ -114,6 +114,53 @@ extract_new_changelog_entry() {
   ' <<< "$pr_changelog"
 }
 
+# Resolve conflict markers in pyproject.toml. Replaces only blocks that contain
+# exclusively version lines; returns 1 (bail) if any block has non-version content.
+resolve_pyproject_conflicts() {
+  local pyproject="$1"
+  local new_ver="$2"
+  awk -v ver="$new_ver" '
+    /^<<<<<<</ { in_conflict=1; block=""; lines=0; ver_lines=0; next }
+    in_conflict && /^=======/ { next }
+    in_conflict && !/^>>>>>>>/ {
+      block = block $0 "\n"; lines++
+      if ($0 ~ /^version[[:space:]]*=/) ver_lines++
+      next
+    }
+    in_conflict && /^>>>>>>>/ {
+      in_conflict=0
+      if (lines == ver_lines && ver_lines > 0) {
+        printf "version = \"%s\"\n", ver
+      } else { exit 1 }
+      next
+    }
+    { print }
+  ' "$pyproject" > "${pyproject}.tmp" && mv "${pyproject}.tmp" "$pyproject"
+}
+
+# Resolve conflict markers in CHANGELOG.md. Keeps both sides, updates PR version.
+# Returns 1 (bail) if any conflict block has no ## [x.y.z] header.
+resolve_changelog_conflicts() {
+  local changelog="$1"
+  local new_ver="$2"
+  awk -v ver="$new_ver" '
+    /^<<<<<<</ { in_conflict=1; side="ours"; has_version=0; next }
+    in_conflict && /^=======/ { side="theirs"; next }
+    in_conflict && /^>>>>>>>/ {
+      in_conflict=0
+      if (!has_version) { exit 1 }
+      next
+    }
+    in_conflict {
+      if (/## \[/) has_version=1
+      if (side == "ours") sub(/## \[[0-9]+\.[0-9]+\.[0-9]+\]/, "## [" ver "]")
+      print
+      next
+    }
+    { print }
+  ' "$changelog" > "${changelog}.tmp" && mv "${changelog}.tmp" "$changelog"
+}
+
 resolve_pr() {
   local pr_number="$1"
   local pr_branch="$2"
@@ -227,28 +274,8 @@ resolve_pr() {
     version_summary+="| \`$pkg\` | $pr_ver | **$new_ver** | $bump_type |"$'\n'
 
     # Resolve pyproject.toml: replace conflict blocks that contain ONLY
-    # version lines. Bail if any conflict block has non-version content
-    # (e.g. both sides edited the same dependency).
-    local pyproject_ok
-    awk -v ver="$new_ver" '
-      /^<<<<<<</ { in_conflict=1; block=""; lines=0; ver_lines=0; next }
-      in_conflict && /^=======/ { next }
-      in_conflict && !/^>>>>>>>/ {
-        block = block $0 "\n"; lines++
-        if ($0 ~ /^version[[:space:]]*=/) ver_lines++
-        next
-      }
-      in_conflict && /^>>>>>>>/ {
-        in_conflict=0
-        if (lines == ver_lines && ver_lines > 0) {
-          printf "version = \"%s\"\n", ver
-        } else { exit 1 }
-        next
-      }
-      { print }
-    ' "$pyproject" > "${pyproject}.tmp" && pyproject_ok=true || pyproject_ok=false
-
-    if [[ "$pyproject_ok" != "true" ]]; then
+    # version lines. Bail if any conflict block has non-version content.
+    if ! resolve_pyproject_conflicts "$pyproject" "$new_ver"; then
       echo "Non-version conflict within $pyproject — skipping PR"
       rm -f "${pyproject}.tmp"
       git merge --abort 2>/dev/null || true
@@ -256,39 +283,17 @@ resolve_pr() {
       echo "::endgroup::"
       return 0
     fi
-    mv "${pyproject}.tmp" "$pyproject"
 
-    # Resolve CHANGELOG.md: keep both sides of each conflict block (PR entry
-    # with updated version + main's entries). Bail if a conflict block has
-    # no version header (meaning it's an edit to an existing entry, not a
-    # new entry conflict).
-    local changelog_ok
-    awk -v ver="$new_ver" '
-      /^<<<<<<</ { in_conflict=1; side="ours"; has_version=0; next }
-      in_conflict && /^=======/ { side="theirs"; next }
-      in_conflict && /^>>>>>>>/ {
-        in_conflict=0
-        if (!has_version) { exit 1 }
-        next
-      }
-      in_conflict {
-        if (/## \[/) has_version=1
-        if (side == "ours") sub(/## \[[0-9]+\.[0-9]+\.[0-9]+\]/, "## [" ver "]")
-        print
-        next
-      }
-      { print }
-    ' "$changelog" > "${changelog}.tmp" && changelog_ok=true || changelog_ok=false
-
-    if [[ "$changelog_ok" != "true" ]]; then
+    # Resolve CHANGELOG.md: keep both sides, update PR version. Bail if
+    # a conflict block has no version header.
+    if ! resolve_changelog_conflicts "$changelog" "$new_ver"; then
       echo "Non-version conflict within $changelog — skipping PR"
-      rm -f "${pyproject}.tmp" "${changelog}.tmp"
+      rm -f "${changelog}.tmp"
       git merge --abort 2>/dev/null || true
       git checkout - -q 2>/dev/null || true
       echo "::endgroup::"
       return 0
     fi
-    mv "${changelog}.tmp" "$changelog"
 
     git add "$pyproject" "$changelog"
   done
