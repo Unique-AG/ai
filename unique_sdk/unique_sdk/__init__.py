@@ -95,6 +95,7 @@ from unique_sdk.api_resources._message_execution import (
     MessageExecution as MessageExecution,
 )
 from unique_sdk.api_resources._message_log import MessageLog as MessageLog
+from unique_sdk.api_resources._tool_call import ToolCall as ToolCall
 from unique_sdk.api_resources._elicitation import Elicitation as Elicitation
 
 # Unique QL
