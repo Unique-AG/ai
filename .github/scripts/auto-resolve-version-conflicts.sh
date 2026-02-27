@@ -139,25 +139,50 @@ resolve_pyproject_conflicts() {
 }
 
 # Resolve conflict markers in CHANGELOG.md. Keeps both sides, updates PR version.
+# Puts the resolved PR entry at the top of the version list (newest-first) so
+# we never get misordering when the conflict block appears mid-file.
 # Returns 1 (bail) if any conflict block has no ## [x.y.z] header.
 resolve_changelog_conflicts() {
   local changelog="$1"
   local new_ver="$2"
   awk -v ver="$new_ver" '
-    /^<<<<<<</ { in_conflict=1; side="ours"; has_version=0; next }
+    BEGIN { phase="header" }
+    /^<<<<<<</ {
+      if (phase == "header") phase="before"
+      in_conflict=1; side="ours"; has_version=0; next
+    }
     in_conflict && /^=======/ { side="theirs"; next }
     in_conflict && /^>>>>>>>/ {
       in_conflict=0
       if (!has_version) { exit 1 }
+      phase="after"
       next
     }
     in_conflict {
       if (/## \[/) has_version=1
-      if (side == "ours") sub(/## \[[0-9]+\.[0-9]+\.[0-9]+\]/, "## [" ver "]")
-      print
+      if (side == "ours") { sub(/## \[[0-9]+\.[0-9]+\.[0-9]+\]/, "## [" ver "]"); ours=ours $0 "\n"; next }
+      theirs=theirs $0 "\n"
       next
     }
-    { print }
+    phase == "header" {
+      if (/^## \[/) { phase="before"; before=before $0 "\n"; next }
+      header=header $0 "\n"
+      next
+    }
+    phase == "before" { before=before $0 "\n"; next }
+    phase == "after" { after=after $0 "\n"; next }
+  END {
+    if (ours != "") {
+      printf "%s", header
+      printf "%s", ours
+      printf "%s", before
+      printf "%s", theirs
+      printf "%s", after
+    } else {
+      printf "%s", header
+      printf "%s", before
+    }
+  }
   ' "$changelog" > "${changelog}.tmp" && mv "${changelog}.tmp" "$changelog"
 }
 

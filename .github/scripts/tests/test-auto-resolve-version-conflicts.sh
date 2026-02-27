@@ -249,23 +249,26 @@ else
 fi
 
 # --- Unit tests: resolve_pyproject_conflicts ---
+# Conflict markers in heredocs below are indented so editors don't treat this
+# file as having merge conflicts; we strip the indent when writing.
 echo ""
 echo "=== Unit tests: resolve_pyproject_conflicts (conflict markers) ==="
 
 CONFLICT_DIR="$TMPDIR/conflict-tests"
 mkdir -p "$CONFLICT_DIR"
+strip_conflict_indent() { sed 's/^    //'; }
 
 # Success: version-only conflict block; PR-added dependency preserved
 pyproject_ok="$CONFLICT_DIR/unique_toolkit/pyproject_ok"
 mkdir -p "$(dirname "$pyproject_ok")"
-cat > "$pyproject_ok" <<'PYEOF'
+cat <<'PYEOF' | strip_conflict_indent > "$pyproject_ok"
 [tool.poetry]
 name = "unique_toolkit"
-<<<<<<< HEAD
+    <<<<<<< HEAD
 version = "1.48.0"
-=======
+    =======
 version = "1.47.13"
->>>>>>> origin/main
+    >>>>>>> origin/main
 description = ""
 
 [tool.poetry.dependencies]
@@ -288,15 +291,15 @@ fi
 # Bail: conflict block contains non-version line (dependency)
 pyproject_bail="$CONFLICT_DIR/unique_toolkit/pyproject_bail"
 mkdir -p "$(dirname "$pyproject_bail")"
-cat > "$pyproject_bail" <<'PYEOF'
+cat <<'PYEOF' | strip_conflict_indent > "$pyproject_bail"
 [tool.poetry]
 name = "unique_toolkit"
-<<<<<<< HEAD
+    <<<<<<< HEAD
 version = "1.48.0"
 pypandoc = "^1.16.2"
-=======
+    =======
 version = "1.47.13"
->>>>>>> origin/main
+    >>>>>>> origin/main
 PYEOF
 if resolve_pyproject_conflicts "$pyproject_bail" "1.48.1"; then
   echo "  FAIL: should have bailed on non-version line in conflict block"
@@ -310,20 +313,21 @@ fi
 echo ""
 echo "=== Unit tests: resolve_changelog_conflicts (conflict markers) ==="
 
-# Success: conflict block has ## [ header and bullets; both sides kept, ours version updated
+# Success: conflict block has ## [ header and bullets; both sides kept, ours version updated.
+# Order in this fixture (1.48.x, 1.47.13, 1.47.12) is intentional for testing; not a real changelog.
 changelog_ok="$CONFLICT_DIR/unique_toolkit/changelog_ok"
-cat > "$changelog_ok" <<'CHEOF'
+cat <<'CHEOF' | strip_conflict_indent > "$changelog_ok"
 # Changelog
 
-<<<<<<< HEAD
+    <<<<<<< HEAD
 ## [1.48.0] - 2026-02-26
 - Add pandoc markdown to docx
 
-=======
+    =======
 ## [1.47.13] - 2026-02-26
 - Subagent file access
 
->>>>>>> origin/main
+    >>>>>>> origin/main
 ## [1.47.12] - 2026-02-25
 - Older entry
 CHEOF
@@ -342,17 +346,17 @@ fi
 
 # Bail: conflict block has no ## [ version header
 changelog_bail="$CONFLICT_DIR/unique_toolkit/changelog_bail"
-cat > "$changelog_bail" <<'CHEOF'
+cat <<'CHEOF' | strip_conflict_indent > "$changelog_bail"
 # Changelog
 
 ## [1.47.12] - 2026-02-25
-<<<<<<< HEAD
+    <<<<<<< HEAD
 - Fix typo in docstring
 
-=======
+    =======
 - Different fix for same line
 
->>>>>>> origin/main
+    >>>>>>> origin/main
 CHEOF
 if resolve_changelog_conflicts "$changelog_bail" "1.48.1"; then
   echo "  FAIL: should have bailed on conflict block with no version header"
