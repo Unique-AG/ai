@@ -12,11 +12,16 @@ set -euo pipefail
 #
 # Usage: auto-resolve-version-conflicts.sh [--dry-run]
 #
+# Optional: ACTIVITY_CUTOFF_HOURS (default 48). Only process PRs whose newest
+# non-resolution commit is younger than this many hours. Set to 0 to process all.
+#
 
 DRY_RUN=false
 if [[ "${1:-}" == "--dry-run" ]]; then
   DRY_RUN=true
 fi
+
+ACTIVITY_CUTOFF_HOURS="${ACTIVITY_CUTOFF_HOURS:-48}"
 
 # Explicit allowlist of packages published to PyPI. Not auto-discovered because
 # the repo also contains tutorials/examples with pyproject.toml/CHANGELOG.md.
@@ -197,6 +202,24 @@ resolve_pr() {
     echo "Branch origin/$pr_branch not found — skipping"
     echo "::endgroup::"
     return 0
+  fi
+
+  if [[ -n "$ACTIVITY_CUTOFF_HOURS" && "$ACTIVITY_CUTOFF_HOURS" -gt 0 ]]; then
+    local last_activity_ts now_ts age_seconds cutoff_seconds
+    last_activity_ts=$(git log -1 --format=%at "origin/$pr_branch" --not origin/main --invert-grep --grep="auto-resolve version conflicts" 2>/dev/null || true)
+    if [[ -z "$last_activity_ts" ]]; then
+      echo "No non-resolution commits on branch — skipping"
+      echo "::endgroup::"
+      return 0
+    fi
+    now_ts=$(date +%s)
+    age_seconds=$((now_ts - last_activity_ts))
+    cutoff_seconds=$((ACTIVITY_CUTOFF_HOURS * 3600))
+    if [[ $age_seconds -gt $cutoff_seconds ]]; then
+      echo "Last activity older than ${ACTIVITY_CUTOFF_HOURS}h — skipping"
+      echo "::endgroup::"
+      return 0
+    fi
   fi
 
   local ancestor
