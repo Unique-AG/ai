@@ -1,3 +1,5 @@
+import json
+import re
 from logging import Logger
 from typing import Annotated, Awaitable, Callable
 
@@ -282,3 +284,61 @@ class HistoryManager:
                 round_index += 1
             i += 1
         return records
+
+    @staticmethod
+    def compact_tool_call_records(
+        records: list[ToolCallRecord],
+        assistant_text: str | None,
+    ) -> list[ToolCallRecord]:
+        """Strip uncited sources from tool response content.
+
+        Parses ``[sourceN]`` citations from the final assistant message and
+        removes any source items from the tool response JSON that are not
+        referenced.  Source numbers are **not** renumbered so that existing
+        citations in the persisted assistant message stay valid.
+
+        If *assistant_text* is ``None`` or empty, records are returned as-is
+        (no compaction possible without knowing what was cited).
+        """
+        if not assistant_text:
+            return records
+
+        cited: set[int] = {
+            int(m) for m in re.findall(r"\[source(\d+)\]", assistant_text, re.IGNORECASE)
+        }
+        if not cited:
+            return records
+
+        for record in records:
+            if record.response and record.response.content:
+                record.response.content = _strip_uncited_sources_from_content(
+                    record.response.content, cited
+                )
+
+        return records
+
+
+_SOURCE_ITEM_PATTERN = re.compile(r"\[source(\d+)\]", re.IGNORECASE)
+
+
+def _strip_uncited_sources_from_content(content: str, cited: set[int]) -> str:
+    """Filter a tool response content string to only keep cited source items.
+
+    The content is expected to be a JSON array of
+    ``{"source_number": N, "content": "..."}`` dicts.  Items whose
+    ``source_number`` is not in *cited* are removed.  If the content is
+    not in the expected JSON format it is returned unchanged.
+    """
+    try:
+        data = json.loads(content)
+    except (json.JSONDecodeError, TypeError):
+        return content
+
+    if not isinstance(data, list):
+        return content
+
+    if not data or "source_number" not in data[0]:
+        return content
+
+    filtered = [item for item in data if item.get("source_number") in cited]
+    return json.dumps(filtered)
