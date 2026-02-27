@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing_extensions import deprecated
 
 from unique_toolkit.app.schemas import ChatEvent, Correlation, Event
@@ -43,7 +45,7 @@ class ChatServiceDeprecated:
                 self._content_scope_chat_id = event.payload.chat_id
 
     @classmethod
-    def from_chat_event(cls, event: ChatEvent | Event) -> "ChatServiceDeprecated":
+    def from_chat_event(cls, event: ChatEvent | Event) -> ChatServiceDeprecated:
         """Create a chat service from an event.
 
         When the event has a correlation (e.g. subagent run), delegates to
@@ -70,7 +72,7 @@ class ChatServiceDeprecated:
         cls,
         correlation: Correlation,
         event: ChatEvent | Event,
-    ) -> "ChatServiceDeprecated":
+    ) -> ChatServiceDeprecated:
         """Create a chat service for a subagent using parent chat for content.
 
         Use when the event has correlation (e.g. subagent). Message operations
