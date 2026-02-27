@@ -229,7 +229,14 @@ resolve_pr() {
     local new_entry
     new_entry=$(extract_new_changelog_entry "$ancestor" "origin/$pr_branch" "$changelog")
 
-    git show "origin/main:$pyproject" | sed -E "s/^(version[[:space:]]*=[[:space:]]*)\"[^\"]+\"/\1\"$new_ver\"/" > "$pyproject"
+    # Resolve conflict markers in the working tree file (preserves auto-merged
+    # changes like new dependencies from both sides).
+    awk -v ver="$new_ver" '
+      /^<<<<<<</ { in_conflict=1; printf "version = \"%s\"\n", ver; next }
+      in_conflict && /^>>>>>>>/ { in_conflict=0; next }
+      in_conflict { next }
+      { print }
+    ' "$pyproject" > "${pyproject}.tmp" && mv "${pyproject}.tmp" "$pyproject"
 
     if [[ -n "$new_entry" ]]; then
       local updated_entry
