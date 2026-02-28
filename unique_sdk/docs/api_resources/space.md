@@ -85,7 +85,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     )
     ```
 
-??? example "`unique_sdk.Space.update` - Update a space"
+??? example "`unique_sdk.Space.update_space` - Update a space"
 
     !!! info "Compatibility"
         Compatible with release >.10
@@ -119,7 +119,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     **Example - Update Name and Title:**
 
     ```python
-    space = unique_sdk.Space.update(
+    space = unique_sdk.Space.update_space(
         user_id=user_id,
         company_id=company_id,
         space_id="space_abc123",
@@ -131,7 +131,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     **Example - Update Module Configuration:**
 
     ```python
-    space = unique_sdk.Space.update(
+    space = unique_sdk.Space.update_space(
         user_id=user_id,
         company_id=company_id,
         space_id="space_abc123",
@@ -651,7 +651,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `createdAt` (str) - Creation timestamp (ISO 8601)
     - `updatedAt` (str) - Last update timestamp (ISO 8601)
 
-    **Returned by:** `Space.get_space()`, `Space.create_space()`, `Space.update()`
+    **Returned by:** `Space.get_space()`, `Space.create_space()`, `Space.update_space()`
 
 #### SpaceAccessResponse {#spaceaccessresponse}
 

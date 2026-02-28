@@ -602,7 +602,7 @@ class Space(APIResource["Space"]):
         )
 
     @classmethod
-    def update(
+    def update_space(
         cls,
         user_id: str,
         company_id: str,
@@ -621,7 +621,7 @@ class Space(APIResource["Space"]):
         )
 
     @classmethod
-    async def update_async(
+    async def update_space_async(
         cls,
         user_id: str,
         company_id: str,
