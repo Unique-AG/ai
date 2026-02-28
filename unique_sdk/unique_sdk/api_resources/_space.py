@@ -27,6 +27,13 @@ class Space(APIResource["Space"]):
         configuration: NotRequired[Optional[Dict[str, Any]]]
         toolDefinition: NotRequired[Optional[Dict[str, Any]]]
 
+    class UpdateModuleParams(TypedDict):
+        moduleId: str
+        configuration: NotRequired[Optional[Dict[str, Any]]]
+        name: NotRequired[Optional[str]]
+        description: NotRequired[Optional[str]]
+        weight: NotRequired[Optional[int]]
+
     class CreateSpaceParams(RequestOptions):
         name: str
         fallbackModule: str
@@ -43,6 +50,18 @@ class Space(APIResource["Space"]):
             ]
         ]
         settings: NotRequired[Optional[Dict[str, Any]]]
+
+    class UpdateParams(RequestOptions):
+        name: NotRequired[Optional[str]]
+        title: NotRequired[Optional[str]]
+        modules: NotRequired[Optional[List["Space.UpdateModuleParams"]]]
+        explanation: NotRequired[Optional[str]]
+        alert: NotRequired[Optional[str]]
+        chatUpload: NotRequired[Optional[Literal["ENABLED", "DISABLED"]]]
+        languageModel: NotRequired[Optional[str]]
+        isPinned: NotRequired[Optional[bool]]
+        settings: NotRequired[Optional[Dict[str, Any]]]
+        allowEndUserSpace: NotRequired[Optional[bool]]
 
     class AccessEntry(TypedDict):
         entityId: str
@@ -574,6 +593,44 @@ class Space(APIResource["Space"]):
             await cls._static_request_async(
                 "delete",
                 f"/space/{space_id}/access",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def update(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+        **params: Unpack["Space.UpdateParams"],
+    ) -> "Space":
+        return cast(
+            "Space",
+            cls._static_request(
+                "patch",
+                f"/space/{space_id}",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def update_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+        **params: Unpack["Space.UpdateParams"],
+    ) -> "Space":
+        return cast(
+            "Space",
+            await cls._static_request_async(
+                "patch",
+                f"/space/{space_id}",
                 user_id,
                 company_id,
                 params=params,
