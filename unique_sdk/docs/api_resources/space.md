@@ -110,6 +110,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `isPinned` (bool, optional) - Whether the space is pinned
     - `settings` (Dict, optional) - Space settings
     - `allowEndUserSpace` (bool, optional) - Allow end users to create custom spaces from this assistant
+    - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"], optional) - UI type of the space. Use UNIQUE_AI to migrate from legacy.
 
     **Returns:**
 

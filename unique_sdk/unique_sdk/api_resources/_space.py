@@ -6,6 +6,7 @@ from typing import (
     Literal,
     NotRequired,
     Optional,
+    TypeAlias,
     TypedDict,
     Unpack,
     cast,
@@ -17,6 +18,10 @@ from unique_sdk._request_options import RequestOptions
 
 class Space(APIResource["Space"]):
     OBJECT_NAME: ClassVar[Literal["space"]] = "space"
+
+    UiType: TypeAlias = Literal[
+        "MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"
+    ]
 
     class ModuleParams(TypedDict):
         name: str
@@ -44,11 +49,7 @@ class Space(APIResource["Space"]):
         languageModel: NotRequired[Optional[str]]
         isExternal: NotRequired[Optional[bool]]
         isPinned: NotRequired[Optional[bool]]
-        uiType: NotRequired[
-            Optional[
-                Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"]
-            ]
-        ]
+        uiType: NotRequired[Optional["Space.UiType"]]
         settings: NotRequired[Optional[Dict[str, Any]]]
 
     class UpdateParams(RequestOptions):
@@ -62,6 +63,7 @@ class Space(APIResource["Space"]):
         isPinned: NotRequired[Optional[bool]]
         settings: NotRequired[Optional[Dict[str, Any]]]
         allowEndUserSpace: NotRequired[Optional[bool]]
+        uiType: NotRequired[Optional["Space.UiType"]]
 
     class AccessEntry(TypedDict):
         entityId: str
