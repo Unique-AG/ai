@@ -1,6 +1,7 @@
 from logging import getLogger
 
 from pydantic import AliasChoices, BaseModel, Field, field_validator
+from unique_toolkit._common.config_checker import register_config
 from unique_toolkit._common.utils.jinja.utils import validate_template_placeholders
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.tools.config import get_configuration_dict
@@ -19,6 +20,7 @@ from unique_follow_up_questions.schema import FollowUpQuestion
 logger = getLogger(__name__)
 
 
+@register_config()
 class FollowUpQuestionsConfig(BaseModel):
     model_config = get_configuration_dict()
     language_model: LMI = Field(
