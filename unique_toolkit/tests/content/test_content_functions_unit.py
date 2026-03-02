@@ -515,9 +515,18 @@ def test_upload_content_missing_write_url(mock_sdk, tmp_path):
     assert "Write url for uploaded content is missing" in str(exc_info.value)
 
 
+@pytest.mark.ai
 @pytest.mark.asyncio
-async def test_request_content_by_id_async(mock_sdk):
+async def test_request_content_by_id_async__returns_response__with_valid_params(
+    mock_sdk,
+) -> None:
+    """
+    Purpose: Verify async content request builds correct URL with chat_id and auth headers.
+    Why this matters: Incorrect URL or headers would silently fail content downloads.
+    Setup summary: Mock httpx.AsyncClient, call request_content_by_id_async, assert URL and headers.
+    """
     with patch("unique_toolkit.content.functions.httpx.AsyncClient") as mock_client_cls:
+        # Arrange
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.content = b"test content"
@@ -527,6 +536,7 @@ async def test_request_content_by_id_async(mock_sdk):
         mock_client.get.return_value = mock_response
         mock_client_cls.return_value = mock_client
 
+        # Act
         response = await request_content_by_id_async(
             user_id="user123",
             company_id="company123",
@@ -534,6 +544,7 @@ async def test_request_content_by_id_async(mock_sdk):
             chat_id="chat123",
         )
 
+        # Assert
         assert response.status_code == 200
         assert response.content == b"test content"
         mock_client.get.assert_called_once()
@@ -545,10 +556,19 @@ async def test_request_content_by_id_async(mock_sdk):
         assert headers["x-company-id"] == "company123"
 
 
+@pytest.mark.ai
 @pytest.mark.asyncio
-async def test_download_content_to_bytes_async(mock_sdk):
+async def test_download_content_to_bytes_async__returns_bytes__with_successful_response(
+    mock_sdk,
+) -> None:
+    """
+    Purpose: Verify async download returns raw bytes when the response is successful.
+    Why this matters: Callers depend on receiving bytes for in-memory file processing.
+    Setup summary: Mock request_content_by_id_async with a 200 response, assert bytes returned.
+    """
+    # Arrange
     mock_response = Mock()
-    mock_response.status_code = 200
+    mock_response.is_success = True
     mock_response.content = b"test content"
 
     async def fake_request(*args):
@@ -558,6 +578,7 @@ async def test_download_content_to_bytes_async(mock_sdk):
         "unique_toolkit.content.functions.request_content_by_id_async",
         side_effect=fake_request,
     ):
+        # Act
         result = await download_content_to_bytes_async(
             user_id="user123",
             company_id="company123",
@@ -565,14 +586,26 @@ async def test_download_content_to_bytes_async(mock_sdk):
             chat_id="chat123",
         )
 
+        # Assert
+        assert isinstance(result, bytes)
         assert result == b"test content"
 
 
+@pytest.mark.ai
 @pytest.mark.asyncio
-async def test_download_content_to_bytes_async_error(mock_sdk):
+async def test_download_content_to_bytes_async__raises_error__when_response_not_successful(
+    mock_sdk,
+) -> None:
+    """
+    Purpose: Verify async download raises when the server returns a non-success status.
+    Why this matters: Silent failures on bad responses would produce corrupt or missing data.
+    Setup summary: Mock request with is_success=False and raise_for_status side effect, assert raises.
+    """
+    # Arrange
     mock_response = Mock()
+    mock_response.is_success = False
     mock_response.status_code = 404
-    mock_response.raise_for_status.side_effect = Exception()
+    mock_response.raise_for_status.side_effect = RuntimeError("download failed")
 
     async def fake_request(*args):
         return mock_response
@@ -581,7 +614,8 @@ async def test_download_content_to_bytes_async_error(mock_sdk):
         "unique_toolkit.content.functions.request_content_by_id_async",
         side_effect=fake_request,
     ):
-        with pytest.raises(Exception):
+        # Act & Assert
+        with pytest.raises(RuntimeError, match="download failed"):
             await download_content_to_bytes_async(
                 user_id="user123",
                 company_id="company123",
