@@ -130,6 +130,10 @@ class HistoryManager:
     def get_tool_calls(self) -> list[LanguageModelFunction]:
         return self._tool_calls
 
+    def get_loop_history(self) -> list[LanguageModelMessage]:
+        """Return the raw in-memory loop history without DB calls."""
+        return self._loop_history
+
     def has_no_loop_messages(self) -> bool:
         return len(self._loop_history) == 0
 

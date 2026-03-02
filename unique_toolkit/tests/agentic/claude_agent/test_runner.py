@@ -2,15 +2,18 @@
 Test suite for ClaudeAgentRunner.
 
 All service dependencies are mocked — these tests are CI-safe and do not require
-a real Claude API key, a running platform, or the claude-agent-sdk package.
+a real Claude API key or a running platform. The claude-agent-sdk package is
+installed (required by pyproject.toml) but query() is always mocked so no
+subprocess is spawned.
 
 Naming convention: test_<method>_<scenario>_<expected>
 """
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from claude_agent_sdk import AssistantMessage, ClaudeSDKError
 
 from unique_toolkit.agentic.claude_agent.config import ClaudeAgentConfig
 from unique_toolkit.agentic.claude_agent.runner import ClaudeAgentRunner
@@ -257,14 +260,187 @@ class TestBuildHistory:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Remaining stub method
+# _run_claude_loop
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class TestRemainingStub:
+async def _mock_query_gen(*messages):
+    """Async generator that yields each provided mock message."""
+    for msg in messages:
+        yield msg
+
+
+async def _raising_gen(exc: Exception):
+    """Async generator that raises exc on first iteration."""
+    raise exc
+    yield  # pragma: no cover — makes this a generator
+
+
+class TestRunClaudeLoop:
     @pytest.mark.asyncio
-    async def test_run_claude_loop_raises_not_implemented(self) -> None:
-        """_run_claude_loop() is a Step 3 stub."""
+    async def test_run_claude_loop_streams_text_deltas_to_chat_service(self) -> None:
+        """Each text_delta calls modify_assistant_message_async with growing text."""
         runner = _make_runner()
-        with pytest.raises(NotImplementedError, match="Step 3"):
+        runner._chat_service.modify_assistant_message_async = AsyncMock()
+
+        delta1 = MagicMock()
+        delta1.type = "content_block_delta"
+        delta1.delta = MagicMock()
+        delta1.delta.type = "text_delta"
+        delta1.delta.text = "Hello"
+
+        delta2 = MagicMock()
+        delta2.type = "content_block_delta"
+        delta2.delta = MagicMock()
+        delta2.delta.type = "text_delta"
+        delta2.delta.text = " world"
+
+        with patch("unique_toolkit.agentic.claude_agent.runner.query") as mock_query:
+            mock_query.return_value = _mock_query_gen(delta1, delta2)
             await runner._run_claude_loop(prompt="hi", options={})
+
+        calls = runner._chat_service.modify_assistant_message_async.call_args_list
+        assert len(calls) == 2
+        assert calls[0].kwargs["content"] == "Hello"
+        assert calls[1].kwargs["content"] == "Hello world"
+
+    @pytest.mark.asyncio
+    async def test_run_claude_loop_returns_accumulated_text(self) -> None:
+        """Return value is the full concatenated text from all text_deltas."""
+        runner = _make_runner()
+        runner._chat_service.modify_assistant_message_async = AsyncMock()
+
+        delta1 = MagicMock()
+        delta1.type = "content_block_delta"
+        delta1.delta = MagicMock()
+        delta1.delta.type = "text_delta"
+        delta1.delta.text = "Hello"
+
+        delta2 = MagicMock()
+        delta2.type = "content_block_delta"
+        delta2.delta = MagicMock()
+        delta2.delta.type = "text_delta"
+        delta2.delta.text = " world"
+
+        with patch("unique_toolkit.agentic.claude_agent.runner.query") as mock_query:
+            mock_query.return_value = _mock_query_gen(delta1, delta2)
+            result = await runner._run_claude_loop(prompt="hi", options={})
+
+        assert result == "Hello world"
+
+    @pytest.mark.asyncio
+    async def test_run_claude_loop_handles_result_message_when_no_text_accumulated(
+        self,
+    ) -> None:
+        """When no text_deltas were received, result.result is used as accumulated text."""
+        runner = _make_runner()
+        runner._chat_service.modify_assistant_message_async = AsyncMock()
+
+        result_msg = MagicMock()
+        result_msg.type = "result"
+        result_msg.result = "Final answer text"
+
+        with patch("unique_toolkit.agentic.claude_agent.runner.query") as mock_query:
+            mock_query.return_value = _mock_query_gen(result_msg)
+            result = await runner._run_claude_loop(prompt="hi", options={})
+
+        assert result == "Final answer text"
+
+    @pytest.mark.asyncio
+    async def test_run_claude_loop_logs_tool_use_blocks(self) -> None:
+        """tool_use blocks in AssistantMessage content trigger debug log with tool name."""
+        runner = _make_runner()
+        runner._chat_service.modify_assistant_message_async = AsyncMock()
+
+        tool_block = MagicMock()
+        tool_block.type = "tool_use"
+        tool_block.name = "mcp__unique_platform__search_knowledge_base"
+        tool_block.input = {"search_query": "interest rates"}
+
+        assistant_msg = MagicMock(spec=AssistantMessage)
+        assistant_msg.type = "assistant"
+        assistant_msg.content = [tool_block]
+
+        with patch("unique_toolkit.agentic.claude_agent.runner.query") as mock_query:
+            mock_query.return_value = _mock_query_gen(assistant_msg)
+            await runner._run_claude_loop(prompt="hi", options={})
+
+        debug_calls = [str(c) for c in runner._logger.debug.call_args_list]
+        assert any(
+            "mcp__unique_platform__search_knowledge_base" in c for c in debug_calls
+        )
+
+    @pytest.mark.asyncio
+    async def test_run_claude_loop_catches_sdk_error_gracefully(self) -> None:
+        """ClaudeSDKError does not propagate; returns a user-facing error string."""
+        runner = _make_runner()
+        runner._chat_service.modify_assistant_message_async = AsyncMock()
+
+        with patch("unique_toolkit.agentic.claude_agent.runner.query") as mock_query:
+            mock_query.return_value = _raising_gen(ClaudeSDKError("sdk exploded"))
+            result = await runner._run_claude_loop(prompt="hi", options={})
+
+        assert "error" in result.lower()
+        runner._logger.error.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_run_claude_loop_catches_generic_exception_gracefully(self) -> None:
+        """Unexpected exceptions do not propagate; returns a user-facing error string."""
+        runner = _make_runner()
+        runner._chat_service.modify_assistant_message_async = AsyncMock()
+
+        with patch("unique_toolkit.agentic.claude_agent.runner.query") as mock_query:
+            mock_query.return_value = _raising_gen(RuntimeError("boom"))
+            result = await runner._run_claude_loop(prompt="hi", options={})
+
+        assert "error" in result.lower()
+        runner._logger.error.assert_called()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _run_post_processing
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestRunPostProcessing:
+    @pytest.mark.asyncio
+    async def test_run_post_processing_calls_eval_and_postprocessor_concurrently(
+        self,
+    ) -> None:
+        """Both managers are called when claude_result is non-empty."""
+        runner = _make_runner()
+        runner._evaluation_manager.run_evaluations = AsyncMock(return_value=[])
+        runner._postprocessor_manager.run_postprocessors = AsyncMock(return_value=None)
+
+        await runner._run_post_processing("Some final answer text")
+
+        runner._evaluation_manager.run_evaluations.assert_called_once()
+        runner._postprocessor_manager.run_postprocessors.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_run_post_processing_skips_when_result_empty(self) -> None:
+        """Neither manager is called when claude_result is an empty string."""
+        runner = _make_runner()
+        runner._evaluation_manager.run_evaluations = AsyncMock(return_value=[])
+        runner._postprocessor_manager.run_postprocessors = AsyncMock(return_value=None)
+
+        await runner._run_post_processing("")
+
+        runner._evaluation_manager.run_evaluations.assert_not_called()
+        runner._postprocessor_manager.run_postprocessors.assert_not_called()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _format_history (public API usage)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestFormatHistory:
+    def test_format_history_uses_public_get_loop_history(self) -> None:
+        """_format_history() calls get_loop_history(), not ._loop_history directly."""
+        runner = _make_runner()
+        runner._history_manager.get_loop_history = MagicMock(return_value=[])
+
+        runner._format_history()
+
+        runner._history_manager.get_loop_history.assert_called_once()

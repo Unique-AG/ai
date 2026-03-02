@@ -9,6 +9,8 @@ from __future__ import annotations
 from unique_toolkit.agentic.claude_agent.history import format_history_as_text
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
+    LanguageModelFunction,
+    LanguageModelFunctionCall,
     LanguageModelToolMessage,
     LanguageModelUserMessage,
 )
@@ -63,14 +65,15 @@ class TestFormatHistoryAsText:
         assert "Question 1" not in result
         assert "Question 2" not in result
 
-    def test_format_history_skips_tool_messages(self) -> None:
+    def test_format_history_renders_tool_messages_inline(self) -> None:
+        """Tool messages appear inline between user and assistant lines (B9)."""
         messages = [
             _user("Find me data"),
             _tool("search results here"),
             _assistant("Here is your data."),
         ]
         result = format_history_as_text(messages, max_interactions=4)
-        assert "search results here" not in result
+        assert "search results here" in result
         assert "User: Find me data" in result
         assert "Assistant: Here is your data." in result
 
@@ -114,3 +117,66 @@ class TestFormatHistoryAsText:
         first_pos = result.index("First")
         second_pos = result.index("Second")
         assert first_pos < second_pos
+
+    def test_format_history_includes_tool_messages_with_args_and_result(self) -> None:
+        """[Tool: name(args)] label and truncated result both appear in output (B9)."""
+        fn_call = LanguageModelFunctionCall(
+            id="tc-42",
+            function=LanguageModelFunction(
+                id="fn-1",
+                name="search_knowledge_base",
+                arguments={"search_query": "ECB rate 2026"},
+            ),
+        )
+        intermediate_assistant = LanguageModelAssistantMessage(
+            content=None,
+            tool_calls=[fn_call],
+        )
+        tool_msg = LanguageModelToolMessage(
+            content="The current ECB rate is 4.25%",
+            tool_call_id="tc-42",
+            name="search_knowledge_base",
+        )
+        final_assistant = LanguageModelAssistantMessage(
+            content="Based on the search, ECB rate is 4.25%."
+        )
+        messages = [
+            _user("What are current interest rates?"),
+            intermediate_assistant,
+            tool_msg,
+            final_assistant,
+        ]
+        result = format_history_as_text(messages, max_interactions=4)
+
+        assert "[Tool: search_knowledge_base(" in result
+        assert 'search_query="ECB rate 2026"' in result
+        assert "The current ECB rate is 4.25%" in result
+
+    def test_format_history_truncates_tool_result_content(self) -> None:
+        """Tool result content longer than 200 chars is truncated with '...'."""
+        long_result = "x" * 300
+        tool_msg = LanguageModelToolMessage(
+            content=long_result,
+            tool_call_id="tc-1",
+            name="search",
+        )
+        messages = [_user("search something"), tool_msg, _assistant("Done.")]
+        result = format_history_as_text(messages, max_interactions=4)
+
+        assert long_result not in result
+        assert "..." in result
+
+    def test_format_history_tool_message_degrades_gracefully_without_name(
+        self,
+    ) -> None:
+        """Renders '[Tool]' without raising when tool name cannot be matched."""
+        tool_msg = LanguageModelToolMessage(
+            content="some result",
+            tool_call_id="unknown-id",
+            name="",
+        )
+        messages = [_user("query"), tool_msg, _assistant("reply")]
+        result = format_history_as_text(messages, max_interactions=4)
+
+        assert "[Tool]" in result
+        assert "some result" in result

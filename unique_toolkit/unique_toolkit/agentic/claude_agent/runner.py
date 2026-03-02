@@ -1,7 +1,8 @@
 """
 Claude Agent runner — orchestrates a single Claude Agent SDK turn.
 
-This module is the core deliverable of Step 2a. It provides:
+This module is the core deliverable of Step 2a (structure) and Step 3 (SDK loop).
+It provides:
 
 - ClaudeAgentRunner: returned by _build_claude_agent() in unique_ai_builder.py.
   Its run() method drives the full turn lifecycle:
@@ -11,10 +12,11 @@ This module is the core deliverable of Step 2a. It provides:
 Design constraints (enforce throughout):
 - cwd and env are always passed as parameters, never hardcoded. This keeps the
   runner sandbox-agnostic for WI-4 / A3 future work.
-- No import of claude_agent_sdk in this step. The SDK dependency will be added
-  in Step 3 when _run_claude_loop() is implemented.
 - The runner lives in unique_toolkit and must NOT import orchestrator internals
   (e.g. _CommonComponents). Services are injected individually.
+
+Step 3 adds the claude-agent-sdk dependency and implements _run_claude_loop()
+and _run_post_processing().
 """
 
 from __future__ import annotations
@@ -25,6 +27,14 @@ from logging import Logger
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from claude_agent_sdk import (
+    AssistantMessage,
+    ClaudeAgentOptions,
+    ClaudeSDKError,
+    query,
+)
+
+from unique_toolkit._common.execution import SafeTaskExecutor
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
@@ -39,6 +49,10 @@ from unique_toolkit.agentic.thinking_manager.thinking_manager import ThinkingMan
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.language_model.schemas import (
+    LanguageModelStreamResponse,
+    LanguageModelStreamResponseMessage,
+)
 
 from .config import ClaudeAgentConfig, build_tool_policy
 from .history import format_history_as_text
@@ -198,9 +212,7 @@ class ClaudeAgentRunner:
         if not self._claude_config.history_included:
             return ""
 
-        messages = (
-            self._history_manager._loop_history
-        )  # TODO: use public API when available
+        messages = self._history_manager.get_loop_history()
         return format_history_as_text(
             messages=messages,
             max_interactions=self._claude_config.max_history_interactions,
@@ -278,72 +290,132 @@ class ClaudeAgentRunner:
         self,
         prompt: str,
         options: dict[str, Any],
-    ) -> Any:
+    ) -> str:
         """Run the Claude Agent SDK query loop and stream results to the frontend.
 
-        Step 3 implementation pattern (do not implement now, but preserve this docstring):
+        Iterates over the async event stream from claude_agent_sdk.query():
+        - content_block_delta / text_delta → accumulate text + stream via
+          modify_assistant_message_async() (PATCH /message → AMQP → frontend)
+        - assistant messages → log tool_use blocks; detect TodoWrite state
+        - result → capture final text if no deltas were streamed
+        - SDK errors → log, set user-facing error message, do NOT re-raise
 
-            from claude_agent_sdk import query, ClaudeAgentOptions, AssistantMessage
-            accumulated_text = ""
-            async for message in query(prompt=prompt, options=ClaudeAgentOptions(**options)):
+        Returns accumulated_text string consumed by _run_post_processing().
+        """
+        accumulated_text = ""
+        tool_call_count = 0
+
+        sdk_options_kwargs = dict(options)
+        if self._claude_config.stderr_logging:
+
+            def _stderr_handler(data: str) -> None:
+                self._logger.debug("Claude Agent SDK stderr: %s", data.strip())
+
+            sdk_options_kwargs["stderr"] = _stderr_handler
+
+        sdk_options = ClaudeAgentOptions(**sdk_options_kwargs)
+
+        try:
+            async for message in query(prompt=prompt, options=sdk_options):
                 if message.type == "content_block_delta":
                     delta = message.delta
-                    if delta.type == "text_delta":
+                    if delta.type == "text_delta" and delta.text:
                         accumulated_text += delta.text
                         await self._chat_service.modify_assistant_message_async(
                             content=accumulated_text
                         )
+
                 elif isinstance(message, AssistantMessage):
                     for block in message.content:
                         if block.type == "tool_use":
-                            # log tool call via self._message_step_logger
-                            pass
-            return accumulated_text  # used by post-processing
+                            tool_call_count += 1
+                            input_preview = str(getattr(block, "input", ""))[:200]
+                            self._logger.debug(
+                                "Claude agent tool call #%d: %s | input: %s",
+                                tool_call_count,
+                                block.name,
+                                input_preview,
+                            )
+                            if block.name == "TodoWrite":
+                                todos = (getattr(block, "input", None) or {}).get(
+                                    "todos", []
+                                )
+                                for todo in todos:
+                                    status = todo.get("status", "?")
+                                    content = todo.get("activeForm") or todo.get(
+                                        "content", ""
+                                    )
+                                    self._logger.debug(
+                                        "todo [%s]: %s", status, content[:100]
+                                    )
 
-        query() is a native async generator — no extra streaming mode to configure.
-        Each content_block_delta / text_delta maps to one modify_assistant_message_async()
-        call → PATCH /message/{id} → platform AMQP → frontend stream chunk.
-        Call frequency matches OpenAI token streaming (confirmed by Abhi 2026-02-23).
+                elif message.type == "result":
+                    if message.result and not accumulated_text:
+                        accumulated_text = message.result
 
-        See also: claude-agent-streaming.service.ts in Abi's PR for the Node equivalent.
-        """
-        raise NotImplementedError(
-            "Claude SDK loop not yet implemented — see Step 3 (streaming loop)"
-        )
+        except ClaudeSDKError as e:
+            self._logger.error("Claude Agent SDK error: %s", e, exc_info=True)
+            if not accumulated_text:
+                accumulated_text = (
+                    f"An error occurred while processing your request: {e}"
+                )
 
-    async def _run_post_processing(self, claude_result: Any) -> None:
+        except Exception as e:
+            self._logger.error(
+                "Unexpected error in Claude Agent loop: %s", e, exc_info=True
+            )
+            if not accumulated_text:
+                accumulated_text = (
+                    f"An error occurred while processing your request: {e}"
+                )
+
+        return accumulated_text
+
+    async def _run_post_processing(self, claude_result: str) -> None:
         """Run evaluations and postprocessors after Claude's loop exits.
 
-        Intended pattern (mirrors UniqueAI._handle_no_tool_calls() — see unique_ai.py:380):
+        Wraps accumulated_text in a LanguageModelStreamResponse so that
+        evaluation_manager and postprocessor_manager can consume it unchanged.
+        Both run concurrently via asyncio.gather() using SafeTaskExecutor.
 
-            from unique_toolkit.agentic.tools.tool_manager import SafeTaskExecutor
-            task_executor = SafeTaskExecutor(logger=self._logger)
-            evaluation_results = task_executor.execute_async(
-                self._evaluation_manager.run_evaluations,
-                selected_evaluation_names,
-                claude_result,          # needs LanguageModelStreamResponse adapter
-                self._event.payload.assistant_message.id,
-            )
-            postprocessor_result = task_executor.execute_async(
-                self._postprocessor_manager.run_postprocessors,
-                claude_result,          # needs LanguageModelStreamResponse adapter
-            )
-            _, evaluation_results = await asyncio.gather(
-                postprocessor_result,
-                evaluation_results,
-            )
-
-        TODO (Step 3): Once the shape of claude_result is defined (accumulated text
-        string or a richer object), create a LanguageModelStreamResponse-compatible
-        adapter so evaluation_manager.run_evaluations() and
-        postprocessor_manager.run_postprocessors() can consume it unchanged.
-        Eval and postprocessors must run concurrently via asyncio.gather().
-
-        The asyncio import is kept at module level for this future use.
+        Mirrors the pattern from UniqueAI._handle_no_tool_calls() (unique_ai.py ~407).
         """
-        _ = asyncio  # used in Step 3 when SafeTaskExecutor pattern is implemented
+        if not claude_result:
+            self._logger.warning(
+                "Claude Agent returned empty result — skipping post-processing."
+            )
+            return
+
         self._logger.info("Running post-processing pipeline...")
-        # TODO (Step 3): implement SafeTaskExecutor pattern described above.
+
+        response_adapter = LanguageModelStreamResponse(
+            message=LanguageModelStreamResponseMessage(
+                id=self._event.payload.assistant_message.id,
+                previous_message_id=None,
+                role="assistant",
+                text=claude_result,
+                original_text=claude_result,
+            ),
+            tool_calls=None,
+        )
+
+        task_executor = SafeTaskExecutor(logger=self._logger)
+        # TODO (Step 4+): Replace [] with self._tool_manager.get_evaluation_check_list()
+        #   when MCP tools are configured.
+        evaluation_task = task_executor.execute_async(
+            self._evaluation_manager.run_evaluations,
+            [],
+            response_adapter,
+            self._event.payload.assistant_message.id,
+        )
+        postprocessor_task = task_executor.execute_async(
+            self._postprocessor_manager.run_postprocessors,
+            response_adapter.model_copy(deep=True),
+        )
+        _, evaluation_results = await asyncio.gather(
+            postprocessor_task, evaluation_task
+        )
+
         self._logger.info("Post-processing complete.")
 
     async def _persist_workspace(self, workspace_dir: Path) -> None:
