@@ -190,15 +190,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.43.7] - 2026-01-15
 - Cleanup hallucination config that is displayed in space config
 
+## [1.43.4] - 2026-01-14
+- chore(deps-dev): bump aiohttp from 3.13.2 to 3.13.3
+
 ## [1.43.6] - 2026-01-13
 - Update message execution pipeline functions and service
 
 ## [1.43.5] - 2026-01-13
 - Add deptry to dev dependencies for CI dependency checks
 - Fix missing base_settings fixture parameter in FastAPI test
-
-## [1.43.4] - 2026-01-14
-- chore(deps-dev): bump aiohttp from 3.13.2 to 3.13.3
 
 ## [1.43.3] - 2026-01-13
 - Changing default `assessment_type` in `SubAgentEvaluationServiceConfig` to `HALLUCINATION`
