@@ -85,7 +85,13 @@ class ExperimentalFeatures(FeatureExtendedSourceSerialization):
 
 
 class WebSearchConfig(BaseToolConfig):
-    language_model: LMI = get_LMI_default_field(DEFAULT_MODEL_NAME)
+    language_model: LMI = get_LMI_default_field(
+        DEFAULT_MODEL_NAME,
+        title="Query Refinement Language Model (V1)",
+        description="The AI model used to refine and improve the user's search query in V1 search mode."
+        " **This setting will be moved to the V1 Search Mode Settings in a future release.**",
+    )
+    # TODO [UN-17641]: Remove this field in a future release.
 
     limit_token_sources: SkipJsonSchema[int] = Field(
         default=60_000,  # TODO: Remove SkipJsonSchema once UI (Spaces 2.0) can be configured to not include certain fields
@@ -120,6 +126,7 @@ class WebSearchConfig(BaseToolConfig):
         description="Settings for the advanced AI-planned search mode (V2), including step limits and tool behavior.",
     )
 
+    # Todo [UN-17655] RJSF Tags don't function properly when using union + dscriminator
     search_engine_config: ActivatedSearchEngine = Field(  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         default_factory=DefaultSearchEngine,  # type: ignore (This type is computed at runtime so pyright is not able to infer it)
         title="Search Engine",
