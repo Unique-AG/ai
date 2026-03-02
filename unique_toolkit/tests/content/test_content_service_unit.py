@@ -546,6 +546,69 @@ class TestContentServiceUnit:
         assert isinstance(result, bytes)
         assert result == b"Test content"
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_download_content_to_bytes_async__returns_bytes__with_explicit_chat_id(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify async download delegates to the function layer with explicit chat_id.
+        Why this matters: Ensures the service correctly forwards user-supplied chat_id.
+        Setup summary: Mock download function, call service with explicit chat_id, assert delegation args.
+        """
+        with patch(
+            "unique_toolkit.content.service.download_content_to_bytes_async"
+        ) as mock_download:
+            # Arrange
+            mock_download.return_value = b"Test content"
+
+            # Act
+            result = await self.service.download_content_to_bytes_async(
+                content_id="test_content_id",
+                chat_id="test_chat_id",
+            )
+
+            # Assert
+            assert isinstance(result, bytes)
+            assert result == b"Test content"
+            mock_download.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                content_id="test_content_id",
+                chat_id="test_chat_id",
+            )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_download_content_to_bytes_async__uses_default_chat_id__when_no_chat_id_provided(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify async download falls back to the event's chat_id when none is provided.
+        Why this matters: Prevents None chat_id from breaking downstream API calls.
+        Setup summary: Mock download function, call service without chat_id, assert event chat_id used.
+        """
+        with patch(
+            "unique_toolkit.content.service.download_content_to_bytes_async"
+        ) as mock_download:
+            # Arrange
+            mock_download.return_value = b"Test content"
+
+            # Act
+            result = await self.service.download_content_to_bytes_async(
+                content_id="test_content_id",
+            )
+
+            # Assert
+            assert isinstance(result, bytes)
+            assert result == b"Test content"
+            mock_download.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                content_id="test_content_id",
+                chat_id="test_chat",
+            )
+
     @patch("requests.get")
     def test_download_content_with_dir(self, mock_get):
         mock_response = Mock()

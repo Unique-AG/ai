@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.10.83] - 2026-02-28
 - Add `Space.update` method to update a space (assistant) configuration
 
-## [0.10.82] - 2026-02-12
+## [0.10.82] - 2026-02-13
 - Add `User.get_by_id` method to retrieve a user by their ID
 
 ## [0.10.81] - 2026-02-13
@@ -46,13 +46,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.10.71] - 2026-01-16
 - Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
 
-## [0.10.70] - 2026-01-13
+## [0.10.70] - 2026-01-16
 - Adding additional parameters `isQueueable`, `executionOptions` and `progressTitle` to the message execution
 
 ## [0.10.69] - 2026-01-16
 - Add unified type checking CI with basedpyright
 
-## [0.10.68] - 2026-01-13
+## [0.10.68] - 2026-01-14
 - Add missing direct dependencies (httpx, anyio, aiohttp, regex, tiktoken) for deptry compliance
 
 ## [0.10.67] - 2026-01-14
@@ -61,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.10.66] - 2026-01-05
 - Expose appliedIngestionConfig field on content search.
 
-## [0.10.65] - 2025-01-05
+## [0.10.65] - 2026-01-05
 - Add new params for elicitation to `call_tool` api
 
 ## [0.10.64] - 2025-12-31
@@ -352,7 +352,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.14] - 2024-12-06
 - Add `contentIds` to `Search.create` and `Search.create_async`
 
-## [0.9.13] - 2024-10-23
+## [0.9.13] - 2024-11-21
 - Add retry for `5xx` errors, add additional error message.
 
 ## [0.9.12] - 2024-11-21
@@ -396,3 +396,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.0] - 2024-07-29
 - Added the possibility to make async requests to the unique APIs using either aiohttp or httpx as client
+
