@@ -71,9 +71,3 @@ class ContentField(BaseModel):
 
     def __str__(self):
         return f"ContentField(contents={self.contents})"
-
-
-class DocxGeneratorResult(BaseModel):
-    user_message: str
-    docx_object: bytes | None = None
-    success: bool = False
