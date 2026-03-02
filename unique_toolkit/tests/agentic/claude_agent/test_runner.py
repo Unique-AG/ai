@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from claude_agent_sdk import AssistantMessage, ClaudeSDKError
+from claude_agent_sdk.types import ResultMessage, StreamEvent, ToolUseBlock
 
 from unique_toolkit.agentic.claude_agent.config import ClaudeAgentConfig
 from unique_toolkit.agentic.claude_agent.runner import ClaudeAgentRunner
@@ -283,17 +284,24 @@ class TestRunClaudeLoop:
         runner = _make_runner()
         runner._chat_service.modify_assistant_message_async = AsyncMock()
 
-        delta1 = MagicMock()
-        delta1.type = "content_block_delta"
-        delta1.delta = MagicMock()
-        delta1.delta.type = "text_delta"
-        delta1.delta.text = "Hello"
-
-        delta2 = MagicMock()
-        delta2.type = "content_block_delta"
-        delta2.delta = MagicMock()
-        delta2.delta.type = "text_delta"
-        delta2.delta.text = " world"
+        delta1 = StreamEvent(
+            uuid="uuid-1",
+            session_id="session-1",
+            event={
+                "type": "content_block_delta",
+                "delta": {"type": "text_delta", "text": "Hello"},
+            },
+            parent_tool_use_id=None,
+        )
+        delta2 = StreamEvent(
+            uuid="uuid-2",
+            session_id="session-1",
+            event={
+                "type": "content_block_delta",
+                "delta": {"type": "text_delta", "text": " world"},
+            },
+            parent_tool_use_id=None,
+        )
 
         with patch("unique_toolkit.agentic.claude_agent.runner.query") as mock_query:
             mock_query.return_value = _mock_query_gen(delta1, delta2)
@@ -310,17 +318,24 @@ class TestRunClaudeLoop:
         runner = _make_runner()
         runner._chat_service.modify_assistant_message_async = AsyncMock()
 
-        delta1 = MagicMock()
-        delta1.type = "content_block_delta"
-        delta1.delta = MagicMock()
-        delta1.delta.type = "text_delta"
-        delta1.delta.text = "Hello"
-
-        delta2 = MagicMock()
-        delta2.type = "content_block_delta"
-        delta2.delta = MagicMock()
-        delta2.delta.type = "text_delta"
-        delta2.delta.text = " world"
+        delta1 = StreamEvent(
+            uuid="uuid-1",
+            session_id="session-1",
+            event={
+                "type": "content_block_delta",
+                "delta": {"type": "text_delta", "text": "Hello"},
+            },
+            parent_tool_use_id=None,
+        )
+        delta2 = StreamEvent(
+            uuid="uuid-2",
+            session_id="session-1",
+            event={
+                "type": "content_block_delta",
+                "delta": {"type": "text_delta", "text": " world"},
+            },
+            parent_tool_use_id=None,
+        )
 
         with patch("unique_toolkit.agentic.claude_agent.runner.query") as mock_query:
             mock_query.return_value = _mock_query_gen(delta1, delta2)
@@ -336,9 +351,15 @@ class TestRunClaudeLoop:
         runner = _make_runner()
         runner._chat_service.modify_assistant_message_async = AsyncMock()
 
-        result_msg = MagicMock()
-        result_msg.type = "result"
-        result_msg.result = "Final answer text"
+        result_msg = ResultMessage(
+            subtype="success",
+            duration_ms=100,
+            duration_api_ms=100,
+            is_error=False,
+            num_turns=1,
+            session_id="session-1",
+            result="Final answer text",
+        )
 
         with patch("unique_toolkit.agentic.claude_agent.runner.query") as mock_query:
             mock_query.return_value = _mock_query_gen(result_msg)
@@ -352,14 +373,15 @@ class TestRunClaudeLoop:
         runner = _make_runner()
         runner._chat_service.modify_assistant_message_async = AsyncMock()
 
-        tool_block = MagicMock()
-        tool_block.type = "tool_use"
-        tool_block.name = "mcp__unique_platform__search_knowledge_base"
-        tool_block.input = {"search_query": "interest rates"}
-
-        assistant_msg = MagicMock(spec=AssistantMessage)
-        assistant_msg.type = "assistant"
-        assistant_msg.content = [tool_block]
+        tool_block = ToolUseBlock(
+            id="tu-1",
+            name="mcp__unique_platform__search_knowledge_base",
+            input={"search_query": "interest rates"},
+        )
+        assistant_msg = AssistantMessage(
+            content=[tool_block],
+            model="claude-sonnet-4-5",
+        )
 
         with patch("unique_toolkit.agentic.claude_agent.runner.query") as mock_query:
             mock_query.return_value = _mock_query_gen(assistant_msg)

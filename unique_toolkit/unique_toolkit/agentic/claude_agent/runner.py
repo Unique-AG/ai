@@ -33,6 +33,7 @@ from claude_agent_sdk import (
     ClaudeSDKError,
     query,
 )
+from claude_agent_sdk.types import ResultMessage, StreamEvent, ToolUseBlock
 
 from unique_toolkit._common.execution import SafeTaskExecutor
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
@@ -317,19 +318,23 @@ class ClaudeAgentRunner:
 
         try:
             async for message in query(prompt=prompt, options=sdk_options):
-                if message.type == "content_block_delta":
-                    delta = message.delta
-                    if delta.type == "text_delta" and delta.text:
-                        accumulated_text += delta.text
-                        await self._chat_service.modify_assistant_message_async(
-                            content=accumulated_text
-                        )
+                if isinstance(message, StreamEvent):
+                    event = message.event
+                    if event.get("type") == "content_block_delta":
+                        delta = event.get("delta", {})
+                        if delta.get("type") == "text_delta":
+                            text = delta.get("text", "")
+                            if text:
+                                accumulated_text += text
+                                await self._chat_service.modify_assistant_message_async(
+                                    content=accumulated_text
+                                )
 
                 elif isinstance(message, AssistantMessage):
                     for block in message.content:
-                        if block.type == "tool_use":
+                        if isinstance(block, ToolUseBlock):
                             tool_call_count += 1
-                            input_preview = str(getattr(block, "input", ""))[:200]
+                            input_preview = str(block.input)[:200]
                             self._logger.debug(
                                 "Claude agent tool call #%d: %s | input: %s",
                                 tool_call_count,
@@ -337,9 +342,7 @@ class ClaudeAgentRunner:
                                 input_preview,
                             )
                             if block.name == "TodoWrite":
-                                todos = (getattr(block, "input", None) or {}).get(
-                                    "todos", []
-                                )
+                                todos = (block.input or {}).get("todos", [])
                                 for todo in todos:
                                     status = todo.get("status", "?")
                                     content = todo.get("activeForm") or todo.get(
@@ -349,7 +352,7 @@ class ClaudeAgentRunner:
                                         "todo [%s]: %s", status, content[:100]
                                     )
 
-                elif message.type == "result":
+                elif isinstance(message, ResultMessage):
                     if message.result and not accumulated_text:
                         accumulated_text = message.result
 
