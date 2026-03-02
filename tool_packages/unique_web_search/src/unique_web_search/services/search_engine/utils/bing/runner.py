@@ -60,6 +60,9 @@ async def _create_agent_id(agent_client: AIProjectClient) -> str:
 
 async def get_or_create_agent_id(agent_client: AIProjectClient) -> str:
     """Return the Bing grounding agent id, creating one if it doesn't exist yet."""
+    if env_settings.azure_ai_assistant_id:
+        return env_settings.azure_ai_assistant_id
+
     try:
         return await _get_agent_id(agent_client)
     except Exception as e:
@@ -81,7 +84,7 @@ def get_bing_grounding_tool(fetch_size: int) -> BingGroundingTool:
     Raises:
         ValueError: If the Bing resource connection string is not configured.
     """
-    connection_id = env_settings.azure_ai_bing_ressource_connection_string
+    connection_id = env_settings.azure_ai_bing_resource_connection_string
     if not connection_id:
         raise ValueError("Azure AI Bing Resource Connection String is not set")
     return BingGroundingTool(connection_id=connection_id, count=fetch_size)

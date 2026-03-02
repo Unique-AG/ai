@@ -529,6 +529,7 @@ class TestGetOrCreateAgentId:
         Setup summary: Mock list_agents returning empty; mock create_agent returning new id.
         """
         # Arrange
+        mock_env.azure_ai_assistant_id = None
         mock_agent_client.agents.list_agents.return_value = _async_iter([])
         mock_env.azure_ai_bing_agent_model = "gpt-4o"
         new_agent = MagicMock()
@@ -578,6 +579,29 @@ class TestGetOrCreateAgentId:
         # Assert
         assert agent_id == "target-789"
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch("unique_web_search.services.search_engine.utils.bing.runner.env_settings")
+    async def test_get_or_create__env_assistant_id_set__returns_env_id_directly(
+        self, mock_env: MagicMock, mock_agent_client: MagicMock
+    ) -> None:
+        """
+        Purpose: Verify env-set assistant_id is returned immediately without agent lookup.
+        Why this matters: IT admins setting the assistant_id in .env expect it to be used
+            directly, bypassing auto-provisioning entirely.
+        Setup summary: Set azure_ai_assistant_id on env; assert returned without list_agents call.
+        """
+        # Arrange
+        mock_env.azure_ai_assistant_id = "env-preconfigured-agent-id"
+
+        # Act
+        agent_id = await get_or_create_agent_id(mock_agent_client)
+
+        # Assert
+        assert agent_id == "env-preconfigured-agent-id"
+        mock_agent_client.agents.list_agents.assert_not_called()
+        mock_agent_client.agents.create_agent.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # get_bing_grounding_tool tests
@@ -598,7 +622,7 @@ class TestGetBingGroundingTool:
         Setup summary: Set connection string; assert tool is returned with correct count.
         """
         # Arrange
-        mock_env.azure_ai_bing_ressource_connection_string = (
+        mock_env.azure_ai_bing_resource_connection_string = (
             "projects/123/connections/bing"
         )
 
@@ -619,7 +643,7 @@ class TestGetBingGroundingTool:
         Setup summary: Set connection string to None; assert ValueError raised.
         """
         # Arrange
-        mock_env.azure_ai_bing_ressource_connection_string = None
+        mock_env.azure_ai_bing_resource_connection_string = None
 
         # Act & Assert
         with pytest.raises(ValueError) as exc_info:
@@ -637,7 +661,7 @@ class TestGetBingGroundingTool:
         Setup summary: Set connection string to empty; assert ValueError raised.
         """
         # Arrange
-        mock_env.azure_ai_bing_ressource_connection_string = ""
+        mock_env.azure_ai_bing_resource_connection_string = ""
 
         # Act & Assert
         with pytest.raises(ValueError):
@@ -1134,6 +1158,58 @@ class TestBingSearchConfig:
         # Assert
         assert config.agent_id == "my-agent-id-123"
         assert config.endpoint == "https://my-project.azure.com"
+
+    @pytest.mark.ai
+    @patch("unique_web_search.services.search_engine.bing.env_settings")
+    def test_config__agent_id_defaults_from_env__when_env_set(
+        self, mock_env: MagicMock
+    ) -> None:
+        """
+        Purpose: Verify agent_id defaults to env_settings.azure_ai_assistant_id when set.
+        Why this matters: IT admins setting the assistant_id in .env expect BingSearchConfig
+            to pick it up automatically without explicit config.
+        Setup summary: Patch env_settings with assistant_id; create config without override; assert match.
+        """
+        from unique_web_search.services.search_engine.bing import BingSearchConfig
+
+        # Arrange
+        mock_env.azure_ai_assistant_id = "env-agent-abc"
+        mock_env.azure_ai_project_endpoint = None
+
+        # Act
+        config = BingSearchConfig(
+            agent_id=mock_env.azure_ai_assistant_id or "",
+            endpoint=mock_env.azure_ai_project_endpoint or "",
+        )
+
+        # Assert
+        assert config.agent_id == "env-agent-abc"
+
+    @pytest.mark.ai
+    @patch("unique_web_search.services.search_engine.bing.env_settings")
+    def test_config__endpoint_defaults_from_env__when_env_set(
+        self, mock_env: MagicMock
+    ) -> None:
+        """
+        Purpose: Verify endpoint defaults to env_settings.azure_ai_project_endpoint when set.
+        Why this matters: IT admins setting the endpoint in .env expect BingSearchConfig
+            to pick it up automatically without explicit config.
+        Setup summary: Patch env_settings with endpoint; create config without override; assert match.
+        """
+        from unique_web_search.services.search_engine.bing import BingSearchConfig
+
+        # Arrange
+        mock_env.azure_ai_assistant_id = None
+        mock_env.azure_ai_project_endpoint = "https://env-endpoint.azure.com"
+
+        # Act
+        config = BingSearchConfig(
+            agent_id=mock_env.azure_ai_assistant_id or "",
+            endpoint=mock_env.azure_ai_project_endpoint or "",
+        )
+
+        # Assert
+        assert config.endpoint == "https://env-endpoint.azure.com"
 
 
 # ---------------------------------------------------------------------------

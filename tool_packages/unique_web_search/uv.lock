@@ -2553,6 +2553,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pypandoc"
+version = "1.16.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0b/18/9f5f70567b97758625335209b98d5cb857e19aa1a9306e9749567a240634/pypandoc-1.16.2.tar.gz", hash = "sha256:7a72a9fbf4a5dc700465e384c3bb333d22220efc4e972cb98cf6fc723cdca86b", size = 31477, upload-time = "2025-11-13T16:30:29.608Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bb/e9/b145683854189bba84437ea569bfa786f408c8dc5bc16d8eb0753f5583bf/pypandoc-1.16.2-py3-none-any.whl", hash = "sha256:c200c1139c8e3247baf38d1e9279e85d9f162499d1999c6aa8418596558fe79b", size = 19451, upload-time = "2025-11-13T16:30:07.66Z" },
+]
+
+[[package]]
 name = "pyparsing"
 version = "3.3.2"
 source = { registry = "https://pypi.org/simple" }
@@ -3299,7 +3308,7 @@ wheels = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.46.13"
+version = "1.48.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -3318,6 +3327,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyhumps" },
+    { name = "pypandoc" },
     { name = "python-docx" },
     { name = "requests" },
     { name = "sseclient" },
@@ -3326,14 +3336,14 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "unique-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b4/e9/e45f396f32531e6ba25ac603d5338db3f74bbb9fc1153e25e3bfb1f69de7/unique_toolkit-1.46.13.tar.gz", hash = "sha256:0dd5e0059cf46d53f213410202ea86735a20ad17ef6105087eaf6f5be0c8481e", size = 4207583, upload-time = "2026-02-23T09:58:06.189Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2d/c1/f1909f043a22836499e1876aa6f409dddd01d9ec3a68e7f69f32a790582b/unique_toolkit-1.48.0.tar.gz", hash = "sha256:6c9742728ad42a9b5c1cbcfd71d90fd54306a84fab2e90cb5ae75a424602a03f", size = 4208969, upload-time = "2026-02-27T08:45:21.183Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/08/86/967655a19ed70302ee63f501f659abf2c2c3e3a3737b49fcd213bbfa61c0/unique_toolkit-1.46.13-py3-none-any.whl", hash = "sha256:2318170ae91a6256c503008e68e053cc441e8be6bbfa8d34962255c57caf1eb9", size = 4393266, upload-time = "2026-02-23T09:58:04.305Z" },
+    { url = "https://files.pythonhosted.org/packages/0e/c3/cae34f42a4fa5f66b32751ee4c05f5ddb475866026e95fe5dc5d02e2d233/unique_toolkit-1.48.0-py3-none-any.whl", hash = "sha256:719cacaa816645d7630e5ea1f58f31efeac75e1ce867cc9a7c230798721dd459", size = 4404649, upload-time = "2026-02-27T08:45:19.403Z" },
 ]
 
 [[package]]
 name = "unique-web-search"
-version = "1.12.1"
+version = "1.13.0"
 source = { editable = "." }
 dependencies = [
     { name = "azure-ai-projects" },
@@ -3350,6 +3360,7 @@ dependencies = [
     { name = "markdownify" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "pyhumps" },
     { name = "tavily-python" },
     { name = "timeout-decorator" },
     { name = "typing-extensions" },
@@ -3385,6 +3396,7 @@ requires-dist = [
     { name = "markdownify", specifier = ">=0.14.1,<1" },
     { name = "pydantic", specifier = ">=2.12.3,<3" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
+    { name = "pyhumps", specifier = ">=3.8.0,<4" },
     { name = "tavily-python", specifier = ">=0.7.11,<1" },
     { name = "timeout-decorator", specifier = ">=0.5.0,<1" },
     { name = "typing-extensions", specifier = ">=4.14.1,<5" },
