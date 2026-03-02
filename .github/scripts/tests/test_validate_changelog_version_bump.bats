@@ -236,6 +236,31 @@ EOF
     [[ "$output" =~ "Duplicate version entries" ]]
 }
 
+@test "fails when changelog versions are not newest-first" {
+    setup_test_repo
+
+    # Changelog with wrong order: 1.0.0 then 1.1.0 (oldest-first instead of newest-first)
+    echo "# new code" >> "$TEST_PACKAGE/src/main.py"
+    cat > "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
+# Changelog
+All notable changes to this project will be documented in this file.
+
+## [1.0.0] - 2026-01-01
+- Initial
+
+## [1.1.0] - 2026-02-01
+- New feature
+EOF
+    sed -i.bak 's/version = "1.0.0"/version = "1.1.0"/' "$TEST_PACKAGE/pyproject.toml"
+    rm -f "$TEST_PACKAGE/pyproject.toml.bak"
+    git add .
+    git commit -m "Changelog with wrong version order"
+
+    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "newest-first" ]]
+}
+
 @test "fails when changelog missing entry for current version" {
     setup_test_repo
     
