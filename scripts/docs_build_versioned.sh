@@ -183,6 +183,9 @@ build_root_site() {
     rsync -av --exclude='unique-sdk' --exclude='unique-toolkit' "$OUTPUT_DIR/root_temp/" "$OUTPUT_DIR/"
     rm -rf "$OUTPUT_DIR/root_temp"
 
+    # The Material theme generates its own 404.html — overwrite it with ours.
+    cp "$REPO_ROOT/docs/404.html" "$OUTPUT_DIR/404.html"
+
     log_success "Root site built"
 }
 
