@@ -15,6 +15,7 @@ from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
 from unique_toolkit.content.functions import (
     download_content,
     download_content_to_bytes,
+    download_content_to_bytes_async,
     download_content_to_file_by_id,
     request_content_by_id,
     search_content_chunks,
@@ -730,6 +731,32 @@ class ContentService:
         """
         chat_id = chat_id or self._chat_id  # type: ignore
         return download_content_to_bytes(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content_id=content_id,
+            chat_id=chat_id,
+        )
+
+    async def download_content_to_bytes_async(
+        self,
+        content_id: str,
+        chat_id: str | None = None,
+    ) -> bytes:
+        """
+        Asynchronously downloads content to memory.
+
+        Args:
+            content_id (str): The id of the uploaded content.
+            chat_id (Optional[str]): The chat_id, defaults to None.
+
+        Returns:
+            bytes: The downloaded content.
+
+        Raises:
+            Exception: If the download fails.
+        """
+        chat_id = chat_id or self._chat_id  # type: ignore
+        return await download_content_to_bytes_async(
             user_id=self._user_id,
             company_id=self._company_id,
             content_id=content_id,

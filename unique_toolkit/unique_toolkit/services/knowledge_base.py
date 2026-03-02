@@ -17,6 +17,7 @@ from unique_toolkit.content.functions import (
     delete_content,
     delete_content_async,
     download_content_to_bytes,
+    download_content_to_bytes_async,
     download_content_to_file_by_id,
     get_content_info,
     get_folder_info,
@@ -530,6 +531,31 @@ class KnowledgeBaseService:
         """
 
         return download_content_to_bytes(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content_id=content_id,
+            chat_id=None,
+        )
+
+    async def download_content_to_bytes_async(
+        self,
+        *,
+        content_id: str,
+    ) -> bytes:
+        """
+        Asynchronously downloads content to memory.
+
+        Args:
+            content_id (str): The id of the uploaded content.
+
+        Returns:
+            bytes: The downloaded content.
+
+        Raises:
+            Exception: If the download fails.
+        """
+
+        return await download_content_to_bytes_async(
             user_id=self._user_id,
             company_id=self._company_id,
             content_id=content_id,
