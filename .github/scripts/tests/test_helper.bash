@@ -75,13 +75,13 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 EOF
     
-    # Create CHANGELOG.md
+    # Create CHANGELOG.md (newest-first: version and date)
     cat > "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
 # Changelog
 
 All notable changes to this project will be documented in this file.
 
-## [1.0.0]
+## [1.0.0] - 2026-01-01
 - Initial release
 EOF
     
@@ -119,7 +119,7 @@ EOF
     cat > "$package_name/CHANGELOG.md" << EOF
 # Changelog
 
-## [$version]
+## [$version] - 2026-01-01
 - Initial release
 EOF
     
@@ -135,10 +135,11 @@ make_valid_version_bump() {
     # Add code change
     echo "# New feature code" >> "$package/src/main.py"
     
-    # Update changelog
+    # Update changelog (newest-first: prepend would be ideal; appending creates wrong order)
+    # Callers should prefer writing full changelog with dates. This keeps a date for format.
     cat >> "$package/CHANGELOG.md" << EOF
 
-## [$new_version]
+## [$new_version] - 2026-02-01
 - New feature added
 EOF
     
