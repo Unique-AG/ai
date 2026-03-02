@@ -179,9 +179,17 @@ load test_helper
 @test "fails when pyproject.toml not updated" {
     setup_test_repo
     
-    # Make code change and update changelog but not pyproject.toml
+    # Make code change and update changelog (newest-first) but not pyproject.toml
     echo "# new code" >> "$TEST_PACKAGE/src/main.py"
-    echo -e "\n## [1.1.0]\n- New feature" >> "$TEST_PACKAGE/CHANGELOG.md"
+    cat > "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
+# Changelog
+
+## [1.1.0] - 2026-02-01
+- New feature
+
+## [1.0.0] - 2026-01-01
+- Initial release
+EOF
     git add .
     git commit -m "Add code with changelog but no version bump"
     
@@ -217,13 +225,13 @@ load test_helper
     
     # Add duplicate version to changelog
     echo "# new code" >> "$TEST_PACKAGE/src/main.py"
-    # Add same version twice
+    # Add same version twice (with dates so format is valid before duplicate check)
     cat >> "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
 
-## [1.1.0]
+## [1.1.0] - 2026-02-01
 - First entry
 
-## [1.1.0]
+## [1.1.0] - 2026-02-01
 - Duplicate entry
 EOF
     sed -i.bak 's/version = "1.0.0"/version = "1.1.0"/' "$TEST_PACKAGE/pyproject.toml"
@@ -236,12 +244,69 @@ EOF
     [[ "$output" =~ "Duplicate version entries" ]]
 }
 
+@test "fails when changelog versions are not newest-first" {
+    setup_test_repo
+
+    # Changelog with wrong order: 1.0.0 then 1.1.0 (oldest-first instead of newest-first)
+    echo "# new code" >> "$TEST_PACKAGE/src/main.py"
+    cat > "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
+# Changelog
+All notable changes to this project will be documented in this file.
+
+## [1.0.0] - 2026-01-01
+- Initial
+
+## [1.1.0] - 2026-02-01
+- New feature
+EOF
+    sed -i.bak 's/version = "1.0.0"/version = "1.1.0"/' "$TEST_PACKAGE/pyproject.toml"
+    rm -f "$TEST_PACKAGE/pyproject.toml.bak"
+    git add .
+    git commit -m "Changelog with wrong version order"
+
+    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "newest-first" ]]
+}
+
+@test "fails when changelog dates are not non-increasing" {
+    setup_test_repo
+
+    # Version order correct (1.1.0 then 1.0.0) but dates wrong: 2026-01-01 then 2026-02-01 (increasing)
+    echo "# new code" >> "$TEST_PACKAGE/src/main.py"
+    cat > "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
+# Changelog
+
+## [1.1.0] - 2026-01-01
+- New feature
+
+## [1.0.0] - 2026-02-01
+- Initial
+EOF
+    sed -i.bak 's/version = "1.0.0"/version = "1.1.0"/' "$TEST_PACKAGE/pyproject.toml"
+    rm -f "$TEST_PACKAGE/pyproject.toml.bak"
+    git add .
+    git commit -m "Changelog with wrong date order"
+
+    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "non-increasing" ]]
+}
+
 @test "fails when changelog missing entry for current version" {
     setup_test_repo
     
-    # Update to version 1.2.0 but only add changelog for 1.1.0
+    # Update to version 1.2.0 but only add changelog for 1.1.0 (newest-first order)
     echo "# new code" >> "$TEST_PACKAGE/src/main.py"
-    echo -e "\n## [1.1.0]\n- Some change" >> "$TEST_PACKAGE/CHANGELOG.md"
+    cat > "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
+# Changelog
+
+## [1.1.0] - 2026-02-01
+- Some change
+
+## [1.0.0] - 2026-01-01
+- Initial release
+EOF
     sed -i.bak 's/version = "1.0.0"/version = "1.2.0"/' "$TEST_PACKAGE/pyproject.toml"
     rm -f "$TEST_PACKAGE/pyproject.toml.bak"
     git add .
@@ -259,9 +324,17 @@ EOF
 @test "passes with valid changelog and version bump" {
     setup_test_repo
     
-    # Make proper changes
+    # Make proper changes (changelog newest-first: 1.1.0 then 1.0.0)
     echo "# new code" >> "$TEST_PACKAGE/src/main.py"
-    echo -e "\n## [1.1.0]\n- New feature added" >> "$TEST_PACKAGE/CHANGELOG.md"
+    cat > "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
+# Changelog
+
+## [1.1.0] - 2026-02-01
+- New feature added
+
+## [1.0.0] - 2026-01-01
+- Initial release
+EOF
     sed -i.bak 's/version = "1.0.0"/version = "1.1.0"/' "$TEST_PACKAGE/pyproject.toml"
     rm -f "$TEST_PACKAGE/pyproject.toml.bak"
     git add .
@@ -352,9 +425,17 @@ EOF
 @test "passes with backward compatible positional arguments" {
     setup_test_repo
     
-    # Make proper changes
+    # Make proper changes (changelog newest-first)
     echo "# new code" >> "$TEST_PACKAGE/src/main.py"
-    echo -e "\n## [1.1.0]\n- New feature" >> "$TEST_PACKAGE/CHANGELOG.md"
+    cat > "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
+# Changelog
+
+## [1.1.0] - 2026-02-01
+- New feature
+
+## [1.0.0] - 2026-01-01
+- Initial release
+EOF
     sed -i.bak 's/version = "1.0.0"/version = "1.1.0"/' "$TEST_PACKAGE/pyproject.toml"
     rm -f "$TEST_PACKAGE/pyproject.toml.bak"
     git add .
@@ -374,11 +455,19 @@ EOF
 @test "handles version with pre-release suffix" {
     setup_test_repo
     
-    # Set up with pre-release version
+    # Set up with pre-release version (changelog newest-first: 1.1.0-alpha.1 then 1.0.0)
     sed -i.bak 's/version = "1.0.0"/version = "1.1.0-alpha.1"/' "$TEST_PACKAGE/pyproject.toml"
     rm -f "$TEST_PACKAGE/pyproject.toml.bak"
     echo "# new code" >> "$TEST_PACKAGE/src/main.py"
-    echo -e "\n## [1.1.0-alpha.1]\n- Alpha release" >> "$TEST_PACKAGE/CHANGELOG.md"
+    cat > "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
+# Changelog
+
+## [1.1.0-alpha.1] - 2026-02-01
+- Alpha release
+
+## [1.0.0] - 2026-01-01
+- Initial release
+EOF
     git add .
     git commit -m "Alpha release"
     
@@ -411,10 +500,18 @@ EOF
     git commit -m "Add nested connector" >/dev/null 2>&1
     git push origin main >/dev/null 2>&1
     
-    # Now create a new feature branch for changes
+    # Now create a new feature branch for changes (changelog newest-first)
     git checkout -b feature-nested >/dev/null 2>&1
     echo "# new code" >> "connectors/test_connector/src/main.py"
-    echo -e "\n## [1.1.0]\n- New feature" >> "connectors/test_connector/CHANGELOG.md"
+    cat > "connectors/test_connector/CHANGELOG.md" << 'EOF'
+# Changelog
+
+## [1.1.0] - 2026-02-01
+- New feature
+
+## [1.0.0] - 2026-01-01
+- Initial release
+EOF
     sed -i.bak 's/version = "1.0.0"/version = "1.1.0"/' "connectors/test_connector/pyproject.toml"
     rm -f "connectors/test_connector/pyproject.toml.bak"
     git add .

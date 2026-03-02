@@ -26,7 +26,7 @@ class ContentProcessorConfig(BaseModel):
 
     processing_strategies: ProcessingStrategiesConfig = Field(
         default_factory=ProcessingStrategiesConfig,
-        title="Content Processing",
+        title="Additional Processing Strategies",
         description="Additional processing steps applied to web page content after retrieval, such as shortening or AI-based summarization.",
     )
 

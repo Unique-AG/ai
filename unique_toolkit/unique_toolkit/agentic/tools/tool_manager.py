@@ -169,6 +169,8 @@ class _ToolManager(Generic[_ApiMode]):
                 continue
             # if tool choices are given, only include those tools
             if len(self._tool_choices) > 0 and t.name not in self._tool_choices:
+                if t.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
+                    self._tools.append(t)
                 continue
             # is the tool exclusive and has been choosen by the user?
             if t.is_exclusive() and len(tool_choices) > 0 and t.name in tool_choices:

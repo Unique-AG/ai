@@ -97,9 +97,13 @@ class Base(BaseSettings):
     )
 
     # Azure AI Project settings
-    azure_ai_bing_agent_model: str = "gpt-4o"
+    azure_ai_bing_agent_model: str = "gpt-4o-deployment"
+    azure_ai_assistant_id: str | None = None
     azure_ai_project_endpoint: str | None = None
-    azure_ai_bing_ressource_connection_string: str | None = None
+    azure_ai_bing_resource_connection_string: str | None = None
+
+    # LLM processor config override (JSON string matching LLMProcessorConfig schema)
+    llm_process_config: str | None = None
 
     @property
     def active_crawlers(self) -> list[str]:
@@ -146,12 +150,14 @@ class Base(BaseSettings):
         "custom_web_search_api_additional_query_params",
         "custom_web_search_api_additional_body_params",
         "custom_web_search_api_client_config",
+        "llm_process_config",
         mode="after",
     )
     def validate_json(cls, v: str | None, info: ValidationInfo) -> str | None:
         if v is not None:
             try:
                 json.loads(v)
+                _LOGGER.info(f"{info.field_name} is valid JSON")
             except json.JSONDecodeError:
                 _LOGGER.error(
                     f"Invalid JSON : {info.field_name}. Setting value to None"
