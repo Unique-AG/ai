@@ -22,6 +22,7 @@ and _run_post_processing().
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import datetime
 from logging import Logger
 from pathlib import Path
@@ -246,8 +247,6 @@ class ClaudeAgentRunner:
         here — they will be created in mcp_tools.py (Step 4) and merged into the
         returned dict before it is passed to ClaudeAgentOptions.
         """
-        import os
-
         allowed_tools, disallowed_tools = build_tool_policy(self._claude_config)
 
         options: dict[str, Any] = {
