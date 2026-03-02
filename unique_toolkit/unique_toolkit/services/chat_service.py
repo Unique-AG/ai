@@ -70,6 +70,7 @@ from unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.content.functions import (
     download_content_to_bytes,
+    download_content_to_bytes_async,
     search_contents,
     upload_content_from_bytes,
     upload_content_from_bytes_async,
@@ -1730,6 +1731,25 @@ class ChatService(ChatServiceDeprecated):
             bytes: The raw content bytes.
         """
         return download_content_to_bytes(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content_id=content_id,
+            chat_id=self._content_scope_chat_id,
+        )
+
+    async def download_chat_content_to_bytes_async(self, *, content_id: str) -> bytes:
+        """Async download content by id from the content-scope chat (e.g. parent chat when subagent).
+
+        Uses the service's content-scope chat id, so when running as a subagent
+        with correlation, this accesses files from the primary chat session.
+
+        Args:
+            content_id: The content id to download.
+
+        Returns:
+            bytes: The raw content bytes.
+        """
+        return await download_content_to_bytes_async(
             user_id=self._user_id,
             company_id=self._company_id,
             content_id=content_id,

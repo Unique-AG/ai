@@ -1,12 +1,14 @@
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
 from unique_toolkit.content.functions import (
     download_content,
     download_content_to_bytes,
+    download_content_to_bytes_async,
     download_content_to_file_by_id,
     request_content_by_id,
+    request_content_by_id_async,
     search_content_chunks,
     search_content_chunks_async,
     search_contents,
@@ -511,3 +513,78 @@ def test_upload_content_missing_write_url(mock_sdk, tmp_path):
             ingestion_config=ingestion_config,
         )
     assert "Write url for uploaded content is missing" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_request_content_by_id_async(mock_sdk):
+    with patch("unique_toolkit.content.functions.httpx.AsyncClient") as mock_client_cls:
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = b"test content"
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.get.return_value = mock_response
+        mock_client_cls.return_value = mock_client
+
+        response = await request_content_by_id_async(
+            user_id="user123",
+            company_id="company123",
+            content_id="content123",
+            chat_id="chat123",
+        )
+
+        assert response.status_code == 200
+        assert response.content == b"test content"
+        mock_client.get.assert_called_once()
+        call_args = mock_client.get.call_args
+        assert "content123" in call_args[0][0]
+        assert "chatId=chat123" in call_args[0][0]
+        headers = call_args[1]["headers"]
+        assert headers["x-user-id"] == "user123"
+        assert headers["x-company-id"] == "company123"
+
+
+@pytest.mark.asyncio
+async def test_download_content_to_bytes_async(mock_sdk):
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.content = b"test content"
+
+    async def fake_request(*args):
+        return mock_response
+
+    with patch(
+        "unique_toolkit.content.functions.request_content_by_id_async",
+        side_effect=fake_request,
+    ):
+        result = await download_content_to_bytes_async(
+            user_id="user123",
+            company_id="company123",
+            content_id="content123",
+            chat_id="chat123",
+        )
+
+        assert result == b"test content"
+
+
+@pytest.mark.asyncio
+async def test_download_content_to_bytes_async_error(mock_sdk):
+    mock_response = Mock()
+    mock_response.status_code = 404
+    mock_response.raise_for_status.side_effect = Exception()
+
+    async def fake_request(*args):
+        return mock_response
+
+    with patch(
+        "unique_toolkit.content.functions.request_content_by_id_async",
+        side_effect=fake_request,
+    ):
+        with pytest.raises(Exception):
+            await download_content_to_bytes_async(
+                user_id="user123",
+                company_id="company123",
+                content_id="content123",
+                chat_id="chat123",
+            )
