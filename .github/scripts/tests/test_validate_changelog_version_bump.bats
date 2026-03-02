@@ -184,10 +184,10 @@ load test_helper
     cat > "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
 # Changelog
 
-## [1.1.0]
+## [1.1.0] - 2026-02-01
 - New feature
 
-## [1.0.0]
+## [1.0.0] - 2026-01-01
 - Initial release
 EOF
     git add .
@@ -225,13 +225,13 @@ EOF
     
     # Add duplicate version to changelog
     echo "# new code" >> "$TEST_PACKAGE/src/main.py"
-    # Add same version twice
+    # Add same version twice (with dates so format is valid before duplicate check)
     cat >> "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
 
-## [1.1.0]
+## [1.1.0] - 2026-02-01
 - First entry
 
-## [1.1.0]
+## [1.1.0] - 2026-02-01
 - Duplicate entry
 EOF
     sed -i.bak 's/version = "1.0.0"/version = "1.1.0"/' "$TEST_PACKAGE/pyproject.toml"
@@ -269,6 +269,30 @@ EOF
     [[ "$output" =~ "newest-first" ]]
 }
 
+@test "fails when changelog dates are not non-increasing" {
+    setup_test_repo
+
+    # Version order correct (1.1.0 then 1.0.0) but dates wrong: 2026-01-01 then 2026-02-01 (increasing)
+    echo "# new code" >> "$TEST_PACKAGE/src/main.py"
+    cat > "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
+# Changelog
+
+## [1.1.0] - 2026-01-01
+- New feature
+
+## [1.0.0] - 2026-02-01
+- Initial
+EOF
+    sed -i.bak 's/version = "1.0.0"/version = "1.1.0"/' "$TEST_PACKAGE/pyproject.toml"
+    rm -f "$TEST_PACKAGE/pyproject.toml.bak"
+    git add .
+    git commit -m "Changelog with wrong date order"
+
+    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "non-increasing" ]]
+}
+
 @test "fails when changelog missing entry for current version" {
     setup_test_repo
     
@@ -277,10 +301,10 @@ EOF
     cat > "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
 # Changelog
 
-## [1.1.0]
+## [1.1.0] - 2026-02-01
 - Some change
 
-## [1.0.0]
+## [1.0.0] - 2026-01-01
 - Initial release
 EOF
     sed -i.bak 's/version = "1.0.0"/version = "1.2.0"/' "$TEST_PACKAGE/pyproject.toml"
@@ -305,10 +329,10 @@ EOF
     cat > "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
 # Changelog
 
-## [1.1.0]
+## [1.1.0] - 2026-02-01
 - New feature added
 
-## [1.0.0]
+## [1.0.0] - 2026-01-01
 - Initial release
 EOF
     sed -i.bak 's/version = "1.0.0"/version = "1.1.0"/' "$TEST_PACKAGE/pyproject.toml"
@@ -406,10 +430,10 @@ EOF
     cat > "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
 # Changelog
 
-## [1.1.0]
+## [1.1.0] - 2026-02-01
 - New feature
 
-## [1.0.0]
+## [1.0.0] - 2026-01-01
 - Initial release
 EOF
     sed -i.bak 's/version = "1.0.0"/version = "1.1.0"/' "$TEST_PACKAGE/pyproject.toml"
@@ -438,10 +462,10 @@ EOF
     cat > "$TEST_PACKAGE/CHANGELOG.md" << 'EOF'
 # Changelog
 
-## [1.1.0-alpha.1]
+## [1.1.0-alpha.1] - 2026-02-01
 - Alpha release
 
-## [1.0.0]
+## [1.0.0] - 2026-01-01
 - Initial release
 EOF
     git add .
@@ -482,10 +506,10 @@ EOF
     cat > "connectors/test_connector/CHANGELOG.md" << 'EOF'
 # Changelog
 
-## [1.1.0]
+## [1.1.0] - 2026-02-01
 - New feature
 
-## [1.0.0]
+## [1.0.0] - 2026-01-01
 - Initial release
 EOF
     sed -i.bak 's/version = "1.0.0"/version = "1.1.0"/' "connectors/test_connector/pyproject.toml"

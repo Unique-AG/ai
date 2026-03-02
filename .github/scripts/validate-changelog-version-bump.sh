@@ -400,6 +400,21 @@ if [ -f "$CHANGELOG_FILE" ]; then
         fi
         print_success "Changelog versions are in newest-first order"
     fi
+
+    # Check dates: collect each entry's date (skip when missing) in order; that list must be non-increasing.
+    if [ -n "$VERSIONS_IN_ORDER" ]; then
+        DATES=$(grep -E '^## \[' "$CHANGELOG_FILE" | sed -nE 's/^.*[[:space:]]-[[:space:]]*([0-9]{4}-[0-9]{2}-[0-9]{2}).*/\1/p')
+        PREV=""
+        while IFS= read -r d; do
+            [ -z "$d" ] && continue
+            if [ -n "$PREV" ] && [ "$d" \> "$PREV" ]; then
+                print_error "Changelog dates in $CHANGELOG_FILE must be non-increasing (newest-first); found $d after $PREV"
+                exit 1
+            fi
+            PREV="$d"
+        done <<< "$DATES"
+        print_success "Changelog dates are non-increasing (entries without dates skipped)"
+    fi
 fi
 
 # Check pyproject.toml exists and has been modified
