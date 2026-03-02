@@ -677,6 +677,39 @@ def request_content_by_id(
     return requests.get(url, headers=headers)
 
 
+async def request_content_by_id_async(
+    user_id: str, company_id: str, content_id: str, chat_id: str | None
+) -> httpx.Response:
+    """
+    Sends an async request to download content.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        content_id (str): The ID of the content to download.
+        chat_id (str): The ID of the chat from which to download the content. Defaults to None to download from knowledge base.
+
+    Returns:
+        httpx.Response: The response object containing the downloaded content.
+
+    """
+    logger.info(f"Requesting content with content_id: {content_id}")
+    url = f"{unique_sdk.api_base}/content/{content_id}/file"
+    if chat_id:
+        url = f"{url}?chatId={chat_id}"
+
+    headers = {
+        "x-api-version": unique_sdk.api_version,
+        "x-app-id": unique_sdk.app_id,
+        "x-user-id": user_id,
+        "x-company-id": company_id,
+        "Authorization": "Bearer %s" % (unique_sdk.api_key,),
+    }
+
+    async with httpx.AsyncClient() as client:
+        return await client.get(url, headers=headers)
+
+
 def download_content_to_file_by_id(
     user_id: str,
     company_id: str,
@@ -743,6 +776,22 @@ def download_content_to_bytes(
         error_msg = f"Error downloading file: Status code {response.status_code}"
         logger.error(error_msg)
         raise Exception(error_msg)
+
+    return response.content
+
+
+async def download_content_to_bytes_async(
+    user_id: str,
+    company_id: str,
+    content_id: str,
+    chat_id: str | None,
+) -> bytes:
+    logger.info(f"Downloading content with content_id: {content_id}")
+    response = await request_content_by_id_async(
+        user_id, company_id, content_id, chat_id
+    )
+
+    response.raise_for_status()
 
     return response.content
 

@@ -546,6 +546,47 @@ class TestContentServiceUnit:
         assert isinstance(result, bytes)
         assert result == b"Test content"
 
+    @pytest.mark.asyncio
+    async def test_download_content_to_bytes_async(self):
+        with patch(
+            "unique_toolkit.content.service.download_content_to_bytes_async"
+        ) as mock_download:
+            mock_download.return_value = b"Test content"
+
+            result = await self.service.download_content_to_bytes_async(
+                content_id="test_content_id",
+                chat_id="test_chat_id",
+            )
+
+            assert isinstance(result, bytes)
+            assert result == b"Test content"
+            mock_download.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                content_id="test_content_id",
+                chat_id="test_chat_id",
+            )
+
+    @pytest.mark.asyncio
+    async def test_download_content_to_bytes_async_uses_default_chat_id(self):
+        with patch(
+            "unique_toolkit.content.service.download_content_to_bytes_async"
+        ) as mock_download:
+            mock_download.return_value = b"Test content"
+
+            result = await self.service.download_content_to_bytes_async(
+                content_id="test_content_id",
+            )
+
+            assert isinstance(result, bytes)
+            assert result == b"Test content"
+            mock_download.assert_called_once_with(
+                user_id="test_user",
+                company_id="test_company",
+                content_id="test_content_id",
+                chat_id="test_chat",
+            )
+
     @patch("requests.get")
     def test_download_content_with_dir(self, mock_get):
         mock_response = Mock()
