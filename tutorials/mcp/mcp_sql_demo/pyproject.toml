@@ -19,3 +19,9 @@ unique-mcp = "unique_mcp:main"
 [build-system]
 requires = ["uv_build>=0.8.14,<0.9.0"]
 build-backend = "uv_build"
+
+[tool.uv]
+constraint-dependencies = [
+    "cryptography>=46.0.5",
+    "pillow>=12.1.1",
+]

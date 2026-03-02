@@ -1,6 +1,6 @@
 [project]
 name = "unique-mcp"
-version = "0.1.4"
+version = "0.1.5"
 description = "Add your description here"
 readme = "README.md"
 authors = [
@@ -8,7 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "fastmcp>=2.13.3",
+    "fastmcp>=2.14.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.0.0",
     "platformdirs>=4.0.0",
@@ -57,6 +57,13 @@ coverage = "pytest --cov=unique_mcp --cov-report=term-missing"
 # Full CI-like checks (with baseline)
 ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
 ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
+
+[tool.uv]
+constraint-dependencies = [
+    "mcp>=1.23.0",
+    "authlib>=1.6.6",
+    "urllib3>=2.6.3",
+]
 
 [tool.ruff.lint]
 select = ["E"]

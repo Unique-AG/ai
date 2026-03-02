@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.1] - 2026-03-02
+- Security: upgrade nltk 3.9.2 → 3.9.3 (indirect dep, CVE)
+- Security: upgrade pillow 10.4.0 → 12.1.1 (indirect dep via unique-toolkit 1.50.1)
+
 ## [1.13.0] - 2026-02-27
 ### Added
 - Environment-based LLM processor config override (`LLM_PROCESS_CONFIG` env var): when set to valid JSON, all `LLMProcessorConfig` fields are frozen from the environment and UI editing is disabled via `ui:disabled` RJSF tags
