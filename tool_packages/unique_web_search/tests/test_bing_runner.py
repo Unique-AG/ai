@@ -622,7 +622,7 @@ class TestGetBingGroundingTool:
         Setup summary: Set connection string; assert tool is returned with correct count.
         """
         # Arrange
-        mock_env.azure_ai_bing_ressource_connection_string = (
+        mock_env.azure_ai_bing_resource_connection_string = (
             "projects/123/connections/bing"
         )
 
