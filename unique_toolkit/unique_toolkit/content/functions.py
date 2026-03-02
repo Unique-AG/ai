@@ -791,7 +791,7 @@ async def download_content_to_bytes_async(
         user_id, company_id, content_id, chat_id
     )
 
-    if response.status_code != 200:
+    if not response.is_success:
         logger.error(
             "Error downloading file %s: Status code %s",
             content_id,
