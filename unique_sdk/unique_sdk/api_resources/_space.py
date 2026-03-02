@@ -6,6 +6,7 @@ from typing import (
     Literal,
     NotRequired,
     Optional,
+    TypeAlias,
     TypedDict,
     Unpack,
     cast,
@@ -18,6 +19,10 @@ from unique_sdk._request_options import RequestOptions
 class Space(APIResource["Space"]):
     OBJECT_NAME: ClassVar[Literal["space"]] = "space"
 
+    UiType: TypeAlias = Literal[
+        "MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"
+    ]
+
     class ModuleParams(TypedDict):
         name: str
         description: NotRequired[Optional[str]]
@@ -26,6 +31,13 @@ class Space(APIResource["Space"]):
         isCustomInstructionEnabled: NotRequired[Optional[bool]]
         configuration: NotRequired[Optional[Dict[str, Any]]]
         toolDefinition: NotRequired[Optional[Dict[str, Any]]]
+
+    class UpdateModuleParams(TypedDict):
+        moduleId: str
+        configuration: NotRequired[Optional[Dict[str, Any]]]
+        name: NotRequired[Optional[str]]
+        description: NotRequired[Optional[str]]
+        weight: NotRequired[Optional[int]]
 
     class CreateSpaceParams(RequestOptions):
         name: str
@@ -37,12 +49,21 @@ class Space(APIResource["Space"]):
         languageModel: NotRequired[Optional[str]]
         isExternal: NotRequired[Optional[bool]]
         isPinned: NotRequired[Optional[bool]]
-        uiType: NotRequired[
-            Optional[
-                Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"]
-            ]
-        ]
+        uiType: NotRequired[Optional["Space.UiType"]]
         settings: NotRequired[Optional[Dict[str, Any]]]
+
+    class UpdateParams(RequestOptions):
+        name: NotRequired[Optional[str]]
+        title: NotRequired[Optional[str]]
+        modules: NotRequired[Optional[List["Space.UpdateModuleParams"]]]
+        explanation: NotRequired[Optional[str]]
+        alert: NotRequired[Optional[str]]
+        chatUpload: NotRequired[Optional[Literal["ENABLED", "DISABLED"]]]
+        languageModel: NotRequired[Optional[str]]
+        isPinned: NotRequired[Optional[bool]]
+        settings: NotRequired[Optional[Dict[str, Any]]]
+        allowEndUserSpace: NotRequired[Optional[bool]]
+        uiType: NotRequired[Optional["Space.UiType"]]
 
     class AccessEntry(TypedDict):
         entityId: str
@@ -574,6 +595,44 @@ class Space(APIResource["Space"]):
             await cls._static_request_async(
                 "delete",
                 f"/space/{space_id}/access",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def update_space(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+        **params: Unpack["Space.UpdateParams"],
+    ) -> "Space":
+        return cast(
+            "Space",
+            cls._static_request(
+                "patch",
+                f"/space/{space_id}",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def update_space_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        space_id: str,
+        **params: Unpack["Space.UpdateParams"],
+    ) -> "Space":
+        return cast(
+            "Space",
+            await cls._static_request_async(
+                "patch",
+                f"/space/{space_id}",
                 user_id,
                 company_id,
                 params=params,

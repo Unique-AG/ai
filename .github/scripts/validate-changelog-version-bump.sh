@@ -388,6 +388,33 @@ if [ -f "$CHANGELOG_FILE" ]; then
     else
         print_success "No duplicate version entries in changelog"
     fi
+
+    # Check version headers are in newest-first order (Keep a Changelog)
+    VERSIONS_IN_ORDER=$(grep -E '^## \[' "$CHANGELOG_FILE" | sed -nE 's/^## \[([0-9]+\.[0-9]+\.[0-9]+)[^]]*\].*/\1/p')
+    if [ -n "$VERSIONS_IN_ORDER" ]; then
+        SORTED_DESC=$(echo "$VERSIONS_IN_ORDER" | sort -V -r)
+        if [ "$VERSIONS_IN_ORDER" != "$SORTED_DESC" ]; then
+            print_error "Changelog version headers in $CHANGELOG_FILE must be newest-first (e.g. 1.48.1 then 1.48.0 then 1.47.13)"
+            echo "Current order (first 5): $(echo "$VERSIONS_IN_ORDER" | head -5 | tr '\n' ' ')"
+            exit 1
+        fi
+        print_success "Changelog versions are in newest-first order"
+    fi
+
+    # Check dates: collect each entry's date (skip when missing) in order; that list must be non-increasing.
+    if [ -n "$VERSIONS_IN_ORDER" ]; then
+        DATES=$(grep -E '^## \[' "$CHANGELOG_FILE" | sed -nE 's/^.*[[:space:]]-[[:space:]]*([0-9]{4}-[0-9]{2}-[0-9]{2}).*/\1/p')
+        PREV=""
+        while IFS= read -r d; do
+            [ -z "$d" ] && continue
+            if [ -n "$PREV" ] && [ "$d" \> "$PREV" ]; then
+                print_error "Changelog dates in $CHANGELOG_FILE must be non-increasing (newest-first); found $d after $PREV"
+                exit 1
+            fi
+            PREV="$d"
+        done <<< "$DATES"
+        print_success "Changelog dates are non-increasing (entries without dates skipped)"
+    fi
 fi
 
 # Check pyproject.toml exists and has been modified

@@ -1,6 +1,8 @@
+import json
 import logging
-from typing import Annotated, Unpack
+from typing import Annotated, TypeVar, Unpack
 
+from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
@@ -23,37 +25,83 @@ from unique_web_search.services.content_processing.processing_strategies.prompts
     DEFAULT_SYSTEM_PROMPT_TEMPLATE,
     DEFAULT_USER_PROMPT_TEMPLATE,
 )
+from unique_web_search.settings import env_settings
 
 _LOGGER = logging.getLogger(__name__)
+
+
+_LLM_PROCESS_CONFIG: dict = json.loads(env_settings.llm_process_config or "{}")
+
+T = TypeVar("T")
+
+
+def _should_disable_ui_config() -> bool:
+    return len(_LLM_PROCESS_CONFIG) > 0
+
+
+def _get_from_env(key: str, default: T) -> T:
+    if key in _LLM_PROCESS_CONFIG:
+        return _LLM_PROCESS_CONFIG[key]
+    camel = camelize(key)
+    if camel in _LLM_PROCESS_CONFIG:
+        return _LLM_PROCESS_CONFIG[camel]
+    return default
+
+
+_DEFAULTS = {
+    "enabled": _get_from_env("enabled", False),
+    # TODO [UN-17646] Check the Language model selector
+    "language_model": _get_from_env("language_model", DEFAULT_LANGUAGE_MODEL),
+    "min_tokens": _get_from_env("min_tokens", 5000),
+    "sanitize": _get_from_env("sanitize", False),
+    "sanitize_rules": _get_from_env("sanitize_rules", DEFAULT_SANITIZE_RULES),
+    "user_prompt": _get_from_env("user_prompt", DEFAULT_USER_PROMPT_TEMPLATE),
+    "system_prompt": _get_from_env("system_prompt", DEFAULT_SYSTEM_PROMPT_TEMPLATE),
+}
 
 
 class LLMProcessorConfig(BaseModel):
     model_config = get_configuration_dict()
 
-    enabled: bool = Field(
-        default=False,
+    enabled: Annotated[
+        bool, RJSFMetaTag({"ui:disabled": _should_disable_ui_config()})
+    ] = Field(
+        default=_DEFAULTS["enabled"],
+        validate_default=True,
         title="Enable AI Summarization",
         description="When enabled, an AI model processes and summarizes long web page content to extract the most relevant information.",
     )
 
-    language_model: LMI = get_LMI_default_field(DEFAULT_LANGUAGE_MODEL)
+    language_model: Annotated[
+        LMI, RJSFMetaTag({"ui:disabled": _should_disable_ui_config()})
+    ] = get_LMI_default_field(_DEFAULTS["language_model"])
 
-    min_tokens: int = Field(
-        default=5000,
+    min_tokens: Annotated[
+        int, RJSFMetaTag({"ui:disabled": _should_disable_ui_config()})
+    ] = Field(
+        default=_DEFAULTS["min_tokens"],
+        validate_default=True,
         title="Minimum Content Length for Summarization",
         description="Web pages with content shorter than this threshold (in tokens) will be kept as-is without AI summarization. Only longer pages are summarized. The effect of this setting will be ignored if sanitization is enabled.",
     )
 
-    sanitize: bool = Field(
-        default=False,
+    sanitize: Annotated[
+        bool, RJSFMetaTag({"ui:disabled": _should_disable_ui_config()})
+    ] = Field(
+        default=_DEFAULTS["sanitize"],
+        validate_default=True,
         title="Enable Privacy Filtering",
         description="When enabled, instructs the AI to remove personal data (names, emails, phone numbers, etc.) from the content for privacy compliance.",
     )
     sanitize_rules: Annotated[
         str,
-        RJSFMetaTag.StringWidget.textarea(rows=len(DEFAULT_SANITIZE_RULES.split("\n"))),
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(_DEFAULTS["sanitize_rules"].split("\n")),
+            disabled=_should_disable_ui_config(),
+        ),
     ] = Field(
-        default=DEFAULT_SANITIZE_RULES,
+        default=_DEFAULTS["sanitize_rules"],
+        validate_default=True,
         title="Privacy Filtering Rules",
         description="Rules given to the AI for identifying and removing personal data. Only used when Privacy Filtering is enabled.",
     )
@@ -61,20 +109,24 @@ class LLMProcessorConfig(BaseModel):
     system_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=len(DEFAULT_SYSTEM_PROMPT_TEMPLATE.split("\n"))
+            rows=len(_DEFAULTS["system_prompt"].split("\n")),
+            disabled=_should_disable_ui_config(),
         ),
     ] = Field(
-        default=DEFAULT_SYSTEM_PROMPT_TEMPLATE,
+        default=_DEFAULTS["system_prompt"],
+        validate_default=True,
         title="AI System Instructions",
         description="Advanced: The system-level instructions given to the AI model. Uses Jinja2 template syntax.",
     )
     user_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=len(DEFAULT_USER_PROMPT_TEMPLATE.split("\n"))
+            rows=len(_DEFAULTS["user_prompt"].split("\n")),
+            disabled=_should_disable_ui_config(),
         ),
     ] = Field(
-        default=DEFAULT_USER_PROMPT_TEMPLATE,
+        default=_DEFAULTS["user_prompt"],
+        validate_default=True,
         title="AI User Instructions",
         description="Advanced: The per-page instructions given to the AI model. Uses Jinja2 template syntax.",
     )
@@ -166,7 +218,7 @@ class LLMProcess:
         encoder: TypeEncoder,
         decoder: TypeDecoder,
     ):
-        self._config = config
+        self._config = _merge_config_with_env(config)
         self._llm_service = llm_service
         self._encoder = encoder
         self._decoder = decoder
@@ -231,3 +283,16 @@ class LLMProcess:
         parsed = response_model.model_validate(response.choices[0].message.parsed)
 
         return parsed.apply_to_page(page)
+
+
+def _merge_config_with_env(config: LLMProcessorConfig) -> LLMProcessorConfig:
+    if not _LLM_PROCESS_CONFIG:
+        return config
+
+    config_dict = config.model_dump(by_alias=True)
+    env_overrides = LLMProcessorConfig.model_validate(_LLM_PROCESS_CONFIG).model_dump(
+        by_alias=True, exclude_unset=True
+    )
+
+    updated_config_dict = {**config_dict, **env_overrides}
+    return LLMProcessorConfig.model_validate(updated_config_dict)
