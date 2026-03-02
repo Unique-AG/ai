@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script>
+      // Redirect old-style versioned-project URLs to /latest/<path>.
+      // GitHub Pages serves this root 404.html for every missing URL on the site.
+      // Old links like /unique-sdk/api_resources/embeddings/ are forwarded to
+      // /unique-sdk/latest/api_resources/embeddings/ automatically.
+      (function () {
+        var path = window.location.pathname;
+        var match = path.match(/^(.*\/unique-(?:sdk|toolkit)\/)/);
+        if (!match) return;
+        var base = match[1];
+        var rest = path.slice(base.length);
+        // Already versioned (semver or "latest")? Show a real 404.
+        if (/^(\d+\.\d+\.\d+|latest)(\/|$)/.test(rest)) return;
+        var target = base + 'latest/' + rest + window.location.search + window.location.hash;
+        window.location.replace(target);
+      })();
+    </script>
+    <title>Page not found</title>
+  </head>
+  <body>
+    <h1>Page not found</h1>
+    <p>The page you requested does not exist. <a href="/">Go to home</a></p>
+  </body>
+</html>
