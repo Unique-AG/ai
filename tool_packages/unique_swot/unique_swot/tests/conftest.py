@@ -1,5 +1,6 @@
 """Shared test fixtures and configurations for SWOT analysis tests."""
 
+from typing import AsyncIterator
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -11,6 +12,9 @@ from unique_swot.services.generation.models.base import (
     SWOTReportSectionEntry,
 )
 from unique_swot.services.schemas import SWOTOperation, SWOTPlan, SWOTStepPlan
+from unique_swot.services.source_management.selection.schema import (
+    SourceSelectionResult,
+)
 
 # ============================================================================
 # External Service Mocks
@@ -346,7 +350,13 @@ def mock_source_collector():
 def mock_source_selector():
     """Mock SourceSelector protocol for testing."""
     selector = Mock()
-    selector.select = AsyncMock()
+    selector.select = AsyncMock(
+        return_value=SourceSelectionResult(
+            should_select=True,
+            reason="Relevant",
+            notification_message="Selected",
+        )
+    )
     return selector
 
 
@@ -367,8 +377,24 @@ def mock_source_iterator():
 def mock_reporting_agent():
     """Mock ReportingAgent protocol for testing."""
     agent = Mock()
-    agent.generate = AsyncMock()
-    agent.get_reports.return_value = SWOTReportComponents(
-        strengths=[], weaknesses=[], opportunities=[], threats=[]
+    agent.generate = AsyncMock(
+        return_value=SWOTReportComponents(
+            strengths=[], weaknesses=[], opportunities=[], threats=[]
+        )
     )
     return agent
+
+
+# ============================================================================
+# Async Helpers
+# ============================================================================
+
+
+def make_async_content_iterator(contents: list[Content]) -> AsyncIterator[Content]:
+    """Create an AsyncIterator[Content] from a list of Content objects."""
+
+    async def _iter():
+        for content in contents:
+            yield content
+
+    return _iter()
