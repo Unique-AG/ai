@@ -693,11 +693,18 @@ class KnowledgeBaseService:
     async def _translate_scope_ids_to_folder_name_async(
         self, scope_ids: set[str]
     ) -> dict[str, str]:
-        async def translation(scope_id: str) -> tuple[str, str]:
-            folder_info = await self.get_folder_info_async(scope_id=scope_id)
-            return (scope_id, folder_info.name)
+        async def translation(scope_id: str) -> tuple[str, str] | None:
+            try:
+                folder_info = await self.get_folder_info_async(scope_id=scope_id)
+                return (scope_id, folder_info.name)
+            except Exception as e:
+                _LOGGER.warning(
+                    f"Could not resolve folder for scope_id {scope_id}: {e}"
+                )
+                return None
 
-        return dict(await asyncio.gather(*[translation(sid) for sid in scope_ids]))
+        results = await asyncio.gather(*[translation(sid) for sid in scope_ids])
+        return dict(r for r in results if r is not None)
 
     @staticmethod
     def extract_folder_metadata_from_content_infos(
@@ -744,9 +751,17 @@ class KnowledgeBaseService:
     async def get_content_infos_async(
         self, *, metadata_filter: dict[str, Any] | None = None
     ) -> list[ContentInfo]:
-        """It is not possible to fetch all content infos at once, so we need to fetch them in chunks.
-        We fetch the total count of content infos first, and then fetch them in chunks.
-        We do this because the API has a limit (100) on the number of content infos that can be fetched at once.
+        """
+        Fetches all content infos from the knowledge base using parallel pagination.
+
+        The API limits responses to 100 items per request, so this method fetches
+        the total count first, then retrieves all pages concurrently.
+
+        Args:
+            metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
+
+        Returns:
+            list[ContentInfo]: All content infos visible to the user.
         """
 
         info_for_count_of_total_content = await self.get_paginated_content_infos_async(
@@ -786,15 +801,36 @@ class KnowledgeBaseService:
         self, *, metadata_filter: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """
-        Resolves the visible file tree for the knowledge base for the current user including files in a hierarchical folder tree strcture.
+        Resolves the visible folder tree for the knowledge base, including file names
+        in a hierarchical structure.
 
         Args:
             metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
 
         Returns:
-            dict[str, Any]: The visible file tree.
+            dict[str, Any]: The visible folder tree with nested folders and files.
 
-
+        Example:
+            ```python
+            {
+                "files": [],
+                "folders": {
+                    "Documents": {
+                        "files": ["notes.txt"],
+                        "folders": {
+                            "Reports": {
+                                "files": ["report.pdf", "summary.docx"],
+                                "folders": {}
+                            }
+                        }
+                    },
+                    "Images": {
+                        "files": ["photo.jpg"],
+                        "folders": {}
+                    }
+                }
+            }
+            ```
         """
 
         content_infos: list[ContentInfo] = await self.get_content_infos_async(
@@ -836,8 +872,10 @@ class KnowledgeBaseService:
                 scope_ids_list = (
                     str(folder_id_path).replace("uniquepathid://", "").split("/")
                 )
+                # Use scope_id as fallback if folder name couldn't be resolved
                 path = [
-                    scope_id_to_folder_name[scope_id] for scope_id in scope_ids_list
+                    scope_id_to_folder_name.get(scope_id, scope_id)
+                    for scope_id in scope_ids_list
                 ]
             else:
                 continue
@@ -895,12 +933,12 @@ class KnowledgeBaseService:
         folder_paths: set[str] = set()
         for folder_id_path in folder_id_paths:
             scope_ids_list = folder_id_path.replace("uniquepathid://", "").split("/")
-
-            if all(scope_id in scope_id_to_folder_name for scope_id in scope_ids_list):
-                folder_path = [
-                    scope_id_to_folder_name[scope_id] for scope_id in scope_ids_list
-                ]
-                folder_paths.add("/".join(folder_path))
+            # Use scope_id as fallback if folder name couldn't be resolved
+            folder_name_list = [
+                scope_id_to_folder_name.get(scope_id, scope_id)
+                for scope_id in scope_ids_list
+            ]
+            folder_paths.add("/".join(folder_name_list))
 
         return [
             p if p.startswith("/") else f"/{p}"

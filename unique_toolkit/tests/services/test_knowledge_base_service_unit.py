@@ -2420,6 +2420,46 @@ class TestTranslateScopeIdsToFolderNameAsync:
         # Duration should be minimal since calls are concurrent (mocked)
         assert duration < 1.0  # Should complete quickly with mocks
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "get_folder_info_async")
+    async def test_translate_scope_ids__skips_failed_lookups__and_logs_warning(
+        self,
+        mock_get_folder_async: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify _translate_scope_ids_to_folder_name_async skips scope IDs that fail lookup.
+        Why this matters: Deleted folders shouldn't break the entire operation.
+        Setup summary: Mock some lookups to fail, verify only successful ones returned.
+        """
+        # Arrange
+        folder1 = FolderInfo(
+            id="scope1",
+            name="Documents",
+            parent_id=None,
+            ingestion_config={},
+            created_at=None,
+            updated_at=None,
+            external_id=None,
+        )
+
+        async def folder_info_side_effect(scope_id: str) -> FolderInfo:
+            if scope_id == "scope1":
+                return folder1
+            raise Exception("Folder not found")
+
+        mock_get_folder_async.side_effect = folder_info_side_effect
+
+        # Act
+        result = await base_kb_service._translate_scope_ids_to_folder_name_async(
+            {"scope1", "scope2", "scope3"}
+        )
+
+        # Assert - only scope1 should be in result, failed ones are skipped
+        assert result == {"scope1": "Documents"}
+        assert mock_get_folder_async.call_count == 3
+
 
 class TestGetContentInfosAsync:
     """Test cases for get_content_infos_async method."""
@@ -2732,6 +2772,49 @@ class TestResolveVisibleFolderTreeAsync:
 
         # Assert
         mock_get_content_async.assert_called_once_with(metadata_filter=metadata_filter)
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_to_folder_name_async")
+    @patch.object(KnowledgeBaseService, "get_content_infos_async")
+    async def test_resolve_visible_folder_tree_async__uses_scope_id_as_fallback(
+        self,
+        mock_get_content_async: AsyncMock,
+        mock_translate_async: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify resolve_visible_folder_tree_async uses scope_id as folder name when lookup fails.
+        Why this matters: Files with orphaned folder references should still appear in tree.
+        Setup summary: Mock translation to return partial results, verify fallback to scope_id.
+        """
+        # Arrange
+        content_info = ContentInfo(
+            id="cont_1",
+            object="content",
+            key="orphaned_file.pdf",
+            byte_size=100,
+            mime_type="application/pdf",
+            owner_id="test_user",
+            created_at=datetime(2024, 1, 1, 0, 0, 0),
+            updated_at=datetime(2024, 1, 1, 0, 0, 0),
+            metadata={"folderIdPath": "uniquepathid://scope1/missing_scope"},
+        )
+
+        mock_get_content_async.return_value = [content_info]
+        # Only scope1 resolves, missing_scope does not
+        mock_translate_async.return_value = {"scope1": "Documents"}
+
+        # Act
+        result = await base_kb_service.resolve_visible_folder_tree_async()
+
+        # Assert - missing_scope should be used as folder name
+        assert "Documents" in result["folders"]
+        assert "missing_scope" in result["folders"]["Documents"]["folders"]
+        assert (
+            "orphaned_file.pdf"
+            in result["folders"]["Documents"]["folders"]["missing_scope"]["files"]
+        )
 
 
 class TestResolveVisibleFilesAsync:
@@ -3059,3 +3142,41 @@ class TestResolveVisibleFolderPathsAsync:
         # Assert
         for path in result:
             assert path.startswith("/"), f"Path {path} should start with /"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_to_folder_name_async")
+    @patch.object(KnowledgeBaseService, "get_content_infos_async")
+    async def test_resolve_visible_folder_paths_async__uses_scope_id_as_fallback(
+        self,
+        mock_get_content_async: AsyncMock,
+        mock_translate_async: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify resolve_visible_folder_paths_async uses scope_id when folder lookup fails.
+        Why this matters: Paths with orphaned folder references should still be included.
+        Setup summary: Mock translation to return partial results, verify fallback to scope_id.
+        """
+        # Arrange
+        content_info = ContentInfo(
+            id="cont_1",
+            object="content",
+            key="file.txt",
+            byte_size=100,
+            mime_type="text/plain",
+            owner_id="test_user",
+            created_at=datetime(2024, 1, 1, 0, 0, 0),
+            updated_at=datetime(2024, 1, 1, 0, 0, 0),
+            metadata={"folderIdPath": "uniquepathid://scope1/missing_scope"},
+        )
+
+        mock_get_content_async.return_value = [content_info]
+        # Only scope1 resolves, missing_scope does not
+        mock_translate_async.return_value = {"scope1": "Documents"}
+
+        # Act
+        result = await base_kb_service.resolve_visible_folder_paths_async()
+
+        # Assert - missing_scope should appear as-is in the path
+        assert "/Documents/missing_scope" in result
