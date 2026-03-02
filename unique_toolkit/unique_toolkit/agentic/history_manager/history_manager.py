@@ -13,6 +13,7 @@ from unique_toolkit.agentic.reference_manager.reference_manager import Reference
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.schemas import ToolCallRecord, ToolResponseRecord
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
@@ -252,3 +253,45 @@ class HistoryManager:
                 LanguageModelAssistantMessage(content=assistant_message_text)
             )
         return LanguageModelMessages(history)
+
+    def extract_tool_call_records(self) -> list[ToolCallRecord]:
+        """Extracts ToolCallRecord objects from the in-memory loop history.
+
+        Walks through _loop_history looking for assistant messages with tool_calls
+        followed by their corresponding tool responses, and builds ToolCallRecord
+        objects with round and sequence indices for ordering.
+        """
+        records: list[ToolCallRecord] = []
+        round_index = 0
+        i = 0
+        while i < len(self._loop_history):
+            msg = self._loop_history[i]
+            if (
+                isinstance(msg, LanguageModelAssistantMessage)
+                and msg.tool_calls
+            ):
+                for seq_index, tc in enumerate(msg.tool_calls):
+                    response_content = None
+                    for j in range(i + 1, len(self._loop_history)):
+                        candidate = self._loop_history[j]
+                        if (
+                            isinstance(candidate, LanguageModelToolMessage)
+                            and candidate.tool_call_id == tc.id
+                        ):
+                            response_content = candidate.content if isinstance(candidate.content, str) else None
+                            break
+
+                    response = ToolResponseRecord(content=response_content) if response_content is not None else None
+                    records.append(
+                        ToolCallRecord(
+                            external_tool_call_id=tc.id or "",
+                            function_name=tc.function.name,
+                            arguments=tc.function.arguments,
+                            round_index=round_index,
+                            sequence_index=seq_index,
+                            response=response,
+                        )
+                    )
+                round_index += 1
+            i += 1
+        return records

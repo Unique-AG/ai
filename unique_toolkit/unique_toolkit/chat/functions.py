@@ -28,6 +28,7 @@ from unique_toolkit.chat.schemas import (
     MessageLogDetails,
     MessageLogStatus,
     MessageLogUncitedReferences,
+    ToolCallRecord,
 )
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model.constants import (
@@ -382,11 +383,13 @@ def _construct_message_create_params(
     if original_content is None:
         original_content = content
 
-    return {
+    role_value = role.value.upper()
+
+    params: dict[str, Any] = {
         "user_id": user_id,
         "company_id": company_id,
         "assistantId": assistant_id,
-        "role": role.value.upper(),
+        "role": role_value,
         "chatId": chat_id,
         "text": content,
         "originalText": original_content,
@@ -394,6 +397,7 @@ def _construct_message_create_params(
         "debugInfo": debug_info or {},
         "completedAt": _time_utils.get_datetime_now() if set_completed_at else None,
     }
+    return params
 
 
 def get_selection_from_history(
@@ -520,7 +524,9 @@ def filter_valid_messages(
     messages: ListObject[unique_sdk.Message],
 ) -> list[dict[str, Any]]:
     SYSTEM_MESSAGE_PREFIX = "[SYSTEM] "
-    roles_to_filter = [ChatMessageRole.SYSTEM.value.lower()]
+    roles_to_filter = [
+        ChatMessageRole.SYSTEM.value.lower(),
+    ]
 
     # Remove the last two messages
     messages = messages["data"][:-2]  # type: ignore
@@ -1401,4 +1407,150 @@ async def update_message_execution_async(
         return MessageExecution(**message_execution)
     except Exception as e:
         logger.error(f"Failed to update message execution: {e}")
+        raise e
+
+
+def create_tool_calls(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    tool_calls: list[ToolCallRecord],
+) -> list[ToolCallRecord]:
+    """Persists tool calls (with optional responses) for an assistant message."""
+    try:
+        tool_call_items = [
+            {
+                "externalToolCallId": tc.external_tool_call_id,
+                "functionName": tc.function_name,
+                "arguments": tc.arguments,
+                "roundIndex": tc.round_index,
+                "sequenceIndex": tc.sequence_index,
+                **(
+                    {"response": {"content": tc.response.content}}
+                    if tc.response
+                    else {}
+                ),
+            }
+            for tc in tool_calls
+        ]
+        result = unique_sdk.ToolCall.create_many(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            toolCalls=tool_call_items,  # type: ignore
+        )
+        return [ToolCallRecord(**item) for item in result["data"]]
+    except Exception as e:
+        logger.error(f"Failed to create tool calls: {e}")
+        raise e
+
+
+async def create_tool_calls_async(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    tool_calls: list[ToolCallRecord],
+) -> list[ToolCallRecord]:
+    """Persists tool calls (with optional responses) for an assistant message (async)."""
+    try:
+        tool_call_items = [
+            {
+                "externalToolCallId": tc.external_tool_call_id,
+                "functionName": tc.function_name,
+                "arguments": tc.arguments,
+                "roundIndex": tc.round_index,
+                "sequenceIndex": tc.sequence_index,
+                **(
+                    {"response": {"content": tc.response.content}}
+                    if tc.response
+                    else {}
+                ),
+            }
+            for tc in tool_calls
+        ]
+        result = await unique_sdk.ToolCall.create_many_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            toolCalls=tool_call_items,  # type: ignore
+        )
+        return [ToolCallRecord(**item) for item in result["data"]]
+    except Exception as e:
+        logger.error(f"Failed to create tool calls: {e}")
+        raise e
+
+
+def list_tool_calls(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+) -> list[ToolCallRecord]:
+    """Lists tool calls for a given message."""
+    try:
+        result = unique_sdk.ToolCall.list(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+        )
+        return [ToolCallRecord(**item) for item in result["data"]]
+    except Exception as e:
+        logger.error(f"Failed to list tool calls: {e}")
+        raise e
+
+
+async def list_tool_calls_async(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+) -> list[ToolCallRecord]:
+    """Lists tool calls for a given message (async)."""
+    try:
+        result = await unique_sdk.ToolCall.list_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+        )
+        return [ToolCallRecord(**item) for item in result["data"]]
+    except Exception as e:
+        logger.error(f"Failed to list tool calls: {e}")
+        raise e
+
+
+def list_tool_calls_by_message_ids(
+    user_id: str,
+    company_id: str,
+    message_ids: list[str],
+) -> list[ToolCallRecord]:
+    """Lists tool calls for multiple messages in a single request."""
+    if not message_ids:
+        return []
+    try:
+        result = unique_sdk.ToolCall.list_by_message_ids(
+            user_id=user_id,
+            company_id=company_id,
+            messageIds=",".join(message_ids),
+        )
+        return [ToolCallRecord(**item) for item in result["data"]]
+    except Exception as e:
+        logger.error(f"Failed to list tool calls by message ids: {e}")
+        raise e
+
+
+async def list_tool_calls_by_message_ids_async(
+    user_id: str,
+    company_id: str,
+    message_ids: list[str],
+) -> list[ToolCallRecord]:
+    """Lists tool calls for multiple messages in a single request (async)."""
+    if not message_ids:
+        return []
+    try:
+        result = await unique_sdk.ToolCall.list_by_message_ids_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageIds=",".join(message_ids),
+        )
+        return [ToolCallRecord(**item) for item in result["data"]]
+    except Exception as e:
+        logger.error(f"Failed to list tool calls by message ids: {e}")
         raise e
