@@ -81,4 +81,5 @@ extend-select = ["I"]
 [tool.uv]
 constraint-dependencies = [
     "nltk>=3.9.3",
+    "pillow>=12.1.1",
 ]
