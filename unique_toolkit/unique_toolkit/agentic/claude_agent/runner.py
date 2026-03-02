@@ -34,7 +34,12 @@ from claude_agent_sdk import (
     ClaudeSDKError,
     query,
 )
-from claude_agent_sdk.types import ResultMessage, StreamEvent, ToolUseBlock
+from claude_agent_sdk.types import (
+    McpSdkServerConfig,
+    ResultMessage,
+    StreamEvent,
+    ToolUseBlock,
+)
 
 from unique_toolkit._common.execution import SafeTaskExecutor
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
@@ -232,21 +237,22 @@ class ClaudeAgentRunner:
             return {}
         return {k: str(v) for k, v in raw.items()}
 
+    def _build_mcp_server(self) -> McpSdkServerConfig:
+        """Build the unified MCP server with KB search + platform proxy tools."""
+        from .mcp_tools import build_unique_mcp_server
+
+        return build_unique_mcp_server(
+            content_service=self._content_service,
+            claude_config=self._claude_config,
+            event=self._event,
+        )
+
     def _build_options(
         self,
         system_prompt: str,
         workspace_dir: Path | None,
     ) -> dict[str, Any]:
-        """Construct options dict matching ClaudeAgentOptions shape.
-
-        Does not import claude_agent_sdk — the dict is unpacked into
-        ClaudeAgentOptions(**options) inside _run_claude_loop() once the SDK
-        dependency is wired in Step 3.
-
-        MCP server objects (search_kb, list_chat_files, etc.) are NOT included
-        here — they will be created in mcp_tools.py (Step 4) and merged into the
-        returned dict before it is passed to ClaudeAgentOptions.
-        """
+        """Construct options dict matching ClaudeAgentOptions shape."""
         allowed_tools, disallowed_tools = build_tool_policy(self._claude_config)
 
         options: dict[str, Any] = {
@@ -283,6 +289,17 @@ class ClaudeAgentRunner:
 
         if self._claude_config.cli_path is not None:
             options["cli_path"] = self._claude_config.cli_path
+
+        mcp_server = self._build_mcp_server()
+        options["mcp_servers"] = {"unique_platform": mcp_server}
+
+        # Add dynamically discovered platform tool names to allowed_tools
+        mcp_servers = getattr(self._event.payload, "mcp_servers", []) or []
+        for server in mcp_servers:
+            for mcp_tool in server.tools:
+                tool_fqn = f"mcp__unique_platform__{mcp_tool.name}"
+                if tool_fqn not in options["allowed_tools"]:
+                    options["allowed_tools"].append(tool_fqn)
 
         return options
 

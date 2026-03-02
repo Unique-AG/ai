@@ -156,6 +156,8 @@ class ClaudeAgentConfig(BaseToolConfig):
 
 # ─── Tool Policy ───
 
+# Base tools always allowed. Platform MCP tools from event.payload.mcp_servers
+# are added dynamically in runner._build_options().
 BASE_ALLOWED_TOOLS = [
     "mcp__unique_platform__search_knowledge_base",
     "mcp__unique_platform__web_search",

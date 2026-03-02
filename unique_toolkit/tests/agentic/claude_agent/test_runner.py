@@ -200,6 +200,22 @@ class TestBuildOptions:
         assert opts["env"]["REGION"] == "us-east-1"
         assert "ANTHROPIC_API_KEY" in opts["env"]
 
+    def test_build_options_includes_mcp_servers(self) -> None:
+        """options dict contains 'mcp_servers' with the 'unique_platform' key."""
+        from unittest.mock import MagicMock
+
+        from claude_agent_sdk.types import McpSdkServerConfig
+
+        runner = _make_runner()
+        mock_sdk_config = MagicMock(spec=McpSdkServerConfig)
+        runner._build_mcp_server = MagicMock(return_value=mock_sdk_config)
+
+        opts = runner._build_options(system_prompt="sys", workspace_dir=None)
+
+        assert "mcp_servers" in opts
+        assert "unique_platform" in opts["mcp_servers"]
+        assert opts["mcp_servers"]["unique_platform"] is mock_sdk_config
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # _build_system_prompt
