@@ -67,6 +67,7 @@ class LLMProcessorConfig(BaseModel):
         bool, RJSFMetaTag({"ui:disabled": _should_disable_ui_config()})
     ] = Field(
         default=_DEFAULTS["enabled"],
+        validate_default=True,
         title="Enable AI Summarization",
         description="When enabled, an AI model processes and summarizes long web page content to extract the most relevant information.",
     )
@@ -79,6 +80,7 @@ class LLMProcessorConfig(BaseModel):
         int, RJSFMetaTag({"ui:disabled": _should_disable_ui_config()})
     ] = Field(
         default=_DEFAULTS["min_tokens"],
+        validate_default=True,
         title="Minimum Content Length for Summarization",
         description="Web pages with content shorter than this threshold (in tokens) will be kept as-is without AI summarization. Only longer pages are summarized. The effect of this setting will be ignored if sanitization is enabled.",
     )
@@ -87,6 +89,7 @@ class LLMProcessorConfig(BaseModel):
         bool, RJSFMetaTag({"ui:disabled": _should_disable_ui_config()})
     ] = Field(
         default=_DEFAULTS["sanitize"],
+        validate_default=True,
         title="Enable Privacy Filtering",
         description="When enabled, instructs the AI to remove personal data (names, emails, phone numbers, etc.) from the content for privacy compliance.",
     )
@@ -98,6 +101,7 @@ class LLMProcessorConfig(BaseModel):
         ),
     ] = Field(
         default=_DEFAULTS["sanitize_rules"],
+        validate_default=True,
         title="Privacy Filtering Rules",
         description="Rules given to the AI for identifying and removing personal data. Only used when Privacy Filtering is enabled.",
     )
@@ -110,6 +114,7 @@ class LLMProcessorConfig(BaseModel):
         ),
     ] = Field(
         default=_DEFAULTS["system_prompt"],
+        validate_default=True,
         title="AI System Instructions",
         description="Advanced: The system-level instructions given to the AI model. Uses Jinja2 template syntax.",
     )
@@ -121,6 +126,7 @@ class LLMProcessorConfig(BaseModel):
         ),
     ] = Field(
         default=_DEFAULTS["user_prompt"],
+        validate_default=True,
         title="AI User Instructions",
         description="Advanced: The per-page instructions given to the AI model. Uses Jinja2 template syntax.",
     )
@@ -280,9 +286,13 @@ class LLMProcess:
 
 
 def _merge_config_with_env(config: LLMProcessorConfig) -> LLMProcessorConfig:
+    if not _LLM_PROCESS_CONFIG:
+        return config
+
     config_dict = config.model_dump(by_alias=True)
+    env_overrides = LLMProcessorConfig.model_validate(_LLM_PROCESS_CONFIG).model_dump(
+        by_alias=True, exclude_unset=True
+    )
 
-    # Whatever has been set in the environment will override the config from DB
-    updated_config_dict = {**config_dict, **_LLM_PROCESS_CONFIG}
-
+    updated_config_dict = {**config_dict, **env_overrides}
     return LLMProcessorConfig.model_validate(updated_config_dict)
