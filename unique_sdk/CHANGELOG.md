@@ -61,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.10.66] - 2026-01-05
 - Expose appliedIngestionConfig field on content search.
 
-## [0.10.65] - 2025-12-31
+## [0.10.65] - 2026-01-05
 - Add new params for elicitation to `call_tool` api
 
 ## [0.10.64] - 2025-12-31

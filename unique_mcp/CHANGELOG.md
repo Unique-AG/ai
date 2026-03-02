@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add docs
 - Use properties in oauth and oidc proxies
 
-## [0.1.3] - 2026-01-16
+## [0.1.3] - 2026-01-20
 - Add oidc proxy
 - Add persistance options for oidc and oauth proxies
 

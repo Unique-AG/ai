@@ -84,16 +84,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactored executor architecture to use dependency injection with context objects
 - Updated feature flag from `is_new_answers_ui_enabled` to `enable_new_answers_ui_un_14411.is_enabled`
 
-## [1.9.1] - 2026-01-16
+## [1.9.1] - 2026-01-30
 - Raise error for failed Custom API search engine requests
 
-## [1.9.0] - 2026-01-16
+## [1.9.0] - 2026-01-29
 - Add language model config option to bing search
 
-## [1.8.3] - 2026-01-16
+## [1.8.3] - 2026-01-28
 - Add setting params to pass configuration to async_client in custom_api search engine
 
-## [1.8.2] - 2026-01-16
+## [1.8.2] - 2026-01-19
 - Parse mode "v2 (beta)" as "v2" for search mode
 
 ## [1.8.1] - 2026-01-16
