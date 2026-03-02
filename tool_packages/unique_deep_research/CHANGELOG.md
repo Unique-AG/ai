@@ -211,7 +211,7 @@ Minor bugfixes:
 ## [0.0.5] - 2025-09-04
 - Additional messages in message log and add formatted messages in details
 
-## [0.0.4] - 2025-09-02
+## [0.0.4] - 2025-09-03
 - Introducing handover capability.
 
 ## [0.0.3] - 2025-09-03

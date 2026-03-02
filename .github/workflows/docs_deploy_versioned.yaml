@@ -141,6 +141,8 @@ jobs:
         run: |
           echo "🏗️ Building root site..."
           poetry run mkdocs build -d _deploy
+          # The Material theme generates its own 404.html — overwrite it with ours.
+          cp docs/404.html _deploy/404.html
           echo "✓ Root site built"
 
       # ============================================================================
