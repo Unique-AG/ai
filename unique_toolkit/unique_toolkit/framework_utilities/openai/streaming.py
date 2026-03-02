@@ -1,10 +1,10 @@
 import logging
+from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Generic, Protocol, TypeVar
 
 import httpx
 import unique_sdk
-from openai._streaming import AsyncStream
 from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 from openai.types.responses import (
     ResponseCompletedEvent,
@@ -27,11 +27,20 @@ class ChatContextProtocol(
 ):  # TODO: Discuss this with team, we need to decide on context variables
     @property
     def chat_id(self) -> str: ...
+
+    @property
+    def user_id(self) -> str: ...
+
+    @property
+    def company_id(self) -> str: ...
+
     @property
     def assistant_message_id(self) -> str: ...
 
 
 class ChatContext(BaseModel):
+    user_id: str
+    company_id: str
     chat_id: str
     assistant_message_id: str
 
@@ -150,7 +159,7 @@ class ResponseStreamPartHandler(StreamPartHandler[ResponseStreamEvent]):
 
 async def stream_to_message(
     *,
-    stream: AsyncStream[_T],
+    stream: AsyncIterator[_T],
     stream_part_handler: list[StreamPartHandler[_T]],
     chat_context: ChatContextProtocol,
     settings: UniqueSettings | None = None,
@@ -256,6 +265,8 @@ if __name__ == "__main__":
 
             stream_part_handler = ResponseStreamPartHandler(
                 chat_context=ChatContext(
+                    user_id=settings.auth.user_id.get_secret_value(),
+                    company_id=settings.auth.company_id.get_secret_value(),
                     chat_id=event.payload.chat_id,
                     assistant_message_id=event.payload.assistant_message.id,
                 ),
@@ -264,6 +275,8 @@ if __name__ == "__main__":
 
             await stream_to_message(
                 chat_context=ChatContext(
+                    user_id=settings.auth.user_id.get_secret_value(),
+                    company_id=settings.auth.company_id.get_secret_value(),
                     chat_id=event.payload.chat_id,
                     assistant_message_id=event.payload.assistant_message.id,
                 ),
