@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.48.1] - 2026-03-02
+- Revert `DocxGeneratorConfig` and `DocxGeneratorService` additions from 1.47.11 (broke SWOT tool, pending further testing)
+
 ## [1.48.0] - 2026-02-26
 - Add pandoc markdown to docx conversion utility
 
@@ -14,10 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.47.12] - 2026-02-26
 - Attach tool result images (MCP or internal) to the user message so the LLM can see them
 - MCP image handling: hide_in_chat uploads, unique content names, small robustness fixes
-
-## [1.47.11] - 2026-02-26
-- Add `DocxGeneratorService` migration surface: `DocxGeneratorResult`, `generate_from_template_with_result()`, `upload_and_create_reference()`, `resolve_template()`, `normalize_heading_levels()`
-- Fix error handling in `DocxGeneratorService`; tighten `DocxGeneratorConfig.template_fields` to `dict[str, str]`
 
 ## [1.47.10] - 2026-02-26
 - Code interpreter: bound `expires_after_minutes` to 1–20 (OpenAI API max), add RJSF `NumberWidget.updown` for UI
