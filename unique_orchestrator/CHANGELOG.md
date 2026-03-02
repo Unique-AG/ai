@@ -11,56 +11,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.13.04] - 2026-02-26
 - Hide Responses API config from experimental section in UI (SkipJsonSchema); Code Interpreter is now configured via tools section only
 
-## [1.13.03] - 2026-01-23
+## [1.13.03] - 2026-02-23
 - Changing parameter name from `user_instruction` to `user_space_instruction`
 
-## [1.13.02] - 2026-01-23
+## [1.13.02] - 2026-02-23
 - Add flag-based cancellation support via `CancellationWatcher`
 
-## [1.13.01] - 2026-01-23
+## [1.13.01] - 2026-02-23
 - Fix code interpreter tool toggle: auto-enable Responses API and populate default `CodeInterpreterExtendedConfig` when an enabled `code_interpreter` tool is present and model supports Responses API
 - Fix `_build_responses` to filter `tool_names` by `is_enabled` so a disabled tool entry does not block the builder from adding an enabled instance
 
-## [1.13.00] - 2026-01-23
+## [1.13.00] - 2026-01-26
 - Including functionality of user instruction in orchestrator
 
-## [1.12.02] - 2026-01-05
+## [1.12.02] - 2026-01-26
 - Adjust feature flag
 
-## [1.12.01] - 2026-01-05
+## [1.12.01] - 2026-01-26
 - Fix system prompt to enforce proper markdown list indentation for hierarchical formatting
 
-## [1.12.00]  - 2026-01-05
+## [1.12.00] - 2026-01-23
 - Use responses api version of `LoopIterationHandler`
 
-## [1.11.14]  - 2026-01-05
+## [1.11.14] - 2026-01-21
 - Add Qwen-specific loop iteration limits to reduce unnecessary agent runs
 
-## [1.11.13]  - 2026-01-05
+## [1.11.13] - 2026-01-20
 - Fix configuration for backward compatibility
 
-## [1.11.12]  - 2026-01-05
+## [1.11.12] - 2026-01-16
 - Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
 
-## [1.11.11]  - 2026-01-05
+## [1.11.11] - 2026-01-16
 - Config cleanup of orchestrator
 
-## [1.11.10]  - 2026-01-05
+## [1.11.10] - 2026-01-16
 - Add unified type checking CI with basedpyright
 
-## [1.11.9]  - 2026-01-05
+## [1.11.9] - 2026-01-15
 - Add `pytest-cov` dev dependency for coverage testing
 
-## [1.11.8]  - 2026-01-05
+## [1.11.8] - 2026-01-13
 - Clean up dependencies and add deptry configuration for CI compliance
 
-## [1.11.7]  - 2026-01-05
+## [1.11.7] - 2026-01-13
 - Removing unused and retired configuration parameters `max_review_steps`, `uploaded_content_config`, `tool_progress_reporter_config`, `force_checks_on_stream_response_references` and `thinking_steps_display`
 
-## [1.11.6]  - 2026-01-05
+## [1.11.6] - 2026-01-13
 - Deprecate UniqueAIResponsesApi and use UniqueAI directly instead (type safety)
 
-## [1.11.5]  - 2026-01-05
+## [1.11.5] - 2026-01-12
 - Include feature flag to have message logs compatible with new ChatUI
 
 ## [1.11.4] - 2025-12-29
@@ -235,3 +235,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.1] - 2025-08-18
 - Initial release of `orchestrator`.
+

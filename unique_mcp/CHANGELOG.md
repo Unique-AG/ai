@@ -10,15 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add docs
 - Use properties in oauth and oidc proxies
 
-## [0.1.3] - 2025-01-20
+## [0.1.3] - 2026-01-16
 - Add oidc proxy
 - Add persistance options for oidc and oauth proxies
 
-## [0.1.2] - 2025-01-19
+## [0.1.2] - 2026-01-16
 - Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
 
-## [0.1.1] - 2025-01-18
+## [0.1.1] - 2025-12-17
 - Add server settings
 
 ## [0.1.0] - 2025-12-5
 - Setup for mcp utils
+
