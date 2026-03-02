@@ -786,6 +786,18 @@ async def download_content_to_bytes_async(
     content_id: str,
     chat_id: str | None,
 ) -> bytes:
+    """
+    Asynchronously downloads content to memory.
+
+    Args:
+        user_id (str): The user ID.
+        company_id (str): The company ID.
+        content_id (str): The ID of the content to download.
+        chat_id (str | None): The chat ID, or None to download from the knowledge base.
+
+    raises:
+        httpx.HTTPStatusError: If the download fails.
+    """
     logger.info(f"Downloading content with content_id: {content_id}")
     response = await request_content_by_id_async(
         user_id, company_id, content_id, chat_id
