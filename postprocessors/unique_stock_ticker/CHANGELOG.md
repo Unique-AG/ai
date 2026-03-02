@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.1] - 2026-03-02
 - Security: upgrade cryptography 45.0.7 → 46.0.5 (direct dep, relaxed constraint to `>=46.0.5`)
-- Security: upgrade pillow 10.4.0 → 12.1.1 (indirect dep via unique-toolkit 1.50.1)
+- Bump unique-toolkit to ^1.50.1 (security: pillow 10.4.0 → 12.1.1 via toolkit)
 
 ## [1.1.0] - 2026-01-16
 - Add option to validate plot start_date as timedelta
