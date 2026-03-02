@@ -13,8 +13,8 @@
         if (!match) return;
         var base = match[1];
         var rest = path.slice(base.length);
-        // Already versioned (semver or "latest")? Show a real 404.
-        if (/^(\d+\.\d+\.\d+|latest)(\/|$)/.test(rest)) return;
+        // Already versioned (semver with optional suffix, or "latest")? Show a real 404.
+        if (/^(\d+\.\d+\.\d+\S*|latest)(\/|$)/.test(rest)) return;
         var target = base + 'latest/' + rest + window.location.search + window.location.hash;
         window.location.replace(target);
       })();
