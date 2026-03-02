@@ -190,15 +190,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.43.7] - 2026-01-15
 - Cleanup hallucination config that is displayed in space config
 
-## [1.43.4] - 2026-01-14
-- chore(deps-dev): bump aiohttp from 3.13.2 to 3.13.3
-
-## [1.43.6] - 2026-01-13
+## [1.43.6] - 2026-01-14
 - Update message execution pipeline functions and service
 
-## [1.43.5] - 2026-01-13
+## [1.43.5] - 2026-01-14
 - Add deptry to dev dependencies for CI dependency checks
 - Fix missing base_settings fixture parameter in FastAPI test
+
+## [1.43.4] - 2026-01-14
+- chore(deps-dev): bump aiohttp from 3.13.2 to 3.13.3
 
 ## [1.43.3] - 2026-01-13
 - Changing default `assessment_type` in `SubAgentEvaluationServiceConfig` to `HALLUCINATION`
@@ -238,10 +238,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.42.2] - 2026-01-05
 - Fix naming of code interpreter tool in its `ToolPrompts`.
 
-## [1.42.1] - 2025-01-05
+## [1.42.1] - 2026-01-05
 - Version bump of SDK
 
-## [1.42.0] - 2025-01-05
+## [1.42.0] - 2026-01-05
 - Add new params for elicitation to `call_tool` api
 
 ## [1.41.0] - 2025-12-29
@@ -315,7 +315,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.33.1] - 2025-12-01
 - Add `data_extraction` to unique_toolkit
 
-## [1.33.0] - 2025-11-28
+## [1.33.0] - 2025-12-01
 - Add support for system reminders in sub agent responses.
 
 ## [1.32.1] - 2025-12-01
@@ -332,7 +332,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.31.1] - 2025-11-27
 - Various fixes to sub agent answers.
 
-## [1.31.0] - 2025-11-20
+## [1.31.0] - 2025-11-26
 - Adding model `litellm:anthropic-claude-opus-4-5` to `language_model/info.py`
 
 ## [1.30.0] - 2025-11-26
@@ -525,7 +525,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.17.0] - 2025-10-22
 - Add more options to display sub agent answers in the chat.
 
-## [1.16.5] - 2025-10-16
+## [1.16.5] - 2025-10-18
 - Adding litellm models `litellm:anthropic-claude-haiku-4-5`
 
 ## [1.16.4] - 2025-10-18
@@ -596,14 +596,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.12.1] - 2025-10-07
 - Fix bug where failed evaluations did not show an error to the user.
 
-## [1.12.0] - 2026-10-07
+## [1.12.0] - 2025-10-07
 - Add the `OpenAIUserMessageBuilder` for complex user messages with images
 - More examples with documents/images on the chat
 
-## [1.11.4] - 2026-10-07
+## [1.11.4] - 2025-10-07
 - Make newer `MessageExecution` and `MessageLog` method keyword only
 
-## [1.11.3] - 2026-10-07
+## [1.11.3] - 2025-10-07
 - Move smart rules to content
 - Add to documentation
 
@@ -625,13 +625,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switch default model used in evaluation service from `GPT-3.5-turbo (0125)` to `GPT-4o (1120)`
 
 
-## [1.9.0] - 2026-10-04
+## [1.9.0] - 2025-10-04
 - Define the RequestContext and add aihttp/httpx requestors
 
-## [1.8.1] - 2026-10-03
+## [1.8.1] - 2025-10-03
 - Fix bug where sub agent evaluation config variable `include_evaluation` did not include aliases for previous names.
 
-## [1.8.0] - 2026-10-03
+## [1.8.0] - 2025-10-03
 - Sub Agents now block when executing the same sub-agent multiple times with `reuse_chat` set to `True`.
 - Sub Agents tool, evaluation and post-processing refactored and tests added.
 
@@ -662,7 +662,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.4.1] - 2025-09-30
 - Handle sub agent failed assessments better in sub agent evaluator.
 
-## [1.4.0] - 2025-09-29
+## [1.4.0] - 2025-09-30
 - Add ability to consolidate sub agent's assessments.
 
 ## [1.3.3] - 2025-09-30
@@ -749,10 +749,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.53] - 2025-09-09
 - Add support for skip ingestion for only excel files.
 
-## [0.8.52] - 2025-09-06
+## [0.8.52] - 2025-09-08
 - Fix import error in token counting
 
-## [0.8.51] - 2025-09-06
+## [0.8.51] - 2025-09-08
 - Update token counter to latest version of monorepo.
 
 ## [0.8.50] - 2025-09-08
@@ -828,7 +828,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.30] - 2025-08-28
 - Added A2A manager
 
-## [0.8.29] - 2025-08-27
+## [0.8.29] - 2025-08-28
 
 - Include `MessageExecution` and `MessageLog` in toolkit
 
@@ -847,14 +847,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expose `LanguageModelToolDescription` and `LanguageModelName` directly
 - Get initial debug information from chat payload
 
-## [0.8.24] - 2025-08-25
+## [0.8.24] - 2025-08-27
 - Optimized hallucination manager
 
 ## [0.8.23] - 2025-08-27
 - Add MCP manager that handles MCP related logic
 
 
-## [0.8.22] - 2025-08-25
+## [0.8.22] - 2025-08-26
 - Add DeepSeek-R1, DeepSeek-V3.1, Qwen3-235B-A22B and Qwen3-235B-A22B-Thinking-2507 to supported model list
 
 ## [0.8.21] - 2025-08-26
@@ -967,7 +967,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.35] - 2025-07-23
 - Bump version of SDK to have access to the latest features and fixes
 
-## [0.7.34] - 2025-05-30
+## [0.7.34] - 2025-06-25
 - Fix incorrect mapping in `ContentService` for the `search_content` function when mapping into `ContentChunk` object
 
 ## [0.7.33] - 2025-06-25
@@ -976,7 +976,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.32] - 2025-06-24
 - Create `classmethod` for `LanguageModelMessages` to load raw messages to root
 
-## [0.7.31] - 2025-06-19
+## [0.7.31] - 2025-06-20
 
 - Add typings to references in payload from `LanguageModelStreamResponseMessage`
 - Add `original_index` to the base reference to reflect updated api
@@ -1065,7 +1065,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.9] - 2025-04-17
 - add `AZURE_GPT_41_2025_0414` as part of the models
 
-## [0.7.8] - 2025-04-08
+## [0.7.8] - 2025-04-11
 - add `AZURE_GPT_4o_2024_1120` as part of the models
 
 ## [0.7.7] - 2025-04-11
