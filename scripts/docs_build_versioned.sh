@@ -175,14 +175,17 @@ generate_versions_json() {
 build_root_site() {
     log_info "Building root site..."
     cd "$REPO_ROOT"
-    
+
     # Build to temporary location
     poetry run mkdocs build -d "$OUTPUT_DIR/root_temp" --clean
-    
+
     # Copy to output root (excluding subdirs we'll replace)
     rsync -av --exclude='unique-sdk' --exclude='unique-toolkit' "$OUTPUT_DIR/root_temp/" "$OUTPUT_DIR/"
     rm -rf "$OUTPUT_DIR/root_temp"
-    
+
+    # The Material theme generates its own 404.html — overwrite it with ours.
+    cp "$REPO_ROOT/docs/404.html" "$OUTPUT_DIR/404.html"
+
     log_success "Root site built"
 }
 
@@ -351,11 +354,10 @@ main() {
         echo "================================================================"
         echo ""
         
-        cd "$OUTPUT_DIR"
-        poetry run python -m http.server "$PORT"
+        poetry run python "$SCRIPT_DIR/serve_docs.py" "$PORT" "$OUTPUT_DIR"
     else
         log_info "To serve locally, run:"
-        echo "  cd $OUTPUT_DIR && python -m http.server $PORT"
+        echo "  python scripts/serve_docs.py $PORT $OUTPUT_DIR"
         echo ""
         echo "  Then visit:"
         echo "    http://localhost:$PORT/"

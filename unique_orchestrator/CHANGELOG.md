@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.13.04] - 2026-02-26
 - Hide Responses API config from experimental section in UI (SkipJsonSchema); Code Interpreter is now configured via tools section only
 
-## [1.13.03] - 2026-01-23
+## [1.13.03] - 2026-02-23
 - Changing parameter name from `user_instruction` to `user_space_instruction`
 
 ## [1.13.02] - 2026-02-23
@@ -21,10 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix code interpreter tool toggle: auto-enable Responses API and populate default `CodeInterpreterExtendedConfig` when an enabled `code_interpreter` tool is present and model supports Responses API
 - Fix `_build_responses` to filter `tool_names` by `is_enabled` so a disabled tool entry does not block the builder from adding an enabled instance
 
-## [1.13.00] - 2026-01-23
+## [1.13.00] - 2026-01-26
 - Including functionality of user instruction in orchestrator
 
-## [1.12.02] - 2026-01-05
+## [1.12.02] - 2026-01-26
 - Adjust feature flag
 
 ## [1.12.01] - 2026-01-26
@@ -235,3 +235,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.0.1] - 2025-08-18
 - Initial release of `orchestrator`.
+

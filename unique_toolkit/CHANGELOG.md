@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add uncited source stripping to remove unreferenced source data from tool messages, reducing token usage
 - Wire up tool-call-aware history construction in `LoopTokenReducer`
 
+## [1.50.0] - 2026-03-02
+- Add async download-to-bytes functions: `download_content_to_bytes_async` on `KnowledgeBaseService`, `ContentService`, and `download_chat_content_to_bytes_async` on `ChatService`
+
+## [1.49.0] - 2026-03-02
+- Make the code execution tool always available to the agent
+
 ## [1.48.1] - 2026-03-02
 - Revert `DocxGeneratorConfig` and `DocxGeneratorService` additions from 1.47.11 (broke SWOT tool, pending further testing)
 
@@ -209,7 +215,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.43.1] - 2026-01-12
 - Remove accidental example report.md from repo
 
-##[1.43.0] - 2026-01-11
+## [1.43.0] - 2026-01-11
 - Add `WriteUpAgent` as an experimental service
 
 ## [1.42.9] - 2026-01-11
@@ -306,7 +312,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.34.0] - 2025-12-02
 - Add option to upload code interpreter generated files to the chat.
 
-##[1.33.3] - 2025-12-02
+## [1.33.3] - 2025-12-02
 - Fix serialization of ToolBuildConfig `configuration` field.
 
 ## [1.33.2] - 2025-12-01
@@ -352,17 +358,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add early return in `create_message_log_entry` if chat_service doesn't have assistant_message_id (relevant for agentic
   table)
 
-##[1.29.0] - 2025-11-21
+## [1.29.0] - 2025-11-21
 - Add option to force include references in sub agent responses even if unused by main agent response.
 
 ## [1.28.9] - 2025-11-21
 - Remove `knolwedge_base_service` from DocXGeneratorService
 
-##[1.28.8] - 2025-11-20
+## [1.28.8] - 2025-11-20
 - Add query params to api operation
 - Add query params to endpoint builder
 
-##[1.28.7] - 2025-11-20
+## [1.28.7] - 2025-11-20
 - Adding Message Step Logger Class to the agentic tools.
 
 ## [1.28.6] - 2025-11-20
