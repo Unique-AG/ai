@@ -85,6 +85,70 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     )
     ```
 
+??? example "`unique_sdk.Space.update_space` - Update a space"
+
+    !!! info "Compatibility"
+        Compatible with release >.10
+
+    Update an existing space (assistant). Preserves assistant_id so end users keep chat history.
+
+    **Parameters:**
+
+    - `space_id` (str, required) - The ID of the space to update
+    - `name` (str, optional) - The name of the space
+    - `title` (str, optional) - The title of the space
+    - `modules` (List[UpdateModuleItem], optional) - Update existing modules by ID. Use to change configuration (tools, languageModel, customInstructions) without replacing modules. Mutually exclusive with creating new modules.
+        - `moduleId` (str, required) - Module ID to update
+        - `configuration` (Dict, optional) - Module configuration (tools, languageModel, customInstructions, services, etc.)
+        - `name` (str, optional) - Module name
+        - `description` (str, optional) - Module description
+        - `weight` (int, optional) - Module weight
+    - `explanation` (str, optional) - Explanation or description of the space
+    - `alert` (str, optional) - Alert message for the space
+    - `chatUpload` (Literal["ENABLED", "DISABLED"], optional) - Chat upload setting
+    - `languageModel` (str, optional) - Language model to use
+    - `isPinned` (bool, optional) - Whether the space is pinned
+    - `settings` (Dict, optional) - Space settings
+    - `allowEndUserSpace` (bool, optional) - Allow end users to create custom spaces from this assistant
+    - `uiType` (Literal["MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"], optional) - UI type of the space. Use UNIQUE_AI to migrate from legacy.
+
+    **Returns:**
+
+    Returns a [`Space`](#space) object.
+
+    **Example - Update Name and Title:**
+
+    ```python
+    space = unique_sdk.Space.update_space(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="space_abc123",
+        name="Updated Customer Support",
+        title="How can I help you today?"
+    )
+    ```
+
+    **Example - Update Module Configuration:**
+
+    ```python
+    space = unique_sdk.Space.update_space(
+        user_id=user_id,
+        company_id=company_id,
+        space_id="space_abc123",
+        modules=[
+            {
+                "moduleId": "module_u3x61phmqxvlhswjlm3byvvr",
+                "name": "Updated Module Name",
+                "configuration": {
+                    "tools": ["search", "calculator"],
+                    "languageModel": "AZURE_GPT_4o_2024_0806"
+                },
+                "weight": 5000
+            }
+        ]
+    )
+    ```
+
 ??? example "`unique_sdk.Space.get_space_access` - Get space access entries"
 
     Get access entries for a space. Requires manage access to the space.
@@ -587,7 +651,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `createdAt` (str) - Creation timestamp (ISO 8601)
     - `updatedAt` (str) - Last update timestamp (ISO 8601)
 
-    **Returned by:** `Space.get_space()`, `Space.create_space()`
+    **Returned by:** `Space.get_space()`, `Space.create_space()`, `Space.update_space()`
 
 #### SpaceAccessResponse {#spaceaccessresponse}
 
