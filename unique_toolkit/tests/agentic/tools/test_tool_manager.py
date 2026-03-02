@@ -16,6 +16,7 @@ from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
+    OpenAIBuiltInToolName,
 )
 from unique_toolkit.agentic.tools.openai_builtin.manager import (
     OpenAIBuiltInToolManager,
@@ -411,6 +412,62 @@ def test_tool_manager__filters_by_tool_choices__when_specified(
     assert "mock_tool" in tool_names
     assert "control_tool" not in tool_names
     assert len(tool_names) == 1
+
+
+@pytest.mark.ai
+def test_responses_api_tool_manager__code_interpreter_always_available__when_tool_choices_specified(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+) -> None:
+    """
+    Purpose: Verify code_interpreter is always included even when not in tool_choices.
+    Why this matters: Code execution tool should be always available alongside user-selected tools.
+    Setup summary: Set tool_choices to mock_tool only, include code_interpreter via builtin manager,
+    verify both mock_tool and code_interpreter are in loaded tools.
+    """
+    # Arrange
+    mock_builtin_tool = mocker.Mock(spec=OpenAIBuiltInTool)
+    mock_builtin_tool.name = OpenAIBuiltInToolName.CODE_INTERPRETER
+    mock_builtin_tool.is_enabled.return_value = True
+    mock_builtin_tool.is_exclusive.return_value = False
+
+    mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_all_openai_builtin_tools.return_value = [mock_builtin_tool]
+
+    tool_configs = [
+        ToolBuildConfig(
+            name="mock_tool",
+            configuration=MockToolConfig(),
+            display_name="Mock Tool",
+            icon=ToolIcon.BOOK,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    base_event.payload.tool_choices = ["mock_tool"]
+
+    # Act
+    tool_manager = ResponsesApiToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+        builtin_tool_manager=mock_builtin_manager,
+    )
+
+    # Assert
+    tool_names = [t.name for t in tool_manager.get_tools()]
+    assert "mock_tool" in tool_names
+    assert OpenAIBuiltInToolName.CODE_INTERPRETER in tool_names
+    assert len(tool_names) == 2
 
 
 @pytest.mark.ai

@@ -921,6 +921,38 @@ class TestKnowledgeBaseServiceDownload:
             chat_id=None,
         )
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch("unique_toolkit.services.knowledge_base.download_content_to_bytes_async")
+    async def test_download_content_to_bytes_async__returns_bytes__with_content_id(
+        self,
+        mock_download_async: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify async download_content_to_bytes_async downloads content to memory.
+        Why this matters: Async downloads enable non-blocking I/O for in-memory processing.
+        Setup summary: Mock async download function to return bytes, await service method, assert bytes returned.
+        """
+        # Arrange
+        expected_bytes = b"test file content"
+        mock_download_async.return_value = expected_bytes
+
+        # Act
+        result = await base_kb_service.download_content_to_bytes_async(
+            content_id="cont_test123"
+        )
+
+        # Assert
+        assert isinstance(result, bytes)
+        assert result == expected_bytes
+        mock_download_async.assert_called_once_with(
+            user_id="test_user",
+            company_id="test_company",
+            content_id="cont_test123",
+            chat_id=None,
+        )
+
 
 class TestKnowledgeBaseServiceBatchUpload:
     """Test cases for batch_file_upload method."""
