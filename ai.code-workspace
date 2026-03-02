@@ -11,6 +11,10 @@
         {
             "name": "unique_sdk",
             "path": "unique_sdk"
+        },
+        {
+            "name": "deep_research",
+            "path": "tool_packages/unique_deep_research"
         }
     ],
     "settings": {
