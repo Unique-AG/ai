@@ -3,7 +3,7 @@ import logging
 import mimetypes
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath
-from typing import Any, Callable, overload
+from typing import Any, Callable, Self, overload
 
 import humps
 import unique_sdk
@@ -690,21 +690,25 @@ class KnowledgeBaseService:
             scope_id=scope_id,
         )
 
+    async def _translate_scope_id_to_folder_name_async(
+        self, scope_id: str
+    ) -> str | None:
+        try:
+            folder_info = await self.get_folder_info_async(scope_id=scope_id)
+            return folder_info.name
+        except Exception as e:
+            _LOGGER.warning(f"Could not resolve folder for scope_id {scope_id}: {e}")
+            return None
+
     async def _translate_scope_ids_to_folder_name_async(
         self, scope_ids: set[str]
     ) -> dict[str, str]:
-        async def translation(scope_id: str) -> tuple[str, str] | None:
-            try:
-                folder_info = await self.get_folder_info_async(scope_id=scope_id)
-                return (scope_id, folder_info.name)
-            except Exception as e:
-                _LOGGER.warning(
-                    f"Could not resolve folder for scope_id {scope_id}: {e}"
-                )
-                return None
-
-        results = await asyncio.gather(*[translation(sid) for sid in scope_ids])
-        return dict(r for r in results if r is not None)
+        results = await asyncio.gather(
+            *[self._translate_scope_id_to_folder_name_async(sid) for sid in scope_ids]
+        )
+        return {
+            key: value for key, value in zip(scope_ids, results) if value is not None
+        }
 
     @staticmethod
     def extract_folder_metadata_from_content_infos(
@@ -714,7 +718,7 @@ class KnowledgeBaseService:
         Extracts folder metadata from content infos.
 
         This extracts three types of folder information:
-        - scope_ids: Individual IDs extracted from `folderIdPath` that need to be translated via API
+        - scope_ids: Individual IDs extracted from `folderIdPath` that need to be translated via API (This is not a comprehensive list of all scope_ids, scope_ids that always come along with a FullPath will not be listed)
         - folder_id_paths: Raw `folderIdPath` values (e.g., `uniquepathid://abc/def`)
         - known_folder_paths: Already resolved paths from `{FullPath}` metadata
 
@@ -749,7 +753,7 @@ class KnowledgeBaseService:
         return scope_ids, folder_id_paths, known_folder_paths
 
     async def get_content_infos_async(
-        self, *, metadata_filter: dict[str, Any] | None = None
+        self, *, metadata_filter: dict[str, Any] | None = None, step_size=100
     ) -> list[ContentInfo]:
         """
         Fetches all content infos from the knowledge base using parallel pagination.
@@ -770,8 +774,6 @@ class KnowledgeBaseService:
         )
 
         total_count = info_for_count_of_total_content.total_count
-
-        step_size = 100
 
         results: list[PaginatedContentInfos | BaseException] = await asyncio.gather(
             *[
@@ -796,6 +798,19 @@ class KnowledgeBaseService:
             if not isinstance(result, BaseException)
             for content_info in result.content_infos
         ]
+
+    @dataclass
+    class Folder:
+        files: list[str] = field(default_factory=list)
+        folders: dict[str, Self] = field(default_factory=dict)
+
+        def to_dict(self) -> dict:
+            return {
+                "files": self.files,
+                "folders": {
+                    name: folder.to_dict() for name, folder in self.folders.items()
+                },
+            }
 
     async def resolve_visible_folder_tree_async(
         self, *, metadata_filter: dict[str, Any] | None = None
@@ -844,20 +859,7 @@ class KnowledgeBaseService:
             str, str
         ] = await self._translate_scope_ids_to_folder_name_async(scope_ids)
 
-        @dataclass
-        class Folder:
-            files: list[str] = field(default_factory=list)
-            folders: dict[str, "Folder"] = field(default_factory=dict)
-
-            def to_dict(self) -> dict:
-                return {
-                    "files": self.files,
-                    "folders": {
-                        name: folder.to_dict() for name, folder in self.folders.items()
-                    },
-                }
-
-        tree = Folder()
+        tree = self.Folder()
 
         for content_info in content_infos:
             current = tree
@@ -882,7 +884,7 @@ class KnowledgeBaseService:
             for folder_name in path:
                 if not folder_name:  # Skip empty folder names (e.g., from leading "/")
                     continue
-                current = current.folders.setdefault(folder_name, Folder())
+                current = current.folders.setdefault(folder_name, self.Folder())
             current.files.append(content_info.key)
 
         return tree.to_dict()
