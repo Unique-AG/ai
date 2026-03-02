@@ -214,7 +214,7 @@ Minor bugfixes:
 ## [0.0.4] - 2025-09-02
 - Introducing handover capability.
 
-## [0.0.3] - 2025-09-03
+## [0.0.3] - 2025-09-02
 - Bump toolkit version to get bugfix and small cleanup of getting client
 
 ## [0.0.2] - 2025-09-02

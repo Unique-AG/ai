@@ -14,10 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add oidc proxy
 - Add persistance options for oidc and oauth proxies
 
-## [0.1.2] - 2026-01-16
+## [0.1.2] - 2025-01-19
 - Add local CI testing commands via poethepoet (poe lint, poe test, poe ci-typecheck, etc.)
 
-## [0.1.1] - 2025-12-17
+## [0.1.1] - 2025-01-18
 - Add server settings
 
 ## [0.1.0] - 2025-12-5

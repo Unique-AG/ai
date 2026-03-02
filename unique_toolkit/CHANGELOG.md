@@ -205,7 +205,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.43.1] - 2026-01-12
 - Remove accidental example report.md from repo
 
-##[1.43.0] - 2026-01-11
+## [1.43.0] - 2026-01-11
 - Add `WriteUpAgent` as an experimental service
 
 ## [1.42.9] - 2026-01-11
@@ -302,7 +302,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.34.0] - 2025-12-02
 - Add option to upload code interpreter generated files to the chat.
 
-##[1.33.3] - 2025-12-02
+## [1.33.3] - 2025-12-02
 - Fix serialization of ToolBuildConfig `configuration` field.
 
 ## [1.33.2] - 2025-12-01
@@ -348,17 +348,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add early return in `create_message_log_entry` if chat_service doesn't have assistant_message_id (relevant for agentic
   table)
 
-##[1.29.0] - 2025-11-21
+## [1.29.0] - 2025-11-21
 - Add option to force include references in sub agent responses even if unused by main agent response.
 
 ## [1.28.9] - 2025-11-21
 - Remove `knolwedge_base_service` from DocXGeneratorService
 
-##[1.28.8] - 2025-11-20
+## [1.28.8] - 2025-11-20
 - Add query params to api operation
 - Add query params to endpoint builder
 
-##[1.28.7] - 2025-11-20
+## [1.28.7] - 2025-11-20
 - Adding Message Step Logger Class to the agentic tools.
 
 ## [1.28.6] - 2025-11-20
