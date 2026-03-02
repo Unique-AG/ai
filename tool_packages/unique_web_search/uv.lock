@@ -8,10 +8,7 @@ resolution-markers = [
 ]
 
 [manifest]
-constraints = [
-    { name = "nltk", specifier = ">=3.9.3" },
-    { name = "pillow", specifier = ">=12.1.1" },
-]
+constraints = [{ name = "nltk", specifier = ">=3.9.3" }]
 
 [[package]]
 name = "aiofiles"

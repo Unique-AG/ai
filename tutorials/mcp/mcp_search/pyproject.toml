@@ -20,8 +20,3 @@ unique-mcp = "mcp-search:main"
 [build-system]
 requires = ["uv_build>=0.8.14,<0.9.0"]
 build-backend = "uv_build"
-
-[tool.uv]
-constraint-dependencies = [
-    "pillow>=12.1.1",
-]

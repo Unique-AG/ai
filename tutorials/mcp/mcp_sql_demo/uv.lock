@@ -3,10 +3,7 @@ revision = 3
 requires-python = ">=3.12"
 
 [manifest]
-constraints = [
-    { name = "cryptography", specifier = ">=46.0.5" },
-    { name = "pillow", specifier = ">=12.1.1" },
-]
+constraints = [{ name = "cryptography", specifier = ">=46.0.5" }]
 
 [[package]]
 name = "aiohappyeyeballs"

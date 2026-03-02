@@ -63,8 +63,3 @@ target-version = "py311"
 
 [tool.ruff.lint]
 extend-select = ["I"]
-
-[tool.uv]
-constraint-dependencies = [
-    "pillow>=12.1.1",
-]
