@@ -89,6 +89,35 @@ class TestSearchEngineFactory:
         assert config == GoogleConfig
 
 
+class TestBingSearchInit:
+    """Tests for BingSearch constructor creating response parsers internally."""
+
+    @pytest.mark.ai
+    def test_bing_search__initializes_response_parsers__internally(self) -> None:
+        """
+        Purpose: Verify BingSearch creates JsonConversionStrategy and LLMParserStrategy internally.
+        Why this matters: Parsers were moved from the factory into BingSearch; incorrect wiring
+            would break response parsing for all Bing searches.
+        Setup summary: Create BingSearch with mock LanguageModelService; inspect response_parsers.
+        """
+        from unique_web_search.services.search_engine.utils.bing.runner import (
+            JsonConversionStrategy,
+            LLMParserStrategy,
+        )
+
+        # Arrange
+        config = BingSearchConfig(search_engine_name=SearchEngineType.BING)
+        mock_lm_service = Mock()
+
+        # Act
+        search = BingSearch(config, mock_lm_service)
+
+        # Assert
+        assert len(search.response_parsers) == 2
+        assert isinstance(search.response_parsers[0], JsonConversionStrategy)
+        assert isinstance(search.response_parsers[1], LLMParserStrategy)
+
+
 class TestGetSearchEngineModelConfig:
     """Tests for get_search_engine_model_config utility function."""
 

@@ -82,12 +82,16 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self._display_name = kwargs.get("display_name", "Web Search")
 
         def content_reducer(web_page_chunks: list[WebPageChunk]) -> list[WebPageChunk]:
+            language_model = (
+                self.language_model_orchestrator or self.config.language_model
+            )
+
             return reduce_sources_to_token_limit(
                 web_page_chunks,
                 self.config.language_model_max_input_tokens,
                 self.config.percentage_of_input_tokens_for_sources,
                 self.config.limit_token_sources,
-                self.language_model_orchestrator or self.config.language_model,
+                language_model,
                 self.chat_history_token_length,
             )
 
