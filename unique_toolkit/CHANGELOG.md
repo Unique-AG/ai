@@ -72,8 +72,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.46.13] - 2026-02-23
 - Add easy access to decoder from llm info
-## [1.46.13] - 2026-02-23
-- Config checker: report default-value changes for invalid configs as well; CLI and markdown report no longer restrict default-changes section to valid configs only
 
 ## [1.46.12] - 2026-02-21
 - Add `litellm:gemini-3-1-pro-preview` to `info.py`
