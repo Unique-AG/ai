@@ -112,6 +112,7 @@ known_first_party = ["unique_toolkit"]
 extend_exclude = ["docs", "tests", "unique_toolkit/.*/test", "unique_toolkit/.*/tests"]
 
 [tool.deptry.per_rule_ignores]
+DEP002 = ["langchain", "fastapi", "starlette", "uvicorn"]
 DEP004 = ["langchain_openai", "langchain_core"]
 
 [tool.ruff]
