@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.64.3] - 2026-03-26
+- Config checker: CLI and validator improvements
+
 ## [1.64.2] - 2026-03-26
 - Add `UniqueSettings.with_auth` to return a new settings instance with a given auth context while preserving app, api, chat, filter options, and env file reference (UN-18484)
 - Add tests for `UniqueSettings`
