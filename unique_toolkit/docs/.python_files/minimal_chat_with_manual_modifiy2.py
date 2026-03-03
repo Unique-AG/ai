@@ -1,4 +1,4 @@
-# ~/~ begin <<docs/modules/examples/chat/chat_service.md#docs/.python_files/minimal_chat_with_manual_modifiy.py>>[init]
+# ~/~ begin <<docs/chat/index.md#docs/.python_files/minimal_chat_with_manual_modifiy2.py>>[init]
 import time
 # ~/~ begin <<docs/application_types/event_driven/index.md#full_sse_setup_with_services>>[init]
 # ~/~ begin <<docs/application_types/event_driven/index.md#full_sse_setup>>[init]
@@ -41,13 +41,13 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     kb_service= KnowledgeBaseService.from_event(event)
     # ~/~ end
 # ~/~ end
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_intermediate_assistant_result>>[init]
+    # ~/~ begin <<docs/chat/index.md#chat_service_intermediate_assistant_result2>>[init]
     chat_service.modify_assistant_message(
             content="Intermediate assistant message",
         )
     # ~/~ end
     time.sleep(2)
-    # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_final_assistant_result>>[init]
+    # ~/~ begin <<docs/chat/index.md#chat_service_final_assistant_result2>>[init]
     chat_service.modify_assistant_message(
             content="Final assistant message",
         )

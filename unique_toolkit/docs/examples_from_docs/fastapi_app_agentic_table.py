@@ -1,3 +1,5 @@
+# %%
+# %%
 import logging
 from pathlib import Path
 
@@ -94,10 +96,17 @@ async def agentic_table_event_handler(event: MagicTableEvent) -> int:
                 event.user_id, event.company_id, event.payload.chat_id
             )
             augmented_text_with_references_fn = get_augmented_text_with_references_fn(
-                event.user_id, event.company_id, event.payload.chat_id, event.payload.assistant_id
+                event.user_id,
+                event.company_id,
+                event.payload.chat_id,
+                event.payload.assistant_id,
             )
             await handle_metadata_added(
-                at_service, event.payload, downloader_fn, file_content_getter_fn, augmented_text_with_references_fn
+                at_service,
+                event.payload,
+                downloader_fn,
+                file_content_getter_fn,
+                augmented_text_with_references_fn,
             )
 
         elif event.payload.action == MagicTableAction.UPDATE_CELL:
@@ -183,7 +192,6 @@ if __name__ == "__main__":
     import uvicorn
 
     # Initialize settings
-
     # Enable debug logging
     logging.basicConfig(
         level=logging.DEBUG,
