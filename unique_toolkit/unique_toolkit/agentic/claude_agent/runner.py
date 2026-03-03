@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from collections.abc import AsyncIterator
 from datetime import datetime
 from logging import Logger
 from pathlib import Path
@@ -333,7 +334,21 @@ class ClaudeAgentRunner:
         sdk_options = ClaudeAgentOptions(**sdk_options_kwargs)
 
         try:
-            async for message in query(prompt=prompt, options=sdk_options):
+            # Pass prompt as an async iterable so the SDK uses stream_input(),
+            # which keeps stdin open until the first result arrives before closing.
+            # The string-prompt path closes stdin immediately via end_input(), which
+            # breaks MCP control-request responses (CLIConnectionError: ProcessTransport
+            # is not ready for writing). stream_input() is aware of sdk_mcp_servers and
+            # waits for the first result before closing the channel.
+            async def _prompt_iter() -> AsyncIterator[dict[str, Any]]:
+                yield {
+                    "type": "user",
+                    "session_id": "",
+                    "message": {"role": "user", "content": prompt},
+                    "parent_tool_use_id": None,
+                }
+
+            async for message in query(prompt=_prompt_iter(), options=sdk_options):
                 if isinstance(message, StreamEvent):
                     event = message.event
                     if event.get("type") == "content_block_delta":

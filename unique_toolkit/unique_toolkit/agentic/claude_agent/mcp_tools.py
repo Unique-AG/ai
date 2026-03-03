@@ -21,6 +21,7 @@ from claude_agent_sdk.types import McpSdkServerConfig
 
 from unique_toolkit.content.schemas import ContentSearchType
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.content.smart_rules import Operator, OrStatement, Statement
 
 from .config import ClaudeAgentConfig
 
@@ -49,6 +50,28 @@ def build_unique_mcp_server(
     return create_sdk_mcp_server(name="unique_platform", tools=tools)
 
 
+def _build_folder_path_filter(scope_ids: list[str]) -> dict[str, Any] | None:
+    """Build a metadata_filter that matches content in all given scopes and their subfolders.
+
+    scope_ids=[scope_id] only matches the direct parent scope — content in subfolders
+    is NOT returned. Using folderIdPath CONTAINS uniquepathid://<scope_id> includes
+    all nested subfolder content as well.
+    """
+    if not scope_ids:
+        return None
+    statements = [
+        Statement(
+            operator=Operator.CONTAINS,
+            value=f"uniquepathid://{scope_id}",
+            path=["folderIdPath"],
+        )
+        for scope_id in scope_ids
+    ]
+    if len(statements) == 1:
+        return statements[0].model_dump(mode="json")
+    return OrStatement(or_list=statements).model_dump(mode="json")
+
+
 def _build_kb_search_tool(
     content_service: ContentService,
     claude_config: ClaudeAgentConfig,
@@ -60,6 +83,9 @@ def _build_kb_search_tool(
         search_type = ContentSearchType.COMBINED
 
     scope_ids = list(claude_config.scope_ids)
+    # Use folderIdPath CONTAINS filter so subfolder content is included.
+    # Passing scope_ids= directly only matches the top-level scope and misses subfolders.
+    metadata_filter = _build_folder_path_filter(scope_ids)
 
     @tool(
         "search_knowledge_base",
@@ -74,7 +100,7 @@ def _build_kb_search_tool(
                 query,
                 search_type,
                 10,
-                scope_ids=scope_ids or None,
+                metadata_filter=metadata_filter,
             )
             results = [
                 {
