@@ -14,6 +14,11 @@ set -euo pipefail
 
 branch=$(git branch --show-current)
 
+# Detached HEAD: no branch name to validate; allow push (e.g. git push origin HEAD:refs/heads/some-branch)
+if [[ -z "$branch" ]]; then
+  exit 0
+fi
+
 # Exempt branches
 exempt_pattern='^(main|master|develop|(hotfix|release|chore)/.+)$'
 if [[ $branch =~ $exempt_pattern ]]; then
