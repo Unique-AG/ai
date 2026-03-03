@@ -710,6 +710,52 @@ class TestInternalSearchTool:
     @pytest.mark.ai
     @patch("unique_internal_search.service.ContentService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
+    def test_tool__initializes__with_chat_event__uses_parent_chat_id__when_correlation_set(
+        self,
+        mock_chunk_relevancy_sorter_class: Any,
+        mock_content_service_class: Any,
+        base_internal_search_config: InternalSearchConfig,
+        mock_chat_event_with_correlation: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify InternalSearchTool uses payload.correlation.parent_chat_id when correlation is set.
+        Why this matters: Ensures correct chat_id extraction for correlated (e.g. subagent) events.
+        Setup summary: ChatEvent with payload.correlation.parent_chat_id set, verify tool.chat_id equals it.
+        """
+        # Arrange
+        mock_content_service = Mock(spec=ContentService)
+        mock_content_service._metadata_filter = None
+        mock_content_service_class.from_event.return_value = mock_content_service
+
+        mock_sorter = Mock()
+        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+
+        # Act
+        def setup_tool(self, configuration, event, *args, **kwargs):
+            setattr(self, "_event", event)
+            setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
+
+        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+            tool = InternalSearchTool(
+                configuration=base_internal_search_config,
+                event=mock_chat_event_with_correlation,
+            )
+
+        # Assert: chat_id comes from correlation.parent_chat_id, not payload.chat_id
+        mock_content_service_class.from_event.assert_called_once_with(
+            mock_chat_event_with_correlation
+        )
+        mock_chunk_relevancy_sorter_class.from_event.assert_called_once_with(
+            mock_chat_event_with_correlation
+        )
+        assert tool.config == base_internal_search_config
+        assert tool.chat_id == "parent_chat_456"
+
+    @pytest.mark.ai
+    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_tool__initializes__with_base_event(
         self,
         mock_chunk_relevancy_sorter_class: Any,
