@@ -56,9 +56,11 @@ Use exactly one of these types in PR titles and commits:
 
 1. **Check current branch**
    - Run `git branch --show-current`; do not commit directly to `master`/`main`
-   - If you are still on the base branch, ask the user for the Jira ticket ID and create a feature branch following this pattern: `<type>/[<scope>/]<UN-XXXXX>-<short-slug>`
-   - Examples: `feat/toolkit/un-17684-pandoc-converter`, `fix/un-17492-pyproject-pr-changes`
-   - The ticket ID in the branch name allows tooling (and `Refs:` lines) to be inferred automatically
+   - If you are still on the base branch, ask the user for the Jira ticket ID and create a feature branch:
+     - **Preferred:** `<type>/<UN-XXXXX>-<short-slug>` — e.g. `feat/un-17684-pandoc-converter`
+     - **Also valid (human-authored):** `<type>/<scope>/<UN-XXXXX>-<short-slug>` — e.g. `feat/toolkit/un-17684-pandoc-converter`
+   - Branches without a ticket ID are only allowed for `hotfix/*`, `release/*`, and `chore/*`
+   - The ticket ID in the branch name allows tooling and `Refs:` lines to be inferred automatically
 
 2. **Review & stage**
    - Inspect your diff (`git diff` for unstaged, `git diff --cached` for staged)

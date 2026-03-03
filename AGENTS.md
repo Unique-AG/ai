@@ -33,7 +33,10 @@ poe typecheck  # basedpyright — no type errors allowed
 poe test       # pytest — all tests must pass
 ```
 
-- Pre-commit hooks run `ruff` and `ruff-format` automatically on staged files.
+- Pre-commit hooks enforce ruff, commit message format, and branch naming. Activate once after cloning:
+  ```bash
+  pre-commit install --hook-type pre-commit --hook-type commit-msg --hook-type pre-push
+  ```
 - Never use `--no-verify` to bypass hooks.
 - Never suppress type errors with `# type: ignore` without a comment explaining why.
 - Never use `# noqa` without a comment. Disable rules repo-wide in `pyproject.toml` instead.
@@ -47,13 +50,17 @@ poe test       # pytest — all tests must pass
 
 Use the `git-conventional-commits` skill for the full format and workflow.
 
-**Branch naming** — always start from a Jira ticket and embed the ticket ID in the branch name:
-```
-<type>/[<scope>/]<un-XXXXX>-<short-slug>
-```
-Examples: `feat/toolkit/un-17684-pandoc-converter`, `fix/un-17492-pyproject-pr-changes`
+**Branch naming** — always start from a Jira ticket and embed the ticket ID in the branch name.
 
-The ticket ID in the branch name lets tooling (and reviewers) trace every branch back to its ticket without reading commit messages.
+Preferred format (use this as an agent):
+```
+<type>/<UN-XXXXX>-<short-slug>
+```
+Examples: `feat/un-17684-pandoc-converter`, `fix/un-17492-pyproject-changes`
+
+A scoped variant is also valid (for humans): `<type>/<scope>/<UN-XXXXX>-<short-slug>`
+
+The ticket ID in the branch name lets tooling and reviewers trace every branch back to its Jira ticket without reading commit messages. Branches without a ticket ID are only allowed for `hotfix/*`, `release/*`, and `chore/*`.
 
 **Commit format:**
 ```
