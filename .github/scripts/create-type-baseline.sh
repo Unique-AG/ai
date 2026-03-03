@@ -264,8 +264,9 @@ print_info "Baseline saved to: $OUTPUT_FILE"
 # Checkout back to original branch
 if [ "$CI_MODE" = true ]; then
     print_info "Switching back to PR branch..."
-    # Reset to discard any lock file changes from uv run/sync
+    # Reset tracked changes and clean untracked lock files from uv run/sync
     git reset --hard HEAD --quiet
+    git clean -f -- uv.lock poetry.lock 2>/dev/null || true
     git checkout - --quiet
 else
     print_info "Switching back to $CURRENT_BRANCH..."
