@@ -47,14 +47,22 @@ poe test       # pytest — all tests must pass
 
 Use the `git-conventional-commits` skill for the full format and workflow.
 
-Repo-specific format:
+**Branch naming** — always start from a Jira ticket and embed the ticket ID in the branch name:
+```
+<type>/[<scope>/]<un-XXXXX>-<short-slug>
+```
+Examples: `feat/toolkit/un-17684-pandoc-converter`, `fix/un-17492-pyproject-pr-changes`
+
+The ticket ID in the branch name lets tooling (and reviewers) trace every branch back to its ticket without reading commit messages.
+
+**Commit format:**
 ```
 type(scope): description
 
 Refs: UN-XXXXX
 ```
 
-- **Jira ticket** goes in the commit body as `Refs: UN-XXXXX` — include it whenever the work is tracked in Jira.
+- **Jira ticket** goes in the commit body as `Refs: UN-XXXXX` — include it whenever the work is tracked in Jira. If the branch already contains the ticket ID it can often be inferred automatically.
 - **`(#PR-number)`** suffix you see in the git log is appended automatically by GitHub on merge — do not write it manually.
 - Scope names: `toolkit`, `web-search`, `deep-research`, `sdk`, `orchestrator`, `mcp`, `ci`, `docs`.
 
@@ -107,42 +115,62 @@ except Exception as exc:
 
 ### Logging
 
-- Always name the module-level logger `logger` (not `_LOGGER`, not `log`). There is inconsistency in the codebase; new code standardises on `logger`.
-- Use `get_logger(__name__)` from `unique_toolkit.app` — it centralises future changes (name prefix, structured logging) without touching every call site.
+- Always name the module-level logger `_LOGGER` (private module constant). Use `get_logger(__name__)` from `unique_toolkit.app` — it centralises future changes (name prefix, structured logging) without touching every call site.
 - In `unique_toolkit` domain modules use `get_logger(f"toolkit.{DOMAIN_NAME}.{__name__}")` if you need a domain-scoped prefix; otherwise `get_logger(__name__)` is fine.
 - Accept an optional `logger: logging.Logger | None = None` in service `__init__`, defaulting to `get_logger(__name__)`. This keeps production call sites simple and lets tests inject a logger.
-- Use `%s` formatting in log calls (not f-strings): `logger.warning("Status %s, retrying", status)`.
-- At API/entry-point boundaries (webhook handlers, FastAPI routes), log exceptions with `exc_info=True` so the full traceback is captured: `logger.error("Error parsing event: %s", e, exc_info=True)`.
+- Use `%s` formatting in log calls (not f-strings): `_LOGGER.warning("Status %s, retrying", status)`.
+- At API/entry-point boundaries (webhook handlers, FastAPI routes), log exceptions with `exc_info=True` so the full traceback is captured: `_LOGGER.error("Error parsing event: %s", e, exc_info=True)`.
 
 ```python
 from unique_toolkit.app import get_logger
-logger = get_logger(__name__)
+_LOGGER = get_logger(__name__)
 
 class MyService:
     def __init__(self, ..., logger: logging.Logger | None = None):
-        self.logger = logger or get_logger(__name__)
+        self._logger = logger or get_logger(__name__)
 ```
 
-### Configuration
+### Settings (environment variables)
 
-- Use `pydantic-settings` `BaseSettings` for all config. Never use plain dicts or raw `os.environ` reads.
+Settings are loaded once at startup from env vars and must be immutable.
+
+- Use `pydantic-settings` `BaseSettings`. Never use plain dicts or raw `os.environ` reads.
+- Always set `frozen=True` in `SettingsConfigDict` — settings must not change after load.
 - Wrap secrets in `SecretStr`. Never store credentials as `str`.
 - Use `AliasChoices` so both short (`API_KEY`) and namespaced (`UNIQUE_APP_KEY`) env var names work.
-- Decorate every config class with `@register_config()`.
+- Decorate every settings class with `@register_config()` for global discovery.
 - Add `model_validator(mode="after")` calling `warn_about_defaults()` to warn when defaults are still in use.
 
 ```python
 @register_config()
-class MyConfig(BaseSettings):
+class MySettings(BaseSettings):
     api_key: SecretStr = Field(
         default=SecretStr("dummy"),
         validation_alias=AliasChoices("my_api_key", "API_KEY"),
     )
-    model_config = SettingsConfigDict(env_prefix="my_", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="my_", extra="ignore", frozen=True)
 
     @model_validator(mode="after")
     def _warn(self) -> Self:
         return warn_about_defaults(self)
+```
+
+### Configuration (request-time)
+
+Configuration that arrives per-request (via event payload, API body, or tool call) is separate from env-based settings.
+
+- Use plain `pydantic BaseModel` — not `BaseSettings`.
+- Validate at the boundary (service constructor or route handler); never pass raw dicts further into the call stack.
+- Keep request-time config immutable within a single request where possible (`model_config = ConfigDict(frozen=True)`).
+
+```python
+from pydantic import BaseModel, ConfigDict
+
+class MyToolConfig(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    max_results: int = 10
+    language: str = "en"
 ```
 
 ### Type annotations
@@ -208,7 +236,7 @@ class TestMyService:
 - Don't catch bare `except Exception` at the top level — be specific or re-raise with context.
 - Don't use `Union[X, Y]`, `Optional[X]`, `List[X]` — use `X | Y`, `X | None`, `list[X]` (Python 3.10+).
 - Don't import from `_common` outside of `unique_toolkit` — it's internal. Code in `tool_packages/` must depend on the public toolkit API (e.g. `unique_toolkit.app.get_logger`, exported services).
-- Don't create loggers inside methods or name them `_LOGGER` — use module-level `logger = get_logger(__name__)`.
+- Don't create loggers inside methods — use module-level `_LOGGER = get_logger(__name__)`.
 - Don't add `# type: ignore` or `# noqa` without explaining why in a comment.
 
 ---
@@ -245,8 +273,9 @@ Use this when reviewing or self-reviewing any Python PR.
 
 ### PR checklist
 - [ ] `poe lint`, `poe typecheck`, `poe test` all pass locally
-- [ ] Config: Pydantic/validated; no secrets in code
-- [ ] Logging: `logger = get_logger(__name__)`; optional injectable logger in new services
+- [ ] Settings: `BaseSettings` + `frozen=True` + `@register_config()`; no secrets as plain `str`
+- [ ] Config: request-time config uses `BaseModel`; validated at boundary
+- [ ] Logging: `_LOGGER = get_logger(__name__)` at module level; optional injectable logger in new services
 - [ ] Tests: naming and docstrings per `python-testing` skill; shared state restored if mutated
 - [ ] Types: type hints on new/changed public APIs; basedpyright clean
 - [ ] Changelog and version bumped if user-facing change (use `changelog-pyproject` skill)
