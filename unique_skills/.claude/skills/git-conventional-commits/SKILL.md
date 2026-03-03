@@ -56,8 +56,9 @@ Use exactly one of these types in PR titles and commits:
 
 1. **Check current branch**
    - Run `git branch --show-current`; do not commit directly to `master`/`main`
-   - If you are still on the base branch, create a feature branch following this pattern: `fix/<scope>/<short-slug>` or `feat/<scope>/<short-slug>`
-   - Keep branch names short but descriptive (e.g., `fix/payment/null-check`)
+   - If you are still on the base branch, ask the user for the Jira ticket ID and create a feature branch following this pattern: `<type>/[<scope>/]<UN-XXXXX>-<short-slug>`
+   - Examples: `feat/toolkit/un-17684-pandoc-converter`, `fix/un-17492-pyproject-pr-changes`
+   - The ticket ID in the branch name allows tooling (and `Refs:` lines) to be inferred automatically
 
 2. **Review & stage**
    - Inspect your diff (`git diff` for unstaged, `git diff --cached` for staged)
@@ -76,6 +77,7 @@ Use exactly one of these types in PR titles and commits:
 
 ## Branch/commit rules
 - Always branch before committing (avoid `master`/`main`)
+- Always include the Jira ticket ID in the branch name — this lets tooling auto-infer `Refs:` and keeps the ticket traceable from `git log`
 - Use imperative language and don’t end with punctuation
 - Keep commits focused on a single concern
-- Reference tickets/issue IDs in the `Refs:` section when relevant
+- Include `Refs: <ticket>` in the commit body when the work is tracked in Jira
