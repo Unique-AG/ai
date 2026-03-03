@@ -9,6 +9,10 @@ inputs:
     description: 'Python version to use'
     required: false
     default: '3.12'
+  install_args:
+    description: 'Additional arguments for install command (e.g., "--extra fastapi" for uv)'
+    required: false
+    default: ''
   test_args:
     description: 'Additional arguments to pass to pytest'
     required: false
@@ -31,7 +35,7 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       run: |
         uv venv --clear
-        uv pip install -e . --resolution=lowest-direct
+        uv pip install -e . --resolution=lowest-direct ${{ inputs.install_args }}
         uv export --only-group dev --no-hashes | uv pip install -r -
 
     # Poetry: Normal install (deptry is in dev dependencies)
