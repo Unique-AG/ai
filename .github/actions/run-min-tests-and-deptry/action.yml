@@ -36,6 +36,8 @@ runs:
       run: |
         uv venv --clear
         EXTRAS="${{ inputs.extras }}"
+        EXTRAS=$(echo "$EXTRAS" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        EXTRAS="${EXTRAS// /}"
         PKG_SPEC="."
         if [ -n "$EXTRAS" ]; then
           PKG_SPEC=".[$EXTRAS]"
