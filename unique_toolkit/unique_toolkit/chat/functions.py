@@ -1437,7 +1437,7 @@ def create_tool_calls(
             user_id=user_id,
             company_id=company_id,
             messageId=message_id,
-            toolCalls=tool_call_items,  # type: ignore
+            tools=tool_call_items,  # type: ignore
         )
         return [ToolCallRecord(**item) for item in result["data"]]
     except Exception as e:
@@ -1472,7 +1472,7 @@ async def create_tool_calls_async(
             user_id=user_id,
             company_id=company_id,
             messageId=message_id,
-            toolCalls=tool_call_items,  # type: ignore
+            tools=tool_call_items,  # type: ignore
         )
         return [ToolCallRecord(**item) for item in result["data"]]
     except Exception as e:
@@ -1490,7 +1490,7 @@ def list_tool_calls(
         result = unique_sdk.ToolCall.list(
             user_id=user_id,
             company_id=company_id,
-            messageId=message_id,
+            messageIds=message_id,
         )
         return [ToolCallRecord(**item) for item in result["data"]]
     except Exception as e:
@@ -1508,7 +1508,7 @@ async def list_tool_calls_async(
         result = await unique_sdk.ToolCall.list_async(
             user_id=user_id,
             company_id=company_id,
-            messageId=message_id,
+            messageIds=message_id,
         )
         return [ToolCallRecord(**item) for item in result["data"]]
     except Exception as e:
