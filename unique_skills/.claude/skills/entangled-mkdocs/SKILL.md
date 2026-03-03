@@ -49,7 +49,20 @@ Insert the new page into `nav:` (see [Nav registration](#nav-registration)).
 
 ### 4 — Remind
 
-Always end with:
+**When `scripts/docs_build_versioned.sh` exists** (this repo), use it for clean, build, and serve:
+
+```bash
+# Clean, build, and serve local docs (from repo root)
+./scripts/docs_build_versioned.sh --clean --serve
+
+# Or step by step:
+./scripts/docs_build_versioned.sh --clean    # clean _local_docs and build
+./scripts/docs_build_versioned.sh --serve    # build (if needed) and serve at http://127.0.0.1:8000
+```
+
+Options: `--clean` (clean `_local_docs` before building), `--serve` (start server after build), `--port PORT` (default 8000). Run `./scripts/docs_build_versioned.sh --help` for full usage.
+
+**When the script is not present** (single-project or other repos), end with:
 ```
 entangled tangle   # extract source files
 mkdocs serve       # preview at http://127.0.0.1:8000
@@ -172,6 +185,7 @@ See `assets/mkdocs-baseline.yaml` for the full recommended extension set.
 | Match existing style | Match heading capitalisation, admonition usage, and prose tone of existing pages |
 | Math notation | If `arithmatex` is active, use `\(...\)` / `\[...\]`; not `$...$` |
 | Real code only | Read actual source files; never invent placeholder code |
+| Prefer docs script | When `scripts/docs_build_versioned.sh` exists, recommend it for clean / build / serve instead of raw `entangled tangle` + `mkdocs serve` |
 
 ---
 
