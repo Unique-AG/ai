@@ -34,15 +34,15 @@ def _chunk_message_ids(message_ids_str: str) -> List[str]:
 
 
 class ToolCall(APIResource["ToolCall"]):
-    OBJECT_NAME: ClassVar[Literal["tool_call"]] = "tool_call"
-    RESOURCE_URL = "/tool-calls"
+    OBJECT_NAME: ClassVar[Literal["tool"]] = "tool"
+    RESOURCE_URL = "/messages/tools"
 
     class CreateParams(RequestOptions):
         messageId: str
-        toolCalls: List[ToolCallItem]
+        tools: List[ToolCallItem]
 
     class ListParams(RequestOptions):
-        messageId: str
+        messageIds: str
 
     class ListByMessageIdsParams(RequestOptions):
         messageIds: str
