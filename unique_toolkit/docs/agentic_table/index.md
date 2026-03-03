@@ -108,10 +108,10 @@ Used by `MagicTableSheetCreatedPayload`.
 
 The following examples demonstrate how to use the Agentic Table module:
 
-- [FastAPI App with Agentic Table](../examples_from_docs/fastapi_app_agentic_table.py)
-- [Cell Updated Event Handler](../examples_from_docs/agentic_table_example_cell_updated_event_handler.py)
-- [Metadata Added Event Handler](../examples_from_docs/agentic_table_example_metadata_added_event_handler.py)
-- [Sheet Created Event Handler](../examples_from_docs/agentic_table_example_sheet_created_event_handler.py)
-- [Artifact Generated Event Handler](../examples_from_docs/agentic_table_example_artifact_generated_event_handler.py)
-- [Column Definition Example](../examples_from_docs/agentic_table_example_column_definition.py)
+- [FastAPI App with Agentic Table](../manual_examples_for_docs/fastapi_app_agentic_table.py)
+- [Cell Updated Event Handler](../manual_examples_for_docs/agentic_table_example_cell_updated_event_handler.py)
+- [Metadata Added Event Handler](../manual_examples_for_docs/agentic_table_example_metadata_added_event_handler.py)
+- [Sheet Created Event Handler](../manual_examples_for_docs/agentic_table_example_sheet_created_event_handler.py)
+- [Artifact Generated Event Handler](../manual_examples_for_docs/agentic_table_example_artifact_generated_event_handler.py)
+- [Column Definition Example](../manual_examples_for_docs/agentic_table_example_column_definition.py)
 
