@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "unique_toolkit"
-version = "1.47.5"
+version = "1.50.1"
 description = ""
 authors = [
     "Cedric Klinkert <cedric.klinkert@unique.ch>",
@@ -28,7 +28,7 @@ pydantic-settings = "^2.10.1"
 sseclient = "^0.0.27"
 openai = "^1.99.9"
 platformdirs = "^4.0.0"
-pillow = "^10.4.0"
+pillow = ">=12.1.1"
 unique-sdk = "^0.10.80"
 jambo = "^0.1.2"
 jinja2 = "^3.1.6"
@@ -42,6 +42,7 @@ pandas = "^2.3.0"
 click = "^8.1.0"
 deepdiff = "^8.6.1"
 claude-agent-sdk = "^0.1.44"
+pypandoc = "^1.16.2"
 
 [tool.poetry.group.langchain]
 optional = true
@@ -56,7 +57,8 @@ langchain-core = "^0.3.0"
 optional = true
 
 [tool.poetry.group.fastapi.dependencies]
-fastapi = "^0.119.0"
+fastapi = "^0.121.0"
+starlette = ">=0.49.1"
 uvicorn = "^0.37.0"
 
 [tool.poetry.group.ci.dependencies]
@@ -83,6 +85,11 @@ pandas = "^2.3.3"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.uv]
+constraint-dependencies = [
+    "starlette>=0.49.1",
+]
 
 [tool.poe.tasks]
 lint = "ruff check ."

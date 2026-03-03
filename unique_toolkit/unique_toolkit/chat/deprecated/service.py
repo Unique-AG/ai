@@ -1,13 +1,32 @@
+from __future__ import annotations
+
 from typing_extensions import deprecated
 
-from unique_toolkit.app.schemas import ChatEvent, Event
+from unique_toolkit.app.schemas import ChatEvent, Correlation, Event
 from unique_toolkit.chat.functions import (
     modify_message,
 )
 
 
 class ChatServiceDeprecated:
-    def __init__(self, event: ChatEvent | Event):
+    def __init__(
+        self,
+        event: ChatEvent | Event,
+        content_scope_chat_id: str | None = None,
+    ):
+        """Initialize the chat service from an event.
+
+        Message operations use the event's chat and message ids. Content and
+        search operations use the content-scope chat: when correlation is
+        present (e.g. subagent), this is the parent chat so uploaded files
+        from the primary session are accessible.
+
+        Args:
+            event: The chat event (e.g. from the webhook payload).
+            content_scope_chat_id: Optional chat id for content/search scope.
+                If None and event.payload.correlation is set, uses
+                correlation.parent_chat_id; otherwise uses event.payload.chat_id.
+        """
         self._event = event
         self._company_id: str = event.company_id
         self._user_id: str = event.user_id
@@ -16,6 +35,59 @@ class ChatServiceDeprecated:
         self._chat_id: str = event.payload.chat_id
         self._assistant_id: str = event.payload.assistant_id
         self._user_message_text: str = event.payload.user_message.text
+        if content_scope_chat_id is not None:
+            self._content_scope_chat_id: str = content_scope_chat_id
+        else:
+            correlation = event.payload.correlation
+            if correlation is not None:
+                self._content_scope_chat_id = correlation.parent_chat_id
+            else:
+                self._content_scope_chat_id = event.payload.chat_id
+
+    @classmethod
+    def from_chat_event(cls, event: ChatEvent | Event) -> ChatServiceDeprecated:
+        """Create a chat service from an event.
+
+        When the event has a correlation (e.g. subagent run), delegates to
+        from_correlation so content scope is the parent chat. Otherwise
+        returns an instance with content scope equal to the event's chat.
+
+        Args:
+            event: The chat event.
+
+        Returns:
+            ChatServiceDeprecated: Instance configured for this event (and
+                parent chat content scope when correlation is present).
+        """
+        correlation = event.payload.correlation
+        if correlation is not None:
+            return cls.from_correlation(
+                correlation,
+                event,
+            )
+        return cls(event)
+
+    @classmethod
+    def from_correlation(
+        cls,
+        correlation: Correlation,
+        event: ChatEvent | Event,
+    ) -> ChatServiceDeprecated:
+        """Create a chat service for a subagent using parent chat for content.
+
+        Use when the event has correlation (e.g. subagent). Message operations
+        use the current (subagent) chat; content and search use the parent chat
+        so files uploaded in the primary session are accessible.
+
+        Args:
+            correlation: Parent chat/message/assistant ids.
+            event: The subagent's chat event.
+
+        Returns:
+            ChatServiceDeprecated: Instance with content_scope_chat_id set to
+                correlation.parent_chat_id.
+        """
+        return cls(event, content_scope_chat_id=correlation.parent_chat_id)
 
     @property
     @deprecated(

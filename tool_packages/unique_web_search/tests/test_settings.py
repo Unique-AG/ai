@@ -142,5 +142,101 @@ class TestValidateCustomWebSearchApiMethod:
         assert settings.custom_web_search_api_method is None
 
 
+class TestLLMProcessConfigSetting:
+    """Test cases for llm_process_config JSON validation on Base settings."""
+
+    @pytest.mark.ai
+    def test_llm_process_config__valid_json__accepted(self) -> None:
+        """
+        Purpose: Verify valid JSON string for llm_process_config passes validation.
+        Why this matters: IT admins provide JSON in .env to freeze LLM processor settings.
+        Setup summary: Pass valid JSON; assert it is stored unchanged.
+        """
+        # Arrange
+        valid_config = json.dumps({"enabled": True, "minTokens": 100})
+
+        # Act
+        settings = Base(llm_process_config=valid_config)
+
+        # Assert
+        assert settings.llm_process_config == valid_config
+        assert json.loads(settings.llm_process_config) == {
+            "enabled": True,
+            "minTokens": 100,
+        }
+
+    @pytest.mark.ai
+    def test_llm_process_config__invalid_json__set_to_none(self) -> None:
+        """
+        Purpose: Verify invalid JSON for llm_process_config is coerced to None.
+        Why this matters: Malformed env config must not crash startup.
+        Setup summary: Pass invalid JSON string; assert stored as None.
+        """
+        # Act
+        settings = Base(llm_process_config="{broken json")
+
+        # Assert
+        assert settings.llm_process_config is None
+
+    @pytest.mark.ai
+    def test_llm_process_config__none__remains_none(self) -> None:
+        """
+        Purpose: Verify None input for llm_process_config stays None.
+        Why this matters: Default None must not be incorrectly coerced.
+        Setup summary: Pass None; assert None.
+        """
+        # Act
+        settings = Base(llm_process_config=None)
+
+        # Assert
+        assert settings.llm_process_config is None
+
+
+class TestAzureAISettings:
+    """Test cases for Azure AI project settings fields."""
+
+    @pytest.mark.ai
+    def test_azure_ai_assistant_id__defaults_to_none(self) -> None:
+        """
+        Purpose: Verify azure_ai_assistant_id defaults to None.
+        Why this matters: None default enables auto-provisioning fallback in Bing runner.
+        Setup summary: Create default settings; assert field is None.
+        """
+        # Act
+        settings = Base()
+
+        # Assert
+        assert settings.azure_ai_assistant_id is None
+
+    @pytest.mark.ai
+    def test_azure_ai_bing_agent_model__defaults_to_gpt4o_deployment(self) -> None:
+        """
+        Purpose: Verify azure_ai_bing_agent_model defaults to 'gpt-4o-deployment'.
+        Why this matters: Deployment name changed from 'gpt-4o' to 'gpt-4o-deployment'.
+        Setup summary: Create default settings; assert correct default.
+        """
+        # Act
+        settings = Base()
+
+        # Assert
+        assert settings.azure_ai_bing_agent_model == "gpt-4o-deployment"
+
+    @pytest.mark.ai
+    def test_azure_ai_bing_resource_connection_string__exists_and_defaults_to_none(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify the renamed field azure_ai_bing_resource_connection_string exists and defaults to None.
+        Why this matters: The field was renamed from azure_ai_bing_ressource_connection_string (typo fix).
+        Setup summary: Create default settings; assert field exists and is None.
+        """
+        # Act
+        settings = Base()
+
+        # Assert
+        assert hasattr(settings, "azure_ai_bing_resource_connection_string")
+        assert settings.azure_ai_bing_resource_connection_string is None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

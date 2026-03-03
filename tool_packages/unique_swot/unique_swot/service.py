@@ -191,7 +191,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             )
 
             # Generate markdown report
-            result = await orchestrator.run(company_name=company_name, plan=plan)
+            result = await orchestrator.run(plan=plan)
 
             if result.is_empty():
                 await progress_notifier.finish()
@@ -397,6 +397,7 @@ class SwotAnalysisTool(Tool[SwotAnalysisToolConfig]):
             company_name=company_name,
             executor=executor,
             config=self.config.report_generation_config.agentic_generator_config,
+            generation_mode=self.config.report_generation_config.generation_mode,
         )
 
     def _get_summarization_agent(self) -> SummarizationAgent:

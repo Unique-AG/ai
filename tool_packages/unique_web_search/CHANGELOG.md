@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-02-27
+### Added
+- Environment-based LLM processor config override (`LLM_PROCESS_CONFIG` env var): when set to valid JSON, all `LLMProcessorConfig` fields are frozen from the environment and UI editing is disabled via `ui:disabled` RJSF tags
+- `_DEFAULTS` dict and `_get_from_env` helper for resolving LLM processor defaults from env with snake_case/camelCase key fallback
+- `_merge_config_with_env` to merge space-admin config with env overrides at runtime
+- Bing `agent_id` and `endpoint` fields now default from `env_settings.azure_ai_assistant_id` and `env_settings.azure_ai_project_endpoint`
+- `get_or_create_agent_id` short-circuits when `azure_ai_assistant_id` is set in env, skipping agent discovery/creation
+- New settings fields: `azure_ai_assistant_id`, `llm_process_config` (with JSON validation)
+
+### Changed
+- `BingSearch` now accepts `LanguageModelService` directly and constructs response parsers (`JsonConversionStrategy`, `LLMParserStrategy`) internally instead of receiving them from the factory
+- Renamed `azure_ai_bing_ressource_connection_string` to `azure_ai_bing_resource_connection_string` (typo fix)
+- Default `azure_ai_bing_agent_model` changed from `gpt-4o` to `gpt-4o-deployment`
+
 ## [1.12.1] - 2026-02-23
 ### Changed
 - Improved LLM Guard accuracy through prompt restructuring, query-level refusal for Art. 9 sensitive queries, and more precise structured output field descriptions
@@ -70,16 +84,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactored executor architecture to use dependency injection with context objects
 - Updated feature flag from `is_new_answers_ui_enabled` to `enable_new_answers_ui_un_14411.is_enabled`
 
-## [1.9.1] - 2025-01-30
+## [1.9.1] - 2026-01-30
 - Raise error for failed Custom API search engine requests
 
-## [1.9.0] - 2025-01-29
+## [1.9.0] - 2026-01-29
 - Add language model config option to bing search
 
-## [1.8.3] - 2025-01-28
+## [1.8.3] - 2026-01-28
 - Add setting params to pass configuration to async_client in custom_api search engine
 
-## [1.8.2] - 2025-01-19
+## [1.8.2] - 2026-01-19
 - Parse mode "v2 (beta)" as "v2" for search mode
 
 ## [1.8.1] - 2026-01-16

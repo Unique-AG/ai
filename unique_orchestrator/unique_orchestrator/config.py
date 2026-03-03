@@ -81,7 +81,7 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
         description="A custom instruction provided by the system admin.",
     )
 
-    user_instructions: str | None = Field(
+    user_space_instructions: str | None = Field(
         default=None,
         description="User instructions for the space provided by the user.",
     )
@@ -338,7 +338,7 @@ class ExperimentalConfig(BaseToolConfig):
 
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
 
-    responses_api_config: ResponsesApiConfig = ResponsesApiConfig()
+    responses_api_config: SkipJsonSchema[ResponsesApiConfig] = ResponsesApiConfig()
 
     claude_agent_config: ClaudeAgentConfig | None = Field(
         default=None,

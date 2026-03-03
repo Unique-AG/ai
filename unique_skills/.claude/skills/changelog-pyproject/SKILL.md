@@ -1,6 +1,14 @@
 ---
 name: changelog-pyproject
 description: Updates CHANGELOG.md and pyproject.toml version for releases. Use when the user wants to release changes, update the changelog, bump the version, or prepare a release.
+license: MIT
+compatibility: claude cursor opencode
+metadata:
+  version: "1.0.0"
+  languages: all
+  audience: developers
+  workflow: automation
+  since: "2026-02-25"
 ---
 
 # Changelog & pyproject Release Updates

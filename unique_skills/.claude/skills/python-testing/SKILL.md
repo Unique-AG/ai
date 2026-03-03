@@ -1,5 +1,5 @@
 ---
-name: py-testing
+name: python-testing
 description: Write focused, deterministic, well-documented pytest tests for AI-authored code.
 license: MIT
 compatibility: claude cursor opencode
@@ -21,6 +21,8 @@ I help with three pytest workflows:
 Supporting files in this skill:
 - `assets/pytest.ini.template` — ready-to-copy pytest configuration
 - `scripts/analyze_coverage.sh [path]` — coverage analysis helper (whole src or specific folder/module)
+  - Run from repo root as: `./.claude/skills/python-testing/scripts/analyze_coverage.sh [path]`
+  - Or use repo-root-safe path: `"$(git rev-parse --show-toplevel)/.claude/skills/python-testing/scripts/analyze_coverage.sh" [path]`
 
 ## When to use me
 
@@ -70,9 +72,33 @@ Setup summary: What's arranged and what's asserted.
 
 ### Coverage
 - Target ≥ 80% for AI-authored tests
-- `scripts/analyze_coverage.sh` — full src coverage
-- `scripts/analyze_coverage.sh src/services` — coverage for a specific folder
-- `scripts/analyze_coverage.sh src/utils/text.py` — coverage for a single file
+- `./.claude/skills/python-testing/scripts/analyze_coverage.sh` — full src coverage
+- `./.claude/skills/python-testing/scripts/analyze_coverage.sh src/services` — coverage for a specific folder
+- `./.claude/skills/python-testing/scripts/analyze_coverage.sh src/utils/text.py` — coverage for a single file
+
+### Test scope & quality
+- Test every public function and method you touched
+- Cover happy paths plus negative scenarios, validation failures, and async edge cases
+- Keep tests deterministic and isolated (clean up temp data, reset mocks)
+- Mock only external dependencies using `pytest-mock`'s `mocker` or hand-rolled fixtures
+- Document why each test matters using the required docstring template
+
+### Test cases to include
+- Happy path scenarios that reflect realistic inputs
+- Edge cases such as empty inputs, boundary values, and timeout paths
+- Error handling or exception flows (raise and capture specific exceptions)
+- Dependency failures (e.g., network timeouts, missing files) while staying fast
+- Concurrency and async behavior when applicable (use `pytest.mark.asyncio` or trio)
+
+## Test quality checklist
+- [ ] Tested all public functions and methods touched by the change
+- [ ] Covered happy path scenarios plus edge cases and negative flows
+- [ ] Added or updated tests for error handling and exception cases
+- [ ] Mocked external dependencies appropriately and kept mocks scoped
+- [ ] Ensured all tests are deterministic and repeatable
+- [ ] Kept tests focused (one assertion per behavior) and avoided loops/conditionals
+- [ ] Documented each test with the three-part docstring
+- [ ] Verified coverage with `scripts/analyze_coverage.sh` when changes affect multiple modules
 
 ### Setup (new project)
 1. Install dev dependencies:

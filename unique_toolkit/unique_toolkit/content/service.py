@@ -8,13 +8,14 @@ from typing_extensions import deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
+from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Correlation, Event
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content import DOMAIN_NAME
 from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
 from unique_toolkit.content.functions import (
     download_content,
     download_content_to_bytes,
+    download_content_to_bytes_async,
     download_content_to_file_by_id,
     request_content_by_id,
     search_content_chunks,
@@ -94,9 +95,34 @@ class ContentService:
 
     @classmethod
     def from_event(cls, event: Event | ChatEvent | BaseEvent):
+        """Initialize the ContentService with an event.
+
+        When the event has a correlation (e.g. subagent run), delegates to
+        from_correlation so content operations are scoped to the parent chat
+        and files uploaded in the primary session are accessible. Otherwise
+        uses the event's chat_id.
+
+        Args:
+            event: The event (e.g. from the webhook payload).
+
+        Returns:
+            ContentService: Instance scoped to the event's chat or, when
+                correlation is present, the parent chat.
         """
-        Initialize the ContentService with an event.
-        """
+        if (
+            isinstance(event, (ChatEvent, Event))
+            and getattr(event.payload, "correlation", None) is not None
+        ):
+            if event.payload.correlation is None:
+                raise ValueError(
+                    "correlation attribute is not defined in the event payload"
+                )
+            return cls.from_correlation(
+                event.company_id,
+                event.user_id,
+                event.payload.correlation,
+                metadata_filter=getattr(event.payload, "metadata_filter", None),
+            )
         chat_id = None
         metadata_filter = None
 
@@ -108,6 +134,36 @@ class ContentService:
             company_id=event.company_id,
             user_id=event.user_id,
             chat_id=chat_id,
+            metadata_filter=metadata_filter,
+        )
+
+    @classmethod
+    def from_correlation(
+        cls,
+        company_id: str,
+        user_id: str,
+        correlation: Correlation,
+        metadata_filter: dict | None = None,
+    ):
+        """Initialize the ContentService from a correlation (e.g. when running as a subagent).
+
+        Content operations (search, download, upload context) are scoped to
+        the parent chat so files uploaded in the primary session are
+        accessible.
+
+        Args:
+            company_id: Company id (from event).
+            user_id: User id (from event).
+            correlation: Parent chat/message/assistant ids.
+            metadata_filter: Optional metadata filter (e.g. from event.payload).
+
+        Returns:
+            ContentService: Instance with chat_id set to correlation.parent_chat_id.
+        """
+        return cls(
+            company_id=company_id,
+            user_id=user_id,
+            chat_id=correlation.parent_chat_id,
             metadata_filter=metadata_filter,
         )
 
@@ -675,6 +731,32 @@ class ContentService:
         """
         chat_id = chat_id or self._chat_id  # type: ignore
         return download_content_to_bytes(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            content_id=content_id,
+            chat_id=chat_id,
+        )
+
+    async def download_content_to_bytes_async(
+        self,
+        content_id: str,
+        chat_id: str | None = None,
+    ) -> bytes:
+        """
+        Asynchronously downloads content to memory.
+
+        Args:
+            content_id (str): The id of the uploaded content.
+            chat_id (Optional[str]): The chat_id, defaults to None.
+
+        Returns:
+            bytes: The downloaded content.
+
+        Raises:
+            Exception: If the download fails.
+        """
+        chat_id = chat_id or self._chat_id  # type: ignore
+        return await download_content_to_bytes_async(
             user_id=self._user_id,
             company_id=self._company_id,
             content_id=content_id,
