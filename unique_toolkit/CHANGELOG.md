@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.48.1] - 2026-02-24
 - Handle tool init failures gracefully: skip misconfigured/failing tools instead of crashing the orchestrator (UN-17197)
 
+## [1.50.2] - 2026-03-03
+- Build: migrate from Poetry to uv (PEP 621 metadata, uv_build backend, dependency-groups)
+
+## [1.50.1] - 2026-03-02
+- Security: upgrade pillow from 10.4.0 to 12.1.1 (CVE / Dependabot alert — out-of-bounds write in PSD loader)
+- Security: upgrade starlette from 0.48.0 to 0.49.1 (Dependabot alert)
+
 ## [1.50.0] - 2026-03-02
 - Add async download-to-bytes functions: `download_content_to_bytes_async` on `KnowledgeBaseService`, `ContentService`, and `download_chat_content_to_bytes_async` on `ChatService`
 

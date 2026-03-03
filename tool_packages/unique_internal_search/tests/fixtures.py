@@ -117,6 +117,23 @@ def mock_chat_event() -> ChatEvent:
     event.user_id = "user_123"
     payload = Mock()
     payload.chat_id = "chat_123"
+    payload.correlation = (
+        None  # so service uses payload.chat_id, not correlation.parent_chat_id
+    )
+    event.payload = payload
+    return event
+
+
+@pytest.fixture
+def mock_chat_event_with_correlation() -> ChatEvent:
+    """Create a mock ChatEvent with payload.correlation.parent_chat_id for testing (e.g. subagent)."""
+    event: ChatEvent = Mock(spec=ChatEvent)
+    event.company_id = "company_123"
+    event.user_id = "user_123"
+    payload = Mock()
+    payload.chat_id = "child_chat_789"
+    payload.correlation = Mock()
+    payload.correlation.parent_chat_id = "parent_chat_456"
     event.payload = payload
     return event
 

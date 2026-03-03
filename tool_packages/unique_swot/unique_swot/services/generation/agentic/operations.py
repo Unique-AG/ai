@@ -17,6 +17,9 @@ from unique_swot.services.generation.agentic.exceptions import (
     InvalidCommandException,
 )
 from unique_swot.services.generation.agentic.executor import AgenticPlanExecutor
+from unique_swot.services.generation.agentic.prompts.cluster_plan.config import (
+    ClusterPlanPromptConfig,
+)
 from unique_swot.services.generation.agentic.prompts.commands.config import (
     CommandsPromptConfig,
 )
@@ -56,7 +59,7 @@ async def handle_generate_operation(
 ) -> None:
     try:
         # Extract the items for the component
-        extracted_facts = await _extract_facts(
+        extracted_facts = await extract_facts(
             company_name=company_name,
             component=component,
             source_batches=source_batches,
@@ -136,7 +139,7 @@ async def handle_generate_operation(
         )
 
 
-async def _extract_facts(
+async def extract_facts(
     *,
     company_name: str,
     component: SWOTComponent,
@@ -310,3 +313,117 @@ def _handle_execution_results(
                 case _:
                     raise InvalidCommandException(f"Invalid command: {command.command}")
     return exceptions
+
+
+# ---------------------------------------------------------------------------
+# Extract-first mode helpers
+# ---------------------------------------------------------------------------
+
+
+async def _generate_cluster_plan(
+    *,
+    component: SWOTComponent,
+    fact_id_map: dict[str, str],
+    step_notifier: StepNotifier,
+    company_name: str,
+    llm: LMI,
+    llm_service: LanguageModelService,
+    notification_title: str,
+    prompts_config: ClusterPlanPromptConfig,
+) -> GenerationPlan:
+    """One-shot clustering planner that groups all accumulated facts into sections."""
+    system_prompt = Template(prompts_config.system_prompt).render(
+        company_name=company_name,
+        component=component,
+    )
+
+    fact_view = json.dumps(fact_id_map, indent=1)
+
+    user_message = Template(prompts_config.user_prompt).render(
+        fact_view=fact_view,
+    )
+
+    plan = await generate_structured_output(
+        system_prompt=system_prompt,
+        user_message=user_message,
+        llm_service=llm_service,
+        llm=llm,
+        output_model=GenerationPlan,
+    )
+    if plan is None:
+        _LOGGER.error(f"Failed to generate cluster plan for component {component}")
+        raise FailedToGeneratePlanException(
+            f"Failed to generate cluster plan for component {component}"
+        )
+
+    _LOGGER.info(f"Generated cluster plan for component {component}")
+    await step_notifier.notify(
+        title=notification_title,
+        description=plan.notification_message,
+    )
+    return plan
+
+
+async def handle_accumulated_generate_operation(
+    *,
+    component: SWOTComponent,
+    fact_id_map: dict[str, str],
+    step_notifier: StepNotifier,
+    company_name: str,
+    llm: LMI,
+    llm_service: LanguageModelService,
+    notification_title: str,
+    swot_report_registry: SWOTReportRegistry,
+    executor: AgenticPlanExecutor,
+    config: AgenticGeneratorConfig,
+) -> None:
+    """Plan and generate sections from pre-accumulated facts (extract-first mode)."""
+    try:
+        plan = await _generate_cluster_plan(
+            component=component,
+            fact_id_map=fact_id_map,
+            step_notifier=step_notifier,
+            company_name=company_name,
+            llm=llm,
+            llm_service=llm_service,
+            notification_title=notification_title,
+            prompts_config=config.prompts_config.cluster_plan_prompt_config,
+        )
+
+        results = await _execute_plan(
+            plan=plan,
+            component=component,
+            fact_id_map=fact_id_map,
+            swot_report_registry=swot_report_registry,
+            llm=llm,
+            llm_service=llm_service,
+            company_name=company_name,
+            executor=executor,
+            prompts_config=config.prompts_config.commands_prompt_config,
+        )
+
+        _handle_execution_results(
+            plan=plan,
+            results=results,
+            component=component,
+            swot_report_registry=swot_report_registry,
+        )
+
+    except FailedToGeneratePlanException as e:
+        _LOGGER.exception(
+            f"Failed to generate cluster plan for component {component}",
+            exc_info=e,
+        )
+        await step_notifier.notify(
+            title=notification_title,
+            description=f"An error occurred while clustering facts for component {component}. Accumulated facts will be discarded.",
+        )
+    except Exception as e:
+        _LOGGER.exception(
+            f"Failed accumulated generate operation for component {component}",
+            exc_info=e,
+        )
+        await step_notifier.notify(
+            title=notification_title,
+            description=f"An unexpected error occurred while generating sections for component {component}.",
+        )
