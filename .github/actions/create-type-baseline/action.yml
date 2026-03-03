@@ -72,14 +72,11 @@ runs:
       run: |
         # Discard any changes to lock files from dependency installation
         # This prevents checkout errors when the script switches back to the PR branch
-        if [ -f "${{ inputs.package_dir }}/poetry.lock" ]; then
-          git restore "${{ inputs.package_dir }}/poetry.lock" 2>/dev/null || \
-          git checkout -- "${{ inputs.package_dir }}/poetry.lock" 2>/dev/null || true
-        fi
-        if [ -f "${{ inputs.package_dir }}/uv.lock" ]; then
-          git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || \
-          git checkout -- "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
-        fi
+        # Restore tracked lock files
+        git restore "${{ inputs.package_dir }}/poetry.lock" 2>/dev/null || true
+        git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
+        # Remove untracked lock files (e.g., uv.lock created by uv on a poetry-based branch)
+        git clean -f -- "${{ inputs.package_dir }}/poetry.lock" "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
 
     - name: Create baseline
       shell: bash

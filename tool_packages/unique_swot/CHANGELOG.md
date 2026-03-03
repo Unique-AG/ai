@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-03-02
+### Added
+- Dual-mode generation architecture with `GenerationMode` enum (`INTERLEAVED` / `EXTRACT_FIRST`)
+- Extract-first pipeline: extracts facts from all sources first, then clusters and generates sections once per SWOT component
+- `ClusterPlanPromptConfig` for one-shot fact clustering prompts
+- `create_progress_sequence` utility for deterministic progress tracking
+- `handle_accumulated_generate_operation` for extract-first section generation
+
+### Changed
+- `ReportingAgent` protocol now receives source iterator and selector directly, enabling mode-specific iteration strategies
+- `SWOTOrchestrator.run()` simplified: no longer accepts `company_name`, delegates source iteration to the reporting agent
+- `GenerationAgent.generate()` refactored as dispatch method routing to mode-specific implementations
+- `ReportGenerationConfig` gains `generation_mode` field with UI radio widget
+- Progress sequence generation moved from orchestrator to agentic utils
+
 ## [1.2.4] - 2026-02-10
 - Migrate token counting in `batch_sequence_generator` to use model-agnostic `LanguageModelInfo.get_encoder()` instead of direct `tiktoken`. Removed `tiktoken` dependency.
 
