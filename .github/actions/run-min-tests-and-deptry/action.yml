@@ -9,8 +9,8 @@ inputs:
     description: 'Python version to use'
     required: false
     default: '3.12'
-  install_args:
-    description: 'Additional arguments for install command (e.g., "--extra fastapi" for uv)'
+  extras:
+    description: 'Comma-separated extras to install (e.g., "fastapi" installs -e .[fastapi])'
     required: false
     default: ''
   test_args:
@@ -35,7 +35,12 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       run: |
         uv venv --clear
-        uv pip install -e . --resolution=lowest-direct ${{ inputs.install_args }}
+        EXTRAS="${{ inputs.extras }}"
+        PKG_SPEC="."
+        if [ -n "$EXTRAS" ]; then
+          PKG_SPEC=".[$EXTRAS]"
+        fi
+        uv pip install -e "$PKG_SPEC" --resolution=lowest-direct
         uv export --only-group dev --no-hashes | uv pip install -r -
 
     # Poetry: Normal install (deptry is in dev dependencies)
