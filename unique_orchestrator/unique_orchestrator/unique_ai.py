@@ -184,7 +184,7 @@ class UniqueAI:
         try:
             max_iterations = self._effective_max_loop_iterations
             for i in range(max_iterations):
-                if self._chat_service.cancellation.is_cancelled:
+                if await self._chat_service.cancellation.check_cancellation_async():
                     break
 
                 self.current_iteration_index = i
@@ -193,7 +193,7 @@ class UniqueAI:
                 loop_response = await self._plan_or_execute()
                 self._logger.info("Done with _plan_or_execute")
 
-                if self._chat_service.cancellation.is_cancelled:
+                if await self._chat_service.cancellation.check_cancellation_async():
                     break
 
                 self._reference_manager.add_references(loop_response.message.references)
@@ -204,7 +204,7 @@ class UniqueAI:
                 exit_loop = await self._process_plan(loop_response)
                 self._logger.info("Done with _process_plan")
 
-                if self._chat_service.cancellation.is_cancelled:
+                if await self._chat_service.cancellation.check_cancellation_async():
                     break
 
                 if exit_loop:
