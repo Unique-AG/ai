@@ -51,6 +51,16 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
+import unique_sdk
+
+from unique_toolkit.agentic.claude_agent.config import ClaudeAgentConfig
+from unique_toolkit.agentic.claude_agent.prompts import (
+    PromptContext,
+    build_system_prompt,
+)
+from unique_toolkit.agentic.claude_agent.runner import ClaudeAgentRunner
+from unique_toolkit.content.service import ContentService
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
 # ─────────────────────────────────────────────────────────────────────────────
@@ -181,12 +191,8 @@ def _load_credentials() -> dict[str, str]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _init_platform(creds: dict[str, str]) -> object:
+def _init_platform(creds: dict[str, str]) -> ContentService:
     """Initialize unique_sdk and return a real ContentService for the QA platform."""
-    import unique_sdk
-
-    from unique_toolkit.content.service import ContentService
-
     unique_sdk.api_key = creds.get("UNIQUE_APP_KEY", "")
     unique_sdk.app_id = creds.get("UNIQUE_APP_ID", "")
     unique_sdk.api_base = creds.get("UNIQUE_API_BASE_URL", "")
@@ -207,23 +213,12 @@ def _init_platform(creds: dict[str, str]) -> object:
 
 
 def _build_runner(
-    content_service: object,
+    content_service: ContentService,
     scope_id: str | None,
     enable_code_exec: bool,
     creds: dict[str, str],
-) -> tuple[object, list[str]]:
+) -> tuple[ClaudeAgentRunner, list[str]]:
     """Build a ClaudeAgentRunner with demo logging and streaming capture."""
-    from unique_toolkit.agentic.claude_agent.config import (
-        ClaudeAgentConfig,  # noqa: PLC0415
-    )
-    from unique_toolkit.agentic.claude_agent.prompts import (  # noqa: PLC0415
-        PromptContext,
-        build_system_prompt,
-    )
-    from unique_toolkit.agentic.claude_agent.runner import (
-        ClaudeAgentRunner,  # noqa: PLC0415
-    )
-
     system_prompt = build_system_prompt(
         PromptContext(
             model_name=MODEL,
