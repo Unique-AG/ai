@@ -11,26 +11,6 @@ An MCP server with a single `search` tool that queries the Unique Knowledge Base
 - Deploys to Azure Container Instances with automatic HTTPS via Caddy
 - Stores secrets in Azure Key Vault and logs in Log Analytics
 
-## Project Structure
-
-```
-mcp_search/
-├── src/mcp_search/
-│   ├── mcp_search_server.py   # Server entry point — wires up auth, tools, and routes
-│   ├── tools.py               # Knowledge Base search tool (vector/keyword/combined)
-│   ├── routes.py              # Health check and status routes
-│   └── util.py                # Auth helper utilities
-├── terraform/                 # Azure infrastructure-as-code (see terraform/README.md)
-│   ├── deploy.sh              # CLI for deploy, build, logs, status, test, destroy
-│   ├── verify-deployment.sh   # Post-deploy verification checks
-│   ├── *.tf                   # Terraform resource definitions
-│   └── terraform.tfvars.example
-├── Dockerfile                 # Multi-stage build (uv + Python 3.12 slim)
-├── pyproject.toml             # Dependencies managed with uv
-├── unique.env.example         # Unique platform credentials template
-└── zitadel.env.example        # Zitadel OAuth credentials template
-```
-
 ## Prerequisites
 
 | Tool | Version | Purpose |
@@ -199,27 +179,51 @@ For full details on the infrastructure, variables, HTTPS configuration, secrets 
 
 ## Architecture
 
-```
-┌──────────┐       ┌─────────────────────────────────────────────┐
-│          │ HTTPS │  Azure Container Instance                   │
-│  Client  │──────▶│  ┌───────────┐       ┌──────────────────┐  │
-│          │ :443  │  │   Caddy   │:8003  │   MCP Search     │  │
-│          │       │  │  (TLS +   │──────▶│  (FastMCP +      │  │
-│          │       │  │   proxy)  │       │   Zitadel auth)  │  │
-│          │       │  └───────────┘       └──────────────────┘  │
-└──────────┘       └─────────────────────────────────────────────┘
-                          │                       │
-                   ┌──────┘                       └──────┐
-                   ▼                                     ▼
-            Azure Storage                        Azure Key Vault
-            (TLS certs)                          (app secrets)
+```mermaid
+flowchart LR
+    Client([MCP Client])
+
+    subgraph ACI["Azure Container Instance"]
+        Caddy["Caddy\n:80 / :443"]
+        App["MCP Search\n:8003"]
+        Caddy -- proxy --> App
+    end
+
+    subgraph Azure
+        ACR["Container\nRegistry"]
+        KV["Key Vault\n(secrets)"]
+        Storage["Storage\n(TLS certs)"]
+        LAW["Log Analytics"]
+        Identity["Managed\nIdentity"]
+    end
+
+    Client -- "HTTPS :443" --> Caddy
+    ACR -. pull image .-> ACI
+    KV -. inject secrets .-> App
+    Caddy -. persist certs .-> Storage
+    ACI -. stream logs .-> LAW
+    Identity -. access .-> KV
+    Identity -. access .-> ACR
 ```
 
 ## Connecting MCP Clients
 
-Once deployed, configure any MCP-compatible client (Claude Desktop, MCP Inspector, etc.) with:
+Get your server URL directly from the Azure CLI:
 
-- **Server URL**: `https://your-domain.com/mcp`
+```bash
+# FQDN (HTTP, for testing)
+az container show \
+  --name $(cd terraform && terraform output -raw aci_name) \
+  --resource-group $(cd terraform && terraform output -raw resource_group_name) \
+  --query fqdn -o tsv
+
+# Or if you have a custom domain configured
+cd terraform && terraform output -raw application_url
+```
+
+Then configure any MCP-compatible client (Claude Desktop, MCP Inspector, etc.) with:
+
+- **Server URL**: `https://<fqdn-or-domain>/mcp`
 - **Transport**: Streamable HTTP
 - **Auth**: OAuth 2.0 via your Zitadel instance
 
