@@ -1,6 +1,6 @@
 [project]
 name = "unique_toolkit"
-version = "1.50.3"
+version = "1.51.0"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12"
@@ -41,6 +41,7 @@ dependencies = [
     "click>=8.1.0,<9",
     "deepdiff>=8.6.1,<9",
     "pypandoc>=1.16.2,<2",
+    "xlsxwriter>=3.2.0,<4",
 ]
 
 [project.optional-dependencies]
