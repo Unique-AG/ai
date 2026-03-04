@@ -1,0 +1,713 @@
+#!/bin/bash
+# ============================================================================
+# MCP Search - Azure Deployment Script
+# ============================================================================
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# Functions
+log_info() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+check_prerequisites() {
+    log_info "Checking prerequisites..."
+    
+    # Check Azure CLI
+    if ! command -v az &> /dev/null; then
+        log_error "Azure CLI is not installed. Please install it first."
+        exit 1
+    fi
+    
+    # Check Terraform
+    if ! command -v terraform &> /dev/null; then
+        log_error "Terraform is not installed. Please install it first."
+        exit 1
+    fi
+    
+    # Check Docker
+    if ! command -v docker &> /dev/null; then
+        log_error "Docker is not installed. Please install it first."
+        exit 1
+    fi
+    
+    # Check Azure login
+    if ! az account show &> /dev/null; then
+        log_error "Not logged in to Azure. Please run 'az login' first."
+        exit 1
+    fi
+    
+    log_info "All prerequisites satisfied."
+}
+
+init_terraform() {
+    log_info "Initializing Terraform..."
+    cd "$SCRIPT_DIR"
+    terraform init
+}
+
+plan_infrastructure() {
+    log_info "Planning infrastructure changes..."
+    cd "$SCRIPT_DIR"
+    if ! terraform plan -out=tfplan; then
+        log_error "Terraform plan failed."
+        log_info "If you see a state lock error, wait for the other operation to complete"
+        log_info "or manually run: terraform force-unlock <LOCK_ID>"
+        exit 1
+    fi
+}
+
+apply_infrastructure() {
+    log_info "Applying infrastructure changes..."
+    cd "$SCRIPT_DIR"
+    if [ -f tfplan ]; then
+        terraform apply tfplan
+    else
+        log_error "No plan file found. Run './deploy.sh plan' first."
+        exit 1
+    fi
+}
+
+apply_infrastructure_excluding_container_group() {
+    log_info "Applying infrastructure changes (excluding container group)..."
+    log_info "This creates ACR, Key Vault, Storage, etc. but not the container group."
+    log_info "The container group will be created after the image is built."
+    cd "$SCRIPT_DIR"
+    
+    # Get all resources that need to be created before the container group
+    # We exclude the container group itself to avoid "InaccessibleImage" errors
+    log_info "Creating infrastructure resources (this may take a few minutes)..."
+    
+    # Apply all resources except the container group
+    # This allows us to create ACR first, build the image, then create the container group
+    # Note: acr_pull role assignment is excluded as it's conditional (only created if use_managed_identity_for_acr=true)
+    #       It will be created automatically when the container group is created if needed
+    terraform apply \
+        -target=azurerm_container_registry.main \
+        -target=azurerm_key_vault.main \
+        -target=azurerm_storage_account.main \
+        -target=azurerm_log_analytics_workspace.main \
+        -target=azurerm_user_assigned_identity.aci \
+        -target=azurerm_role_assignment.kv_secrets_officer \
+        -target=azurerm_role_assignment.kv_secrets_user \
+        -target=azurerm_key_vault_secret.unique_app_key \
+        -target=azurerm_key_vault_secret.unique_app_id \
+        -target=azurerm_key_vault_secret.unique_api_base_url \
+        -target=azurerm_key_vault_secret.unique_auth_company_id \
+        -target=azurerm_key_vault_secret.unique_auth_user_id \
+        -target=azurerm_key_vault_secret.unique_app_endpoint \
+        -target=azurerm_key_vault_secret.unique_app_endpoint_secret \
+        -target=azurerm_key_vault_secret.zitadel_base_url \
+        -target=azurerm_key_vault_secret.zitadel_client_id \
+        -target=azurerm_key_vault_secret.zitadel_client_secret \
+        -target=azurerm_key_vault_secret.acr_password \
+        -target=azurerm_storage_share.caddy_data_prod \
+        -target=azurerm_storage_share.caddy_data_staging \
+        -target=azurerm_storage_share.caddy_config \
+        -target=azurerm_storage_container.tfstate \
+        -auto-approve
+    
+    if [ $? -ne 0 ]; then
+        log_error "Failed to apply infrastructure (excluding container group)."
+        exit 1
+    fi
+    
+    log_info "Infrastructure resources created successfully (container group will be created after image build)."
+}
+
+build_and_push_image() {
+    log_info "Building and pushing Docker image..."
+    
+    # Get ACR details from Terraform output
+    cd "$SCRIPT_DIR"
+    ACR_NAME=$(terraform output -raw acr_name 2>/dev/null || echo "")
+    ACR_LOGIN_SERVER=$(terraform output -raw acr_login_server 2>/dev/null || echo "")
+    
+    if [ -z "$ACR_NAME" ] || [ -z "$ACR_LOGIN_SERVER" ]; then
+        log_error "Could not get ACR details from Terraform. Make sure infrastructure is deployed."
+        exit 1
+    fi
+    
+    # Get git SHA for versioning
+    cd "$PROJECT_DIR"
+    GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    GIT_SHA_FULL=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+    TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+    IMAGE_TAG="${GIT_SHA}-${TIMESTAMP}"
+    
+    log_info "Building image with tag: $IMAGE_TAG (git: $GIT_SHA_FULL)"
+    
+    # Login to ACR
+    log_info "Logging in to Azure Container Registry..."
+    az acr login --name "$ACR_NAME"
+    
+    # Build and push using ACR Tasks (builds in Azure)
+    # Tag with both specific version and latest for container compatibility
+    log_info "Building image using ACR Tasks..."
+    
+    local max_retries=3
+    local retry_count=0
+    local success=false
+    
+    while [ $retry_count -lt $max_retries ] && [ "$success" = false ]; do
+        if [ $retry_count -gt 0 ]; then
+            log_warn "Retry attempt $retry_count of $max_retries..."
+            sleep 5
+        fi
+        
+        # Build with versioned tag and latest tag
+        if az acr build --registry "$ACR_NAME" \
+            --image "mcp-search:${IMAGE_TAG}" \
+            --image "mcp-search:latest" \
+            .; then
+            success=true
+            log_info "Image built and pushed successfully!"
+            log_info "  Versioned: $ACR_LOGIN_SERVER/mcp-search:${IMAGE_TAG}"
+            log_info "  Latest:    $ACR_LOGIN_SERVER/mcp-search:latest"
+            log_info "  Git SHA:   $GIT_SHA_FULL"
+        else
+            retry_count=$((retry_count + 1))
+            if [ $retry_count -lt $max_retries ]; then
+                log_warn "Build failed, will retry..."
+            else
+                log_error "Build failed after $max_retries attempts."
+                log_info "This might be due to Docker Hub rate limiting or network issues."
+                log_info "You can try:"
+                log_info "  1. Wait a few minutes and retry: ./deploy.sh build"
+                log_info "  2. Build locally and push:"
+                log_info "     docker build -t $ACR_LOGIN_SERVER/mcp-search:${IMAGE_TAG} ."
+                log_info "     docker tag $ACR_LOGIN_SERVER/mcp-search:${IMAGE_TAG} $ACR_LOGIN_SERVER/mcp-search:latest"
+                log_info "     docker push $ACR_LOGIN_SERVER/mcp-search:${IMAGE_TAG}"
+                log_info "     docker push $ACR_LOGIN_SERVER/mcp-search:latest"
+                exit 1
+            fi
+        fi
+    done
+}
+
+restart_container() {
+    log_info "Restarting container instance to pick up new image..."
+    
+    cd "$SCRIPT_DIR"
+    ACI_NAME=$(terraform output -raw aci_name 2>/dev/null || echo "")
+    RESOURCE_GROUP=$(terraform output -raw resource_group_name 2>/dev/null || echo "")
+    
+    if [ -z "$ACI_NAME" ] || [ -z "$RESOURCE_GROUP" ]; then
+        log_error "Could not get ACI details from Terraform."
+        exit 1
+    fi
+    
+    az container restart --name "$ACI_NAME" --resource-group "$RESOURCE_GROUP"
+    log_info "Container restarted successfully."
+}
+
+view_logs() {
+    local container_name=""
+    local follow=""
+    local use_log_analytics=""
+    
+    # Parse arguments
+    shift  # Skip the command name
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -f|--follow)
+                follow="-f"
+                shift
+                ;;
+            --analytics|-a)
+                use_log_analytics="--analytics"
+                shift
+                ;;
+            mcp-search|search-mcp|caddy)
+                # Accept known container names
+                container_name="$1"
+                shift
+                ;;
+            *)
+                # If it's not a flag, assume it's a container name
+                if [[ ! "$1" =~ ^- ]]; then
+                    container_name="$1"
+                    shift
+                else
+                    log_warn "Unknown argument: $1"
+                    shift
+                fi
+                ;;
+        esac
+    done
+    
+    cd "$SCRIPT_DIR"
+    ACI_NAME=$(terraform output -raw aci_name 2>/dev/null || echo "")
+    RESOURCE_GROUP=$(terraform output -raw resource_group_name 2>/dev/null || echo "")
+    WORKSPACE_ID=$(terraform output -raw log_analytics_workspace_id 2>/dev/null || echo "")
+    
+    if [ -z "$ACI_NAME" ] || [ -z "$RESOURCE_GROUP" ]; then
+        log_error "Could not get ACI details from Terraform."
+        exit 1
+    fi
+    
+    # Use Log Analytics if available and requested
+    if [ -n "$WORKSPACE_ID" ] && [ -n "$use_log_analytics" ]; then
+        log_info "Querying logs from Log Analytics workspace..."
+        
+        local query="ContainerInstanceLog_CL | where ContainerGroup_s == '$ACI_NAME'"
+        if [ -n "$container_name" ]; then
+            query="$query | where ContainerName_s == '$container_name'"
+            log_info "Filtering logs for container: $container_name"
+        fi
+        query="$query | order by TimeGenerated desc | take 100"
+        
+        if [ -n "$follow" ]; then
+            log_warn "Log Analytics doesn't support --follow. Showing recent logs. Use Azure Portal for live monitoring."
+            query="$query | take 50"
+        fi
+        
+        az monitor log-analytics query \
+            --workspace "$WORKSPACE_ID" \
+            --analytics-query "$query" \
+            --output table
+    else
+        # Use container logs (real-time, but limited retention)
+        local cmd="az container logs --name $ACI_NAME --resource-group $RESOURCE_GROUP"
+        
+        if [ -n "$container_name" ]; then
+            cmd="$cmd --container-name $container_name"
+            log_info "Viewing logs for container: $container_name"
+            if [ -n "$WORKSPACE_ID" ]; then
+                log_info "Tip: Use --analytics flag for persistent logs from Log Analytics"
+            fi
+        else
+            log_info "Viewing logs for all containers"
+            if [ -n "$WORKSPACE_ID" ]; then
+                log_info "Tip: Use --analytics flag for persistent logs from Log Analytics"
+            fi
+        fi
+        
+        if [ -n "$follow" ]; then
+            cmd="$cmd --follow"
+            log_info "Following logs (live updates)..."
+        fi
+        
+        eval "$cmd" || {
+            if [ -n "$WORKSPACE_ID" ]; then
+                log_warn "Container logs unavailable. Querying Log Analytics instead..."
+                # Build args for recursive call (first arg is dummy, gets shifted)
+                local retry_args=("_")
+                if [ -n "$container_name" ]; then
+                    retry_args+=("$container_name")
+                fi
+                retry_args+=("--analytics")
+                view_logs "${retry_args[@]}"
+            else
+                log_error "Failed to retrieve logs. Check container status with: ./deploy.sh status"
+                exit 1
+            fi
+        }
+    fi
+}
+
+check_container_status() {
+    log_info "Checking container instance status..."
+    
+    cd "$SCRIPT_DIR"
+    ACI_NAME=$(terraform output -raw aci_name 2>/dev/null || echo "")
+    RESOURCE_GROUP=$(terraform output -raw resource_group_name 2>/dev/null || echo "")
+    
+    if [ -z "$ACI_NAME" ] || [ -z "$RESOURCE_GROUP" ]; then
+        log_error "Could not get ACI details from Terraform."
+        exit 1
+    fi
+    
+    log_info "Container Group: $ACI_NAME"
+    log_info "Resource Group: $RESOURCE_GROUP"
+    echo ""
+    
+    # Get container group status
+    log_info "Container Group Status:"
+    az container show \
+        --name "$ACI_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --query "{State:instanceView.state, FQDN:fqdn, IP:ipAddress.ip, Containers:containers[*].{Name:name, Image:image, State:instanceView.currentState.state, RestartCount:instanceView.restartCount}}" \
+        --output table
+    
+    echo ""
+    log_info "Container Instances Details:"
+    az container show \
+        --name "$ACI_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --query "containers[*].{Name:name, Image:image, CPU:cpu, Memory:memory, Ports:ports[*].{Port:port, Protocol:protocol}}" \
+        --output table
+    
+    echo ""
+    log_info "Events (recent):"
+    az container show \
+        --name "$ACI_NAME" \
+        --resource-group "$RESOURCE_GROUP" \
+        --query "containers[*].instanceView.events[-5:].{Time:timestamp, Type:type, Message:message}" \
+        --output table
+}
+
+test_mcp_endpoint() {
+    log_info "Testing MCP endpoint..."
+    
+    cd "$SCRIPT_DIR"
+    DOMAIN_NAME=$(terraform output -raw application_url 2>/dev/null | sed 's|https\?://||' || echo "")
+    ACI_FQDN=$(terraform output -raw aci_fqdn 2>/dev/null || echo "")
+    ACI_IP=$(terraform output -raw aci_ip_address 2>/dev/null || echo "")
+    
+    if [ -z "$ACI_FQDN" ] && [ -z "$ACI_IP" ]; then
+        log_error "Could not get container endpoint details from Terraform."
+        exit 1
+    fi
+    
+    # Try domain first if available, otherwise use FQDN, then IP
+    if [ -n "$DOMAIN_NAME" ] && [ "$DOMAIN_NAME" != "null" ]; then
+        # Check if domain resolves (basic DNS check)
+        if nslookup "$DOMAIN_NAME" > /dev/null 2>&1; then
+            ENDPOINT="https://${DOMAIN_NAME}"
+            log_info "Testing via domain: $ENDPOINT"
+        else
+            log_warn "Domain $DOMAIN_NAME does not resolve, using FQDN instead"
+            if [ -n "$ACI_FQDN" ]; then
+                ENDPOINT="http://${ACI_FQDN}"
+                log_info "Testing via FQDN: $ENDPOINT"
+            else
+                ENDPOINT="http://${ACI_IP}"
+                log_info "Testing via IP: $ENDPOINT"
+            fi
+        fi
+    elif [ -n "$ACI_FQDN" ]; then
+        ENDPOINT="http://${ACI_FQDN}"
+        log_info "Testing via FQDN: $ENDPOINT"
+    else
+        ENDPOINT="http://${ACI_IP}"
+        log_info "Testing via IP: $ENDPOINT"
+    fi
+    
+    echo ""
+    log_info "Testing root endpoint (/)..."
+    if curl -s -f -m 10 "$ENDPOINT/" > /dev/null 2>&1; then
+        log_info "✓ Root endpoint is responding"
+        curl -s -w "\nHTTP Status: %{http_code}\n" "$ENDPOINT/" | head -20
+    else
+        log_error "✗ Root endpoint failed or timed out"
+    fi
+    
+    echo ""
+    log_info "Testing health endpoint (/health)..."
+    if curl -s -f -m 10 "$ENDPOINT/health" > /dev/null 2>&1; then
+        log_info "✓ Health endpoint is responding"
+        curl -s -w "\nHTTP Status: %{http_code}\n" "$ENDPOINT/health"
+    else
+        log_warn "✗ Health endpoint failed or timed out (container might still be starting)"
+        log_info "Response:"
+        curl -s -w "\nHTTP Status: %{http_code}\n" "$ENDPOINT/health" || true
+    fi
+    
+    echo ""
+    log_info "Testing direct container access (bypassing Caddy)..."
+    if [ -n "$ACI_FQDN" ]; then
+        DIRECT_ENDPOINT="http://${ACI_FQDN}:8003"
+        log_info "Testing: $DIRECT_ENDPOINT/health"
+        if curl -s -f -m 10 "$DIRECT_ENDPOINT/health" > /dev/null 2>&1; then
+            log_info "✓ Direct container access is working"
+            curl -s -w "\nHTTP Status: %{http_code}\n" "$DIRECT_ENDPOINT/health"
+        else
+            log_warn "✗ Direct container access failed"
+            curl -s -w "\nHTTP Status: %{http_code}\n" "$DIRECT_ENDPOINT/health" || true
+        fi
+    fi
+    
+    echo ""
+    log_info "Testing MCP protocol endpoints..."
+    if [ -n "$ACI_FQDN" ]; then
+        MCP_ENDPOINT="http://${ACI_FQDN}:8003"
+    else
+        MCP_ENDPOINT="$ENDPOINT"
+    fi
+    
+    log_info "Testing MCP initialization endpoint..."
+    INIT_RESPONSE=$(curl -s -m 10 -X POST "$MCP_ENDPOINT/mcp" \
+        -H "Content-Type: application/json" \
+        -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test-client","version":"1.0"}}}' 2>&1)
+    
+    if echo "$INIT_RESPONSE" | grep -q "jsonrpc"; then
+        log_info "✓ MCP protocol endpoint is responding"
+        echo "$INIT_RESPONSE" | head -10
+    else
+        log_warn "✗ MCP protocol endpoint test failed (may require authentication)"
+        log_info "Response: $INIT_RESPONSE"
+    fi
+    
+    echo ""
+    log_info "Summary:"
+    log_info "  Application URL: $ENDPOINT"
+    log_info "  Health check: $ENDPOINT/health"
+    if [ -n "$ACI_FQDN" ]; then
+        log_info "  Direct access: http://${ACI_FQDN}:8003/health"
+        log_info "  MCP endpoint: http://${ACI_FQDN}:8003/mcp"
+    fi
+    log_info ""
+    log_info "To test MCP protocol with authentication, use an MCP client:"
+    log_info "  - MCP Inspector: https://modelcontextprotocol.io/inspector"
+    log_info "  - Or use the Python client from src/mcp_search/mcp_client.py"
+}
+
+show_outputs() {
+    log_info "Deployment outputs:"
+    cd "$SCRIPT_DIR"
+    terraform output
+}
+
+migrate_to_backend() {
+    log_info "Migrating Terraform state to Azure Storage backend..."
+    
+    cd "$SCRIPT_DIR"
+    
+    # Check if backend is configured
+    if ! grep -q 'backend "azurerm"' providers.tf 2>/dev/null || grep -q '^[[:space:]]*#.*backend "azurerm"' providers.tf 2>/dev/null; then
+        log_error "Backend is not configured in providers.tf"
+        log_info "Please uncomment and configure the backend block first"
+        exit 1
+    fi
+    
+    # Check if local state exists
+    if [ ! -f "terraform.tfstate" ] && [ ! -f ".terraform/terraform.tfstate" ]; then
+        log_warn "No local state file found. Initializing with backend..."
+        terraform init
+        return
+    fi
+    
+    log_info "Initializing backend and migrating state..."
+    terraform init -migrate-state
+    
+    if [ $? -eq 0 ]; then
+        log_info "State migration completed successfully!"
+        log_info "Your state is now stored in Azure Storage Account"
+        log_info "Local state has been backed up to terraform.tfstate.backup"
+    else
+        log_error "State migration failed"
+        exit 1
+    fi
+}
+
+create_backend_storage() {
+    log_info "Using existing storage account for Terraform backend..."
+    
+    cd "$SCRIPT_DIR"
+    
+    # Check if infrastructure is deployed
+    if ! terraform output -raw storage_account_name &>/dev/null; then
+        log_error "Storage account not found. Please deploy infrastructure first:"
+        log_info "  ./deploy.sh deploy"
+        exit 1
+    fi
+    
+    # Get storage account details from Terraform output
+    STORAGE_ACCOUNT_NAME=$(terraform output -raw storage_account_name)
+    RESOURCE_GROUP=$(terraform output -raw resource_group_name)
+    CONTAINER_NAME="tfstate"
+    
+    log_info "Found storage account: $STORAGE_ACCOUNT_NAME"
+    log_info "Resource group: $RESOURCE_GROUP"
+    
+    # Verify container exists (it should be created by Terraform)
+    log_info "Verifying container exists..."
+    if az storage container show \
+        --name "$CONTAINER_NAME" \
+        --account-name "$STORAGE_ACCOUNT_NAME" \
+        --auth-mode login \
+        --output none 2>/dev/null; then
+        log_info "Container '$CONTAINER_NAME' already exists"
+    else
+        log_info "Creating container: $CONTAINER_NAME"
+        az storage container create \
+            --name "$CONTAINER_NAME" \
+            --account-name "$STORAGE_ACCOUNT_NAME" \
+            --auth-mode login \
+            --output none
+        
+        if [ $? -ne 0 ]; then
+            log_error "Failed to create container"
+            exit 1
+        fi
+    fi
+    
+    log_info "Storage account ready for Terraform backend!"
+    echo ""
+    log_info "Next steps:"
+    echo "1. Update providers.tf backend block with:"
+    echo "   resource_group_name  = \"$RESOURCE_GROUP\""
+    echo "   storage_account_name = \"$STORAGE_ACCOUNT_NAME\""
+    echo "   container_name       = \"$CONTAINER_NAME\""
+    echo ""
+    echo "2. Run: ./deploy.sh migrate-backend"
+}
+
+# Main script
+usage() {
+    echo "Usage: $0 [command]"
+    echo ""
+    echo "Commands:"
+    echo "  init            - Initialize Terraform"
+    echo "  plan            - Plan infrastructure changes"
+    echo "  apply           - Apply infrastructure changes"
+    echo "  build           - Build and push Docker image to ACR"
+    echo "  restart         - Restart the container instance"
+    echo "  deploy          - Full deployment (handles fresh vs existing deployments)"
+    echo "  status          - Check container instance status and health"
+    echo "  test            - Test MCP endpoint with curl (health check)"
+    echo "  verify          - Comprehensive deployment verification (all checks)"
+    echo "  logs [container] [-f] [--analytics] - View container logs"
+    echo "                        container: search-mcp, mcp-search, caddy, or omit for all"
+    echo "                        -f: follow logs (live updates, container logs only)"
+    echo "                        --analytics: query Log Analytics (persistent logs)"
+    echo "  outputs         - Show Terraform outputs"
+    echo "  create-backend  - Show storage account details for Terraform backend"
+    echo "  migrate-backend - Migrate local state to Azure Storage backend"
+    echo "  destroy         - Destroy all infrastructure"
+    echo ""
+    echo "Log Examples:"
+    echo "  ./deploy.sh logs                    # View all container logs (real-time)"
+    echo "  ./deploy.sh logs mcp-search          # View MCP Search logs"
+    echo "  ./deploy.sh logs caddy               # View Caddy logs"
+    echo "  ./deploy.sh logs mcp-search -f       # Follow MCP Search logs (live)"
+    echo "  ./deploy.sh logs mcp-search --analytics # Query Log Analytics (persistent)"
+    echo ""
+}
+
+case "${1:-}" in
+    init)
+        check_prerequisites
+        init_terraform
+        ;;
+    plan)
+        check_prerequisites
+        plan_infrastructure
+        ;;
+    apply)
+        check_prerequisites
+        apply_infrastructure
+        ;;
+    build)
+        check_prerequisites
+        build_and_push_image
+        ;;
+    restart)
+        check_prerequisites
+        restart_container
+        ;;
+    deploy)
+        check_prerequisites
+        init_terraform
+        
+        # Check if this is a fresh deployment (no container group exists in state)
+        cd "$SCRIPT_DIR"
+        ACI_EXISTS=$(terraform state list 2>/dev/null | grep -q "azurerm_container_group.main" && echo "yes" || echo "no")
+        
+        if [ "$ACI_EXISTS" = "no" ]; then
+            log_info "Fresh deployment detected - creating infrastructure first, then building image..."
+            log_info "This prevents 'InaccessibleImage' errors by ensuring the image exists before creating the container group."
+            
+            # Fresh deployment: create infrastructure (excluding container group), build image, then create container group
+            apply_infrastructure_excluding_container_group
+            
+            log_info "Building and pushing Docker image..."
+            build_and_push_image
+            
+            log_info "Creating container group and any remaining resources now that image is available..."
+            # Do a full apply to create the container group and any conditional resources (like acr_pull)
+            terraform apply -auto-approve
+            
+            if [ $? -ne 0 ]; then
+                log_error "Failed to create container group."
+                exit 1
+            fi
+            
+            log_info "Deployment completed successfully!"
+        else
+            log_info "Container group exists - using standard deployment flow..."
+            # Existing deployment: plan, apply, build, restart
+            plan_infrastructure
+            apply_infrastructure
+            build_and_push_image
+            restart_container
+        fi
+        
+        show_outputs
+        ;;
+    status)
+        check_prerequisites
+        check_container_status
+        ;;
+    test)
+        check_prerequisites
+        test_mcp_endpoint
+        ;;
+    verify)
+        check_prerequisites
+        if [ ! -f "$SCRIPT_DIR/verify-deployment.sh" ]; then
+            log_error "verify-deployment.sh not found at $SCRIPT_DIR/verify-deployment.sh"
+            log_error "This file should be part of the repository."
+            log_info ""
+            log_info "To fix this issue:"
+            log_info "  1. Ensure you have the latest code: git pull"
+            log_info "  2. If the file is missing, check if it needs to be committed: git status"
+            log_info "  3. The file should be at: terraform/verify-deployment.sh"
+            exit 1
+        fi
+        if [ ! -x "$SCRIPT_DIR/verify-deployment.sh" ]; then
+            log_warn "verify-deployment.sh is not executable, making it executable..."
+            chmod +x "$SCRIPT_DIR/verify-deployment.sh"
+        fi
+        "$SCRIPT_DIR/verify-deployment.sh"
+        ;;
+    logs)
+        check_prerequisites
+        view_logs "$@"
+        ;;
+    outputs)
+        show_outputs
+        ;;
+    create-backend)
+        check_prerequisites
+        create_backend_storage
+        ;;
+    migrate-backend)
+        check_prerequisites
+        migrate_to_backend
+        ;;
+    destroy)
+        check_prerequisites
+        log_warn "This will destroy all infrastructure!"
+        read -p "Are you sure? (yes/no): " confirm
+        if [ "$confirm" == "yes" ]; then
+            cd "$SCRIPT_DIR"
+            terraform destroy
+        else
+            log_info "Destroy cancelled."
+        fi
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+esac
