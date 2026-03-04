@@ -124,12 +124,15 @@ jobs:
       - name: Get package versions
         id: versions
         run: |
-          SDK_VERSION=$(poetry version -s --directory unique_sdk)
-          TOOLKIT_VERSION=$(poetry version -s --directory unique_toolkit)
-          
+          get_version() {
+            grep -m1 '^version\s*=' "$1/pyproject.toml" | sed -E 's/.*"([^"]+)".*/\1/'
+          }
+          SDK_VERSION=$(get_version unique_sdk)
+          TOOLKIT_VERSION=$(get_version unique_toolkit)
+
           echo "sdk_version=$SDK_VERSION" >> $GITHUB_OUTPUT
           echo "toolkit_version=$TOOLKIT_VERSION" >> $GITHUB_OUTPUT
-          
+
           echo "📦 SDK version: $SDK_VERSION"
           echo "📦 Toolkit version: $TOOLKIT_VERSION"
 
