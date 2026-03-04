@@ -39,9 +39,10 @@ uv sync
 ```bash
 cp unique.env.example unique.env
 cp zitadel.env.example zitadel.env
+cp unique_mcp.env.example unique_mcp.env
 ```
 
-Fill in your credentials in both files:
+Fill in your credentials in all three files:
 
 **`unique.env`** — your Unique platform credentials:
 ```
@@ -61,11 +62,15 @@ ZITADEL_CLIENT_ID=<your-client-id>
 ZITADEL_CLIENT_SECRET=<your-client-secret>
 ```
 
-You also need the server settings:
-```bash
-export MCP_SERVER_BASE_URL="http://localhost:8003"
-export MCP_SERVER_LOCAL_BASE_URL="http://0.0.0.0:8003"
-export MCP_SERVER_TRANSPORT="streamable-http"
+**`unique_mcp.env`** — MCP server settings:
+```
+# Public URL clients use to reach the server (for OAuth callbacks, etc.)
+# For local dev with ngrok: https://your-subdomain.ngrok-free.app
+# Leave unset to default to LOCAL_BASE_URL
+UNIQUE_MCP_PUBLIC_BASE_URL=https://your-public-url.example.com
+
+# Local bind address
+UNIQUE_MCP_LOCAL_BASE_URL=http://127.0.0.1:8003
 ```
 
 ### 3. Run the server
@@ -74,7 +79,7 @@ export MCP_SERVER_TRANSPORT="streamable-http"
 # Source your env files
 set -a && source unique.env && source zitadel.env && set +a
 
-# Start the server
+# Start the server (unique_mcp.env is loaded automatically by the server)
 uv run mcp-search
 ```
 
