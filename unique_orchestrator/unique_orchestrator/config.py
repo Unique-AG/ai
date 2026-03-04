@@ -16,7 +16,6 @@ from unique_toolkit._common.validators import (
     ClipInt,
     get_LMI_default_field,
 )
-from unique_toolkit.agentic.claude_agent import ClaudeAgentConfig
 from unique_toolkit.agentic.evaluation.hallucination.constants import (
     HallucinationConfig,
 )
@@ -339,14 +338,6 @@ class ExperimentalConfig(BaseToolConfig):
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
 
     responses_api_config: SkipJsonSchema[ResponsesApiConfig] = ResponsesApiConfig()
-
-    claude_agent_config: ClaudeAgentConfig | None = Field(
-        default=None,
-        description=(
-            "If set, routes to Claude Agent SDK runner instead of the OpenAI completions/responses "
-            "pipeline. Explicit opt-in only — never auto-enabled by model name. See Decision B6."
-        ),
-    )
 
 
 class UniqueAIAgentConfig(BaseToolConfig):
