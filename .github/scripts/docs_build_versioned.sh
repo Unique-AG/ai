@@ -83,7 +83,7 @@ check_dependencies() {
 
 get_version_from_pyproject() {
     local project_dir=$1
-    grep -m1 '^version\s*=' "$project_dir/pyproject.toml" | sed -E 's/.*"([^"]+)".*/\1/'
+    grep -m1 '^version[[:space:]]*=' "$project_dir/pyproject.toml" | sed -E 's/.*"([^"]+)".*/\1/'
 }
 
 # Copy the versioned site into latest/ so that /latest/ and /latest/any/subpath/ both work
