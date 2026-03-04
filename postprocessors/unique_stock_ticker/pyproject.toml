@@ -51,7 +51,7 @@ ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/
 ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
 [tool.deptry]
-known_first_party = ["unique_stock_ticker", "settings"]
+known_first_party = ["unique_stock_ticker"]
 extend_exclude = ["unique_stock_ticker/detection/tests"]
 package_module_name_map = {"unique-six" = ["unique_six"]}
 

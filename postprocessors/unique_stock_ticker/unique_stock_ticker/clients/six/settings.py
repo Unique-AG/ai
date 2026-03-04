@@ -1,9 +1,10 @@
 import base64
 import logging
+import os
 from typing import NamedTuple
 
-from pydantic import BaseModel, RootModel
-from settings import env_settings
+from pydantic import RootModel
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from unique_toolkit._common.execution import failsafe
 
 logger = logging.getLogger(__name__)
@@ -22,9 +23,15 @@ SixApiCredentialsParser = RootModel[
 ]
 
 
-class SixApiSettings(BaseModel):
-    creds: str | None = env_settings.six_api_creds
-    company_ids: list[str] = env_settings.six_api_activated_companies
+class SixApiBaseSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=os.environ.get("UNIQUE_ENV_FILE") or None,
+        env_file_encoding="utf-8",
+        env_prefix="SIX_API_",
+        case_sensitive=False,
+    )
+    creds: str | None = None
+    activated_companies: list[str] = []
 
     @property
     @failsafe(failure_return_value={}, logger=logger)
@@ -48,13 +55,13 @@ class SixApiSettings(BaseModel):
             res = parsed_creds
             outdated_format = True
         else:
-            res = {company_id: parsed_creds for company_id in self.company_ids}
+            res = {company_id: parsed_creds for company_id in self.activated_companies}
 
         if outdated_format:
             logger.warning(
                 "Six API credentials supplied in an outdated format. Please update them."
             )
-            if len(self.company_ids) > 0:
+            if len(self.activated_companies) > 0:
                 logger.warning("Supplied companies will be ignored.")
 
         return res
@@ -63,4 +70,8 @@ class SixApiSettings(BaseModel):
         return self._loaded_creds.get(company_id, None)
 
 
-six_api_settings = SixApiSettings()
+def get_six_api_settings() -> SixApiBaseSettings:
+    return SixApiBaseSettings()
+
+
+six_api_settings = get_six_api_settings()
