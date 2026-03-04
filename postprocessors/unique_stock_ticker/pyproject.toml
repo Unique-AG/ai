@@ -19,6 +19,7 @@ unique-toolkit = "^1.38.3"
 unique-six = "^0.1.3"
 plotly = "^5.24.1"
 numerize = "^0.12"
+pyhumps = "^3.8.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -50,7 +51,7 @@ ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/
 ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
 [tool.deptry]
-known_first_party = ["unique_stock_ticker", "unique_six", "settings"]
+known_first_party = ["unique_stock_ticker", "settings"]
 extend_exclude = ["unique_stock_ticker/detection/tests"]
 
 [tool.basedpyright]
