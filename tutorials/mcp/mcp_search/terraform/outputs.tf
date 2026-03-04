@@ -83,6 +83,11 @@ output "aci_ip_address" {
   value       = azurerm_container_group.main.ip_address
 }
 
+output "base_name" {
+  description = "The base name used for the MCP Search container"
+  value       = var.base_name
+}
+
 # ============================================================================
 # Application URLs
 # ============================================================================
