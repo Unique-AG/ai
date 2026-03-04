@@ -163,9 +163,7 @@ def check(
         report = validator.validate_all(
             artifacts_dir, config_entries, fail_on_missing=fail_on_missing
         )
-        configs_with_changes = [
-            r for r in report.results if r.valid and r.default_changes
-        ]
+        configs_with_changes = [r for r in report.results if r.default_changes]
         total_default_changes = sum(
             len(r.default_changes or []) for r in configs_with_changes
         )
@@ -277,9 +275,7 @@ def _generate_markdown_report(
 
     # Default changes (if requested)
     if report_defaults:
-        configs_with_changes = [
-            r for r in report.results if r.valid and r.default_changes
-        ]
+        configs_with_changes = [r for r in report.results if r.default_changes]
         if configs_with_changes:
             lines.append("### 📊 Default Value Changes (non-breaking)\n")
             for result in configs_with_changes:
