@@ -53,6 +53,7 @@ ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/d
 [tool.deptry]
 known_first_party = ["unique_stock_ticker", "settings"]
 extend_exclude = ["unique_stock_ticker/detection/tests"]
+package_module_name_map = {"unique-six" = ["unique_six"]}
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
