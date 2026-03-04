@@ -1,48 +1,53 @@
-[tool.poetry]
+[project]
 name = "unique_sdk"
-version = "0.10.83"
+version = "0.10.84"
 description = ""
+readme = "README.md"
+license = { text = "MIT" }
 authors = [
-    "Martin Fadler <martin.fadler@unique.ch>",
-    "Konstantin Krauss <konstantin@unique.ch>",
-    "Andreas Hauri <andreas@unique.ch>",
+    { name = "Martin Fadler", email = "martin.fadler@unique.ch" },
+    { name = "Konstantin Krauss", email = "konstantin@unique.ch" },
+    { name = "Andreas Hauri", email = "andreas@unique.ch" },
 ]
-readme = ["README.md", "CHANGELOG.md"]
-license = "MIT"
 classifiers = [
     "Programming Language :: Python :: 3.11"
 ]
+requires-python = ">=3.11,<4"
+dependencies = [
+    "typing-extensions>=4.9.0,<5",
+    "requests>=2.32.3,<3",
+    "httpx>=0.28.0,<0.29",
+    "anyio>=4.0.0,<5",
+    "aiohttp>=3.9.0,<4",
+    "regex>=2024.5.15",
+    "tiktoken>=0.12.0,<0.13",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-typing-extensions = "^4.9.0"
-requests = "^2.32.3"
-httpx = "^0.28.0"
-anyio = "^4.0.0"
-aiohttp = "^3.9.0"
-regex = "^2024.5.15"
-tiktoken = "^0.12.0"
-openai = {version = "^1.105.0", optional = true}
-
-
-[tool.poetry.group.dev.dependencies]
-ruff = "0.11.7"
-pytest = "^8.0"
-tox = "^4.11.4"
-basedpyright = "^1.35.0"
-pytest-cov = "^4.1.0"
-pytest-asyncio = "^0.24.0"
-python-dotenv = "^1.1.0"
-ipykernel = "^7.1.0"
-deptry = "^0.24.0"
-poethepoet = "^0.32.0"
-
-[tool.poetry.extras]
-openai = ["openai"]
+[project.optional-dependencies]
+openai = [
+    "openai>=1.105.0,<2",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[dependency-groups]
+dev = [
+    "ruff==0.11.7",
+    "pytest>=8.0,<9",
+    "tox>=4.11.4,<5",
+    "basedpyright>=1.35.0,<2",
+    "pytest-cov>=4.1.0,<5",
+    "pytest-asyncio>=0.24.0,<0.25",
+    "python-dotenv>=1.1.0,<2",
+    "ipykernel>=7.1.0,<8",
+    "deptry>=0.24.0,<0.25",
+    "poethepoet>=0.32.0,<0.33",
+]
 
 [tool.deptry]
 known_first_party = ["unique_sdk"]
@@ -63,7 +68,7 @@ include = ["unique_sdk"]
 exclude = ["build", "**/__pycache__", "**/tests/**", "**/test_*.py"]
 
 [tool.poe.tasks]
-# Run from package directory: poetry run poe <task>
+# Run from package directory: uv run poe <task> (or poetry run poe <task>)
 lint = "ruff check ."
 lint-fix = "ruff check . --fix"
 format = "ruff format ."
