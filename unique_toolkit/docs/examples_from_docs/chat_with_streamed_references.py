@@ -53,7 +53,7 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     Whenever you use information retrieved with a tool, you must adhere to strict reference guidelines. 
     You must strictly reference each fact used with the `source_number` of the corresponding passage, in 
     the following format: '[source<order_number>]'.
-
+    
     Example:
     - The stock price of Apple Inc. is $150 [source0] and the company's revenue increased by 10% [source1].
     - Moreover, the company's market capitalization is $2 trillion [source2][source3].

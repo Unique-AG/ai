@@ -25,7 +25,7 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
 
     try:
         old_memory = chat_service.find_chat_memory(key="user_message")
-        print(old_memory.value)
+        print(old_memory)
     except Exception:
         print("No chat memory found with key 'user_message'")
 

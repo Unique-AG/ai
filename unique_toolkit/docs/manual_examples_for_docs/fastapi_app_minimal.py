@@ -1,18 +1,16 @@
-
+# %%
+# %%
 import logging
 from pathlib import Path
+
+from unique_toolkit import ChatService, KnowledgeBaseService, LanguageModelName
 from unique_toolkit.app.fast_api_factory import build_unique_custom_app
-from unique_toolkit import (
-    ChatService,
-    KnowledgeBaseService,
-    LanguageModelName,
-)
-from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.app.schemas import ChatEvent, EventName
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.framework_utilities.openai.message_builder import (
     OpenAIMessageBuilder,
 )
-from unique_toolkit.app.schemas import ChatEvent, EventName
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,7 +18,7 @@ logger = logging.getLogger(__name__)
 def chat_event_handler(event: ChatEvent) -> int:
     """
     Default event handler that echoes back the user's message.
-    
+
     This is a simple example that demonstrates:
     - Initializing services from the event
     - Building messages with OpenAIMessageBuilder
@@ -28,8 +26,8 @@ def chat_event_handler(event: ChatEvent) -> int:
     """
     # Initialize services from event
     chat_service = ChatService(event)
-    kb_service = KnowledgeBaseService.from_event(event)
-    
+    KnowledgeBaseService.from_event(event)
+
     # Build messages
     messages = (
         OpenAIMessageBuilder()
@@ -37,7 +35,7 @@ def chat_event_handler(event: ChatEvent) -> int:
         .user_message_append(content=event.payload.user_message.text)
         .messages
     )
-    
+
     # Complete with references
     chat_service.complete_with_references(
         messages=messages,
@@ -55,26 +53,26 @@ _SETTINGS.init_sdk()
 
 # Create app using factory
 _MINIMAL_APP = build_unique_custom_app(
-    title="Unique Minimal Chat App", 
+    title="Unique Minimal Chat App",
     settings=_SETTINGS,
     event_handler=chat_event_handler,
     event_constructor=ChatEvent,
-    subscribed_event_names=[EventName.EXTERNAL_MODULE_CHOSEN]
+    subscribed_event_names=[EventName.EXTERNAL_MODULE_CHOSEN],
 )
 
 
 if __name__ == "__main__":
     import logging
+
     import uvicorn
 
     # Initialize settings
-       
     # Enable debug logging
     logging.basicConfig(
         level=logging.DEBUG,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
-    
+
     uvicorn.run(
         "fastapi_app_minimal:_MINIMAL_APP",
         host="0.0.0.0",
@@ -82,4 +80,3 @@ if __name__ == "__main__":
         reload=True,
         log_level="debug",
     )
-
