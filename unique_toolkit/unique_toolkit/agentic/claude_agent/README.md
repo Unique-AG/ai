@@ -116,32 +116,60 @@ Step 5), no execution limits (SDK uses `max_turns`).
 
 ## Quick Start
 
-### Streaming demo (ANTHROPIC_API_KEY only)
+### Streaming demo
+
+The demo script lives at `examples/frameworks/claude_agent/demo_streaming.py`. It loads credentials from `.env.local` at **repo root** only — no need to `source` before running.
 
 ```bash
-# 1. Set up credentials
-cp .env.local.example .env.local      # repo root
-# Edit .env.local — fill in ANTHROPIC_API_KEY
+# 1. Set up credentials (repo root)
+cp .env.local.example .env.local
+# Edit .env.local — at minimum: ANTHROPIC_API_KEY
+# For KB/code scenarios: add UNIQUE_APP_KEY, UNIQUE_APP_ID, UNIQUE_API_BASE_URL,
+#   UNIQUE_AUTH_COMPANY_ID, UNIQUE_AUTH_USER_ID, UNIQUE_TEST_SCOPE_ID
 
-# 2. Load env and run
+# 2. Run from unique_toolkit
 cd unique_toolkit
-set -a && source ../.env.local && set +a
 poetry run python examples/frameworks/claude_agent/demo_streaming.py
 ```
 
-Expected output: Claude answers a question about test-driven development, streamed
-chunk by chunk to the terminal.
+**Scenarios** (pre-configured query + config):
+
+| Scenario | Command | What it does |
+|----------|--------|---------------|
+| `kb` (default) | `--scenario kb` | Multi-search KB analysis of Oklo Q3 2024 earnings call |
+| `code` | `--scenario code` | KB research + write `demo_output/investment_analysis.md` |
+| `web` | `--scenario web` | KB search + native WebSearch for Oklo/nuclear news |
+| `reasoning` | `--scenario reasoning` | Complex multi-step analytical task (ReAct depth) |
+
+**Optional flags** (can combine with any scenario):
+
+- `--query "Your question"` — override the scenario query
+- `--code-exec` — enable Bash/Write/Edit (file creation)
+- `--web-search` — enable native WebSearch
+- `--scope scope_xxx` — KB scope ID (default: `scope_eg5zj45yfe5vccqcgw0h939e`)
+- `--no-scope` — search entire KB (no scope filter)
+
+**Example:**
+
+```bash
+cd unique_toolkit
+poetry run python examples/frameworks/claude_agent/demo_streaming.py --scenario code
+poetry run python examples/frameworks/claude_agent/demo_streaming.py --query "Summarise the Morgan Stanley fund fact sheets" --web-search
+```
+
+**Expected output:** `[demo]` and `[claude-agent]` log lines (system prompt size, tool calls, tool results), then streamed reply. Tool results appear as `[tool] ← result: N chunks | [file1, ...]`.
 
 ### Integration tests
+
+Credentials are loaded from `.env.local` at repo root (or `.local-dev/unique.env.qa` as fallback). No need to `source` if that file exists.
 
 ```bash
 cd unique_toolkit
 
 # Level 1 — ANTHROPIC_API_KEY only (no platform connection):
-set -a && source ../.env.local && set +a
 poetry run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "L1"
 
-# Level 2 — real QA platform KB search (requires full .env.local):
+# Level 2 — real QA platform KB search (requires full .env.local with UNIQUE_* + UNIQUE_TEST_SCOPE_ID):
 poetry run pytest tests/agentic/claude_agent/test_integration.py::test_L2_kb_search_real_platform -v -s
 
 # Unit tests only (CI-safe, no API key needed):
@@ -153,7 +181,7 @@ poetry run pytest tests/agentic/claude_agent/ --ignore=tests/agentic/claude_agen
 ## Environment Setup
 
 Copy `.env.local.example` (repo root) to `.env.local` and fill in your values.
-`.env.local` is gitignored — it will never be committed.
+`.env.local` is gitignored — it will never be committed. The demo and integration tests load it from repo root automatically; you do not need to `source` it before running.
 
 | Variable | Required for | Description |
 |---|---|---|
