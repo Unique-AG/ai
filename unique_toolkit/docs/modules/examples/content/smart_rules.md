@@ -112,7 +112,8 @@ content_chunks = kb_service.search_content_chunks(
 <!--
 ```{.python file=./docs/.python_files/kb_content_chunk_search_with_smart_rule_on_folders.py }
 <<smart_rules_imports>>
-<<kb_service_setup>>
+<<common_imports>>
+<<initialize_kb_service_standalone>>
 <<load_demo_variables>>
 <<env_scope_id>>
 <<smart_rule_folder_content>>

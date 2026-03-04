@@ -1,21 +1,22 @@
+# %%
 import logging
 from pathlib import Path
 
 from unique_sdk.api_resources._agentic_table import ActivityStatus
 
-from docs.examples_from_docs.agentic_table_example_artifact_generated_event_handler import (
+from docs.manual_examples_for_docs.agentic_table_example_artifact_generated_event_handler import (
     handle_artifact_generated,
 )
-from docs.examples_from_docs.agentic_table_example_cell_updated_event_handler import (
+from docs.manual_examples_for_docs.agentic_table_example_cell_updated_event_handler import (
     handle_cell_updated,
 )
-from docs.examples_from_docs.agentic_table_example_metadata_added_event_handler import (
+from docs.manual_examples_for_docs.agentic_table_example_metadata_added_event_handler import (
     handle_metadata_added,
 )
-from docs.examples_from_docs.agentic_table_example_sheet_created_event_handler import (
+from docs.manual_examples_for_docs.agentic_table_example_sheet_created_event_handler import (
     handle_sheet_created,
 )
-from docs.examples_from_docs.agentic_table_helper_functions import (
+from docs.manual_examples_for_docs.agentic_table_helper_functions import (
     get_augmented_text_with_references_fn,
     get_downloader_fn,
     get_file_content_getter_fn,
@@ -94,10 +95,17 @@ async def agentic_table_event_handler(event: MagicTableEvent) -> int:
                 event.user_id, event.company_id, event.payload.chat_id
             )
             augmented_text_with_references_fn = get_augmented_text_with_references_fn(
-                event.user_id, event.company_id, event.payload.chat_id, event.payload.assistant_id
+                event.user_id,
+                event.company_id,
+                event.payload.chat_id,
+                event.payload.assistant_id,
             )
             await handle_metadata_added(
-                at_service, event.payload, downloader_fn, file_content_getter_fn, augmented_text_with_references_fn
+                at_service,
+                event.payload,
+                downloader_fn,
+                file_content_getter_fn,
+                augmented_text_with_references_fn,
             )
 
         elif event.payload.action == MagicTableAction.UPDATE_CELL:
@@ -183,7 +191,6 @@ if __name__ == "__main__":
     import uvicorn
 
     # Initialize settings
-
     # Enable debug logging
     logging.basicConfig(
         level=logging.DEBUG,
