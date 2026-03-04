@@ -68,7 +68,7 @@ include = ["unique_sdk"]
 exclude = ["build", "**/__pycache__", "**/tests/**", "**/test_*.py"]
 
 [tool.poe.tasks]
-# Run from package directory: uv run poe <task> (or poetry run poe <task>)
+# Run from package directory: uv run poe <task>
 lint = "ruff check ."
 lint-fix = "ruff check . --fix"
 format = "ruff format ."
