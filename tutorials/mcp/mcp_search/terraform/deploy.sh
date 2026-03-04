@@ -100,7 +100,7 @@ apply_infrastructure_excluding_container_group() {
     # This allows us to create ACR first, build the image, then create the container group
     # Note: acr_pull role assignment is excluded as it's conditional (only created if use_managed_identity_for_acr=true)
     #       It will be created automatically when the container group is created if needed
-    terraform apply \
+    if ! terraform apply \
         -target=azurerm_container_registry.main \
         -target=azurerm_key_vault.main \
         -target=azurerm_storage_account.main \
@@ -123,9 +123,7 @@ apply_infrastructure_excluding_container_group() {
         -target=azurerm_storage_share.caddy_data_staging \
         -target=azurerm_storage_share.caddy_config \
         -target=azurerm_storage_container.tfstate \
-        -auto-approve
-    
-    if [ $? -ne 0 ]; then
+        -auto-approve; then
         log_error "Failed to apply infrastructure (excluding container group)."
         exit 1
     fi
@@ -497,9 +495,7 @@ migrate_to_backend() {
     fi
     
     log_info "Initializing backend and migrating state..."
-    terraform init -migrate-state
-    
-    if [ $? -eq 0 ]; then
+    if terraform init -migrate-state; then
         log_info "State migration completed successfully!"
         log_info "Your state is now stored in Azure Storage Account"
         log_info "Local state has been backed up to terraform.tfstate.backup"
@@ -539,13 +535,11 @@ create_backend_storage() {
         log_info "Container '$CONTAINER_NAME' already exists"
     else
         log_info "Creating container: $CONTAINER_NAME"
-        az storage container create \
+        if ! az storage container create \
             --name "$CONTAINER_NAME" \
             --account-name "$STORAGE_ACCOUNT_NAME" \
             --auth-mode login \
-            --output none
-        
-        if [ $? -ne 0 ]; then
+            --output none; then
             log_error "Failed to create container"
             exit 1
         fi
@@ -634,10 +628,8 @@ case "${1:-}" in
             build_and_push_image
             
             log_info "Creating container group and any remaining resources now that image is available..."
-            # Do a full apply to create the container group and any conditional resources (like acr_pull)
-            terraform apply -auto-approve
-            
-            if [ $? -ne 0 ]; then
+            cd "$SCRIPT_DIR"
+            if ! terraform apply -auto-approve; then
                 log_error "Failed to create container group."
                 exit 1
             fi
