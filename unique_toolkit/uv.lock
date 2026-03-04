@@ -3142,7 +3142,7 @@ wheels = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.50.2"
+version = "1.50.3"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -3243,7 +3243,7 @@ provides-extras = ["langchain", "fastapi"]
 dev = [
     { name = "basedpyright", specifier = ">=1.33.0,<2" },
     { name = "deptry", specifier = ">=0.24.0,<0.25" },
-    { name = "entangled-cli", specifier = ">=2.4.0" },
+    { name = "entangled-cli", specifier = ">=2.4.0,<3" },
     { name = "ipykernel", specifier = ">=6.29.5,<7" },
     { name = "isort", specifier = ">=6.0.1,<7" },
     { name = "poethepoet", specifier = ">=0.32.0,<0.33" },
