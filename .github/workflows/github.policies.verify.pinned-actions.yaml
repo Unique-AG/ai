@@ -18,7 +18,7 @@ on:
 jobs:
   check-pinned-actions:
     name: Verify action SHAs are pinned
-    runs-on: pulsar-spark
+    runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
       - name: Checkout repository
