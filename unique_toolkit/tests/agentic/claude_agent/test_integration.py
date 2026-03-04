@@ -16,15 +16,15 @@ Setup:
 
 Run Level 1 only:
     cd unique_toolkit
-    ANTHROPIC_API_KEY=<key> poetry run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "L1"
+    ANTHROPIC_API_KEY=<key> uv run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "L1"
 
     Or with .env.local loaded:
     set -a && source ../.env.local && set +a
-    poetry run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "L1"
+    uv run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "L1"
 
 Run Level 2 (real platform):
     set -a && source ../.env.local && set +a
-    poetry run pytest tests/agentic/claude_agent/test_integration.py -v -s
+    uv run pytest tests/agentic/claude_agent/test_integration.py -v -s
 
 The -s flag is critical — it shows streaming output during tests.
 Each test costs ~$0.02–0.10 in API credits.

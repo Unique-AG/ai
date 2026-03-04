@@ -12,24 +12,24 @@ Where to put .env.local:  ~/ai/.env.local
 Usage
 -----
     # Default (KB analysis of Oklo Inc. Q3 2024 earnings):
-    poetry run python examples/frameworks/claude_agent/demo_streaming.py
+    uv run python examples/frameworks/claude_agent/demo_streaming.py
 
     # Named scenarios (each pre-configures query + ClaudeAgentConfig):
-    poetry run python examples/frameworks/claude_agent/demo_streaming.py --scenario kb
-    poetry run python examples/frameworks/claude_agent/demo_streaming.py --scenario code
-    poetry run python examples/frameworks/claude_agent/demo_streaming.py --scenario web
-    poetry run python examples/frameworks/claude_agent/demo_streaming.py --scenario reasoning
+    uv run python examples/frameworks/claude_agent/demo_streaming.py --scenario kb
+    uv run python examples/frameworks/claude_agent/demo_streaming.py --scenario code
+    uv run python examples/frameworks/claude_agent/demo_streaming.py --scenario web
+    uv run python examples/frameworks/claude_agent/demo_streaming.py --scenario reasoning
 
     # Override any scenario with a custom query:
-    poetry run python examples/frameworks/claude_agent/demo_streaming.py --query "What does Oklo say about AI data centers?"
+    uv run python examples/frameworks/claude_agent/demo_streaming.py --query "What does Oklo say about AI data centers?"
 
     # Toggle individual capabilities:
-    poetry run python examples/frameworks/claude_agent/demo_streaming.py --web-search
-    poetry run python examples/frameworks/claude_agent/demo_streaming.py --code-exec
-    poetry run python examples/frameworks/claude_agent/demo_streaming.py --no-scope
+    uv run python examples/frameworks/claude_agent/demo_streaming.py --web-search
+    uv run python examples/frameworks/claude_agent/demo_streaming.py --code-exec
+    uv run python examples/frameworks/claude_agent/demo_streaming.py --no-scope
 
     # Use a different KB scope:
-    poetry run python examples/frameworks/claude_agent/demo_streaming.py --scope scope_eg5zj45yfe5vccqcgw0h939e
+    uv run python examples/frameworks/claude_agent/demo_streaming.py --scope scope_eg5zj45yfe5vccqcgw0h939e
 
 Scenarios
 ---------
