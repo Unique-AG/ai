@@ -3424,7 +3424,7 @@ url = "../../unique_sdk"
 
 [[package]]
 name = "unique-six"
-version = "0.1.2"
+version = "0.1.3"
 description = "Unique Six API client"
 optional = false
 python-versions = "^3.12"
@@ -3438,7 +3438,7 @@ pydantic = "^2.12.4"
 pyopenssl = "^25.0.0"
 python-dotenv = "^1.0.1"
 requests = "^2.32.0"
-unique-toolkit = "^1.38.3"
+unique-toolkit = "^1.50.1"
 urllib3 = "^2.0.0"
 
 [package.source]
@@ -3655,4 +3655,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "c1623206be43f9725f5f30b44eb530e6fe63241777f0a5a2c2e1e323fb29f49a"
+content-hash = "a44d3677ec281e9449686b7796b9a87b3971aa37a17f2e99672a8bd659c772ed"
