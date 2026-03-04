@@ -19,7 +19,7 @@ on:
       - 'unique_toolkit/mkdocs.yaml'
       - 'tutorials/docs/**'
       - 'tutorials/mkdocs.yaml'
-      - 'scripts/docs_build_versioned.sh'
+      - '.github/scripts/docs_build_versioned.sh'
       - 'pyproject.toml'
       - '.github/workflows/docs_build_test.yaml'
 
@@ -34,4 +34,4 @@ jobs:
       - name: Install dependencies
         run: poetry install --with dev
       - name: Build versioned documentation
-        run: ./scripts/docs_build_versioned.sh --clean
+        run: ./.github/scripts/docs_build_versioned.sh --clean
