@@ -165,9 +165,6 @@ class ClaudeAgentConfig(BaseToolConfig):
 # are added dynamically in runner._build_options().
 BASE_ALLOWED_TOOLS = [
     "mcp__unique_platform__search_knowledge_base",
-    "mcp__unique_platform__web_search",
-    "mcp__unique_platform__list_chat_files",
-    "mcp__unique_platform__read_chat_file",
 ]
 
 BASE_DISALLOWED_TOOLS = ["WebFetch", "WebSearch"]

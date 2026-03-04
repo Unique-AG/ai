@@ -57,7 +57,6 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from .config import ClaudeAgentConfig, build_tool_policy
-from .history import format_history_as_text
 from .mcp_tools import build_unique_mcp_server
 from .prompts import PromptContext, build_system_prompt
 
@@ -73,9 +72,9 @@ class ClaudeAgentRunner:
     Returned by _build_claude_agent() in unique_ai_builder.py when
     experimental.claude_agent_config is explicitly set on UniqueAIConfig.
 
-    Bypasses UniqueAI.run() entirely (Decision A1 / Option C). Drives its own
-    turn: workspace → system prompt → history → SDK loop → post-processing.
-    Eval, postprocessing, and references always run after Claude exits.
+    Bypasses UniqueAI.run() entirely. Drives its own turn: workspace → system
+    prompt → history → SDK loop → post-processing. Eval, postprocessing, and
+    references always run after Claude exits.
 
     """
 
@@ -125,8 +124,7 @@ class ClaudeAgentRunner:
         Flow: workspace setup → prompt → history → options → Claude loop →
         post-processing → message completion → workspace persist → cleanup.
 
-        Each phase is isolated in a private method so that Step 3 (streaming loop)
-        and Step 2b (prompts/history) can be filled in independently.
+        Each phase is isolated in a private method for clear separation of concerns.
         """
         self._logger.info("Starting Claude Agent runner...")
 
@@ -134,7 +132,7 @@ class ClaudeAgentRunner:
 
         try:
             system_prompt = await self._build_system_prompt()
-            self._build_history()  # placeholder — Step 6b will pass structured history to SDK
+            self._build_history()  # history is injected as text in the system prompt for MVP
             options = self._build_options(
                 system_prompt=system_prompt,
                 workspace_dir=workspace_dir,
@@ -168,7 +166,7 @@ class ClaudeAgentRunner:
         """
         if not self._claude_config.enable_workspace_persistence:
             return None
-        # TODO (Step 7): delegate to workspace.fetch_workspace(
+        # TODO: delegate to workspace.fetch_workspace(
         #     content_service=self._content_service,
         #     chat_id=self._event.payload.chat_id,
         # )
@@ -207,9 +205,9 @@ class ClaudeAgentRunner:
 
         The Claude Agent SDK does not expose an OpenAI-style messages parameter.
         History must flow through the prompt itself — either as text (current
-        approach) or as a structured prompt iterable once Step 6b is implemented.
+        approach) or as a structured prompt iterable in a future implementation.
 
-        Two paths are planned post-MVP (Step 6b):
+        Two paths are planned post-MVP:
         - Platform-controlled: persist full turn (assistant + tool messages) to DB
           after each loop; replay as structured Anthropic-format messages via the
           _prompt_iter() async generator on the next turn. Preserves audit trail
@@ -224,12 +222,8 @@ class ClaudeAgentRunner:
         """Get formatted history text for system prompt injection."""
         if not self._claude_config.history_included:
             return ""
-
-        messages = self._history_manager.get_loop_history()
-        return format_history_as_text(
-            messages=messages,
-            max_interactions=self._claude_config.max_history_interactions,
-        )
+        # TODO: wire HistoryManager or DB-backed history in follow-up; for MVP no history injected
+        return ""
 
     def _get_user_metadata(self) -> dict[str, str]:
         """Extract user metadata from the event payload.
@@ -327,11 +321,11 @@ class ClaudeAgentRunner:
 
         Returns accumulated_text string consumed by _run_post_processing().
 
-        Current limitation (Step 6b): only the final text response is streamed
-        to the frontend. Intermediate tool-call events (KB search, Bash, Write,
-        etc.) are logged but not forwarded. Step 6b will add streaming of each
-        tool-call event to the frontend and persist the full turn (assistant +
-        tool messages) to the DB for structured multi-turn history replay.
+        Current limitation: only the final text response is streamed to the
+        frontend. Intermediate tool-call events (KB search, Bash, Write, etc.)
+        are logged but not forwarded. A future iteration will add streaming of
+        each tool-call event to the frontend and persist the full turn (assistant
+        + tool messages) to the DB for structured multi-turn history replay.
         """
         accumulated_text = ""
         tool_call_count = 0
@@ -445,7 +439,7 @@ class ClaudeAgentRunner:
             self._logger.error("Claude Agent SDK error: %s", e, exc_info=True)
             if not accumulated_text:
                 accumulated_text = (
-                    f"An error occurred while processing your request: {e}"
+                    "An error occurred while processing your request. Please try again."
                 )
 
         except Exception as e:
@@ -454,7 +448,7 @@ class ClaudeAgentRunner:
             )
             if not accumulated_text:
                 accumulated_text = (
-                    f"An error occurred while processing your request: {e}"
+                    "An error occurred while processing your request. Please try again."
                 )
 
         return accumulated_text
@@ -488,7 +482,7 @@ class ClaudeAgentRunner:
         )
 
         task_executor = SafeTaskExecutor(logger=self._logger)
-        # TODO (Step 4+): Replace [] with self._tool_manager.get_evaluation_check_list()
+        # TODO: Replace [] with self._tool_manager.get_evaluation_check_list()
         #   when MCP tools are configured.
         evaluation_task = task_executor.execute_async(
             self._evaluation_manager.run_evaluations,
@@ -509,7 +503,7 @@ class ClaudeAgentRunner:
     async def _persist_workspace(self, workspace_dir: Path) -> None:
         """Zip and upload workspace for next turn.
 
-        Implementation deferred to workspace.py integration (Step 7).
+        Implementation deferred to workspace.py integration.
         Pattern: zip workspace_dir → ContentService.upload_content_from_bytes(
             chat_id=self._event.payload.chat_id, skip_ingestion=True
         )
@@ -519,6 +513,6 @@ class ClaudeAgentRunner:
     def _cleanup_workspace(self, workspace_dir: Path) -> None:
         """Remove local workspace directory after persist completes.
 
-        Implementation deferred to Step 7. Pattern: shutil.rmtree(workspace_dir).
+        Implementation deferred to workspace.py. Pattern: shutil.rmtree(workspace_dir).
         """
         pass

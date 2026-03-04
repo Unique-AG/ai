@@ -13,7 +13,7 @@ prompt iterable — text injection is the simplest correct approach for MVP.
 
 Tool messages (LanguageModelToolMessage) are rendered inline after the assistant
 turn that triggered them, showing tool name, call arguments, and a truncated
-result so subsequent turns retain full trace context (Decision B9).
+result so subsequent turns retain full trace context.
 
 The truncation constants (_MAX_MESSAGE_CHARS, _TOOL_RESULT_MAX_CHARS) are
 intentionally hardcoded as private module constants for MVP. They are well-sized

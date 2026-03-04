@@ -164,7 +164,7 @@ class TestBuildToolPolicySkills:
 
 
 class TestBuildToolPolicyConstants:
-    def test_tool_policy_always_includes_platform_tools__kb_search_web_search_chat_files_in_allowed(
+    def test_tool_policy_always_includes_platform_tools__kb_search_in_allowed(
         self,
     ) -> None:
         """Test that platform tools are always in allowed regardless of other settings."""
@@ -173,9 +173,6 @@ class TestBuildToolPolicyConstants:
             allowed, _ = build_tool_policy(config)
 
             assert "mcp__unique_platform__search_knowledge_base" in allowed
-            assert "mcp__unique_platform__web_search" in allowed
-            assert "mcp__unique_platform__list_chat_files" in allowed
-            assert "mcp__unique_platform__read_chat_file" in allowed
 
     def test_tool_policy_always_blocks_builtin_web__web_fetch_web_search_in_disallowed(
         self,
