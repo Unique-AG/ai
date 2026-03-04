@@ -1,5 +1,5 @@
 # ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#docs/.python_files/chat_upload_to_chat.py>>[init]
-# ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
+# ~/~ begin <<docs/application_types/event_driven/index.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.app.init_sdk import init_unique_sdk
@@ -28,26 +28,26 @@ from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
 from unique_toolkit.chat.rendering import create_prompt_button_string, create_latex_formula_string
 # ~/~ end
-# ~/~ begin <<docs/application_types/event_driven_applications.md#unique_setup_settings_sdk_from_env>>[init]
+# ~/~ begin <<docs/application_types/event_driven/event_driven_with_sse.md#unique_setup_settings_sdk_from_env>>[init]
 settings = UniqueSettings.from_env_auto_with_sdk_init()
 # ~/~ end
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
 # ~/~ end
     settings.update_from_event(event)
-    # ~/~ begin <<docs/application_types/event_driven_applications.md#init_services_from_event>>[init]
+    # ~/~ begin <<docs/application_types/event_driven/index.md#init_services_from_event>>[init]
     # Initialize services from event
     chat_service = ChatService(event)
     kb_service= KnowledgeBaseService.from_event(event)
     # ~/~ end
-    # ~/~ begin <<docs/modules/examples/content/kb_service.md#load_demo_variables>>[init]
+    # ~/~ begin <<docs/application_types/demo_environment.md#load_demo_variables>>[init]
     from dotenv import dotenv_values
     demo_env_vars = dotenv_values(Path(__file__).parent/"demo.env")
     # ~/~ end
-    # ~/~ begin <<docs/modules/examples/content/kb_service.md#env_scope_id>>[init]
+    # ~/~ begin <<docs/application_types/demo_environment.md#env_scope_id>>[init]
     scope_id = demo_env_vars.get("UNIQUE_SCOPE_ID") or "unknown"
     # ~/~ end
     # ~/~ begin <<docs/tutorials/file_creation_and_upload_to_chat.md#upload_with_reference_initial_message>>[init]
-
+    
     assistant_message =chat_service.create_assistant_message(
         content="Hi there, the agent has started to create your document.",
     )
@@ -74,8 +74,8 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
             source_id=event.payload.chat_id,
             url=f"unique://content/{uploaded_content.id}",
         )
-
-
+    
+    
     chat_service.modify_assistant_message(
                     content="Please find the translated document below in the references.",
                     message_id=assistant_message.id, 
