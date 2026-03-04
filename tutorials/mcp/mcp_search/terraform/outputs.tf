@@ -98,11 +98,8 @@ output "test_endpoint_command" {
     # Test via domain (if DNS is configured)
     curl -v https://${var.domain_name}/health
     
-    # Or test via direct FQDN
+    # Or test via direct FQDN (Caddy proxies to container on port 8003 internally)
     curl -v http://${azurerm_container_group.main.fqdn}/health
-    
-    # Or test direct container access (bypassing Caddy)
-    curl -v http://${azurerm_container_group.main.fqdn}:8003/health
   EOF
 }
 

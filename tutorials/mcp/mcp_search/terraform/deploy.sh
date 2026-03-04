@@ -421,26 +421,8 @@ test_mcp_endpoint() {
     fi
     
     echo ""
-    log_info "Testing direct container access (bypassing Caddy)..."
-    if [ -n "$ACI_FQDN" ]; then
-        DIRECT_ENDPOINT="http://${ACI_FQDN}:8003"
-        log_info "Testing: $DIRECT_ENDPOINT/health"
-        if curl -s -f -m 10 "$DIRECT_ENDPOINT/health" > /dev/null 2>&1; then
-            log_info "✓ Direct container access is working"
-            curl -s -w "\nHTTP Status: %{http_code}\n" "$DIRECT_ENDPOINT/health"
-        else
-            log_warn "✗ Direct container access failed"
-            curl -s -w "\nHTTP Status: %{http_code}\n" "$DIRECT_ENDPOINT/health" || true
-        fi
-    fi
-    
-    echo ""
     log_info "Testing MCP protocol endpoints..."
-    if [ -n "$ACI_FQDN" ]; then
-        MCP_ENDPOINT="http://${ACI_FQDN}:8003"
-    else
-        MCP_ENDPOINT="$ENDPOINT"
-    fi
+    MCP_ENDPOINT="$ENDPOINT"
     
     log_info "Testing MCP initialization endpoint..."
     INIT_RESPONSE=$(curl -s -m 10 -X POST "$MCP_ENDPOINT/mcp" \
@@ -459,10 +441,9 @@ test_mcp_endpoint() {
     log_info "Summary:"
     log_info "  Application URL: $ENDPOINT"
     log_info "  Health check: $ENDPOINT/health"
-    if [ -n "$ACI_FQDN" ]; then
-        log_info "  Direct access: http://${ACI_FQDN}:8003/health"
-        log_info "  MCP endpoint: http://${ACI_FQDN}:8003/mcp"
-    fi
+    log_info "  MCP endpoint: $ENDPOINT/mcp"
+    log_info ""
+    log_info "Note: Port 8003 is only accessible internally (Caddy proxies 80/443 -> 8003)"
     log_info ""
     log_info "To test MCP protocol with authentication, use an MCP client:"
     log_info "  - MCP Inspector: https://modelcontextprotocol.io/inspector"
