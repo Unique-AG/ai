@@ -6,7 +6,7 @@ and serves it (with a 404 status) so JS-based redirects work locally the same
 way they do on GitHub Pages.
 
 Usage:
-    python scripts/serve_docs.py [port] [directory]
+    python .github/scripts/serve_docs.py [port] [directory]
 """
 
 import http.server

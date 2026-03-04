@@ -58,7 +58,7 @@ def search_content_chunks(
     Returns:
         list[ContentChunk]: The search results.
     """
-    if not scope_ids and not metadata_filter:
+    if not scope_ids:
         logger.warning("No scope IDs provided for search.")
 
     if content_ids:
@@ -106,7 +106,7 @@ async def search_content_chunks_async(
     """
     Performs an asynchronous search for content chunks in the knowledge base.
     """
-    if not scope_ids and not metadata_filter:
+    if not scope_ids:
         logger.warning("No scope IDs provided for search.")
 
     if content_ids:

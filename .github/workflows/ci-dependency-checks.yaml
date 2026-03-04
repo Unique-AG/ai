@@ -66,7 +66,7 @@ jobs:
         with:
           packages: |
             [
-              {"id": "toolkit",            "dir": "unique_toolkit",                            "python": "3.12"},
+              {"id": "toolkit",            "dir": "unique_toolkit",                            "python": "3.12", "extras": "fastapi"},
               {"id": "sdk",                "dir": "unique_sdk",                                "python": "3.11"},
               {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12"},
               {"id": "orchestrator",       "dir": "unique_orchestrator",                       "python": "3.12"},
@@ -97,3 +97,4 @@ jobs:
         with:
           package_dir: ${{ matrix.dir }}
           python_version: ${{ matrix.python }}
+          extras: ${{ matrix.extras }}

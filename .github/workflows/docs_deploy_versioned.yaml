@@ -28,7 +28,7 @@ on:
       # Workflow itself
       - '.github/workflows/docs_deploy_versioned.yaml'
       # Build script
-      - 'scripts/docs_build_versioned.sh'
+      - '.github/scripts/docs_build_versioned.sh'
 
   pull_request:
     branches:
@@ -43,7 +43,7 @@ on:
       - 'tutorials/docs/**'
       - 'tutorials/mkdocs.yaml'
       - '.github/workflows/docs_deploy_versioned.yaml'
-      - 'scripts/docs_build_versioned.sh'
+      - '.github/scripts/docs_build_versioned.sh'
 
   # Manual trigger
   workflow_dispatch:
@@ -124,12 +124,15 @@ jobs:
       - name: Get package versions
         id: versions
         run: |
-          SDK_VERSION=$(poetry version -s --directory unique_sdk)
-          TOOLKIT_VERSION=$(poetry version -s --directory unique_toolkit)
-          
+          get_version() {
+            grep -m1 '^version[[:space:]]*=' "$1/pyproject.toml" | sed -E 's/.*"([^"]+)".*/\1/'
+          }
+          SDK_VERSION=$(get_version unique_sdk)
+          TOOLKIT_VERSION=$(get_version unique_toolkit)
+
           echo "sdk_version=$SDK_VERSION" >> $GITHUB_OUTPUT
           echo "toolkit_version=$TOOLKIT_VERSION" >> $GITHUB_OUTPUT
-          
+
           echo "📦 SDK version: $SDK_VERSION"
           echo "📦 Toolkit version: $TOOLKIT_VERSION"
 
