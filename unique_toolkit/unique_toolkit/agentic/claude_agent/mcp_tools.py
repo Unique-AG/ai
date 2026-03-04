@@ -22,7 +22,12 @@ from claude_agent_sdk.types import McpSdkServerConfig
 
 from unique_toolkit.content.schemas import ContentSearchType
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.content.smart_rules import Operator, OrStatement, Statement
+from unique_toolkit.content.smart_rules import (
+    AndStatement,
+    Operator,
+    OrStatement,
+    Statement,
+)
 
 from .config import ClaudeAgentConfig
 
@@ -60,7 +65,7 @@ def _build_folder_path_filter(scope_ids: list[str]) -> dict[str, Any] | None:
     """
     if not scope_ids:
         return None
-    statements = [
+    statements: list[Statement | AndStatement | OrStatement] = [
         Statement(
             operator=Operator.CONTAINS,
             value=f"uniquepathid://{scope_id}",

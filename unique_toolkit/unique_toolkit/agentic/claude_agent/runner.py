@@ -52,6 +52,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressRepo
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.schemas import (
+    LanguageModelMessageRole,
     LanguageModelStreamResponse,
     LanguageModelStreamResponseMessage,
 )
@@ -474,7 +475,7 @@ class ClaudeAgentRunner:
             message=LanguageModelStreamResponseMessage(
                 id=self._event.payload.assistant_message.id,
                 previous_message_id=None,
-                role="assistant",
+                role=LanguageModelMessageRole.ASSISTANT,
                 text=claude_result,
                 original_text=claude_result,
             ),

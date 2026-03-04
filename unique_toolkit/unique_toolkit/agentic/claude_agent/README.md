@@ -129,7 +129,7 @@ cp .env.local.example .env.local
 
 # 2. Run from unique_toolkit
 cd unique_toolkit
-poetry run python examples/frameworks/claude_agent/demo_streaming.py
+uv run python examples/frameworks/claude_agent/demo_streaming.py
 ```
 
 **Scenarios** (pre-configured query + config):
@@ -153,8 +153,8 @@ poetry run python examples/frameworks/claude_agent/demo_streaming.py
 
 ```bash
 cd unique_toolkit
-poetry run python examples/frameworks/claude_agent/demo_streaming.py --scenario code
-poetry run python examples/frameworks/claude_agent/demo_streaming.py --query "Summarise the Morgan Stanley fund fact sheets" --web-search
+uv run python examples/frameworks/claude_agent/demo_streaming.py --scenario code
+uv run python examples/frameworks/claude_agent/demo_streaming.py --query "Summarise the Morgan Stanley fund fact sheets" --web-search
 ```
 
 **Expected output:** `[demo]` and `[claude-agent]` log lines (system prompt size, tool calls,
@@ -169,13 +169,13 @@ No need to `source` if that file exists.
 cd unique_toolkit
 
 # Level 1 — ANTHROPIC_API_KEY only (no platform connection):
-poetry run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "L1"
+uv run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "L1"
 
 # Level 2 — real platform KB search (requires full .env.local with UNIQUE_* + UNIQUE_TEST_SCOPE_ID):
-poetry run pytest tests/agentic/claude_agent/test_integration.py::test_L2_kb_search_real_platform -v -s
+uv run pytest tests/agentic/claude_agent/test_integration.py::test_L2_kb_search_real_platform -v -s
 
 # Unit tests only (CI-safe, no API key needed):
-poetry run pytest tests/agentic/claude_agent/ --ignore=tests/agentic/claude_agent/test_integration.py -v
+uv run pytest tests/agentic/claude_agent/ --ignore=tests/agentic/claude_agent/test_integration.py -v
 ```
 
 ---

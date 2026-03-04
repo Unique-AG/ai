@@ -477,11 +477,16 @@ class TestRunPostProcessing:
 
 
 class TestFormatHistory:
-    def test_format_history_uses_public_get_loop_history(self) -> None:
-        """_format_history() calls get_loop_history(), not ._loop_history directly."""
+    def test_format_history_returns_empty_until_wired(self) -> None:
+        """_format_history() returns empty string for MVP stub; does not call history_manager.
+
+        When history is wired (HistoryManager.get_loop_history + format_history_as_text),
+        this test should be updated to assert get_loop_history is called once.
+        """
         runner = _make_runner()
         runner._history_manager.get_loop_history = MagicMock(return_value=[])
 
-        runner._format_history()
+        result = runner._format_history()
 
-        runner._history_manager.get_loop_history.assert_called_once()
+        assert result == ""
+        runner._history_manager.get_loop_history.assert_not_called()
