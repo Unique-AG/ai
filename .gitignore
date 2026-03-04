@@ -184,3 +184,4 @@ monorepo-ref
 
 # JetBrains
 .idea
+.planning/
