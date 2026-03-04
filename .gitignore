@@ -184,3 +184,12 @@ monorepo-ref
 
 # JetBrains
 .idea
+
+# Demo script output
+demo_output/
+
+# Local development artifacts (credentials, scripts, research notes)
+.local-dev/
+
+# Cursor IDE project data
+.cursor/

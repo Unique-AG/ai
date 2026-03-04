@@ -14,3 +14,5 @@ ClaudeAgentOptions(cwd=workspace_dir) gives Claude a stable filesystem view
 across turns. The zip is keyed by chat_id so workspaces do not leak between
 conversations.
 """
+
+from __future__ import annotations

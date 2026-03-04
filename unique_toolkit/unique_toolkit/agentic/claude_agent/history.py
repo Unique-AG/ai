@@ -1,18 +1,24 @@
 """
 Conversation history text formatter for Claude Agent SDK integration.
 
-Converts platform LanguageModelMessage history into a simple human-readable
-text block that is injected into the system prompt. This matches Abi's Node
-implementation where history is passed as a CHAT_HISTORY_SECTION string rather
-than as structured Anthropic-format messages.
+Converts platform LanguageModelMessage history into a human-readable text block
+that is injected into the system prompt. This matches Abi's Node implementation
+where history is passed as a CHAT_HISTORY_SECTION string.
 
-Step 3 (B9): Tool messages (LanguageModelToolMessage) are now rendered inline
-after the assistant turn that triggered them, showing tool name, call arguments,
-and a truncated result so subsequent turns retain full trace context.
+Why text-in-prompt rather than a structured messages list?
+The Claude Agent SDK does not expose an OpenAI-style messages parameter. The
+only entry point is query(prompt=...) which drives the SDK's autonomous loop.
+Passing structured conversation history requires formatting it as part of the
+prompt iterable — text injection is the simplest correct approach for MVP.
 
-Future: structured Anthropic-format history (list of {role, content} dicts)
-will be returned by _build_history() once the SDK streaming loop is in place
-and we move past MVP.
+Tool messages (LanguageModelToolMessage) are rendered inline after the assistant
+turn that triggered them, showing tool name, call arguments, and a truncated
+result so subsequent turns retain full trace context (Decision B9).
+
+The truncation constants (_MAX_MESSAGE_CHARS, _TOOL_RESULT_MAX_CHARS) are
+intentionally hardcoded as private module constants for MVP. They are well-sized
+for typical platform interactions and can be promoted to ClaudeAgentConfig fields
+if per-assistant tuning becomes necessary.
 """
 
 from __future__ import annotations

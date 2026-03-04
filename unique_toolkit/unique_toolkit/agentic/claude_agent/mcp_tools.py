@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging as _logging
 from typing import TYPE_CHECKING, Any
 
 import unique_sdk
@@ -83,9 +84,10 @@ def _build_kb_search_tool(
         search_type = ContentSearchType.COMBINED
 
     scope_ids = list(claude_config.scope_ids)
-    # Use folderIdPath CONTAINS filter so subfolder content is included.
-    # Passing scope_ids= directly only matches the top-level scope and misses subfolders.
-    metadata_filter = _build_folder_path_filter(scope_ids)
+    # Use folderIdPath CONTAINS so scope + all subfolders are included (see access_kb_chunks_example).
+    # Passing scope_ids= to the API only matches the top-level scope and misses subfolders, so we pass
+    # only metadata_filter and scope_ids=None when we have a filter; empty scope_ids = entire KB.
+    metadata_filter = _build_folder_path_filter(scope_ids) if scope_ids else None
 
     @tool(
         "search_knowledge_base",
@@ -95,21 +97,29 @@ def _build_kb_search_tool(
     async def search_knowledge_base(args: dict[str, Any]) -> dict[str, Any]:
         query = args.get("search_query", "")
         try:
+            # When we have a scope filter, pass only metadata_filter (not scope_ids) so the API
+            # returns scope + subfolders. When no scope, pass both None = search entire KB.
             chunks = await asyncio.to_thread(
                 content_service.search_content_chunks,
                 query,
                 search_type,
                 10,
                 metadata_filter=metadata_filter,
+                scope_ids=None,
             )
             results = [
                 {
-                    "source_number": i + 1,
+                    "source_number": i,
                     "content": chunk.text,
                     "source": chunk.key or "unknown",
                 }
                 for i, chunk in enumerate(chunks)
             ]
+            _logging.getLogger("unique_toolkit.claude_agent").info(
+                "[tool]  ← result: %d chunks | [%s]",
+                len(results),
+                ", ".join(r["source"] for r in results[:3]),
+            )
             return {"content": [{"type": "text", "text": json.dumps(results)}]}
         except Exception as e:
             return {
@@ -151,20 +161,35 @@ def _create_proxy_tool(event: "ChatEvent", mcp_tool: "McpTool") -> SdkMcpTool[An
         mcp_tool.input_schema,
     )
     async def proxy_fn(args: dict[str, Any]) -> dict[str, Any]:
-        result = await unique_sdk.MCP.call_tool_async(
-            user_id=event.user_id,
-            company_id=event.company_id,
-            name=mcp_tool.name,
-            messageId=event.payload.assistant_message.id,
-            chatId=event.payload.chat_id,
-            arguments=args,
-        )
-        content_items: list[dict[str, Any]] = []
-        for item in result.content:
-            if item.get("type") == "text":
-                content_items.append({"type": "text", "text": item.get("text", "")})
-            else:
-                content_items.append({"type": "text", "text": json.dumps(item)})
-        return {"content": content_items or [{"type": "text", "text": "No results"}]}
+        try:
+            result = await unique_sdk.MCP.call_tool_async(
+                user_id=event.user_id,
+                company_id=event.company_id,
+                name=mcp_tool.name,
+                messageId=event.payload.assistant_message.id,
+                chatId=event.payload.chat_id,
+                arguments=args,
+            )
+            content_items: list[dict[str, Any]] = []
+            for item in result.content:
+                if item.get("type") == "text":
+                    content_items.append({"type": "text", "text": item.get("text", "")})
+                else:
+                    content_items.append({"type": "text", "text": json.dumps(item)})
+            return {
+                "content": content_items or [{"type": "text", "text": "No results"}]
+            }
+        except Exception as e:
+            _logging.getLogger("unique_toolkit.claude_agent").warning(
+                "Platform proxy tool %r failed: %s", mcp_tool.name, e
+            )
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"Tool {mcp_tool.name!r} returned an error: {e}",
+                    }
+                ]
+            }
 
     return proxy_fn

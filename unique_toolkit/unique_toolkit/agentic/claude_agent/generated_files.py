@@ -18,3 +18,5 @@ Responsibilities:
 These helpers are called after Claude's autonomous loop exits, before
 EvaluationManager, PostprocessorManager, and ReferenceManager run.
 """
+
+from __future__ import annotations

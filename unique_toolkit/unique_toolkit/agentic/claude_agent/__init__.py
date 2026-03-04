@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .config import ClaudeAgentConfig, build_tool_policy
 from .mcp_tools import build_unique_mcp_server
 from .prompts import PromptContext, build_system_prompt

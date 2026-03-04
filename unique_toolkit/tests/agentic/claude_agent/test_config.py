@@ -2,6 +2,8 @@
 Test suite for ClaudeAgentConfig and build_tool_policy.
 """
 
+from __future__ import annotations
+
 import pytest
 from pydantic import ValidationError
 

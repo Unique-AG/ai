@@ -8,15 +8,22 @@ conditions:
 Level 1: ANTHROPIC_API_KEY only — no Unique platform dependency.
 Level 2: ANTHROPIC_API_KEY + QA platform credentials + scope/chat IDs.
 
+Setup:
+    Copy .env.local.example (repo root) to .env.local and fill in your credentials.
+    Then load it before running:
+
+        set -a && source ../.env.local && set +a
+
 Run Level 1 only:
     cd unique_toolkit
     ANTHROPIC_API_KEY=<key> poetry run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "L1"
 
-Run all levels:
-    cd unique_toolkit
-    ANTHROPIC_API_KEY=<key> \\
-    UNIQUE_TEST_SCOPE_ID=scope_xxxx \\
-    UNIQUE_TEST_CHAT_ID=<chat_id> \\
+    Or with .env.local loaded:
+    set -a && source ../.env.local && set +a
+    poetry run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "L1"
+
+Run Level 2 (real platform):
+    set -a && source ../.env.local && set +a
     poetry run pytest tests/agentic/claude_agent/test_integration.py -v -s
 
 The -s flag is critical — it shows streaming output during tests.
@@ -41,7 +48,14 @@ from unique_toolkit.content.schemas import ContentChunk
 # Credentials setup
 # ─────────────────────────────────────────────────────────────────────────────
 
-_QA_ENV_FILE = Path(__file__).parents[4] / ".local-dev" / "unique.env.qa"
+# Credentials are loaded from .env.local at the repo root.
+# Copy .env.local.example → .env.local and fill in your values, then:
+#   set -a && source ../.env.local && set +a
+#
+# Legacy fallback: .local-dev/unique.env.qa is also accepted for backward
+# compatibility during the transition period.
+_ENV_LOCAL = Path(__file__).parents[4] / ".env.local"
+_ENV_QA_LEGACY = Path(__file__).parents[4] / ".local-dev" / "unique.env.qa"
 
 
 def _load_env_file(path: Path) -> dict[str, str]:
@@ -56,25 +70,38 @@ def _load_env_file(path: Path) -> dict[str, str]:
     return result
 
 
-_QA_ENV = _load_env_file(_QA_ENV_FILE)
+# Prefer .env.local; fall back to legacy QA env file if it exists
+_ENV = _load_env_file(_ENV_LOCAL) or _load_env_file(_ENV_QA_LEGACY)
 
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-UNIQUE_APP_KEY = _QA_ENV.get("UNIQUE_APP_KEY", "")
-UNIQUE_APP_ID = _QA_ENV.get("UNIQUE_APP_ID", "")
-UNIQUE_API_BASE_URL = _QA_ENV.get("UNIQUE_API_BASE_URL", "")
-UNIQUE_COMPANY_ID = _QA_ENV.get("UNIQUE_AUTH_COMPANY_ID", "")
-UNIQUE_USER_ID = _QA_ENV.get("UNIQUE_AUTH_USER_ID", "")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "") or _ENV.get(
+    "ANTHROPIC_API_KEY", ""
+)
+UNIQUE_APP_KEY = os.environ.get("UNIQUE_APP_KEY", "") or _ENV.get("UNIQUE_APP_KEY", "")
+UNIQUE_APP_ID = os.environ.get("UNIQUE_APP_ID", "") or _ENV.get("UNIQUE_APP_ID", "")
+UNIQUE_API_BASE_URL = os.environ.get("UNIQUE_API_BASE_URL", "") or _ENV.get(
+    "UNIQUE_API_BASE_URL", ""
+)
+UNIQUE_COMPANY_ID = os.environ.get("UNIQUE_AUTH_COMPANY_ID", "") or _ENV.get(
+    "UNIQUE_AUTH_COMPANY_ID", ""
+)
+UNIQUE_USER_ID = os.environ.get("UNIQUE_AUTH_USER_ID", "") or _ENV.get(
+    "UNIQUE_AUTH_USER_ID", ""
+)
 
-# Set via env: UNIQUE_TEST_SCOPE_ID=scope_v2c5urvrvslt5vw3epvkfw0g
-# Find in QA KB URL: https://next.qa.unique.app/knowledge-upload/<scope_id>
-UNIQUE_TEST_SCOPE_ID = os.environ.get("UNIQUE_TEST_SCOPE_ID", "")
+# Find scope_id in the QA KB URL: https://next.qa.unique.app/knowledge-upload/<scope_id>
+UNIQUE_TEST_SCOPE_ID = os.environ.get("UNIQUE_TEST_SCOPE_ID", "") or _ENV.get(
+    "UNIQUE_TEST_SCOPE_ID", ""
+)
 
-# Set via env: UNIQUE_TEST_CHAT_ID=<chat_id_from_qa_platform>
-# Find in QA chat URL: https://next.qa.unique.app/chat/<chat_id>
-UNIQUE_TEST_CHAT_ID = os.environ.get("UNIQUE_TEST_CHAT_ID", "")
+# Find chat_id in the QA chat URL: https://next.qa.unique.app/chat/<chat_id>
+UNIQUE_TEST_CHAT_ID = os.environ.get("UNIQUE_TEST_CHAT_ID", "") or _ENV.get(
+    "UNIQUE_TEST_CHAT_ID", ""
+)
 
 # Defaults to a synthetic value — platform may or may not validate this
-UNIQUE_TEST_MSG_ID = os.environ.get("UNIQUE_TEST_MSG_ID", "msg-integration-001")
+UNIQUE_TEST_MSG_ID = os.environ.get("UNIQUE_TEST_MSG_ID", "") or _ENV.get(
+    "UNIQUE_TEST_MSG_ID", "msg-integration-001"
+)
 
 needs_anthropic = pytest.mark.skipif(
     not ANTHROPIC_API_KEY,
@@ -99,15 +126,19 @@ def _make_live_runner(
     claude_config: ClaudeAgentConfig | None = None,
     content_service: object = None,
     mcp_servers: list | None = None,
+    chat_id: str = "integration-test-001",
+    msg_id: str = "integration-msg-001",
+    company_id: str | None = None,
+    user_id: str | None = None,
 ) -> tuple[ClaudeAgentRunner, list[str]]:
     """Construct a ClaudeAgentRunner with no SDK mocking — real API calls."""
     mock_event = MagicMock()
-    mock_event.payload.chat_id = "integration-test-001"
-    mock_event.payload.assistant_message.id = "integration-msg-001"
+    mock_event.payload.chat_id = chat_id
+    mock_event.payload.assistant_message.id = msg_id
     mock_event.payload.user_metadata = None
     mock_event.payload.mcp_servers = mcp_servers or []
-    mock_event.user_id = UNIQUE_USER_ID or "test-user"
-    mock_event.company_id = UNIQUE_COMPANY_ID or "test-company"
+    mock_event.user_id = user_id or UNIQUE_USER_ID or "test-user"
+    mock_event.company_id = company_id or UNIQUE_COMPANY_ID or "test-company"
 
     chunks: list[str] = []
     chat_service = MagicMock()
@@ -129,7 +160,7 @@ def _make_live_runner(
             claude_config=claude_config
             or ClaudeAgentConfig(
                 system_prompt_override="You are a concise assistant. Answer in plain text.",
-                model="claude-sonnet-4-5",
+                model="claude-sonnet-4-6",
                 max_turns=5,
                 permission_mode="bypassPermissions",
             ),
@@ -257,7 +288,7 @@ async def test_L1_code_execution() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         config = ClaudeAgentConfig(
             system_prompt_override="You are a coding assistant. Use Bash and Write tools freely.",
-            model="claude-sonnet-4-5",
+            model="claude-sonnet-4-6",
             max_turns=5,
             permission_mode="bypassPermissions",
             enable_code_execution=True,
@@ -272,7 +303,8 @@ async def test_L1_code_execution() -> None:
         print("\n\n--- Code Execution Test Output ---")
         result = await runner._run_claude_loop(
             prompt=(
-                "Create a file called hello.txt containing the text "
+                "Create a file called hello.txt in the current working directory "
+                "(use a relative path like ./hello.txt, NOT /tmp/) containing the text "
                 "'Hello from Claude Agent!', then read it back and confirm its contents."
             ),
             options=options,
@@ -301,7 +333,11 @@ async def test_L1_web_search_proxy_graceful_degradation() -> None:
     fake_tool = MagicMock()
     fake_tool.name = "web_search"
     fake_tool.description = "Search the web for current information."
-    fake_tool.input_schema = {"query": str}
+    fake_tool.input_schema = {
+        "type": "object",
+        "properties": {"query": {"type": "string"}},
+        "required": ["query"],
+    }
     fake_tool.is_connected = True
 
     fake_server = MagicMock()
@@ -348,7 +384,7 @@ async def test_L2_kb_search_real_platform() -> None:
             "You are a knowledge base assistant. "
             "Always use the search_knowledge_base tool to answer questions."
         ),
-        model="claude-sonnet-4-5",
+        model="claude-sonnet-4-6",
         max_turns=5,
         permission_mode="bypassPermissions",
         scope_ids=[UNIQUE_TEST_SCOPE_ID],
@@ -407,58 +443,33 @@ async def test_L2_web_search_via_mcp_proxy() -> None:
     fake_tool = MagicMock()
     fake_tool.name = "web_search"
     fake_tool.description = "Search the web for current information given a query."
-    fake_tool.input_schema = {"query": str}
+    fake_tool.input_schema = {
+        "type": "object",
+        "properties": {"query": {"type": "string"}},
+        "required": ["query"],
+    }
     fake_tool.is_connected = True
 
     fake_server = MagicMock()
     fake_server.tools = [fake_tool]
-
-    # Build a custom mock_event that uses real QA IDs for the proxy call
-    mock_event = MagicMock()
-    mock_event.payload.chat_id = UNIQUE_TEST_CHAT_ID
-    mock_event.payload.assistant_message.id = UNIQUE_TEST_MSG_ID
-    mock_event.payload.user_metadata = None
-    mock_event.payload.mcp_servers = [fake_server]
-    mock_event.user_id = UNIQUE_USER_ID
-    mock_event.company_id = UNIQUE_COMPANY_ID
-
-    chunks: list[str] = []
-    chat_service = MagicMock()
-
-    async def _stream(content: str | None = None, **kwargs: object) -> None:
-        if content is not None:
-            chunks.append(content)
-            prev = chunks[-2] if len(chunks) > 1 else ""
-            delta = content[len(prev) :]
-            print(delta, end="", flush=True)
-
-    chat_service.modify_assistant_message_async = AsyncMock(side_effect=_stream)
 
     config = ClaudeAgentConfig(
         system_prompt_override=(
             "You are a research assistant. "
             "Use the web_search tool to answer questions about current events."
         ),
-        model="claude-sonnet-4-5",
+        model="claude-sonnet-4-6",
         max_turns=5,
         permission_mode="bypassPermissions",
     )
 
-    runner = ClaudeAgentRunner(
-        event=mock_event,
-        logger=logging.getLogger("integration.web_search"),
-        config=MagicMock(),
+    runner, chunks = _make_live_runner(
         claude_config=config,
-        chat_service=chat_service,
-        content_service=MagicMock(),
-        evaluation_manager=MagicMock(),
-        postprocessor_manager=MagicMock(),
-        reference_manager=MagicMock(),
-        thinking_manager=MagicMock(),
-        tool_progress_reporter=MagicMock(),
-        message_step_logger=MagicMock(),
-        history_manager=MagicMock(),
-        debug_info_manager=MagicMock(),
+        mcp_servers=[fake_server],
+        chat_id=UNIQUE_TEST_CHAT_ID,
+        msg_id=UNIQUE_TEST_MSG_ID,
+        company_id=UNIQUE_COMPANY_ID,
+        user_id=UNIQUE_USER_ID,
     )
 
     options = runner._build_options(

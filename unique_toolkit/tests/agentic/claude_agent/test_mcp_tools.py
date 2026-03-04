@@ -21,7 +21,7 @@ from unique_toolkit.agentic.claude_agent.mcp_tools import (
     _create_proxy_tool,
     build_unique_mcp_server,
 )
-from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.content.schemas import ContentChunk, ContentSearchType
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -92,10 +92,10 @@ class TestBuildKbSearchTool:
         assert len(result["content"]) == 1
         parsed = json.loads(result["content"][0]["text"])
         assert len(parsed) == 2
-        assert parsed[0]["source_number"] == 1
+        assert parsed[0]["source_number"] == 0
         assert parsed[0]["content"] == "Interest rates rose sharply."
         assert parsed[0]["source"] == "report_2024.pdf"
-        assert parsed[1]["source_number"] == 2
+        assert parsed[1]["source_number"] == 1
         assert parsed[1]["source"] == "report_q3.pdf"
 
     def test_kb_search_handles_empty_results(self) -> None:
@@ -134,8 +134,6 @@ class TestBuildKbSearchTool:
         kb_tool = _build_kb_search_tool(content_service, config)
         asyncio.run(kb_tool.handler({"search_query": "test"}))
 
-        from unique_toolkit.content.schemas import ContentSearchType
-
         call_kwargs = content_service.search_content_chunks.call_args
         assert call_kwargs.args[1] == ContentSearchType.VECTOR
 
@@ -146,9 +144,6 @@ class TestBuildKbSearchTool:
         config = ClaudeAgentConfig(search_type="UNSUPPORTED_TYPE")
 
         kb_tool = _build_kb_search_tool(content_service, config)
-
-        from unique_toolkit.content.schemas import ContentSearchType
-
         asyncio.run(kb_tool.handler({"search_query": "test"}))
         call_kwargs = content_service.search_content_chunks.call_args
         assert call_kwargs.args[1] == ContentSearchType.COMBINED

@@ -9,12 +9,19 @@ subprocess is spawned.
 Naming convention: test_<method>_<scenario>_<expected>
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from claude_agent_sdk import AssistantMessage, ClaudeSDKError
-from claude_agent_sdk.types import ResultMessage, StreamEvent, ToolUseBlock
+from claude_agent_sdk.types import (
+    McpSdkServerConfig,
+    ResultMessage,
+    StreamEvent,
+    ToolUseBlock,
+)
 
 from unique_toolkit.agentic.claude_agent.config import ClaudeAgentConfig
 from unique_toolkit.agentic.claude_agent.runner import ClaudeAgentRunner
@@ -202,10 +209,6 @@ class TestBuildOptions:
 
     def test_build_options_includes_mcp_servers(self) -> None:
         """options dict contains 'mcp_servers' with the 'unique_platform' key."""
-        from unittest.mock import MagicMock
-
-        from claude_agent_sdk.types import McpSdkServerConfig
-
         runner = _make_runner()
         mock_sdk_config = MagicMock(spec=McpSdkServerConfig)
         runner._build_mcp_server = MagicMock(return_value=mock_sdk_config)

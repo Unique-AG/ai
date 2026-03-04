@@ -263,7 +263,7 @@ def _build_claude_agent(
     Called by build_unique_ai() when claude_agent_config is explicitly set on
     ExperimentalConfig. Synchronous — no async setup needed at construction time.
 
-    The runner bypasses UniqueAI.run() entirely (Decision A1 / Option C) and drives
+    The runner bypasses UniqueAI.run() entirely and drives
     its own turn: workspace → prompt → history → SDK loop → post-processing.
     Eval, postprocessing, and references are applied after Claude exits, preserving
     all platform features that Abi's Node implementation omits.

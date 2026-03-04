@@ -1,22 +1,16 @@
 """
 Claude Agent runner — orchestrates a single Claude Agent SDK turn.
 
-This module is the core deliverable of Step 2a (structure) and Step 3 (SDK loop).
-It provides:
-
 - ClaudeAgentRunner: returned by _build_claude_agent() in unique_ai_builder.py.
   Its run() method drives the full turn lifecycle:
     workspace setup → system prompt → history → options → Claude SDK loop →
     post-processing → message completion → workspace persist → cleanup.
 
 Design constraints (enforce throughout):
-- cwd and env are always passed as parameters, never hardcoded. This keeps the
-  runner sandbox-agnostic for WI-4 / A3 future work.
+- cwd and env are always passed as parameters, never hardcoded.
 - The runner lives in unique_toolkit and must NOT import orchestrator internals
   (e.g. _CommonComponents). Services are injected individually.
 
-Step 3 adds the claude-agent-sdk dependency and implements _run_claude_loop()
-and _run_post_processing().
 """
 
 from __future__ import annotations
@@ -64,6 +58,7 @@ from unique_toolkit.language_model.schemas import (
 
 from .config import ClaudeAgentConfig, build_tool_policy
 from .history import format_history_as_text
+from .mcp_tools import build_unique_mcp_server
 from .prompts import PromptContext, build_system_prompt
 
 if TYPE_CHECKING:
@@ -80,10 +75,8 @@ class ClaudeAgentRunner:
 
     Bypasses UniqueAI.run() entirely (Decision A1 / Option C). Drives its own
     turn: workspace → system prompt → history → SDK loop → post-processing.
-    Eval, postprocessing, and references always run after Claude exits — this is
-    the key advantage over Abi's Node implementation which omits all three.
+    Eval, postprocessing, and references always run after Claude exits.
 
-    See: .local-dev/claude_sdk_integration/proposals/001-streaming-contract-v2.md §A1
     """
 
     def __init__(
@@ -141,7 +134,7 @@ class ClaudeAgentRunner:
 
         try:
             system_prompt = await self._build_system_prompt()
-            history = self._build_history()  # noqa: F841 — passed to SDK in Step 2b/3
+            self._build_history()  # placeholder — Step 6b will pass structured history to SDK
             options = self._build_options(
                 system_prompt=system_prompt,
                 workspace_dir=workspace_dir,
@@ -150,6 +143,7 @@ class ClaudeAgentRunner:
             claude_result = await self._run_claude_loop(
                 prompt=self._event.payload.user_message.text,
                 options=options,
+                verbose=self._claude_config.verbose_logging,
             )
 
             await self._run_post_processing(claude_result)
@@ -170,7 +164,7 @@ class ClaudeAgentRunner:
         """Fetch and extract workspace zip if persistence is enabled.
 
         Returns the workspace directory path, or None if persistence is disabled.
-        Implementation deferred to workspace.py integration (Step 7).
+        Implementation deferred to workspace.py integration.
         """
         if not self._claude_config.enable_workspace_persistence:
             return None
@@ -184,8 +178,7 @@ class ClaudeAgentRunner:
         """Compose the system prompt from platform context.
 
         Returns system_prompt_override verbatim when set. Otherwise builds
-        a structured prompt via build_system_prompt() matching Abi's
-        buildClaudeAgentSystemPrompt() output.
+        a structured prompt via build_system_prompt().
         """
         if self._claude_config.system_prompt_override:
             return self._claude_config.system_prompt_override
@@ -206,12 +199,24 @@ class ClaudeAgentRunner:
         return build_system_prompt(context)
 
     def _build_history(self) -> list[dict[str, Any]]:
-        """Return placeholder for future structured Anthropic-format history.
+        """Return placeholder for future structured conversation history.
 
-        For MVP, history is injected as a text section inside the system prompt
-        via _format_history() / _build_system_prompt(). Structured Anthropic
-        messages ([{role, content}]) will be returned here in a later step once
-        the SDK streaming loop (Step 3) is in place.
+        For MVP, history is injected as a text block inside the system prompt via
+        _format_history() / _build_system_prompt(). This differs from the OpenAI
+        completions path where a messages list is passed directly to the model.
+
+        The Claude Agent SDK does not expose an OpenAI-style messages parameter.
+        History must flow through the prompt itself — either as text (current
+        approach) or as a structured prompt iterable once Step 6b is implemented.
+
+        Two paths are planned post-MVP (Step 6b):
+        - Platform-controlled: persist full turn (assistant + tool messages) to DB
+          after each loop; replay as structured Anthropic-format messages via the
+          _prompt_iter() async generator on the next turn. Preserves audit trail
+          and gives us full control.
+        - SDK-native: use session_id / continue_conversation in ClaudeAgentConfig
+          to let the SDK manage conversation state itself. Simpler, but bypasses
+          our DB persistence and audit logging.
         """
         return []
 
@@ -240,8 +245,6 @@ class ClaudeAgentRunner:
 
     def _build_mcp_server(self) -> McpSdkServerConfig:
         """Build the unified MCP server with KB search + platform proxy tools."""
-        from .mcp_tools import build_unique_mcp_server
-
         return build_unique_mcp_server(
             content_service=self._content_service,
             claude_config=self._claude_config,
@@ -264,6 +267,9 @@ class ClaudeAgentRunner:
             "permission_mode": self._claude_config.permission_mode,
             "allowed_tools": allowed_tools,
             "disallowed_tools": disallowed_tools,
+            # ANTHROPIC_API_KEY is forwarded to the SDK subprocess via env rather
+            # than passed as a constructor argument. The subprocess inherits this
+            # dict, not the parent process environment, so it must be explicit.
             "env": {
                 "ANTHROPIC_API_KEY": os.getenv("ANTHROPIC_API_KEY", ""),
                 **self._claude_config.extra_env,
@@ -308,6 +314,7 @@ class ClaudeAgentRunner:
         self,
         prompt: str,
         options: dict[str, Any],
+        verbose: bool = False,
     ) -> str:
         """Run the Claude Agent SDK query loop and stream results to the frontend.
 
@@ -319,6 +326,12 @@ class ClaudeAgentRunner:
         - SDK errors → log, set user-facing error message, do NOT re-raise
 
         Returns accumulated_text string consumed by _run_post_processing().
+
+        Current limitation (Step 6b): only the final text response is streamed
+        to the frontend. Intermediate tool-call events (KB search, Bash, Write,
+        etc.) are logged but not forwarded. Step 6b will add streaming of each
+        tool-call event to the frontend and persist the full turn (assistant +
+        tool messages) to the DB for structured multi-turn history replay.
         """
         accumulated_text = ""
         tool_call_count = 0
@@ -348,10 +361,13 @@ class ClaudeAgentRunner:
                     "parent_tool_use_id": None,
                 }
 
+            turn = 0
             async for message in query(prompt=_prompt_iter(), options=sdk_options):
                 if isinstance(message, StreamEvent):
                     event = message.event
-                    if event.get("type") == "content_block_delta":
+                    event_type = event.get("type", "unknown")
+
+                    if event_type == "content_block_delta":
                         delta = event.get("delta", {})
                         if delta.get("type") == "text_delta":
                             text = delta.get("text", "")
@@ -360,18 +376,48 @@ class ClaudeAgentRunner:
                                 await self._chat_service.modify_assistant_message_async(
                                     content=accumulated_text
                                 )
+                    elif event_type == "message_start":
+                        turn += 1
+                        if verbose:
+                            usage = event.get("message", {}).get("usage", {})
+                            self._logger.info(
+                                "[claude-agent] ← message_start | turn=%d | input_tokens=%s",
+                                turn,
+                                usage.get("input_tokens", "?"),
+                            )
+                    elif event_type == "message_stop":
+                        if verbose:
+                            self._logger.info(
+                                "[claude-agent] ← message_stop | turn=%d | streamed=%d chars",
+                                turn,
+                                len(accumulated_text),
+                            )
+                    elif verbose and event_type not in (
+                        "content_block_start",
+                        "content_block_stop",
+                        "ping",
+                    ):
+                        self._logger.debug("[claude-agent] ← event type=%s", event_type)
 
                 elif isinstance(message, AssistantMessage):
                     for block in message.content:
                         if isinstance(block, ToolUseBlock):
                             tool_call_count += 1
-                            input_preview = str(block.input)[:200]
-                            self._logger.debug(
-                                "Claude agent tool call #%d: %s | input: %s",
-                                tool_call_count,
-                                block.name,
-                                input_preview,
-                            )
+                            input_preview = str(block.input)[:300]
+                            if verbose:
+                                self._logger.info(
+                                    "[claude-agent] → tool_call #%d | tool=%s | input=%s",
+                                    tool_call_count,
+                                    block.name,
+                                    input_preview,
+                                )
+                            else:
+                                self._logger.debug(
+                                    "Claude agent tool call #%d: %s | input: %s",
+                                    tool_call_count,
+                                    block.name,
+                                    input_preview,
+                                )
                             if block.name == "TodoWrite":
                                 todos = (block.input or {}).get("todos", [])
                                 for todo in todos:
@@ -384,6 +430,14 @@ class ClaudeAgentRunner:
                                     )
 
                 elif isinstance(message, ResultMessage):
+                    if verbose:
+                        usage = getattr(message, "usage", None)
+                        self._logger.info(
+                            "[claude-agent] ← result | tool_calls=%d | final_text=%d chars%s",
+                            tool_call_count,
+                            len(accumulated_text),
+                            f" | usage={usage}" if usage else "",
+                        )
                     if message.result and not accumulated_text:
                         accumulated_text = message.result
 

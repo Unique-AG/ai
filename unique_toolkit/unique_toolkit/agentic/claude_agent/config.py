@@ -11,7 +11,6 @@ class ClaudeAgentConfig(BaseToolConfig):
     """Configuration for Claude Agent SDK integration.
 
     Maps to ClaudeAgentOptions in the claude-agent-sdk Python package.
-    See CLAUDE_AGENT_SDK_GUIDE.md §3 for the full parameter reference.
     """
 
     # ─── Model & Reasoning ───
@@ -133,6 +132,12 @@ class ClaudeAgentConfig(BaseToolConfig):
     continue_conversation: bool = Field(
         default=False,
         description="Continue from previous session (requires session_id).",
+    )
+
+    # ─── Logging ───
+    verbose_logging: bool = Field(
+        default=False,
+        description="Emit INFO-level structured logs for every event in the agent loop. Useful for demos and debugging.",
     )
 
     # ─── Advanced / Deployment ───
