@@ -23,7 +23,7 @@ set -euo pipefail
 # ============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 OUTPUT_DIR="$REPO_ROOT/_local_docs"
 
 # Default options
@@ -83,7 +83,7 @@ check_dependencies() {
 
 get_version_from_pyproject() {
     local project_dir=$1
-    poetry -C "$project_dir" version -s
+    grep -m1 '^version\s*=' "$project_dir/pyproject.toml" | sed -E 's/.*"([^"]+)".*/\1/'
 }
 
 # Copy the versioned site into latest/ so that /latest/ and /latest/any/subpath/ both work
