@@ -1,0 +1,28 @@
+name: "GitHub · Policies · Verify · Pinned Actions"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/**
+      - .github/actions/**
+
+jobs:
+  check-pinned-actions:
+    name: Verify action SHAs are pinned
+    runs-on: pulsar-spark
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Verify pinned actions
+        uses: unique-ag/actions/github/policies/verify-pinned-actions@84a4f60c0a56daae108b22e096b72bb10f476d08 # main
