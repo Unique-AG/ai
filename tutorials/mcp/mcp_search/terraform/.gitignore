@@ -3,9 +3,6 @@
 *.tfstate.*
 *.tfstate.backup
 
-# Terraform Lock File
-.terraform.lock.hcl
-
 # Terraform Directory
 .terraform/
 
