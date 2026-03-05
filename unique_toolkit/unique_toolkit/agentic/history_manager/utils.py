@@ -57,26 +57,24 @@ def _convert_tool_call_response_to_content(
     return assistant_message
 
 
-def _chunk_is_pdf(chunk: "ContentChunk") -> bool:
+def _chunk_is_from_pdf_document(chunk: "ContentChunk") -> bool:
     """Return True when the chunk originates from a PDF document."""
     if chunk.metadata and chunk.metadata.mime_type == "application/pdf":
         return True
-    if not chunk.key:
-        return False
-    # Strip page postfix added by merge/sort (e.g. "doc.pdf : 5,6,7" → "doc.pdf")
-    key = chunk.key.split(" : ")[0] if " : " in chunk.key else chunk.key
-    return key.lower().endswith(".pdf")
-
+    return False
 
 def transform_chunks_to_string(
     content_chunks: list[ContentChunk],
     max_source_number: int,
+    include_content_id_for_pdf_chunks: bool = False,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Transform content chunks into a string of sources.
 
     Args:
         content_chunks (list[ContentChunk]): The content chunks to transform
         max_source_number (int): The maximum source number to use
+        include_content_id_for_pdf_chunks (bool): When True, PDF chunks include
+            a content_id field so the LLM can reference the full document.
 
     Returns:
         str: String for the tool call response
@@ -86,7 +84,13 @@ def transform_chunks_to_string(
     sources: list[dict[str, Any]] = [
         {
             "source_number": max_source_number + i,
-            **( {"content_id": chunk.id} if _chunk_is_pdf(chunk) and chunk.id else {} ),
+            **(
+                {"content_id": chunk.id}
+                if include_content_id_for_pdf_chunks
+                and _chunk_is_from_pdf_document(chunk)
+                and chunk.id
+                else {}
+            ), # experimental feature UN-17905
             "content": chunk.text,
         }
         for i, chunk in enumerate(content_chunks)
@@ -100,6 +104,7 @@ def load_sources_from_string(
     """Transform JSON string from language model tool message in the tool call response into Source objects"""
 
     try:
+        # First, try parsing as JSON (new format)
         sources_data = json.loads(source_string)
         return [Source.model_validate(source) for source in sources_data]
     except (json.JSONDecodeError, ValueError):

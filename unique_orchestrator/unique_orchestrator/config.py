@@ -348,6 +348,20 @@ class OpenPdfToolConfig(BaseToolConfig):
         description="Attach uploaded PDF files directly to the LLM payload.",
     )
 
+    include_content_id_for_pdf_chunks: Annotated[
+        bool,
+        RJSFMetaTag.BooleanWidget.checkbox(
+            help=(
+                "When enabled, PDF content chunks returned by InternalSearch "
+                "include a content_id field in the serialised sources. The LLM "
+                "can use this ID to call OpenPdf and load the full document."
+            ),
+        ),
+    ] = Field(
+        default=False,
+        description="Include content_id in serialised sources for PDF chunks.",
+    )
+
 
 class ExperimentalConfig(BaseToolConfig):
     """Experimental features this part of the configuration might evolve in the future continuously"""

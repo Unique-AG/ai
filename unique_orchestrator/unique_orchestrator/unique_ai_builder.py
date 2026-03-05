@@ -157,6 +157,7 @@ def _build_common(
         percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
         language_model=config.space.language_model,
         uploaded_content_config=config.agent.services.uploaded_content_config,
+        include_content_id_for_pdf_chunks=config.agent.experimental.open_pdf_tool_config.include_content_id_for_pdf_chunks, # experimental feature UN-17905
     )
     history_manager = HistoryManager(
         logger,
@@ -377,6 +378,7 @@ async def _build_responses(
             percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
             language_model=config.space.language_model,
             uploaded_content_config=None,
+            include_content_id_for_pdf_chunks=config.agent.experimental.open_pdf_tool_config.include_content_id_for_pdf_chunks, # experimental feature UN-17905
         )
         common_components = common_components._replace(
             history_manager=HistoryManager(
