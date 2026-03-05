@@ -1,46 +1,56 @@
-[tool.poetry]
+[project]
 name = "unique_orchestrator"
-version = "1.13.06"
+version = "1.13.07"
 description = ""
-authors = ["Andreas Hauri <andreas.hauri@unique.ai>"]
-readme = ["README.md", "CHANGELOG.md"]
-license = "Proprietary"
-
-[tool.poetry.dependencies]
-python = "^3.12"
-pydantic = "^2.8.2"
-typing-extensions = "^4.9.0"
-jinja2 = "^3.1.0"
-unique-toolkit = "^1.47.1"
-unique-stock-ticker = "^1.0.2"
-unique-follow-up-questions = "^1.1.2"
-unique-internal-search = "^1.2.22"
-unique-deep-research = "^3.0.17"
-unique-web-search = "^1.10.0"
-unique-swot = "^1.0.0"
-
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.4.1"
-pytest-asyncio = "^0.24.0"
-pytest-cov = "^7.0.0"
-pytest-mock = "^3.15.0"
-ruff = "^0.11.7"
-deptry = "^0.24.0"
-basedpyright = "^1.35.0"
-poethepoet = "^0.32.0"
-deepdiff = "^8.6.1"
-unique-sdk = { path = "../unique_sdk" }
-unique-toolkit = { path = "../unique_toolkit", develop = true }
-unique-stock-ticker = { path = "../postprocessors/unique_stock_ticker", develop = true }
-unique-follow-up-questions = { path = "../postprocessors/unique_follow_up_questions", develop = true }
-unique-internal-search = { path = "../tool_packages/unique_internal_search", develop = true }
-unique-swot = { path = "../tool_packages/unique_swot", develop = true }
-unique-web-search = { path = "../tool_packages/unique_web_search", develop = true }
+readme = "README.md"
+license = { text = "Proprietary" }
+authors = [
+    { name = "Andreas Hauri", email = "andreas.hauri@unique.ai" },
+]
+requires-python = ">=3.12,<4"
+dependencies = [
+    "pydantic>=2.8.2,<3",
+    "typing-extensions>=4.9.0,<5",
+    "jinja2>=3.1.0,<4",
+    "unique-toolkit>=1.47.1,<2",
+    "unique-stock-ticker>=1.0.2,<2",
+    "unique-follow-up-questions>=1.1.2,<2",
+    "unique-internal-search>=1.2.22,<2",
+    "unique-deep-research>=3.0.17,<4",
+    "unique-web-search>=1.10.0,<2",
+    "unique-swot>=1.0.0,<2",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1,<9",
+    "pytest-asyncio>=0.24.0,<0.25",
+    "pytest-cov>=7.0.0,<8",
+    "pytest-mock>=3.15.0,<4",
+    "ruff>=0.11.7",
+    "deptry>=0.24.0,<0.25",
+    "basedpyright>=1.35.0,<2",
+    "poethepoet>=0.32.0,<0.33",
+    "deepdiff>=8.6.1,<9",
+    "unique-sdk",
+]
+
+[tool.uv.sources]
+unique-sdk = { path = "../unique_sdk", editable = true }
+unique-toolkit = { path = "../unique_toolkit", editable = true }
+unique-stock-ticker = { path = "../postprocessors/unique_stock_ticker", editable = true }
+unique-follow-up-questions = { path = "../postprocessors/unique_follow_up_questions", editable = true }
+unique-internal-search = { path = "../tool_packages/unique_internal_search", editable = true }
+unique-swot = { path = "../tool_packages/unique_swot", editable = true }
+unique-web-search = { path = "../tool_packages/unique_web_search", editable = true }
+unique-deep-research = { path = "../tool_packages/unique_deep_research", editable = true }
 
 [tool.poe.tasks]
 lint = "ruff check ."
@@ -59,6 +69,7 @@ extend_exclude = ["unique_orchestrator/tests"]
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["unique-toolkit", "unique-stock-ticker", "unique-follow-up-questions", "unique-internal-search", "unique-deep-research", "unique-web-search", "unique-swot"]
+DEP003 = ["unique_toolkit", "unique_stock_ticker", "unique_follow_up_questions", "unique_internal_search", "unique_deep_research", "unique_web_search", "unique_swot"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"

@@ -63,7 +63,7 @@ This is a monorepo using Poetry for dependency management. To build the document
 poetry install --with dev
 
 # Build versioned documentation locally (simulates CI)
-./scripts/docs_build_versioned.sh --clean --serve
+./.github/scripts/docs_build_versioned.sh --clean --serve
 
 # Or build root site only for quick iteration
 poetry run mkdocs serve

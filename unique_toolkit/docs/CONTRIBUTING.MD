@@ -11,7 +11,7 @@ Entangled is used to directly generate code from the snippets used in the docume
 
 ## Workflow
 
-1. `poetry run mkdocs serve -v` - Exposes the static site locally with hot reloading.
-2. (a)(optional)  `poetry run entangled tangle` - Creates the initial `entangled` files under `./docs/.python_files` 
-2. (b)`poetry run entangled watch` - Observed `entangled` files under `./docs/.python_files`. Any change in the markdown is synced to the python files and vice versa.
+1. `uv run mkdocs serve -v` - Exposes the static site locally with hot reloading.
+2. (a)(optional)  `uv run entangled tangle` - Creates the initial `entangled` files under `./docs/.python_files` 
+2. (b)`uv run entangled watch` - Observes `entangled` files under `./docs/.python_files`. Any change in the markdown is synced to the python files and vice versa.
 3. `generate_examples.sh` - Creates clean python files under `./docs/examples_from_docs` that can be included in the markdown files.
