@@ -140,6 +140,36 @@ class ChatService(ChatServiceDeprecated):
 
         return self._elicitation_service
 
+    def get_debug_info(self) -> dict:
+        """Retrieves the debug information from the current user message.
+
+        Returns:
+            dict: The debug information stored on the user message.
+
+        """
+        raw_msg = unique_sdk.Message.retrieve(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            id=self._user_message_id,
+            chatId=self._chat_id,
+        )
+        return getattr(raw_msg, "debugInfo", {}) or {}
+
+    async def get_debug_info_async(self) -> dict:
+        """Retrieves the debug information from the current user message asynchronously.
+
+        Returns:
+            dict: The debug information stored on the user message.
+
+        """
+        raw_msg = await unique_sdk.Message.retrieve_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            id=self._user_message_id,
+            chatId=self._chat_id,
+        )
+        return getattr(raw_msg, "debugInfo", {}) or {}
+
     async def update_debug_info_async(self, debug_info: dict):
         """Updates the debug information for the chat session.
 
