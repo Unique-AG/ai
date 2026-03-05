@@ -1,25 +1,4 @@
-/**
- * OAuth 2.0 middleware for MCP server authentication.
- *
- * Auth is enabled when both MCP_CLIENT_ID and MCP_CLIENT_SECRET env vars are set.
- * When unset, all auth endpoints fall through (open access for local dev).
- *
- * Flow:
- *  1. Client calls POST /register with { client_id, client_secret } to validate
- *     its pre-shared credentials.
- *  2. Client obtains a token via POST /token using either:
- *     - grant_type=client_credentials (machine-to-machine), or
- *     - grant_type=authorization_code (after GET /authorize redirect flow with PKCE).
- *     Client authenticates with client_secret_basic (HTTP Basic) or client_secret_post.
- *  3. Client sends the token as `Authorization: Bearer <token>` on MCP requests.
- *
- * Token storage:
- *  - Tokens and auth codes are stored in-memory (Map). They are lost on server restart
- *    and do not replicate across processes. This is suitable for single-process deployments.
- *  - Tokens expire after 1 hour (TOKEN_LIFETIME). Expired tokens are lazily cleaned up
- *    on the next validation attempt.
- *  - There is no revocation endpoint — tokens can only expire naturally.
- */
+/** OAuth middleware for MCP, with in-memory tokens/codes and optional local-dev bypass when credentials are unset. */
 import express, { Router, type RequestHandler } from "express";
 import { randomUUID } from "node:crypto";
 
@@ -82,7 +61,7 @@ router.get("/.well-known/oauth-authorization-server", (req, res, next) => {
     token_endpoint: `${base}/token`,
     registration_endpoint: `${base}/register`,
     token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
-    grant_types_supported: ["authorization_code", "refresh_token"],
+    grant_types_supported: ["authorization_code", "client_credentials"],
     response_types_supported: ["code"],
     code_challenge_methods_supported: ["S256"],
   });
@@ -106,6 +85,11 @@ router.get("/authorize", (req, res, next) => {
   if (!authEnabled()) return next();
 
   const { client_id, redirect_uri, state, code_challenge, response_type } = req.query;
+
+  if (client_id !== process.env.MCP_CLIENT_ID) {
+    res.status(401).json({ error: "invalid_client" });
+    return;
+  }
 
   if (response_type !== "code" || !redirect_uri || !code_challenge) {
     res.status(400).json({ error: "invalid_request" });
@@ -155,6 +139,10 @@ router.post("/token", express.urlencoded({ extended: false }), (req, res, next) 
     const codeInfo = authCodes.get(req.body.code);
     if (!codeInfo || codeInfo.expiresAt < now) {
       if (codeInfo) authCodes.delete(req.body.code);
+      res.status(400).json({ error: "invalid_grant" });
+      return;
+    }
+    if (codeInfo.clientId !== clientId) {
       res.status(400).json({ error: "invalid_grant" });
       return;
     }
