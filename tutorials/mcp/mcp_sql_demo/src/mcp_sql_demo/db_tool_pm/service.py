@@ -1,16 +1,14 @@
+import logging
 import os
 import sqlite3
 from pathlib import Path
 
 from dotenv import load_dotenv
-
-# Load .env file early
-load_dotenv()
+from pydantic import Field, create_model
+from typing_extensions import override
 
 from unique_toolkit import LanguageModelMessages
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from pydantic import Field, create_model
-from typing_extensions import override
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -33,6 +31,9 @@ from db_tool_pm.prompts import (
     DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
 )
+
+load_dotenv()
+_log = logging.getLogger(__name__)
 
 DB_TYPE = os.getenv("DB_TYPE", "sqlite")
 
@@ -133,11 +134,18 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
             ]
         )
 
-        response = await self._language_model_service.complete_async(
-            model_name=LanguageModelName.AZURE_GPT_4o_2024_0513, messages=messages
-        )
-        print(response)
-        return response.choices[0].message.content
+        try:
+            response = await self._language_model_service.complete_async(
+                model_name=LanguageModelName.AZURE_GPT_4o_2024_0513, messages=messages
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            _log.exception(
+                "[PM_Positions] ChatCompletion failed: %s=%s",
+                type(e).__name__,
+                str(e)[:500] if str(e) else "(no message)",
+            )
+            raise
 
     def get_connection(self):
         if DB_TYPE == "sqlite":
@@ -211,14 +219,10 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
     def _query_distinct(self, conn, column):
         if DB_TYPE == "sqlite":
             cursor = conn.cursor()
-            cursor.execute(
-                f"SELECT DISTINCT {column} FROM {TABLE_NAME} WHERE {column} IS NOT NULL ORDER BY {column};"
-            )
+            cursor.execute(f"SELECT DISTINCT {column} FROM {TABLE_NAME} WHERE {column} IS NOT NULL ORDER BY {column};")
             return [r[0] for r in cursor.fetchall()]
         with conn.cursor() as cur:
-            cur.execute(
-                f"SELECT DISTINCT {column} FROM {TABLE_NAME} WHERE {column} IS NOT NULL ORDER BY {column};"
-            )
+            cur.execute(f"SELECT DISTINCT {column} FROM {TABLE_NAME} WHERE {column} IS NOT NULL ORDER BY {column};")
             return [r[0] for r in cur.fetchall()]
 
     def get_distinct_direction(self, conn):
@@ -232,9 +236,7 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
 
     def build_system_prompt_for_sql_where(self, conn):
         cols = self.get_column_descriptions(conn)
-        direction = self.get_distinct_direction(
-            conn
-        )  # list is a list of tuples, take the first element of each tuple
+        direction = self.get_distinct_direction(conn)  # list is a list of tuples, take the first element of each tuple
         print(direction)
         tickers = self.get_distinct_tickers(conn)
         print(tickers)

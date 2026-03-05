@@ -59,7 +59,7 @@ For a persistent database, use PostgreSQL and set `DB_TYPE=postgres`.
 - Database: `PGDATABASE` (default `testdb`)
 - User: `PGUSER` / Password: `PGPASSWORD`
 
-**Setup:** Create the database and table using **`src/mcp_sql_demo/sql/create_table_postgres.sql`** (Postgres-specific; includes `CREATE DATABASE` and `\c`).
+**Setup:** Create the database (e.g. with `az postgres flexible-server db create` or locally) and run **`src/mcp_sql_demo/sql/create_table_postgres.sql`** to create the table and seed data (idempotent).
 
 ### Table schema: `pm_positions`
 
@@ -104,6 +104,8 @@ The MCP server uses **Zitadel** for authentication:
 | `UNIQUE_SDK_API_BASE`| Unique AI gateway URL                |
 | `UNIQUE_SDK_API_KEY` | Unique AI API key                    |
 | `UNIQUE_SDK_APP_ID`  | Unique AI application ID             |
+| `COMPANY_ID`         | Company context (required for ChatCompletion; missing causes 401) |
+| `USER_ID`            | User context (required for ChatCompletion; missing causes 401)   |
 
 The tool uses **Azure GPT-4o** via the Unique AI gateway to turn natural language into a SQL WHERE clause (read-only, schema-aware).
 
@@ -217,12 +219,14 @@ The tool converts these to SQL and returns the matching rows (filtered by user o
 ./deploy.sh
 ```
 
-Then set secrets (Azure Portal or CLI):
+Then set **required secrets** (Azure Portal or CLI).
 
 ```bash
 az webapp config appsettings set -n sql-mcp-demo-app -g rg-lab-demo-001-sql-mcp --settings \
   UNIQUE_SDK_API_KEY=<your-api-key> \
   UNIQUE_SDK_APP_ID=<your-app-id> \
+  COMPANY_ID=<your-company-id> \
+  USER_ID=<your-user-id> \
   ZITADEL_URL=https://id.unique.app \
   UPSTREAM_CLIENT_ID=<your-zitadel-client-id> \
   UPSTREAM_CLIENT_SECRET=<your-zitadel-client-secret>
@@ -250,11 +254,57 @@ az webapp restart -n sql-mcp-demo-app -g rg-lab-demo-001-sql-mcp
 
 Restarting wipes the in-memory SQLite database; it is re-seeded from `sql/create_table_sqlite.sql` on next use.
 
+## Deploy to Azure with PostgreSQL
+
+This variant deploys a **separate** Web App (`sql-mcp-demo-pg`) and an **Azure Database for PostgreSQL Flexible Server** (Burstable B1ms). The app uses Postgres for both PM data and OAuth client registry, so client IDs persist across restarts and redeploys.
+
+### What deploy_pg.sh does
+
+- Creates **PostgreSQL Flexible Server** and database **only on first run** (idempotent; subsequent runs do not recreate them).
+- **Seeds** the `pm_positions` table (required; requires `psql` on PATH).
+- Creates or updates the Web App `sql-mcp-demo-pg`, builds the image, and sets app settings (`DB_TYPE=postgres`, `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PG_CLIENT_STORAGE_URL`, `BASE_URL_ENV`).
+
+### Prerequisites
+
+- Same as the SQLite deployment (Azure CLI, subscription, resource group).
+- **PostgreSQL admin password** (set `PG_ADMIN_PASSWORD` in env or enter when prompted). Required; the script fails without it.
+- **psql** on PATH (PostgreSQL client) to seed the database; the script fails if `psql` is not found.
+
+### Deploy
+
+```bash
+./deploy_pg.sh
+```
+
+On first run you will be prompted for the PostgreSQL admin password (or set `PG_ADMIN_PASSWORD` in the environment). The script creates the server and database once; on later runs it only rebuilds and redeploys the app.
+
+Then set **required secrets** (same as SQLite deployment, with app name `sql-mcp-demo-pg`).
+
+```bash
+az webapp config appsettings set -n sql-mcp-demo-pg -g rg-lab-demo-001-sql-mcp --settings \
+  UNIQUE_SDK_API_KEY=... UNIQUE_SDK_APP_ID=... COMPANY_ID=... USER_ID=... \
+  ZITADEL_URL=... UPSTREAM_CLIENT_ID=... UPSTREAM_CLIENT_SECRET=...
+```
+
+### Environment variables (PostgreSQL deployment)
+
+| Variable | Description |
+|----------|-------------|
+| `PG_ADMIN_PASSWORD` | PostgreSQL admin password (env or prompt). Required every run so the script can set app settings and run the seed. |
+| `PG_CLIENT_STORAGE_URL` | Set by the script. Full Postgres URL for OAuth client registry (asyncpg); must include `?sslmode=require` for Azure. |
+
+### Deployed instance
+
+- **App:** `https://sql-mcp-demo-pg.azurewebsites.net`
+- **MCP endpoint:** `https://sql-mcp-demo-pg.azurewebsites.net/mcp`
+
+PostgreSQL server is **not** recreated when you run `deploy_pg.sh` again; only the app image is rebuilt and redeployed.
+
 ## Notes
 
 ### Client ID / OAuth after redeploy
 
-After a redeploy, the MCP server’s in-memory client registry is cleared. If the client (e.g. Unique AI platform) still uses an old client ID, you may see “Client Not Registered”. **Short-term fix:** In the platform, disconnect or clear auth for this MCP server and connect again so it re-registers. **Long-term fix:** Persist the client registry (e.g. Redis or a database) in the deployment so registered client IDs survive restarts and redeploys; this would require changes in the MCP auth layer (e.g. FastMCP OAuth proxy).
+After a redeploy, the MCP server’s in-memory client registry is cleared. If the client (e.g. Unique AI platform) still uses an old client ID, you may see “Client Not Registered”. **Short-term fix:** In the platform, disconnect or clear auth for this MCP server and connect again so it re-registers. **Long-term fix:** Use the **PostgreSQL deployment** (`deploy_pg.sh`), which persists the OAuth client registry in Postgres so client IDs survive restarts and redeploys.
 
 ### Zitadel app configuration
 

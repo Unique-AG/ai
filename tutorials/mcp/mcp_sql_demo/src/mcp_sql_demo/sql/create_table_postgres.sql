@@ -1,11 +1,8 @@
--- 1) Create the database (run while connected to the default "postgres" db)
-CREATE DATABASE testdb WITH OWNER postgress;
+-- PostgreSQL schema and seed data for pm_positions (same data as SQLite).
+-- Database must already exist (e.g. created by az postgres flexible-server db create).
+-- Idempotent: safe to run multiple times.
 
--- 2) Connect to the new database
-\c testdb
-
--- 3) Create the table (includes email column)
-CREATE TABLE pm_positions (
+CREATE TABLE IF NOT EXISTS pm_positions (
   row_num       INT PRIMARY KEY,
   sleeve        TEXT NOT NULL,
   ticker        VARCHAR(10) NOT NULL,
@@ -16,18 +13,41 @@ CREATE TABLE pm_positions (
   email         TEXT
 );
 
--- 4) Insert data (alice@alphabet.example and tin.oroz@unique-ai-academy.com)
+-- Seed data. ON CONFLICT DO NOTHING skips rows that would violate the primary key,
+-- so this script can be run multiple times without errors (idempotent).
+-- Same rows as create_table_sqlite.sql.
 INSERT INTO pm_positions (row_num, sleeve, ticker, instrument, direction, target_weight, position_mm, email) VALUES
--- Alice's positions 
-(1,  'Equity Long',  'MSFT', 'Microsoft',                 'Long',  0.05,   100, 'alice@alphabet.example'),
-(2,  'Equity Long',  'JNJ',  'Johnson & Johnson',         'Long',  0.04,    80, 'alice@alphabet.example'),
-(3,  'Equity Long',  'UNH',  'UnitedHealth',              'Long',  0.035,   70, 'alice@alphabet.example'),
-
--- Tin's positions
-(4,  'Equity Beta',  'SPY',  'S&P 500 ETF',               'Long',  0.15,   300, 'tin.oroz@unique-ai-academy.com'),
-(5,  'Equity Long',  'AAPL', 'Apple Inc',                 'Long',  0.08,   160, 'tin.oroz@unique-ai-academy.com'),
-(6,  'Equity Long',  'NVDA', 'NVIDIA',                    'Long',  0.06,   120, 'tin.oroz@unique-ai-academy.com'),
-(7,  'Equity Short', 'QQQ',  'Nasdaq-100 ETF',            'Short', -0.04,  -80, 'tin.oroz@unique-ai-academy.com'),
-(8,  'Rates',        'TLT',  '20+ Year Treasury Bond',    'Long',  0.10,   200, 'tin.oroz@unique-ai-academy.com'),
-(9,  'Alternatives', 'GLD',  'Gold',                      'Long',  0.05,   100, 'tin.oroz@unique-ai-academy.com'),
-(10, 'Equity Beta',  'VOO',  'Vanguard S&P 500 ETF',      'Long',  0.08,   160, 'tin.oroz@unique-ai-academy.com');
+(1, 'Equity Long', 'MSFT', 'Microsoft', 'Long', 0.05, 100, 'alice@alphabet.example'),
+(2, 'Equity Long', 'JNJ', 'Johnson & Johnson', 'Long', 0.04, 80, 'alice@alphabet.example'),
+(3, 'Equity Long', 'UNH', 'UnitedHealth', 'Long', 0.035, 70, 'alice@alphabet.example'),
+(4, 'Equity Beta', 'SPY', 'S&P 500 ETF', 'Long', 0.15, 300, 'tin.oroz@unique-ai-academy.com'),
+(5, 'Equity Long', 'AAPL', 'Apple Inc', 'Long', 0.08, 160, 'tin.oroz@unique-ai-academy.com'),
+(6, 'Equity Long', 'NVDA', 'NVIDIA', 'Long', 0.06, 120, 'tin.oroz@unique-ai-academy.com'),
+(7, 'Equity Short', 'QQQ', 'Nasdaq-100 ETF', 'Short', -0.04, -80, 'tin.oroz@unique-ai-academy.com'),
+(8, 'Rates', 'TLT', '20+ Year Treasury Bond', 'Long', 0.10, 200, 'tin.oroz@unique-ai-academy.com'),
+(9, 'Alternatives', 'GLD', 'Gold', 'Long', 0.05, 100, 'tin.oroz@unique-ai-academy.com'),
+(10, 'Equity Beta', 'VOO', 'Vanguard S&P 500 ETF', 'Long', 0.08, 160, 'tin.oroz@unique-ai-academy.com'),
+(11, 'Equity Long', 'ALV.DE', 'Allianz SE', 'Long', 0.0736, 736, 'marcluginbuehl@metzler.com'),
+(12, 'Equity Long', 'MUV2.DE', 'Münchener Rück', 'Long', 0.067, 670, 'marcluginbuehl@metzler.com'),
+(13, 'Equity Long', 'HNR1.DE', 'Hannover Rück', 'Long', 0.0555, 555, 'marcluginbuehl@metzler.com'),
+(14, 'Equity Long', 'TLX.DE', 'Talanx AG', 'Long', 0.0479, 479, 'marcluginbuehl@metzler.com'),
+(15, 'Equity Long', 'DTE.DE', 'Deutsche Telekom AG', 'Long', 0.0642, 642, 'marcluginbuehl@metzler.com'),
+(16, 'Equity Long', 'EOAN.DE', 'E.ON SE', 'Long', 0.0562, 562, 'marcluginbuehl@metzler.com'),
+(17, 'Equity Long', 'RWE.DE', 'RWE AG', 'Long', 0.052, 520, 'marcluginbuehl@metzler.com'),
+(18, 'Equity Long', 'DHL.DE', 'Deutsche Post AG', 'Long', 0.0577, 577, 'marcluginbuehl@metzler.com'),
+(19, 'Equity Long', 'HEN3.DE', 'Henkel AG', 'Long', 0.0456, 456, 'marcluginbuehl@metzler.com'),
+(20, 'Equity Long', 'FPE3.DE', 'Fuchs Petrolub SE', 'Long', 0.0409, 409, 'marcluginbuehl@metzler.com'),
+(21, 'Equity Long', 'DB1.DE', 'Deutsche Börse AG', 'Long', 0.0488, 488, 'marcluginbuehl@metzler.com'),
+(22, 'Equity Long', 'G1A.DE', 'GEA Group AG', 'Long', 0.0422, 422, 'marcluginbuehl@metzler.com'),
+(23, 'Equity Long', 'FME.DE', 'Fresenius Medical Care AG', 'Long', 0.0482, 482, 'marcluginbuehl@metzler.com'),
+(24, 'Equity Long', 'BAS.DE', 'BASF SE', 'Long', 0.0467, 467, 'marcluginbuehl@metzler.com'),
+(25, 'Equity Long', 'MBG.DE', 'Mercedes-Benz Group AG', 'Long', 0.0462, 462, 'marcluginbuehl@metzler.com'),
+(26, 'Equity Long', 'BMW.DE', 'BMW AG', 'Long', 0.0454, 454, 'marcluginbuehl@metzler.com'),
+(27, 'Equity Long', 'DTG.DE', 'Daimler Truck Holding AG', 'Long', 0.0401, 401, 'marcluginbuehl@metzler.com'),
+(28, 'Equity Long', 'BNR.DE', 'Brenntag SE', 'Long', 0.0425, 425, 'marcluginbuehl@metzler.com'),
+(29, 'Equity Long', 'VNA.DE', 'Vonovia SE', 'Long', 0.0407, 407, 'marcluginbuehl@metzler.com'),
+(30, 'Equity Long', 'CON.DE', 'Continental AG', 'Long', 0.0386, 386, 'marcluginbuehl@metzler.com'),
+(56, 'Equity Alpha', 'SPY', 'S&P 500 ETF', 'Long', 0.10, 200, 'tinoroz@metzler.com'),
+(57, 'Equity Beta', 'SPY', 'S&P 500 ETF', 'Long', 0.05, 100, 'tinoroz@metzler.com'),
+(58, 'Equity Beta', 'SPY', 'S&P 500 ETF', 'Long', 0.08, 160, 'tinoroz@metzler.com')
+ON CONFLICT (row_num) DO NOTHING;
