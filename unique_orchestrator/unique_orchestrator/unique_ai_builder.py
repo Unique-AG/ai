@@ -335,14 +335,14 @@ async def _build_responses(
         if uploaded_pdfs and "InternalSearch" in event.payload.tool_choices:
             event.payload.tool_choices.remove("InternalSearch")
             logger.info(
-                f"Uploaded PDFs detected ({[d.key for d in uploaded_pdfs]}) — "
+                f"Uploaded PDFs detected (count={len(uploaded_pdfs)}, ids={[d.id for d in uploaded_pdfs]}) — "
                 "removed InternalSearch from forced tools; PDFs attached directly."
             )
 
         if uploaded_non_pdfs:
             _has_non_pdf_uploads = True
             logger.info(
-                f"Non-PDF uploads detected ({[d.key for d in uploaded_non_pdfs]}) — "
+                f"Non-PDF uploads detected (count={len(uploaded_non_pdfs)}, ids={[d.id for d in uploaded_non_pdfs]}) — "
                 "adding UploadedSearch for these files."
             )
             common_components.tool_manager_config.tools.append(

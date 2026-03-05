@@ -188,51 +188,6 @@ class UniqueAI:
 
         sub = self._chat_service.cancellation.on_cancellation.subscribe(
             self._on_cancellation
-            
-        ## Loop iteration
-        max_iterations = self._effective_max_loop_iterations
-        for i in range(max_iterations):
-            self.current_iteration_index = i
-            self._logger.info(f"Starting iteration {i + 1}...")
-
-            # Plan execution
-            loop_response = await self._plan_or_execute()
-            self._logger.info("Done with _plan_or_execute")
-
-            self._reference_manager.add_references(loop_response.message.references)
-            self._logger.info("Done with adding references")
-
-            # Update tool progress reporter
-            self._thinking_manager.update_tool_progress_reporter(loop_response)
-
-            if self._pdf_fallback_occurred:
-                await self._report_pdf_fallback_step()
-                self._pdf_fallback_occurred = False
-
-            # Execute the plan
-            exit_loop = await self._process_plan(loop_response)
-            self._logger.info("Done with _process_plan")
-
-            if exit_loop:
-                self._thinking_manager.close_thinking_steps(loop_response)
-                self._logger.info("Exiting loop.")
-                break
-
-            if i == max_iterations - 1:
-                self._logger.error("Max iterations reached.")
-                await self._chat_service.modify_assistant_message_async(
-                    content="I have reached the maximum number of self-reflection iterations. Please clarify your request and try again...",
-                )
-                break
-
-            self.start_text = self._thinking_manager.update_start_text(
-                self.start_text, loop_response
-            )
-        await self._update_debug_info_if_tool_took_control()
-
-        # Only set completed_at if no tool took control. Tools that take control will set the message state to completed themselves.
-        await self._chat_service.modify_assistant_message_async(
-            set_completed_at=not self._tool_took_control,
         )
         try:
             max_iterations = self._effective_max_loop_iterations
@@ -253,6 +208,10 @@ class UniqueAI:
                 self._logger.info("Done with adding references")
 
                 self._thinking_manager.update_tool_progress_reporter(loop_response)
+
+                if self._pdf_fallback_occurred:
+                    await self._report_pdf_fallback_step()
+                    self._pdf_fallback_occurred = False
 
                 exit_loop = await self._process_plan(loop_response)
                 self._logger.info("Done with _process_plan")
@@ -334,7 +293,9 @@ class UniqueAI:
         cfg = self._config.agent.experimental.responses_api_config
         if not cfg.send_pdf_files_in_payload and not cfg.send_uploaded_pdf_in_payload:
             return False
-        if not self._agent_file_registry and not self._get_uploaded_documents():
+        has_kb_pdfs = cfg.send_pdf_files_in_payload and bool(self._agent_file_registry)
+        has_uploaded_pdfs = cfg.send_uploaded_pdf_in_payload and bool(self._get_uploaded_documents())
+        if not has_kb_pdfs and not has_uploaded_pdfs:
             return False
         error_text = str(exc).lower()
         return any(s in error_text for s in self._RETRY_SIGNALS)
@@ -432,6 +393,9 @@ class UniqueAI:
         """For uploaded PDFs that were silently attached, inject a synthetic
         OpenPdf tool call + error response so the LLM knows why the files
         are gone and can inform the user."""
+        cfg = self._config.agent.experimental.responses_api_config
+        if not cfg.send_uploaded_pdf_in_payload:
+            return
         uploaded_docs = self._get_uploaded_documents()
         if not uploaded_docs:
             return
