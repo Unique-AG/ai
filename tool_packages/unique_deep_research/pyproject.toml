@@ -1,53 +1,59 @@
-[tool.poetry]
+[project]
 name = "unique_deep_research"
-version = "3.5.0"
+version = "3.5.1"
 description = "Deep Research Tool for complex research tasks"
+readme = "README.md"
+license = { text = "Proprietary" }
 authors = [
-    "Martin Fadler <martin.fadler@unique.ch>",
-    "Sadique Sheik <sadique@unique.ch>",
-    "Fabian Schläpfer <fabian@unique.ch>",
-    "Pascal Hauri <pascal@unique.ch>",
+    { name = "Martin Fadler", email = "martin.fadler@unique.ch" },
+    { name = "Sadique Sheik", email = "sadique@unique.ch" },
+    { name = "Fabian Schläpfer", email = "fabian@unique.ch" },
+    { name = "Pascal Hauri", email = "pascal@unique.ch" },
 ]
-readme = ["README.md", "CHANGELOG.md"]
-license = "Proprietary"
-
-[tool.poetry.dependencies]
-python = "^3.12"
-pydantic = "^2.8.2"
-typing-extensions = "^4.9.0"
-unique_toolkit = "^1.48.0"
-jinja2 = "^3.1.2"
-openai = "^1.99.0"
-langgraph = "^1.0.0"
-langchain-core = "^1.0.0"
-unique-web-search = "^1.7.0"
-httpx = "^0.28.0"
-timeout-decorator = "^0.5.0"
-beautifulsoup4 = "^4.12.0"
-fake-useragent = "^2.0.0"
-markdownify = "^0.14.0"
-langchain = {version = "^1.1.0", extras = ["openai"]}
-
-
-[tool.poetry.group.dev.dependencies]
-unique-sdk = { path = "../../unique_sdk",  develop = true}
-unique-toolkit = { path = "../../unique_toolkit",  develop = true}
-unique-web-search = { path = "../unique_web_search",  develop = true}
-pytest = "^8.4.1"
-pytest-asyncio = "^0.25.0"
-pytest-cov = "^7.0.0"
-ruff = "^0.12.10"
-deptry = "^0.24.0"
-basedpyright = "^1.35.0"
-poethepoet = "^0.32.0"
-opik = "^1.8.42"
-google = "^3.0.0"
-google-genai = "^1.46.0"
-
+requires-python = ">=3.12,<4"
+dependencies = [
+    "pydantic>=2.8.2,<3",
+    "typing-extensions>=4.9.0,<5",
+    "unique_toolkit>=1.48.0,<2",
+    "jinja2>=3.1.2,<4",
+    "openai>=1.99.0,<2",
+    "langgraph>=1.0.0,<2",
+    "langchain-core>=1.0.0,<2",
+    "unique-web-search>=1.7.0,<2",
+    "httpx>=0.28.0,<0.29",
+    "timeout-decorator>=0.5.0,<0.6",
+    "beautifulsoup4>=4.12.0,<5",
+    "fake-useragent>=2.0.0,<3",
+    "markdownify>=0.14.0,<0.15",
+    "langchain[openai]>=1.1.0,<2",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[dependency-groups]
+dev = [
+    "unique-sdk",
+    "pytest>=8.4.1,<9",
+    "pytest-asyncio>=0.25.0,<0.26",
+    "pytest-cov>=7.0.0,<8",
+    "ruff==0.12.10",
+    "deptry>=0.24.0,<0.25",
+    "basedpyright>=1.35.0,<2",
+    "poethepoet>=0.32.0,<0.33",
+    "opik>=1.8.42,<2",
+    "google>=3.0.0,<4",
+    "google-genai>=1.46.0,<2",
+]
+
+[tool.uv.sources]
+unique-sdk = { path = "../../unique_sdk", editable = true }
+unique-toolkit = { path = "../../unique_toolkit", editable = true }
+unique-web-search = { path = "../unique_web_search", editable = true }
 
 [tool.poe.tasks]
 lint = "ruff check ."
@@ -63,6 +69,10 @@ ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/d
 [tool.deptry]
 known_first_party = ["unique_deep_research"]
 extend_exclude = ["benchmarking", "tests"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["unique_toolkit", "unique-web-search"]
+DEP003 = ["unique_toolkit"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
