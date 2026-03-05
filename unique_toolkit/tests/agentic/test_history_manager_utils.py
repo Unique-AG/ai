@@ -65,12 +65,14 @@ def test_transform_chunks__empty_list():
     assert sources == []
 
 
-def test_transform_chunks__pdf_chunk_includes_content_id():
+def test_transform_chunks__pdf_chunk_includes_content_id_when_flag_enabled():
     chunks = [
         ContentChunk(id="cont_abc123", text="PDF content", key="report.pdf"),
     ]
 
-    result_str, sources = transform_chunks_to_string(chunks, 0)
+    result_str, sources = transform_chunks_to_string(
+        chunks, 0, include_content_id_for_pdf_chunks=True
+    )
 
     assert len(sources) == 1
     assert sources[0]["content_id"] == "cont_abc123"
@@ -79,12 +81,25 @@ def test_transform_chunks__pdf_chunk_includes_content_id():
     assert parsed[0]["content_id"] == "cont_abc123"
 
 
+def test_transform_chunks__pdf_chunk_excludes_content_id_when_flag_disabled():
+    chunks = [
+        ContentChunk(id="cont_abc123", text="PDF content", key="report.pdf"),
+    ]
+
+    _, sources = transform_chunks_to_string(chunks, 0)
+
+    assert len(sources) == 1
+    assert "content_id" not in sources[0]
+
+
 def test_transform_chunks__non_pdf_chunk_excludes_content_id():
     chunks = [
         ContentChunk(id="cont_abc123", text="Word content", key="document.docx"),
     ]
 
-    result_str, sources = transform_chunks_to_string(chunks, 0)
+    result_str, sources = transform_chunks_to_string(
+        chunks, 0, include_content_id_for_pdf_chunks=True
+    )
 
     assert len(sources) == 1
     assert "content_id" not in sources[0]
@@ -98,7 +113,9 @@ def test_transform_chunks__mixed_pdf_and_non_pdf():
         ContentChunk(id="cont_pdf2", text="PDF text 2", key="invoice.pdf : 1,2"),
     ]
 
-    _, sources = transform_chunks_to_string(chunks, 10)
+    _, sources = transform_chunks_to_string(
+        chunks, 10, include_content_id_for_pdf_chunks=True
+    )
 
     assert sources[0]["content_id"] == "cont_pdf1"
     assert sources[0]["source_number"] == 10
@@ -113,6 +130,8 @@ def test_transform_chunks__pdf_without_id_excludes_content_id():
         ContentChunk(id="", text="No ID PDF", key="report.pdf"),
     ]
 
-    _, sources = transform_chunks_to_string(chunks, 0)
+    _, sources = transform_chunks_to_string(
+        chunks, 0, include_content_id_for_pdf_chunks=True
+    )
 
     assert "content_id" not in sources[0]

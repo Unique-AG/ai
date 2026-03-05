@@ -242,17 +242,6 @@ class _ToolManager(Generic[_ApiMode]):
         if tool.name not in self._tool_choices:
             self._tool_choices.append(tool.name)
 
-    def remove_forced_tool(self, name: str) -> bool:
-        """Remove a tool from forced tools without removing it from available tools.
-
-        The tool remains usable by the LLM but is no longer forced on the
-        first iteration.  Returns True if the tool was in the forced list.
-        """
-        if name in self._tool_choices:
-            self._tool_choices.remove(name)
-            return True
-        return False
-
     def does_a_tool_take_control(self, tool_calls: list[LanguageModelFunction]) -> bool:
         for tool_call in tool_calls:
             tool_instance = self.get_tool_by_name(tool_call.name)

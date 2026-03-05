@@ -1989,7 +1989,7 @@ def test_responses_api_tool_manager__filter_tool_calls_by_max_tool_calls_allowed
     assert len(filtered) == 5
 
 
-# --- Tests for add_tool, remove_tool, remove_forced_tool ---
+# --- Tests for add_tool, remove_tool ---
 
 
 def test_tool_manager__add_tool__injects_external_tool(
@@ -2050,45 +2050,5 @@ def test_tool_manager__remove_tool__returns_false_for_missing(
     )
 
     result = tm.remove_tool("nonexistent")
-
-    assert result is False
-
-
-def test_tool_manager__remove_forced_tool__removes_from_choices(
-    logger, base_event, tool_config, tool_progress_reporter, mcp_manager, a2a_manager
-):
-    config = ToolManagerConfig(tools=[tool_config], max_tool_calls=10)
-    tm = ToolManager(
-        logger=logger,
-        config=config,
-        event=base_event,
-        tool_progress_reporter=tool_progress_reporter,
-        mcp_manager=mcp_manager,
-        a2a_manager=a2a_manager,
-    )
-    tm.add_forced_tool("mock_tool")
-    assert tm.get_forced_tools()
-
-    result = tm.remove_forced_tool("mock_tool")
-
-    assert result is True
-    assert not tm.get_forced_tools()
-    assert tm.get_tool_by_name("mock_tool") is not None
-
-
-def test_tool_manager__remove_forced_tool__returns_false_if_not_forced(
-    logger, base_event, tool_config, tool_progress_reporter, mcp_manager, a2a_manager
-):
-    config = ToolManagerConfig(tools=[tool_config], max_tool_calls=10)
-    tm = ToolManager(
-        logger=logger,
-        config=config,
-        event=base_event,
-        tool_progress_reporter=tool_progress_reporter,
-        mcp_manager=mcp_manager,
-        a2a_manager=a2a_manager,
-    )
-
-    result = tm.remove_forced_tool("mock_tool")
 
     assert result is False
