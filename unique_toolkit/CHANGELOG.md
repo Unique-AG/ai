@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.51.0] - 2026-03-05
+- Add execution time tracking to `EvaluationManager`, `PostprocessorManager`, and `ToolManager` with `get_execution_times()` accessors
+- Add `get_debug_info()` / `get_debug_info_async()` to `ChatService` for retrieving debug info from the current user message
+
 ## [1.50.3] - 2026-03-04
 - Docs: add minimal langchain example and langchain platform documentation
 - Docs: move manual examples to dedicated folder
