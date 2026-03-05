@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist
+.xmcp
+xmcp-env.d.ts
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Deployment
+.vercel
+
+# Azure local storage emulator
+__queuestorage__/
+
+# Editor / tool settings (user-local)
+.claude/settings.local.json

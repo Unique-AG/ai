@@ -1,0 +1,23 @@
+{
+  "name": "mcp-companies-house",
+  "version": "0.1.0",
+  "description": "An xmcp application with tool syntax",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "xmcp build",
+    "dev": "xmcp dev",
+    "start": "node dist/http.js",
+    "test": "node --import tsx --test src/**/__tests__/**/*.test.ts"
+  },
+  "dependencies": {
+    "xmcp": "^0.6.4",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.3.2",
+    "tsx": "^4.21.0"
+  }
+}
