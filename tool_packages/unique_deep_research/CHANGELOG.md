@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.5.2] - 2026-03-05
 - Improve deep research prompts
 
-## [3.5.1] - 2026-03-05
+## [3.5.1] - 2026-03-03
 - Build: migrate from Poetry to uv
 
 ## [3.5.0] - 2026-02-27
