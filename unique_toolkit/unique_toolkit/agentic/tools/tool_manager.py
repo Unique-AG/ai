@@ -293,7 +293,7 @@ class _ToolManager(Generic[_ApiMode]):
             tool_response: ToolCallResponse = await tool_instance.run(
                 tool_call=tool_call
             )
-            tool_execution_time = round(time.perf_counter() - tool_start, 2)
+            tool_execution_time = round(time.perf_counter() - tool_start, 3)
 
             if tool_response.debug_info is None:
                 tool_response.debug_info = {}
