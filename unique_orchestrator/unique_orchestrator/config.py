@@ -316,6 +316,19 @@ class ResponsesApiConfig(BaseToolConfig):
 class OpenPdfToolConfig(BaseToolConfig):
     """Configuration for sending PDF files directly in the LLM payload."""
 
+    enabled: Annotated[
+        bool,
+        RJSFMetaTag.BooleanWidget.checkbox(
+            help=(
+                "Master switch for all OpenPdf-related features. When disabled, "
+                "none of the other flags in this config block take effect."
+            ),
+        ),
+    ] = Field(
+        default=False,
+        description="Enable the OpenPdf tool features.",
+    )
+
     send_pdf_files_in_payload: Annotated[
         bool,
         RJSFMetaTag.BooleanWidget.checkbox(
@@ -346,20 +359,6 @@ class OpenPdfToolConfig(BaseToolConfig):
     ] = Field(
         default=False,
         description="Attach uploaded PDF files directly to the LLM payload.",
-    )
-
-    include_content_id_for_pdf_chunks: Annotated[
-        bool,
-        RJSFMetaTag.BooleanWidget.checkbox(
-            help=(
-                "When enabled, PDF content chunks returned by InternalSearch "
-                "include a content_id field in the serialised sources. The LLM "
-                "can use this ID to call OpenPdf and load the full document."
-            ),
-        ),
-    ] = Field(
-        default=False,
-        description="Include content_id in serialised sources for PDF chunks.",
     )
 
 
