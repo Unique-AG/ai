@@ -226,7 +226,6 @@ class UniqueAI:
                 self._finalize_loop_timing(loop_start)
 
                 if await self._chat_service.cancellation.check_cancellation_async():
-                    self._finalize_loop_timing(loop_start)
                     break
 
                 if exit_loop:
@@ -545,7 +544,7 @@ class UniqueAI:
         tool_call_responses = await self._tool_manager.execute_selected_tools(
             tool_calls
         )
-        execution_total = round(time.perf_counter() - execution_start, 2)
+        execution_total = round(time.perf_counter() - execution_start, 3)
 
         tool_times: dict[str, float] = {}
         for response in tool_call_responses:
