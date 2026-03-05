@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import re
 from typing import TYPE_CHECKING
@@ -10,6 +11,8 @@ import unique_sdk
 from typing_extensions import deprecated
 
 from unique_toolkit.content.schemas import Content, ContentChunk, ContentMetadata
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from unique_toolkit.language_model.infos import LanguageModelInfo
@@ -34,6 +37,9 @@ def _apply_ingestion_upload_url_override(write_url: str) -> str:
         return write_url
     parsed = urlparse(write_url)
     custom_base = _ingestion_upload_api_url_internal.rstrip("/")
+    logger.debug(
+        f"Overriding ingestion upload URL {parsed.scheme}://{parsed.hostname}/{parsed.path} with: {custom_base}"
+    )
     return custom_base + ("?" + parsed.query if parsed.query else "")
 
 
