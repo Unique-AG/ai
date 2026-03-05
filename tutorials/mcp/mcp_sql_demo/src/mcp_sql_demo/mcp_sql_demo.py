@@ -58,8 +58,8 @@ elif _db_type == "postgres":
     _pg_user = os.getenv("PGUSER", "postgres")
     _pg_password = os.getenv("PGPASSWORD", "postgres")
     _pg_host = os.getenv("PGHOST", "localhost")
-    _pg_port = os.getenv("PGPORT", "5432")
-    _pg_database = os.getenv("PGDATABASE", "mcpdb")
+    _pg_port = os.getenv("PGPORT", "10110")
+    _pg_database = os.getenv("PGDATABASE", "testdb")
     _client_storage = PostgreSQLStore(
         url=f"postgresql://{_pg_user}:{_pg_password}@{_pg_host}:{_pg_port}/{_pg_database}"
     )
