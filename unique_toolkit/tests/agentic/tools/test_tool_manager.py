@@ -1987,3 +1987,195 @@ def test_responses_api_tool_manager__filter_tool_calls_by_max_tool_calls_allowed
 
     # Assert
     assert len(filtered) == 5
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_tool_manager__execute_tool_call__adds_execution_time_to_debug_info(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """
+    Purpose: Verify execute_tool_call injects execution_time_s into debug_info.
+    Why this matters: Execution time tracking is critical for performance monitoring.
+    Setup summary: Execute a tool call and verify debug_info contains execution_time_s.
+    """
+    tool_manager = ToolManager(
+        logger=logger,
+        config=tool_manager_config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+    tool_call = LanguageModelFunction(
+        id="call_1",
+        name="mock_tool",
+        arguments={"query": "test"},
+    )
+
+    response = await tool_manager.execute_tool_call(tool_call)
+
+    assert response.debug_info is not None
+    assert "execution_time_s" in response.debug_info
+    assert isinstance(response.debug_info["execution_time_s"], float)
+    assert response.debug_info["execution_time_s"] >= 0
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_tool_manager__execute_tool_call__initializes_debug_info_when_none(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+) -> None:
+    """
+    Purpose: Verify execute_tool_call creates debug_info dict when tool returns None.
+    Why this matters: Tools may not set debug_info, but execution time must always be recorded.
+    Setup summary: Mock tool to return None debug_info, verify dict is created with execution_time_s.
+    """
+    tool_configs = [
+        ToolBuildConfig(
+            name="mock_tool",
+            configuration=MockToolConfig(),
+            display_name="Mock Tool",
+            icon=ToolIcon.BOOK,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    tool_manager = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    mock_tool = tool_manager.get_tool_by_name("mock_tool")
+    original_run = mock_tool.run
+
+    async def run_returning_none_debug(tool_call):
+        resp = await original_run(tool_call)
+        resp.debug_info = None
+        return resp
+
+    mocker.patch.object(mock_tool, "run", side_effect=run_returning_none_debug)
+
+    tool_call = LanguageModelFunction(
+        id="call_1",
+        name="mock_tool",
+        arguments={"query": "test"},
+    )
+
+    response = await tool_manager.execute_tool_call(tool_call)
+
+    assert response.debug_info is not None
+    assert isinstance(response.debug_info, dict)
+    assert "execution_time_s" in response.debug_info
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_tool_manager__execute_tool_call__preserves_existing_debug_info(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+) -> None:
+    """
+    Purpose: Verify execute_tool_call preserves existing debug_info keys from the tool.
+    Why this matters: Tools may set their own debug_info that must not be overwritten.
+    Setup summary: Mock tool to return debug_info with custom keys, verify they persist alongside execution_time_s.
+    """
+    tool_configs = [
+        ToolBuildConfig(
+            name="mock_tool",
+            configuration=MockToolConfig(),
+            display_name="Mock Tool",
+            icon=ToolIcon.BOOK,
+            selection_policy=ToolSelectionPolicy.BY_USER,
+            is_exclusive=False,
+            is_enabled=True,
+        ),
+    ]
+    config = ToolManagerConfig(tools=tool_configs, max_tool_calls=10)
+    tool_manager = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    mock_tool = tool_manager.get_tool_by_name("mock_tool")
+    original_run = mock_tool.run
+
+    async def run_with_custom_debug(tool_call):
+        resp = await original_run(tool_call)
+        resp.debug_info = {"custom_key": "custom_value", "chunks_found": 5}
+        return resp
+
+    mocker.patch.object(mock_tool, "run", side_effect=run_with_custom_debug)
+
+    tool_call = LanguageModelFunction(
+        id="call_1",
+        name="mock_tool",
+        arguments={"query": "test"},
+    )
+
+    response = await tool_manager.execute_tool_call(tool_call)
+
+    assert response.debug_info["custom_key"] == "custom_value"
+    assert response.debug_info["chunks_found"] == 5
+    assert "execution_time_s" in response.debug_info
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_tool_manager__execute_tool_call__rounds_execution_time_to_two_decimals(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+) -> None:
+    """
+    Purpose: Verify execution_time_s is rounded to 2 decimal places.
+    Why this matters: Consistent precision for timing data.
+    Setup summary: Execute tool call and check decimal precision of execution_time_s.
+    """
+    tool_manager = ToolManager(
+        logger=logger,
+        config=tool_manager_config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+    tool_call = LanguageModelFunction(
+        id="call_1",
+        name="mock_tool",
+        arguments={"query": "test"},
+    )
+
+    response = await tool_manager.execute_tool_call(tool_call)
+
+    time_value = response.debug_info["execution_time_s"]
+    parts = str(time_value).split(".")
+    if len(parts) == 2:
+        assert len(parts[1]) <= 2
