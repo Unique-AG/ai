@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import re
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 import tiktoken
 import unique_sdk
@@ -11,6 +13,28 @@ from unique_toolkit.content.schemas import Content, ContentChunk, ContentMetadat
 
 if TYPE_CHECKING:
     from unique_toolkit.language_model.infos import LanguageModelInfo
+
+INGESTION_UPLOAD_API_URL_INTERNAL_ENV = "INGESTION_UPLOAD_API_URL_INTERNAL"
+
+_ingestion_upload_api_url_internal: str | None = (
+    (v.strip() or None)
+    if (v := os.getenv(INGESTION_UPLOAD_API_URL_INTERNAL_ENV))
+    else None
+)
+
+
+def _apply_ingestion_upload_url_override(write_url: str) -> str:
+    """
+    If INGESTION_UPLOAD_API_URL_INTERNAL is set, replace the scheme+authority+path
+    of write_url with that value, preserving the query string (e.g. key=...).
+    Used when the toolkit runs in Kubernetes or a private network so uploads
+    go to a reachable ingestion service URL.
+    """
+    if not _ingestion_upload_api_url_internal:
+        return write_url
+    parsed = urlparse(write_url)
+    custom_base = _ingestion_upload_api_url_internal.rstrip("/")
+    return custom_base + ("?" + parsed.query if parsed.query else "")
 
 
 def _map_content_id_to_chunks(content_chunks: list[ContentChunk]):
