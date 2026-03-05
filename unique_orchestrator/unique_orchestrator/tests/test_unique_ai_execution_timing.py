@@ -1,5 +1,5 @@
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -126,9 +126,7 @@ class TestFinalizeLoopTiming:
             assert len(parts[1]) <= 3
 
     @pytest.mark.ai
-    def test_finalize_loop_timing_preserves_existing_keys(
-        self, mock_unique_ai
-    ) -> None:
+    def test_finalize_loop_timing_preserves_existing_keys(self, mock_unique_ai) -> None:
         mock_unique_ai._current_loop_timing = {
             "iteration": 1,
             "planning_or_streaming": 0.5,

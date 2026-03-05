@@ -246,14 +246,19 @@ class UniqueAI:
 
             debug_info_user_message = await self._chat_service.get_debug_info_async()
 
-            self._debug_info_manager.add("execution_time", {
-                "loop_iterations": self._execution_times,
-                "total_time": round(time.perf_counter() - run_start, 3),
-            })
+            self._debug_info_manager.add(
+                "execution_time",
+                {
+                    "loop_iterations": self._execution_times,
+                    "total_time": round(time.perf_counter() - run_start, 3),
+                },
+            )
 
             debug_info_user_message.update(self._debug_info_manager.get())
 
-            await self._chat_service.update_debug_info_async(debug_info=debug_info_user_message)
+            await self._chat_service.update_debug_info_async(
+                debug_info=debug_info_user_message
+            )
 
             if not self._chat_service.cancellation.is_cancelled:
                 await self._update_debug_info_if_tool_took_control()
@@ -475,8 +480,8 @@ class UniqueAI:
         evaluation_times = self._evaluation_manager.get_execution_times()
         for name in selected_evaluation_names:
             name_str = str(name)
-            self._current_loop_timing["evaluation"][name_str] = (
-                evaluation_times.get(name_str, 0)
+            self._current_loop_timing["evaluation"][name_str] = evaluation_times.get(
+                name_str, 0
             )
 
         if evaluation_results.success and not all(
