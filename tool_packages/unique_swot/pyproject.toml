@@ -25,6 +25,9 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-root = ""
 
+[tool.uv]
+constraint-dependencies = ["lxml>=5.0.0"]
+
 [dependency-groups]
 dev = [
     "ruff>=0.11.7",
