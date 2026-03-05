@@ -9,12 +9,8 @@ from unique_toolkit.agentic.responses_api.postprocessors.generated_files import 
 from unique_toolkit.agentic.responses_api.stream_handler import (
     ResponsesStreamingHandler,
 )
-from unique_toolkit.agentic.tools.experimental.open_pdf_tool import (
-    OpenPdfTool,
-)
 
 __all__ = [
-    "OpenPdfTool",
     "ShowExecutedCodePostprocessor",
     "ShowExecutedCodePostprocessorConfig",
     "DisplayCodeInterpreterFilesPostProcessorConfig",

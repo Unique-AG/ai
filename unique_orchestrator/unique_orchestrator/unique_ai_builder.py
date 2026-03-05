@@ -36,7 +36,6 @@ from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.responses_api import (
     DisplayCodeInterpreterFilesPostProcessor,
-    OpenPdfTool,
     ShowExecutedCodePostprocessor,
 )
 from unique_toolkit.agentic.thinking_manager.thinking_manager import (
@@ -55,6 +54,7 @@ from unique_toolkit.agentic.tools.a2a import (
     SubAgentResponseWatcher,
 )
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
+from unique_toolkit.agentic.tools.experimental.open_pdf_tool import OpenPdfTool
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.tool_manager import (
