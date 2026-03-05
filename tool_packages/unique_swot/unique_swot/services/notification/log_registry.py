@@ -71,9 +71,8 @@ class MessageLogRegistryItem(BaseModel):
         self.description.append(description)
         if progress is not None:
             self.progress = progress
-        text = (
-            f"**{self.title}** _{self.progress}%_\n - {'\n - '.join(self.description)}"
-        )
+        joined = "\n - ".join(self.description)
+        text = f"**{self.title}** _{self.progress}%_\n - {joined}"
         status = (
             MessageLogStatus.RUNNING if not completed else MessageLogStatus.COMPLETED
         )

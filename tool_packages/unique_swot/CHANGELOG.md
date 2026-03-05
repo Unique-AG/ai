@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-03-03
+- Build: migrate from Poetry to uv
+
 ## [1.3.0] - 2026-03-02
 ### Added
 - Dual-mode generation architecture with `GenerationMode` enum (`INTERLEAVED` / `EXTRACT_FIRST`)

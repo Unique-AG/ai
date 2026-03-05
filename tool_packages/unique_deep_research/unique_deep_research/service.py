@@ -49,7 +49,7 @@ from unique_toolkit.language_model.schemas import (
 )
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
-from unique_deep_research.unique_custom.tools import crawl_url
+from unique_deep_research.unique_custom.tools import crawl_url, get_today_str
 
 from .config import (
     RESPONSES_API_TIMEOUT_SECONDS,
@@ -784,9 +784,9 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             messages=[
                 {
                     "role": "system",
-                    "content": self.env.get_template(
-                        "report_cleanup_prompt.j2"
-                    ).render(),
+                    "content": self.env.get_template("report_cleanup_prompt.j2").render(
+                        date=get_today_str()
+                    ),
                 },
                 {
                     "role": "user",
@@ -843,6 +843,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
             {
                 "role": "system",
                 "content": self.env.get_template("clarifying_agent.j2").render(
+                    date=get_today_str(),
                     engine_type=self.config.engine.get_type().value,
                     has_web_tools=self.has_web_tools,
                     has_internal_tools=self.has_internal_tools,
@@ -870,6 +871,7 @@ class DeepResearchTool(Tool[DeepResearchToolConfig]):
                 "content": self.env.get_template(
                     "research_instructions_agent.j2"
                 ).render(
+                    date=get_today_str(),
                     engine_type=self.config.engine.get_type().value,
                     has_web_tools=self.has_web_tools,
                     has_internal_tools=self.has_internal_tools,

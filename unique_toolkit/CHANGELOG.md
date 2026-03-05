@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add uncited source stripping to remove unreferenced source data from tool messages, reducing token usage
 - Wire up tool-call-aware history construction in `LoopTokenReducer`
 
+## [1.50.4] - 2026-03-05
+- Add `INGESTION_UPLOAD_API_URL_INTERNAL` environment variable to override the ingestion upload URL. This can be used to upload content from within a private network like a Kubernetes cluster.
+
 ## [1.50.3] - 2026-03-04
 - Docs: add minimal langchain example and langchain platform documentation
 - Docs: move manual examples to dedicated folder
