@@ -1,4 +1,5 @@
 import base64
+import logging
 import mimetypes
 from datetime import datetime
 from enum import StrEnum
@@ -11,16 +12,21 @@ from unique_toolkit._common.token.token_counting import (
 )
 from unique_toolkit._common.utils import files as FileUtils
 from unique_toolkit.app import ChatEventUserMessage
-from unique_toolkit.chat.schemas import ChatMessage
+from unique_toolkit.chat.schemas import ChatMessage, ToolCallRecord
 from unique_toolkit.chat.schemas import ChatMessageRole as ChatRole
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelMessageRole as LLMRole
 from unique_toolkit.language_model.infos import EncoderName, LanguageModelInfo
-from unique_toolkit.language_model.schemas import LanguageModelMessages
+from unique_toolkit.language_model.schemas import (
+    LanguageModelAssistantMessage,
+    LanguageModelFunction,
+    LanguageModelMessages,
+    LanguageModelToolMessage,
+)
 
-# TODO: Test this once it moves into the unique toolkit
+logger = logging.getLogger(__name__)
 
 map_chat_llm_message_role = {
     ChatRole.USER: LLMRole.USER,
@@ -199,6 +205,115 @@ def get_full_history_with_contents(
                 )
             )
             content = content.strip()
+
+            if include_images and len(image_contents) > 0:
+                builder.image_message_append(
+                    content=content,
+                    images=download_encoded_images(
+                        contents=image_contents,
+                        content_service=content_service,
+                        chat_id=chat_id,
+                    ),
+                    role=map_chat_llm_message_role[c.role],
+                )
+            else:
+                builder.message_append(
+                    role=map_chat_llm_message_role[c.role],
+                    content=content,
+                )
+        else:
+            builder.message_append(
+                role=map_chat_llm_message_role[c.role],
+                content=text,
+            )
+    return builder.build()
+
+
+def get_full_history_with_contents_and_tool_calls(
+    user_message: ChatEventUserMessage,
+    chat_id: str,
+    chat_service: ChatService,
+    content_service: ContentService,
+    include_images: ImageContentInclusion = ImageContentInclusion.ALL,
+    file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+) -> LanguageModelMessages:
+    """Like get_full_history_with_contents, but also loads tool calls from the DB
+    and interleaves them into the history before each assistant message.
+    """
+    chat_history = chat_service.get_full_history()
+
+    assistant_message_ids = [
+        msg.id for msg in chat_history
+        if msg.role == ChatRole.ASSISTANT and msg.id
+    ]
+    tool_calls_by_message: dict[str, list[ToolCallRecord]] = {}
+    if assistant_message_ids:
+        try:
+            all_tool_calls = chat_service.list_tool_calls_by_message_ids(
+                message_ids=assistant_message_ids,
+            )
+            for tc in all_tool_calls:
+                if tc.message_id:
+                    tool_calls_by_message.setdefault(tc.message_id, []).append(tc)
+        except Exception:
+            logger.warning("Failed to batch-load tool calls, falling back to empty", exc_info=True)
+
+    grouped_elements = get_chat_history_with_contents(
+        user_message=user_message,
+        chat_id=chat_id,
+        chat_history=chat_history,
+        content_service=content_service,
+    )
+
+    builder = LanguageModelMessages([]).builder()
+    for c in grouped_elements:
+        text = c.original_content if c.original_content else c.content
+        if text is None:
+            if c.role == ChatRole.USER:
+                raise ValueError(
+                    "Content or original_content of LanguageModelMessages should exist.",
+                )
+            text = ""
+
+        # For assistant messages, interleave tool calls before the final response
+        if c.role == ChatRole.ASSISTANT and c.id and c.id in tool_calls_by_message:
+            tc_records = tool_calls_by_message[c.id]
+            if tc_records:
+                for tc in tc_records:
+                    fn = LanguageModelFunction(
+                        id=tc.external_tool_call_id,
+                        name=tc.function_name,
+                        arguments=tc.arguments,
+                    )
+                    builder.messages.append(
+                        LanguageModelAssistantMessage.from_functions(
+                            tool_calls=[fn]
+                        )
+                    )
+                    if tc.response and tc.response.content:
+                        builder.messages.append(
+                            LanguageModelToolMessage(
+                                tool_call_id=tc.external_tool_call_id,
+                                content=tc.response.content,
+                                name=tc.function_name,
+                            )
+                        )
+
+        if len(c.contents) > 0:
+            file_contents = [
+                co for co in c.contents if FileUtils.is_file_content(co.key)
+            ]
+            image_contents = [
+                co for co in c.contents if FileUtils.is_image_content(co.key)
+            ]
+            content = (
+                text
+                + "\n\n"
+                + file_content_serialization(
+                    file_contents,
+                    file_content_serialization_type,
+                )
+            ).strip()
 
             if include_images and len(image_contents) > 0:
                 builder.image_message_append(
