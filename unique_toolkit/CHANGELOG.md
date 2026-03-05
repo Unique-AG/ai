@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.48.1] - 2026-02-24
 - Handle tool init failures gracefully: skip misconfigured/failing tools instead of crashing the orchestrator (UN-17197)
 
+## [1.50.4] - 2026-03-05
+- Add `INGESTION_UPLOAD_API_URL_INTERNAL` environment variable to override the ingestion upload URL. This can be used to upload content from within a private network like a Kubernetes cluster.
+
+## [1.50.3] - 2026-03-04
+- Docs: add minimal langchain example and langchain platform documentation
+- Docs: move manual examples to dedicated folder
+- Docs: fix missing and duplicated tags in generated examples
+
 ## [1.50.2] - 2026-03-03
 - Build: migrate from Poetry to uv (PEP 621 metadata, uv_build backend, dependency-groups)
 

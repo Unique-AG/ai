@@ -1,6 +1,6 @@
 # ~/~ begin <<docs/modules/examples/chat/chat_document_handling.md#docs/.python_files/chat_with_document_app.py>>[init]
-# ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup_with_services>>[init]
-# ~/~ begin <<docs/application_types/event_driven_applications.md#full_sse_setup>>[init]
+# ~/~ begin <<docs/application_types/event_driven/index.md#full_sse_setup_with_services>>[init]
+# ~/~ begin <<docs/application_types/event_driven/index.md#full_sse_setup>>[init]
 # ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.app.init_sdk import init_unique_sdk
@@ -29,12 +29,12 @@ from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
 from unique_toolkit.chat.rendering import create_prompt_button_string, create_latex_formula_string
 # ~/~ end
-# ~/~ begin <<docs/application_types/event_driven_applications.md#unique_setup_settings_sdk_from_env>>[init]
+# ~/~ begin <<docs/application_types/event_driven/event_driven_with_sse.md#unique_setup_settings_sdk_from_env>>[init]
 settings = UniqueSettings.from_env_auto_with_sdk_init()
 # ~/~ end
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):
 # ~/~ end
-    # ~/~ begin <<docs/application_types/event_driven_applications.md#init_services_from_event>>[init]
+    # ~/~ begin <<docs/application_types/event_driven/index.md#init_services_from_event>>[init]
     # Initialize services from event
     chat_service = ChatService(event)
     kb_service= KnowledgeBaseService.from_event(event)
@@ -42,7 +42,7 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
 # ~/~ end
     # ~/~ begin <<docs/modules/examples/chat/chat_document_handling.md#chat_service_document_and_image_download>>[init]
     images, documents = chat_service.download_chat_images_and_documents()
-
+    
     if len(documents) > 0:
         doc_bytes = chat_service.download_chat_content_to_bytes(content_id=documents[0].id)
     # ~/~ end
@@ -52,10 +52,10 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     if len(images) > 0:
         img_bytes = chat_service.download_chat_content_to_bytes(content_id=images[0].id)
         img_mime_type, _ = mimetypes.guess_type(images[0].key)
-
+    
     builder = (OpenAIMessageBuilder()
             .system_message_append(content="You are a helpful assistant."))
-
+    
     if img_bytes is not None and img_mime_type is not None:
         builder.user_message_append(
                 content=OpenAIUserMessageBuilder()
@@ -71,7 +71,7 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
         messages=builder.messages,
         model_name=LanguageModelName.AZURE_GPT_4o_2024_1120
     )
-
+    
     chat_service.free_user_input()
     # ~/~ end
 # ~/~ end

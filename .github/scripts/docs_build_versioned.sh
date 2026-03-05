@@ -7,7 +7,7 @@ set -euo pipefail
 # Simulates the CI workflow locally to test multi-version docs structure.
 #
 # Usage:
-#   ./scripts/docs_build_versioned.sh [options]
+#   ./.github/scripts/docs_build_versioned.sh [options]
 #
 # Options:
 #   --clean               Clean _local_docs before building
@@ -18,12 +18,12 @@ set -euo pipefail
 #   --help                Show this help message
 #
 # Examples:
-#   ./scripts/docs_build_versioned.sh --clean --serve
-#   ./scripts/docs_build_versioned.sh --sdk-version 0.10.76 --serve
+#   ./.github/scripts/docs_build_versioned.sh --clean --serve
+#   ./.github/scripts/docs_build_versioned.sh --sdk-version 0.10.76 --serve
 # ============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 OUTPUT_DIR="$REPO_ROOT/_local_docs"
 
 # Default options
@@ -83,7 +83,7 @@ check_dependencies() {
 
 get_version_from_pyproject() {
     local project_dir=$1
-    poetry -C "$project_dir" version -s
+    grep -m1 '^version[[:space:]]*=' "$project_dir/pyproject.toml" | sed -E 's/.*"([^"]+)".*/\1/'
 }
 
 # Copy the versioned site into latest/ so that /latest/ and /latest/any/subpath/ both work
@@ -357,7 +357,7 @@ main() {
         poetry run python "$SCRIPT_DIR/serve_docs.py" "$PORT" "$OUTPUT_DIR"
     else
         log_info "To serve locally, run:"
-        echo "  python scripts/serve_docs.py $PORT $OUTPUT_DIR"
+        echo "  python .github/scripts/serve_docs.py $PORT $OUTPUT_DIR"
         echo ""
         echo "  Then visit:"
         echo "    http://localhost:$PORT/"
