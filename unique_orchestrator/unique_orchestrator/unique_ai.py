@@ -1,7 +1,8 @@
 import asyncio
+import time
 from datetime import datetime, timezone
 from logging import Logger
-from typing import overload
+from typing import Any, overload
 
 import jinja2
 from typing_extensions import deprecated
@@ -143,6 +144,9 @@ class UniqueAI:
         self._tool_took_control = False
         self._loop_iteration_runner = loop_iteration_runner
 
+        self._execution_times: list[dict[str, Any]] = []
+        self._current_loop_timing: dict[str, Any] = {}
+
     @property
     def _effective_max_loop_iterations(self) -> int:
         """Get the effective max loop iterations based on the model type."""
@@ -178,6 +182,9 @@ class UniqueAI:
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )
 
+        self._execution_times = []
+        run_start = time.perf_counter()
+
         sub = self._chat_service.cancellation.on_cancellation.subscribe(
             self._on_cancellation
         )
@@ -190,10 +197,22 @@ class UniqueAI:
                 self.current_iteration_index = i
                 self._logger.info(f"Starting iteration {i + 1}...")
 
+                loop_start = time.perf_counter()
+                self._current_loop_timing = {
+                    "iteration": i + 1,
+                    "post_processing": {},
+                    "evaluation": {},
+                }
+
+                planning_start = time.perf_counter()
                 loop_response = await self._plan_or_execute()
+                self._current_loop_timing["planning_or_streaming"] = round(
+                    time.perf_counter() - planning_start, 3
+                )
                 self._logger.info("Done with _plan_or_execute")
 
                 if await self._chat_service.cancellation.check_cancellation_async():
+                    self._finalize_loop_timing(loop_start)
                     break
 
                 self._reference_manager.add_references(loop_response.message.references)
@@ -204,7 +223,10 @@ class UniqueAI:
                 exit_loop = await self._process_plan(loop_response)
                 self._logger.info("Done with _process_plan")
 
+                self._finalize_loop_timing(loop_start)
+
                 if await self._chat_service.cancellation.check_cancellation_async():
+                    self._finalize_loop_timing(loop_start)
                     break
 
                 if exit_loop:
@@ -222,6 +244,17 @@ class UniqueAI:
                 self.start_text = self._thinking_manager.update_start_text(
                     self.start_text, loop_response
                 )
+
+            debug_info_user_message = await self._chat_service.get_debug_info_async()
+
+            self._debug_info_manager.add("execution_time", {
+                "loop_iterations": self._execution_times,
+                "total_time": round(time.perf_counter() - run_start, 3),
+            })
+
+            debug_info_user_message.update(self._debug_info_manager.get())
+
+            await self._chat_service.update_debug_info_async(debug_info=debug_info_user_message)
 
             if not self._chat_service.cancellation.is_cancelled:
                 await self._update_debug_info_if_tool_took_control()
@@ -404,6 +437,12 @@ class UniqueAI:
         )
         return system_message
 
+    def _finalize_loop_timing(self, loop_start: float) -> None:
+        self._current_loop_timing["total_loop_time"] = round(
+            time.perf_counter() - loop_start, 3
+        )
+        self._execution_times.append(self._current_loop_timing)
+
     async def _handle_no_tool_calls(
         self, loop_response: LanguageModelStreamResponse
     ) -> bool:
@@ -429,6 +468,17 @@ class UniqueAI:
             postprocessor_result,
             evaluation_results,
         )
+
+        self._current_loop_timing["post_processing"].update(
+            self._postprocessor_manager.get_execution_times()
+        )
+
+        evaluation_times = self._evaluation_manager.get_execution_times()
+        for name in selected_evaluation_names:
+            name_str = str(name)
+            self._current_loop_timing["evaluation"][name_str] = (
+                evaluation_times.get(name_str, 0)
+            )
 
         if evaluation_results.success and not all(
             result.is_positive for result in evaluation_results.unpack()
@@ -490,10 +540,28 @@ class UniqueAI:
 
         # Log tool calls
         self._log_tool_calls(tool_calls)
-        # Execute tool calls
+
+        execution_start = time.perf_counter()
         tool_call_responses = await self._tool_manager.execute_selected_tools(
             tool_calls
         )
+        execution_total = round(time.perf_counter() - execution_start, 2)
+
+        tool_times: dict[str, float] = {}
+        for response in tool_call_responses:
+            if response.debug_info and "execution_time_s" in response.debug_info:
+                name = response.name
+                if name in tool_times:
+                    counter = 2
+                    while f"{name}_{counter}" in tool_times:
+                        counter += 1
+                    name = f"{name}_{counter}"
+                tool_times[name] = response.debug_info["execution_time_s"]
+
+        self._current_loop_timing["tool_execution"] = {
+            "total": execution_total,
+            **tool_times,
+        }
 
         # Process results with error handling
         # Add tool call results to history first to stabilize source numbering,
