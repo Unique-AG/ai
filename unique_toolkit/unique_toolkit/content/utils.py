@@ -38,7 +38,7 @@ def _apply_ingestion_upload_url_override(write_url: str) -> str:
     parsed = urlparse(write_url)
     custom_base = _ingestion_upload_api_url_internal.rstrip("/")
     logger.debug(
-        f"Overriding ingestion upload URL {parsed.scheme}://{parsed.hostname}/{parsed.path} with: {custom_base}"
+        f"Overriding ingestion upload URL {parsed.scheme}://{parsed.hostname}{parsed.path} with: {custom_base}"
     )
     return custom_base + ("?" + parsed.query if parsed.query else "")
 
