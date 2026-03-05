@@ -270,7 +270,6 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
         sleeve_section = ", ".join(sorted(sleeve))
         tickers_section = ", ".join(tickers)
 
-        # TODO: Prompt says LIKE for case-insensitive matching, but LIKE is case-sensitive in PostgreSQL (only SQLite is case-insensitive). Consider reverting to ILIKE in the prompt and relying on where_clause.replace("ILIKE", "LIKE") for SQLite.
         system_prompt = f"""
         You are a SQL generation assistant. Your sole output must be a valid SQL WHERE clause that can be appended to:
         SELECT * FROM {TABLE_NAME}
@@ -282,7 +281,7 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
         Read-only retrieval ONLY. Do not generate INSERT/UPDATE/DELETE/DDL.
         Use standard SQL syntax compatible with both PostgreSQL and SQLite.
         If no filtering is required, return 'WHERE TRUE'.
-        Prefer safe comparisons (e.g., LIKE for case-insensitive text matching when appropriate).
+        Prefer safe comparisons (e.g., ILIKE for case-insensitive text matching when appropriate).
         For multiple conditions, use AND/OR with parentheses to be unambiguous.
         Use only columns listed in the "Columns" section below.
         When filtering by categorical fields (e.g., industry, ticker), use the allowed/known values sets below to avoid invalid values.
@@ -311,10 +310,10 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
         WHERE direction = 'Long' AND target_weight >= 0.05
         WHERE (direction = 'Short') AND (position_mm < 0)
         WHERE ticker IN ('MSFT','JNJ','UNH') AND sleeve = 'Equity Long'
-        WHERE instrument LIKE '%Treasuries%' AND sleeve = 'Rates'
+        WHERE instrument ILIKE '%Treasuries%' AND sleeve = 'Rates'
         WHERE (target_weight BETWEEN 0.03 AND 0.10) AND (position_mm >= 80)
         WHERE industry IN ('Technology','Financials')
-        WHERE ticker LIKE 'M%' OR instrument LIKE '%ETF%'
+        WHERE ticker ILIKE 'M%' OR instrument ILIKE '%ETF%'
         WHERE industry IS NOT NULL
         WHERE TRUE 
 
