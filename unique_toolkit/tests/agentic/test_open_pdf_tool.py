@@ -1,7 +1,7 @@
 import pytest
 
 from tests.test_obj_factory import get_event_obj
-from unique_toolkit.agentic.responses_api.include_file_tool import OpenPdfTool
+from unique_toolkit.agentic.tools.experimental.open_pdf_tool import OpenPdfTool
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 

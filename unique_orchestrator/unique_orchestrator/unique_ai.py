@@ -331,7 +331,7 @@ class UniqueAI:
     def _should_retry_without_pdf_files(self, exc: Exception) -> bool:
         """Return True when the error looks like a payload-too-large or related
         backend rejection that can be resolved by dropping the PDF file parts."""
-        cfg = self._config.agent.experimental.responses_api_config
+        cfg = self._config.agent.experimental.open_pdf_tool_config
         if not cfg.send_pdf_files_in_payload and not cfg.send_uploaded_pdf_in_payload:
             return False
         if not self._agent_file_registry and not self._get_uploaded_documents():
@@ -551,9 +551,10 @@ class UniqueAI:
         )
 
         responses_cfg = self._config.agent.experimental.responses_api_config
-        if responses_cfg.use_responses_api and (
-            responses_cfg.send_pdf_files_in_payload
-            or responses_cfg.send_uploaded_pdf_in_payload
+        pdf_cfg = self._config.agent.experimental.open_pdf_tool_config
+        if (responses_cfg.use_responses_api or self._config.agent.experimental.use_responses_api) and (
+            pdf_cfg.send_pdf_files_in_payload
+            or pdf_cfg.send_uploaded_pdf_in_payload
         ):
             messages = self._inject_content_files_into_user_message(messages)
 
@@ -583,7 +584,7 @@ class UniqueAI:
         file_data uses a unique://content/<id> URL. The backend resolves this
         to the actual PDF bytes and base64-encodes them before forwarding to OpenAI.
         """
-        cfg = self._config.agent.experimental.responses_api_config
+        cfg = self._config.agent.experimental.open_pdf_tool_config
         seen_ids: set[str] = set()
         file_parts: list[dict] = []
 

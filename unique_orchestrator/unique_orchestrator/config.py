@@ -311,6 +311,10 @@ class ResponsesApiConfig(BaseToolConfig):
         description="If set, the main agent will use the Responses API from OpenAI",
     )
 
+
+class OpenPdfToolConfig(BaseToolConfig):
+    """Configuration for sending PDF files directly in the LLM payload."""
+
     send_pdf_files_in_payload: bool = Field(
         default=False,
         description=(
@@ -358,6 +362,13 @@ class ExperimentalConfig(BaseToolConfig):
     )
 
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
+
+    open_pdf_tool_config: OpenPdfToolConfig = OpenPdfToolConfig()
+
+    use_responses_api: bool = Field(
+        default=False,
+        description="If set, the main agent will use the Responses API from OpenAI",
+    )
 
     responses_api_config: SkipJsonSchema[ResponsesApiConfig] = ResponsesApiConfig()
 

@@ -83,7 +83,7 @@ async def build_unique_ai(
 ) -> UniqueAI:
     common_components = _build_common(event, logger, config)
 
-    if config.agent.experimental.responses_api_config.use_responses_api:
+    if config.agent.experimental.responses_api_config.use_responses_api or config.agent.experimental.use_responses_api:
         return await _build_responses(
             event=event,
             logger=logger,
@@ -322,7 +322,7 @@ async def _build_responses(
     # directly to the LLM context — no InternalSearch needed for them.
     # UploadedSearch is only added for non-PDF uploaded files (.docx, .txt, etc.).
     _has_non_pdf_uploads = False
-    if config.agent.experimental.responses_api_config.send_uploaded_pdf_in_payload:
+    if config.agent.experimental.open_pdf_tool_config.send_uploaded_pdf_in_payload:
         now = datetime.now(timezone.utc)
         valid_uploads = [
             doc
@@ -371,7 +371,7 @@ async def _build_responses(
     # When sending uploaded PDFs as file parts, disable the UploadedContentConfig
     # mechanism so the HistoryManager doesn't also inject uploaded content as text
     # (which would duplicate what the input_file parts already provide).
-    if config.agent.experimental.responses_api_config.send_uploaded_pdf_in_payload:
+    if config.agent.experimental.open_pdf_tool_config.send_uploaded_pdf_in_payload:
         upload_free_config = HistoryManagerConfig(
             experimental_features=history_manager_module.ExperimentalFeatures(),
             percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
@@ -392,7 +392,7 @@ async def _build_responses(
     # Written to by OpenPdfTool, read by UniqueAI._collect_content_file_parts().
     agent_file_registry: list[str] = []
 
-    if config.agent.experimental.responses_api_config.send_pdf_files_in_payload:
+    if config.agent.experimental.open_pdf_tool_config.send_pdf_files_in_payload:
         tool_manager.add_tool(
             OpenPdfTool(event=event, registry=agent_file_registry)
         )
