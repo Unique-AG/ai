@@ -50,6 +50,7 @@ unique-follow-up-questions = { path = "../postprocessors/unique_follow_up_questi
 unique-internal-search = { path = "../tool_packages/unique_internal_search", editable = true }
 unique-swot = { path = "../tool_packages/unique_swot", editable = true }
 unique-web-search = { path = "../tool_packages/unique_web_search", editable = true }
+unique-deep-research = { path = "../tool_packages/unique_deep_research", editable = true }
 
 [tool.poe.tasks]
 lint = "ruff check ."

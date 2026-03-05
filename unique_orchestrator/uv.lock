@@ -3600,7 +3600,7 @@ wheels = [
 [[package]]
 name = "unique-deep-research"
 version = "3.5.2"
-source = { registry = "https://pypi.org/simple" }
+source = { editable = "../tool_packages/unique_deep_research" }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "fake-useragent" },
@@ -3617,9 +3617,38 @@ dependencies = [
     { name = "unique-toolkit" },
     { name = "unique-web-search" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d9/89/cb34d8abf74c2ae69f74a603840b4af631540ce9a6a5c26b1a2726682156/unique_deep_research-3.5.2.tar.gz", hash = "sha256:0bed6cecae65d80fcf4451ac98e7886f3c97d728e301ab6c45330f17e6db0aff", size = 47493, upload-time = "2026-03-05T12:50:08.494Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/21/9d/19c1c9531d27ffa2189a4cdf023849d57c4736dcb7a3aa0bc35737332340/unique_deep_research-3.5.2-py3-none-any.whl", hash = "sha256:5244612279643120a925da6d684a436db0157c7c085b3ce593bbe6c3e955e386", size = 57731, upload-time = "2026-03-05T12:50:07.496Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "beautifulsoup4", specifier = ">=4.12.0,<5" },
+    { name = "fake-useragent", specifier = ">=2.0.0,<3" },
+    { name = "httpx", specifier = ">=0.28.0,<0.29" },
+    { name = "jinja2", specifier = ">=3.1.2,<4" },
+    { name = "langchain", extras = ["openai"], specifier = ">=1.1.0,<2" },
+    { name = "langchain-core", specifier = ">=1.0.0,<2" },
+    { name = "langgraph", specifier = ">=1.0.0,<2" },
+    { name = "markdownify", specifier = ">=0.14.0,<0.15" },
+    { name = "openai", specifier = ">=1.99.0,<2" },
+    { name = "pydantic", specifier = ">=2.8.2,<3" },
+    { name = "timeout-decorator", specifier = ">=0.5.0,<0.6" },
+    { name = "typing-extensions", specifier = ">=4.9.0,<5" },
+    { name = "unique-toolkit", editable = "../unique_toolkit" },
+    { name = "unique-web-search", editable = "../tool_packages/unique_web_search" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "basedpyright", specifier = ">=1.35.0,<2" },
+    { name = "deptry", specifier = ">=0.24.0,<0.25" },
+    { name = "google", specifier = ">=3.0.0,<4" },
+    { name = "google-genai", specifier = ">=1.46.0,<2" },
+    { name = "opik", specifier = ">=1.8.42,<2" },
+    { name = "poethepoet", specifier = ">=0.32.0,<0.33" },
+    { name = "pytest", specifier = ">=8.4.1,<9" },
+    { name = "pytest-asyncio", specifier = ">=0.25.0,<0.26" },
+    { name = "pytest-cov", specifier = ">=7.0.0,<8" },
+    { name = "ruff", specifier = "==0.12.10" },
+    { name = "unique-sdk", editable = "../unique_sdk" },
 ]
 
 [[package]]
@@ -3692,7 +3721,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.0,<4" },
     { name = "pydantic", specifier = ">=2.8.2,<3" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
-    { name = "unique-deep-research", specifier = ">=3.0.17,<4" },
+    { name = "unique-deep-research", editable = "../tool_packages/unique_deep_research" },
     { name = "unique-follow-up-questions", editable = "../postprocessors/unique_follow_up_questions" },
     { name = "unique-internal-search", editable = "../tool_packages/unique_internal_search" },
     { name = "unique-stock-ticker", editable = "../postprocessors/unique_stock_ticker" },
@@ -3734,7 +3763,7 @@ wheels = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.83"
+version = "0.10.84"
 source = { editable = "../unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
@@ -3748,16 +3777,30 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiohttp", specifier = ">=3.9.0,<4.0.0" },
-    { name = "anyio", specifier = ">=4.0.0,<5.0.0" },
-    { name = "httpx", specifier = ">=0.28.0,<0.29.0" },
-    { name = "openai", marker = "extra == 'openai'", specifier = ">=1.105.0,<2.0.0" },
-    { name = "regex", specifier = ">=2024.5.15,<2025.0.0" },
-    { name = "requests", specifier = ">=2.32.3,<3.0.0" },
-    { name = "tiktoken", specifier = ">=0.12.0,<0.13.0" },
-    { name = "typing-extensions", specifier = ">=4.9.0,<5.0.0" },
+    { name = "aiohttp", specifier = ">=3.9.0,<4" },
+    { name = "anyio", specifier = ">=4.0.0,<5" },
+    { name = "httpx", specifier = ">=0.28.0,<0.29" },
+    { name = "openai", marker = "extra == 'openai'", specifier = ">=1.105.0,<2" },
+    { name = "regex", specifier = ">=2024.5.15" },
+    { name = "requests", specifier = ">=2.32.3,<3" },
+    { name = "tiktoken", specifier = ">=0.12.0,<0.13" },
+    { name = "typing-extensions", specifier = ">=4.9.0,<5" },
 ]
 provides-extras = ["openai"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "basedpyright", specifier = ">=1.35.0,<2" },
+    { name = "deptry", specifier = ">=0.24.0,<0.25" },
+    { name = "ipykernel", specifier = ">=7.1.0,<8" },
+    { name = "poethepoet", specifier = ">=0.32.0,<0.33" },
+    { name = "pytest", specifier = ">=8.0,<9" },
+    { name = "pytest-asyncio", specifier = ">=0.24.0,<0.25" },
+    { name = "pytest-cov", specifier = ">=4.1.0,<5" },
+    { name = "python-dotenv", specifier = ">=1.1.0,<2" },
+    { name = "ruff", specifier = "==0.11.7" },
+    { name = "tox", specifier = ">=4.11.4,<5" },
+]
 
 [[package]]
 name = "unique-stock-ticker"
