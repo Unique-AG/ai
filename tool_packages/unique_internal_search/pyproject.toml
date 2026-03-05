@@ -24,6 +24,9 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-root = ""
 
+[tool.uv]
+constraint-dependencies = ["lxml>=5.0.0"]
+
 [dependency-groups]
 dev = [
     "pytest>=8.4.1,<9",
