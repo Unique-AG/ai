@@ -3,6 +3,8 @@
 from unittest.mock import MagicMock
 
 import pytest
+from openai.types.responses import ResponseCodeInterpreterToolCall
+from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors import (
     generated_files as gen_mod,
@@ -10,6 +12,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files import (
     DisplayCodeInterpreterFilesPostProcessor,
     DisplayCodeInterpreterFilesPostProcessorConfig,
+    _build_code_blocks,
 )
 from unique_toolkit.content.schemas import ContentReference
 
@@ -220,3 +223,143 @@ def test_replace_container_html_citation__replaces_markdown__with_html_rendering
     assert "HtmlRendering" in new_text
     assert f"unique://content/{content_id}" in new_text
     assert "sandbox" not in new_text
+
+
+# ============================================================================
+# Tests for _build_code_blocks
+# ============================================================================
+
+
+def _make_ci_call(
+    code: str, container_id: str = "cntr_1"
+) -> ResponseCodeInterpreterToolCall:
+    return ResponseCodeInterpreterToolCall(
+        id="ci_1",
+        code=code,
+        container_id=container_id,
+        outputs=None,
+        status="completed",
+        type="code_interpreter_call",
+    )
+
+
+def _make_annotation(
+    filename: str, file_id: str = "cfile_1", container_id: str = "cntr_1"
+) -> AnnotationContainerFileCitation:
+    return AnnotationContainerFileCitation(
+        container_id=container_id,
+        file_id=file_id,
+        filename=filename,
+        start_index=0,
+        end_index=10,
+        type="container_file_citation",
+    )
+
+
+def _make_response(calls, annotations):
+    response = MagicMock()
+    response.code_interpreter_calls = calls
+    response.container_files = annotations
+    return response
+
+
+@pytest.mark.ai
+def test_build_code_blocks__maps_single_block_to_single_file__when_path_matches() -> (
+    None
+):
+    """
+    Purpose: Verify Case 1 — 1 code block, 1 file — is mapped correctly.
+    Why this matters: Simplest case must work; file linked to its producing block.
+    Setup summary: Code writes /mnt/data/report.xlsx; annotation for report.xlsx.
+    """
+    call = _make_ci_call('df.to_excel("/mnt/data/report.xlsx")')
+    annotation = _make_annotation("report.xlsx", file_id="cfile_abc")
+    content_map = {"report.xlsx": "unique://content/abc123"}
+    response = _make_response([call], [annotation])
+
+    result = _build_code_blocks(response, content_map)
+
+    assert len(result) == 1
+    assert result[0].code == call.code
+    assert len(result[0].files) == 1
+    assert result[0].files[0].filename == "report.xlsx"
+    assert result[0].files[0].content_id == "unique://content/abc123"
+    assert result[0].files[0].type == "document"
+
+
+@pytest.mark.ai
+def test_build_code_blocks__maps_two_blocks_to_separate_files__when_paths_distinct() -> (
+    None
+):
+    """
+    Purpose: Verify Case 4 — N blocks, N files — each file maps to its producing block.
+    Why this matters: Core mapping logic must assign files to the correct block.
+    Setup summary: Block 1 writes xlsx, block 2 writes png; each gets its own entry.
+    """
+    call1 = _make_ci_call('df.to_excel("/mnt/data/data.xlsx")')
+    call2 = _make_ci_call('plt.savefig("/mnt/data/chart.png")')
+    ann_xlsx = _make_annotation("data.xlsx", file_id="cfile_1")
+    ann_png = _make_annotation("chart.png", file_id="cfile_2")
+    content_map = {
+        "data.xlsx": "unique://content/id1",
+        "chart.png": "unique://content/id2",
+    }
+    response = _make_response([call1, call2], [ann_xlsx, ann_png])
+
+    result = _build_code_blocks(response, content_map)
+
+    assert len(result) == 2
+    assert result[0].files[0].filename == "data.xlsx"
+    assert result[0].files[0].type == "document"
+    assert result[1].files[0].filename == "chart.png"
+    assert result[1].files[0].type == "image"
+
+
+@pytest.mark.ai
+def test_build_code_blocks__discards_blocks_without_files__returns_empty() -> None:
+    """
+    Purpose: Verify Case 5 — code ran but no files produced — returns empty list.
+    Why this matters: Pure computation blocks must not appear in code_blocks.
+    Setup summary: Code block with no /mnt/data/ write and no annotations.
+    """
+    call = _make_ci_call("result = 2 ** 32\nresult")
+    content_map: dict = {}
+    response = _make_response([call], [])
+
+    result = _build_code_blocks(response, content_map)
+
+    assert result == []
+
+
+@pytest.mark.ai
+def test_build_code_blocks__assigns_image_type__for_png_file() -> None:
+    """
+    Purpose: Verify PNG files get type 'image', not 'document'.
+    Why this matters: Frontend uses type to choose the correct renderer.
+    Setup summary: Code writes plot.png; verify type == 'image'.
+    """
+    call = _make_ci_call('plt.savefig("/mnt/data/plot.png")')
+    annotation = _make_annotation("plot.png")
+    content_map = {"plot.png": "unique://content/img1"}
+    response = _make_response([call], [annotation])
+
+    result = _build_code_blocks(response, content_map)
+
+    assert result[0].files[0].type == "image"
+
+
+@pytest.mark.ai
+def test_build_code_blocks__skips_file__when_content_id_is_none() -> None:
+    """
+    Purpose: Verify files that failed upload (content_id=None) are excluded.
+    Why this matters: Must not expose broken file references to the frontend.
+    Setup summary: content_map has None for a filename; verify file excluded.
+    """
+    call = _make_ci_call('df.to_excel("/mnt/data/broken.xlsx")')
+    annotation = _make_annotation("broken.xlsx")
+    content_map = {"broken.xlsx": None}
+    response = _make_response([call], [annotation])
+
+    result = _build_code_blocks(response, content_map)
+
+    assert result == []

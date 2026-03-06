@@ -21,7 +21,12 @@ from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memo
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
+from unique_toolkit.language_model.schemas import (
+    CodeInterpreterBlock,
+    CodeInterpreterFile,
+    CodeInterpreterFileType,
+    ResponsesLanguageModelStreamResponse,
+)
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
@@ -209,6 +214,10 @@ class DisplayCodeInterpreterFilesPostProcessor(
                     )
                 )
                 ref_number += 1
+
+        loop_response.message.code_blocks = _build_code_blocks(
+            loop_response, self._content_map
+        )
         return changed
 
     @override
@@ -271,6 +280,39 @@ class DisplayCodeInterpreterFilesPostProcessor(
         await self._short_term_memory_manager.save_async(
             _DisplayedFilesShortTermMemorySchema(root=content_infos)
         )
+
+
+def _get_file_type(filename: str) -> CodeInterpreterFileType:
+    mime = guess_type(filename)[0] or ""
+    if mime.startswith("image/"):
+        return "image"
+    if mime == "text/html":
+        return "html"
+    return "document"
+
+
+def _build_code_blocks(
+    loop_response: ResponsesLanguageModelStreamResponse,
+    content_map: dict[str, str | None],
+) -> list[CodeInterpreterBlock]:
+    """Map each code interpreter call to the files it produced via /mnt/data/ path matching."""
+    result = []
+    for call in loop_response.code_interpreter_calls:
+        if not call.code:
+            continue
+        files = [
+            CodeInterpreterFile(
+                filename=annotation.filename,
+                content_id=content_id,
+                type=_get_file_type(annotation.filename),
+            )
+            for annotation in loop_response.container_files
+            if (content_id := content_map.get(annotation.filename)) is not None
+            and re.search(rf"/mnt/data/{re.escape(annotation.filename)}", call.code)
+        ]
+        if files:
+            result.append(CodeInterpreterBlock(code=call.code, files=files))
+    return result
 
 
 def _get_next_ref_number(references: list[ContentReference]) -> int:
