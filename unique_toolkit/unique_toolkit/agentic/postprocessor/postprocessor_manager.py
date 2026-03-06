@@ -151,7 +151,7 @@ class PostprocessorManager:
 
         has_been_modified = any(modification_results)
 
-        code_blocks = getattr(loop_response.message, "code_blocks", [])
+        code_blocks = loop_response.message.code_blocks
         debug_info = (
             {"code_blocks": [cb.model_dump() for cb in code_blocks]}
             if code_blocks
