@@ -8,6 +8,11 @@ on:
         required: false
         type: string
         default: ''
+      matrix:
+        description: 'Pre-computed matrix JSON from ci.yaml (skips select-packages when set)'
+        required: false
+        type: string
+        default: ''
   workflow_dispatch:
     inputs:
       package:
@@ -37,16 +42,17 @@ jobs:
     permissions:
       pull-requests: read
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      matrix: ${{ inputs.matrix || steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - uses: ./.github/actions/detect-changes
         id: detect
-        if: inputs.changes == ''
+        if: inputs.matrix == ''
 
       - name: Select packages
         id: set-matrix
+        if: inputs.matrix == ''
         uses: ./.github/actions/select-packages
         with:
           packages: |
