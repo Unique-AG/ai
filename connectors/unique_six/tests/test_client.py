@@ -5,22 +5,25 @@ import responses
 
 from unique_six.client import API_URL, SixApiClient, split_cert_chain
 from unique_six.exception import SixApiException, raise_errors_from_api_response
-from unique_six.schema.common.base.response import BaseResponsePayload, ErrorDetail
-from unique_six.schema.common.base.response import ErrorCategory, ErrorCode
-from unique_six.schema.end_of_day_history import EndOfDayHistoryResponsePayload
 from unique_six.schema import ListingIdentifierScheme
-
-pytestmark = pytest.mark.ai
-
+from unique_six.schema.common.base.response import (
+    BaseResponsePayload,
+    ErrorCategory,
+    ErrorCode,
+    ErrorDetail,
+)
+from unique_six.schema.end_of_day_history import EndOfDayHistoryResponsePayload
 
 # --- split_cert_chain ---
 
 
+@pytest.mark.ai
 def test_split_cert_chain_single_cert():
     cert = "-----BEGIN CERTIFICATE-----\nAAA\n-----END CERTIFICATE-----"
     assert split_cert_chain(cert) == [cert]
 
 
+@pytest.mark.ai
 def test_split_cert_chain_two_certs():
     c1 = "-----BEGIN CERTIFICATE-----\nA\n-----END CERTIFICATE-----"
     c2 = "-----BEGIN CERTIFICATE-----\nB\n-----END CERTIFICATE-----"
@@ -34,6 +37,7 @@ def test_split_cert_chain_two_certs():
 # --- SixApiException ---
 
 
+@pytest.mark.ai
 def test_six_api_exception_single_error_str():
     err = ErrorDetail(
         category=ErrorCategory.VALIDATION_ERROR,
@@ -45,6 +49,7 @@ def test_six_api_exception_single_error_str():
     assert "x" in str(ex)
 
 
+@pytest.mark.ai
 def test_six_api_exception_multiple_errors_str():
     errs = [
         ErrorDetail(category=ErrorCategory.OTHER, code=ErrorCode.OTHER, message="a"),
@@ -58,16 +63,19 @@ def test_six_api_exception_multiple_errors_str():
 # --- raise_errors_from_api_response ---
 
 
+@pytest.mark.ai
 def test_raise_errors_from_api_response_no_errors():
     payload = BaseResponsePayload(errors=None)
     raise_errors_from_api_response(payload)
 
 
+@pytest.mark.ai
 def test_raise_errors_from_api_response_empty_errors():
     payload = BaseResponsePayload(errors=[])
     raise_errors_from_api_response(payload)
 
 
+@pytest.mark.ai
 def test_raise_errors_from_api_response_raises():
     err = ErrorDetail(
         category=ErrorCategory.HTTP_ERROR,
@@ -83,6 +91,7 @@ def test_raise_errors_from_api_response_raises():
 # --- SixApiClient (mocked HTTP) ---
 
 
+@pytest.mark.ai
 @responses.activate
 def test_client_request_builds_url_and_parses_json(six_cert_and_key):
     cert, key = six_cert_and_key
@@ -98,6 +107,7 @@ def test_client_request_builds_url_and_parses_json(six_cert_and_key):
     assert path in responses.calls[0].request.url
 
 
+@pytest.mark.ai
 @responses.activate
 def test_client_end_of_day_history_returns_typed_response(six_cert_and_key):
     cert, key = six_cert_and_key
