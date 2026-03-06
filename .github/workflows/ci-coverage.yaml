@@ -21,6 +21,7 @@ on:
           - deep_research
           - internal_search
           - quartr
+          - six
         default: ''
 
 jobs:
@@ -59,6 +60,8 @@ jobs:
               - 'tool_packages/unique_internal_search/**/!(*.md)'
             quartr:
               - 'connectors/unique_quartr/**/!(*.md)'
+            six:
+              - 'connectors/unique_six/**/!(*.md)'
 
       - name: Select packages
         id: set-matrix
@@ -76,7 +79,8 @@ jobs:
               {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "python": "3.12", "min_coverage": "60"},
               {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "python": "3.12", "min_coverage": "60"},
               {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "python": "3.12", "min_coverage": "60"},
-              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12", "min_coverage": "60"}
+              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12", "min_coverage": "60"},
+              {"id": "six",                "dir": "connectors/unique_six",                     "python": "3.12", "min_coverage": "60"}
             ]
           selected: ${{ github.event.inputs.package }}
           changes: ${{ toJson(steps.filter.outputs) }}
