@@ -22,6 +22,7 @@ dependencies = [
     "pyhumps>=3.8.0",
     "cryptography>=45.0.6",
     "pyopenssl>=25.0.0",
+    "unique-six>=0.1.3",
 ]
 
 [dependency-groups]
@@ -49,6 +50,7 @@ constraint-dependencies = ["lxml>=5.0.0"]
 [tool.uv.sources]
 unique-sdk = { path = "../../unique_sdk", editable = true }
 unique-toolkit = { path = "../../unique_toolkit", editable = true }
+unique-six = { path = "../../connectors/unique_six", editable = true }
 
 [tool.poe.tasks]
 lint = "ruff check ."
