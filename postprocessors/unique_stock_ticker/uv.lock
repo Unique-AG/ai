@@ -2191,8 +2191,43 @@ dev = [
 ]
 
 [[package]]
+name = "unique-six"
+version = "0.1.3"
+source = { editable = "../../connectors/unique_six" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "pydantic" },
+    { name = "pyopenssl" },
+    { name = "python-dotenv" },
+    { name = "requests" },
+    { name = "unique-toolkit" },
+    { name = "urllib3" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cryptography", specifier = ">=46.0.5" },
+    { name = "pydantic", specifier = ">=2.12.4" },
+    { name = "pyopenssl", specifier = ">=25.0.0" },
+    { name = "python-dotenv", specifier = ">=1.0.1" },
+    { name = "requests", specifier = ">=2.32.0" },
+    { name = "unique-toolkit", editable = "../../unique_toolkit" },
+    { name = "urllib3", specifier = ">=2.0.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "deptry", specifier = ">=0.24.0" },
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "pytest-mock", specifier = ">=3.12.0" },
+    { name = "responses", specifier = ">=0.25.0" },
+    { name = "ruff", specifier = ">=0.12.10" },
+]
+
+[[package]]
 name = "unique-stock-ticker"
-version = "1.1.1"
+version = "1.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },
@@ -2203,6 +2238,7 @@ dependencies = [
     { name = "pyopenssl" },
     { name = "requests" },
     { name = "typing-extensions" },
+    { name = "unique-six" },
     { name = "unique-toolkit" },
     { name = "urllib3" },
 ]
@@ -2229,6 +2265,7 @@ requires-dist = [
     { name = "pyopenssl", specifier = ">=25.0.0" },
     { name = "requests", specifier = ">=2.32.0" },
     { name = "typing-extensions", specifier = ">=4.9.0" },
+    { name = "unique-six", editable = "../../connectors/unique_six" },
     { name = "unique-toolkit", editable = "../../unique_toolkit" },
     { name = "urllib3", specifier = ">=2.0.0" },
 ]

@@ -1,9 +1,9 @@
 from logging import getLogger
 
-from unique_stock_ticker.clients.six.client import SixApiClient
-from unique_stock_ticker.clients.six.exception import raise_errors_from_api_response
-from unique_stock_ticker.clients.six.schema.common.instrument import InstrumentType
-from unique_stock_ticker.clients.six.schema.free_text_search.instruments.response import (
+from unique_six.client import SixApiClient
+from unique_six.exception import raise_errors_from_api_response
+from unique_six.schema.common.instrument import InstrumentType
+from unique_six.schema.free_text_search.instruments.response import (
     FreeTextInstrumentSearchHit,
     FreeTextInstrumentSearchMostLiquidMarket,
     InstrumentMatchingDescription,
