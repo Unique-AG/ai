@@ -19,7 +19,7 @@ echo "Log Level: ${LOG_LEVEL}"
 echo "=========================================="
 
 # Execute the main process (replaces shell, proper signal handling)
-exec uv run uvicorn \
+exec uvicorn \
     app:app \
     --host "${HOST}" \
     --port "${PORT}" \
