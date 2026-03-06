@@ -238,12 +238,12 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "basedpyright", specifier = "==1.38.2" },
-    { name = "deptry", specifier = "==0.24.0" },
-    { name = "poethepoet", specifier = "==0.42.1" },
-    { name = "pytest", specifier = "==9.0.2" },
-    { name = "pytest-cov", specifier = "==7.0.0" },
-    { name = "ruff", specifier = "==0.15.5" },
+    { name = "basedpyright", specifier = ">=1.35.0" },
+    { name = "deptry", specifier = ">=0.24.0" },
+    { name = "poethepoet", specifier = ">=0.32.0" },
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
+    { name = "ruff", specifier = ">=0.14.7" },
 ]
 
 [[package]]
