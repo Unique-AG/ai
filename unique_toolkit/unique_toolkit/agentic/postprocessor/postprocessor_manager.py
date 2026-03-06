@@ -151,11 +151,19 @@ class PostprocessorManager:
 
         has_been_modified = any(modification_results)
 
-        if has_been_modified:
+        code_blocks = getattr(loop_response.message, "code_blocks", [])
+        debug_info = (
+            {"code_blocks": [cb.model_dump() for cb in code_blocks]}
+            if code_blocks
+            else None
+        )
+
+        if has_been_modified or debug_info:
             self._chat_service.modify_assistant_message(
                 content=loop_response.message.text,
                 message_id=loop_response.message.id,
                 references=loop_response.message.references,
+                debug_info=debug_info,
             )
 
     async def execute_postprocessors(

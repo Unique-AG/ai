@@ -63,6 +63,24 @@ class LanguageModelMessageRole(StrEnum):
     TOOL = "tool"
 
 
+CodeInterpreterFileType = Literal["image", "document", "html"]
+
+
+class CodeInterpreterFile(BaseModel):
+    """A single file produced by a code interpreter execution."""
+
+    filename: str
+    content_id: str
+    type: CodeInterpreterFileType
+
+
+class CodeInterpreterBlock(BaseModel):
+    """A code interpreter execution paired with the files it produced."""
+
+    code: str
+    files: list[CodeInterpreterFile]
+
+
 # This is tailored to the unique backend
 class LanguageModelStreamResponseMessage(BaseModel):
     model_config = model_config
@@ -75,6 +93,7 @@ class LanguageModelStreamResponseMessage(BaseModel):
     text: str
     original_text: str | None = None
     references: list[ContentReference] = []
+    code_blocks: list[CodeInterpreterBlock] = []
 
     # TODO make sdk return role in lowercase
     # Currently needed as sdk returns role in uppercase
