@@ -73,7 +73,7 @@ check_dependencies() {
         exit 1
     fi
     
-    if ! uv run python -c "import mkdocs" &> /dev/null; then
+    if ! uv run --no-sync python -c "import mkdocs" &> /dev/null; then
         log_error "mkdocs not installed. Run: uv sync"
         exit 1
     fi
