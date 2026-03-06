@@ -1,10 +1,13 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert";
+import { createHash } from "node:crypto";
 import express from "express";
 import type { Server } from "node:http";
 
 const CLIENT_ID = "test-client-id";
 const CLIENT_SECRET = "test-client-secret";
+const CODE_VERIFIER = "test-code-verifier-that-is-long-enough-for-pkce";
+const CODE_CHALLENGE = createHash("sha256").update(CODE_VERIFIER).digest("base64url");
 
 let server: Server;
 let baseUrl: string;
@@ -153,7 +156,7 @@ describe("middleware", () => {
         response_type: "code",
         client_id: CLIENT_ID,
         redirect_uri: redirectUri,
-        code_challenge: "test-challenge",
+        code_challenge: CODE_CHALLENGE,
         state: "test-state",
       });
       const res = await fetch(`${baseUrl}/authorize?${params}`, { redirect: "manual" });
@@ -169,7 +172,7 @@ describe("middleware", () => {
       const params = new URLSearchParams({
         client_id: CLIENT_ID,
         redirect_uri: "http://localhost:9999/callback",
-        code_challenge: "test-challenge",
+        code_challenge: CODE_CHALLENGE,
       });
       const res = await fetch(`${baseUrl}/authorize?${params}`);
       assert.strictEqual(res.status, 400);
@@ -181,7 +184,7 @@ describe("middleware", () => {
       const params = new URLSearchParams({
         response_type: "code",
         client_id: CLIENT_ID,
-        code_challenge: "test-challenge",
+        code_challenge: CODE_CHALLENGE,
       });
       const res = await fetch(`${baseUrl}/authorize?${params}`);
       assert.strictEqual(res.status, 400);
@@ -261,14 +264,31 @@ describe("middleware", () => {
           response_type: "code",
           client_id: CLIENT_ID,
           redirect_uri: "http://localhost:9999/callback",
-          code_challenge: "test-challenge",
+          code_challenge: CODE_CHALLENGE,
         });
         const res = await fetch(`${baseUrl}/authorize?${params}`, { redirect: "manual" });
         const location = res.headers.get("location")!;
         return new URL(location).searchParams.get("code")!;
       }
 
-      it("exchanges valid code for access token", async () => {
+      it("exchanges valid code for access token with correct code_verifier", async () => {
+        const code = await getAuthCode();
+        const res = await fetch(`${baseUrl}/token`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: basicAuth(CLIENT_ID, CLIENT_SECRET),
+          },
+          body: `grant_type=authorization_code&code=${code}&code_verifier=${CODE_VERIFIER}`,
+        });
+        assert.strictEqual(res.status, 200);
+        const body = await res.json();
+        assert.ok(body.access_token);
+        assert.strictEqual(body.token_type, "bearer");
+        assert.strictEqual(body.expires_in, 3600);
+      });
+
+      it("rejects token exchange without code_verifier", async () => {
         const code = await getAuthCode();
         const res = await fetch(`${baseUrl}/token`, {
           method: "POST",
@@ -278,11 +298,24 @@ describe("middleware", () => {
           },
           body: `grant_type=authorization_code&code=${code}`,
         });
-        assert.strictEqual(res.status, 200);
+        assert.strictEqual(res.status, 400);
         const body = await res.json();
-        assert.ok(body.access_token);
-        assert.strictEqual(body.token_type, "bearer");
-        assert.strictEqual(body.expires_in, 3600);
+        assert.strictEqual(body.error, "invalid_request");
+      });
+
+      it("rejects token exchange with wrong code_verifier", async () => {
+        const code = await getAuthCode();
+        const res = await fetch(`${baseUrl}/token`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: basicAuth(CLIENT_ID, CLIENT_SECRET),
+          },
+          body: `grant_type=authorization_code&code=${code}&code_verifier=wrong-verifier`,
+        });
+        assert.strictEqual(res.status, 400);
+        const body = await res.json();
+        assert.strictEqual(body.error, "invalid_grant");
       });
 
       it("rejects reused authorization code", async () => {
@@ -294,7 +327,7 @@ describe("middleware", () => {
             "Content-Type": "application/x-www-form-urlencoded",
             Authorization: basicAuth(CLIENT_ID, CLIENT_SECRET),
           },
-          body: `grant_type=authorization_code&code=${code}`,
+          body: `grant_type=authorization_code&code=${code}&code_verifier=${CODE_VERIFIER}`,
         });
         // Second use — should fail
         const res = await fetch(`${baseUrl}/token`, {
@@ -303,7 +336,7 @@ describe("middleware", () => {
             "Content-Type": "application/x-www-form-urlencoded",
             Authorization: basicAuth(CLIENT_ID, CLIENT_SECRET),
           },
-          body: `grant_type=authorization_code&code=${code}`,
+          body: `grant_type=authorization_code&code=${code}&code_verifier=${CODE_VERIFIER}`,
         });
         assert.strictEqual(res.status, 400);
         const body = await res.json();
@@ -428,21 +461,21 @@ describe("middleware", () => {
         response_type: "code",
         client_id: CLIENT_ID,
         redirect_uri: "http://localhost:9999/callback",
-        code_challenge: "test-challenge",
+        code_challenge: CODE_CHALLENGE,
         state: "my-state",
       });
       const authRes = await fetch(`${baseUrl}/authorize?${params}`, { redirect: "manual" });
       assert.strictEqual(authRes.status, 302);
       const code = new URL(authRes.headers.get("location")!).searchParams.get("code")!;
 
-      // Step 2: Exchange code for token
+      // Step 2: Exchange code for token (with PKCE code_verifier)
       const tokenRes = await fetch(`${baseUrl}/token`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
           Authorization: basicAuth(CLIENT_ID, CLIENT_SECRET),
         },
-        body: `grant_type=authorization_code&code=${code}`,
+        body: `grant_type=authorization_code&code=${code}&code_verifier=${CODE_VERIFIER}`,
       });
       assert.strictEqual(tokenRes.status, 200);
       const { access_token } = await tokenRes.json();

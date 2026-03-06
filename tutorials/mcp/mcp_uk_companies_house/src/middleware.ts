@@ -21,7 +21,7 @@
  *  - There is no revocation endpoint — tokens can only expire naturally.
  */
 import express, { Router, type RequestHandler } from "express";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 
 /** In-memory store of active bearer tokens, keyed by token string. */
 const tokens = new Map<string, { clientId: string; expiresAt: number }>();
@@ -164,6 +164,18 @@ router.post("/token", express.urlencoded({ extended: false }), (req, res, next) 
       return;
     }
     authCodes.delete(req.body.code);
+
+    // PKCE: validate code_verifier against stored code_challenge (S256)
+    const codeVerifier = req.body.code_verifier;
+    if (!codeVerifier) {
+      res.status(400).json({ error: "invalid_request", error_description: "Missing code_verifier" });
+      return;
+    }
+    const computed = createHash("sha256").update(codeVerifier).digest("base64url");
+    if (computed !== codeInfo.codeChallenge) {
+      res.status(400).json({ error: "invalid_grant", error_description: "PKCE code_verifier mismatch" });
+      return;
+    }
 
     const accessToken = randomUUID();
     tokens.set(accessToken, { clientId, expiresAt: now + TOKEN_LIFETIME });
