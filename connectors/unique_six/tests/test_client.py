@@ -26,14 +26,20 @@ def test_split_cert_chain_two_certs():
     c2 = "-----BEGIN CERTIFICATE-----\nB\n-----END CERTIFICATE-----"
     got = split_cert_chain(c1 + "\n" + c2)
     assert len(got) == 2
-    assert "-----END CERTIFICATE-----" in got[0] and "-----END CERTIFICATE-----" in got[1]
+    assert (
+        "-----END CERTIFICATE-----" in got[0] and "-----END CERTIFICATE-----" in got[1]
+    )
 
 
 # --- SixApiException ---
 
 
 def test_six_api_exception_single_error_str():
-    err = ErrorDetail(category=ErrorCategory.VALIDATION_ERROR, code=ErrorCode.PARAMETER_REQUIRED, message="x")
+    err = ErrorDetail(
+        category=ErrorCategory.VALIDATION_ERROR,
+        code=ErrorCode.PARAMETER_REQUIRED,
+        message="x",
+    )
     ex = SixApiException([err])
     assert "PARAMETER_REQUIRED" in str(ex)
     assert "x" in str(ex)
@@ -63,7 +69,11 @@ def test_raise_errors_from_api_response_empty_errors():
 
 
 def test_raise_errors_from_api_response_raises():
-    err = ErrorDetail(category=ErrorCategory.HTTP_ERROR, code=ErrorCode.ACCESS_DENIED, message="denied")
+    err = ErrorDetail(
+        category=ErrorCategory.HTTP_ERROR,
+        code=ErrorCode.ACCESS_DENIED,
+        message="denied",
+    )
     payload = BaseResponsePayload(errors=[err])
     with pytest.raises(SixApiException) as exc_info:
         raise_errors_from_api_response(payload)
@@ -79,7 +89,9 @@ def test_client_request_builds_url_and_parses_json(six_cert_and_key):
     client = SixApiClient(cert, key)
     path = "v1/listings/marketData/endOfDayHistory"
     params = {"scheme": "ISIN_BC", "ids": "X", "dateFrom": "2025-01-01"}
-    responses.add(responses.GET, f"{API_URL}{path}", json={"data": {"listings": []}}, status=200)
+    responses.add(
+        responses.GET, f"{API_URL}{path}", json={"data": {"listings": []}}, status=200
+    )
     out = client.request(path, params)
     assert out == {"data": {"listings": []}}
     assert len(responses.calls) == 1

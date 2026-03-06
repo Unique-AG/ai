@@ -15,6 +15,8 @@ dependencies = [
     "unique-toolkit>=1.50.4",
     "cryptography>=46.0.5",
     "pyopenssl>=25.0.0",
+    "requests>=2.32.0",
+    "urllib3>=2.0.0",
 ]
 
 [dependency-groups]
@@ -24,6 +26,7 @@ dev = [
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.12.0",
     "responses>=0.25.0",
+    "deptry>=0.24.0",
 ]
 
 [build-system]
@@ -44,3 +47,10 @@ target-version = "py311"
 
 [tool.ruff.lint]
 extend-select = ["I"]
+
+[tool.deptry]
+known_first_party = ["unique_six"]
+extend_exclude = ["tests", "conftest.py"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["python-dotenv", "unique-toolkit", "pyopenssl"]
