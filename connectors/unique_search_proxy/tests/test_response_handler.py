@@ -32,6 +32,7 @@ class TestPostProcessFunction:
         Why this matters: Some post-processors require additional configuration.
         Setup summary: Wrap a function with a keyword arg, call it, assert the kwarg is used.
         """
+
         def extractor(resp, key="default"):
             return key
 
@@ -212,6 +213,7 @@ class TestParseToStructuredResults:
         Why this matters: Structured results are the return type for typed search endpoints.
         Setup summary: Mock response.parsed, call parse_to_structured_results, assert the model.
         """
+
         class MyModel(BaseModel):
             name: str
 

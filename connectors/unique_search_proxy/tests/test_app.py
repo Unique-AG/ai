@@ -55,6 +55,7 @@ class TestSearchEndpoint:
         Why this matters: This is the primary happy-path for the search API.
         Setup summary: Mock GoogleSearch.search, POST a valid request, assert 200 and results.
         """
+
         async def mock_search(self, query):
             from core.schema import WebSearchResult
 
@@ -84,6 +85,7 @@ class TestExceptionHandlers:
         Why this matters: Uncaught exceptions must not leak stack traces to clients.
         Setup summary: Mock search to raise RuntimeError, assert 500 and error key in body.
         """
+
         async def boom_search(self, query):
             raise RuntimeError("boom")
 
