@@ -4,4 +4,4 @@ from unique_swot.service import SwotAnalysisTool
 __all__ = [
     "SwotAnalysisTool",
     "SwotAnalysisToolConfig",
-]
+]  # noqa: F401
