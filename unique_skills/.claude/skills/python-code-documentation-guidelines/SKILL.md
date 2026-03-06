@@ -19,7 +19,7 @@ Apply consistent Python documentation conventions: docstrings, class-level docs,
 
 - You are adding or updating docstrings for new or existing Python functions, classes, or modules in .py files.
 - You are touching existing Python code and want to document it step-by-step (incremental docs).
-- You spot function, class, or variable names that would benefit from renames and need to record a TODO in the code.
+- You spot function, class, or variable names that would benefit from renames and need to record a tracked task in the code.
 
 ## Steps
 
