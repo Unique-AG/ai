@@ -14,7 +14,7 @@ ENV PYTHONFAULTHANDLER=1 \
 
 # Create user and install uv
 RUN useradd -m appuser && \
-    pip install --no-cache-dir "uv>=0.7.19,<0.8"
+    pip install --no-cache-dir "uv==0.7.19"
 
 # Copy only requirements to cache them in docker layer
 WORKDIR /app
