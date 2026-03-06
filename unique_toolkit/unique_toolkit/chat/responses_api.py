@@ -1,5 +1,7 @@
+import asyncio
 import json
 import logging
+import random
 from typing import Any, NamedTuple, Sequence
 
 import unique_sdk
@@ -329,6 +331,75 @@ def _prepare_responses_args(
     return options
 
 
+_RATE_LIMIT_KEYWORDS = ("too_many_requests", "too many requests", "ratelimitreached")
+
+# Initial wait after the SDK's built-in 3 retries (~7s total) have already been exhausted.
+# Azure GPT-4o's TPM window resets on a ~60s rolling basis, so the first retry must
+# wait long enough for that window to partially clear. Schedule: 30s -> 60s -> 120s.
+_RATE_LIMIT_RETRY_INITIAL_DELAY_SECONDS = 30.0
+_RATE_LIMIT_RETRY_MAX_ATTEMPTS = 3
+
+
+async def _responses_stream_with_rate_limit_retry(
+    responses_args: dict[str, Any],
+    model_name: str,
+) -> Any:
+    """Wrap responses_stream_async with exponential backoff for rate-limit errors.
+
+    The SDK already retries 3× (1s/2s/4s) before raising. This layer adds further
+    retries with longer delays, which are needed for models with tighter RPM limits
+    (e.g. GPT-4o) when large-token requests (web search, code execution) are in the loop.
+    """
+    for attempt in range(_RATE_LIMIT_RETRY_MAX_ATTEMPTS + 1):
+        try:
+            return await unique_sdk.Integrated.responses_stream_async(**responses_args)
+        except unique_sdk.APIError as e:
+            error_str = str(e).lower()
+            is_rate_limit = any(kw in error_str for kw in _RATE_LIMIT_KEYWORDS)
+
+            retry_after: float | None = None
+            if is_rate_limit and hasattr(e, "headers") and e.headers:
+                raw = e.headers.get("retry-after") or e.headers.get("Retry-After")
+                if raw is not None:
+                    try:
+                        retry_after = float(raw)
+                    except ValueError:
+                        pass
+
+            logger.error(
+                "responses_stream_async error on toolkit attempt %d/%d "
+                "model=%s code=%s http_status=%s is_rate_limit=%s original_error=%r",
+                attempt + 1,
+                _RATE_LIMIT_RETRY_MAX_ATTEMPTS + 1,
+                model_name,
+                getattr(e, "code", None),
+                getattr(e, "http_status", None),
+                is_rate_limit,
+                getattr(e, "original_error", None),
+            )
+
+            if not is_rate_limit or attempt >= _RATE_LIMIT_RETRY_MAX_ATTEMPTS:
+                raise
+
+            if retry_after is not None:
+                wait_time = retry_after
+            else:
+                delay = _RATE_LIMIT_RETRY_INITIAL_DELAY_SECONDS * (2.0**attempt)
+                jitter = random.uniform(0.0, delay * 0.1)
+                wait_time = delay + jitter
+
+            logger.warning(
+                "Rate limit hit for model=%s. Toolkit-level retry %d/%d in %.1fs",
+                model_name,
+                attempt + 1,
+                _RATE_LIMIT_RETRY_MAX_ATTEMPTS,
+                wait_time,
+            )
+            await asyncio.sleep(wait_time)
+
+    raise RuntimeError("unreachable")  # pragma: no cover
+
+
 def stream_responses_with_references(
     *,
     company_id: str,
@@ -458,8 +529,15 @@ async def stream_responses_with_references_async(
         other_options=other_options,
     )
 
-    return ResponsesLanguageModelStreamResponse.model_validate(
+    logger.info(
+        "Calling responses_stream_async model=%s",
+        responses_params.model_name,
+    )
+
+    a = ResponsesLanguageModelStreamResponse.model_validate(
         await unique_sdk.Integrated.responses_stream_async(
             **responses_args,
         )
     )
+    
+    return a

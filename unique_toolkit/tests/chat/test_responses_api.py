@@ -1,10 +1,15 @@
 """Tests for responses_api.py JSON parsing functionality."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
+import unique_sdk
 
 from unique_toolkit.chat.responses_api import (
+    _RATE_LIMIT_RETRY_MAX_ATTEMPTS,
     _attempt_extract_reasoning_from_options,
     _attempt_extract_verbosity_from_options,
+    _responses_stream_with_rate_limit_retry,
 )
 
 # ============================================================================
@@ -176,3 +181,144 @@ def test_extract_verbosity__uses_correct_variable_name() -> None:
     # This test ensures the variable name bug is fixed
     assert result is not None
     assert result["verbosity"] == "low"
+
+
+# ============================================================================
+# Tests for _responses_stream_with_rate_limit_retry
+# ============================================================================
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_rate_limit_retry__succeeds_on_first_attempt() -> None:
+    """
+    Purpose: Verify that a successful call passes the result through without retrying.
+    Why this matters: Happy path must not be affected by the retry wrapper.
+    """
+    expected = {"id": "resp_123"}
+    mock_fn = AsyncMock(return_value=expected)
+
+    with patch(
+        "unique_toolkit.chat.responses_api.unique_sdk.Integrated.responses_stream_async",
+        mock_fn,
+    ):
+        result = await _responses_stream_with_rate_limit_retry(
+            responses_args={}, model_name="gpt-4o"
+        )
+
+    assert result == expected
+    assert mock_fn.call_count == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_rate_limit_retry__retries_on_rate_limit_error_and_succeeds() -> None:
+    """
+    Purpose: Verify the helper retries after a 429/rate-limit APIError and returns on success.
+    Why this matters: Core behaviour - rate-limit errors should trigger backoff + retry.
+    """
+    expected = {"id": "resp_ok"}
+    rate_limit_error = unique_sdk.APIError(
+        "Internal server error\n(Original error) too_many_requests: Too Many Requests"
+    )
+
+    mock_fn = AsyncMock(side_effect=[rate_limit_error, expected])
+
+    with (
+        patch(
+            "unique_toolkit.chat.responses_api.unique_sdk.Integrated.responses_stream_async",
+            mock_fn,
+        ),
+        patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+    ):
+        result = await _responses_stream_with_rate_limit_retry(
+            responses_args={}, model_name="gpt-4o"
+        )
+
+    assert result == expected
+    assert mock_fn.call_count == 2
+    assert mock_sleep.call_count == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_rate_limit_retry__respects_retry_after_header() -> None:
+    """
+    Purpose: Verify that the Retry-After header value is used as the sleep duration.
+    Why this matters: Using the server-provided wait time is more accurate than guessing.
+    """
+    expected = {"id": "resp_ok"}
+    error = unique_sdk.APIError(
+        "Internal server error\n(Original error) too_many_requests: Too Many Requests"
+    )
+    error.headers = {"Retry-After": "30"}  # type: ignore[attr-defined]
+
+    mock_fn = AsyncMock(side_effect=[error, expected])
+
+    with (
+        patch(
+            "unique_toolkit.chat.responses_api.unique_sdk.Integrated.responses_stream_async",
+            mock_fn,
+        ),
+        patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+    ):
+        await _responses_stream_with_rate_limit_retry(
+            responses_args={}, model_name="gpt-4o"
+        )
+
+    mock_sleep.assert_awaited_once_with(30.0)
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_rate_limit_retry__raises_after_max_attempts() -> None:
+    """
+    Purpose: Verify that the error is re-raised after all retry attempts are exhausted.
+    Why this matters: We must not loop forever; ultimately the caller needs to handle the error.
+    """
+    rate_limit_error = unique_sdk.APIError(
+        "Internal server error\n(Original error) too_many_requests: Too Many Requests"
+    )
+
+    mock_fn = AsyncMock(side_effect=rate_limit_error)
+
+    with (
+        patch(
+            "unique_toolkit.chat.responses_api.unique_sdk.Integrated.responses_stream_async",
+            mock_fn,
+        ),
+        patch("asyncio.sleep", new_callable=AsyncMock),
+        pytest.raises(unique_sdk.APIError),
+    ):
+        await _responses_stream_with_rate_limit_retry(
+            responses_args={}, model_name="gpt-4o"
+        )
+
+    assert mock_fn.call_count == _RATE_LIMIT_RETRY_MAX_ATTEMPTS + 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_rate_limit_retry__does_not_retry_non_rate_limit_errors() -> None:
+    """
+    Purpose: Verify that non-rate-limit errors are re-raised immediately without retrying.
+    Why this matters: Only 429s should trigger backoff; other errors should fail fast.
+    """
+    other_error = unique_sdk.APIError("Internal server error\n(Original error) context_length_exceeded")
+
+    mock_fn = AsyncMock(side_effect=other_error)
+
+    with (
+        patch(
+            "unique_toolkit.chat.responses_api.unique_sdk.Integrated.responses_stream_async",
+            mock_fn,
+        ),
+        patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        pytest.raises(unique_sdk.APIError),
+    ):
+        await _responses_stream_with_rate_limit_retry(
+            responses_args={}, model_name="gpt-4o"
+        )
+
+    assert mock_fn.call_count == 1
+    mock_sleep.assert_not_called()
