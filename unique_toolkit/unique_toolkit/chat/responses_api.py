@@ -303,6 +303,15 @@ def _prepare_responses_args(
 
     openai_options: unique_sdk.Integrated.CreateStreamResponsesOpenaiParams = {}
 
+    # When code interpreter is active, auto-include its outputs so that
+    # ResponseCodeInterpreterToolCall.outputs is populated (needed for code↔file mapping).
+    if params.tools and any(t.get("type") == "code_interpreter" for t in params.tools):
+        _ci_include: ResponseIncludable = "code_interpreter_call.outputs"
+        if include is None:
+            include = [_ci_include]
+        elif _ci_include not in include:
+            include = [*include, _ci_include]
+
     explicit_options = {
         "temperature": params.temperature,
         "reasoning": params.reasoning,
