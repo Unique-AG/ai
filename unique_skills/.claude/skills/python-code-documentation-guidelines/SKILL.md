@@ -1,5 +1,5 @@
 ---
-name: doc-code-inline
+name: python-code-documentation-guidelines
 description: Apply Google-style docstrings and inline comments to Python .py files. Use when documenting new functions/classes/modules, incrementally documenting touched code, or flagging rename opportunities as TODOs.
 license: MIT
 compatibility: claude cursor opencode
