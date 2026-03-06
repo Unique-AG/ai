@@ -29,9 +29,16 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - name: Setup Python and uv
-        uses: ./.github/actions/setup-python-uv
+
+      - name: Install package manager
+        id: pm
+        uses: ./.github/actions/install-package-manager
+        with:
+          package_dir: .
+          python_version: '3.12'
+
       - name: Install dependencies
-        run: uv sync
+        run: ${{ steps.pm.outputs.install_cmd }}
+
       - name: Build versioned documentation
         run: ./.github/scripts/docs_build_versioned.sh --clean
