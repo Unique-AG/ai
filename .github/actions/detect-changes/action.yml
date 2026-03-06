@@ -1,0 +1,46 @@
+name: 'Detect Changes'
+description: 'Detects which packages changed using dorny/paths-filter. Outputs a JSON blob consumed by select-packages.'
+
+outputs:
+  changes:
+    description: 'JSON object with package change status (keys = package ids, values = "true"/"false")'
+    value: ${{ steps.serialize.outputs.changes }}
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
+      id: filter
+      with:
+        filters: |
+          toolkit:
+            - 'unique_toolkit/**/!(*.md|docs/**|.entangled/**|*mkdocs.yaml)'
+          sdk:
+            - 'unique_sdk/**/!(*.md)'
+          mcp:
+            - 'unique_mcp/**/!(*.md)'
+          orchestrator:
+            - 'unique_orchestrator/**/!(*.md)'
+          web_search:
+            - 'tool_packages/unique_web_search/**/!(*.md)'
+          swot:
+            - 'tool_packages/unique_swot/**/!(*.md)'
+          follow_up_questions:
+            - 'postprocessors/unique_follow_up_questions/**/!(*.md)'
+          stock_ticker:
+            - 'postprocessors/unique_stock_ticker/**/!(*.md)'
+          deep_research:
+            - 'tool_packages/unique_deep_research/**/!(*.md)'
+          internal_search:
+            - 'tool_packages/unique_internal_search/**/!(*.md)'
+          quartr:
+            - 'connectors/unique_quartr/**/!(*.md)'
+          six:
+            - 'connectors/unique_six/**/!(*.md)'
+          search_proxy:
+            - 'connectors/unique_search_proxy/**/!(*.md)'
+    - id: serialize
+      shell: bash
+      run: |
+        CHANGES_JSON='${{ toJson(steps.filter.outputs) }}'
+        echo "changes=$(echo "$CHANGES_JSON" | jq -c .)" >> $GITHUB_OUTPUT
