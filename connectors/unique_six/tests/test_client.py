@@ -7,11 +7,10 @@ from unique_six.client import API_URL, SixApiClient, split_cert_chain
 from unique_six.exception import SixApiException, raise_errors_from_api_response
 from unique_six.schema.common.base.response import BaseResponsePayload, ErrorDetail
 from unique_six.schema.common.base.response import ErrorCategory, ErrorCode
-from unique_six.schema.end_of_day_history import (
-    EndOfDayHistoryRequestParams,
-    EndOfDayHistoryResponsePayload,
-)
+from unique_six.schema.end_of_day_history import EndOfDayHistoryResponsePayload
 from unique_six.schema import ListingIdentifierScheme
+
+pytestmark = pytest.mark.ai
 
 
 # --- split_cert_chain ---
