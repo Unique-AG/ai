@@ -2,6 +2,12 @@ name: "[CI] Test"
 
 on:
   workflow_call:
+    inputs:
+      changes:
+        description: 'Pre-computed changes JSON from ci.yaml (skips detection when set)'
+        required: false
+        type: string
+        default: ''
   workflow_dispatch:
     inputs:
       package:
@@ -37,6 +43,7 @@ jobs:
 
       - uses: ./.github/actions/detect-changes
         id: detect
+        if: inputs.changes == ''
 
       - name: Select packages
         id: set-matrix
@@ -59,7 +66,7 @@ jobs:
               {"id": "search_proxy",       "dir": "connectors/unique_search_proxy",            "python": "3.12"}
             ]
           selected: ${{ github.event.inputs.package }}
-          changes: ${{ steps.detect.outputs.changes }}
+          changes: ${{ inputs.changes || steps.detect.outputs.changes }}
 
   test:
     needs: detect-changes

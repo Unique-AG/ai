@@ -5,31 +5,58 @@ on:
   merge_group:
 
 jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      changes: ${{ steps.detect.outputs.changes }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: ./.github/actions/detect-changes
+        id: detect
+
   lint:
     name: Lint
+    needs: detect-changes
     uses: ./.github/workflows/ci-lint.yaml
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
 
   test:
     name: Test
+    needs: detect-changes
     uses: ./.github/workflows/ci-pytest.yaml
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
 
   types:
     name: Types
+    needs: detect-changes
     uses: ./.github/workflows/ci-type-check.yaml
     permissions:
       contents: read
       pull-requests: write
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
 
   coverage:
     name: Coverage
+    needs: detect-changes
     uses: ./.github/workflows/ci-coverage.yaml
     permissions:
       contents: read
       pull-requests: write
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
 
   deps:
     name: Dependencies
+    needs: detect-changes
     uses: ./.github/workflows/ci-dependency-checks.yaml
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
 
   config:
     name: Config Compatibility Check
