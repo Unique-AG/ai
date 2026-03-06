@@ -38,22 +38,20 @@ on:
 
 jobs:
   detect-changes:
+    if: inputs.matrix == ''
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
     outputs:
-      matrix: ${{ inputs.matrix || steps.set-matrix.outputs.matrix }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        if: inputs.matrix == ''
 
       - uses: ./.github/actions/detect-changes
         id: detect
-        if: inputs.matrix == ''
 
       - name: Select packages
         id: set-matrix
-        if: inputs.matrix == ''
         uses: ./.github/actions/select-packages
         with:
           packages: |
@@ -77,11 +75,14 @@ jobs:
 
   test:
     needs: detect-changes
-    if: ${{ fromJson(needs.detect-changes.outputs.matrix).include[0] != null }}
+    if: >-
+      !cancelled()
+      && (needs.detect-changes.result == 'success' || needs.detect-changes.result == 'skipped')
+      && fromJson(inputs.matrix || needs.detect-changes.outputs.matrix).include[0] != null
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+      matrix: ${{ fromJson(inputs.matrix || needs.detect-changes.outputs.matrix) }}
     name: test-${{ matrix.id }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
