@@ -1,14 +1,14 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
-
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from pydantic import BaseModel, Field
 from typing import List
+
+from core import SearchEngineRequestType, WebSearchResult, get_search_engine
 from dotenv import load_dotenv
-import asyncio
-from core import SearchEngineRequestType, get_search_engine, WebSearchResult
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
 # Load environment variables from .env file
 load_dotenv()

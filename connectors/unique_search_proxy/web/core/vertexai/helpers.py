@@ -1,6 +1,8 @@
-from httpx import AsyncClient, HTTPError
-import logging
 import asyncio
+import logging
+
+from httpx import AsyncClient, HTTPError
+
 from core.schema import WebSearchResult, WebSearchResults
 
 _LOGGER = logging.getLogger(__name__)
