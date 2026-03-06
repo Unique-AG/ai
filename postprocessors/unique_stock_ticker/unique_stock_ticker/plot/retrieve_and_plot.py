@@ -161,11 +161,13 @@ async def _complete_missing_days_prices_with_intraday_endpoint(
 
         extra_values = list(
             filter(
-                lambda x: x is not None
-                and x.interval_from is not None
-                and (
-                    max_date_for_ticker is None
-                    or x.interval_from.date() > max_date_for_ticker
+                lambda x: (
+                    x is not None
+                    and x.interval_from is not None
+                    and (
+                        max_date_for_ticker is None
+                        or x.interval_from.date() > max_date_for_ticker
+                    )
                 ),
                 extra_values,
             )
