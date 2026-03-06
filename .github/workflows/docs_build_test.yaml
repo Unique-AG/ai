@@ -29,9 +29,9 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - name: Setup Python and Poetry
-        uses: ./.github/actions/setup-python-poetry
+      - name: Setup Python and uv
+        uses: ./.github/actions/setup-python-uv
       - name: Install dependencies
-        run: poetry install --with dev
+        run: uv sync
       - name: Build versioned documentation
         run: ./.github/scripts/docs_build_versioned.sh --clean
