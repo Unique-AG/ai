@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.3] - 2026-03-06
 - Build: migrate from Poetry to uv
 - Bump unique-toolkit to >=1.50.4
+- Test: add unit tests for client, exceptions, and cert chain handling
 
 ## [0.1.2] - 2026-02-18
 
