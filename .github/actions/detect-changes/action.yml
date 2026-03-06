@@ -41,4 +41,6 @@ runs:
             - 'connectors/unique_search_proxy/**/!(*.md)'
     - id: serialize
       shell: bash
-      run: echo "changes=${{ toJson(steps.filter.outputs) }}" >> $GITHUB_OUTPUT
+      run: |
+        CHANGES_JSON='${{ toJson(steps.filter.outputs) }}'
+        echo "changes=$(echo "$CHANGES_JSON" | jq -c .)" >> $GITHUB_OUTPUT
