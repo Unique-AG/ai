@@ -45,6 +45,7 @@ jobs:
       matrix: ${{ inputs.matrix || steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        if: inputs.matrix == ''
 
       - uses: ./.github/actions/detect-changes
         id: detect
