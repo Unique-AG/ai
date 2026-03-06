@@ -23,6 +23,9 @@ COPY uv.lock pyproject.toml ./
 # Project initialization (install dependencies)
 RUN uv sync --locked --no-dev --no-install-project
 
+ENV VIRTUAL_ENV=/app/.venv \
+    PATH="/app/.venv/bin:$PATH"
+
 # Copy application code
 COPY web/ ./
 
