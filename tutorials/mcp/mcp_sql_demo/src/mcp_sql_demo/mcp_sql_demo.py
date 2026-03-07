@@ -21,6 +21,7 @@ from unique_toolkit.language_model.schemas import LanguageModelFunction
 import unique_sdk
 from fastmcp.server.auth.providers.jwt import JWTVerifier
 from fastmcp.server.auth.oauth_proxy import OAuthProxy
+from key_value.aio.stores.postgresql import PostgreSQLStore
 from typing import Annotated
 from pydantic import Field
 from pathlib import Path
@@ -35,9 +36,7 @@ load_dotenv()
 user_id = os.getenv("USER_ID", "default_user_id")
 company_id = os.getenv("COMPANY_ID", "default_company_id")
 ZITADEL_URL = os.getenv("ZITADEL_URL", "http://localhost:10116")
-unique_sdk.api_base = os.getenv(
-    "UNIQUE_SDK_API_BASE", "https://gateway.qa.unique.app/public/chat-gen2"
-)
+unique_sdk.api_base = os.getenv("UNIQUE_SDK_API_BASE", "https://gateway.qa.unique.app/public/chat-gen2")
 unique_sdk.api_key = os.getenv("UNIQUE_SDK_API_KEY", "default_api_key")
 unique_sdk.app_id = os.getenv("UNIQUE_SDK_APP_ID", "default_app_id")
 
@@ -49,9 +48,23 @@ base_url_env = os.getenv("BASE_URL_ENV", "https://default.ngrok-free.app")
 
 base_url_arg = sys.argv[1] if len(sys.argv) > 1 else base_url_env
 
-print("base_url_arg", base_url_arg)
-
-print("position", PMPositionsTool.name)
+# OAuth client_storage: use PG_CLIENT_STORAGE_URL if set (deploy_pg.sh sets this with sslmode=require),
+# else when DB_TYPE=postgres build URL from PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD (local dev).
+_db_type = os.getenv("DB_TYPE", "sqlite")
+_pg_client_storage_url = os.getenv("PG_CLIENT_STORAGE_URL")
+if _pg_client_storage_url:
+    _client_storage: PostgreSQLStore | None = PostgreSQLStore(url=_pg_client_storage_url)
+elif _db_type == "postgres":
+    _pg_user = os.getenv("PGUSER", "postgres")
+    _pg_password = os.getenv("PGPASSWORD", "postgres")
+    _pg_host = os.getenv("PGHOST", "localhost")
+    _pg_port = os.getenv("PGPORT", "10110")
+    _pg_database = os.getenv("PGDATABASE", "testdb")
+    _client_storage = PostgreSQLStore(
+        url=f"postgresql://{_pg_user}:{_pg_password}@{_pg_host}:{_pg_port}/{_pg_database}"
+    )
+else:
+    _client_storage = None
 
 token_verifier = JWTVerifier(
     jwks_uri=f"{ZITADEL_URL}/oauth/v2/keys",
@@ -86,6 +99,7 @@ auth = OAuthProxy(
     token_endpoint_auth_method="client_secret_post",
     extra_authorize_params=None,
     extra_token_params=None,
+    client_storage=_client_storage,
 )
 
 
@@ -124,7 +138,7 @@ chatEvent = ChatEvent(
 
 tool = ToolFactory.build_tool("PM_Positions", {}, chatEvent)
 
-mcp = FastMCP("Demo 🚀", auth=auth, debug=True, log_level="debug")
+mcp = FastMCP("Demo 🚀", auth=auth)
 
 
 def get_user():
@@ -133,9 +147,9 @@ def get_user():
         headers = {
             "Authorization": f"Bearer {token.token}",
         }
-
         response = requests.get(f"{ZITADEL_URL}/oidc/v1/userinfo", headers=headers)
-    return response.json()
+        return response.json()
+    return {"email": "alice@alphabet.example"}
 
 
 @mcp.tool(
@@ -160,7 +174,7 @@ async def search_in_database(
     """Search string to find relevant information on stocks and instruments. This will be converted to sql and run against the database."""
     user = get_user()
     print("user", user)
-    email = user.get("email", "alice@alphabet.example")
+    email = os.getenv("PM_POSITIONS_EMAIL") or user.get("email", "alice@alphabet.example")
 
     tool_call: LanguageModelFunction = LanguageModelFunction(
         id="unique_id",  # type: ignore
@@ -188,7 +202,7 @@ async def favicon(request: Request):
 if __name__ == "__main__":
     mcp.run(
         transport="http",
-        host="127.0.0.1",
+        host="0.0.0.0",
         port=8002,
         log_level="debug",
         middleware=custom_middleware,

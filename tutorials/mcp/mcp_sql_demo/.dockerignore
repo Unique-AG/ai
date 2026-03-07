@@ -1,0 +1,11 @@
+.env
+.env.*
+.venv
+__pycache__
+*.pyc
+.git
+docker_compose.yaml
+.cursor
+.vscode
+deploy.sh
+secrets.sh

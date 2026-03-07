@@ -1,12 +1,14 @@
+import logging
 import os
+import sqlite3
+from pathlib import Path
 
-
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from unique_toolkit import LanguageModelMessages
-from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from dotenv import load_dotenv
 from pydantic import Field, create_model
 from typing_extensions import override
+
+from unique_toolkit import LanguageModelMessages
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -30,13 +32,42 @@ from db_tool_pm.prompts import (
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
 )
 
+load_dotenv()
+_log = logging.getLogger(__name__)
+
+DB_TYPE = os.getenv("DB_TYPE", "sqlite")
+
 DB_HOST = os.getenv("PGHOST", "localhost")
-DB_PORT = int(os.getenv("PGPORT", "10100"))
+DB_PORT = int(os.getenv("PGPORT", "10110"))
 DB_NAME = os.getenv("PGDATABASE", "testdb")
 DB_USER = os.getenv("PGUSER", "postgres")
 DB_PASSWORD = os.getenv("PGPASSWORD", "postgres")
 
 TABLE_NAME = "pm_positions"
+
+# In-memory SQLite connection (shared across requests)
+_sqlite_conn = None
+
+
+def _get_sqlite_connection():
+    global _sqlite_conn
+    if _sqlite_conn is None:
+        _sqlite_conn = sqlite3.connect(":memory:", check_same_thread=False)
+        _sqlite_conn.row_factory = sqlite3.Row
+        _seed_sqlite(_sqlite_conn)
+    return _sqlite_conn
+
+
+def _seed_sqlite(conn):
+    cursor = conn.cursor()
+    sql_path = Path(__file__).parent.parent / "sql" / "create_table_sqlite.sql"
+    cursor.executescript(sql_path.read_text())
+    conn.commit()
+    print(f"[DB] SQLite in-memory database seeded: {TABLE_NAME} with demo data")
+
+
+if DB_TYPE == "sqlite":
+    _get_sqlite_connection()
 
 
 class PMPositionsToolConfig(BaseToolConfig):
@@ -103,13 +134,24 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
             ]
         )
 
-        response = await self._language_model_service.complete_async(
-            model_name=LanguageModelName.AZURE_GPT_4o_2024_1120, messages=messages
-        )
-        print(response)
-        return response.choices[0].message.content
+        try:
+            response = await self._language_model_service.complete_async(
+                model_name=LanguageModelName.AZURE_GPT_4o_2024_0513, messages=messages
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            _log.exception(
+                "[PM_Positions] ChatCompletion failed: %s=%s",
+                type(e).__name__,
+                str(e)[:500] if str(e) else "(no message)",
+            )
+            raise
 
     def get_connection(self):
+        if DB_TYPE == "sqlite":
+            return _get_sqlite_connection()
+        import psycopg2
+
         return psycopg2.connect(
             host=DB_HOST,
             port=DB_PORT,
@@ -119,18 +161,45 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
         )
 
     def select_data(self, conn, where_clause, email):
-        sql = f"SELECT * FROM (select * from {TABLE_NAME} where email= '{email}') as tmp {where_clause}"
-        print(sql)
-        with conn.cursor() as cur:
-            cur.execute(sql)
-            rows = cur.fetchall()
-            # colnames = [desc for desc in cur.description]
-        # print(" | ".join(colnames))
+        if DB_TYPE == "sqlite":
+            where_clause_sqlite = where_clause.replace("ILIKE", "LIKE")
+            sql = f"SELECT * FROM {TABLE_NAME} WHERE email = ? AND row_num IN (SELECT row_num FROM {TABLE_NAME} {where_clause_sqlite})"
+            print(sql)
+            cursor = conn.cursor()
+            cursor.execute(sql, (email,))
+            rows = cursor.fetchall()
+            rows = [tuple(r) for r in rows]
+            print(f"[DB] SQLite query email={email!r} returned {len(rows)} rows")
+        else:
+            sql = f"SELECT * FROM (select * from {TABLE_NAME} where email= '{email}') as tmp {where_clause}"
+            print(sql)
+            with conn.cursor() as cur:
+                cur.execute(sql)
+                rows = cur.fetchall()
         for r in rows:
             print(" | ".join(str(x) if x is not None else "" for x in r))
         return rows
 
     def get_column_descriptions(self, conn):
+        if DB_TYPE == "sqlite":
+            cursor = conn.cursor()
+            cursor.execute(f"PRAGMA table_info({TABLE_NAME})")
+            cols = cursor.fetchall()
+            result = []
+            for col in cols:
+                result.append(
+                    {
+                        "column_name": col[1],
+                        "data_type": col[2].lower(),
+                        "is_nullable": "YES" if col[3] == 0 else "NO",
+                        "character_maximum_length": None,
+                        "numeric_precision": None,
+                        "numeric_scale": None,
+                    }
+                )
+            return result
+        from psycopg2.extras import RealDictCursor
+
         sql_query = """
         SELECT
             column_name,
@@ -147,35 +216,27 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
             cur.execute(sql_query, (TABLE_NAME,))
             return cur.fetchall()
 
-    def get_distinct_direction(self, conn):
+    def _query_distinct(self, conn, column):
+        if DB_TYPE == "sqlite":
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT DISTINCT {column} FROM {TABLE_NAME} WHERE {column} IS NOT NULL ORDER BY {column};")
+            return [r[0] for r in cursor.fetchall()]
         with conn.cursor() as cur:
-            cur.execute(
-                f"SELECT DISTINCT direction FROM {TABLE_NAME} WHERE direction IS NOT NULL ORDER BY direction;"
-            )
-            result = [r for r in cur.fetchall()]
-            return [r[0] for r in result]  # extract first element from each tuple
+            cur.execute(f"SELECT DISTINCT {column} FROM {TABLE_NAME} WHERE {column} IS NOT NULL ORDER BY {column};")
+            return [r[0] for r in cur.fetchall()]
+
+    def get_distinct_direction(self, conn):
+        return self._query_distinct(conn, "direction")
 
     def get_distinct_sleeve(self, conn):
-        with conn.cursor() as cur:
-            cur.execute(
-                f"SELECT DISTINCT sleeve FROM {TABLE_NAME} WHERE sleeve IS NOT NULL ORDER BY sleeve;"
-            )
-            result = [r for r in cur.fetchall()]
-            return [r[0] for r in result]  # extract first element from each tuple
+        return self._query_distinct(conn, "sleeve")
 
     def get_distinct_tickers(self, conn):
-        with conn.cursor() as cur:
-            cur.execute(
-                f"SELECT DISTINCT ticker FROM {TABLE_NAME} WHERE ticker IS NOT NULL ORDER BY ticker;"
-            )
-            result = [r for r in cur.fetchall()]
-            return [r[0] for r in result]  # extract first element from each tuple
+        return self._query_distinct(conn, "ticker")
 
     def build_system_prompt_for_sql_where(self, conn):
         cols = self.get_column_descriptions(conn)
-        direction = self.get_distinct_direction(
-            conn
-        )  # list is a list of tuples, take the first element of each tuple
+        direction = self.get_distinct_direction(conn)  # list is a list of tuples, take the first element of each tuple
         print(direction)
         tickers = self.get_distinct_tickers(conn)
         print(tickers)
@@ -218,7 +279,7 @@ class PMPositionsTool(Tool[PMPositionsToolConfig]):
 
         Output ONLY the SQL WHERE clause text (no SELECT, no comments, no explanations).
         Read-only retrieval ONLY. Do not generate INSERT/UPDATE/DELETE/DDL.
-        Use standard PostgreSQL syntax.
+        Use standard SQL syntax compatible with both PostgreSQL and SQLite.
         If no filtering is required, return 'WHERE TRUE'.
         Prefer safe comparisons (e.g., ILIKE for case-insensitive text matching when appropriate).
         For multiple conditions, use AND/OR with parentheses to be unambiguous.
