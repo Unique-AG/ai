@@ -94,6 +94,15 @@ class ClaudeAgentConfig(BaseToolConfig):
         default=True,
         description="Persist workspace across turns via zip upload/download.",
     )
+    skills_scope_id: str | None = Field(
+        default=None,
+        description=(
+            "KB scope ID containing skill files (.md) to download into "
+            "{workspace}/.claude/skills/ at workspace setup. "
+            "None = skill download disabled. Requires setting_sources=['project'] "
+            "to be effective."
+        ),
+    )
 
     # ─── System Prompt ───
     system_prompt_override: str = Field(

@@ -57,6 +57,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponseMessage,
 )
 
+from . import workspace as workspace_module
 from .config import ClaudeAgentConfig, build_tool_policy
 from .mcp_tools import build_unique_mcp_server
 from .prompts import PromptContext, build_system_prompt
@@ -163,15 +164,23 @@ class ClaudeAgentRunner:
         """Fetch and extract workspace zip if persistence is enabled.
 
         Returns the workspace directory path, or None if persistence is disabled.
-        Implementation deferred to workspace.py integration.
         """
         if not self._claude_config.enable_workspace_persistence:
             return None
-        # TODO: delegate to workspace.fetch_workspace(
-        #     content_service=self._content_service,
-        #     chat_id=self._event.payload.chat_id,
-        # )
-        return None
+        try:
+            return await workspace_module.setup_workspace(
+                content_service=self._content_service,
+                chat_id=self._event.payload.chat_id,
+                logger=self._logger,
+                skills_scope_id=self._claude_config.skills_scope_id,
+            )
+        except Exception as e:
+            self._logger.error(
+                "workspace: setup failed — running without workspace: %s",
+                e,
+                exc_info=True,
+            )
+            return None
 
     async def _build_system_prompt(self) -> str:
         """Compose the system prompt from platform context.
@@ -502,18 +511,24 @@ class ClaudeAgentRunner:
         self._logger.info("Post-processing complete.")
 
     async def _persist_workspace(self, workspace_dir: Path) -> None:
-        """Zip and upload workspace for next turn.
-
-        Implementation deferred to workspace.py integration.
-        Pattern: zip workspace_dir → ContentService.upload_content_from_bytes(
-            chat_id=self._event.payload.chat_id, skip_ingestion=True
-        )
-        """
-        pass
+        """Zip and upload workspace checkpoint, then upload output files."""
+        try:
+            await workspace_module.persist_workspace(
+                workspace_dir=workspace_dir,
+                content_service=self._content_service,
+                chat_id=self._event.payload.chat_id,
+                logger=self._logger,
+            )
+        except Exception as e:
+            self._logger.error(
+                "workspace: persist failed — workspace may be lost: %s",
+                e,
+                exc_info=True,
+            )
 
     def _cleanup_workspace(self, workspace_dir: Path) -> None:
-        """Remove local workspace directory after persist completes.
-
-        Implementation deferred to workspace.py. Pattern: shutil.rmtree(workspace_dir).
-        """
-        pass
+        """Remove local workspace directory after persist completes."""
+        workspace_module.cleanup_workspace(
+            workspace_dir=workspace_dir,
+            logger=self._logger,
+        )
