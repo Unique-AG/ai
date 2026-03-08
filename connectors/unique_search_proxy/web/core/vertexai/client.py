@@ -6,10 +6,10 @@ from google.auth import load_credentials_from_dict
 from google.genai._api_client import BaseApiClient
 from google.genai.client import AsyncClient
 
-from core.vertexai.settings import VertexAISettings
 from core.vertexai.exceptions import (
     VertexAICredentialNotFoundException,
 )
+from core.vertexai.settings import VertexAISettings
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -208,6 +208,31 @@ def test_upload_content_from_bytes(mock_upsert, mock_put, sample_content_data):
     assert call_kwargs["input_data"]["ingestionConfig"] == ingestion_config
 
 
+@patch("unique_toolkit.content.functions.requests.put")
+@patch("unique_toolkit.content.functions._upsert_content")
+def test_upload_content_from_bytes_uses_ingestion_upload_url_internal_when_set(
+    mock_upsert, mock_put, sample_content_data
+):
+    mock_upsert.return_value = sample_content_data
+    internal_base = "https://node-ingestion.internal/upload"
+    with patch(
+        "unique_toolkit.content.utils._ingestion_upload_api_url_internal",
+        internal_base,
+    ):
+        result = upload_content_from_bytes(
+            user_id="user123",
+            company_id="company123",
+            content=b"test",
+            content_name="test.txt",
+            mime_type="text/plain",
+            scope_id="scope123",
+        )
+    assert result.write_url is not None
+    assert result.write_url.startswith(internal_base)
+    mock_put.assert_called_once()
+    assert mock_put.call_args[1]["url"].startswith(internal_base)
+
+
 @patch("unique_toolkit.content.functions.requests.get")
 def test_download_content_to_file_by_id(mock_get, tmp_path):
     # Setup

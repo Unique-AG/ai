@@ -16,7 +16,7 @@ This service acts as an abstraction layer over different search providers, allow
 ### Prerequisites
 
 - Python 3.12+
-- Poetry for dependency management
+- uv for dependency management
 - Google Cloud credentials (for Vertex AI)
 - Google Custom Search API key and Engine ID (for Google Search)
 
@@ -24,7 +24,7 @@ This service acts as an abstraction layer over different search providers, allow
 
 ```bash
 # Install dependencies
-poetry install
+uv sync
 
 # Copy and configure environment variables
 cp .env.example .env
@@ -46,7 +46,7 @@ VERTEXAI_SERVICE_ACCOUNT_CREDENTIALS=path/to/credentials.json
 
 **Development:**
 ```bash
-poetry run python app.py
+uv run python app.py
 ```
 
 **Production:**
@@ -242,16 +242,16 @@ The service includes a production-ready `entrypoint.sh` that uses Uvicorn:
 
 ```bash
 # Run with hot reload
-poetry run uvicorn app:app --reload --port 2349
+uv run uvicorn app:app --reload --port 2349
 
 # Or simply
-poetry run python app.py
+uv run python app.py
 
 # Format code
-poetry run ruff format .
+uv run ruff format .
 
 # Lint
-poetry run ruff check .
+uv run ruff check .
 ```
 
 ## License

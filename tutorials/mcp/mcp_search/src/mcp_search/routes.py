@@ -19,3 +19,7 @@ class MCPBaseRoutes(BaseProvider):
         @mcp.custom_route("/favicon.ico", methods=["GET"])
         async def favicon(request: Request) -> FileResponse:
             return FileResponse(path=Path(__file__).parent / "favicon.ico")
+
+        @mcp.custom_route("/health", methods=["GET"])
+        async def health(request: Request) -> JSONResponse:
+            return JSONResponse({"status": "healthy"})

@@ -11,7 +11,9 @@ from unique_mcp.auth.zitadel.oauth_proxy import (
 from unique_mcp.settings import ServerSettings
 from unique_toolkit.app.unique_settings import UniqueSettings
 
-if __name__ == "__main__":
+
+def main() -> None:
+    """Main entry point for the MCP Search server."""
     # This will automatically init the SDK and give you access to all relevant settings
     _UNIQUE_SETTINGS = UniqueSettings.from_env_auto_with_sdk_init()
 
@@ -56,3 +58,7 @@ if __name__ == "__main__":
         log_level="debug",
         middleware=custom_middleware,
     )
+
+
+if __name__ == "__main__":
+    main()

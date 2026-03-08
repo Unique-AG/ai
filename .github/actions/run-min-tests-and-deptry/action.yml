@@ -30,9 +30,11 @@ runs:
 
     # uv: Install with min deps
     - name: Install package (min deps - uv)
-      if: steps.pm.outputs.run_cmd == 'uv run'
+      if: startsWith(steps.pm.outputs.run_cmd, 'uv')
       shell: bash
       working-directory: ${{ inputs.package_dir }}
+      env:
+        UV_NO_SOURCES: 1
       run: |
         uv venv --clear
         EXTRAS="${{ inputs.extras }}"
@@ -53,9 +55,11 @@ runs:
       run: poetry install
 
     - name: Run deptry (uv)
-      if: steps.pm.outputs.run_cmd == 'uv run'
+      if: startsWith(steps.pm.outputs.run_cmd, 'uv')
       shell: bash
       working-directory: ${{ inputs.package_dir }}
+      env:
+        UV_NO_SOURCES: 1
       run: uv run --no-sync deptry .
 
     - name: Run deptry (poetry)
@@ -65,7 +69,9 @@ runs:
       run: poetry run deptry .
 
     - name: Run tests with min dependencies (uv only)
-      if: steps.pm.outputs.run_cmd == 'uv run'
+      if: startsWith(steps.pm.outputs.run_cmd, 'uv')
       shell: bash
       working-directory: ${{ inputs.package_dir }}
+      env:
+        UV_NO_SOURCES: 1
       run: uv run --no-sync pytest ${{ inputs.test_args }}

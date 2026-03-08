@@ -1,7 +1,10 @@
+from unittest.mock import patch
+
 import pytest
 
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.content.utils import (
+    _apply_ingestion_upload_url_override,
     count_tokens,
     map_content,
     map_content_chunk,
@@ -163,3 +166,49 @@ class TestContentChunkUtils:
         assert result.key == "document.pdf"
         assert len(result.chunks) == 1
         assert result.chunks[0].chunk_id == "chunk_1"
+
+
+class TestApplyIngestionUploadUrlOverride:
+    def test_returns_original_url_when_env_unset(self):
+        write_url = "https://gateway.example.com/ingestion/upload?key=abc123"
+        assert _apply_ingestion_upload_url_override(write_url) == write_url
+
+    def test_returns_original_url_when_env_empty(self):
+        write_url = "https://gateway.example.com/ingestion/upload?key=abc123"
+        with patch(
+            "unique_toolkit.content.utils._ingestion_upload_api_url_internal", None
+        ):
+            assert _apply_ingestion_upload_url_override(write_url) == write_url
+
+    def test_replaces_base_preserves_query_when_env_set(self):
+        write_url = "https://gateway.example.com/ingestion/upload?key=encrypted%3Dvalue"
+        internal_base = "https://node-ingestion.namespace.svc.cluster.local/upload"
+        with patch(
+            "unique_toolkit.content.utils._ingestion_upload_api_url_internal",
+            internal_base,
+        ):
+            result = _apply_ingestion_upload_url_override(write_url)
+        assert (
+            result
+            == "https://node-ingestion.namespace.svc.cluster.local/upload?key=encrypted%3Dvalue"
+        )
+
+    def test_replaces_base_no_double_question_mark_when_no_query(self):
+        write_url = "https://gateway.example.com/ingestion/upload"
+        internal_base = "http://ingestion-internal/upload"
+        with patch(
+            "unique_toolkit.content.utils._ingestion_upload_api_url_internal",
+            internal_base,
+        ):
+            result = _apply_ingestion_upload_url_override(write_url)
+        assert result == "http://ingestion-internal/upload"
+
+    def test_strips_trailing_slash_from_custom_base(self):
+        write_url = "https://gateway.example.com/upload?key=xyz"
+        internal_base = "https://internal/upload/"
+        with patch(
+            "unique_toolkit.content.utils._ingestion_upload_api_url_internal",
+            internal_base,
+        ):
+            result = _apply_ingestion_upload_url_override(write_url)
+        assert result == "https://internal/upload?key=xyz"

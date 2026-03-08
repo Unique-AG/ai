@@ -186,7 +186,7 @@ The column definitions specify:
 ??? example "Column Definition Example (Click to expand)"
     
     <!--codeinclude-->
-    [Column Definitions](../examples_from_docs/agentic_table_example_column_definition.py)
+    [Column Definitions](../manual_examples_for_docs/agentic_table_example_column_definition.py)
     <!--/codeinclude-->
 
 This creates a typed interface for your table that ensures consistency across all operations. You'll reference these definitions in your handlers to access columns by name.
@@ -212,7 +212,7 @@ This handler prepares the empty table structure so it's ready to receive data. A
 ??? example "Sheet Created Handler Implementation (Click to expand)"
     
     <!--codeinclude-->
-    [Sheet Created Handler](../examples_from_docs/agentic_table_example_sheet_created_event_handler.py)
+    [Sheet Created Handler](../manual_examples_for_docs/agentic_table_example_sheet_created_event_handler.py)
     <!--/codeinclude-->
 
 ### Handler 2: Metadata Added Event
@@ -356,7 +356,7 @@ The key takeaway is the batch operation pattern - when dealing with large datase
 ??? example "Metadata Added Handler Implementation (Click to expand)"
     
     <!--codeinclude-->
-    [Metadata Added Handler](../examples_from_docs/agentic_table_example_metadata_added_event_handler.py)
+    [Metadata Added Handler](../manual_examples_for_docs/agentic_table_example_metadata_added_event_handler.py)
     <!--/codeinclude-->
 
 ### Handler 3: Cell Updated Event
@@ -388,7 +388,7 @@ The power here is in defining your business logic - the framework just provides 
 ??? example "Cell Updated Handler Implementation (Click to expand)"
     
     <!--codeinclude-->
-    [Cell Updated Handler](../examples_from_docs/agentic_table_example_cell_updated_event_handler.py)
+    [Cell Updated Handler](../manual_examples_for_docs/agentic_table_example_cell_updated_event_handler.py)
     <!--/codeinclude-->
 
 ### Handler 4: Artifact Generation Event
@@ -424,7 +424,7 @@ The example demonstrates the basic pattern - reading data, transforming it, and 
 ??? example "Artifact Generation Handler Implementation (Click to expand)"
     
     <!--codeinclude-->
-    [Artifact Generated Handler](../examples_from_docs/agentic_table_example_artifact_generated_event_handler.py)
+    [Artifact Generated Handler](../manual_examples_for_docs/agentic_table_example_artifact_generated_event_handler.py)
     <!--/codeinclude-->
 
 ## Framework Utilities: Helper Functions
@@ -575,7 +575,7 @@ text = f"See source [{list(id_map.keys())[0]}]"
 ??? example "Helper Functions Implementation (Click to expand)"
     
     <!--codeinclude-->
-    [Helper Functions](../examples_from_docs/agentic_table_helper_functions.py)
+    [Helper Functions](../manual_examples_for_docs/agentic_table_helper_functions.py)
     <!--/codeinclude-->
 
 ## Key Concepts
@@ -708,10 +708,10 @@ All helper functions use the factory pattern with authentication context:
 ??? example "Full Example Files (Click to expand)"
     
     <!--codeinclude-->
-    [Complete FastAPI App](../examples_from_docs/fastapi_app_agentic_table.py)
-    [Column Definitions](../examples_from_docs/agentic_table_example_column_definition.py)
-    [Sheet Created Handler](../examples_from_docs/agentic_table_example_sheet_created_event_handler.py)
-    [Metadata Added Handler](../examples_from_docs/agentic_table_example_metadata_added_event_handler.py)
-    [Cell Updated Handler](../examples_from_docs/agentic_table_example_cell_updated_event_handler.py)
-    [Artifact Generated Handler](../examples_from_docs/agentic_table_example_artifact_generated_event_handler.py)
+    [Complete FastAPI App](../manual_examples_for_docs/fastapi_app_agentic_table.py)
+    [Column Definitions](../manual_examples_for_docs/agentic_table_example_column_definition.py)
+    [Sheet Created Handler](../manual_examples_for_docs/agentic_table_example_sheet_created_event_handler.py)
+    [Metadata Added Handler](../manual_examples_for_docs/agentic_table_example_metadata_added_event_handler.py)
+    [Cell Updated Handler](../manual_examples_for_docs/agentic_table_example_cell_updated_event_handler.py)
+    [Artifact Generated Handler](../manual_examples_for_docs/agentic_table_example_artifact_generated_event_handler.py)
     <!--/codeinclude-->

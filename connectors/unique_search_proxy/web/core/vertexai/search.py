@@ -1,3 +1,14 @@
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+from core.schema import (
+    SearchEngineType,
+    SearchRequest,
+    WebSearchResult,
+    WebSearchResults,
+    camelized_model_config,
+)
 from core.vertexai.client import (
     get_vertex_client,
 )
@@ -8,21 +19,12 @@ from core.vertexai.config import (
 from core.vertexai.gemini import (
     generate_content,
 )
+from core.vertexai.helpers import resolve_all
 from core.vertexai.response_handler import (
     PostProcessFunction,
     add_citations,
     parse_to_structured_results,
 )
-from core.schema import (
-    WebSearchResult,
-    WebSearchResults,
-    camelized_model_config,
-    SearchEngineType,
-    SearchRequest,
-)
-from core.vertexai.helpers import resolve_all
-from pydantic import BaseModel, Field
-from typing import Literal
 
 
 class VertexAiParams(BaseModel):

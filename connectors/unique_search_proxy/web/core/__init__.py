@@ -1,8 +1,10 @@
-from core.google_search import GoogleSearch, GoogleSearchRequest
-from core.vertexai import VertexAISearchEngine, VertexAiRequest
-from core.schema import SearchEngineType, WebSearchResult
-from typing import Protocol, Any, Annotated
+from typing import Annotated, Any, Protocol
+
 from pydantic import Field
+
+from core.google_search import GoogleSearch, GoogleSearchRequest
+from core.schema import SearchEngineType, WebSearchResult
+from core.vertexai import VertexAiRequest, VertexAISearchEngine
 
 
 class SearchEngine(Protocol):
