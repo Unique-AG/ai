@@ -286,6 +286,10 @@ class ClaudeAgentRunner:
         if workspace_dir is not None:
             options["cwd"] = str(workspace_dir)
 
+        if workspace_dir is not None and (workspace_dir / ".claude").exists():
+            options["env"]["HOME"] = str(workspace_dir)
+            options["continue_conversation"] = True
+
         if self._claude_config.max_thinking_tokens is not None:
             options["max_thinking_tokens"] = self._claude_config.max_thinking_tokens
 

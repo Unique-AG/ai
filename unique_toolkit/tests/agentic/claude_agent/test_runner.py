@@ -219,6 +219,35 @@ class TestBuildOptions:
         assert "unique_platform" in opts["mcp_servers"]
         assert opts["mcp_servers"]["unique_platform"] is mock_sdk_config
 
+    def test_build_options_sets_home_and_continue_when_claude_dir_exists(
+        self, tmp_path: Path
+    ) -> None:
+        """HOME is set to workspace_dir and continue_conversation=True when .claude/ exists."""
+        claude_dir = tmp_path / ".claude"
+        claude_dir.mkdir()
+
+        runner = _make_runner()
+        opts = runner._build_options(system_prompt="sys", workspace_dir=tmp_path)
+
+        assert opts["env"]["HOME"] == str(tmp_path)
+        assert opts["continue_conversation"] is True
+
+    def test_build_options_no_continue_when_no_claude_dir(self, tmp_path: Path) -> None:
+        """HOME is not overridden and continue_conversation is absent when .claude/ is missing."""
+        runner = _make_runner()
+        opts = runner._build_options(system_prompt="sys", workspace_dir=tmp_path)
+
+        assert opts["env"].get("HOME") != str(tmp_path)
+        assert "continue_conversation" not in opts
+
+    def test_build_options_no_continue_when_no_workspace(self) -> None:
+        """HOME is not overridden and continue_conversation is absent when workspace_dir is None."""
+        runner = _make_runner()
+        opts = runner._build_options(system_prompt="sys", workspace_dir=None)
+
+        assert "HOME" not in opts["env"]
+        assert "continue_conversation" not in opts
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # _build_system_prompt
