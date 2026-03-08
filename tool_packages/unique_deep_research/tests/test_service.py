@@ -2028,3 +2028,173 @@ async def test_deep_research_tool__run__returns_cancelled_response__when_cancell
 
                 assert isinstance(result, ToolCallResponse)
                 assert result.content == "Research was stopped."
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__postprocess_report_with_gpt__passes_date__to_template_render() -> (
+    None
+):
+    """
+    Purpose: Verify _postprocess_report_with_gpt passes the current date to the report_cleanup_prompt template.
+    Why this matters: Ensures the cleanup prompt is rendered with the correct date context for accurate report formatting.
+    Setup summary: Mock get_today_str, template env, and OpenAI client; assert template render receives date keyword argument.
+    """
+    # Arrange
+    config = DeepResearchToolConfig()
+    mock_event = Mock()
+    mock_event.company_id = "test-company"
+    mock_event.user_id = "test-user"
+    mock_event.payload.chat_id = "test-chat"
+    mock_event.payload.assistant_message.id = "test-assistant-message"
+    mock_event.payload.user_message.text = "Test request"
+    mock_event.payload.user_message.original_text = "Test request"
+    mock_event.payload.message_execution_id = None
+    mock_progress_reporter = Mock()
+
+    fixed_date = "Thu Mar 5, 2026"
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+                with patch(
+                    "unique_deep_research.service.get_today_str",
+                    return_value=fixed_date,
+                ) as mock_get_today_str:
+                    tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                    tool.write_message_log_text_message = Mock()
+
+                    mock_response = Mock()
+                    mock_response.choices = [Mock()]
+                    mock_response.choices[0].message.content = "Formatted report"
+                    tool.client.chat.completions.create = AsyncMock(
+                        return_value=mock_response
+                    )
+
+                    mock_template = Mock()
+                    mock_template.render.return_value = "Cleanup prompt content"
+                    with patch.object(
+                        tool.env, "get_template", return_value=mock_template
+                    ):
+                        # Act
+                        result = await tool._postprocess_report_with_gpt(
+                            "Raw report content"
+                        )
+
+                        # Assert
+                        assert result == "Formatted report"
+                        mock_get_today_str.assert_called()
+                        mock_template.render.assert_called_with(date=fixed_date)
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__clarify_user_request__passes_date__to_template_render() -> (
+    None
+):
+    """
+    Purpose: Verify clarify_user_request passes the current date to the clarifying_agent template.
+    Why this matters: Ensures the clarification prompt is rendered with date context so the LLM can reason about temporal relevance.
+    Setup summary: Mock get_today_str, template env, and chat service; assert template render receives date keyword argument.
+    """
+    # Arrange
+    config = DeepResearchToolConfig()
+    mock_event = Mock()
+    mock_event.company_id = "test-company"
+    mock_event.user_id = "test-user"
+    mock_event.payload.chat_id = "test-chat"
+    mock_event.payload.assistant_message.id = "test-assistant-message"
+    mock_event.payload.user_message.text = "Test request"
+    mock_event.payload.user_message.original_text = "Test request"
+    mock_event.payload.message_execution_id = None
+    mock_progress_reporter = Mock()
+
+    fixed_date = "Thu Mar 5, 2026"
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+                with patch(
+                    "unique_deep_research.service.get_today_str",
+                    return_value=fixed_date,
+                ) as mock_get_today_str:
+                    tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+                    tool.get_visible_history_messages = Mock(return_value=[])
+
+                    mock_response = Mock()
+                    mock_response.choices = [Mock()]
+                    mock_response.choices[0].message.content = "Clarifying question?"
+                    tool.chat_service.complete_async = AsyncMock(
+                        return_value=mock_response
+                    )
+
+                    mock_template = Mock()
+                    mock_template.render.return_value = "Clarifying agent prompt"
+                    with patch.object(
+                        tool.env, "get_template", return_value=mock_template
+                    ):
+                        # Act
+                        result = await tool.clarify_user_request()
+
+                        # Assert
+                        assert result == "Clarifying question?"
+                        mock_get_today_str.assert_called()
+                        _, render_kwargs = mock_template.render.call_args
+                        assert render_kwargs.get("date") == fixed_date
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_deep_research_tool__generate_research_brief_from_dict__passes_date__to_template_render() -> (
+    None
+):
+    """
+    Purpose: Verify generate_research_brief_from_dict passes the current date to the research_instructions_agent template.
+    Why this matters: Ensures research instructions are rendered with date context so the LLM can frame the research appropriately.
+    Setup summary: Mock get_today_str, template env, and OpenAI client; assert template render receives date keyword argument.
+    """
+    # Arrange
+    config = DeepResearchToolConfig()
+    mock_event = Mock()
+    mock_event.company_id = "test-company"
+    mock_event.user_id = "test-user"
+    mock_event.payload.chat_id = "test-chat"
+    mock_event.payload.assistant_message.id = "test-assistant-message"
+    mock_event.payload.user_message.text = "Test request"
+    mock_event.payload.user_message.original_text = "Test request"
+    mock_event.payload.message_execution_id = None
+    mock_progress_reporter = Mock()
+
+    fixed_date = "Thu Mar 5, 2026"
+
+    with patch("unique_deep_research.service.get_async_openai_client"):
+        with patch("unique_deep_research.service.ContentService"):
+            with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
+                with patch(
+                    "unique_deep_research.service.get_today_str",
+                    return_value=fixed_date,
+                ) as mock_get_today_str:
+                    tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
+
+                    mock_response = Mock()
+                    mock_response.choices = [Mock()]
+                    mock_response.choices[0].message.content = "Research instructions"
+                    tool.client.chat.completions.create = AsyncMock(
+                        return_value=mock_response
+                    )
+
+                    mock_template = Mock()
+                    mock_template.render.return_value = "Research instructions prompt"
+                    with patch.object(
+                        tool.env, "get_template", return_value=mock_template
+                    ):
+                        messages = [{"role": "user", "content": "Research AI trends"}]
+
+                        # Act
+                        result = await tool.generate_research_brief_from_dict(messages)
+
+                        # Assert
+                        assert result == "Research instructions"
+                        mock_get_today_str.assert_called()
+                        _, render_kwargs = mock_template.render.call_args
+                        assert render_kwargs.get("date") == fixed_date
