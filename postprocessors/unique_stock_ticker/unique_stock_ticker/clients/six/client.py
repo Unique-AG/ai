@@ -3,10 +3,9 @@ from unique_six import SixApiClient
 from unique_stock_ticker.clients.six.exception import NoCredentialsException
 
 
-
 def get_six_api_client(company_id: str) -> SixApiClient:
     from unique_stock_ticker.clients.six.settings import six_api_settings
-    
+
     creds = six_api_settings.creds_for_company(company_id)
     if creds is None:
         raise NoCredentialsException(company_id)
