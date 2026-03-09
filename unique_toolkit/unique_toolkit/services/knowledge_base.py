@@ -788,16 +788,23 @@ class KnowledgeBaseService:
         return scope_ids, folder_id_paths, known_folder_paths
 
     async def get_content_infos_async(
-        self, *, metadata_filter: dict[str, Any] | None = None, step_size=100
+        self,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+        step_size: int = 100,
+        max_concurrent_requests: int = 10,
     ) -> list[ContentInfo]:
         """
         Fetches all content infos from the knowledge base using parallel pagination.
 
         The API limits responses to 100 items per request, so this method fetches
-        the total count first, then retrieves all pages concurrently.
+        the total count first, then retrieves all pages concurrently with limited
+        concurrency to avoid overwhelming the API server.
 
         Args:
             metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
+            step_size (int): The number of items to fetch per request. Defaults to 100.
+            max_concurrent_requests (int): Maximum number of concurrent API requests. Defaults to 10.
 
         Returns:
             list[ContentInfo]: All content infos visible to the user.
@@ -810,15 +817,18 @@ class KnowledgeBaseService:
 
         total_count = info_for_count_of_total_content.total_count
 
-        results: list[PaginatedContentInfos | BaseException] = await asyncio.gather(
-            *[
-                self.get_paginated_content_infos_async(
+        semaphore = asyncio.Semaphore(max_concurrent_requests)
+
+        async def fetch_page(skip: int) -> PaginatedContentInfos:
+            async with semaphore:
+                return await self.get_paginated_content_infos_async(
                     metadata_filter=metadata_filter,
-                    skip=i,
+                    skip=skip,
                     take=step_size,
                 )
-                for i in range(0, total_count, step_size)
-            ],
+
+        results: list[PaginatedContentInfos | BaseException] = await asyncio.gather(
+            *[fetch_page(i) for i in range(0, total_count, step_size)],
             return_exceptions=True,
         )
 
@@ -899,7 +909,7 @@ class KnowledgeBaseService:
         for content_info in content_infos:
             current = tree
             metadata = content_info.metadata
-            path: list[str]
+            path: list[str] = []
             if metadata and (full_path := metadata.get(r"{FullPath}")) is not None:
                 path = str(full_path).split("/")
             elif (
@@ -914,8 +924,7 @@ class KnowledgeBaseService:
                     scope_id_to_folder_name.get(scope_id, scope_id)
                     for scope_id in scope_ids_list
                 ]
-            else:
-                continue
+            # Files without folder metadata are added to root
             for folder_name in path:
                 if not folder_name:  # Skip empty folder names (e.g., from leading "/")
                     continue
