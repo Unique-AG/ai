@@ -108,7 +108,6 @@ print(response.content)
 1. **Install the langchain group**: Use `uv add unique_toolkit[langchain]` so `langchain-openai` and `langchain-core` are available.
 2. **Reuse the client**: Creating the client is cheap; you can reuse it for multiple `invoke()` or chain runs.
 3. **Avoid mutable defaults**: Pass `additional_headers` as a new dict when needed; do not reuse mutable defaults across calls.
-4. **Test with docs-only changes**: Verify that changes to documentation files don't trigger unnecessary CI runs.
 
 ---
 
