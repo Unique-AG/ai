@@ -22,7 +22,7 @@ logger = getLogger(__name__)
 async def main():
     import unique_sdk
 
-    load_dotenv(Path(__file__).parent / ".." / ".env")
+    load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
     unique_sdk.api_key = os.getenv("API_KEY", "dummy")
     unique_sdk.app_id = os.getenv("APP_ID", "dummy")
@@ -41,7 +41,7 @@ async def main():
     coros = [
         unique_sdk.ChatCompletion.create_async(
             company_id=company_id,
-            model="AZURE_GPT_4_0613",
+            model="AZURE_GPT_4o_2024_0806",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {

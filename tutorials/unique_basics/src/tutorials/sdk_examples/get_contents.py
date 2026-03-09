@@ -28,7 +28,7 @@ def main():
     import unique_sdk
 
     # Load environment variables
-    load_dotenv(Path(__file__).parent / ".." / ".env")
+    load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
     # Set up SDK configuration
     unique_sdk.api_key = os.getenv("API_KEY", "")
@@ -62,7 +62,7 @@ def main():
     )
 
     logger.info(f"Total count: {content_info_result['totalCount']}")
-    for item in content_info_result["contentInfos"]:
+    for item in content_info_result["contentInfo"]:
         content = unique_sdk.Content.search(
             user_id=user_id,
             company_id=company_id,

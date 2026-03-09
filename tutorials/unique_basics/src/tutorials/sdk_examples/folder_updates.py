@@ -21,7 +21,7 @@ def main():
     import unique_sdk
 
     # Load environment variables
-    load_dotenv(Path(__file__).parent / ".." / ".env")
+    load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
     # Set up SDK configuration
     unique_sdk.api_key = os.getenv("API_KEY")
@@ -41,7 +41,7 @@ def main():
             ingestionConfig={
                 "chunkMaxTokens": 1000,
                 "chunkStrategy": "default",
-                "uniqueIngestionMode": "standard",
+                "uniqueIngestionMode": "INGESTION",
             },
             applyToSubScopes=True,
         )

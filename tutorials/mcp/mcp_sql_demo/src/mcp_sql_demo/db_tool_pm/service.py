@@ -1,33 +1,29 @@
 import os
 
-
 import psycopg2
+from mcp_sql_demo.db_tool_pm.prompts import (
+    DEFAULT_TOOL_DESCRIPTION,
+    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+    DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
+)
 from psycopg2.extras import RealDictCursor
-from unique_toolkit import LanguageModelMessages
-from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from pydantic import Field, create_model
 from typing_extensions import override
+
+from unique_toolkit import LanguageModelMessages
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
-from unique_toolkit.agentic.tools.schemas import ToolCallResponse
+from unique_toolkit.agentic.tools.schemas import BaseToolConfig, ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.chat.service import LanguageModelToolDescription
+from unique_toolkit.language_model.infos import (
+    LanguageModelName,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
     LanguageModelToolMessage,
-)
-
-from unique_toolkit.language_model.infos import (
-    LanguageModelName,
-)
-
-from unique_toolkit.agentic.tools.schemas import BaseToolConfig
-
-from db_tool_pm.prompts import (
-    DEFAULT_TOOL_DESCRIPTION,
-    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
-    DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
 )
 
 DB_HOST = os.getenv("PGHOST", "localhost")

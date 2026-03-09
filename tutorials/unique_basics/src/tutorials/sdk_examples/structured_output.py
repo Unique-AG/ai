@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     import unique_sdk
 
-    load_dotenv(Path(__file__).parent / ".." / ".env.api_key")
+    load_dotenv(Path(__file__).resolve().parents[3] / ".env")
     unique_sdk.api_key = os.getenv("API_KEY", "")
     unique_sdk.app_id = os.getenv("APP_ID", "")
     unique_sdk.api_base = os.getenv("API_BASE", "")

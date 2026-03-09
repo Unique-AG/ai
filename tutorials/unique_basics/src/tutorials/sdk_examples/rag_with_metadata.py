@@ -142,7 +142,7 @@ If not specified, format the answer using an introduction followed by a list of 
 
 
 if __name__ == "__main__":
-    load_dotenv(Path(__file__).parent / ".." / ".env.api_key")
+    load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
     # Set up SDK configuration
     unique_sdk.api_key = os.getenv("API_KEY", "")

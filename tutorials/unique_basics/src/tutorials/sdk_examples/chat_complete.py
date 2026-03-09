@@ -34,7 +34,7 @@ async def main():
         .user_message_append("What is the weather in Paris tomorrow?")
         .build()
     )
-    load_dotenv(Path(__file__).parent / ".." / ".env")
+    load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
     unique_sdk.api_key = os.getenv("API_KEY", "dummy")
     unique_sdk.app_id = os.getenv("APP_ID", "dummy")

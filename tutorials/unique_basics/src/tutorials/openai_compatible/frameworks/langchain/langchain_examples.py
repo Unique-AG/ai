@@ -5,14 +5,14 @@ from pathlib import Path
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
-from openai_compatible.settings import (
-    get_default_headers,
-)
 from pydantic import BaseModel, Field
 
 from unique_toolkit.app.unique_settings import UniqueSettings
+from unique_toolkit.framework_utilities.utils import (
+    get_default_headers,
+)
 
-env_file = Path(__file__).parent.parent / ".env"
+env_file = Path(__file__).resolve().parents[5] / ".env"
 settings = UniqueSettings.from_env(env_file=env_file)
 
 

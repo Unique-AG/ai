@@ -30,7 +30,7 @@ class MyService:
         print(response.message.text)
 
 
-company_id, user_id = init_from_env_file(Path(__file__).parent / ".." / ".env")
+company_id, user_id = init_from_env_file(Path(__file__).resolve().parents[3] / ".env")
 
 llm_service = LanguageModelService(company_id=company_id, user_id=user_id)
 

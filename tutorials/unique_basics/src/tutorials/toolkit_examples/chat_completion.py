@@ -12,7 +12,7 @@ from unique_toolkit.language_model import (
     LanguageModelToolDescription,
 )
 
-company_id, _ = init_from_env_file(Path(__file__).parent / ".." / ".env")
+company_id, _ = init_from_env_file(Path(__file__).resolve().parents[3] / ".env")
 
 print(company_id)
 # %%

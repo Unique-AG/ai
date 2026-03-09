@@ -1,4 +1,5 @@
 import json
+import os
 from http import HTTPStatus
 from logging.config import dictConfig
 from pprint import pprint
@@ -9,11 +10,13 @@ import unique_sdk
 from custom_assistant.external_module_handler import handle_module_message
 from custom_assistant.user_event_handler import handle_user_message
 
-unique_sdk.api_key = "YOUR_API_KEY"
-unique_sdk.app_id = "YOUR_APP_ID"
-endpoint_secret = "YOUR_ENDPOINT_SECRET"
-user_id = "USER_ID"
-company_id = "COMPANY_ID"
+# Load from environment (set via shell before running, e.g. source .env)
+unique_sdk.api_base = os.getenv("API_BASE", "")
+unique_sdk.api_key = os.getenv("API_KEY", "")
+unique_sdk.app_id = os.getenv("APP_ID", "")
+endpoint_secret = os.getenv("ENDPOINT_SECRET", "")
+user_id = os.getenv("USER_ID", "")
+company_id = os.getenv("COMPANY_ID", "")
 
 dictConfig(
     {

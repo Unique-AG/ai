@@ -2,7 +2,8 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-env_file_path = Path(__file__).parent / ".." / ".env"
+# Project root .env: we are in src/metadata_extractor/, so go up two levels
+env_file_path = (Path(__file__).parent / ".." / ".." / ".env").resolve()
 
 
 class MetadataExtractorSettings(BaseSettings):

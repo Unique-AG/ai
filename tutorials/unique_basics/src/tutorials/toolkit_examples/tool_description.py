@@ -39,7 +39,7 @@ Using strict tool calling add the following constraints:
 class TimeSpecificationStrict(BaseModel):
     model_config = {"extra": "forbid"}
     time: datetime.datetime
-    timezone: datetime.timezone
+    timezone: str
 
 
 class WeatherParametersStrict(BaseModel):

@@ -1,4 +1,5 @@
 # %%
+import os
 from pathlib import Path
 
 from tutorials.utilities_examples.init_sdk import init_from_env_file
@@ -9,10 +10,10 @@ from unique_toolkit.content.functions import (
 )
 
 # Init sdk, company_id, user_id are necessary for auth
-company_id, user_id = init_from_env_file(Path(__file__).parent / ".." / ".env")
+company_id, user_id = init_from_env_file(Path(__file__).resolve().parents[3] / ".env")
 
 # Scope to upload to
-scope_id = "scope_mgjzlrijadpk5q0plx242dv3"
+scope_id = os.getenv("SCOPE_ID", "scope_mgjzlrijadpk5q0plx242dv3")
 
 # Files to upload to the knowledgebase
 filenames = ["upsert_text.txt", "upsert_json.json", "upsert_markdown.md"]
@@ -26,7 +27,7 @@ for filename, mimetype in zip(filenames, mimetypes):
         user_id=user_id,
         company_id=company_id,
         content_name=filename,
-        path_to_content=str(Path(__file__).parent.parent / "data" / filename),
+        path_to_content=str(Path(__file__).resolve().parents[3] / "data" / filename),
         mime_type=mimetype,
         scope_id=scope_id,
         skip_ingestion=False,
