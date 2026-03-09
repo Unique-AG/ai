@@ -15,11 +15,11 @@ from unique_toolkit.agentic.tools.openai_builtin.hosted_shell.service import (
 
 
 @pytest.mark.ai
-def test_hosted_shell_tool__name__returns_hosted_shell() -> None:
+def test_hosted_shell_tool__basic_properties__correct_defaults() -> None:
     """
-    Purpose: Verify the tool name property returns HOSTED_SHELL.
-    Why this matters: The manager routes by tool name.
-    Setup summary: Construct tool with auto container; assert name.
+    Purpose: Verify tool name, display name, and default boolean properties.
+    Why this matters: Manager routing and UI depend on these properties.
+    Setup summary: Construct tool with auto container; assert all basic properties.
     """
     # Arrange
     config = OpenAIHostedShellConfig(use_auto_container=True)
@@ -27,21 +27,13 @@ def test_hosted_shell_tool__name__returns_hosted_shell() -> None:
 
     # Assert
     assert tool.name == OpenAIBuiltInToolName.HOSTED_SHELL
-
-
-@pytest.mark.ai
-def test_hosted_shell_tool__display_name__returns_hosted_shell() -> None:
-    """
-    Purpose: Verify the display name.
-    Why this matters: Used in UI.
-    Setup summary: Construct tool; assert display_name.
-    """
-    # Arrange
-    config = OpenAIHostedShellConfig(use_auto_container=True)
-    tool = OpenAIHostedShellTool(config=config, container_id=None)
-
-    # Assert
     assert tool.display_name() == "Hosted Shell"
+    assert tool.is_enabled() is True
+    assert tool.is_exclusive() is False
+    assert tool.takes_control() is False
+    prompts = tool.get_tool_prompts()
+    assert prompts.name == "shell"
+    assert prompts.display_name == "Hosted Shell"
 
 
 @pytest.mark.ai
@@ -223,40 +215,6 @@ def test_hosted_shell_tool__tool_description__combines_refs_and_inline_skills() 
     assert len(skills) == 2
     assert skills[0]["type"] == "skill_reference"
     assert skills[1]["type"] == "inline"
-
-
-@pytest.mark.ai
-def test_hosted_shell_tool__get_tool_prompts__returns_shell_name() -> None:
-    """
-    Purpose: Verify get_tool_prompts returns the correct tool name for shell.
-    Why this matters: Prompt assembly uses the tool name for identification.
-    Setup summary: Construct tool; assert prompts name is 'shell'.
-    """
-    # Arrange
-    config = OpenAIHostedShellConfig(use_auto_container=True)
-    tool = OpenAIHostedShellTool(config=config, container_id=None)
-
-    # Act
-    prompts = tool.get_tool_prompts()
-
-    # Assert
-    assert prompts.name == "shell"
-    assert prompts.display_name == "Hosted Shell"
-
-
-@pytest.mark.ai
-def test_hosted_shell_tool__is_enabled__returns_true() -> None:
-    """
-    Purpose: Verify tool is always enabled.
-    Why this matters: Tool visibility in the manager.
-    Setup summary: Construct tool; assert is_enabled.
-    """
-    # Arrange
-    config = OpenAIHostedShellConfig(use_auto_container=True)
-    tool = OpenAIHostedShellTool(config=config, container_id=None)
-
-    # Assert
-    assert tool.is_enabled() is True
 
 
 @pytest.mark.ai

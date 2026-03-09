@@ -1,19 +1,21 @@
 import logging
 from typing import override
 
-from openai import AsyncOpenAI, BaseModel, NotFoundError
+from openai import AsyncOpenAI
 from openai.types.responses.tool_param import CodeInterpreter
 
-from unique_toolkit import ContentService, ShortTermMemoryService
-from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
-    PersistentShortMemoryManager,
-)
+from unique_toolkit import ContentService
 from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     OpenAICodeInterpreterConfig,
+)
+from unique_toolkit.agentic.tools.openai_builtin.container_utils import (
+    create_container_if_not_exists,
+    get_container_memory_manager,
+    upload_files_to_container,
 )
 from unique_toolkit.agentic.tools.schemas import ToolPrompts
 from unique_toolkit.content.schemas import (
@@ -22,120 +24,8 @@ from unique_toolkit.content.schemas import (
 
 logger = logging.getLogger(__name__)
 
-
-_SHORT_TERM_MEMORY_NAME = "container_code_execution"
-
-
-class CodeExecutionShortTermMemorySchema(BaseModel):
-    container_id: str | None = None
-    file_ids: dict[str, str] = {}  # Mapping of unique file id to openai file id
-
-
-CodeExecutionMemoryManager = PersistentShortMemoryManager[
-    CodeExecutionShortTermMemorySchema
-]
-
-
-def _get_container_code_execution_short_term_memory_manager(
-    company_id: str, user_id: str, chat_id: str
-) -> CodeExecutionMemoryManager:
-    short_term_memory_service = ShortTermMemoryService(
-        company_id=company_id,
-        user_id=user_id,
-        chat_id=chat_id,
-        message_id=None,
-    )
-    short_term_memory_manager = PersistentShortMemoryManager(
-        short_term_memory_service=short_term_memory_service,
-        short_term_memory_schema=CodeExecutionShortTermMemorySchema,
-        short_term_memory_name=_SHORT_TERM_MEMORY_NAME,
-    )
-    return short_term_memory_manager
-
-
-async def _create_container_if_not_exists(
-    client: AsyncOpenAI,
-    chat_id: str,
-    user_id: str,
-    company_id: str,
-    expires_after_minutes: int,
-    memory: CodeExecutionShortTermMemorySchema | None = None,
-) -> CodeExecutionShortTermMemorySchema:
-    if memory is not None:
-        logger.info("Container found in short term memory")
-    else:
-        logger.info("No Container in short term memory, creating a new container")
-        memory = CodeExecutionShortTermMemorySchema()
-
-    container_id = memory.container_id
-
-    if container_id is not None:
-        try:
-            container = await client.containers.retrieve(container_id)
-            if container.status not in ["active", "running"]:
-                logger.info(
-                    "Container has status `%s`, recreating a new one", container.status
-                )
-                container_id = None
-        except NotFoundError:
-            container_id = None
-
-    if container_id is None:
-        memory = CodeExecutionShortTermMemorySchema()
-
-        container = await client.containers.create(
-            name=f"code_execution_{company_id}_{user_id}_{chat_id}",
-            expires_after={
-                "anchor": "last_active_at",
-                "minutes": expires_after_minutes,
-            },
-        )
-
-        memory.container_id = container.id
-
-    return memory
-
-
-async def _upload_files_to_container(
-    client: AsyncOpenAI,
-    uploaded_files: list[Content],
-    memory: CodeExecutionShortTermMemorySchema,
-    content_service: ContentService,
-    chat_id: str,
-) -> CodeExecutionShortTermMemorySchema:
-    container_id = memory.container_id
-
-    assert container_id is not None
-
-    memory = memory.model_copy(deep=True)
-
-    for file in uploaded_files:
-        upload = True
-        if file.id in memory.file_ids:
-            try:
-                _ = await client.containers.files.retrieve(
-                    container_id=container_id, file_id=memory.file_ids[file.id]
-                )
-                logger.info("File with id %s already uploaded to container", file.id)
-                upload = False
-            except NotFoundError:
-                upload = True
-
-        if upload:
-            logger.info(
-                "Uploding file %s to container %s", file.id, memory.container_id
-            )
-            file_content = await content_service.download_content_to_bytes_async(
-                content_id=file.id, chat_id=chat_id
-            )
-
-            openai_file = await client.containers.files.create(
-                container_id=container_id,
-                file=(file.key, file_content),
-            )
-            memory.file_ids[file.id] = openai_file.id
-
-    return memory
+_MEMORY_NAME = "container_code_execution"
+_CONTAINER_NAME_PREFIX = "code_execution"
 
 
 class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
@@ -198,25 +88,27 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
             logger.info("Using `auto` container setting")
             return cls(config=config, container_id=None)
 
-        memory_manager = _get_container_code_execution_short_term_memory_manager(
+        memory_manager = get_container_memory_manager(
             company_id=company_id,
             user_id=user_id,
             chat_id=chat_id,
+            memory_name=_MEMORY_NAME,
         )
 
         memory = await memory_manager.load_async()
 
-        memory = await _create_container_if_not_exists(
+        memory = await create_container_if_not_exists(
             client=client,
             memory=memory,
             chat_id=chat_id,
             user_id=user_id,
             company_id=company_id,
             expires_after_minutes=config.expires_after_minutes,
+            container_name_prefix=_CONTAINER_NAME_PREFIX,
         )
 
         if config.upload_files_in_chat_to_container:
-            memory = await _upload_files_to_container(
+            memory = await upload_files_to_container(
                 client=client,
                 uploaded_files=uploaded_files,
                 content_service=content_service,

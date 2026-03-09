@@ -1,8 +1,11 @@
-"""Pydantic schemas for OpenAI Skills.
+"""Pydantic schemas for skills.
 
 Provides data models for skill metadata (:class:`SkillInfo`,
 :class:`SkillVersionInfo`) and the :class:`InlineSkillBundle` used to
 embed a skill directly in an API request without prior upload.
+
+The data models are provider-agnostic.  The :meth:`InlineSkillBundle.to_api_dict`
+convenience method currently produces OpenAI-format output.
 """
 
 import base64
@@ -14,7 +17,7 @@ from pydantic import BaseModel, Field
 
 
 class SkillInfo(BaseModel):
-    """Metadata about a skill returned from the OpenAI Skills API."""
+    """Metadata about a skill."""
 
     id: str
     name: str
@@ -32,7 +35,7 @@ class SkillVersionInfo(BaseModel):
 
 
 class InlineSkillBundle(BaseModel):
-    """A ready-to-use inline skill payload for the OpenAI Responses API."""
+    """A ready-to-use inline skill payload for API requests."""
 
     name: str
     description: str

@@ -1,8 +1,12 @@
-"""Service layer for managing OpenAI Skills.
+"""Service layer for managing skills via the OpenAI Skills API.
 
 Wraps the ``/v1/skills`` API and provides helpers for creating,
 versioning, listing, and deleting skills, as well as building
 inline skill bundles that bypass the upload step entirely.
+
+Note:
+    This service currently requires an ``AsyncOpenAI`` client.
+    Future providers may be supported via alternative service classes.
 """
 
 import base64
@@ -19,11 +23,11 @@ logger = logging.getLogger(__name__)
 
 
 class SkillService:
-    """Standalone service for managing OpenAI Skills.
+    """Standalone service for managing skills via the OpenAI Skills API.
 
     This service is independent of any specific tool and can be used
-    to manage skills for hosted shells, other agents (e.g. Claude Code),
-    or any consumer that supports the OpenAI Skills API.
+    to manage skills for hosted shells, coding agents (e.g. Claude Code),
+    or any consumer that supports the Skills API.
 
     Usage:
         client = AsyncOpenAI()
