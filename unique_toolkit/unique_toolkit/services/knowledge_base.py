@@ -731,11 +731,18 @@ class KnowledgeBaseService:
     async def _translate_scope_ids_to_folder_name_async(
         self, scope_ids: set[str]
     ) -> dict[str, str]:
+        scope_id_list = list(scope_ids)
+
         results = await asyncio.gather(
-            *[self._translate_scope_id_to_folder_name_async(sid) for sid in scope_ids]
+            *[
+                self._translate_scope_id_to_folder_name_async(sid)
+                for sid in scope_id_list
+            ]
         )
         return {
-            key: value for key, value in zip(scope_ids, results) if value is not None
+            key: value
+            for key, value in zip(scope_id_list, results)
+            if value is not None
         }
 
     @staticmethod
