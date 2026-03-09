@@ -1,7 +1,7 @@
 from pprint import pprint
 from typing import Any, Dict
 
-from langchain.llms import Ollama
+from langchain_community.llms import Ollama
 
 import unique_sdk
 
