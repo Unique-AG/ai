@@ -10,7 +10,6 @@ Unique Toolkit enables python developers access to the unique platform through i
     - [Standalone Application](application_types/standalone_application.md), that act on their own
     - [Event Driven Applications](application_types/event_driven/index.md), that act upon an event obtained from an UI
 4. [Supported Models](modules/language_models/language_model_overview.md): A list of all supported models and their capabilities
-5. [Code Execution with the OpenAI SDK](tutorials/code_execution_openai_sdk.md): Run code in a sandbox via the Responses API (auto or custom container, file upload/download)
-6. [API Reference](api.md)
+5. [API Reference](api.md)
 
 [TOC]
