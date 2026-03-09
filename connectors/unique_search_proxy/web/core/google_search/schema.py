@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+
 from core.schema import camelized_model_config
 
 

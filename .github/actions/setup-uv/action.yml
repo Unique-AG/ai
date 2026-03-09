@@ -33,5 +33,9 @@ runs:
     - name: Install dependencies
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: uv sync --locked
+      env:
+        UV_NO_SOURCES: 1
+      run: |
+        uv lock
+        uv sync
 

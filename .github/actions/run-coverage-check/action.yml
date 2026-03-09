@@ -47,6 +47,8 @@ runs:
 
     - name: Check coverage on new/changed code
       shell: bash
+      env:
+        UV_NO_SOURCES: 1
       run: |
         ARGS=(
           "${{ inputs.package_dir }}"
