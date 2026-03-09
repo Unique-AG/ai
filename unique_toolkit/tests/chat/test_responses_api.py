@@ -242,16 +242,17 @@ async def test_rate_limit_retry__retries_on_rate_limit_error_and_succeeds() -> N
 
 @pytest.mark.asyncio
 @pytest.mark.ai
-async def test_rate_limit_retry__respects_retry_after_header() -> None:
+async def test_rate_limit_retry__uses_exponential_backoff() -> None:
     """
-    Purpose: Verify that the Retry-After header value is used as the sleep duration.
-    Why this matters: Using the server-provided wait time is more accurate than guessing.
+    Purpose: Verify exponential backoff is used (not a fixed delay).
+    Why this matters: Retry-After is unavailable (SDK strips headers); backoff must scale.
+    Note: The SDK wraps errors via `raise error_class(f"Failed after N attempts: {e}")`,
+    discarding original HTTP headers, so Retry-After can never be read here.
     """
     expected = {"id": "resp_ok"}
     error = unique_sdk.APIError(
         "Internal server error\n(Original error) too_many_requests: Too Many Requests"
     )
-    error.headers = {"Retry-After": "30"}  # type: ignore[attr-defined]
 
     mock_fn = AsyncMock(side_effect=[error, expected])
 
@@ -266,7 +267,10 @@ async def test_rate_limit_retry__respects_retry_after_header() -> None:
             responses_args={}, model_name="gpt-4o"
         )
 
-    mock_sleep.assert_awaited_once_with(30.0)
+    assert mock_sleep.call_count == 1
+    # First retry: 30s base + up to 10% jitter -> between 30s and 33s
+    actual_wait = mock_sleep.call_args[0][0]
+    assert 30.0 <= actual_wait <= 33.0
 
 
 @pytest.mark.asyncio

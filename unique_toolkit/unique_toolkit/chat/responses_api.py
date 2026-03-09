@@ -357,15 +357,6 @@ async def _responses_stream_with_rate_limit_retry(
             error_str = str(e).lower()
             is_rate_limit = any(kw in error_str for kw in _RATE_LIMIT_KEYWORDS)
 
-            retry_after: float | None = None
-            if is_rate_limit and hasattr(e, "headers") and e.headers:
-                raw = e.headers.get("retry-after") or e.headers.get("Retry-After")
-                if raw is not None:
-                    try:
-                        retry_after = float(raw)
-                    except ValueError:
-                        pass
-
             logger.error(
                 "responses_stream_async error on toolkit attempt %d/%d "
                 "model=%s code=%s http_status=%s is_rate_limit=%s original_error=%r",
@@ -381,12 +372,8 @@ async def _responses_stream_with_rate_limit_retry(
             if not is_rate_limit or attempt >= _RATE_LIMIT_RETRY_MAX_ATTEMPTS:
                 raise
 
-            if retry_after is not None:
-                wait_time = retry_after
-            else:
-                delay = _RATE_LIMIT_RETRY_INITIAL_DELAY_SECONDS * (2.0**attempt)
-                jitter = random.uniform(0.0, delay * 0.1)
-                wait_time = delay + jitter
+            delay = _RATE_LIMIT_RETRY_INITIAL_DELAY_SECONDS * (2.0**attempt)
+            wait_time = delay + random.uniform(0.0, delay * 0.1)
 
             logger.warning(
                 "Rate limit hit for model=%s. Toolkit-level retry %d/%d in %.1fs",
