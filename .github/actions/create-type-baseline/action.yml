@@ -50,6 +50,12 @@ runs:
       shell: bash
       run: git fetch origin ${{ inputs.branch }}:${{ inputs.branch }}
 
+    - name: Restore lock files before checkout
+      shell: bash
+      run: |
+        git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
+        git restore "${{ inputs.package_dir }}/poetry.lock" 2>/dev/null || true
+
     - name: Checkout base branch
       shell: bash
       run: git checkout "origin/${{ inputs.branch }}" --quiet
