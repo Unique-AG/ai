@@ -79,9 +79,6 @@ jobs:
           package_dir: .
           python_version: '3.12'
 
-      - name: Install dependencies
-        run: ${{ steps.pm.outputs.install_cmd }}
-
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
