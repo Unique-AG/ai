@@ -264,6 +264,7 @@ async def _build_responses(
             code_interpreter_config = cast(
                 CodeInterpreterExtendedConfig, tool.configuration
             )
+            break
 
     if code_interpreter_config is not None:
         postprocessor_manager.add_postprocessor(
