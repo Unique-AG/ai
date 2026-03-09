@@ -21,6 +21,8 @@ on:
           - deep_research
           - internal_search
           - quartr
+          - six
+          - search_proxy
         default: ''
 
 jobs:
@@ -31,9 +33,9 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
         id: filter
         with:
           filters: |
@@ -59,6 +61,10 @@ jobs:
               - 'tool_packages/unique_internal_search/**/!(*.md)'
             quartr:
               - 'connectors/unique_quartr/**/!(*.md)'
+            six:
+              - 'connectors/unique_six/**/!(*.md)'
+            search_proxy:
+              - 'connectors/unique_search_proxy/**/!(*.md)'
 
       - name: Select packages
         id: set-matrix
@@ -76,7 +82,9 @@ jobs:
               {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "python": "3.12", "min_coverage": "60"},
               {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "python": "3.12", "min_coverage": "60"},
               {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "python": "3.12", "min_coverage": "60"},
-              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12", "min_coverage": "60"}
+              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12", "min_coverage": "60"},
+              {"id": "six",                "dir": "connectors/unique_six",                     "python": "3.12", "min_coverage": "60"},
+              {"id": "search_proxy",       "dir": "connectors/unique_search_proxy",            "python": "3.12", "min_coverage": "60"}
             ]
           selected: ${{ github.event.inputs.package }}
           changes: ${{ toJson(steps.filter.outputs) }}
@@ -93,7 +101,7 @@ jobs:
       matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
     name: cov-${{ matrix.id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
 

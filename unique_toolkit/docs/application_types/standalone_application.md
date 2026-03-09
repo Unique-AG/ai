@@ -68,6 +68,13 @@ settings = UniqueSettings.from_env_auto_with_sdk_init()
 ```
 -->
 
+```{.python #kb_service_setup}
+<<common_imports>>
+kb_service = KnowledgeBaseService.from_settings()
+```
+
+
+
 ```{.python #unique_init_service_standalone}
 kb_service = KnowledgeBaseService.from_settings(settings=settings)
 ```

@@ -15,6 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `get_content_info_async()` to `functions` for fetching content info asynchronously
 - Add `get_folder_info_async()` to `functions` for fetching folder info asynchronously
 
+## [1.50.4] - 2026-03-05
+- Add `INGESTION_UPLOAD_API_URL_INTERNAL` environment variable to override the ingestion upload URL. This can be used to upload content from within a private network like a Kubernetes cluster.
+
+## [1.50.3] - 2026-03-04
+- Docs: add minimal langchain example and langchain platform documentation
+- Docs: move manual examples to dedicated folder
+- Docs: fix missing and duplicated tags in generated examples
+
+## [1.50.2] - 2026-03-03
+- Build: migrate from Poetry to uv (PEP 621 metadata, uv_build backend, dependency-groups)
+
 ## [1.50.1] - 2026-03-02
 - Security: upgrade pillow from 10.4.0 to 12.1.1 (CVE / Dependabot alert — out-of-bounds write in PSD loader)
 - Security: upgrade starlette from 0.48.0 to 0.49.1 (Dependabot alert)

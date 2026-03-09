@@ -91,7 +91,7 @@ if __name__ == "__main__":
 ??? example "Full Example File"
     
     <!--codeinclude-->
-    [Custom Application with FastAPI](./../../examples_from_docs/fastapi_app_minimal.py)
+    [Custom Application with FastAPI](./../../manual_examples_for_docs/fastapi_app_minimal.py)
     <!--/codeinclude-->
 
 ## Exposing Your Application

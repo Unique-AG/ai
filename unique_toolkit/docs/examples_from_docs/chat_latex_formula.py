@@ -1,14 +1,9 @@
 # %%
-from unique_toolkit import (
-    ChatService,
-    KnowledgeBaseService,
-)
+from unique_toolkit import ChatService, KnowledgeBaseService
 from unique_toolkit.app.dev_util import get_event_generator
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.app.unique_settings import UniqueSettings
-from unique_toolkit.chat.rendering import (
-    create_latex_formula_string,
-)
+from unique_toolkit.chat.rendering import create_latex_formula_string
 
 settings = UniqueSettings.from_env_auto_with_sdk_init()
 for event in get_event_generator(unique_settings=settings, event_type=ChatEvent):

@@ -9,6 +9,10 @@ inputs:
     description: 'Python version to use'
     required: false
     default: '3.12'
+  extras:
+    description: 'Comma-separated extras to install (e.g., "fastapi" installs -e .[fastapi])'
+    required: false
+    default: ''
   test_args:
     description: 'Additional arguments to pass to pytest'
     required: false
@@ -26,12 +30,21 @@ runs:
 
     # uv: Install with min deps
     - name: Install package (min deps - uv)
-      if: steps.pm.outputs.run_cmd == 'uv run'
+      if: startsWith(steps.pm.outputs.run_cmd, 'uv')
       shell: bash
       working-directory: ${{ inputs.package_dir }}
+      env:
+        UV_NO_SOURCES: 1
       run: |
         uv venv --clear
-        uv pip install -e . --resolution=lowest-direct
+        EXTRAS="${{ inputs.extras }}"
+        EXTRAS=$(echo "$EXTRAS" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        EXTRAS="${EXTRAS// /}"
+        PKG_SPEC="."
+        if [ -n "$EXTRAS" ]; then
+          PKG_SPEC=".[$EXTRAS]"
+        fi
+        uv pip install -e "$PKG_SPEC" --resolution=lowest-direct
         uv export --only-group dev --no-hashes | uv pip install -r -
 
     # Poetry: Normal install (deptry is in dev dependencies)
@@ -42,9 +55,11 @@ runs:
       run: poetry install
 
     - name: Run deptry (uv)
-      if: steps.pm.outputs.run_cmd == 'uv run'
+      if: startsWith(steps.pm.outputs.run_cmd, 'uv')
       shell: bash
       working-directory: ${{ inputs.package_dir }}
+      env:
+        UV_NO_SOURCES: 1
       run: uv run --no-sync deptry .
 
     - name: Run deptry (poetry)
@@ -54,7 +69,9 @@ runs:
       run: poetry run deptry .
 
     - name: Run tests with min dependencies (uv only)
-      if: steps.pm.outputs.run_cmd == 'uv run'
+      if: startsWith(steps.pm.outputs.run_cmd, 'uv')
       shell: bash
       working-directory: ${{ inputs.package_dir }}
+      env:
+        UV_NO_SOURCES: 1
       run: uv run --no-sync pytest ${{ inputs.test_args }}

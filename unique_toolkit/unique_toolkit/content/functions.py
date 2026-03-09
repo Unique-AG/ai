@@ -21,7 +21,11 @@ from unique_toolkit.content.schemas import (
     FolderInfo,
     PaginatedContentInfos,
 )
-from unique_toolkit.content.utils import map_contents, map_to_content_chunks
+from unique_toolkit.content.utils import (
+    _apply_ingestion_upload_url_override,
+    map_contents,
+    map_to_content_chunks,
+)
 
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
@@ -450,6 +454,8 @@ def _trigger_upload_content(
         logger.error(error_msg)
         raise ValueError(error_msg)
 
+    write_url = _apply_ingestion_upload_url_override(write_url)
+
     headers = {
         "X-Ms-Blob-Content-Type": mime_type,
         "X-Ms-Blob-Type": "BlockBlob",
@@ -513,6 +519,7 @@ def _trigger_upload_content(
             scope_id=scope_id,
         )  # type: ignore
 
+    created_content["writeUrl"] = write_url
     return Content.model_validate(created_content, by_alias=True, by_name=True)
 
 
@@ -575,6 +582,8 @@ async def _trigger_upload_content_async(
         error_msg = "Write url for uploaded content is missing"
         logger.error(error_msg)
         raise ValueError(error_msg)
+
+    write_url = _apply_ingestion_upload_url_override(write_url)
 
     headers = {
         "X-Ms-Blob-Content-Type": mime_type,
@@ -641,6 +650,7 @@ async def _trigger_upload_content_async(
             scope_id=scope_id,
         )
 
+    created_content["writeUrl"] = write_url
     return Content.model_validate(created_content, by_alias=True, by_name=True)
 
 

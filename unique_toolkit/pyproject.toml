@@ -1,93 +1,90 @@
-[tool.poetry]
+[project]
 name = "unique_toolkit"
-version = "1.51.0"
+version = "1.50.5"
 description = ""
+readme = "README.md"
+requires-python = ">=3.12"
 authors = [
-    "Cedric Klinkert <cedric.klinkert@unique.ch>",
-    "Martin Fadler <martin.fadler@unique.ch>",
-    "Sadique Sheik <sadique@unique.ch>",
-    "Fabian Schläpfer <fabian@unique.ch>",
-    "Pascal Hauri <pascal@unique.ch>",
-    "Ejiroghene Oki-Peter<oki-peter.ejiroghene@unique.ai>",
-    "Rami Azouz <rami.ext@unique.ch>",
-    "Ricardo Visini <ricardo.visini@unique.ch>",
-    "Sanzio Monti <sanzio.monti@unique.ai>"
+    { name = "Cedric Klinkert", email = "cedric.klinkert@unique.ch" },
+    { name = "Martin Fadler", email = "martin.fadler@unique.ch" },
+    { name = "Sadique Sheik", email = "sadique@unique.ch" },
+    { name = "Fabian Schläpfer", email = "fabian@unique.ch" },
+    { name = "Pascal Hauri", email = "pascal@unique.ch" },
+    { name = "Ejiroghene Oki-Peter", email = "oki-peter.ejiroghene@unique.ai" },
+    { name = "Rami Azouz", email = "rami.ext@unique.ch" },
+    { name = "Ricardo Visini", email = "ricardo.visini@unique.ch" },
+    { name = "Sanzio Monti", email = "sanzio.monti@unique.ai" },
 ]
-readme = ["README.md", "CHANGELOG.md"]
-license = "Proprietary"
+license = { text = "Proprietary" }
+dependencies = [
+    "typing-extensions>=4.9.0,<5",
+    "pydantic>=2.11.0,<3",
+    "pyhumps>=3.8.0,<4",
+    "numpy>=2.4.2,<3",
+    "tiktoken>=0.12.0,<0.13",
+    "tokenizers>=0.21.0,<0.22",
+    "pydantic-settings>=2.10.1,<3",
+    "sseclient>=0.0.27,<0.0.28",
+    "openai>=1.105.0,<2",
+    "platformdirs>=4.0.0,<5",
+    "pillow>=12.1.1",
+    "unique-sdk>=0.10.80,<0.11",
+    "jambo>=0.1.2,<0.2",
+    "jinja2>=3.1.6,<4",
+    "docxtpl>=0.20.1,<0.21",
+    "markdown-it-py>=4.0.0,<5",
+    "python-docx>=1.1.0,<2",
+    "requests>=2.32.0,<3",
+    "httpx>=0.28.0,<0.29",
+    "aiohttp>=3.12.0,<4",
+    "pandas>=2.3.0,<3",
+    "click>=8.1.0,<9",
+    "deepdiff>=8.6.1,<9",
+    "pypandoc>=1.16.2,<2",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-typing-extensions = "^4.9.0"
-pydantic = "^2.8.2"
-pyhumps = "^3.8.0"
-numpy = "^2.4.2"
-tiktoken = "^0.12.0"
-tokenizers = "^0.21.0"
-pydantic-settings = "^2.10.1"
-sseclient = "^0.0.27"
-openai = "^1.99.9"
-platformdirs = "^4.0.0"
-pillow = ">=12.1.1"
-unique-sdk = "^0.10.80"
-jambo = "^0.1.2"
-jinja2 = "^3.1.6"
-docxtpl = "^0.20.1"
-markdown-it-py = "^4.0.0"
-python-docx = "^1.1.0"
-requests = "^2.32.0"
-httpx = "^0.28.0"
-aiohttp = "^3.12.0"
-pandas = "^2.3.0"
-click = "^8.1.0"
-deepdiff = "^8.6.1"
-pypandoc = "^1.16.2"
-
-[tool.poetry.group.langchain]
-optional = true
-
-[tool.poetry.group.langchain.dependencies]
-openai = "^1.97.0"
-langchain = "^0.3.27"
-langchain-openai = "^0.3.28"
-langchain-core = "^0.3.0"
-
-[tool.poetry.group.fastapi]
-optional = true
-
-[tool.poetry.group.fastapi.dependencies]
-fastapi = "^0.121.0"
-starlette = ">=0.49.1"
-uvicorn = "^0.37.0"
-
-[tool.poetry.group.ci.dependencies]
-click = "^8.1.0"
-deepdiff = "^8.6.1"
-
-[tool.poetry.group.dev.dependencies]
-ruff = "0.12.10"
-pytest = "^7.4.3"
-tox = "^4.11.4"
-pyright = "^1.1.341"
-basedpyright = "^1.33.0"
-pytest-cov = "^4.1.0"
-pre-commit = "^3.7.1"
-pytest-asyncio = "^0.23.8"
-pytest-mock = "^3.14.0"
-ipykernel = "^6.29.5"
-deptry = "^0.24.0"
-poethepoet = "^0.32.0"
-isort = "^6.0.1"
-aiohttp = "^3.13.3"
-pandas = "^2.3.3"
+[project.optional-dependencies]
+langchain = [
+    "openai>=1.105.0,<2",
+    "langchain>=0.3.27,<0.4",
+    "langchain-openai>=0.3.28,<0.4",
+    "langchain-core>=0.3.0,<0.4",
+]
+fastapi = [
+    "fastapi>=0.121.0,<0.122",
+    "starlette>=0.49.1",
+    "uvicorn>=0.37.0,<0.38",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[dependency-groups]
+dev = [
+    "ruff==0.12.10",
+    "pytest>=7.4.3,<8",
+    "tox>=4.11.4,<5",
+    "pyright>=1.1.341,<2",
+    "basedpyright>=1.33.0,<2",
+    "pytest-cov>=4.1.0,<5",
+    "pre-commit>=3.7.1,<4",
+    "pytest-asyncio>=0.23.8,<0.24",
+    "pytest-mock>=3.14.0,<4",
+    "ipykernel>=6.29.5,<7",
+    "deptry>=0.24.0,<0.25",
+    "poethepoet>=0.32.0,<0.33",
+    "isort>=6.0.1,<7",
+    "entangled-cli>=2.4.0,<3",
+]
 
 [tool.uv]
 constraint-dependencies = [
     "starlette>=0.49.1",
+    "lxml>=5.0.0",
 ]
 
 [tool.poe.tasks]
@@ -116,12 +113,12 @@ known_first_party = ["unique_toolkit"]
 extend_exclude = ["docs", "tests", "unique_toolkit/.*/test", "unique_toolkit/.*/tests"]
 
 [tool.deptry.per_rule_ignores]
+DEP002 = ["langchain", "fastapi", "starlette", "uvicorn"]
 DEP004 = ["langchain_openai", "langchain_core"]
 
 [tool.ruff]
 target-version = "py312"
 exclude = [".venv", "docs"]
-
 
 [tool.ruff.lint]
 extend-select = ["I"]

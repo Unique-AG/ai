@@ -552,7 +552,9 @@ async def final_report_generation(
         llm, messages, model_info=custom_config.large_model
     )
 
-    refinement_prompt = TEMPLATE_ENV.get_template("report_cleanup_prompt.j2").render()
+    refinement_prompt = TEMPLATE_ENV.get_template("report_cleanup_prompt.j2").render(
+        date=get_today_str(),
+    )
     messages = [
         SystemMessage(content=refinement_prompt),
         HumanMessage(content=raw_report.content),

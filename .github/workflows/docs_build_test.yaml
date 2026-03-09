@@ -19,7 +19,7 @@ on:
       - 'unique_toolkit/mkdocs.yaml'
       - 'tutorials/docs/**'
       - 'tutorials/mkdocs.yaml'
-      - 'scripts/docs_build_versioned.sh'
+      - '.github/scripts/docs_build_versioned.sh'
       - 'pyproject.toml'
       - '.github/workflows/docs_build_test.yaml'
 
@@ -28,10 +28,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Setup Python and Poetry
         uses: ./.github/actions/setup-python-poetry
       - name: Install dependencies
         run: poetry install --with dev
       - name: Build versioned documentation
-        run: ./scripts/docs_build_versioned.sh --clean
+        run: ./.github/scripts/docs_build_versioned.sh --clean

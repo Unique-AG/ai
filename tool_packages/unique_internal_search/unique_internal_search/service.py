@@ -427,7 +427,11 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         chunk_relevancy_sorter = ChunkRelevancySorter.from_event(self.event)
         # Determing chat_id if possible
         if isinstance(self.event, (ChatEvent, Event)):
-            chat_id = self.event.payload.chat_id
+            if self.event.payload.correlation:
+                # Use parent chat id if correlation is present
+                chat_id = self.event.payload.correlation.parent_chat_id
+            else:
+                chat_id = self.event.payload.chat_id
         else:
             chat_id = None
         self._display_name = kwargs.get("display_name", "Internal Search")

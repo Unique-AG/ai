@@ -28,7 +28,7 @@ on:
       # Workflow itself
       - '.github/workflows/docs_deploy_versioned.yaml'
       # Build script
-      - 'scripts/docs_build_versioned.sh'
+      - '.github/scripts/docs_build_versioned.sh'
 
   pull_request:
     branches:
@@ -43,7 +43,7 @@ on:
       - 'tutorials/docs/**'
       - 'tutorials/mkdocs.yaml'
       - '.github/workflows/docs_deploy_versioned.yaml'
-      - 'scripts/docs_build_versioned.sh'
+      - '.github/scripts/docs_build_versioned.sh'
 
   # Manual trigger
   workflow_dispatch:
@@ -68,7 +68,7 @@ jobs:
       # ============================================================================
       
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0  # Need full history for gh-pages branch
 
@@ -124,12 +124,15 @@ jobs:
       - name: Get package versions
         id: versions
         run: |
-          SDK_VERSION=$(poetry version -s --directory unique_sdk)
-          TOOLKIT_VERSION=$(poetry version -s --directory unique_toolkit)
-          
+          get_version() {
+            grep -m1 '^version[[:space:]]*=' "$1/pyproject.toml" | sed -E 's/.*"([^"]+)".*/\1/'
+          }
+          SDK_VERSION=$(get_version unique_sdk)
+          TOOLKIT_VERSION=$(get_version unique_toolkit)
+
           echo "sdk_version=$SDK_VERSION" >> $GITHUB_OUTPUT
           echo "toolkit_version=$TOOLKIT_VERSION" >> $GITHUB_OUTPUT
-          
+
           echo "📦 SDK version: $SDK_VERSION"
           echo "📦 Toolkit version: $TOOLKIT_VERSION"
 
@@ -467,18 +470,18 @@ jobs:
 
       - name: Setup Pages
         if: github.event_name != 'pull_request'
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@1f0c5cde4bc74cd7e1254d0cb4de8d49e9068c7d # v4
 
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: _deploy
 
       - name: Deploy to GitHub Pages
         if: github.event_name != 'pull_request'
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
 
       # ============================================================================
       # 13. Summary
