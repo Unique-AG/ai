@@ -2230,17 +2230,15 @@ name = "unique-stock-ticker"
 version = "1.1.2"
 source = { editable = "." }
 dependencies = [
-    { name = "cryptography" },
     { name = "numerize" },
     { name = "plotly" },
     { name = "pydantic" },
+    { name = "pydantic-settings" },
     { name = "pyhumps" },
     { name = "pyopenssl" },
-    { name = "requests" },
     { name = "typing-extensions" },
     { name = "unique-six" },
     { name = "unique-toolkit" },
-    { name = "urllib3" },
 ]
 
 [package.dev-dependencies]
@@ -2257,17 +2255,15 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cryptography", specifier = ">=45.0.6" },
     { name = "numerize", specifier = ">=0.12" },
     { name = "plotly", specifier = ">=5.24.1" },
     { name = "pydantic", specifier = ">=2.8.2" },
+    { name = "pydantic-settings", specifier = ">=2.0.0" },
     { name = "pyhumps", specifier = ">=3.8.0" },
     { name = "pyopenssl", specifier = ">=25.0.0" },
-    { name = "requests", specifier = ">=2.32.0" },
     { name = "typing-extensions", specifier = ">=4.9.0" },
     { name = "unique-six", editable = "../../connectors/unique_six" },
     { name = "unique-toolkit", editable = "../../unique_toolkit" },
-    { name = "urllib3", specifier = ">=2.0.0" },
 ]
 
 [package.metadata.requires-dev]
