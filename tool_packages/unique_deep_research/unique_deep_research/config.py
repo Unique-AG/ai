@@ -1,0 +1,178 @@
+from enum import StrEnum
+from pathlib import Path
+from typing import Annotated, Generic, Literal, TypeVar
+
+from jinja2 import Environment, FileSystemLoader
+from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
+from unique_toolkit._common.validators import LMI, get_LMI_default_field
+from unique_toolkit.agentic.tools.config import get_configuration_dict
+from unique_toolkit.agentic.tools.schemas import BaseToolConfig
+from unique_toolkit.language_model.infos import LanguageModelName
+from unique_web_search.config import (
+    ActivatedSearchEngine,
+    DefaultSearchEngine,
+)
+
+# Global template environment for the deep research tool
+TEMPLATE_DIR = Path(__file__).parent / "templates"
+TEMPLATE_ENV = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)))
+
+
+class DeepResearchEngine(StrEnum):
+    """Available deep research engines."""
+
+    OPENAI = "OpenAI"
+    UNIQUE = "Unique"
+
+
+RESPONSES_API_TIMEOUT_SECONDS = 3600
+
+
+T = TypeVar("T", bound=DeepResearchEngine)
+
+
+class BaseEngine(BaseModel, Generic[T]):
+    model_config = get_configuration_dict()
+
+    engine_type: T = Field(description="The type of engine to use for deep research")
+
+    small_model: LMI = get_LMI_default_field(
+        LanguageModelName.AZURE_GPT_4o_2024_1120,
+        description="A smaller fast model for less demanding tasks",
+    )
+
+    large_model: LMI = get_LMI_default_field(
+        LanguageModelName.AZURE_GPT_41_2025_0414,
+        description="A larger model with longer context window and more powerful capabilities",
+    )
+
+    research_model: LMI = get_LMI_default_field(
+        LanguageModelName.AZURE_GPT_5_2025_0807,
+        description="The main research model to be used for conducting research",
+    )
+
+    def get_type(self) -> DeepResearchEngine:
+        return DeepResearchEngine(self.engine_type)
+
+
+class OpenAIEngine(BaseEngine[Literal[DeepResearchEngine.OPENAI]]):
+    model_config = get_configuration_dict()
+
+    engine_type: Literal[DeepResearchEngine.OPENAI] = Field(
+        default=DeepResearchEngine.OPENAI
+    )
+    research_model: LMI = get_LMI_default_field(
+        LanguageModelName.LITELLM_OPENAI_GPT_5,
+        description="The main research model to be used for conducting research. This must be an OpenAI model hosted directly on OpenAI's servers. eg. litellm:openai-gpt-5",
+    )
+
+
+class WebToolsConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    search_engine: ActivatedSearchEngine = Field(  # pyright: ignore[reportInvalidTypeForm]
+        default_factory=DefaultSearchEngine,  # pyright: ignore[reportArgumentType]
+        description="Search Engine Configuration",
+        discriminator="search_engine_name",
+        title="Search Engine Configuration",
+    )
+    enable_web_fetch: bool = Field(
+        default=True,
+        description="Enable or disable the web fetch tool for retrieving content from URLs",
+    )
+
+    show_full_page_result: bool = Field(
+        default=False,
+        description=(
+            "Show the full page content of the search results in the return of the web search tool. "
+            "This is useful if the agent doesn't have access to the web_fetch tool "
+            "as it enables it to gather more context."
+        ),
+    )
+
+
+class Tools(BaseModel):
+    model_config = get_configuration_dict()
+
+    web_tools: bool = Field(
+        default=True,
+        description="Allow agent to use web search tools to access the web",
+    )
+    web_tools_config: WebToolsConfig = Field(
+        default=WebToolsConfig(),
+        description="Configuration for web search tools",
+    )
+    internal_tools: bool = Field(
+        default=True,
+        description="Allow agent to use internal search tools access information from the knowledge base and uploaded documents",
+    )
+
+
+class UniqueEngineAdvancedConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    max_parallel_researchers: int = Field(
+        default=5,
+        description="Maximum number of research subagents that can run in parallel",
+        ge=1,
+    )
+    max_research_iterations_lead_researcher: int = Field(
+        default=6,
+        description="Maximum number of research iterations for the lead researcher",
+        ge=1,
+    )
+    max_research_iterations_sub_researcher: int = Field(
+        default=10,
+        description="Maximum number of research iterations for the research sub-agents",
+        ge=1,
+    )
+
+
+class DocxExportConfig(BaseModel):
+    """Export the final report to a Word file and append it to the final report message."""
+
+    model_config = get_configuration_dict()
+
+    export_mode: SkipJsonSchema[Literal["word"]] = Field(
+        default="word",
+    )
+    strip_markdown_dividers: bool = Field(
+        default=True,
+        description="Remove markdown lines from the report before generating the document",
+    )
+    template_content_id: str = Field(
+        default="",
+        description="Optional content id of the template to use for the report",
+    )
+
+
+class UniqueEngine(BaseEngine[Literal[DeepResearchEngine.UNIQUE]]):
+    model_config = get_configuration_dict()
+
+    engine_type: Literal[DeepResearchEngine.UNIQUE] = Field(
+        default=DeepResearchEngine.UNIQUE
+    )
+    tools: Tools = Field(
+        default=Tools(),
+    )
+    advanced_config: UniqueEngineAdvancedConfig = Field(
+        default_factory=UniqueEngineAdvancedConfig,
+        title="Advanced",
+        description="Advanced configuration",
+    )
+    report_export: (
+        Annotated[DocxExportConfig, Field(title="Word Document")]
+        | Annotated[None, Field(title="No Export")]
+    ) = Field(
+        default=None,
+        title="Report Export",
+    )
+
+
+class DeepResearchToolConfig(BaseToolConfig):
+    engine: UniqueEngine | OpenAIEngine = Field(
+        description="The deep research engine to use. Please be aware that OpenAI engine requires particular models to be used as the research model and they have different tools available.",
+        default=UniqueEngine(),
+        discriminator="engine_type",
+    )

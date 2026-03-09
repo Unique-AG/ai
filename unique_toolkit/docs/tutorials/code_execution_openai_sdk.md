@@ -111,7 +111,7 @@ Use `client.containers.files.create(container_id=container.id, file=(filename, f
 # Example: upload a small CSV as bytes
 csv_content = b"name,value\na,1\nb,2\n"
 openai_file = client.containers.files.create(
-    container_id=container.id,
+    container.id,
     file=("data.csv", csv_content),
 )
 file_id = openai_file.id  # store for later
@@ -119,10 +119,19 @@ file_id = openai_file.id  # store for later
 
 ### Download
 
-- **Metadata:** `client.containers.files.retrieve(container_id=..., file_id=...)`
-- **Content (bytes):** `client.containers.files.content.retrieve(container_id=..., file_id=...)`
+- **Metadata:** `client.containers.files.retrieve(file_id, container_id=container.id)`
+- **Content (bytes):** `client.containers.files.content.retrieve(file_id, container_id=container.id)`
 
 Container lifecycle (e.g. `expires_after`) applies to these files as well.
+
+### List files
+
+Use `client.containers.files.list(container_id)` to iterate over all files currently in the container:
+
+```python
+for file in client.containers.files.list(container.id):
+    print(f"{file.id}  {file.path}")
+```
 
 ### Checking if a file exists
 
@@ -132,7 +141,7 @@ Call `client.containers.files.retrieve(container_id=..., file_id=...)`. It raise
 from openai import NotFoundError
 
 try:
-    _ = client.containers.files.retrieve(container_id=container.id, file_id=file_id)
+    _ = client.containers.files.retrieve(file_id, container_id=container.id)
     # file exists, skip upload
 except NotFoundError:
     # upload the file
@@ -154,6 +163,36 @@ try:
 except NotFoundError:
     container = client.containers.create(...)
 ```
+
+---
+
+## 5. Downloading model-generated files
+
+When the model writes a file during code execution (e.g. a CSV or plot), it references those files as `container_file_citation` annotations on `output_text` content items. Iterate over `response.output`, find `ResponseOutputMessage` items, and read the annotations to get the `file_id` and filename. Then download the content with `files.content.retrieve`.
+
+```python
+from openai.types.responses import ResponseOutputMessage
+
+generated_file_id = None
+for item in response.output:
+    if isinstance(item, ResponseOutputMessage):
+        for content in item.content:
+            if content.type == "output_text":
+                for annotation in content.annotations:
+                    if annotation.type == "container_file_citation":
+                        generated_file_id = annotation.file_id
+                        print(f"Generated file: {annotation.filename}  ({generated_file_id})")
+
+if generated_file_id:
+    file_content = client.containers.files.content.retrieve(
+        generated_file_id,
+        container_id=container.id,
+    )
+    generated_bytes = file_content.read()
+    print(f"Downloaded {len(generated_bytes)} bytes")
+```
+
+> Note: `include=["code_interpreter_call.outputs"]` returns inline stdout/stderr/images in the response. Files saved to disk by the model (e.g. with `df.to_csv(...)`) are not included there — use the annotation pattern above to download them.
 
 ---
 
