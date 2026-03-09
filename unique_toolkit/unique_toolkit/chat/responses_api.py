@@ -533,11 +533,9 @@ async def stream_responses_with_references_async(
         "Calling responses_stream_async model=%s",
         responses_params.model_name,
     )
-
-    a = ResponsesLanguageModelStreamResponse.model_validate(
-        await unique_sdk.Integrated.responses_stream_async(
-            **responses_args,
+    return ResponsesLanguageModelStreamResponse.model_validate(
+        await _responses_stream_with_rate_limit_retry(
+            responses_args=responses_args,
+            model_name=responses_params.model_name,
         )
     )
-    
-    return a
