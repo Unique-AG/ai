@@ -1,6 +1,6 @@
 import httpx
-from src.clients.token import TokenClient
-from src.settings import get_settings
+from metadata_extractor.clients.token import TokenClient
+from metadata_extractor.settings import get_settings
 
 
 class ContentClient:

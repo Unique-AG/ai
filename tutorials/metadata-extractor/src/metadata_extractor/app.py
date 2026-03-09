@@ -3,11 +3,11 @@ import json
 from dotenv import load_dotenv
 from quart import Quart, request
 
-from src.clients.content import ContentClient
-from src.clients.event_socket import EventSocketClient
-from src.handler import MetadataExtractorHandler
-from src.settings import env_file_path, get_settings
-from src.verification import verify_encrypted_env
+from metadata_extractor.clients.content import ContentClient
+from metadata_extractor.clients.event_socket import EventSocketClient
+from metadata_extractor.handler import MetadataExtractorHandler
+from metadata_extractor.settings import env_file_path, get_settings
+from metadata_extractor.verification import verify_encrypted_env
 from unique_toolkit.app import (
     init_sdk,
 )

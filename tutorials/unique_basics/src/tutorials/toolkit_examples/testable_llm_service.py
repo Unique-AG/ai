@@ -8,8 +8,7 @@ chat services can directly be used for the unique frontend.
 
 from pathlib import Path
 
-from utilities_examples.init_sdk import init_from_env_file
-
+from tutorials.utilities_examples.init_sdk import init_from_env_file
 from unique_toolkit import ChatService, LanguageModelMessages, LanguageModelService
 from unique_toolkit.app import Event
 from unique_toolkit.language_model import LanguageModelName

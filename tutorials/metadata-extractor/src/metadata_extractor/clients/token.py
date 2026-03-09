@@ -1,7 +1,7 @@
 import base64
 
 import httpx
-from src.settings import get_settings
+from metadata_extractor.settings import get_settings
 
 
 class TokenClient:

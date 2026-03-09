@@ -1,9 +1,9 @@
 from quart import current_app as app
 
-import src.prompts as PROMPT
-from src.clients.content import ContentClient
-from src.constants import DEFAULT_SCHEMA
-from src.utilities import find_date, find_topic
+import metadata_extractor.prompts as PROMPT
+from metadata_extractor.clients.content import ContentClient
+from metadata_extractor.constants import DEFAULT_SCHEMA
+from metadata_extractor.utilities import find_date, find_topic
 from unique_toolkit.chat.service import LanguageModelName
 from unique_toolkit.content.utils import count_tokens
 from unique_toolkit.language_model import LanguageModelMessages, Prompt

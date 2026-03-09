@@ -1,8 +1,7 @@
 # %%
 from pathlib import Path
 
-from utilities_examples.init_sdk import init_from_env_file
-
+from tutorials.utilities_examples.init_sdk import init_from_env_file
 from unique_toolkit.content.functions import (
     ContentSearchType,
     search_content_chunks,

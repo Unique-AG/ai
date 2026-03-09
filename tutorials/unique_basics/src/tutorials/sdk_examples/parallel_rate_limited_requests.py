@@ -12,7 +12,8 @@ from pathlib import Path
 
 from aiolimiter import AsyncLimiter
 from dotenv import load_dotenv
-from utilities_examples.async_helpers import execute_multiple_coros
+
+from tutorials.utilities_examples.async_helpers import execute_multiple_coros
 
 logging.basicConfig(level=logging.INFO)
 logger = getLogger(__name__)

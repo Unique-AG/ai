@@ -3,9 +3,9 @@
 from pathlib import Path
 
 from pydantic import BaseModel, Field
-from utilities_examples.init_sdk import init_from_env_file
 
 import unique_toolkit.language_model.functions as llm_functions
+from tutorials.utilities_examples.init_sdk import init_from_env_file
 from unique_toolkit import LanguageModelMessages
 from unique_toolkit.language_model import (
     LanguageModelName,

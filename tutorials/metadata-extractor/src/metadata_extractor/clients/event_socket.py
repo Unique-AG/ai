@@ -1,7 +1,7 @@
 import backoff
 import httpx
+from metadata_extractor.settings import get_settings
 from quart import current_app as app
-from src.settings import get_settings
 from sseclient import SSEClient
 
 
