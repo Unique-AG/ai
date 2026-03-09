@@ -24,6 +24,11 @@ from openai.types.responses import (
     ResponseOutputItem,
     ResponseOutputMessage,
 )
+
+try:
+    from openai.types.responses import ResponseFunctionShellToolCall
+except ImportError:
+    ResponseFunctionShellToolCall = None  # type: ignore[assignment, misc]
 from openai.types.responses.response_input_param import FunctionCallOutput
 from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 from openai.types.shared_params.function_definition import FunctionDefinition
@@ -200,6 +205,12 @@ class ResponsesLanguageModelStreamResponse(LanguageModelStreamResponse):
     @property
     def code_interpreter_calls(self) -> list[ResponseCodeInterpreterToolCall]:
         return self.filter_output(ResponseCodeInterpreterToolCall)
+
+    @property
+    def shell_calls(self) -> list:
+        if ResponseFunctionShellToolCall is None:
+            return []
+        return self.filter_output(ResponseFunctionShellToolCall)
 
     @property
     def container_files(self) -> list[AnnotationContainerFileCitation]:

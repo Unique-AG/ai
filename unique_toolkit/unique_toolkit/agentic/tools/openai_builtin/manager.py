@@ -11,6 +11,12 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     CodeInterpreterExtendedConfig,
 )
+from unique_toolkit.agentic.tools.openai_builtin.hosted_shell import (
+    OpenAIHostedShellTool,
+)
+from unique_toolkit.agentic.tools.openai_builtin.hosted_shell.config import (
+    HostedShellExtendedConfig,
+)
 from unique_toolkit.content.schemas import Content
 from unique_toolkit.content.service import ContentService
 
@@ -36,6 +42,19 @@ class OpenAIBuiltInToolManager:
         if tool_config.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
             assert isinstance(tool_config.configuration, CodeInterpreterExtendedConfig)
             tool = await OpenAICodeInterpreterTool.build_tool(
+                config=tool_config.configuration.tool_config,
+                uploaded_files=uploaded_files,
+                content_service=content_service,
+                client=client,
+                company_id=company_id,
+                user_id=user_id,
+                chat_id=chat_id,
+                is_exclusive=tool_config.is_exclusive,
+            )
+            return tool
+        elif tool_config.name == OpenAIBuiltInToolName.HOSTED_SHELL:
+            assert isinstance(tool_config.configuration, HostedShellExtendedConfig)
+            tool = await OpenAIHostedShellTool.build_tool(
                 config=tool_config.configuration.tool_config,
                 uploaded_files=uploaded_files,
                 content_service=content_service,

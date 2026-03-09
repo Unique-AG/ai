@@ -1,17 +1,23 @@
 from abc import ABC, abstractmethod
 from enum import StrEnum
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from openai.types.responses.tool_param import CodeInterpreter
+
+try:
+    from openai.types.responses.tool_param import FunctionShellToolParam
+except ImportError:
+    FunctionShellToolParam = dict[str, Any]  # type: ignore[assignment, misc]
 
 from unique_toolkit.agentic.tools.schemas import ToolPrompts
 
 
 class OpenAIBuiltInToolName(StrEnum):
     CODE_INTERPRETER = "code_interpreter"
+    HOSTED_SHELL = "hosted_shell"
 
 
-BuiltInToolType = CodeInterpreter  # Add other tool types when needed
+BuiltInToolType = CodeInterpreter | FunctionShellToolParam
 ToolType = TypeVar("ToolType", bound=BuiltInToolType)
 
 
