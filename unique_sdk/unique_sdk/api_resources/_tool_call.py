@@ -1,6 +1,16 @@
 """Tool call persistence API. Backend stores tool data in a single table (MessageTool) with type + jsonb payload."""
 
-from typing import Any, ClassVar, Dict, List, Literal, NotRequired, Optional, TypedDict, Unpack, cast
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    List,
+    Literal,
+    NotRequired,
+    Optional,
+    TypedDict,
+    Unpack,
+)
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._list_object import ListObject
@@ -42,9 +52,6 @@ class ToolCall(APIResource["ToolCall"]):
         tools: List[ToolCallItem]
 
     class ListParams(RequestOptions):
-        messageIds: str
-
-    class ListByMessageIdsParams(RequestOptions):
         messageIds: str
 
     id: str
@@ -150,7 +157,7 @@ class ToolCall(APIResource["ToolCall"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["ToolCall.ListByMessageIdsParams"],
+        **params: Unpack["ToolCall.ListParams"],
     ) -> ListObject["ToolCall"]:
         message_ids_str = params.get("messageIds") or ""
         chunks = _chunk_message_ids(message_ids_str)
@@ -205,7 +212,7 @@ class ToolCall(APIResource["ToolCall"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["ToolCall.ListByMessageIdsParams"],
+        **params: Unpack["ToolCall.ListParams"],
     ) -> ListObject["ToolCall"]:
         message_ids_str = params.get("messageIds") or ""
         chunks = _chunk_message_ids(message_ids_str)
