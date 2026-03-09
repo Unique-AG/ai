@@ -14,11 +14,15 @@ from urllib.parse import quote_plus
 from unique_sdk._api_requestor import APIRequestor
 from unique_sdk._error import InvalidRequestError
 from unique_sdk._unique_object import UniqueObject
-from unique_sdk._util import convert_to_unique_object, retry_on_error
+from unique_sdk._util import (
+    RetryOptions,
+    convert_to_unique_object,
+    retry_on_error,
+)
 
 T = TypeVar("T", bound=UniqueObject)
 
-retry_dict = {
+retry_dict: RetryOptions = {
     "error_messages": [
         "problem proxying the request",
         "Upstream service reached a hard timeout",

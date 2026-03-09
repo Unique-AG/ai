@@ -50,11 +50,29 @@ class UniqueError(Exception):
 
 
 class UniqueErrorWithParamsCode(UniqueError):
+    params: Optional[dict[str, str]]
+
+    def __init__(
+        self,
+        message: Optional[str] = None,
+        http_body: Optional[Union[bytes, str]] = None,
+        http_status: Optional[int] = None,
+        json_body: Optional[object] = None,
+        headers: Optional[Dict[str, str]] = None,
+        code: Optional[str] = None,
+        original_error: Optional[Exception | str] = None,
+        params: Optional[dict[str, str]] = None,
+    ):
+        super().__init__(
+            message, http_body, http_status, json_body, headers, code, original_error
+        )
+        self.params = params
+
     def __repr__(self):
         return "%s(message=%r, params=%r, code=%r, http_status=%r, request_id=%r)" % (
             self.__class__.__name__,
             self._message,
-            self.params,  # type: ignore
+            self.params,
             self.code,
             self.http_status,
             self.request_id,

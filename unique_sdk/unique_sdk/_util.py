@@ -8,6 +8,7 @@ import sys
 import time
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast, overload
+from typing import TypedDict
 
 from typing_extensions import TYPE_CHECKING, Type
 
@@ -161,13 +162,21 @@ def convert_to_unique_object(
         return cast("UniqueObject", resp)
 
 
+class RetryOptions(TypedDict):
+    error_messages: List[str]
+    max_retries: int
+    initial_delay: int
+    backoff_factor: int
+    should_retry_5xx: bool
+
+
 class class_method_variant(object):
     def __init__(self, class_method_name):
         self.class_method_name = class_method_name
 
     T = TypeVar("T")
 
-    method: Any
+    method: Any = None
 
     def __call__(self, method: T) -> T:
         T = TypeVar("T")
@@ -202,7 +211,7 @@ def retry_on_error(
     error_class=APIError,
     should_retry_5xx=False,
 ):
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         async def async_wrapper(*args, **kwargs) -> Any:
             attempts = 0

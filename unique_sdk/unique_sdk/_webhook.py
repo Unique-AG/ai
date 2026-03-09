@@ -20,7 +20,7 @@ class Webhook:
         secret: str,
         tolerance=DEFAULT_TOLERANCE,
     ):
-        if isinstance(message, bytes) and hasattr(message, "decode"):
+        if isinstance(message, bytes):
             message = message.decode("utf-8")
 
         if isinstance(timestamp, str):
@@ -34,7 +34,7 @@ class Webhook:
                 )
 
         WebhookSignature.verify_header(
-            message,  # type: ignore
+            message,
             sig_header,
             timestamp,
             secret,

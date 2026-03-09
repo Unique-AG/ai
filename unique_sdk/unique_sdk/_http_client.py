@@ -1,6 +1,6 @@
 import json
 import threading
-from typing import ClassVar, Mapping, Optional, Tuple
+from typing import Any, ClassVar, Mapping, Optional, Tuple
 
 try:
     import requests
@@ -166,20 +166,20 @@ class HTTPXClient(HTTPClient):
         self._timeout = timeout
 
     def _get_request_args_kwargs(
-        self, method: str, url: str, headers: Mapping[str, str], post_data
-    ):
-        kwargs = {}
+        self, method: str, url: str, headers: Mapping[str, str], post_data: Any
+    ) -> tuple[tuple[str, str], dict[str, Any]]:
+        kwargs: dict[str, Any] = {}
 
         if self._timeout:
             kwargs["timeout"] = self._timeout
-        return [
+        return (
             (method, url),
             {
                 "headers": headers,
                 "data": json.dumps(post_data) if post_data is not None else None,
                 **kwargs,
             },
-        ]
+        )
 
     def request(
         self,
