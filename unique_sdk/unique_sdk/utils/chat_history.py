@@ -16,7 +16,8 @@ def load_history(
             chatId=chatId,
         )
 
-        messages = messages["data"][:-2]
+        data = messages.get("data", [])
+        messages = data[:-2] if isinstance(data, list) else []
         filteredMessages = []
         for message in messages:
             if message["text"] is None:
