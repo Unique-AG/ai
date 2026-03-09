@@ -1,3 +1,20 @@
+"""OpenAI Hosted Shell tool implementation.
+
+Provides :class:`OpenAIHostedShellTool`, a built-in tool that gives an
+OpenAI model access to a sandboxed shell environment with optional
+pre-configured *skills*.  Two environment modes are supported:
+
+* **container_auto** — ephemeral container managed by the API.  Supports
+  both ``skill_reference`` (pre-uploaded) and ``inline`` (base64-zip) skills.
+  Files are passed via the ``file_ids`` field in the environment dict.
+* **container_reference** — persistent container created and reused across
+  turns.  Skills are **not** supported; files are uploaded directly to the
+  container.
+
+The ``gpt-5.4`` model (or newer) is currently required by the OpenAI
+Responses API for the ``shell`` tool type.
+"""
+
 import logging
 from typing import Any, override
 
@@ -28,6 +45,15 @@ _SHORT_TERM_MEMORY_NAME = "container_hosted_shell"
 
 
 class HostedShellShortTermMemorySchema(BaseModel):
+    """Short-term memory persisted between turns for the hosted shell.
+
+    Attributes:
+        container_id: ID of the persistent container (``None`` when using
+            ``container_auto``).
+        file_ids: Mapping of Unique platform content IDs to OpenAI file IDs
+            so that files are only uploaded once per chat session.
+    """
+
     container_id: str | None = None
     file_ids: dict[str, str] = {}  # Mapping of unique file id to openai file id
 
@@ -40,6 +66,7 @@ HostedShellMemoryManager = PersistentShortMemoryManager[
 def _get_hosted_shell_short_term_memory_manager(
     company_id: str, user_id: str, chat_id: str
 ) -> HostedShellMemoryManager:
+    """Create a memory manager scoped to the current chat session."""
     short_term_memory_service = ShortTermMemoryService(
         company_id=company_id,
         user_id=user_id,
@@ -62,6 +89,11 @@ async def _create_container_if_not_exists(
     expires_after_minutes: int,
     memory: HostedShellShortTermMemorySchema | None = None,
 ) -> HostedShellShortTermMemorySchema:
+    """Ensure a persistent container exists, creating one if needed.
+
+    If the container referenced in *memory* no longer exists or is inactive,
+    a fresh container is created and the memory schema is reset.
+    """
     if memory is not None:
         logger.info("Container found in short term memory")
     else:
@@ -104,6 +136,10 @@ async def _upload_files_to_container(
     content_service: ContentService,
     chat_id: str,
 ) -> HostedShellShortTermMemorySchema:
+    """Upload chat files directly into a persistent container.
+
+    Files already present (by Unique content ID) are skipped.
+    """
     container_id = memory.container_id
 
     assert container_id is not None
@@ -169,7 +205,12 @@ async def _upload_files_for_auto_container(
 
 
 def _build_skills_list(config: OpenAIHostedShellConfig) -> list[dict[str, Any]]:
-    """Build the skills list for the shell environment from config."""
+    """Build the skills list for the ``container_auto`` shell environment.
+
+    Merges both ``skill_references`` (pre-uploaded) and ``inline_skills``
+    (base64-zip bundles) from the config into a single list of dicts
+    suitable for the ``environment.skills`` field.
+    """
     skills: list[dict[str, Any]] = []
 
     for skill_ref in config.skill_references:
@@ -199,6 +240,17 @@ def _build_skills_list(config: OpenAIHostedShellConfig) -> list[dict[str, Any]]:
 
 
 class OpenAIHostedShellTool(OpenAIBuiltInTool[FunctionShellToolParam]):
+    """Built-in tool that exposes a sandboxed shell to the model.
+
+    The tool description returned by :meth:`tool_description` is a
+    ``FunctionShellToolParam`` dict that can be passed directly to the
+    OpenAI Responses API ``tools`` parameter.
+
+    Use :meth:`build_tool` (async factory) in the Unique platform to
+    handle file uploads and container management automatically, or
+    instantiate directly for standalone / script usage.
+    """
+
     DISPLAY_NAME = "Hosted Shell"
 
     def __init__(
@@ -264,6 +316,28 @@ class OpenAIHostedShellTool(OpenAIBuiltInTool[FunctionShellToolParam]):
         chat_id: str,
         is_exclusive: bool = False,
     ) -> "OpenAIHostedShellTool":
+        """Async factory that creates the tool with file uploads and container management.
+
+        Handles two modes based on ``config.use_auto_container``:
+
+        * **auto** — uploads chat files via the OpenAI Files API and passes
+          their IDs through ``file_ids`` in the environment dict.
+        * **persistent** — creates/reuses a container and uploads files
+          directly into it.
+
+        Args:
+            config: Shell tool configuration.
+            uploaded_files: Files attached to the current chat.
+            client: An ``AsyncOpenAI`` client instance.
+            content_service: Service for downloading file bytes from the platform.
+            company_id: Unique company identifier.
+            user_id: Unique user identifier.
+            chat_id: Unique chat identifier.
+            is_exclusive: If ``True``, this tool is the only one available.
+
+        Returns:
+            A fully configured :class:`OpenAIHostedShellTool`.
+        """
         if config.use_auto_container:
             logger.info("Using `container_auto` environment setting for hosted shell")
 

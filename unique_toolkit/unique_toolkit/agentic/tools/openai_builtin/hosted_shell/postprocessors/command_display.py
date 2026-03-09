@@ -1,3 +1,10 @@
+"""Postprocessor that displays executed shell commands in the chat.
+
+Prepends each shell command from the model's response as a collapsible
+``<details>`` block so users can inspect what was run without cluttering
+the main output.
+"""
+
 import asyncio
 import logging
 import re
@@ -28,6 +35,8 @@ logger = logging.getLogger(__name__)
 
 
 class ShowExecutedCommandPostprocessorConfig(BaseModel):
+    """Settings for the executed-command display postprocessor."""
+
     model_config = get_configuration_dict()
     remove_from_history: SkipJsonSchema[bool] = Field(
         default=True,
@@ -40,6 +49,12 @@ class ShowExecutedCommandPostprocessorConfig(BaseModel):
 
 
 class ShowExecutedCommandPostprocessor(ResponsesApiPostprocessor):
+    """Renders shell commands in collapsible ``<details>`` blocks.
+
+    Inserted text is automatically stripped from message history on
+    subsequent turns when ``remove_from_history`` is enabled.
+    """
+
     def __init__(self, config: ShowExecutedCommandPostprocessorConfig):
         super().__init__(self.__class__.__name__)
         self._config = config

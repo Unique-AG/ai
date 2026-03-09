@@ -1,3 +1,10 @@
+"""Service layer for managing OpenAI Skills.
+
+Wraps the ``/v1/skills`` API and provides helpers for creating,
+versioning, listing, and deleting skills, as well as building
+inline skill bundles that bypass the upload step entirely.
+"""
+
 import base64
 import io
 import logging

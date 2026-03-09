@@ -1,3 +1,5 @@
+"""OpenAI Hosted Shell tool — public API exports."""
+
 from unique_toolkit.agentic.tools.openai_builtin.hosted_shell.config import (
     HostedShellExtendedConfig,
     InlineSkillConfig,

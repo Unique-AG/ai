@@ -1,3 +1,18 @@
+"""Configuration classes for the OpenAI Hosted Shell tool.
+
+Defines :class:`OpenAIHostedShellConfig` (tool-level settings such as
+skills, container mode, and prompt templates) and
+:class:`HostedShellExtendedConfig` (the full configuration exposed in
+the Unique platform UI, including postprocessor settings).
+
+Skill attachment is configured via two list fields:
+
+* :class:`SkillReferenceConfig` — references a skill previously uploaded
+  via the ``/v1/skills`` API.
+* :class:`InlineSkillConfig` — embeds a base64-encoded zip bundle that
+  is sent inline with each API request (no prior upload needed).
+"""
+
 from typing import Annotated
 
 from pydantic import BaseModel, Field, field_validator
@@ -20,7 +35,7 @@ from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
 
 class SkillReferenceConfig(BaseModel):
-    """Configuration for referencing a pre-uploaded skill."""
+    """Reference to a skill previously uploaded via the OpenAI Skills API."""
 
     model_config = get_configuration_dict()
 
@@ -34,7 +49,12 @@ class SkillReferenceConfig(BaseModel):
 
 
 class InlineSkillConfig(BaseModel):
-    """Configuration for an inline skill (base64-encoded zip bundle)."""
+    """An inline skill embedded as a base64-encoded zip bundle.
+
+    The zip must contain a top-level directory with a ``SKILL.md``
+    manifest file that includes YAML front matter (delimited by ``---``)
+    specifying ``name`` and ``description`` matching the values here.
+    """
 
     model_config = get_configuration_dict()
 
@@ -98,6 +118,11 @@ DEFAULT_TOOL_DESCRIPTION = "Use this tool to run shell commands with pre-configu
 
 @register_config()
 class OpenAIHostedShellConfig(BaseToolConfig):
+    """Core configuration for the hosted shell tool.
+
+    Controls container mode (auto vs persistent), attached skills,
+    file upload behaviour, and the prompt templates shown to the model.
+    """
     skill_references: list[SkillReferenceConfig] = Field(
         default=[],
         description="List of pre-uploaded skills to attach to the shell environment.",
@@ -148,6 +173,12 @@ class OpenAIHostedShellConfig(BaseToolConfig):
 
 @register_config()
 class HostedShellExtendedConfig(BaseToolConfig):
+    """Full configuration for the hosted shell, including postprocessors.
+
+    This is the top-level config exposed in the Unique platform UI.
+    It bundles :class:`OpenAIHostedShellConfig` with display settings
+    for generated files and executed commands.
+    """
     generated_files_config: DisplayCodeInterpreterFilesPostProcessorConfig = Field(
         default=DisplayCodeInterpreterFilesPostProcessorConfig(),
         title="Generated files",

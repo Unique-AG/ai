@@ -1,3 +1,10 @@
+"""Pydantic schemas for OpenAI Skills.
+
+Provides data models for skill metadata (:class:`SkillInfo`,
+:class:`SkillVersionInfo`) and the :class:`InlineSkillBundle` used to
+embed a skill directly in an API request without prior upload.
+"""
+
 import base64
 import io
 import zipfile

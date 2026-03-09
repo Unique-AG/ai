@@ -1,3 +1,5 @@
+"""Postprocessors for the hosted shell tool — public API exports."""
+
 from unique_toolkit.agentic.tools.openai_builtin.hosted_shell.postprocessors.command_display import (
     ShowExecutedCommandPostprocessor,
     ShowExecutedCommandPostprocessorConfig,
