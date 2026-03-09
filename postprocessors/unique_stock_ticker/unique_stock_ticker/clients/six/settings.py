@@ -1,7 +1,6 @@
 import base64
 import logging
 import os
-from functools import cached_property
 from typing import NamedTuple
 
 from pydantic import RootModel
@@ -35,7 +34,7 @@ class SixApiBaseSettings(BaseSettings):
     creds: str | None = None
     activated_companies: list[str] = []
 
-    @cached_property
+    @property
     @failsafe(failure_return_value={}, logger=logger)
     def _loaded_creds(self) -> dict[str, CertificateCredentials]:
         if self.creds is None:
