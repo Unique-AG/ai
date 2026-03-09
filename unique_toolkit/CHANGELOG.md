@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-## [1.49.0] - 2026-03-02
+## [1.51.0] - 2026-03-02
 - Add `resolve_visible_folder_tree_async()` to `KnowledgeBaseService` for hierarchical folder tree with files
 - Add `resolve_visible_files_async()` to `KnowledgeBaseService` for flat list of visible file names
 - Add `resolve_visible_folder_paths_async()` to `KnowledgeBaseService` for list of folder paths
