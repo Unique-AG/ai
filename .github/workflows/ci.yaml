@@ -103,7 +103,7 @@ jobs:
 
   status:
     name: Gatekeeper
-    needs: [lint, test, types, coverage, deps, config, changelog, pr-title]
+    needs: [detect-changes, lint, test, types, coverage, deps, config, changelog, pr-title]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -112,6 +112,7 @@ jobs:
       - name: Check results
         id: check
         env:
+          DETECT_CHANGES: ${{ needs.detect-changes.result }}
           LINT: ${{ needs.lint.result }}
           TEST: ${{ needs.test.result }}
           TYPES: ${{ needs.types.result }}
@@ -122,6 +123,7 @@ jobs:
           PR_TITLE: ${{ needs.pr-title.result }}
         run: |
           echo "=== CI Status Summary ==="
+          echo "detect-changes: $DETECT_CHANGES"
           echo "lint: $LINT"
           echo "test: $TEST"
           echo "types: $TYPES"
@@ -135,7 +137,7 @@ jobs:
           failed=false
 
           # Required checks (skipped is OK for when no packages changed or merge_group)
-          for check in "lint:$LINT" "test:$TEST" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "changelog:$CHANGELOG" "pr-title:$PR_TITLE"; do
+          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "changelog:$CHANGELOG" "pr-title:$PR_TITLE"; do
             name="${check%%:*}"
             result="${check##*:}"
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
