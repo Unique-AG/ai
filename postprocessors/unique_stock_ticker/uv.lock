@@ -2152,7 +2152,7 @@ wheels = [
 [[package]]
 name = "unique-sdk"
 version = "0.10.84"
-source = { editable = "../../unique_sdk" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "anyio" },
@@ -2162,38 +2162,15 @@ dependencies = [
     { name = "tiktoken" },
     { name = "typing-extensions" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiohttp", specifier = ">=3.9.0,<4" },
-    { name = "anyio", specifier = ">=4.0.0,<5" },
-    { name = "httpx", specifier = ">=0.28.0,<0.29" },
-    { name = "openai", marker = "extra == 'openai'", specifier = ">=1.105.0,<2" },
-    { name = "regex", specifier = ">=2024.5.15" },
-    { name = "requests", specifier = ">=2.32.3,<3" },
-    { name = "tiktoken", specifier = ">=0.12.0,<0.13" },
-    { name = "typing-extensions", specifier = ">=4.9.0,<5" },
-]
-provides-extras = ["openai"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "basedpyright", specifier = ">=1.35.0,<2" },
-    { name = "deptry", specifier = ">=0.24.0,<0.25" },
-    { name = "ipykernel", specifier = ">=7.1.0,<8" },
-    { name = "poethepoet", specifier = ">=0.32.0,<0.33" },
-    { name = "pytest", specifier = ">=8.0,<9" },
-    { name = "pytest-asyncio", specifier = ">=0.24.0,<0.25" },
-    { name = "pytest-cov", specifier = ">=4.1.0,<5" },
-    { name = "python-dotenv", specifier = ">=1.1.0,<2" },
-    { name = "ruff", specifier = "==0.11.7" },
-    { name = "tox", specifier = ">=4.11.4,<5" },
+sdist = { url = "https://files.pythonhosted.org/packages/6d/fc/f920f0c8e404482314d713b30a68b2f1f3afc2db3da90cce697061cafd55/unique_sdk-0.10.84.tar.gz", hash = "sha256:18fd3a325d0fddf39fc23ff7ebeb402b89795f5ac69540d5fb9fafe060f6b9d2", size = 38667, upload-time = "2026-03-05T13:14:29.968Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/65/da/9bbf2afa1b7a925e248f602a7f02833d27f89d07eba95eb384962d977618/unique_sdk-0.10.84-py3-none-any.whl", hash = "sha256:78b26a60874b2ba473126a6c12de3d4f06545d0e667c04b061d5a1fac029dc4b", size = 55848, upload-time = "2026-03-05T13:14:31.299Z" },
 ]
 
 [[package]]
 name = "unique-six"
 version = "0.1.3"
-source = { editable = "../../connectors/unique_six" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "pydantic" },
@@ -2203,26 +2180,9 @@ dependencies = [
     { name = "unique-toolkit" },
     { name = "urllib3" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "cryptography", specifier = ">=46.0.5" },
-    { name = "pydantic", specifier = ">=2.12.4" },
-    { name = "pyopenssl", specifier = ">=25.0.0" },
-    { name = "python-dotenv", specifier = ">=1.0.1" },
-    { name = "requests", specifier = ">=2.32.0" },
-    { name = "unique-toolkit", editable = "../../unique_toolkit" },
-    { name = "urllib3", specifier = ">=2.0.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "deptry", specifier = ">=0.24.0" },
-    { name = "pytest", specifier = ">=8.0.0" },
-    { name = "pytest-cov", specifier = ">=4.1.0" },
-    { name = "pytest-mock", specifier = ">=3.12.0" },
-    { name = "responses", specifier = ">=0.25.0" },
-    { name = "ruff", specifier = ">=0.12.10" },
+sdist = { url = "https://files.pythonhosted.org/packages/3f/22/821b68c1d19c8975e81f281719b2b0abed66ddd11cedd72b8a70409ff8e7/unique_six-0.1.3.tar.gz", hash = "sha256:c38f0e0b95ffeca7083978d71ca2bf1f1a6448deb257746b800b725a49c66fcc", size = 21654, upload-time = "2026-03-06T10:36:20.179Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/18/da/3df17dadb3d66ef341227d42ee5cb4e401f7923dff22ac4454e35b568dd2/unique_six-0.1.3-py3-none-any.whl", hash = "sha256:0491ab7791e98b66577127b2118ccb6cb4be2144adfd0812488874fb85bc7230", size = 38244, upload-time = "2026-03-06T10:36:21.073Z" },
 ]
 
 [[package]]
@@ -2262,8 +2222,8 @@ requires-dist = [
     { name = "pyhumps", specifier = ">=3.8.0" },
     { name = "pyopenssl", specifier = ">=25.0.0" },
     { name = "typing-extensions", specifier = ">=4.9.0" },
-    { name = "unique-six", editable = "../../connectors/unique_six" },
-    { name = "unique-toolkit", editable = "../../unique_toolkit" },
+    { name = "unique-six", specifier = ">=0.1.3" },
+    { name = "unique-toolkit", specifier = ">=1.50.4" },
 ]
 
 [package.metadata.requires-dev]
@@ -2275,13 +2235,13 @@ dev = [
     { name = "pytest-asyncio", specifier = ">=0.25.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "ruff", specifier = ">=0.12.10" },
-    { name = "unique-sdk", editable = "../../unique_sdk" },
+    { name = "unique-sdk", specifier = ">=0.10.0" },
 ]
 
 [[package]]
 name = "unique-toolkit"
 version = "1.50.4"
-source = { editable = "../../unique_toolkit" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "click" },
@@ -2308,59 +2268,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "unique-sdk" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "aiohttp", specifier = ">=3.12.0,<4" },
-    { name = "click", specifier = ">=8.1.0,<9" },
-    { name = "deepdiff", specifier = ">=8.6.1,<9" },
-    { name = "docxtpl", specifier = ">=0.20.1,<0.21" },
-    { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.121.0,<0.122" },
-    { name = "httpx", specifier = ">=0.28.0,<0.29" },
-    { name = "jambo", specifier = ">=0.1.2,<0.2" },
-    { name = "jinja2", specifier = ">=3.1.6,<4" },
-    { name = "langchain", marker = "extra == 'langchain'", specifier = ">=0.3.27,<0.4" },
-    { name = "langchain-core", marker = "extra == 'langchain'", specifier = ">=0.3.0,<0.4" },
-    { name = "langchain-openai", marker = "extra == 'langchain'", specifier = ">=0.3.28,<0.4" },
-    { name = "markdown-it-py", specifier = ">=4.0.0,<5" },
-    { name = "numpy", specifier = ">=2.4.2,<3" },
-    { name = "openai", specifier = ">=1.105.0,<2" },
-    { name = "openai", marker = "extra == 'langchain'", specifier = ">=1.105.0,<2" },
-    { name = "pandas", specifier = ">=2.3.0,<3" },
-    { name = "pillow", specifier = ">=12.1.1" },
-    { name = "platformdirs", specifier = ">=4.0.0,<5" },
-    { name = "pydantic", specifier = ">=2.11.0,<3" },
-    { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
-    { name = "pyhumps", specifier = ">=3.8.0,<4" },
-    { name = "pypandoc", specifier = ">=1.16.2,<2" },
-    { name = "python-docx", specifier = ">=1.1.0,<2" },
-    { name = "requests", specifier = ">=2.32.0,<3" },
-    { name = "sseclient", specifier = ">=0.0.27,<0.0.28" },
-    { name = "starlette", marker = "extra == 'fastapi'", specifier = ">=0.49.1" },
-    { name = "tiktoken", specifier = ">=0.12.0,<0.13" },
-    { name = "tokenizers", specifier = ">=0.21.0,<0.22" },
-    { name = "typing-extensions", specifier = ">=4.9.0,<5" },
-    { name = "unique-sdk", specifier = ">=0.10.80,<0.11" },
-    { name = "uvicorn", marker = "extra == 'fastapi'", specifier = ">=0.37.0,<0.38" },
-]
-provides-extras = ["langchain", "fastapi"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "basedpyright", specifier = ">=1.33.0,<2" },
-    { name = "deptry", specifier = ">=0.24.0,<0.25" },
-    { name = "entangled-cli", specifier = ">=2.4.0,<3" },
-    { name = "ipykernel", specifier = ">=6.29.5,<7" },
-    { name = "isort", specifier = ">=6.0.1,<7" },
-    { name = "poethepoet", specifier = ">=0.32.0,<0.33" },
-    { name = "pre-commit", specifier = ">=3.7.1,<4" },
-    { name = "pyright", specifier = ">=1.1.341,<2" },
-    { name = "pytest", specifier = ">=7.4.3,<8" },
-    { name = "pytest-asyncio", specifier = ">=0.23.8,<0.24" },
-    { name = "pytest-cov", specifier = ">=4.1.0,<5" },
-    { name = "pytest-mock", specifier = ">=3.14.0,<4" },
-    { name = "ruff", specifier = "==0.12.10" },
-    { name = "tox", specifier = ">=4.11.4,<5" },
+sdist = { url = "https://files.pythonhosted.org/packages/e7/68/46158a9db2478f2868c65665d4c1049a3d1a732a0a60fa780ac711a3060b/unique_toolkit-1.50.4.tar.gz", hash = "sha256:ba65381b9651b4fcfe8291dd9580babf284cbc227524b17ad051fbc7c3b63b47", size = 4329030, upload-time = "2026-03-05T15:32:20.723Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4a/25/8ade83603c75ec86df73da1636eddb107824e39d60773ac84c485094a25e/unique_toolkit-1.50.4-py3-none-any.whl", hash = "sha256:e1e772fc9638d0cac748d64c02f06d9715fe30e65f2cdde098b7b16a9c4a2f28", size = 4451561, upload-time = "2026-03-05T15:32:18.899Z" },
 ]
 
 [[package]]

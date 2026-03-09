@@ -50,16 +50,6 @@ runs:
       shell: bash
       run: git fetch origin ${{ inputs.branch }}:${{ inputs.branch }}
 
-    - name: Discard lock file changes before checkout
-      shell: bash
-      run: |
-        # uv lock (run during setup) may have modified uv.lock when UV_NO_SOURCES=1
-        # is used (resolves from PyPI instead of local paths, producing a different
-        # lockfile). Restore it before switching branches so git checkout doesn't abort.
-        git restore "${{ inputs.package_dir }}/poetry.lock" 2>/dev/null || true
-        git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
-        git clean -f -- "${{ inputs.package_dir }}/poetry.lock" "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
-
     - name: Checkout base branch
       shell: bash
       run: git checkout "origin/${{ inputs.branch }}" --quiet
