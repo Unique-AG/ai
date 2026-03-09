@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.50.5] - 2026-03-10
-- Responses API: add rate-limit retry with exponential backoff (30s→60s→120s) for `too_many_requests` errors when using GPT-4o or similar low-RPM models with web search/code execution. Honors `Retry-After` header when present.
+- Responses API: rate-limit retry via **tenacity** (new dependency). Exponential backoff (30s→60s→120s) for `too_many_requests`; config via `RATE_LIMIT_RETRY_*` env vars. When new answers UI feature flag (`enable_new_answers_ui_un_14411`) is active, a step is written to the message log during each retry wait.
 
 ## [1.50.4] - 2026-03-05
 - Add `INGESTION_UPLOAD_API_URL_INTERNAL` environment variable to override the ingestion upload URL. This can be used to upload content from within a private network like a Kubernetes cluster.

@@ -6,10 +6,10 @@ import pytest
 import unique_sdk
 
 from unique_toolkit.chat.responses_api import (
-    _RATE_LIMIT_RETRY_MAX_ATTEMPTS,
     _attempt_extract_reasoning_from_options,
     _attempt_extract_verbosity_from_options,
     _responses_stream_with_rate_limit_retry,
+    rate_limit_retry_config,
 )
 
 # ============================================================================
@@ -298,7 +298,7 @@ async def test_rate_limit_retry__raises_after_max_attempts() -> None:
             responses_args={}, model_name="gpt-4o"
         )
 
-    assert mock_fn.call_count == _RATE_LIMIT_RETRY_MAX_ATTEMPTS + 1
+    assert mock_fn.call_count == rate_limit_retry_config.max_attempts
 
 
 @pytest.mark.asyncio
@@ -328,3 +328,39 @@ async def test_rate_limit_retry__does_not_retry_non_rate_limit_errors() -> None:
 
     assert mock_fn.call_count == 1
     mock_sleep.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_rate_limit_retry__invokes_callback_before_each_retry_sleep() -> None:
+    """
+    Purpose: Verify on_rate_limit_retry callback is called with (attempt_1based, wait_secs).
+    Why this matters: Message-log integration relies on this; same contract as before_sleep.
+    """
+    expected = {"id": "resp_ok"}
+    rate_limit_error = unique_sdk.APIError(
+        "Internal server error\n(Original error) too_many_requests: Too Many Requests"
+    )
+    mock_fn = AsyncMock(side_effect=[rate_limit_error, expected])
+    callback_calls: list[tuple[int, float]] = []
+
+    async def on_retry(attempt: int, wait_secs: float) -> None:
+        callback_calls.append((attempt, wait_secs))
+
+    with (
+        patch(
+            "unique_toolkit.chat.responses_api.unique_sdk.Integrated.responses_stream_async",
+            mock_fn,
+        ),
+        patch("asyncio.sleep", new_callable=AsyncMock),
+    ):
+        result = await _responses_stream_with_rate_limit_retry(
+            responses_args={},
+            model_name="gpt-4o",
+            on_rate_limit_retry=on_retry,
+        )
+
+    assert result == expected
+    assert len(callback_calls) == 1
+    assert callback_calls[0][0] == 1  # first retry = attempt 1
+    assert 30.0 <= callback_calls[0][1] <= 33.0  # first wait 30s + up to 10% jitter
