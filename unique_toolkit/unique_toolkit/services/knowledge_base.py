@@ -753,9 +753,18 @@ class KnowledgeBaseService:
         Extracts folder metadata from content infos.
 
         This extracts three types of folder information:
-        - scope_ids: Individual IDs extracted from `folderIdPath` that need to be translated via API (This is not a comprehensive list of all scope_ids, scope_ids that always come along with a FullPath will not be listed)
-        - folder_id_paths: Raw `folderIdPath` values (e.g., `uniquepathid://abc/def`)
-        - known_folder_paths: Already resolved paths from `{FullPath}` metadata
+        - scope_ids: Individual IDs extracted from ``folderIdPath`` that need to be
+          translated to human-readable folder names via API calls.
+        - folder_id_paths: Raw ``folderIdPath`` values (e.g., ``uniquepathid://abc/def``).
+        - known_folder_paths: Already resolved paths from ``{FullPath}`` metadata (see note).
+
+        Note:
+            The ``{FullPath}`` metadata key is **not currently populated by the backend API**.
+            It is handled here as a forward-compatible optimisation: if the backend ever
+            provides a pre-resolved human-readable path, we can skip the expensive
+            per-scope-ID translation. The curly-brace naming convention was introduced
+            in PR #636 — likely to avoid collisions with user-defined metadata keys —
+            but is not an established API convention.
 
         Args:
             content_infos (list[ContentInfo]): The list of content infos to extract from.
@@ -771,7 +780,7 @@ class KnowledgeBaseService:
             if content_info.metadata is None:
                 continue
 
-            # Check for already resolved {FullPath}
+            # Forward-compatible: not yet present in API responses (see docstring)
             if content_info.metadata.get(r"{FullPath}") is not None:
                 known_folder_paths.add(str(content_info.metadata.get(r"{FullPath}")))
                 continue
@@ -900,6 +909,7 @@ class KnowledgeBaseService:
             current = tree
             metadata = content_info.metadata
             path: list[str]
+            # Forward-compatible: {FullPath} not yet present in API responses
             if metadata and (full_path := metadata.get(r"{FullPath}")) is not None:
                 path = str(full_path).split("/")
             elif (
