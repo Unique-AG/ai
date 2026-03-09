@@ -42,13 +42,12 @@ response = client.responses.create(
     input="Use code to print hello world.",
 )
 
-# response.output is a list; the first item is typically the text reply
 print(response.output)
 ```
 
 ### Including code outputs
 
-To get stdout, stderr, or execution results from the run code, pass `include=["code_interpreter_call.outputs"]`. The `response.output` list will contain both the text block and the code interpreter call with `.outputs`.
+To get stdout, stderr, or generated images from the code, pass `include=["code_interpreter_call.outputs"]`. The `response.output` list will contain both the text block and the code interpreter call with `.outputs`.
 
 ```python
 response_with_output = client.responses.create(
@@ -57,16 +56,17 @@ response_with_output = client.responses.create(
     input="Use code to print hello world.",
     include=["code_interpreter_call.outputs"],
 )
-
-# Indices depend on the order of items in output (e.g. text then code_interpreter_call)
 print(response_with_output.output[1].outputs)
 ```
+
+> **Note:** `include=["code_interpreter_call.outputs"]` returns only **images** and **console output** (stdout/stderr). Other files written by the model (e.g. CSVs, Word files) are not included there. To get those, use the approach described in [Downloading model-generated files](#downloading-model-generated-files).
 
 ---
 
 ## 2. Custom Azure container
 
-Use a custom container when you need per-chat or per-session isolation, or when you want to control lifecycle (e.g. `expires_after`). The client header must match the model used for code execution.
+Use a custom container when you need to re-use containers (typically for the same chat sessions), and when you want to upload files in order for the client to operate on.   
+The client `x-model` header must match the model used for code execution.
 
 **Client:** Use `get_openai_client(additional_headers={"x-model": model_name})` and use the same `model` in `responses.create`.
 
@@ -100,7 +100,7 @@ response = client.responses.create(
 
 ### Uploading and downloading files
 
-File upload and download apply to **custom containers** (you need a `container_id`). With auto containers, the API manages storage differently.
+> File upload and download apply to **custom containers** (you need a `container_id`). With auto containers, the API manages storage differently.
 
 #### Upload
 
@@ -165,7 +165,7 @@ except NotFoundError:
 
 ---
 
-## 3. Downloading model-generated files
+####  Downloading model-generated files
 
 When the model writes a file during code execution (e.g. a CSV or plot), it references those files as `container_file_citation` annotations on `output_text` content items. This works with both auto and custom containers.
 
@@ -182,12 +182,13 @@ for item in response.output:
                 for annotation in content.annotations:
                     if annotation.type == "container_file_citation":
                         generated_file_id = annotation.file_id
+                        container_id = annotation.container_id
                         print(f"Generated file: {annotation.filename}  ({generated_file_id})")
 
 if generated_file_id:
     file_content = client.containers.files.content.retrieve(
         generated_file_id,
-        container_id=container.id,
+        container_id=container_id,
     )
     generated_bytes = file_content.read()
     print(f"Downloaded {len(generated_bytes)} bytes")
@@ -199,7 +200,7 @@ if generated_file_id:
 
 ## 4. Calling the Responses API via ChatService
 
-Use `chat_service.complete_responses_with_references()` (sync) or `complete_responses_with_references_async()` (async) instead of calling `client.responses.create` directly. These methods handle authentication, streaming, and message writing to the chat automatically.
+Use `chat_service.complete_responses_with_references()` (sync) or `complete_responses_with_references_async()` (async) instead of calling `client.responses.create` directly. These methods handle authentication, streaming, and message writing (with references) to the chat automatically.
 
 The signature accepts the same `tools`, `include`, and `messages` arguments as the raw API:
 
@@ -348,8 +349,6 @@ response = await chat_service.complete_responses_with_references_async(
 # 5. Save updated memory
 await memory_manager.save_async(memory)
 ```
-
-> Memory is compressed automatically by `PersistentShortMemoryManager` before storage, so the payload size is minimal even with many file IDs.
 
 ---
 
