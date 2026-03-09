@@ -304,7 +304,9 @@ async def test_rate_limit_retry__does_not_retry_non_rate_limit_errors() -> None:
     Purpose: Verify that non-rate-limit errors are re-raised immediately without retrying.
     Why this matters: Only 429s should trigger backoff; other errors should fail fast.
     """
-    other_error = unique_sdk.APIError("Internal server error\n(Original error) context_length_exceeded")
+    other_error = unique_sdk.APIError(
+        "Internal server error\n(Original error) context_length_exceeded"
+    )
 
     mock_fn = AsyncMock(side_effect=other_error)
 
