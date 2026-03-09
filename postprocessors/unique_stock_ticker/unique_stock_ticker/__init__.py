@@ -53,4 +53,4 @@ __all__ = [
     "StockTickerDetectionConfig",
     "get_plotting_backend",
     "StockTickerConfig",
-]  # noqa: F401
+]
