@@ -43,37 +43,9 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
-        id: filter
+      - uses: ./.github/actions/detect-changes
+        id: detect
         if: github.event_name == 'push'
-        with:
-          filters: |
-            sdk:
-              - 'unique_sdk/**'
-              - '!unique_sdk/**/docs/**'
-            toolkit:
-              - 'unique_toolkit/**'
-              - '!unique_toolkit/**/docs/**'
-            mcp:
-              - 'unique_mcp/**'
-            orchestrator:
-              - 'unique_orchestrator/**'
-            web_search:
-              - 'tool_packages/unique_web_search/**'
-            swot:
-              - 'tool_packages/unique_swot/**'
-            follow_up_questions:
-              - 'postprocessors/unique_follow_up_questions/**'
-            stock_ticker:
-              - 'postprocessors/unique_stock_ticker/**'
-            deep_research:
-              - 'tool_packages/unique_deep_research/**'
-            internal_search:
-              - 'tool_packages/unique_internal_search/**'
-            quartr:
-              - 'connectors/unique_quartr/**'
-            six:
-              - 'connectors/unique_six/**'
 
       - name: Select packages
         id: set-matrix
@@ -95,7 +67,7 @@ jobs:
               {"id": "six",                "dir": "connectors/unique_six",                     "pypi_name": "unique_six",                  "python": "3.12"}
             ]
           selected: ${{ github.event.inputs.package }}
-          changes: ${{ toJson(steps.filter.outputs) }}
+          changes: ${{ steps.detect.outputs.changes }}
 
   publish:
     needs: detect-changes
