@@ -1,5 +1,6 @@
 from enum import StrEnum
 from typing import (
+    Any,
     Literal,
     NotRequired,
     TypedDict,
@@ -19,7 +20,7 @@ class AgenticTableSheetState(StrEnum):
 
 
 class LogDetail(TypedDict, total=False):
-    llmRequest: list[dict] | None
+    llmRequest: list[dict[str, Any]] | None
 
 
 class LogEntry(TypedDict):
@@ -347,9 +348,9 @@ class AgenticTable(APIResource["AgenticTable"]):
             params_api = {
                 "cells": [
                     {
-                        "rowOrder": cell["rowOrder"],
-                        "columnOrder": cell["columnOrder"],
-                        "data": cell["text"],
+                        "rowOrder": cell.get("rowOrder", 0),
+                        "columnOrder": cell.get("columnOrder", 0),
+                        "data": cell.get("text", ""),
                     }
                     for cell in cells
                 ]

@@ -90,7 +90,7 @@ class Space(APIResource["Space"]):
         assistantId: str
         text: NotRequired[str | None]
         toolChoices: NotRequired[List[str] | None]
-        scopeRules: NotRequired[dict | None]
+        scopeRules: NotRequired[dict[str, Any] | None]
         correlation: NotRequired["Space.Correlation | None"]
 
     class GetChatMessagesParams(RequestOptions):

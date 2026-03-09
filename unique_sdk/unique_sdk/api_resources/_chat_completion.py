@@ -1,4 +1,5 @@
 from typing import (
+    Any,
     ClassVar,
     List,
     Literal,
@@ -43,7 +44,7 @@ class ChatCompletion(APIResource["ChatCompletion"]):
         ]
         timeout: NotRequired[Optional["int"]]
         messages: List[ChatCompletionRequestMessage]
-        options: NotRequired[dict]
+        options: NotRequired[dict[str, Any]]
 
     model: Literal[
         "AZURE_GPT_4_0613",

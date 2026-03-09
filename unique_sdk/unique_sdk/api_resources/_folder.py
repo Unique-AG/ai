@@ -1,4 +1,5 @@
 from typing import (
+    Any,
     ClassVar,
     List,
     Literal,
@@ -440,12 +441,12 @@ class Folder(APIResource["Folder"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Folder.RemoveAccessParams"],
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Remove access from a folder.
         """
         return cast(
-            dict,
+            dict[str, Any],
             cls._static_request(
                 "patch",
                 "/folder/remove-access",

@@ -1,4 +1,4 @@
-from typing import ClassVar, Literal, NotRequired, Unpack, cast
+from typing import Any, ClassVar, Literal, NotRequired, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -21,7 +21,7 @@ class MessageExecution(APIResource["MessageExecution"]):
         messageId: str
         type: "MessageExecution.TypeLiteral"
         isQueueable: NotRequired[bool | None]
-        executionOptions: NotRequired[dict | None]
+        executionOptions: NotRequired[dict[str, Any] | None]
         progressTitle: NotRequired[str | None]
 
     class GetMessageExecutionParams(RequestOptions):
@@ -49,7 +49,7 @@ class MessageExecution(APIResource["MessageExecution"]):
     secondsRemaining: int | None
     percentageCompleted: int | None
     isQueueable: bool
-    executionOptions: dict | None
+    executionOptions: dict[str, Any] | None
     progressTitle: str | None
     positionInQueue: int | None
     createdAt: str
