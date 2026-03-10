@@ -18,9 +18,9 @@ from unique_toolkit.agentic.loop_runner.runners import (
     QWEN_MAX_LOOP_ITERATIONS,
     BasicLoopIterationRunner,
     BasicLoopIterationRunnerConfig,
+    MistralLoopIterationRunner,
     QwenLoopIterationRunner,
     ResponsesBasicLoopIterationRunner,
-    is_qwen_model,
 )
 
 __all__ = [
@@ -28,10 +28,10 @@ __all__ = [
     "PlanningConfig",
     "PlanningMiddleware",
     "PlanningSchemaConfig",
-    "QwenLoopIterationRunner",
-    "is_qwen_model",
     "BasicLoopIterationRunnerConfig",
     "BasicLoopIterationRunner",
+    "MistralLoopIterationRunner",
+    "QwenLoopIterationRunner",
     "handle_forced_tools_iteration",
     "handle_last_iteration",
     "handle_normal_iteration",

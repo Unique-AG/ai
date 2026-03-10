@@ -68,13 +68,13 @@ show_help() {
 check_dependencies() {
     log_info "Checking dependencies..."
     
-    if ! command -v poetry &> /dev/null; then
-        log_error "Poetry not found. Please install: https://python-poetry.org/docs/#installation"
+    if ! command -v uv &> /dev/null; then
+        log_error "uv not found. Please install: https://docs.astral.sh/uv/getting-started/installation/"
         exit 1
     fi
     
-    if ! poetry show mkdocs &> /dev/null; then
-        log_error "mkdocs not installed. Run: poetry install --with dev"
+    if ! uv run --no-sync python -c "import mkdocs" &> /dev/null; then
+        log_error "mkdocs not installed. Run: uv sync"
         exit 1
     fi
     
@@ -177,7 +177,7 @@ build_root_site() {
     cd "$REPO_ROOT"
 
     # Build to temporary location
-    poetry run mkdocs build -d "$OUTPUT_DIR/root_temp" --clean
+    uv run mkdocs build -d "$OUTPUT_DIR/root_temp" --clean
 
     # Copy to output root (excluding subdirs we'll replace)
     rsync -av --exclude='unique-sdk' --exclude='unique-toolkit' "$OUTPUT_DIR/root_temp/" "$OUTPUT_DIR/"
@@ -214,7 +214,7 @@ build_project_site() {
     # Suppress SyntaxWarning from mkdocs-include-dir-to-nav (invalid escape sequence in its code).
     (
         cd "$REPO_ROOT"
-        PYTHONWARNINGS=ignore::SyntaxWarning poetry run mkdocs build -f "$temp_config" -d "$output_path" --clean
+        PYTHONWARNINGS=ignore::SyntaxWarning uv run mkdocs build -f "$temp_config" -d "$output_path" --clean
     )
     
     # Cleanup temp config
@@ -354,7 +354,7 @@ main() {
         echo "================================================================"
         echo ""
         
-        poetry run python "$SCRIPT_DIR/serve_docs.py" "$PORT" "$OUTPUT_DIR"
+        uv run python "$SCRIPT_DIR/serve_docs.py" "$PORT" "$OUTPUT_DIR"
     else
         log_info "To serve locally, run:"
         echo "  python .github/scripts/serve_docs.py $PORT $OUTPUT_DIR"
