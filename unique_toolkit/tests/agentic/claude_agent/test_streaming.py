@@ -21,7 +21,12 @@ from claude_agent_sdk.types import (
 )
 
 from unique_toolkit.agentic.claude_agent.config import ClaudeAgentConfig
-from unique_toolkit.agentic.claude_agent.streaming import run_claude_loop
+from unique_toolkit.agentic.claude_agent.streaming import (
+    _format_tool_display_name,
+    run_claude_loop,
+)
+from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
+from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -205,7 +210,7 @@ class TestRunClaudeLoop:
                 prompt="hi",
                 options={},
                 chat_service=chat_service,
-                tool_progress_reporter=MagicMock(),
+                tool_progress_reporter=MagicMock(notify_from_tool_call=AsyncMock()),
                 claude_config=ClaudeAgentConfig(),
                 logger=logger,
             )
@@ -254,3 +259,217 @@ class TestRunClaudeLoop:
 
         assert "error" in result.lower()
         logger.error.assert_called()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _format_tool_display_name
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestFormatToolDisplayName:
+    def test_strips_mcp_namespace_prefix(self) -> None:
+        assert (
+            _format_tool_display_name("mcp__unique_platform__search_knowledge_base")
+            == "Search Knowledge Base"
+        )
+
+    def test_plain_name_becomes_title_case(self) -> None:
+        assert _format_tool_display_name("run_bash") == "Run Bash"
+
+    def test_no_double_underscore_leaves_name_as_title(self) -> None:
+        assert _format_tool_display_name("Bash") == "Bash"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# run_claude_loop — tool progress notifications (T1.3)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestRunClaudeLoopToolProgress:
+    @pytest.mark.asyncio
+    async def test_notifies_tool_progress_on_tool_use(self) -> None:
+        """notify_from_tool_call() is awaited once per ToolUseBlock in AssistantMessage."""
+        progress_reporter = MagicMock()
+        progress_reporter.notify_from_tool_call = AsyncMock()
+        chat_service = _make_chat_service()
+
+        tool_block = ToolUseBlock(
+            id="tu-1",
+            name="mcp__unique_platform__search_knowledge_base",
+            input={"search_query": "interest rates"},
+        )
+        assistant_msg = AssistantMessage(
+            content=[tool_block],
+            model="claude-sonnet-4-5",
+        )
+
+        with patch("unique_toolkit.agentic.claude_agent.streaming.query") as mock_query:
+            mock_query.return_value = _mock_query_gen(assistant_msg)
+            await run_claude_loop(
+                prompt="hi",
+                options={},
+                chat_service=chat_service,
+                tool_progress_reporter=progress_reporter,
+                claude_config=ClaudeAgentConfig(),
+                logger=_make_logger(),
+            )
+
+        progress_reporter.notify_from_tool_call.assert_awaited_once()
+        call_kwargs = progress_reporter.notify_from_tool_call.call_args.kwargs
+        assert isinstance(call_kwargs["tool_call"], LanguageModelFunction)
+        assert call_kwargs["tool_call"].id == "tu-1"
+        assert (
+            call_kwargs["tool_call"].name
+            == "mcp__unique_platform__search_knowledge_base"
+        )
+        assert call_kwargs["name"] == "Search Knowledge Base"
+        assert call_kwargs["message"] == "Running..."
+
+    @pytest.mark.asyncio
+    async def test_no_progress_notify_without_tool_use(self) -> None:
+        """notify_from_tool_call() is NOT called when AssistantMessage has no ToolUseBlock."""
+        progress_reporter = MagicMock()
+        progress_reporter.notify_from_tool_call = AsyncMock()
+        chat_service = _make_chat_service()
+
+        delta = StreamEvent(
+            uuid="uuid-1",
+            session_id="session-1",
+            event={
+                "type": "content_block_delta",
+                "delta": {"type": "text_delta", "text": "Hello"},
+            },
+            parent_tool_use_id=None,
+        )
+
+        with patch("unique_toolkit.agentic.claude_agent.streaming.query") as mock_query:
+            mock_query.return_value = _mock_query_gen(delta)
+            await run_claude_loop(
+                prompt="hi",
+                options={},
+                chat_service=chat_service,
+                tool_progress_reporter=progress_reporter,
+                claude_config=ClaudeAgentConfig(),
+                logger=_make_logger(),
+            )
+
+        progress_reporter.notify_from_tool_call.assert_not_awaited()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# run_claude_loop — end-to-end progress publishing (real ToolProgressReporter)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestRunClaudeLoopProgressIntegration:
+    """Integration tests: real ToolProgressReporter, mocked chat_service and query().
+
+    Verifies the full in-process chain:
+      ToolUseBlock → run_claude_loop → notify_from_tool_call (real reporter)
+          → publish() → chat_service.modify_assistant_message_async(content=...)
+
+    No subprocess is spawned and no network calls are made — CI-safe.
+    """
+
+    def _make_real_reporter(self) -> tuple[ToolProgressReporter, AsyncMock]:
+        modify_mock = AsyncMock()
+        chat_service_mock = MagicMock()
+        chat_service_mock.modify_assistant_message_async = modify_mock
+        reporter = ToolProgressReporter(chat_service=chat_service_mock)
+        return reporter, modify_mock
+
+    @pytest.mark.asyncio
+    async def test_progress_published_to_chat_service_on_tool_use(self) -> None:
+        """Full chain: ToolUseBlock → real ToolProgressReporter → modify_assistant_message_async."""
+        reporter, modify_mock = self._make_real_reporter()
+
+        tool_block = ToolUseBlock(
+            id="tu-1",
+            name="mcp__unique_platform__search_knowledge_base",
+            input={"search_query": "interest rates"},
+        )
+        assistant_msg = AssistantMessage(
+            content=[tool_block],
+            model="claude-sonnet-4-5",
+        )
+
+        with patch("unique_toolkit.agentic.claude_agent.streaming.query") as mock_query:
+            mock_query.return_value = _mock_query_gen(assistant_msg)
+            await run_claude_loop(
+                prompt="hi",
+                options={},
+                chat_service=_make_chat_service(),
+                tool_progress_reporter=reporter,
+                claude_config=ClaudeAgentConfig(),
+                logger=_make_logger(),
+            )
+
+        modify_mock.assert_awaited()
+        all_content = " ".join(
+            str(c.kwargs.get("content", "")) for c in modify_mock.call_args_list
+        )
+        assert "Search Knowledge Base" in all_content
+        assert "Running..." in all_content
+
+    @pytest.mark.asyncio
+    async def test_multiple_tool_calls_each_publish(self) -> None:
+        """Two ToolUseBlocks each trigger one publish() call."""
+        reporter, modify_mock = self._make_real_reporter()
+
+        assistant_msg = AssistantMessage(
+            content=[
+                ToolUseBlock(
+                    id="tu-1",
+                    name="mcp__unique_platform__search_knowledge_base",
+                    input={"q": "rates"},
+                ),
+                ToolUseBlock(id="tu-2", name="Bash", input={"command": "echo hi"}),
+            ],
+            model="claude-sonnet-4-5",
+        )
+
+        with patch("unique_toolkit.agentic.claude_agent.streaming.query") as mock_query:
+            mock_query.return_value = _mock_query_gen(assistant_msg)
+            await run_claude_loop(
+                prompt="hi",
+                options={},
+                chat_service=_make_chat_service(),
+                tool_progress_reporter=reporter,
+                claude_config=ClaudeAgentConfig(),
+                logger=_make_logger(),
+            )
+
+        assert modify_mock.await_count == 2
+        all_content = " ".join(
+            str(c.kwargs.get("content", "")) for c in modify_mock.call_args_list
+        )
+        assert "Search Knowledge Base" in all_content
+        assert "Bash" in all_content
+
+    @pytest.mark.asyncio
+    async def test_no_publish_on_text_only_turn(self) -> None:
+        """Real ToolProgressReporter.publish() is never called when there are no tool calls."""
+        reporter, modify_mock = self._make_real_reporter()
+
+        delta = StreamEvent(
+            uuid="uuid-1",
+            session_id="session-1",
+            event={
+                "type": "content_block_delta",
+                "delta": {"type": "text_delta", "text": "Hi"},
+            },
+            parent_tool_use_id=None,
+        )
+
+        with patch("unique_toolkit.agentic.claude_agent.streaming.query") as mock_query:
+            mock_query.return_value = _mock_query_gen(delta)
+            await run_claude_loop(
+                prompt="hi",
+                options={},
+                chat_service=_make_chat_service(),
+                tool_progress_reporter=reporter,
+                claude_config=ClaudeAgentConfig(),
+                logger=_make_logger(),
+            )
+
+        modify_mock.assert_not_awaited()

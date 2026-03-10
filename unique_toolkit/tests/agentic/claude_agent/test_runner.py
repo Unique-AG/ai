@@ -25,6 +25,13 @@ from unique_toolkit.agentic.claude_agent.runner import ClaudeAgentRunner
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _make_tool_progress_reporter() -> MagicMock:
+    """Return a MagicMock ToolProgressReporter with notify_from_tool_call as AsyncMock."""
+    reporter = MagicMock()
+    reporter.notify_from_tool_call = AsyncMock()
+    return reporter
+
+
 def _make_runner(claude_config: ClaudeAgentConfig | None = None) -> ClaudeAgentRunner:
     """Construct a ClaudeAgentRunner with all services mocked."""
     mock_event = MagicMock()
@@ -43,7 +50,7 @@ def _make_runner(claude_config: ClaudeAgentConfig | None = None) -> ClaudeAgentR
         postprocessor_manager=MagicMock(),
         reference_manager=MagicMock(),
         thinking_manager=MagicMock(),
-        tool_progress_reporter=MagicMock(),
+        tool_progress_reporter=_make_tool_progress_reporter(),
         message_step_logger=MagicMock(),
         history_manager=MagicMock(),
         debug_info_manager=MagicMock(),
@@ -303,6 +310,11 @@ class TestBuildHistory:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# NOTE: _run_claude_loop tests live in test_streaming.py — the event loop was
+# extracted to streaming.py as part of the refactor (handoff 018).
+# ─────────────────────────────────────────────────────────────────────────────
+
+
 # _run_post_processing
 # ─────────────────────────────────────────────────────────────────────────────
 

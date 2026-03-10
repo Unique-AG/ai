@@ -31,10 +31,21 @@ from claude_agent_sdk.types import (
     ToolUseBlock,
 )
 
-from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
+from unique_toolkit.agentic.tools.tool_progress_reporter import (
+    ProgressState,
+    ToolProgressReporter,
+)
 from unique_toolkit.chat.service import ChatService
+from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 from .config import ClaudeAgentConfig
+
+
+def _format_tool_display_name(tool_name: str) -> str:
+    """Return a human-readable display name from a raw tool identifier."""
+    if "__" in tool_name:
+        tool_name = tool_name.rsplit("__", 1)[-1]
+    return tool_name.replace("_", " ").title()
 
 
 async def run_claude_loop(
@@ -96,8 +107,12 @@ async def run_claude_loop(
                 continue
 
             if isinstance(message, AssistantMessage):
-                tool_call_count = _handle_assistant_message(
-                    message, tool_call_count, logger, verbose
+                tool_call_count = await _handle_assistant_message(
+                    message,
+                    tool_call_count,
+                    tool_progress_reporter,
+                    logger,
+                    verbose,
                 )
                 continue
 
@@ -184,9 +199,10 @@ def _log_non_delta_event(
         logger.debug("[claude-agent] ← event type=%s", event_type)
 
 
-def _handle_assistant_message(
+async def _handle_assistant_message(
     message: AssistantMessage,
     tool_call_count: int,
+    tool_progress_reporter: ToolProgressReporter,
     logger: Logger,
     verbose: bool,
 ) -> int:
@@ -194,6 +210,17 @@ def _handle_assistant_message(
     for block in message.content:
         if not isinstance(block, ToolUseBlock):
             continue
+        tool_call = LanguageModelFunction(
+            id=block.id,
+            name=block.name,
+            arguments=block.input,
+        )
+        await tool_progress_reporter.notify_from_tool_call(
+            tool_call=tool_call,
+            name=_format_tool_display_name(block.name),
+            message="Running...",
+            state=ProgressState.RUNNING,
+        )
         tool_call_count += 1
         input_preview = str(block.input)[:300]
         if verbose:

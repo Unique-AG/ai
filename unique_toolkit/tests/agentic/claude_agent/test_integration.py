@@ -14,13 +14,17 @@ Setup:
 
         set -a && source ../.env.local && set +a
 
-Run Level 1 only:
-    cd unique_toolkit
-    ANTHROPIC_API_KEY=<key> uv run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "L1"
+Run Level 1 only (from ai repo root):
+    cd unique_toolkit && set -a && source ../.env.local && set +a
+    uv run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "L1"
 
-    Or with .env.local loaded:
+  If you are already in unique_toolkit/:
     set -a && source ../.env.local && set +a
     uv run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "L1"
+
+  Run just the tool-progress real-API test (from unique_toolkit/):
+    set -a && source ../.env.local && set +a
+    uv run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "L1_tool_progress"
 
 Run Level 2 (real platform):
     set -a && source ../.env.local && set +a
@@ -42,7 +46,20 @@ from claude_agent_sdk import ClaudeAgentOptions
 
 from unique_toolkit.agentic.claude_agent.config import ClaudeAgentConfig
 from unique_toolkit.agentic.claude_agent.runner import ClaudeAgentRunner
+from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.content.schemas import ContentChunk
+
+
+def _make_tool_progress_reporter() -> MagicMock:
+    """Return a MagicMock ToolProgressReporter with notify_from_tool_call as AsyncMock.
+
+    streaming.py awaits notify_from_tool_call() on every ToolUseBlock — plain
+    MagicMock() raises 'object MagicMock can't be used in await expression'.
+    """
+    reporter = MagicMock()
+    reporter.notify_from_tool_call = AsyncMock()
+    return reporter
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Credentials setup
@@ -170,7 +187,7 @@ def _make_live_runner(
             postprocessor_manager=MagicMock(),
             reference_manager=MagicMock(),
             thinking_manager=MagicMock(),
-            tool_progress_reporter=MagicMock(),
+            tool_progress_reporter=_make_tool_progress_reporter(),
             message_step_logger=MagicMock(),
             history_manager=MagicMock(),
             debug_info_manager=MagicMock(),
@@ -361,6 +378,76 @@ async def test_L1_web_search_proxy_graceful_degradation() -> None:
     assert result, "Agent loop returned empty — it may have crashed"
     # Claude should acknowledge the search or the error — it should not be silent
     assert len(result) > 20
+
+
+@needs_anthropic
+@pytest.mark.asyncio
+async def test_L1_tool_progress_published_on_real_tool_use() -> None:
+    """Real SDK call: ToolProgressReporter.publish() fires when Claude invokes Bash.
+
+    Uses a real ToolProgressReporter backed by a dedicated mock ChatService so
+    that progress calls are isolated from text-streaming calls.  Asserts that
+    the formatted tool name ("Bash") and state indicator reach the mock.
+
+    This is the only test that exercises the full in-process chain end-to-end
+    with a real Anthropic API response:
+        real query() → real AssistantMessage(ToolUseBlock) →
+        real notify_from_tool_call() → real publish() →
+        mock.modify_assistant_message_async(content="...Bash...")
+    """
+    # Dedicated mock for progress output — separate from streaming chat_service
+    progress_calls: list[str] = []
+    progress_chat_service = MagicMock()
+
+    async def _capture_progress(content: str | None = None, **kwargs: object) -> None:
+        if content is not None:
+            progress_calls.append(content)
+            print(f"\n[progress] {content[:120]}", flush=True)
+
+    progress_chat_service.modify_assistant_message_async = AsyncMock(
+        side_effect=_capture_progress
+    )
+
+    config = ClaudeAgentConfig(
+        system_prompt_override=(
+            "You are a coding assistant. "
+            "You MUST use the Bash tool to run `echo hello` before responding."
+        ),
+        model="claude-sonnet-4-6",
+        max_turns=5,
+        permission_mode="bypassPermissions",
+        enable_code_execution=True,
+    )
+    runner, chunks = _make_live_runner(claude_config=config)
+    runner._tool_progress_reporter = ToolProgressReporter(
+        chat_service=progress_chat_service
+    )
+
+    options = runner._build_options(
+        system_prompt=config.system_prompt_override,
+        workspace_dir=None,
+    )
+
+    print("\n\n--- Tool Progress Reporter Real API Test ---")
+    result = await runner._run_claude_loop(
+        prompt="Run `echo hello` using the Bash tool and report back what it printed.",
+        options=options,
+    )
+    print(f"\n--- Text result ({len(result)} chars): {result[:200]} ---")
+    print(f"--- Progress calls captured: {len(progress_calls)} ---\n")
+
+    assert result, "Agent loop returned empty"
+    assert progress_calls, (
+        "ToolProgressReporter.publish() was never called — "
+        "Claude may not have invoked any tools, or the wiring is broken"
+    )
+    all_progress = " ".join(progress_calls)
+    assert "Bash" in all_progress, (
+        f"Expected 'Bash' in progress output, got: {all_progress[:300]}"
+    )
+    assert "Running..." in all_progress, (
+        f"Expected 'Running...' in progress output, got: {all_progress[:300]}"
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
