@@ -37,7 +37,7 @@ The following elements are directly influenced by it.
 
 The `ChatService` from the `unique_toolkit` is used to communicate to these elments. Please see [Event Driven Applications](../../../application_types/event_driven/index.md) on how to initialize services and setup a development setup. The service itself can be imported as
 
-```{python #unique_chat_service_import}
+```{.python #unique_chat_service_import}
 from unique_toolkit import ChatService
 ```
 
@@ -71,7 +71,7 @@ sequenceDiagram
 
 For each input of the user the application obtains a `ChatEvent`, this objects contains the `id's` of the user message in the database as well as the following assistant message entry. We can use these entries to return the final as well as intermediate results to the user using 
 
-```{python #chat_service_intermediate_assistant_result}
+```{.python #chat_service_intermediate_assistant_result}
 chat_service.modify_assistant_message(
         content="Intermediate assistant message",
     )
@@ -81,8 +81,7 @@ The functionality automatically uses the last assistant message within the chat.
 
 The message can be updated as many times as desired to display intermediate results but it is important to ensure that the user has time to read it between the updates. Especially, when using the `async` version `modify_assistant_message_async` a short async sleep after modification can be helpful.
 
-
-```{python #chat_service_final_assistant_result}
+```{.python #chat_service_final_assistant_result}
 chat_service.modify_assistant_message(
         content="Final assistant message",
     )
@@ -139,7 +138,7 @@ Thus, the user input is blocked during the process leading to this answer as see
 
 It can be unblocked using 
 
-```{python #chat_service_free_user_input}
+```{.python #chat_service_free_user_input}
 chat_service.free_user_input()
 ```
 
@@ -169,7 +168,7 @@ For applications using additional information retrieved from the knowledge base 
 
 ### Manual References
 
-```{python #chat_service_assistant_message_with_reference}
+```{.python #chat_service_assistant_message_with_reference}
 chat_service.modify_assistant_message(
         content="Hello from Unique <sup>0</sup>",
         references=[ContentReference(source="source0",
@@ -198,7 +197,7 @@ In the `content` string the refercnes must be referred to by `<sup>sequence_numb
 
 Lets assume that the vector search has retrieved the following chunks
 
-```{python #chat_service_retrieved_chunks}
+```{.python #chat_service_retrieved_chunks}
 chunks = [ContentChunk(text="Unique is a company that provides the platform for AI-powered solutions.",
                                      order=0,
                                      chunk_id="chunk_id_0",
@@ -222,7 +221,7 @@ chunks = [ContentChunk(text="Unique is a company that provides the platform for 
 
 If we want the LLM be able to reference them in its answer we need to present the information nicely, e.g. in a markdown table
 
-```{python #chat_service_chunk_presentation}
+```{.python #chat_service_chunk_presentation}
 def to_source_table(chunks: list[ContentChunk]) -> str:
     header = "| Source Tag | Title |  URL | Text \n" + "| --- | --- | --- | --- |\n"
     rows = [f"| [source{index}] | {chunk.title} | {chunk.url} | {chunk.text} \n" for index,chunk in enumerate(chunks)]
@@ -231,8 +230,7 @@ def to_source_table(chunks: list[ContentChunk]) -> str:
 
 The index of the list here is important as the backend requires to match the output of the LLM to the content chunk, for this we use the following reference guidelines as part of the system prompt.
 
-
-```{python #chat_service_reference_guidelines}
+```{.python #chat_service_reference_guidelines}
 reference_guidelines = """
 Whenever you use information retrieved with a tool, you must adhere to strict reference guidelines. 
 You must strictly reference each fact used with the `source_number` of the corresponding passage, in 
@@ -247,7 +245,7 @@ Example:
 
 The message to the LLM could now look like this
 
-```{python #chat_service_streaming_call_with_sources}
+```{.python #chat_service_streaming_call_with_sources}
 messages = (
         OpenAIMessageBuilder()
         .system_message_append(content=f"You are a helpful assistant. {reference_guidelines}")
@@ -289,7 +287,7 @@ Debuging information can be added to both the user and assistant messages but on
 
 Therefore we recommend to use 
 
-```{python #chat_service_modify_user_message_debug_info}
+```{.python #chat_service_modify_user_message_debug_info}
 
 debug_info = event.get_initial_debug_info()
 debug_info.update({"timing": "20s till completion"})
@@ -330,11 +328,12 @@ The debug information will be updated after a refresh of the page and look as fo
 Once an assistant has answered its time to access the quality of its answer. This happense usually through an LLM call to a more sophisticated or a task specialized LLM. The result of the assessment can be reported  using the message assessments by the Unique plattform.
 
 <!--
-```{python #message_assessment_imports}
+```{.python #message_assessment_imports}
 from unique_toolkit.chat.schemas import ChatMessageAssessmentStatus, ChatMessageAssessmentType, ChatMessageAssessmentLabel
 ```
 -->
-```{python #chat_service_create_message_assessment}
+
+```{.python #chat_service_create_message_assessment}
 if not event.payload.assistant_message.id:
     raise ValueError("Assistant message ID is not set")
 
@@ -353,7 +352,7 @@ During the assessment a pending indication can be shown as below.
 
 Once the assessment is finished it can be reported using
 
-```{python #chat_service_modify_message_assessment}
+```{.python #chat_service_modify_message_assessment}
 chat_service.modify_message_assessment(
     assistant_message_id=event.payload.assistant_message.id,
     status=ChatMessageAssessmentStatus.DONE,

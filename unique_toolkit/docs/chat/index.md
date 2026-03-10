@@ -27,7 +27,7 @@ The following elements are directly influenced by it.
 
 The `ChatService` from the `unique_toolkit` is used to communicate to these elments. Please see [Event Driven Applications](../application_types/event_driven/index.md) on how to initialize services and setup a development setup. The service itself can be imported as
 
-```{python #unique_chat_service_import}
+```{.python #unique_chat_service_import}
 from unique_toolkit import ChatService
 ```
 
@@ -61,7 +61,8 @@ sequenceDiagram
 
 For each input of the user the application obtains a `ChatEvent`, this objects contains the `id's` of the user message in the database as well as the following assistant message entry. We can use these entries to return the final as well as intermediate results to the user using 
 
-```{python #chat_service_intermediate_assistant_result2}
+```{.python #chat_service_intermediate_assistant_result2}
+
 chat_service.modify_assistant_message(
         content="Intermediate assistant message",
     )
@@ -71,8 +72,8 @@ The functionality automatically uses the last assistant message within the chat.
 
 The message can be updated as many times as desired to display intermediate results but it is important to ensure that the user has time to read it between the updates. Especially, when using the `async` version `modify_assistant_message_async` a short async sleep after modification can be helpful.
 
+```{.python #chat_service_final_assistant_result2}
 
-```{python #chat_service_final_assistant_result2}
 chat_service.modify_assistant_message(
         content="Final assistant message",
     )

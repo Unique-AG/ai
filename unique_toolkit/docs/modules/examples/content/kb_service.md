@@ -6,7 +6,7 @@ This page provides practical code examples for implementing knowledge base opera
 
 ### Upload from Memory (Recommended)
 
-```{python #kb_service_upload_bytes}
+```{.python #kb_service_upload_bytes}
 content_bytes = b"Your file content here"
 content = kb_service.upload_content_from_bytes(
     content=content_bytes,

@@ -1,5 +1,5 @@
 <!--
-```{python #common_imports}
+```{.python #common_imports}
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.app.init_sdk import init_unique_sdk
 from unique_toolkit.app.dev_util import get_event_generator
