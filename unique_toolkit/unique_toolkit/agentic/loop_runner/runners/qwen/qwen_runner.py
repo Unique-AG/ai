@@ -2,13 +2,12 @@ import logging
 from typing import Unpack
 
 from unique_toolkit.agentic.loop_runner._iteration_handler_utils import (
-    handle_last_iteration,
-    handle_normal_iteration,
     run_forced_tools_iteration,
 )
-from unique_toolkit.agentic.loop_runner.base import (
-    LoopIterationRunner,
-    _LoopIterationRunnerKwargs,
+from unique_toolkit.agentic.loop_runner.base import _LoopIterationRunnerKwargs
+from unique_toolkit.agentic.loop_runner.runners.basic import (
+    BasicLoopIterationRunner,
+    BasicLoopIterationRunnerConfig,
 )
 from unique_toolkit.agentic.loop_runner.runners.qwen.helpers import (
     append_qwen_forced_tool_call_instruction,
@@ -30,45 +29,30 @@ QWEN_LAST_ITERATION_INSTRUCTION = """The maximum number of loop iteration have b
 Based on the found information, an answer should be generated"""
 
 
-class QwenLoopIterationRunner(LoopIterationRunner):
+class QwenLoopIterationRunner(BasicLoopIterationRunner):
     def __init__(
         self,
         *,
-        qwen_forced_tool_call_instruction: str,
-        qwen_last_iteration_instruction: str,
-        max_loop_iterations: int,
+        config: BasicLoopIterationRunnerConfig,
+        forced_tool_call_instruction: str,
+        last_iteration_instruction: str,
         chat_service: ChatService,
     ) -> None:
-        self._qwen_forced_tool_call_instruction = qwen_forced_tool_call_instruction
-        self._qwen_last_iteration_instruction = qwen_last_iteration_instruction
-        self._max_loop_iterations = max_loop_iterations
+        super().__init__(config)
+        self._forced_tool_call_instruction = forced_tool_call_instruction
+        self._last_iteration_instruction = last_iteration_instruction
         self._chat_service = chat_service
 
-    async def __call__(
+    async def _handle_forced_tools(
         self, **kwargs: Unpack[_LoopIterationRunnerKwargs]
     ) -> LanguageModelStreamResponse:
-        tool_choices = kwargs.get("tool_choices") or []
-        iteration_index = kwargs["iteration_index"]
-
-        if len(tool_choices) > 0 and iteration_index == 0:
-            return await self._qwen_handle_forced_tools_iteration(**kwargs)
-        elif iteration_index == self._max_loop_iterations - 1:
-            return await self._qwen_handle_last_iteration(**kwargs)
-        else:
-            return await self._qwen_handle_normal_iteration(**kwargs)
-
-    async def _qwen_handle_forced_tools_iteration(
-        self, **kwargs: Unpack[_LoopIterationRunnerKwargs]
-    ) -> LanguageModelStreamResponse:
-        # For Qwen models, append tool call instruction to the last user message. These models ignore the parameter tool_choice.
-        # As the message has to be modified for each tool call instruction, the function from the basic runner cant be used.
         original_messages = kwargs["messages"].model_copy(deep=True)
 
         def _prepare(
             func_name: str | None,
             per_choice_kwargs: _LoopIterationRunnerKwargs,
         ) -> _LoopIterationRunnerKwargs:
-            prompt_instruction = self._qwen_forced_tool_call_instruction.format(
+            prompt_instruction = self._forced_tool_call_instruction.format(
                 TOOL_NAME=func_name or ""
             )
             per_choice_kwargs["messages"] = append_qwen_forced_tool_call_instruction(
@@ -83,34 +67,28 @@ class QwenLoopIterationRunner(LoopIterationRunner):
         )
         return self._process_response(response)
 
-    async def _qwen_handle_last_iteration(
+    async def _handle_last_iteration(
         self, **kwargs: Unpack[_LoopIterationRunnerKwargs]
     ) -> LanguageModelStreamResponse:
-        # For Qwen models, append an assistant message with instructions to not call any tool in this iteration.
         _LOGGER.info(
             "Reached last iteration, removing tools. Appending assistant message with instructions to not call any tool in this iteration."
         )
         kwargs["messages"] = append_qwen_last_iteration_assistant_message(
             messages=kwargs["messages"],
-            last_iteration_instruction=self._qwen_last_iteration_instruction,
+            last_iteration_instruction=self._last_iteration_instruction,
         )
-
-        response = await handle_last_iteration(
-            **kwargs,
-        )
-
+        response = await super()._handle_last_iteration(**kwargs)
         return self._process_response(response)
 
-    async def _qwen_handle_normal_iteration(
+    async def _handle_normal_iteration(
         self, **kwargs: Unpack[_LoopIterationRunnerKwargs]
     ) -> LanguageModelStreamResponse:
-        response = await handle_normal_iteration(**kwargs)
+        response = await super()._handle_normal_iteration(**kwargs)
         return self._process_response(response)
 
     def _process_response(
         self, response: LanguageModelStreamResponse
     ) -> LanguageModelStreamResponse:
-        # Check if content of response is </tool_call>
         if "</tool_call>" == response.message.text.strip():
             _LOGGER.warning(
                 "Response contains only <tool_call>. This is not allowed. Returning empty response."

@@ -10,11 +10,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from openai.types.chat import ChatCompletionNamedToolChoiceParam
 
+from unique_toolkit.agentic.loop_runner.runners.basic import (
+    BasicLoopIterationRunnerConfig,
+)
 from unique_toolkit.agentic.loop_runner.runners.qwen import (
     QWEN_FORCED_TOOL_CALL_INSTRUCTION,
     QWEN_LAST_ITERATION_INSTRUCTION,
     QwenLoopIterationRunner,
-    is_qwen_model,
 )
 from unique_toolkit.agentic.loop_runner.runners.qwen.helpers import (
     append_qwen_forced_tool_call_instruction,
@@ -88,9 +90,9 @@ def mock_qwen_model() -> LanguageModelInfo:
 def qwen_runner(mock_chat_service: MagicMock) -> QwenLoopIterationRunner:
     """Provide a QwenLoopIterationRunner instance for testing."""
     return QwenLoopIterationRunner(
-        qwen_forced_tool_call_instruction=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
-        qwen_last_iteration_instruction=QWEN_LAST_ITERATION_INSTRUCTION,
-        max_loop_iterations=5,
+        config=BasicLoopIterationRunnerConfig(max_loop_iterations=5),
+        forced_tool_call_instruction=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
+        last_iteration_instruction=QWEN_LAST_ITERATION_INSTRUCTION,
         chat_service=mock_chat_service,
     )
 
@@ -104,61 +106,6 @@ def base_messages() -> LanguageModelMessages:
             LanguageModelUserMessage(content="Hello, search for something"),
         ]
     )
-
-
-# Tests for is_qwen_model helper
-class TestIsQwenModel:
-    @pytest.mark.ai
-    def test_is_qwen_model__returns_true__for_qwen_language_model_info(self) -> None:
-        """
-        Purpose: Verify is_qwen_model returns True for Qwen LanguageModelInfo.
-        Why this matters: Correct model detection is required for Qwen-specific handling.
-        """
-        # Arrange
-        model = LanguageModelInfo.from_name(LanguageModelName.LITELLM_QWEN_3)
-
-        # Act
-        result = is_qwen_model(model=model)
-
-        # Assert
-        assert result is True
-
-    @pytest.mark.ai
-    def test_is_qwen_model__returns_true__for_qwen_string(self) -> None:
-        """
-        Purpose: Verify is_qwen_model returns True for Qwen string.
-        Why this matters: String model names should also be detected.
-        """
-        # Act & Assert
-        assert is_qwen_model(model="qwen-3") is True
-        assert is_qwen_model(model="Qwen-2.5") is True
-        assert is_qwen_model(model="QWEN") is True
-        assert is_qwen_model(model="litellm/qwen3") is True
-
-    @pytest.mark.ai
-    def test_is_qwen_model__returns_false__for_non_qwen_model(self) -> None:
-        """
-        Purpose: Verify is_qwen_model returns False for non-Qwen models.
-        Why this matters: Non-Qwen models should not get Qwen-specific handling.
-        """
-        # Arrange
-        gpt_model = LanguageModelInfo.from_name(
-            LanguageModelName.AZURE_GPT_4o_2024_0513
-        )
-
-        # Act & Assert
-        assert is_qwen_model(model=gpt_model) is False
-        assert is_qwen_model(model="gpt-4") is False
-        assert is_qwen_model(model="claude-3") is False
-
-    @pytest.mark.ai
-    def test_is_qwen_model__returns_false__for_none(self) -> None:
-        """
-        Purpose: Verify is_qwen_model returns False for None.
-        Why this matters: None should be handled gracefully.
-        """
-        # Act & Assert
-        assert is_qwen_model(model=None) is False
 
 
 # Tests for append_qwen_forced_tool_call_instruction helper
@@ -334,19 +281,16 @@ class TestQwenLoopIterationRunnerInit:
         """
         # Act
         runner = QwenLoopIterationRunner(
-            qwen_forced_tool_call_instruction="Custom instruction {TOOL_NAME}",
-            qwen_last_iteration_instruction="Custom last instruction",
-            max_loop_iterations=10,
+            config=BasicLoopIterationRunnerConfig(max_loop_iterations=10),
+            forced_tool_call_instruction="Custom instruction {TOOL_NAME}",
+            last_iteration_instruction="Custom last instruction",
             chat_service=mock_chat_service,
         )
 
         # Assert
-        assert (
-            runner._qwen_forced_tool_call_instruction
-            == "Custom instruction {TOOL_NAME}"
-        )
-        assert runner._qwen_last_iteration_instruction == "Custom last instruction"
-        assert runner._max_loop_iterations == 10
+        assert runner._forced_tool_call_instruction == "Custom instruction {TOOL_NAME}"
+        assert runner._last_iteration_instruction == "Custom last instruction"
+        assert runner._config.max_loop_iterations == 10
         assert runner._chat_service == mock_chat_service
 
     @pytest.mark.ai
@@ -359,18 +303,15 @@ class TestQwenLoopIterationRunnerInit:
         """
         # Act
         runner = QwenLoopIterationRunner(
-            qwen_forced_tool_call_instruction=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
-            qwen_last_iteration_instruction=QWEN_LAST_ITERATION_INSTRUCTION,
-            max_loop_iterations=5,
+            config=BasicLoopIterationRunnerConfig(max_loop_iterations=5),
+            forced_tool_call_instruction=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
+            last_iteration_instruction=QWEN_LAST_ITERATION_INSTRUCTION,
             chat_service=mock_chat_service,
         )
 
         # Assert
-        assert "MUST call the tool" in runner._qwen_forced_tool_call_instruction
-        assert (
-            "maximum number of loop iteration"
-            in runner._qwen_last_iteration_instruction
-        )
+        assert "MUST call the tool" in runner._forced_tool_call_instruction
+        assert "maximum number of loop iteration" in runner._last_iteration_instruction
 
 
 # Tests for QwenLoopIterationRunner routing
@@ -412,7 +353,7 @@ class TestQwenLoopIterationRunnerRouting:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.qwen.qwen_runner.handle_last_iteration",
+        "unique_toolkit.agentic.loop_runner.runners.basic.handle_last_iteration",
         new_callable=AsyncMock,
     )
     async def test_call__routes_to_last_iteration__when_at_max_iterations(
@@ -443,7 +384,7 @@ class TestQwenLoopIterationRunnerRouting:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.qwen.qwen_runner.handle_normal_iteration",
+        "unique_toolkit.agentic.loop_runner.runners.basic.handle_normal_iteration",
         new_callable=AsyncMock,
     )
     async def test_call__routes_to_normal__for_middle_iterations(
@@ -474,7 +415,7 @@ class TestQwenLoopIterationRunnerRouting:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.qwen.qwen_runner.handle_normal_iteration",
+        "unique_toolkit.agentic.loop_runner.runners.basic.handle_normal_iteration",
         new_callable=AsyncMock,
     )
     async def test_call__routes_to_normal__when_tool_choices_not_first_iteration(
@@ -509,7 +450,7 @@ class TestQwenLoopIterationRunnerRouting:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.qwen.qwen_runner.handle_normal_iteration",
+        "unique_toolkit.agentic.loop_runner.runners.basic.handle_normal_iteration",
         new_callable=AsyncMock,
     )
     async def test_call__routes_to_normal__when_empty_tool_choices(
@@ -641,7 +582,7 @@ class TestQwenForcedToolsIteration:
 class TestQwenLastIteration:
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.qwen.qwen_runner.handle_last_iteration",
+        "unique_toolkit.agentic.loop_runner.runners.basic.handle_last_iteration",
         new_callable=AsyncMock,
     )
     async def test_last_iteration__appends_assistant_message(
@@ -682,7 +623,7 @@ class TestQwenLastIteration:
 class TestQwenProcessResponse:
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.qwen.qwen_runner.handle_normal_iteration",
+        "unique_toolkit.agentic.loop_runner.runners.basic.handle_normal_iteration",
         new_callable=AsyncMock,
     )
     async def test_process_response__clears_tool_call_only_response(
@@ -715,7 +656,7 @@ class TestQwenProcessResponse:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.qwen.qwen_runner.handle_normal_iteration",
+        "unique_toolkit.agentic.loop_runner.runners.basic.handle_normal_iteration",
         new_callable=AsyncMock,
     )
     async def test_process_response__clears_response__with_whitespace(
@@ -748,7 +689,7 @@ class TestQwenProcessResponse:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.qwen.qwen_runner.handle_normal_iteration",
+        "unique_toolkit.agentic.loop_runner.runners.basic.handle_normal_iteration",
         new_callable=AsyncMock,
     )
     async def test_process_response__preserves_normal_response(
@@ -781,7 +722,7 @@ class TestQwenProcessResponse:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.qwen.qwen_runner.handle_normal_iteration",
+        "unique_toolkit.agentic.loop_runner.runners.basic.handle_normal_iteration",
         new_callable=AsyncMock,
     )
     async def test_process_response__preserves_response_with_tool_call_in_content(
@@ -836,9 +777,9 @@ class TestQwenLoopIterationRunnerEdgeCases:
         """
         # Arrange
         runner = QwenLoopIterationRunner(
-            qwen_forced_tool_call_instruction=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
-            qwen_last_iteration_instruction=QWEN_LAST_ITERATION_INSTRUCTION,
-            max_loop_iterations=1,
+            config=BasicLoopIterationRunnerConfig(max_loop_iterations=1),
+            forced_tool_call_instruction=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
+            last_iteration_instruction=QWEN_LAST_ITERATION_INSTRUCTION,
             chat_service=mock_chat_service,
         )
         tool_call = LanguageModelFunction(id="call_1", name="SearchTool", arguments={})
@@ -882,7 +823,7 @@ class TestQwenLoopIterationRunnerEdgeCases:
 
         # Act
         with patch(
-            "unique_toolkit.agentic.loop_runner.runners.qwen.qwen_runner.handle_normal_iteration",
+            "unique_toolkit.agentic.loop_runner.runners.basic.handle_normal_iteration",
             new_callable=AsyncMock,
         ) as mock_normal:
             mock_normal.return_value = create_stream_response()

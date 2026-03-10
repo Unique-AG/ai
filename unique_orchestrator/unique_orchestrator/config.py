@@ -395,3 +395,11 @@ class UniqueAIConfig(BaseToolConfig):
             self.agent.experimental.responses_api_config.use_responses_api = True
 
         return self
+
+    @property
+    def effective_max_loop_iterations(self) -> int:
+        """Effective max loop iterations, accounting for model-specific overrides."""
+        model_name = str(self.space.language_model).lower()
+        if "qwen" in model_name:
+            return self.agent.experimental.loop_configuration.model_specific.qwen.max_loop_iterations
+        return self.agent.max_loop_iterations

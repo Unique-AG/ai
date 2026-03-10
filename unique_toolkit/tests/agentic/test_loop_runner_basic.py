@@ -802,7 +802,7 @@ class TestBasicLoopIterationRunnerEdgeCases:
 class TestBasicLoopIterationRunnerRouting:
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.basic.handle_forced_tools_iteration",
+        "unique_toolkit.agentic.loop_runner.runners.basic.run_forced_tools_iteration",
         new_callable=AsyncMock,
     )
     @patch(
@@ -853,7 +853,7 @@ class TestBasicLoopIterationRunnerRouting:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.basic.handle_forced_tools_iteration",
+        "unique_toolkit.agentic.loop_runner.runners.basic.run_forced_tools_iteration",
         new_callable=AsyncMock,
     )
     @patch(
@@ -900,7 +900,7 @@ class TestBasicLoopIterationRunnerRouting:
 
     @pytest.mark.ai
     @patch(
-        "unique_toolkit.agentic.loop_runner.runners.basic.handle_forced_tools_iteration",
+        "unique_toolkit.agentic.loop_runner.runners.basic.run_forced_tools_iteration",
         new_callable=AsyncMock,
     )
     @patch(

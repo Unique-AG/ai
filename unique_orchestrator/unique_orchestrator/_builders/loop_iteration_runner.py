@@ -8,15 +8,25 @@ from unique_toolkit.agentic.loop_runner import (
     BasicLoopIterationRunner,
     BasicLoopIterationRunnerConfig,
     LoopIterationRunner,
+    MistralLoopIterationRunner,
     PlanningMiddleware,
     QwenLoopIterationRunner,
     ResponsesBasicLoopIterationRunner,
     ResponsesLoopIterationRunner,
-    is_qwen_model,
 )
 from unique_toolkit.chat.service import ChatService
 
 from unique_orchestrator.config import UniqueAIConfig
+
+_MODEL_FAMILIES = ("qwen", "mistral")
+
+
+def _get_model_family(model_name: str) -> str | None:
+    name = model_name.lower()
+    for family in _MODEL_FAMILIES:
+        if family in name:
+            return family
+    return None
 
 
 @overload
@@ -53,19 +63,25 @@ def build_loop_iteration_runner(
             )
         )
 
-    runner = BasicLoopIterationRunner(
-        config=BasicLoopIterationRunnerConfig(
-            max_loop_iterations=config.agent.max_loop_iterations
-        )
+    base_config = BasicLoopIterationRunnerConfig(
+        max_loop_iterations=config.agent.max_loop_iterations
     )
+    family = _get_model_family(str(config.space.language_model))
 
-    if is_qwen_model(model=config.space.language_model):
-        runner = QwenLoopIterationRunner(
-            qwen_forced_tool_call_instruction=config.agent.experimental.loop_configuration.model_specific.qwen.forced_tool_call_instruction,
-            qwen_last_iteration_instruction=config.agent.experimental.loop_configuration.model_specific.qwen.last_iteration_instruction,
-            max_loop_iterations=config.agent.experimental.loop_configuration.model_specific.qwen.max_loop_iterations,
+    if family == "qwen":
+        qwen_cfg = config.agent.experimental.loop_configuration.model_specific.qwen
+        runner: LoopIterationRunner = QwenLoopIterationRunner(
+            config=BasicLoopIterationRunnerConfig(
+                max_loop_iterations=qwen_cfg.max_loop_iterations
+            ),
+            forced_tool_call_instruction=qwen_cfg.forced_tool_call_instruction,
+            last_iteration_instruction=qwen_cfg.last_iteration_instruction,
             chat_service=chat_service,
         )
+    elif family == "mistral":
+        runner = MistralLoopIterationRunner(config=base_config)
+    else:
+        runner = BasicLoopIterationRunner(config=base_config)
 
     if config.agent.experimental.loop_configuration.planning_config is not None:
         runner = PlanningMiddleware(
