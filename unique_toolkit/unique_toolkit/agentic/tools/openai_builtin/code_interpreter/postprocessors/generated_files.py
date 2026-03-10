@@ -295,24 +295,49 @@ def _build_code_blocks(
     loop_response: ResponsesLanguageModelStreamResponse,
     content_map: dict[str, str | None],
 ) -> list[CodeInterpreterBlock]:
-    """Map each code interpreter call to the files it produced via /mnt/data/ path matching."""
-    result = []
-    for call in loop_response.code_interpreter_calls:
+    """Map each code interpreter call to the files it produced via /mnt/data/ path matching.
+
+    For each file, the LAST code block that references its path is treated as the
+    producer — this handles the case where a file is overwritten across blocks, where
+    the final content belongs to the last writer.
+    """
+    calls = loop_response.code_interpreter_calls
+
+    # Step 1: for each file, find the index of the last block that references it.
+    file_to_block_idx: dict[str, int] = {}
+    for idx, call in enumerate(calls):
         if not call.code:
             continue
-        files = [
+        for annotation in loop_response.container_files:
+            if (
+                content_map.get(annotation.filename) is not None
+                and f"/mnt/data/{annotation.filename}" in call.code
+            ):
+                file_to_block_idx[annotation.filename] = idx
+
+    # Step 2: group files by their owning block index.
+    block_files: dict[int, list[CodeInterpreterFile]] = {}
+    for annotation in loop_response.container_files:
+        content_id = content_map.get(annotation.filename)
+        if content_id is None:
+            continue
+        idx = file_to_block_idx.get(annotation.filename)
+        if idx is None:
+            continue
+        block_files.setdefault(idx, []).append(
             CodeInterpreterFile(
                 filename=annotation.filename,
                 content_id=content_id,
                 type=_get_file_type(annotation.filename),
             )
-            for annotation in loop_response.container_files
-            if (content_id := content_map.get(annotation.filename)) is not None
-            and re.search(rf"/mnt/data/{re.escape(annotation.filename)}", call.code)
-        ]
-        if files:
-            result.append(CodeInterpreterBlock(code=call.code, files=files))
-    return result
+        )
+
+    # Step 3: build result preserving block execution order.
+    return [
+        CodeInterpreterBlock(code=calls[idx].code, files=files)
+        for idx, files in sorted(block_files.items())
+        if calls[idx].code
+    ]
 
 
 def _get_next_ref_number(references: list[ContentReference]) -> int:

@@ -363,3 +363,25 @@ def test_build_code_blocks__skips_file__when_content_id_is_none() -> None:
     result = _build_code_blocks(response, content_map)
 
     assert result == []
+
+
+@pytest.mark.ai
+def test_build_code_blocks__assigns_file_to_last_block__when_two_blocks_reference_same_file() -> (
+    None
+):
+    """
+    Purpose: Verify duplicate-file-across-blocks edge case — last block wins.
+    Why this matters: Last block is the final producer; its output is what the user receives.
+    Setup summary: Two blocks both reference shared.csv; only block 2 (last writer) should own it.
+    """
+    call1 = _make_ci_call('df.to_csv("/mnt/data/shared.csv")')
+    call2 = _make_ci_call('df.to_csv("/mnt/data/shared.csv")  # final export')
+    annotation = _make_annotation("shared.csv", file_id="cfile_1")
+    content_map = {"shared.csv": "cont_shared1"}
+    response = _make_response([call1, call2], [annotation])
+
+    result = _build_code_blocks(response, content_map)
+
+    assert len(result) == 1
+    assert result[0].code == call2.code
+    assert result[0].files[0].filename == "shared.csv"

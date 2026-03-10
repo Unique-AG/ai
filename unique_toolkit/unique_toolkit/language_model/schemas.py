@@ -229,9 +229,12 @@ class ResponsesLanguageModelStreamResponse(LanguageModelStreamResponse):
                 if content.type == "output_text":
                     for annotation in content.annotations:
                         if annotation.type == "container_file_citation":
-                            # Filter out ghost annotations produced when OutputImage is
-                            # included: these have start_index == end_index and are not
-                            # actual text citations (filename equals file_id).
+                            # Filter out ghost annotations produced as a side-effect of
+                            # OutputImage being present. These entries have
+                            # start_index == end_index (zero-width, no text span) and
+                            # filename == file_id. The index check alone is sufficient
+                            # because all legitimate citations reference an actual span
+                            # of text (start_index < end_index).
                             if annotation.start_index != annotation.end_index:
                                 container_files.append(annotation)
         return container_files
