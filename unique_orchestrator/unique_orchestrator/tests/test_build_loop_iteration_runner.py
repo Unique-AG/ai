@@ -21,27 +21,26 @@ from unique_toolkit.agentic.loop_runner import (
 )
 
 from unique_orchestrator._builders.loop_iteration_runner import (
-    _get_model_family,
     build_loop_iteration_runner,
 )
-from unique_orchestrator.config import UniqueAIConfig
+from unique_orchestrator.config import UniqueAIConfig, get_model_family
 
 
 class TestGetModelFamily:
     @pytest.mark.ai
-    def test_get_model_family__returns_qwen__for_qwen_model(self) -> None:
-        assert _get_model_family("litellm/qwen3") == "qwen"
-        assert _get_model_family("Qwen-2.5") == "qwen"
+    def testget_model_family__returns_qwen__for_qwen_model(self) -> None:
+        assert get_model_family("litellm/qwen3") == "qwen"
+        assert get_model_family("Qwen-2.5") == "qwen"
 
     @pytest.mark.ai
-    def test_get_model_family__returns_mistral__for_mistral_model(self) -> None:
-        assert _get_model_family("mistral-large-latest") == "mistral"
-        assert _get_model_family("Mistral-7B") == "mistral"
+    def testget_model_family__returns_mistral__for_mistral_model(self) -> None:
+        assert get_model_family("mistral-large-latest") == "mistral"
+        assert get_model_family("Mistral-7B") == "mistral"
 
     @pytest.mark.ai
-    def test_get_model_family__returns_none__for_other_models(self) -> None:
-        assert _get_model_family("gpt-4o") is None
-        assert _get_model_family("claude-3") is None
+    def testget_model_family__returns_none__for_other_models(self) -> None:
+        assert get_model_family("gpt-4o") is None
+        assert get_model_family("claude-3") is None
 
 
 class TestBuildLoopIterationRunnerResponsesApi:
@@ -83,7 +82,7 @@ class TestBuildLoopIterationRunnerCompletionsApi:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: None,
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -102,7 +101,7 @@ class TestBuildLoopIterationRunnerCompletionsApi:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: None,
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -125,7 +124,7 @@ class TestBuildLoopIterationRunnerQwenModel:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: "qwen",
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -144,7 +143,7 @@ class TestBuildLoopIterationRunnerQwenModel:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: "qwen",
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -166,7 +165,7 @@ class TestBuildLoopIterationRunnerQwenModel:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: "qwen",
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -188,7 +187,7 @@ class TestBuildLoopIterationRunnerQwenModel:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: "qwen",
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -210,7 +209,7 @@ class TestBuildLoopIterationRunnerQwenModel:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: "qwen",
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -233,7 +232,7 @@ class TestBuildLoopIterationRunnerMistralModel:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: "mistral",
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -252,7 +251,7 @@ class TestBuildLoopIterationRunnerMistralModel:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: "mistral",
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -275,7 +274,7 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: None,
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -295,7 +294,7 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: None,
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -316,7 +315,7 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: "qwen",
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -337,7 +336,7 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: "mistral",
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -358,7 +357,7 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: None,
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -382,7 +381,7 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: None,
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -404,7 +403,7 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: None,
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -426,7 +425,7 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setattr(
-            "unique_orchestrator._builders.loop_iteration_runner._get_model_family",
+            "unique_orchestrator._builders.loop_iteration_runner.get_model_family",
             lambda model_name: None,
         )
         config: UniqueAIConfig = UniqueAIConfig()
@@ -442,7 +441,7 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
 
 
 class TestBuildLoopIterationRunnerModelFamilyIntegration:
-    """Integration tests using real model name strings — no monkeypatching of _get_model_family."""
+    """Integration tests using real model name strings — no monkeypatching of get_model_family."""
 
     @pytest.mark.ai
     def test_build_loop_iteration_runner__returns_basic_runner__for_gpt_model_string(

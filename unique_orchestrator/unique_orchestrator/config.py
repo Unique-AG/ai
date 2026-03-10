@@ -136,6 +136,16 @@ UniqueAISpaceConfig.model_rebuild()
 LIMIT_MAX_TOOL_CALLS_PER_ITERATION = 50
 LIMIT_MAX_LOOP_ITERATIONS = 10
 
+_MODEL_FAMILIES = ("qwen", "mistral")
+
+
+def get_model_family(model_name: str) -> str | None:
+    name = model_name.lower()
+    for family in _MODEL_FAMILIES:
+        if family in name:
+            return family
+    return None
+
 
 class QwenConfig(BaseToolConfig):
     """Qwen specific configuration."""
@@ -399,7 +409,7 @@ class UniqueAIConfig(BaseToolConfig):
     @property
     def effective_max_loop_iterations(self) -> int:
         """Effective max loop iterations, accounting for model-specific overrides."""
-        model_name = str(self.space.language_model).lower()
-        if "qwen" in model_name:
+        family = get_model_family(str(self.space.language_model))
+        if family == "qwen":
             return self.agent.experimental.loop_configuration.model_specific.qwen.max_loop_iterations
         return self.agent.max_loop_iterations

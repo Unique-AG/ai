@@ -16,17 +16,7 @@ from unique_toolkit.agentic.loop_runner import (
 )
 from unique_toolkit.chat.service import ChatService
 
-from unique_orchestrator.config import UniqueAIConfig
-
-_MODEL_FAMILIES = ("qwen", "mistral")
-
-
-def _get_model_family(model_name: str) -> str | None:
-    name = model_name.lower()
-    for family in _MODEL_FAMILIES:
-        if family in name:
-            return family
-    return None
+from unique_orchestrator.config import UniqueAIConfig, get_model_family
 
 
 @overload
@@ -66,7 +56,7 @@ def build_loop_iteration_runner(
     base_config = BasicLoopIterationRunnerConfig(
         max_loop_iterations=config.agent.max_loop_iterations
     )
-    family = _get_model_family(str(config.space.language_model))
+    family = get_model_family(str(config.space.language_model))
 
     if family == "qwen":
         qwen_cfg = config.agent.experimental.loop_configuration.model_specific.qwen
