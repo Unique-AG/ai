@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from logging import getLogger
 
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
 )
@@ -43,31 +44,28 @@ _TODO_SYSTEM_PROMPT = (
 )
 
 
+def _format_lines(state: TodoState) -> list[str]:
+    return [
+        f"  {_STATUS_ICONS.get(t.status, '[ ]')} {t.content} (id: {t.id})"
+        for t in state.todos
+    ]
+
+
 def format_todo_state(state: TodoState) -> str:
     """Format TODO state as human-readable text for tool responses."""
     if not state.todos:
         return "No tasks tracked."
 
-    lines = []
-    for t in state.todos:
-        icon = _STATUS_ICONS.get(t.status, "[ ]")
-        lines.append(f"  {icon} {t.content} (id: {t.id})")
-
     summary = _summarize(state.todos)
-    return f"Task list ({summary}):\n" + "\n".join(lines)
+    return f"Task list ({summary}):\n" + "\n".join(_format_lines(state))
 
 
 def format_todo_system_reminder(state: TodoState) -> str:
     """Format TODO state as a <system-reminder> for injection into messages."""
-    lines = []
-    for t in state.todos:
-        icon = _STATUS_ICONS.get(t.status, "[ ]")
-        lines.append(f"  {icon} {t.content} (id: {t.id})")
-
     return (
         "\n<system-reminder>\n"
         "Current task progress:\n"
-        + "\n".join(lines)
+        + "\n".join(_format_lines(state))
         + "\n\nUpdate the task list as you make progress. "
         "Mark items in_progress when starting, completed when done.\n"
         "</system-reminder>"
@@ -139,12 +137,12 @@ class TodoWriteTool(Tool[TodoConfig]):
             content=format_todo_state(current_state),
         )
 
-    def evaluation_check_list(self) -> list:
+    def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return []
 
     def get_evaluation_checks_based_on_tool_response(
         self, tool_response: ToolCallResponse
-    ) -> list:
+    ) -> list[EvaluationMetricName]:
         return []
 
 
@@ -181,10 +179,10 @@ class TodoReadTool(Tool[TodoConfig]):
             content=format_todo_state(state),
         )
 
-    def evaluation_check_list(self) -> list:
+    def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return []
 
     def get_evaluation_checks_based_on_tool_response(
         self, tool_response: ToolCallResponse
-    ) -> list:
+    ) -> list[EvaluationMetricName]:
         return []

@@ -296,8 +296,12 @@ class UniqueAI:
     async def _inject_todo_reminder(
         self, messages: LanguageModelMessages
     ) -> LanguageModelMessages:
-        """Load TODO state from ShortTermMemory and append as system-reminder to the last user message."""
-        state = await self._todo_memory_manager.load_async()  # type: ignore[union-attr]
+        """Load TODO state and append as system-reminder to the last user message.
+
+        Note: mutates the content of the last user message in-place.
+        """
+        assert self._todo_memory_manager is not None
+        state = await self._todo_memory_manager.load_async()
         if state is None or not state.todos:
             return messages
 
