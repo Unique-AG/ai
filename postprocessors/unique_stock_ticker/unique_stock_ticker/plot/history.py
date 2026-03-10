@@ -1,17 +1,17 @@
 from datetime import date, timedelta
 from logging import getLogger
 
-from unique_stock_ticker.clients.six import SixApiClient, raise_errors_from_api_response
-from unique_stock_ticker.clients.six.schema.common.listing import (
+from unique_six import SixApiClient, raise_errors_from_api_response
+from unique_six.schema.common.listing import (
     ListingIdentifierScheme,
 )
-from unique_stock_ticker.clients.six.schema.end_of_day_history import (
+from unique_six.schema.end_of_day_history import (
     EndOfDayHistoryResponsePayload,
 )
-from unique_stock_ticker.clients.six.schema.end_of_day_history.response import (
+from unique_six.schema.end_of_day_history.response import (
     EndOfDayHistoryItem,
 )
-from unique_stock_ticker.clients.six.schema.intraday_history.summary.response import (
+from unique_six.schema.intraday_history.summary.response import (
     IntradayHistorySummaryItem,
     IntradayHistorySummaryResponsePayload,
 )

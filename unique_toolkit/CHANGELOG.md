@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add uncited source stripping to remove unreferenced source data from tool messages, reducing token usage
 - Wire up tool-call-aware history construction in `LoopTokenReducer`
 
+## [1.52.0] - 2026-03-10
+- Refactor loop runner architecture: make `BasicLoopIterationRunner` an extensible base class with overridable hooks (`_handle_forced_tools`, `_handle_last_iteration`, `_handle_normal_iteration`)
+- Add `tool_choice_override` parameter to `run_forced_tools_iteration` for model-specific tool choice handling
+- Add `MistralLoopIterationRunner` (subclass of `BasicLoopIterationRunner`) that forces `tool_choice="any"` for Mistral models during forced tool iterations
+- Refactor `QwenLoopIterationRunner` to subclass `BasicLoopIterationRunner`; align constructor to accept `config: BasicLoopIterationRunnerConfig` instead of bare `max_loop_iterations`
+- Remove model-detection helpers `is_qwen_model` and `is_mistral_model` from the toolkit; runner selection is now the orchestrator's responsibility
+
+## [1.51.0] - 2026-03-10
+- Make `ToolBuildConfig` generic over the configuration type. Enables downstream consumers to parameterize the configuration type without invariant-override type errors.
+
 ## [1.50.4] - 2026-03-05
 - Add `INGESTION_UPLOAD_API_URL_INTERNAL` environment variable to override the ingestion upload URL. This can be used to upload content from within a private network like a Kubernetes cluster.
 

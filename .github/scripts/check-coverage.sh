@@ -104,7 +104,7 @@ show_version() {
 PACKAGE=""
 BASE_REF=""
 MIN_COVERAGE=60
-RUNNER="poetry run"  # Default for backward compatibility
+RUNNER=""  # Auto-detected below if not provided via --runner
 SKIP_TESTS=false
 NO_INSTALL_DEPS=false
 
@@ -242,6 +242,16 @@ if [ ! -d "$PACKAGE" ]; then
     exit 1
 fi
 
+# Auto-detect runner if not provided
+if [ -z "$RUNNER" ]; then
+    if [ -f "$PACKAGE/uv.lock" ] || grep -q '\[tool\.uv\]' "$PACKAGE/pyproject.toml" 2>/dev/null; then
+        RUNNER="uv run"
+    else
+        RUNNER="poetry run"
+    fi
+    print_info "Auto-detected runner: $RUNNER"
+fi
+
 # Validate min_coverage is a number
 if ! [[ "$MIN_COVERAGE" =~ ^[0-9]+$ ]] || [ "$MIN_COVERAGE" -lt 0 ] || [ "$MIN_COVERAGE" -gt 100 ]; then
     print_error "Minimum coverage must be a number between 0 and 100"
@@ -297,7 +307,11 @@ cd "$PACKAGE" || {
 if [ "$NO_INSTALL_DEPS" = false ]; then
     if ! $RUNNER diff-cover --version >/dev/null 2>&1; then
         print_info "Installing diff-cover..."
-        $RUNNER pip install diff-cover >/dev/null 2>&1 || {
+        if [[ "$RUNNER" == uv* ]]; then
+            uv pip install diff-cover >/dev/null 2>&1
+        else
+            $RUNNER pip install diff-cover >/dev/null 2>&1
+        fi || {
             print_error "Failed to install diff-cover"
             exit 1
         }

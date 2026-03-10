@@ -1,9 +1,8 @@
-from pydantic import BaseModel, Field, ConfigDict
-from pydantic.alias_generators import to_camel
 from enum import StrEnum
-
 from typing import Generic, TypeVar
 
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 camelized_model_config = ConfigDict(alias_generator=to_camel)
 

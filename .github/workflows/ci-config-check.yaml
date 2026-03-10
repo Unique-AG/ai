@@ -17,6 +17,7 @@ on:
           - internal_search
           - stock_ticker
           - follow_up_questions
+          - six
         default: ''
 
 jobs:
@@ -47,6 +48,8 @@ jobs:
               - 'postprocessors/unique_stock_ticker/**'
             follow_up_questions:
               - 'postprocessors/unique_follow_up_questions/**'
+            six:
+              - 'connectors/unique_six/**'
 
       - uses: ./.github/actions/select-packages
         id: set-matrix
@@ -59,7 +62,8 @@ jobs:
               {"id": "swot", "dir": "tool_packages/unique_swot", "python": "3.12"},
               {"id": "internal_search", "dir": "tool_packages/unique_internal_search", "python": "3.12"},
               {"id": "stock_ticker", "dir": "postprocessors/unique_stock_ticker", "python": "3.12"},
-              {"id": "follow_up_questions", "dir": "postprocessors/unique_follow_up_questions", "python": "3.12"}
+              {"id": "follow_up_questions", "dir": "postprocessors/unique_follow_up_questions", "python": "3.12"},
+              {"id": "six", "dir": "connectors/unique_six", "python": "3.12"}
             ]
           selected: ${{ inputs.package }}
           changes: ${{ toJson(steps.filter.outputs) }}
@@ -102,11 +106,13 @@ jobs:
 
       - name: Export base defaults
         working-directory: ${{ matrix.dir }}
+        env:
+          UV_NO_SOURCES: 1
         run: |
+          RUN_CMD="${{ steps.install_base.outputs.run_cmd }}"
           # Only run export if the config checker exists in the base commit.
-          # If this is the first PR introducing the tool, we skip the base export.
-          if ${{ steps.install_base.outputs.run_cmd }} python -c "import importlib.util; exit(0 if importlib.util.find_spec('unique_toolkit._common.config_checker') else 1)" 2>/dev/null; then
-            ${{ steps.install_base.outputs.run_cmd }} python -m unique_toolkit._common.config_checker export \
+          if $RUN_CMD python -c "import importlib.util; exit(0 if importlib.util.find_spec('unique_toolkit._common.config_checker') else 1)" 2>/dev/null; then
+            $RUN_CMD python -m unique_toolkit._common.config_checker export \
               --package . \
               --output "$GITHUB_WORKSPACE/config-artifacts-base/"
           else
@@ -122,6 +128,11 @@ jobs:
           path: ./config-artifacts-base/
           retention-days: 1
           if-no-files-found: warn
+
+      - name: Restore lock files before checkout
+        run: |
+          git restore "${{ matrix.dir }}/uv.lock" 2>/dev/null || true
+          git restore "${{ matrix.dir }}/poetry.lock" 2>/dev/null || true
 
       # 3. Checkout tip and validate
       - name: Checkout PR tip
@@ -143,8 +154,11 @@ jobs:
       - name: Validate compatibility
         id: validate
         working-directory: ${{ matrix.dir }}
+        env:
+          UV_NO_SOURCES: 1
         run: |
-          ${{ steps.install_tip.outputs.run_cmd }} python -m unique_toolkit._common.config_checker check \
+          RUN_CMD="${{ steps.install_tip.outputs.run_cmd }}"
+          $RUN_CMD python -m unique_toolkit._common.config_checker check \
             --artifacts "$GITHUB_WORKSPACE/config-artifacts-base/" \
             --package . \
             --report-defaults \
