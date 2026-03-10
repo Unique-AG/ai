@@ -1,20 +1,38 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
-pytest.importorskip(
-    "unique_toolkit.agentic.tools.todo",
-    reason="unique_toolkit.agentic.tools.todo not installed (needs toolkit >= 1.53.0)",
-)
-
-from unique_toolkit.agentic.tools.todo.schemas import TodoItem, TodoState  # noqa: E402
+from pydantic import BaseModel, Field
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelSystemMessage,
     LanguageModelUserMessage,
+)
+
+try:
+    from unique_toolkit.agentic.tools.todo.schemas import TodoItem, TodoState
+
+    HAS_TODO_MODULE = True
+except ImportError:
+    HAS_TODO_MODULE = False
+
+    TodoStatus = Literal["pending", "in_progress", "completed", "cancelled"]
+
+    class TodoItem(BaseModel):  # type: ignore[no-redef]
+        id: str
+        content: str
+        status: TodoStatus
+
+    class TodoState(BaseModel):  # type: ignore[no-redef]
+        todos: list[TodoItem] = Field(default_factory=list)
+        last_updated_iteration: int = 0
+
+
+requires_todo = pytest.mark.skipif(
+    not HAS_TODO_MODULE,
+    reason="unique_toolkit.agentic.tools.todo not installed (needs toolkit >= 1.53.0)",
 )
 
 if TYPE_CHECKING:
@@ -131,6 +149,7 @@ class TestTodoInjection:
         last_user = [m for m in result.root if m.role.value == "user"][-1]
         assert "<system-reminder>" not in last_user.content
 
+    @requires_todo
     @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_compose_messages__todo_enabled_with_state__injects_reminder(
@@ -193,6 +212,7 @@ class TestTodoInjection:
         last_user = [m for m in result.root if m.role.value == "user"][-1]
         assert "<system-reminder>" not in last_user.content
 
+    @requires_todo
     @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_reminder__appended_to_last_user_message(self) -> None:
@@ -201,9 +221,7 @@ class TestTodoInjection:
         Why: Earlier user messages should not be modified; prompt caching depends on this.
         Setup: Two user messages, verify only the last one has the reminder.
         """
-        state = TodoState(
-            todos=[TodoItem(id="t1", content="Task A", status="pending")]
-        )
+        state = TodoState(todos=[TodoItem(id="t1", content="Task A", status="pending")])
         mock_mm = MagicMock()
         mock_mm.load_async = AsyncMock(return_value=state)
         ua = _build_unique_ai(todo_memory_manager=mock_mm)
@@ -219,6 +237,7 @@ class TestTodoInjection:
         assert "<system-reminder>" not in user_msgs[0].content
         assert "<system-reminder>" in user_msgs[1].content
 
+    @requires_todo
     @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_reminder_format__contains_status_icons(self) -> None:
@@ -252,6 +271,7 @@ class TestTodoInjection:
         assert "[x] Done one" in last_user.content
         assert "[-] Dropped one" in last_user.content
 
+    @requires_todo
     @pytest.mark.ai
     @pytest.mark.asyncio
     async def test_reminder__preserves_original_user_message(self) -> None:
@@ -260,9 +280,7 @@ class TestTodoInjection:
         Why: The reminder is appended, not substituted.
         Setup: User message with specific text, verify it still starts with that text.
         """
-        state = TodoState(
-            todos=[TodoItem(id="t1", content="Task A", status="pending")]
-        )
+        state = TodoState(todos=[TodoItem(id="t1", content="Task A", status="pending")])
         mock_mm = MagicMock()
         mock_mm.load_async = AsyncMock(return_value=state)
         ua = _build_unique_ai(todo_memory_manager=mock_mm)
@@ -305,6 +323,7 @@ class TestBuildTodoMemoryManager:
 
         assert result is None
 
+    @requires_todo
     @pytest.mark.ai
     def test_returns_manager_when_todo_write_enabled(self) -> None:
         """
@@ -330,6 +349,7 @@ class TestBuildTodoMemoryManager:
 
         assert result is not None
 
+    @requires_todo
     @pytest.mark.ai
     def test_returns_none_when_todo_write_disabled(self) -> None:
         """
@@ -355,6 +375,7 @@ class TestBuildTodoMemoryManager:
 
         assert result is None
 
+    @requires_todo
     @pytest.mark.ai
     def test_returns_none_when_inject_system_reminder_is_false(self) -> None:
         """

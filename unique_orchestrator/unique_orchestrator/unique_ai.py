@@ -301,10 +301,6 @@ class UniqueAI:
 
         Note: mutates the content of the last user message in-place.
         """
-        from unique_toolkit.agentic.tools.todo.service import (
-            format_todo_system_reminder,
-        )
-
         assert self._todo_memory_manager is not None
         state = await self._todo_memory_manager.load_async()
         if state is None or not state.todos:
@@ -313,6 +309,10 @@ class UniqueAI:
         has_active = any(t.status != "completed" for t in state.todos)
         if not has_active:
             return messages
+
+        from unique_toolkit.agentic.tools.todo.service import (
+            format_todo_system_reminder,
+        )
 
         reminder = format_todo_system_reminder(state)
 

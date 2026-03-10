@@ -86,25 +86,29 @@ def _build_todo_memory_manager(
     config: UniqueAIConfig,
 ) -> "PersistentShortMemoryManager[TodoState] | None":
     """Build a PersistentShortMemoryManager for TODO state if TodoWriteTool is enabled."""
+    todo_tool_cfg = None
+    for tool in config.space.tools:
+        if tool.is_enabled and tool.name == "todo_write":
+            todo_tool_cfg = tool
+            break
+    if todo_tool_cfg is None:
+        return None
+
     from unique_toolkit.agentic.tools.todo.config import TodoConfig
     from unique_toolkit.agentic.tools.todo.schemas import TodoState
-    from unique_toolkit.agentic.tools.todo.service import TodoWriteTool
 
-    for tool in config.space.tools:
-        if tool.is_enabled and tool.name == TodoWriteTool.name:
-            todo_config = (
-                tool.configuration
-                if isinstance(tool.configuration, TodoConfig)
-                else TodoConfig()
-            )
-            if not todo_config.inject_system_reminder:
-                return None
-            return PersistentShortMemoryManager(
-                short_term_memory_service=ShortTermMemoryService(event=event),
-                short_term_memory_schema=TodoState,
-                short_term_memory_name=todo_config.memory_key,
-            )
-    return None
+    todo_config = (
+        todo_tool_cfg.configuration
+        if isinstance(todo_tool_cfg.configuration, TodoConfig)
+        else TodoConfig()
+    )
+    if not todo_config.inject_system_reminder:
+        return None
+    return PersistentShortMemoryManager(
+        short_term_memory_service=ShortTermMemoryService(event=event),
+        short_term_memory_schema=TodoState,
+        short_term_memory_name=todo_config.memory_key,
+    )
 
 
 async def build_unique_ai(
