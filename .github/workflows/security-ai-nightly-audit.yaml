@@ -1,0 +1,124 @@
+name: "[security] AI Nightly Security Audit"
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *" # 3 AM UTC daily
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: nightly-ai-security-audit
+  cancel-in-progress: false
+
+jobs:
+  ai-security-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Get current date
+        id: date
+        shell: bash
+        run: echo "today=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+
+      - name: Run comprehensive AI security audit
+        uses: anthropics/claude-code-action@9469d113c6afd29550c402740f22d1a97dd1209b # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Perform a comprehensive security audit of this Python AI/ML platform codebase.
+            Today's date is ${{ steps.date.outputs.today }}.
+
+            CODEBASE CONTEXT:
+            - Python monorepo managed with uv workspaces
+            - unique_sdk/ — Python SDK for the Unique platform API
+            - unique_toolkit/ — high-level toolkit built on top of the SDK
+            - unique_orchestrator/ — orchestration service for AI assistants
+            - unique_skills/ — skill framework for AI agent capabilities
+            - unique_mcp/ — Model Context Protocol server implementations
+            - connectors/ — external service connectors
+            - tool_packages/ — tool packages for AI agents
+            - postprocessors/ — output post-processing modules
+            - tutorials/ — example code and tutorials
+
+            AUDIT STRATEGY - Analyze these areas in priority order:
+
+            1. AUTHENTICATION & SECRETS
+               - Search for hardcoded API keys, tokens, or credentials
+               - Check for secrets in default configs, .env files committed to repo
+               - Verify sensitive data is not logged or exposed in error messages
+               - Check that API keys/tokens are properly validated before use
+
+            2. INJECTION & INPUT VALIDATION
+               - Find any use of eval(), exec(), or compile() with user input
+               - Check for SQL injection in any database queries
+               - Look for command injection via subprocess, os.system, or similar
+               - Check for template injection (Jinja2, string formatting with user input)
+               - Look for YAML/pickle deserialization of untrusted data
+
+            3. SSRF & NETWORK REQUESTS
+               - Find HTTP requests (requests, httpx, aiohttp, urllib) that accept user-controlled URLs
+               - Check for URL validation before external requests
+               - Look for open redirect vulnerabilities
+
+            4. FILE HANDLING
+               - Check for path traversal vulnerabilities in file operations
+               - Look for unsafe file uploads or downloads
+               - Verify temp files are properly cleaned up
+               - Check for symlink attacks
+
+            5. DEPENDENCY & SUPPLY CHAIN
+               - Check pyproject.toml for unpinned or overly broad dependency ranges
+               - Look for dependencies with known vulnerabilities
+               - Check for dangerous post-install scripts
+
+            6. AI/ML SPECIFIC
+               - Check for prompt injection vulnerabilities in LLM integrations
+               - Look for unsafe model loading (pickle, torch.load without weights_only)
+               - Verify tool/function calling has proper input validation
+               - Check that AI agent actions are properly sandboxed
+
+            7. CODE EXECUTION
+               - Find any dynamic code execution patterns
+               - Check for unsafe use of importlib or __import__
+               - Look for unrestricted file system access in tool implementations
+
+            IMPORTANT EXCLUSIONS:
+            - Skip __pycache__/, .venv/, dist/, *.egg-info/
+            - Skip test files (test_*.py, *_test.py, conftest.py)
+            - Skip uv.lock
+            - Skip tutorials/ (example code, not production)
+
+            OUTPUT:
+            Create a GitHub Issue titled "Security Audit Report - ${{ steps.date.outputs.today }}" with:
+            - Executive summary with total findings by severity
+            - Findings grouped by category, each with:
+              - Severity (CRITICAL / HIGH / MEDIUM / LOW)
+              - File path and line numbers
+              - Description of the vulnerability
+              - Concrete remediation steps
+            - A "Trends" section noting any patterns
+            Label the issue with "security".
+          claude_args: "--model claude-opus-4-6 --max-turns 30"
+
+      - name: Audit completion summary
+        if: always()
+        shell: bash
+        run: |
+          echo "# AI Security Audit Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** ${{ steps.date.outputs.today }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Model:** claude-opus-4-6" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "Audit completed. Check GitHub Issues for the full report." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Audit did not complete successfully. Check the job logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
