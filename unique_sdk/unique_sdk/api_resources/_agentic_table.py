@@ -343,19 +343,20 @@ class AgenticTable(APIResource["AgenticTable"]):
         cells: list[AgenticTableCell],
     ) -> ColumnMetadataUpdateStatus:
         url = f"/magic-table/{tableId}/cells/bulk-upsert"
-        # Map AgenticTableCell to PublicAgenticTableCellDto
+        # Map AgenticTableCell to PublicAgenticTableCellDto; use direct access so
+        # missing required fields raise KeyError and we re-raise a clear ValueError.
         try:
             params_api = {
                 "cells": [
                     {
-                        "rowOrder": cell.get("rowOrder", 0),
-                        "columnOrder": cell.get("columnOrder", 0),
-                        "data": cell.get("text", ""),
+                        "rowOrder": cell["rowOrder"],  # pyright: ignore[reportTypedDictNotRequiredAccess]
+                        "columnOrder": cell["columnOrder"],  # pyright: ignore[reportTypedDictNotRequiredAccess]
+                        "data": cell["text"],  # pyright: ignore[reportTypedDictNotRequiredAccess]
                     }
                     for cell in cells
                 ]
             }
-        except Exception as e:
+        except (KeyError, Exception) as e:
             raise ValueError(f"Invalid data or missing required fields: {e}")
         return cast(
             "ColumnMetadataUpdateStatus",
