@@ -907,3 +907,22 @@ class TestQwenConstants:
         Why this matters: Instruction should clearly state no more tool calls.
         """
         assert "tool" in QWEN_LAST_ITERATION_INSTRUCTION.lower()
+
+
+class TestQwenLoopIterationRunnerConstructor:
+    @pytest.mark.ai
+    def test_runner__raises_error__with_old_constructor_args(
+        self, mock_chat_service: MagicMock
+    ) -> None:
+        """
+        Purpose: Verify old constructor kwargs are rejected after the refactor.
+        Why this matters: Confirms the breaking change is enforced — callers must
+        use `config=`, `forced_tool_call_instruction=`, `last_iteration_instruction=`.
+        """
+        with pytest.raises(TypeError):
+            QwenLoopIterationRunner(  # type: ignore[call-arg]
+                qwen_forced_tool_call_instruction=QWEN_FORCED_TOOL_CALL_INSTRUCTION,
+                qwen_last_iteration_instruction=QWEN_LAST_ITERATION_INSTRUCTION,
+                max_loop_iterations=5,
+                chat_service=mock_chat_service,
+            )

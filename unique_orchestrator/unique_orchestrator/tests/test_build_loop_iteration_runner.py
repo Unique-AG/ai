@@ -439,3 +439,52 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         )
         assert isinstance(runner, BasicLoopIterationRunner)
         assert not isinstance(runner, PlanningMiddleware)
+
+
+class TestBuildLoopIterationRunnerModelFamilyIntegration:
+    """Integration tests using real model name strings — no monkeypatching of _get_model_family."""
+
+    @pytest.mark.ai
+    def test_build_loop_iteration_runner__returns_basic_runner__for_gpt_model_string(
+        self,
+    ) -> None:
+        config: UniqueAIConfig = UniqueAIConfig()
+        config.space.language_model = "gpt-4o"  # type: ignore[assignment]
+        runner = build_loop_iteration_runner(
+            config=config,
+            history_manager=MagicMock(),
+            llm_service=MagicMock(),
+            chat_service=MagicMock(),
+            use_responses_api=False,
+        )
+        assert type(runner) is BasicLoopIterationRunner
+
+    @pytest.mark.ai
+    def test_build_loop_iteration_runner__returns_mistral_runner__for_mistral_model_string(
+        self,
+    ) -> None:
+        config: UniqueAIConfig = UniqueAIConfig()
+        config.space.language_model = "mistral-large"  # type: ignore[assignment]
+        runner = build_loop_iteration_runner(
+            config=config,
+            history_manager=MagicMock(),
+            llm_service=MagicMock(),
+            chat_service=MagicMock(),
+            use_responses_api=False,
+        )
+        assert isinstance(runner, MistralLoopIterationRunner)
+
+    @pytest.mark.ai
+    def test_build_loop_iteration_runner__returns_qwen_runner__for_qwen_model_string(
+        self,
+    ) -> None:
+        config: UniqueAIConfig = UniqueAIConfig()
+        config.space.language_model = "litellm/qwen3"  # type: ignore[assignment]
+        runner = build_loop_iteration_runner(
+            config=config,
+            history_manager=MagicMock(),
+            llm_service=MagicMock(),
+            chat_service=MagicMock(),
+            use_responses_api=False,
+        )
+        assert isinstance(runner, QwenLoopIterationRunner)
