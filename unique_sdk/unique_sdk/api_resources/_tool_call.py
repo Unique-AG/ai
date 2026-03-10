@@ -174,7 +174,7 @@ class ToolCall(APIResource["ToolCall"]):
                 cls.RESOURCE_URL,
                 user_id,
                 company_id,
-                params=params,
+                params={"messageIds": chunks[0]},
             )
             if not isinstance(result, ListObject):
                 raise TypeError(
@@ -229,7 +229,7 @@ class ToolCall(APIResource["ToolCall"]):
                 cls.RESOURCE_URL,
                 user_id,
                 company_id,
-                params=params,
+                params={"messageIds": chunks[0]},
             )
             if not isinstance(result, ListObject):
                 raise TypeError(
