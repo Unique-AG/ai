@@ -13,12 +13,7 @@ metadata:
 
 # Model deployment (LLM — LiteLLM and/or Azure)
 
-This skill consolidates how we deploy new LLM models across **monorepo** (LiteLLM overlays, node-chat, Terraform) and **ai repo** (toolkit model registry). Use it when assisting or performing a model rollout (e.g. GPT-5.4 via Azure to Dev/QA).
-
-**Canonical sources:** The steps below are derived from:
-- **ops-agent runbook:** `ops-agent/tasks/llm_model_deployment/HUMAN_RUNBOOK.md`
-- **Agent contract:** `ops-agent/tasks/llm_model_deployment/agent_instructions.md`
-- **Lessons learned:** `ops-agent/tasks/llm_model_deployment/LESSONS_LEARNED.md`
+This skill describes how we deploy new LLM models across **monorepo** (LiteLLM overlays, node-chat, Terraform) and **ai repo** (toolkit model registry). Use it when assisting or performing a model rollout (e.g. GPT-5.4 via Azure to Dev/QA).
 
 When you suggest deployment parameters (token limits, model ids, API versions), **always cite where you found them** (e.g. link to model card, LiteLLM registry, or the Jira ticket/PR that defined them). If you cannot find an authoritative source, **ask the user** — do not guess.
 
