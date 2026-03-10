@@ -5,9 +5,9 @@ from pydantic import BaseModel
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.loop_runner._iteration_handler_utils import (
-    handle_forced_tools_iteration,
     handle_last_iteration,
     handle_normal_iteration,
+    run_forced_tools_iteration,
 )
 from unique_toolkit.agentic.loop_runner._responses_iteration_handler_utils import (
     handle_responses_forced_tools_iteration,
@@ -44,11 +44,29 @@ class BasicLoopIterationRunner(LoopIterationRunner):
         iteration_index = kwargs["iteration_index"]
 
         if len(tool_choices) > 0 and iteration_index == 0:
-            return await handle_forced_tools_iteration(**kwargs)
+            return await self._handle_forced_tools(**kwargs)
         elif iteration_index == self._config.max_loop_iterations - 1:
-            return await handle_last_iteration(**kwargs)
+            return await self._handle_last_iteration(**kwargs)
         else:
-            return await handle_normal_iteration(**kwargs)
+            return await self._handle_normal_iteration(**kwargs)
+
+    async def _handle_forced_tools(
+        self,
+        **kwargs: Unpack[_LoopIterationRunnerKwargs],
+    ) -> LanguageModelStreamResponse:
+        return await run_forced_tools_iteration(loop_runner_kwargs=kwargs)
+
+    async def _handle_last_iteration(
+        self,
+        **kwargs: Unpack[_LoopIterationRunnerKwargs],
+    ) -> LanguageModelStreamResponse:
+        return await handle_last_iteration(**kwargs)
+
+    async def _handle_normal_iteration(
+        self,
+        **kwargs: Unpack[_LoopIterationRunnerKwargs],
+    ) -> LanguageModelStreamResponse:
+        return await handle_normal_iteration(**kwargs)
 
 
 class ResponsesBasicLoopIterationRunner(ResponsesLoopIterationRunner):
