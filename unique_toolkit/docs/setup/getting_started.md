@@ -2,7 +2,7 @@
 
 ## Installation
 
-Unique Toolkit is available on [PyPI](https://pypi.org/project/unique_toolkit/) and can be installed using `pip`, `poetry` or `uv`:
+Unique Toolkit is available on [PyPI](https://pypi.org/project/unique_toolkit/) and can be installed using `pip` or `uv`:
 
 We highly recommend using a virtual environment to install Unique Toolkit.
 
