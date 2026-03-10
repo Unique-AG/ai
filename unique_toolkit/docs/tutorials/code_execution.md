@@ -357,17 +357,17 @@ await memory_manager.save_async(memory)
 ??? example "Full Example — Quick start with auto container (Click to expand)"
 
     <!--codeinclude-->
-    [Code Execution — Auto container](../examples_from_docs/code_execution_openai_client.py)
+    [Code Execution — Auto container](../manual_examples_for_docs/code_execution_openai_client.py)
     <!--/codeinclude-->
 
 ??? example "Full Example — Custom Azure container (Click to expand)"
 
     <!--codeinclude-->
-    [Code Execution — Custom Azure container](../examples_from_docs/code_execution_custom_azure_container.py)
+    [Code Execution — Custom Azure container](../manual_examples_for_docs/code_execution_custom_azure_container.py)
     <!--/codeinclude-->
 
 ??? example "Full Example — Unique platform patterns (Click to expand)"
 
     <!--codeinclude-->
-    [Code Execution — Unique platform patterns](../examples_from_docs/code_execution_unique_platform.py)
+    [Code Execution — Unique platform patterns](../manual_examples_for_docs/code_execution_unique_platform.py)
     <!--/codeinclude-->
