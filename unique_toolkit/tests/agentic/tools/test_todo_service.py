@@ -66,7 +66,9 @@ def sample_state(sample_todos: list[TodoItem]) -> TodoState:
     return TodoState(todos=sample_todos, last_updated_iteration=2)
 
 
-def _make_tool_call(arguments: dict | str, call_id: str = "call_1") -> LanguageModelFunction:
+def _make_tool_call(
+    arguments: dict | str, call_id: str = "call_1"
+) -> LanguageModelFunction:
     """Create a LanguageModelFunction. Arguments can be dict or JSON string (auto-parsed)."""
     return LanguageModelFunction(id=call_id, name="todo_write", arguments=arguments)
 
@@ -81,9 +83,7 @@ class TestTodoState:
         Why: Core merge semantics -- the model updates status of existing items.
         Setup: State with one pending item, merge with same ID as completed.
         """
-        state = TodoState(
-            todos=[TodoItem(id="a", content="Do X", status="pending")]
-        )
+        state = TodoState(todos=[TodoItem(id="a", content="Do X", status="pending")])
         incoming = [TodoItem(id="a", content="Do X", status="completed")]
 
         result = state.merge(incoming)
@@ -98,9 +98,7 @@ class TestTodoState:
         Why: The model adds new tasks as it discovers more work.
         Setup: State with one item, merge with a different ID.
         """
-        state = TodoState(
-            todos=[TodoItem(id="a", content="Do X", status="pending")]
-        )
+        state = TodoState(todos=[TodoItem(id="a", content="Do X", status="pending")])
         incoming = [TodoItem(id="b", content="Do Y", status="pending")]
 
         result = state.merge(incoming)
@@ -138,9 +136,7 @@ class TestTodoState:
         Why: The model may refine task descriptions.
         Setup: State with one item, merge with same ID but different content.
         """
-        state = TodoState(
-            todos=[TodoItem(id="a", content="Do X", status="pending")]
-        )
+        state = TodoState(todos=[TodoItem(id="a", content="Do X", status="pending")])
         incoming = [TodoItem(id="a", content="Do X (revised)", status="pending")]
 
         result = state.merge(incoming)
@@ -200,7 +196,9 @@ class TestTodoWriteTool:
 
         call = _make_tool_call(
             TodoWriteInput(
-                todos=[TodoItem(id="task-3", content="Write tests", status="in_progress")],
+                todos=[
+                    TodoItem(id="task-3", content="Write tests", status="in_progress")
+                ],
                 merge=True,
             ).model_dump_json()
         )
@@ -409,7 +407,10 @@ class TestTodoReadTool:
         desc = tool.tool_description()
 
         assert desc.name == "todo_read"
-        assert desc.parameters.get("required") is None or desc.parameters.get("required") == []
+        assert (
+            desc.parameters.get("required") is None
+            or desc.parameters.get("required") == []
+        )
 
 
 class TestFormatFunctions:

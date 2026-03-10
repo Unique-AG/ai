@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, timezone
 from logging import Logger
-from typing import overload
+from typing import TYPE_CHECKING, overload
 
 import jinja2
 from typing_extensions import deprecated
@@ -24,8 +24,6 @@ from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memo
     PersistentShortMemoryManager,
 )
 from unique_toolkit.agentic.thinking_manager.thinking_manager import ThinkingManager
-from unique_toolkit.agentic.tools.todo.schemas import TodoState
-from unique_toolkit.agentic.tools.todo.service import format_todo_system_reminder
 from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
     SafeTaskExecutor,
@@ -47,6 +45,9 @@ from unique_toolkit.protocols.support import (
 )
 
 from unique_orchestrator.config import UniqueAIConfig
+
+if TYPE_CHECKING:
+    from unique_toolkit.agentic.tools.todo.schemas import TodoState
 
 EMPTY_MESSAGE_WARNING = (
     "⚠️ **The language model was unable to produce an output.**\n"
@@ -80,7 +81,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner,
-        todo_memory_manager: PersistentShortMemoryManager[TodoState] | None = None,
+        todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
     ) -> None: ...
 
     # Responses API Dependencies
@@ -103,7 +104,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: ResponsesLoopIterationRunner,
-        todo_memory_manager: PersistentShortMemoryManager[TodoState] | None = None,
+        todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
     ) -> None: ...
 
     def __init__(
@@ -125,7 +126,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner | ResponsesLoopIterationRunner,
-        todo_memory_manager: PersistentShortMemoryManager[TodoState] | None = None,
+        todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
     ) -> None:
         self._logger = logger
         self._event = event
@@ -300,6 +301,10 @@ class UniqueAI:
 
         Note: mutates the content of the last user message in-place.
         """
+        from unique_toolkit.agentic.tools.todo.service import (
+            format_todo_system_reminder,
+        )
+
         assert self._todo_memory_manager is not None
         state = await self._todo_memory_manager.load_async()
         if state is None or not state.todos:
@@ -640,7 +645,7 @@ class UniqueAIResponsesApi(UniqueAI):
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: ResponsesLoopIterationRunner,
-        todo_memory_manager: PersistentShortMemoryManager[TodoState] | None = None,
+        todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
     ) -> None:
         super().__init__(
             logger,

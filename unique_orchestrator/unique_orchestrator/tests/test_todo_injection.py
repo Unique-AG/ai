@@ -5,7 +5,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from unique_toolkit.agentic.tools.todo.schemas import TodoItem, TodoState
+pytest.importorskip(
+    "unique_toolkit.agentic.tools.todo",
+    reason="unique_toolkit.agentic.tools.todo not installed (needs toolkit >= 1.53.0)",
+)
+
+from unique_toolkit.agentic.tools.todo.schemas import TodoItem, TodoState  # noqa: E402
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelSystemMessage,

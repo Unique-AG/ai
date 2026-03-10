@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from logging import Logger
-from typing import NamedTuple, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 from unique_follow_up_questions.follow_up_postprocessor import (
     FollowUpPostprocessor,
@@ -38,6 +38,9 @@ from unique_toolkit.agentic.responses_api import (
     DisplayCodeInterpreterFilesPostProcessor,
     ShowExecutedCodePostprocessor,
 )
+from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
+    PersistentShortMemoryManager,
+)
 from unique_toolkit.agentic.thinking_manager.thinking_manager import (
     ThinkingManager,
     ThinkingManagerConfig,
@@ -53,14 +56,8 @@ from unique_toolkit.agentic.tools.a2a import (
     SubAgentResponsesPostprocessorConfig,
     SubAgentResponseWatcher,
 )
-from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
-    PersistentShortMemoryManager,
-)
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
-from unique_toolkit.agentic.tools.todo.config import TodoConfig
-from unique_toolkit.agentic.tools.todo.schemas import TodoState
-from unique_toolkit.agentic.tools.todo.service import TodoWriteTool
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.tool_manager import (
     OpenAIBuiltInToolManager,
@@ -71,21 +68,28 @@ from unique_toolkit.agentic.tools.tool_manager import (
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
-from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
+from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
 from unique_orchestrator._builders import build_loop_iteration_runner
 from unique_orchestrator.config import CodeInterpreterExtendedConfig, UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
 
+if TYPE_CHECKING:
+    from unique_toolkit.agentic.tools.todo.schemas import TodoState
+
 
 def _build_todo_memory_manager(
     event: ChatEvent,
     config: UniqueAIConfig,
-) -> PersistentShortMemoryManager[TodoState] | None:
+) -> "PersistentShortMemoryManager[TodoState] | None":
     """Build a PersistentShortMemoryManager for TODO state if TodoWriteTool is enabled."""
+    from unique_toolkit.agentic.tools.todo.config import TodoConfig
+    from unique_toolkit.agentic.tools.todo.schemas import TodoState
+    from unique_toolkit.agentic.tools.todo.service import TodoWriteTool
+
     for tool in config.space.tools:
         if tool.is_enabled and tool.name == TodoWriteTool.name:
             todo_config = (
@@ -277,7 +281,7 @@ async def _build_responses(
     config: UniqueAIConfig,
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
-    todo_memory_manager: PersistentShortMemoryManager[TodoState] | None = None,
+    todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
 ) -> UniqueAI:
     client = get_async_openai_client().copy(
         default_headers={
@@ -423,7 +427,7 @@ def _build_completions(
     config: UniqueAIConfig,
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
-    todo_memory_manager: PersistentShortMemoryManager[TodoState] | None = None,
+    todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
 ) -> UniqueAI:
     # Uploaded content behavior is always to force uploaded search tool:
     # 1. Add it to forced tools if there are tool choices.

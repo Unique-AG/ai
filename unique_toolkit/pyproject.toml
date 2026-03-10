@@ -1,6 +1,6 @@
 [project]
 name = "unique_toolkit"
-version = "1.52.0"
+version = "1.53.0"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12"

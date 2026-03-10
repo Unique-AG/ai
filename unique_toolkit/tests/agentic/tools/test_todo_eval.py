@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.todo.config import TodoConfig
 from unique_toolkit.agentic.tools.todo.schemas import (
     TodoItem,
@@ -27,6 +28,16 @@ from unique_toolkit.agentic.tools.todo.service import (
 )
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.schemas import LanguageModelFunction
+
+
+@pytest.fixture(autouse=True)
+def ensure_todo_tools_registered():
+    """Ensure todo tools are registered before tests run."""
+    if TodoWriteTool.name not in ToolFactory.tool_config_map:
+        ToolFactory.register_tool(TodoWriteTool, TodoConfig)
+    if TodoReadTool.name not in ToolFactory.tool_config_map:
+        ToolFactory.register_tool(TodoReadTool, TodoConfig)
+    yield
 
 
 @pytest.fixture
@@ -127,40 +138,64 @@ class TestTodoMultiStepWorkflow:
         assert len(state.todos) == 3
         assert all(t.status == "pending" for t in state.todos)
 
-        await tool.run(_make_write_call(
-            [TodoItem(id="research", content="Research API options", status="in_progress")],
-            call_id="iter2",
-        ))
+        await tool.run(
+            _make_write_call(
+                [
+                    TodoItem(
+                        id="research",
+                        content="Research API options",
+                        status="in_progress",
+                    )
+                ],
+                call_id="iter2",
+            )
+        )
         state = shared_memory["agent_todo_state"]
         by_id = {t.id: t for t in state.todos}
         assert by_id["research"].status == "in_progress"
         assert by_id["implement"].status == "pending"
 
-        await tool.run(_make_write_call(
-            [
-                TodoItem(id="research", content="Research API options", status="completed"),
-                TodoItem(id="implement", content="Implement service", status="in_progress"),
-            ],
-            call_id="iter3",
-        ))
+        await tool.run(
+            _make_write_call(
+                [
+                    TodoItem(
+                        id="research",
+                        content="Research API options",
+                        status="completed",
+                    ),
+                    TodoItem(
+                        id="implement",
+                        content="Implement service",
+                        status="in_progress",
+                    ),
+                ],
+                call_id="iter3",
+            )
+        )
         state = shared_memory["agent_todo_state"]
         by_id = {t.id: t for t in state.todos}
         assert by_id["research"].status == "completed"
         assert by_id["implement"].status == "in_progress"
         assert by_id["test"].status == "pending"
 
-        await tool.run(_make_write_call(
-            [
-                TodoItem(id="implement", content="Implement service", status="completed"),
-                TodoItem(id="test", content="Write tests", status="in_progress"),
-            ],
-            call_id="iter4",
-        ))
+        await tool.run(
+            _make_write_call(
+                [
+                    TodoItem(
+                        id="implement", content="Implement service", status="completed"
+                    ),
+                    TodoItem(id="test", content="Write tests", status="in_progress"),
+                ],
+                call_id="iter4",
+            )
+        )
 
-        response = await tool.run(_make_write_call(
-            [TodoItem(id="test", content="Write tests", status="completed")],
-            call_id="iter5",
-        ))
+        response = await tool.run(
+            _make_write_call(
+                [TodoItem(id="test", content="Write tests", status="completed")],
+                call_id="iter5",
+            )
+        )
 
         state = shared_memory["agent_todo_state"]
         assert all(t.status == "completed" for t in state.todos)
@@ -179,11 +214,13 @@ class TestTodoMultiStepWorkflow:
         """
         tool = _build_tool(mock_event, shared_memory)
 
-        await tool.run(_make_write_call(
-            [TodoItem(id="a", content="First task", status="pending")],
-            merge=False,
-            call_id="w1",
-        ))
+        await tool.run(
+            _make_write_call(
+                [TodoItem(id="a", content="First task", status="pending")],
+                merge=False,
+                call_id="w1",
+            )
+        )
 
         state = shared_memory["agent_todo_state"]
         assert state is not None
@@ -191,10 +228,12 @@ class TestTodoMultiStepWorkflow:
         assert "[ ] First task" in reminder
         assert "<system-reminder>" in reminder
 
-        await tool.run(_make_write_call(
-            [TodoItem(id="a", content="First task", status="completed")],
-            call_id="w2",
-        ))
+        await tool.run(
+            _make_write_call(
+                [TodoItem(id="a", content="First task", status="completed")],
+                call_id="w2",
+            )
+        )
 
         state = shared_memory["agent_todo_state"]
         reminder = format_todo_system_reminder(state)
@@ -212,20 +251,28 @@ class TestTodoMultiStepWorkflow:
         """
         tool = _build_tool(mock_event, shared_memory)
 
-        await tool.run(_make_write_call(
-            [
-                TodoItem(id="a", content="Analyze data", status="completed"),
-                TodoItem(id="b", content="Build charts", status="in_progress"),
-            ],
-            merge=False,
-            call_id="initial",
-        ))
+        await tool.run(
+            _make_write_call(
+                [
+                    TodoItem(id="a", content="Analyze data", status="completed"),
+                    TodoItem(id="b", content="Build charts", status="in_progress"),
+                ],
+                merge=False,
+                call_id="initial",
+            )
+        )
 
-        await tool.run(_make_write_call(
-            [TodoItem(id="c", content="Add regulatory risks section", status="pending")],
-            merge=True,
-            call_id="addition",
-        ))
+        await tool.run(
+            _make_write_call(
+                [
+                    TodoItem(
+                        id="c", content="Add regulatory risks section", status="pending"
+                    )
+                ],
+                merge=True,
+                call_id="addition",
+            )
+        )
 
         state = shared_memory["agent_todo_state"]
         assert len(state.todos) == 3
@@ -247,14 +294,16 @@ class TestTodoMultiStepWorkflow:
         write_tool = _build_tool(mock_event, shared_memory)
         read_tool = _build_read_tool(mock_event, shared_memory)
 
-        await write_tool.run(_make_write_call(
-            [
-                TodoItem(id="x", content="Task X", status="pending"),
-                TodoItem(id="y", content="Task Y", status="completed"),
-            ],
-            merge=False,
-            call_id="w1",
-        ))
+        await write_tool.run(
+            _make_write_call(
+                [
+                    TodoItem(id="x", content="Task X", status="pending"),
+                    TodoItem(id="y", content="Task Y", status="completed"),
+                ],
+                merge=False,
+                call_id="w1",
+            )
+        )
 
         read_call = LanguageModelFunction(id="r1", name="todo_read", arguments="{}")
         response = await read_tool.run(read_call)
@@ -280,24 +329,28 @@ class TestTodoEdgeCases:
         config = TodoConfig(max_todos=3)
         tool = _build_tool(mock_event, shared_memory, config=config)
 
-        await tool.run(_make_write_call(
-            [
-                TodoItem(id="a", content="Task A", status="completed"),
-                TodoItem(id="b", content="Task B", status="in_progress"),
-            ],
-            merge=False,
-            call_id="w1",
-        ))
+        await tool.run(
+            _make_write_call(
+                [
+                    TodoItem(id="a", content="Task A", status="completed"),
+                    TodoItem(id="b", content="Task B", status="in_progress"),
+                ],
+                merge=False,
+                call_id="w1",
+            )
+        )
 
-        await tool.run(_make_write_call(
-            [
-                TodoItem(id="c", content="Task C", status="pending"),
-                TodoItem(id="d", content="Task D", status="pending"),
-                TodoItem(id="e", content="Task E", status="pending"),
-            ],
-            merge=True,
-            call_id="w2",
-        ))
+        await tool.run(
+            _make_write_call(
+                [
+                    TodoItem(id="c", content="Task C", status="pending"),
+                    TodoItem(id="d", content="Task D", status="pending"),
+                    TodoItem(id="e", content="Task E", status="pending"),
+                ],
+                merge=True,
+                call_id="w2",
+            )
+        )
 
         state = shared_memory["agent_todo_state"]
         assert len(state.todos) == 3
@@ -314,27 +367,33 @@ class TestTodoEdgeCases:
         """
         tool = _build_tool(mock_event, shared_memory)
 
-        await tool.run(_make_write_call(
-            [TodoItem(id="old", content="Old plan", status="pending")],
-            merge=False,
-            call_id="w1",
-        ))
+        await tool.run(
+            _make_write_call(
+                [TodoItem(id="old", content="Old plan", status="pending")],
+                merge=False,
+                call_id="w1",
+            )
+        )
 
-        await tool.run(_make_write_call(
-            [TodoItem(id="new-a", content="New plan A", status="pending")],
-            merge=False,
-            call_id="w2",
-        ))
+        await tool.run(
+            _make_write_call(
+                [TodoItem(id="new-a", content="New plan A", status="pending")],
+                merge=False,
+                call_id="w2",
+            )
+        )
 
         state = shared_memory["agent_todo_state"]
         assert len(state.todos) == 1
         assert state.todos[0].id == "new-a"
 
-        await tool.run(_make_write_call(
-            [TodoItem(id="new-b", content="New plan B", status="pending")],
-            merge=True,
-            call_id="w3",
-        ))
+        await tool.run(
+            _make_write_call(
+                [TodoItem(id="new-b", content="New plan B", status="pending")],
+                merge=True,
+                call_id="w3",
+            )
+        )
 
         state = shared_memory["agent_todo_state"]
         assert len(state.todos) == 2
@@ -355,14 +414,16 @@ class TestTodoEdgeCases:
         """
         tool = _build_tool(mock_event, shared_memory)
 
-        await tool.run(_make_write_call(
-            [
-                TodoItem(id="a", content="Task A", status="completed"),
-                TodoItem(id="b", content="Task B", status="completed"),
-            ],
-            merge=False,
-            call_id="w1",
-        ))
+        await tool.run(
+            _make_write_call(
+                [
+                    TodoItem(id="a", content="Task A", status="completed"),
+                    TodoItem(id="b", content="Task B", status="completed"),
+                ],
+                merge=False,
+                call_id="w1",
+            )
+        )
 
         state = shared_memory["agent_todo_state"]
         has_active = any(t.status != "completed" for t in state.todos)
@@ -381,11 +442,13 @@ class TestTodoEdgeCases:
         tool = _build_tool(mock_event, shared_memory)
 
         for i in range(4):
-            await tool.run(_make_write_call(
-                [TodoItem(id=f"t{i}", content=f"Iteration {i}", status="pending")],
-                merge=True,
-                call_id=f"w{i}",
-            ))
+            await tool.run(
+                _make_write_call(
+                    [TodoItem(id=f"t{i}", content=f"Iteration {i}", status="pending")],
+                    merge=True,
+                    call_id=f"w{i}",
+                )
+            )
 
         state = shared_memory["agent_todo_state"]
         assert state is not None
@@ -403,26 +466,32 @@ class TestTodoEdgeCases:
         """
         tool = _build_tool(mock_event, shared_memory)
 
-        await tool.run(_make_write_call(
-            [
-                TodoItem(id="keep", content="Keep this", status="in_progress"),
-                TodoItem(id="drop", content="Drop this", status="pending"),
-            ],
-            merge=False,
-            call_id="w1",
-        ))
+        await tool.run(
+            _make_write_call(
+                [
+                    TodoItem(id="keep", content="Keep this", status="in_progress"),
+                    TodoItem(id="drop", content="Drop this", status="pending"),
+                ],
+                merge=False,
+                call_id="w1",
+            )
+        )
 
-        await tool.run(_make_write_call(
-            [TodoItem(id="drop", content="Drop this", status="cancelled")],
-            merge=True,
-            call_id="w2",
-        ))
+        await tool.run(
+            _make_write_call(
+                [TodoItem(id="drop", content="Drop this", status="cancelled")],
+                merge=True,
+                call_id="w2",
+            )
+        )
 
-        await tool.run(_make_write_call(
-            [TodoItem(id="new", content="New task", status="pending")],
-            merge=True,
-            call_id="w3",
-        ))
+        await tool.run(
+            _make_write_call(
+                [TodoItem(id="new", content="New task", status="pending")],
+                merge=True,
+                call_id="w3",
+            )
+        )
 
         state = shared_memory["agent_todo_state"]
         assert len(state.todos) == 3
