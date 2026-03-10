@@ -1,0 +1,512 @@
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+
+from unique_toolkit.agentic.tools.factory import ToolFactory
+from unique_toolkit.agentic.tools.todo.config import TodoConfig
+from unique_toolkit.agentic.tools.todo.schemas import TodoItem, TodoState, TodoWriteInput
+from unique_toolkit.agentic.tools.todo.service import (
+    TodoReadTool,
+    TodoWriteTool,
+    format_todo_state,
+    format_todo_system_reminder,
+)
+from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.language_model.schemas import LanguageModelFunction
+
+
+@pytest.fixture(autouse=True)
+def ensure_todo_tools_registered():
+    """Ensure todo tools are registered before tests run."""
+    if TodoWriteTool.name not in ToolFactory.tool_config_map:
+        ToolFactory.register_tool(TodoWriteTool, TodoConfig)
+    if TodoReadTool.name not in ToolFactory.tool_config_map:
+        ToolFactory.register_tool(TodoReadTool, TodoConfig)
+    yield
+
+
+@pytest.fixture
+def mock_chat_event() -> ChatEvent:
+    """Create a mock ChatEvent for testing."""
+    event = Mock(spec=ChatEvent)
+    event.user_id = "user_123"
+    event.company_id = "company_456"
+    event.chat_id = "chat_789"
+    event.assistant_id = "assistant_101"
+
+    mock_payload = Mock()
+    mock_payload.chat_id = "chat_789"
+    mock_payload.assistant_message = Mock()
+    mock_payload.assistant_message.id = "assistant_message_202"
+    event.payload = mock_payload
+
+    return event
+
+
+@pytest.fixture
+def todo_config() -> TodoConfig:
+    return TodoConfig()
+
+
+@pytest.fixture
+def sample_todos() -> list[TodoItem]:
+    return [
+        TodoItem(id="task-1", content="Research API options", status="completed"),
+        TodoItem(id="task-2", content="Implement service layer", status="in_progress"),
+        TodoItem(id="task-3", content="Write tests", status="pending"),
+    ]
+
+
+@pytest.fixture
+def sample_state(sample_todos: list[TodoItem]) -> TodoState:
+    return TodoState(todos=sample_todos, last_updated_iteration=2)
+
+
+def _make_tool_call(arguments: dict | str, call_id: str = "call_1") -> LanguageModelFunction:
+    """Create a LanguageModelFunction. Arguments can be dict or JSON string (auto-parsed)."""
+    return LanguageModelFunction(id=call_id, name="todo_write", arguments=arguments)
+
+
+class TestTodoState:
+    """Tests for TodoState merge logic."""
+
+    @pytest.mark.ai
+    def test_merge__matching_ids__updates_status(self) -> None:
+        """
+        Purpose: Verify merge updates existing items when IDs match.
+        Why: Core merge semantics -- the model updates status of existing items.
+        Setup: State with one pending item, merge with same ID as completed.
+        """
+        state = TodoState(
+            todos=[TodoItem(id="a", content="Do X", status="pending")]
+        )
+        incoming = [TodoItem(id="a", content="Do X", status="completed")]
+
+        result = state.merge(incoming)
+
+        assert len(result.todos) == 1
+        assert result.todos[0].status == "completed"
+
+    @pytest.mark.ai
+    def test_merge__new_ids__appends(self) -> None:
+        """
+        Purpose: Verify merge adds new items that don't exist yet.
+        Why: The model adds new tasks as it discovers more work.
+        Setup: State with one item, merge with a different ID.
+        """
+        state = TodoState(
+            todos=[TodoItem(id="a", content="Do X", status="pending")]
+        )
+        incoming = [TodoItem(id="b", content="Do Y", status="pending")]
+
+        result = state.merge(incoming)
+
+        assert len(result.todos) == 2
+        ids = {t.id for t in result.todos}
+        assert ids == {"a", "b"}
+
+    @pytest.mark.ai
+    def test_merge__no_match__preserves_existing(self) -> None:
+        """
+        Purpose: Verify merge preserves items not mentioned in incoming.
+        Why: Partial updates should not delete unrelated tasks.
+        Setup: State with two items, merge updates only one.
+        """
+        state = TodoState(
+            todos=[
+                TodoItem(id="a", content="Do X", status="pending"),
+                TodoItem(id="b", content="Do Y", status="pending"),
+            ]
+        )
+        incoming = [TodoItem(id="a", content="Do X", status="completed")]
+
+        result = state.merge(incoming)
+
+        assert len(result.todos) == 2
+        by_id = {t.id: t for t in result.todos}
+        assert by_id["a"].status == "completed"
+        assert by_id["b"].status == "pending"
+
+    @pytest.mark.ai
+    def test_merge__updates_content(self) -> None:
+        """
+        Purpose: Verify merge updates content text when ID matches.
+        Why: The model may refine task descriptions.
+        Setup: State with one item, merge with same ID but different content.
+        """
+        state = TodoState(
+            todos=[TodoItem(id="a", content="Do X", status="pending")]
+        )
+        incoming = [TodoItem(id="a", content="Do X (revised)", status="pending")]
+
+        result = state.merge(incoming)
+
+        assert result.todos[0].content == "Do X (revised)"
+
+
+class TestTodoWriteTool:
+    """Tests for TodoWriteTool run method."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__new_todos__creates_state_in_memory(
+        self, mock_chat_event: ChatEvent, todo_config: TodoConfig
+    ) -> None:
+        """
+        Purpose: Verify first write creates state from scratch.
+        Why: Initial tool call has no existing state.
+        Setup: Mock load returns None, call with new todos.
+        """
+        tool = TodoWriteTool(todo_config, mock_chat_event)
+        tool._memory_manager.load_async = AsyncMock(return_value=None)
+        tool._memory_manager.save_async = AsyncMock()
+
+        call = _make_tool_call(
+            TodoWriteInput(
+                todos=[TodoItem(id="t1", content="First task", status="pending")],
+                merge=True,
+            ).model_dump_json()
+        )
+
+        response = await tool.run(call)
+
+        assert response.successful
+        assert "First task" in response.content
+        tool._memory_manager.save_async.assert_called_once()
+        saved_state: TodoState = tool._memory_manager.save_async.call_args[0][0]
+        assert len(saved_state.todos) == 1
+        assert saved_state.todos[0].id == "t1"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__merge_true__updates_existing_items(
+        self,
+        mock_chat_event: ChatEvent,
+        todo_config: TodoConfig,
+        sample_state: TodoState,
+    ) -> None:
+        """
+        Purpose: Verify merge mode updates existing items by ID.
+        Why: Core workflow -- model marks tasks as completed.
+        Setup: Existing state with 3 items, merge update to mark task-3 as in_progress.
+        """
+        tool = TodoWriteTool(todo_config, mock_chat_event)
+        tool._memory_manager.load_async = AsyncMock(return_value=sample_state)
+        tool._memory_manager.save_async = AsyncMock()
+
+        call = _make_tool_call(
+            TodoWriteInput(
+                todos=[TodoItem(id="task-3", content="Write tests", status="in_progress")],
+                merge=True,
+            ).model_dump_json()
+        )
+
+        response = await tool.run(call)
+
+        saved_state: TodoState = tool._memory_manager.save_async.call_args[0][0]
+        by_id = {t.id: t for t in saved_state.todos}
+        assert by_id["task-3"].status == "in_progress"
+        assert by_id["task-1"].status == "completed"
+        assert len(saved_state.todos) == 3
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__merge_false__replaces_entire_list(
+        self,
+        mock_chat_event: ChatEvent,
+        todo_config: TodoConfig,
+        sample_state: TodoState,
+    ) -> None:
+        """
+        Purpose: Verify replace mode discards existing state.
+        Why: Model may want to start fresh with a new plan.
+        Setup: Existing state with 3 items, replace with 1 new item.
+        """
+        tool = TodoWriteTool(todo_config, mock_chat_event)
+        tool._memory_manager.load_async = AsyncMock(return_value=sample_state)
+        tool._memory_manager.save_async = AsyncMock()
+
+        call = _make_tool_call(
+            TodoWriteInput(
+                todos=[TodoItem(id="new-1", content="Fresh start", status="pending")],
+                merge=False,
+            ).model_dump_json()
+        )
+
+        response = await tool.run(call)
+
+        saved_state: TodoState = tool._memory_manager.save_async.call_args[0][0]
+        assert len(saved_state.todos) == 1
+        assert saved_state.todos[0].id == "new-1"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__exceeds_max_todos__truncates(
+        self, mock_chat_event: ChatEvent
+    ) -> None:
+        """
+        Purpose: Verify max_todos guard rail truncates the list.
+        Why: Prevents runaway list generation by the model.
+        Setup: Config with max_todos=3, write 5 items.
+        """
+        config = TodoConfig(max_todos=3)
+        tool = TodoWriteTool(config, mock_chat_event)
+        tool._memory_manager.load_async = AsyncMock(return_value=None)
+        tool._memory_manager.save_async = AsyncMock()
+
+        items = [
+            TodoItem(id=f"t{i}", content=f"Task {i}", status="pending")
+            for i in range(5)
+        ]
+        call = _make_tool_call(
+            TodoWriteInput(todos=items, merge=False).model_dump_json()
+        )
+
+        await tool.run(call)
+
+        saved_state: TodoState = tool._memory_manager.save_async.call_args[0][0]
+        assert len(saved_state.todos) == 3
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__returns_formatted_state(
+        self, mock_chat_event: ChatEvent, todo_config: TodoConfig
+    ) -> None:
+        """
+        Purpose: Verify response content contains formatted task list.
+        Why: The model reads the response to confirm its update.
+        Setup: Write two items, check response format.
+        """
+        tool = TodoWriteTool(todo_config, mock_chat_event)
+        tool._memory_manager.load_async = AsyncMock(return_value=None)
+        tool._memory_manager.save_async = AsyncMock()
+
+        call = _make_tool_call(
+            TodoWriteInput(
+                todos=[
+                    TodoItem(id="a", content="Alpha", status="pending"),
+                    TodoItem(id="b", content="Beta", status="completed"),
+                ],
+                merge=False,
+            ).model_dump_json()
+        )
+
+        response = await tool.run(call)
+
+        assert "[ ] Alpha" in response.content
+        assert "[x] Beta" in response.content
+        assert "1/2 completed" in response.content
+
+    @pytest.mark.ai
+    def test_tool_description__matches_expected_schema(
+        self, mock_chat_event: ChatEvent, todo_config: TodoConfig
+    ) -> None:
+        """
+        Purpose: Verify tool description has correct name and parameter schema.
+        Why: ToolFactory and ToolManager depend on valid descriptions.
+        Setup: Create tool, inspect description.
+        """
+        tool = TodoWriteTool(todo_config, mock_chat_event)
+        desc = tool.tool_description()
+
+        assert desc.name == "todo_write"
+        assert "todos" in desc.parameters["properties"]
+        assert "merge" in desc.parameters["properties"]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__increments_last_updated_iteration(
+        self, mock_chat_event: ChatEvent, todo_config: TodoConfig
+    ) -> None:
+        """
+        Purpose: Verify last_updated_iteration is incremented on each write.
+        Why: Tracks when state was last modified for debugging.
+        Setup: Existing state at iteration 5, write should bump to 6.
+        """
+        existing = TodoState(
+            todos=[TodoItem(id="a", content="X", status="pending")],
+            last_updated_iteration=5,
+        )
+        tool = TodoWriteTool(todo_config, mock_chat_event)
+        tool._memory_manager.load_async = AsyncMock(return_value=existing)
+        tool._memory_manager.save_async = AsyncMock()
+
+        call = _make_tool_call(
+            TodoWriteInput(
+                todos=[TodoItem(id="a", content="X", status="completed")],
+                merge=True,
+            ).model_dump_json()
+        )
+
+        await tool.run(call)
+
+        saved_state: TodoState = tool._memory_manager.save_async.call_args[0][0]
+        assert saved_state.last_updated_iteration == 6
+
+
+class TestTodoReadTool:
+    """Tests for TodoReadTool."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__no_state__returns_empty(
+        self, mock_chat_event: ChatEvent, todo_config: TodoConfig
+    ) -> None:
+        """
+        Purpose: Verify graceful handling when no state exists.
+        Why: Model may read before any write has occurred.
+        Setup: Mock load returns None.
+        """
+        tool = TodoReadTool(todo_config, mock_chat_event)
+        tool._memory_manager.load_async = AsyncMock(return_value=None)
+
+        call = LanguageModelFunction(id="call_r1", name="todo_read", arguments="{}")
+
+        response = await tool.run(call)
+
+        assert response.successful
+        assert "No tasks tracked" in response.content
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__existing_state__returns_formatted(
+        self,
+        mock_chat_event: ChatEvent,
+        todo_config: TodoConfig,
+        sample_state: TodoState,
+    ) -> None:
+        """
+        Purpose: Verify read returns correctly formatted existing state.
+        Why: Core read functionality for the model.
+        Setup: Existing state with 3 items.
+        """
+        tool = TodoReadTool(todo_config, mock_chat_event)
+        tool._memory_manager.load_async = AsyncMock(return_value=sample_state)
+
+        call = LanguageModelFunction(id="call_r2", name="todo_read", arguments="{}")
+
+        response = await tool.run(call)
+
+        assert "[x] Research API options" in response.content
+        assert "[>] Implement service layer" in response.content
+        assert "[ ] Write tests" in response.content
+        assert "1/3 completed" in response.content
+
+    @pytest.mark.ai
+    def test_tool_description__has_no_required_params(
+        self, mock_chat_event: ChatEvent, todo_config: TodoConfig
+    ) -> None:
+        """
+        Purpose: Verify read tool has an empty parameter schema.
+        Why: Reading should require no input from the model.
+        Setup: Create tool, inspect parameters.
+        """
+        tool = TodoReadTool(todo_config, mock_chat_event)
+        desc = tool.tool_description()
+
+        assert desc.name == "todo_read"
+        assert desc.parameters.get("required") is None or desc.parameters.get("required") == []
+
+
+class TestFormatFunctions:
+    """Tests for the format helper functions."""
+
+    @pytest.mark.ai
+    def test_format_todo_state__empty__returns_no_tasks(self) -> None:
+        """
+        Purpose: Verify empty state produces a clear message.
+        Why: Model should understand there are no tasks.
+        Setup: Empty TodoState.
+        """
+        result = format_todo_state(TodoState())
+        assert result == "No tasks tracked."
+
+    @pytest.mark.ai
+    def test_format_todo_system_reminder__contains_tags(
+        self, sample_state: TodoState
+    ) -> None:
+        """
+        Purpose: Verify system reminder is wrapped in <system-reminder> tags.
+        Why: The orchestrator expects this format for injection.
+        Setup: State with items.
+        """
+        result = format_todo_system_reminder(sample_state)
+
+        assert "<system-reminder>" in result
+        assert "</system-reminder>" in result
+        assert "Current task progress:" in result
+
+    @pytest.mark.ai
+    def test_format_todo_system_reminder__contains_all_items(
+        self, sample_state: TodoState
+    ) -> None:
+        """
+        Purpose: Verify all items appear in the reminder.
+        Why: The model needs to see every task.
+        Setup: State with 3 items.
+        """
+        result = format_todo_system_reminder(sample_state)
+
+        assert "Research API options" in result
+        assert "Implement service layer" in result
+        assert "Write tests" in result
+
+
+class TestToolRegistration:
+    """Tests for ToolFactory registration."""
+
+    @pytest.mark.ai
+    def test_todo_write__registered_in_factory(self) -> None:
+        """
+        Purpose: Verify TodoWriteTool is discoverable via ToolFactory.
+        Why: The builder uses ToolFactory to construct tools.
+        Setup: Check factory maps.
+        """
+        assert "todo_write" in ToolFactory.tool_map
+        assert "todo_write" in ToolFactory.tool_config_map
+
+    @pytest.mark.ai
+    def test_todo_read__registered_in_factory(self) -> None:
+        """
+        Purpose: Verify TodoReadTool is discoverable via ToolFactory.
+        Why: The builder uses ToolFactory to construct tools.
+        Setup: Check factory maps.
+        """
+        assert "todo_read" in ToolFactory.tool_map
+        assert "todo_read" in ToolFactory.tool_config_map
+
+
+class TestTodoConfig:
+    """Tests for TodoConfig validation."""
+
+    @pytest.mark.ai
+    def test_config__defaults(self) -> None:
+        """
+        Purpose: Verify default config values.
+        Why: Defaults should be sensible out of the box.
+        Setup: Create config with no args.
+        """
+        config = TodoConfig()
+        assert config.memory_key == "agent_todo_state"
+        assert config.max_todos == 20
+        assert config.inject_system_reminder is True
+
+    @pytest.mark.ai
+    def test_config__max_todos_lower_bound(self) -> None:
+        """
+        Purpose: Verify max_todos rejects values below 1.
+        Why: Guard rail validation.
+        Setup: Attempt to create config with max_todos=0.
+        """
+        with pytest.raises(Exception):
+            TodoConfig(max_todos=0)
+
+    @pytest.mark.ai
+    def test_config__max_todos_upper_bound(self) -> None:
+        """
+        Purpose: Verify max_todos rejects values above 50.
+        Why: Guard rail validation.
+        Setup: Attempt to create config with max_todos=100.
+        """
+        with pytest.raises(Exception):
+            TodoConfig(max_todos=100)
