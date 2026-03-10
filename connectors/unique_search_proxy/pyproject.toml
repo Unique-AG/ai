@@ -1,23 +1,68 @@
 [project]
 name = "core"
-version = "0.1.0"
+version = "0.1.1"
 description = "Web Search Proxy implementation"
 authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi (>=0.115.0,<1.0.0)",
-    "uvicorn[standard] (>=0.32.0,<1.0.0)",
-    "google-cloud-aiplatform (>=1.128.0,<2.0.0)",
-    "google-auth (>=2.43.0,<3.0.0)",
-    "google-generativeai (>=0.8.5,<0.9.0)",
-    "pydantic (>=2.12.5,<3.0.0)",
-    "httpx (>=0.28.0,<0.29.0)",
-    "python-dotenv (>=1.2.1,<2.0.0)",
-    "ruff (>=0.14.7,<0.15.0)",
-    "pydantic-settings (>=2.12.0,<3.0.0)"
+    "fastapi>=0.115.0,<1.0.0",
+    "uvicorn[standard]>=0.32.0,<1.0.0",
+    "google-cloud-aiplatform>=1.128.0,<2.0.0",
+    "google-auth>=2.43.0,<3.0.0",
+    "google-generativeai>=0.8.5,<0.9.0",
+    "pydantic>=2.12.5,<3.0.0",
+    "httpx>=0.28.0,<0.29.0",
+    "python-dotenv>=1.2.1,<2.0.0",
+    "pydantic-settings>=2.12.0,<3.0.0"
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.7",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.25.0",
+    "pytest-cov>=4.1.0",
+    "deptry>=0.24.0",
+    "basedpyright>=1.35.0",
+    "poethepoet>=0.32.0",
 ]
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.7.19,<0.8"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = "web"
+
+[tool.uv]
+constraint-dependencies = ["lxml>=5.0.0"]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+include = ["web"]
+
+[tool.deptry]
+known_first_party = ["core", "settings"]
+
+[tool.poe.tasks]
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+test = "pytest"
+typecheck = "basedpyright"
+depcheck = "deptry ."
+
+[tool.pytest.ini_options]
+pythonpath = ["web"]
+asyncio_mode = "auto"
+addopts = "--strict-markers --cov=core --cov=app --cov=settings --cov-report=xml --cov-report=term-missing"
+markers = [
+    "ai: AI-authored test",
+]

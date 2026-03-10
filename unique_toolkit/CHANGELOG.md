@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LoopTokenReducer preserves ResponseOutputItem instances during reduction (no source reduction applied)
 - Add unit tests for HistoryManager and LoopTokenReducer with Responses API output items
 
+## [1.51.0] - 2026-03-10
+- Make `ToolBuildConfig` generic over the configuration type. Enables downstream consumers to parameterize the configuration type without invariant-override type errors.
+
 ## [1.50.4] - 2026-03-05
 - Add `INGESTION_UPLOAD_API_URL_INTERNAL` environment variable to override the ingestion upload URL. This can be used to upload content from within a private network like a Kubernetes cluster.
 

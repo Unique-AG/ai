@@ -72,11 +72,12 @@ jobs:
         with:
           fetch-depth: 0  # Need full history for gh-pages branch
 
-      - name: Setup Python and Poetry
-        uses: ./.github/actions/setup-python-poetry
-
-      - name: Install dependencies
-        run: poetry install --with dev
+      - name: Install package manager
+        id: pm
+        uses: ./.github/actions/install-package-manager
+        with:
+          package_dir: .
+          python_version: '3.12'
 
       - name: Configure Git
         run: |
@@ -143,7 +144,7 @@ jobs:
       - name: Build root site
         run: |
           echo "🏗️ Building root site..."
-          poetry run mkdocs build -d _deploy
+          ${{ steps.pm.outputs.run_cmd }} mkdocs build -d _deploy
           # The Material theme generates its own 404.html — overwrite it with ours.
           cp docs/404.html _deploy/404.html
           echo "✓ Root site built"
@@ -170,7 +171,7 @@ jobs:
             sed "s|site_url:.*|site_url: $SITE_URL|g" unique_sdk/mkdocs.yaml > unique_sdk/mkdocs.temp.yaml
             
             # Build
-            poetry run mkdocs build -f unique_sdk/mkdocs.temp.yaml -d "$OUTPUT_DIR" --clean
+            ${{ steps.pm.outputs.run_cmd }} mkdocs build -f unique_sdk/mkdocs.temp.yaml -d "$OUTPUT_DIR" --clean
             
             # Cleanup
             rm -f unique_sdk/mkdocs.temp.yaml
@@ -200,7 +201,7 @@ jobs:
             sed "s|site_url:.*|site_url: $SITE_URL|g" unique_toolkit/mkdocs.yaml > unique_toolkit/mkdocs.temp.yaml
             
             # Build
-            poetry run mkdocs build -f unique_toolkit/mkdocs.temp.yaml -d "$OUTPUT_DIR" --clean
+            ${{ steps.pm.outputs.run_cmd }} mkdocs build -f unique_toolkit/mkdocs.temp.yaml -d "$OUTPUT_DIR" --clean
             
             # Cleanup
             rm -f unique_toolkit/mkdocs.temp.yaml

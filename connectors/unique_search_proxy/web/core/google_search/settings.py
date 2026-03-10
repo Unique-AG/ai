@@ -1,5 +1,5 @@
-from settings import get_env_path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from settings import get_env_path
 
 
 class GoogleSearchSettings(BaseSettings):
