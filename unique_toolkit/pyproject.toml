@@ -41,6 +41,7 @@ dependencies = [
     "click>=8.1.0,<9",
     "deepdiff>=8.6.1,<9",
     "pypandoc>=1.16.2,<2",
+    "claude-agent-sdk>=0.1.44,<0.2",
 ]
 
 [project.optional-dependencies]
