@@ -47,13 +47,17 @@ async def run_forced_tools_iteration(
     *,
     loop_runner_kwargs: _LoopIterationRunnerKwargs,
     prepare_loop_runner_kwargs: PrepareForcedToolIterationKwargs | None = None,
+    tool_choice_override: str | None = None,
 ) -> LanguageModelStreamResponse:
     """
     Execute a "forced tools" iteration by running one stream_response per tool choice,
     then merging tool calls and references into a single response.
 
-    Some models (e.g. Qwen) need per-tool-choice message rewriting; this can be done
-    via prepare_loop_runner_kwargs (called once per tool choice, on a copy of kwargs).
+    Args:
+        prepare_loop_runner_kwargs: Optional callback to transform kwargs per tool choice
+            (e.g. Qwen rewrites messages with tool-specific instructions).
+        tool_choice_override: If set, replaces the per-tool named dict with this value
+            (e.g. Mistral needs "any" instead of the named format).
     """
     assert "tool_choices" in loop_runner_kwargs
 
@@ -74,13 +78,16 @@ async def run_forced_tools_iteration(
         if prepare_loop_runner_kwargs:
             per_choice_kwargs = prepare_loop_runner_kwargs(func_name, per_choice_kwargs)
 
+        effective_tool_choice = tool_choice_override or opt
         limited_tool = available_tools.get(func_name) if func_name else None
-        stream_kwargs = {"loop_runner_kwargs": per_choice_kwargs, "tool_choice": opt}
+        stream_kwargs = {
+            "loop_runner_kwargs": per_choice_kwargs,
+            "tool_choice": effective_tool_choice,
+        }
         if limited_tool:
             stream_kwargs["tools"] = [limited_tool]
         responses.append(await stream_response(**stream_kwargs))
 
-    # Merge responses and refs:
     tool_calls = []
     references = []
     for r in responses:
