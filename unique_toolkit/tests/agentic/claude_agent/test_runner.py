@@ -1,0 +1,356 @@
+"""
+Test suite for ClaudeAgentRunner.
+
+All service dependencies are mocked — these tests are CI-safe and do not require
+a real Claude API key or a running platform. The claude-agent-sdk package is
+installed (required by pyproject.toml) but query() is always mocked so no
+subprocess is spawned.
+
+Naming convention: test_<method>_<scenario>_<expected>
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+from claude_agent_sdk.types import McpSdkServerConfig
+
+from unique_toolkit.agentic.claude_agent.config import ClaudeAgentConfig
+from unique_toolkit.agentic.claude_agent.runner import ClaudeAgentRunner
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _make_runner(claude_config: ClaudeAgentConfig | None = None) -> ClaudeAgentRunner:
+    """Construct a ClaudeAgentRunner with all services mocked."""
+    mock_event = MagicMock()
+    mock_event.payload.user_message.text = "hello"
+    mock_event.payload.chat_id = "chat-123"
+    mock_event.payload.assistant_message.id = "msg-456"
+
+    return ClaudeAgentRunner(
+        event=mock_event,
+        logger=MagicMock(),
+        config=MagicMock(),
+        claude_config=claude_config or ClaudeAgentConfig(),
+        chat_service=MagicMock(),
+        content_service=MagicMock(),
+        evaluation_manager=MagicMock(),
+        postprocessor_manager=MagicMock(),
+        reference_manager=MagicMock(),
+        thinking_manager=MagicMock(),
+        tool_progress_reporter=MagicMock(),
+        message_step_logger=MagicMock(),
+        history_manager=MagicMock(),
+        debug_info_manager=MagicMock(),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Runner instantiation
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestClaudeAgentRunnerInit:
+    def test_runner_init_stores_all_dependencies__when_constructed_with_mocked_services(
+        self,
+    ) -> None:
+        """All constructor args are stored as private attributes."""
+        mock_event = MagicMock()
+        mock_logger = MagicMock()
+        mock_config = MagicMock()
+        claude_config = ClaudeAgentConfig()
+        mock_chat = MagicMock()
+        mock_content = MagicMock()
+        mock_eval = MagicMock()
+        mock_post = MagicMock()
+        mock_ref = MagicMock()
+        mock_think = MagicMock()
+        mock_progress = MagicMock()
+        mock_step = MagicMock()
+        mock_history = MagicMock()
+        mock_debug = MagicMock()
+
+        runner = ClaudeAgentRunner(
+            event=mock_event,
+            logger=mock_logger,
+            config=mock_config,
+            claude_config=claude_config,
+            chat_service=mock_chat,
+            content_service=mock_content,
+            evaluation_manager=mock_eval,
+            postprocessor_manager=mock_post,
+            reference_manager=mock_ref,
+            thinking_manager=mock_think,
+            tool_progress_reporter=mock_progress,
+            message_step_logger=mock_step,
+            history_manager=mock_history,
+            debug_info_manager=mock_debug,
+        )
+
+        assert runner._event is mock_event
+        assert runner._logger is mock_logger
+        assert runner._config is mock_config
+        assert runner._claude_config is claude_config
+        assert runner._chat_service is mock_chat
+        assert runner._content_service is mock_content
+        assert runner._evaluation_manager is mock_eval
+        assert runner._postprocessor_manager is mock_post
+        assert runner._reference_manager is mock_ref
+        assert runner._thinking_manager is mock_think
+        assert runner._tool_progress_reporter is mock_progress
+        assert runner._message_step_logger is mock_step
+        assert runner._history_manager is mock_history
+        assert runner._debug_info_manager is mock_debug
+        assert runner._workspace_dir is None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _build_options()
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestBuildOptions:
+    def test_build_options_default_config__produces_expected_shape(self) -> None:
+        """Default ClaudeAgentConfig produces the mandatory keys with correct values."""
+        runner = _make_runner()
+        opts = runner._build_options(system_prompt="sys", workspace_dir=None)
+
+        assert opts["system_prompt"] == "sys"
+        assert opts["model"] == "claude-sonnet-4-20250514"
+        assert opts["max_turns"] == 20
+        assert opts["max_budget_usd"] == 2.0
+        assert opts["permission_mode"] == "bypassPermissions"
+        assert isinstance(opts["allowed_tools"], list)
+        assert isinstance(opts["disallowed_tools"], list)
+        assert "ANTHROPIC_API_KEY" in opts["env"]
+        assert opts["include_partial_messages"] is True
+
+    def test_build_options_with_workspace_dir__cwd_in_options(self) -> None:
+        """When workspace_dir is provided, cwd appears in the options dict."""
+        runner = _make_runner()
+        ws = Path("/tmp/workspace/chat-123")
+        opts = runner._build_options(system_prompt="sys", workspace_dir=ws)
+
+        assert "cwd" in opts
+        assert opts["cwd"] == str(ws)
+
+    def test_build_options_without_workspace_dir__cwd_not_in_options(self) -> None:
+        """When workspace_dir is None, cwd must be absent (runner is sandbox-agnostic)."""
+        runner = _make_runner()
+        opts = runner._build_options(system_prompt="sys", workspace_dir=None)
+
+        assert "cwd" not in opts
+
+    def test_build_options_code_execution_enabled__bash_write_edit_read_glob_grep_in_allowed(
+        self,
+    ) -> None:
+        """When enable_code_execution=True, all code execution tools are in allowed_tools."""
+        runner = _make_runner(ClaudeAgentConfig(enable_code_execution=True))
+        opts = runner._build_options(system_prompt="sys", workspace_dir=None)
+
+        for tool in ("Bash", "Write", "Edit", "Read", "Glob", "Grep"):
+            assert tool in opts["allowed_tools"], f"{tool} must be in allowed_tools"
+            assert tool not in opts["disallowed_tools"], (
+                f"{tool} must not be in disallowed_tools"
+            )
+
+    def test_build_options_optional_fields__appear_in_options_when_set(self) -> None:
+        """max_thinking_tokens, fallback_model, setting_sources, add_dirs, cli_path
+        are only included in the options dict when explicitly set."""
+        config = ClaudeAgentConfig(
+            max_thinking_tokens=8192,
+            fallback_model="claude-haiku-4-20250514",
+            setting_sources=["project"],
+            add_dirs=["/data/mounts"],
+            cli_path="/usr/local/bin/claude",
+        )
+        runner = _make_runner(config)
+        opts = runner._build_options(system_prompt="sys", workspace_dir=None)
+
+        assert opts["max_thinking_tokens"] == 8192
+        assert opts["fallback_model"] == "claude-haiku-4-20250514"
+        assert opts["setting_sources"] == ["project"]
+        assert opts["add_dirs"] == ["/data/mounts"]
+        assert opts["cli_path"] == "/usr/local/bin/claude"
+
+    def test_build_options_optional_fields__absent_when_not_set(self) -> None:
+        """Optional fields must not appear in options when left at their None/empty default."""
+        runner = _make_runner()
+        opts = runner._build_options(system_prompt="sys", workspace_dir=None)
+
+        assert "max_thinking_tokens" not in opts
+        assert "fallback_model" not in opts
+        assert "setting_sources" not in opts
+        assert "add_dirs" not in opts
+        assert "cli_path" not in opts
+
+    def test_build_options_extra_env_merged__into_env_dict(self) -> None:
+        """extra_env from ClaudeAgentConfig is merged into the env dict alongside ANTHROPIC_API_KEY."""
+        config = ClaudeAgentConfig(
+            extra_env={"MY_SECRET": "hunter2", "REGION": "us-east-1"}
+        )
+        runner = _make_runner(config)
+        opts = runner._build_options(system_prompt="sys", workspace_dir=None)
+
+        assert opts["env"]["MY_SECRET"] == "hunter2"
+        assert opts["env"]["REGION"] == "us-east-1"
+        assert "ANTHROPIC_API_KEY" in opts["env"]
+
+    def test_build_options_includes_mcp_servers(self) -> None:
+        """options dict contains 'mcp_servers' with the 'unique_platform' key."""
+        runner = _make_runner()
+        mock_sdk_config = MagicMock(spec=McpSdkServerConfig)
+        runner._build_mcp_server = MagicMock(return_value=mock_sdk_config)
+
+        opts = runner._build_options(system_prompt="sys", workspace_dir=None)
+
+        assert "mcp_servers" in opts
+        assert "unique_platform" in opts["mcp_servers"]
+        assert opts["mcp_servers"]["unique_platform"] is mock_sdk_config
+
+    def test_build_options_sets_home_and_continue_when_claude_dir_exists(
+        self, tmp_path: Path
+    ) -> None:
+        """HOME is set to workspace_dir and continue_conversation=True when .claude/ exists."""
+        claude_dir = tmp_path / ".claude"
+        claude_dir.mkdir()
+
+        runner = _make_runner()
+        opts = runner._build_options(system_prompt="sys", workspace_dir=tmp_path)
+
+        assert opts["env"]["HOME"] == str(tmp_path)
+        assert opts["continue_conversation"] is True
+
+    def test_build_options_no_continue_when_no_claude_dir(self, tmp_path: Path) -> None:
+        """HOME is not overridden and continue_conversation is absent when .claude/ is missing."""
+        runner = _make_runner()
+        opts = runner._build_options(system_prompt="sys", workspace_dir=tmp_path)
+
+        assert opts["env"].get("HOME") != str(tmp_path)
+        assert "continue_conversation" not in opts
+
+    def test_build_options_no_continue_when_no_workspace(self) -> None:
+        """HOME is not overridden and continue_conversation is absent when workspace_dir is None."""
+        runner = _make_runner()
+        opts = runner._build_options(system_prompt="sys", workspace_dir=None)
+
+        assert "HOME" not in opts["env"]
+        assert "continue_conversation" not in opts
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _build_system_prompt
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestBuildSystemPrompt:
+    @pytest.mark.asyncio
+    async def test_build_system_prompt_returns_override_when_set(self) -> None:
+        """When system_prompt_override is non-empty it is returned verbatim."""
+        config = ClaudeAgentConfig(system_prompt_override="My custom prompt")
+        runner = _make_runner(config)
+        runner._history_manager._loop_history = []
+
+        result = await runner._build_system_prompt()
+
+        assert result == "My custom prompt"
+
+    @pytest.mark.asyncio
+    async def test_build_system_prompt_composes_sections_when_no_override(self) -> None:
+        """Default config with no override produces a composed prompt with key sections."""
+        runner = _make_runner()
+        runner._history_manager._loop_history = []
+        # Ensure user_metadata returns empty (no payload metadata)
+        runner._event.payload.user_metadata = None
+
+        result = await runner._build_system_prompt()
+
+        assert "# System" in result
+        assert "# Answer Style" in result
+        assert "# Reference Guidelines" in result
+        assert "HtmlRendering" in result
+        assert isinstance(result, str)
+        assert len(result) > 100
+
+    @pytest.mark.asyncio
+    async def test_build_system_prompt_includes_model_name(self) -> None:
+        """The configured model name appears in the composed prompt."""
+        config = ClaudeAgentConfig(model="claude-opus-4-20250514")
+        runner = _make_runner(config)
+        runner._history_manager._loop_history = []
+        runner._event.payload.user_metadata = None
+
+        result = await runner._build_system_prompt()
+
+        assert "claude-opus-4-20250514" in result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _build_history
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestBuildHistory:
+    def test_build_history_returns_empty_list(self) -> None:
+        """_build_history() returns [] — history is injected via system prompt for MVP."""
+        runner = _make_runner()
+        assert runner._build_history() == []
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _run_post_processing
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestRunPostProcessing:
+    @pytest.mark.asyncio
+    async def test_run_post_processing_calls_eval_and_postprocessor_concurrently(
+        self,
+    ) -> None:
+        """Both managers are called when claude_result is non-empty."""
+        runner = _make_runner()
+        runner._evaluation_manager.run_evaluations = AsyncMock(return_value=[])
+        runner._postprocessor_manager.run_postprocessors = AsyncMock(return_value=None)
+
+        await runner._run_post_processing("Some final answer text")
+
+        runner._evaluation_manager.run_evaluations.assert_called_once()
+        runner._postprocessor_manager.run_postprocessors.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_run_post_processing_skips_when_result_empty(self) -> None:
+        """Neither manager is called when claude_result is an empty string."""
+        runner = _make_runner()
+        runner._evaluation_manager.run_evaluations = AsyncMock(return_value=[])
+        runner._postprocessor_manager.run_postprocessors = AsyncMock(return_value=None)
+
+        await runner._run_post_processing("")
+
+        runner._evaluation_manager.run_evaluations.assert_not_called()
+        runner._postprocessor_manager.run_postprocessors.assert_not_called()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _format_history (public API usage)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestFormatHistory:
+    def test_format_history_returns_empty_until_wired(self) -> None:
+        """_format_history() returns empty string for MVP stub; does not call history_manager.
+
+        When history is wired (HistoryManager.get_loop_history + format_history_as_text),
+        this test should be updated to assert get_loop_history is called once.
+        """
+        runner = _make_runner()
+        runner._history_manager.get_loop_history = MagicMock(return_value=[])
+
+        result = runner._format_history()
+
+        assert result == ""
+        runner._history_manager.get_loop_history.assert_not_called()
