@@ -53,8 +53,14 @@ from unique_toolkit.agentic.tools.a2a import (
     SubAgentResponsesPostprocessorConfig,
     SubAgentResponseWatcher,
 )
+from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
+    PersistentShortMemoryManager,
+)
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
+from unique_toolkit.agentic.tools.todo.config import TodoConfig
+from unique_toolkit.agentic.tools.todo.schemas import TodoState
+from unique_toolkit.agentic.tools.todo.service import TodoWriteTool
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.tool_manager import (
     OpenAIBuiltInToolManager,
@@ -65,6 +71,7 @@ from unique_toolkit.agentic.tools.tool_manager import (
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
+from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
@@ -74,6 +81,28 @@ from unique_orchestrator.config import CodeInterpreterExtendedConfig, UniqueAICo
 from unique_orchestrator.unique_ai import UniqueAI
 
 
+def _build_todo_memory_manager(
+    event: ChatEvent,
+    config: UniqueAIConfig,
+) -> PersistentShortMemoryManager[TodoState] | None:
+    """Build a PersistentShortMemoryManager for TODO state if TodoWriteTool is enabled."""
+    for tool in config.space.tools:
+        if tool.is_enabled and tool.name == TodoWriteTool.name:
+            todo_config = (
+                tool.configuration
+                if isinstance(tool.configuration, TodoConfig)
+                else TodoConfig()
+            )
+            if not todo_config.inject_system_reminder:
+                return None
+            return PersistentShortMemoryManager(
+                short_term_memory_service=ShortTermMemoryService(event=event),
+                short_term_memory_schema=TodoState,
+                short_term_memory_name=todo_config.memory_key,
+            )
+    return None
+
+
 async def build_unique_ai(
     event: ChatEvent,
     logger: Logger,
@@ -81,6 +110,7 @@ async def build_unique_ai(
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
     common_components = _build_common(event, logger, config)
+    todo_memory_manager = _build_todo_memory_manager(event, config)
 
     if config.agent.experimental.responses_api_config.use_responses_api:
         return await _build_responses(
@@ -89,6 +119,7 @@ async def build_unique_ai(
             config=config,
             debug_info_manager=debug_info_manager,
             common_components=common_components,
+            todo_memory_manager=todo_memory_manager,
         )
     else:
         return _build_completions(
@@ -97,6 +128,7 @@ async def build_unique_ai(
             config=config,
             debug_info_manager=debug_info_manager,
             common_components=common_components,
+            todo_memory_manager=todo_memory_manager,
         )
 
 
@@ -245,6 +277,7 @@ async def _build_responses(
     config: UniqueAIConfig,
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
+    todo_memory_manager: PersistentShortMemoryManager[TodoState] | None = None,
 ) -> UniqueAI:
     client = get_async_openai_client().copy(
         default_headers={
@@ -380,6 +413,7 @@ async def _build_responses(
         message_step_logger=common_components.message_step_logger,
         mcp_servers=event.payload.mcp_servers,
         loop_iteration_runner=loop_iteration_runner,
+        todo_memory_manager=todo_memory_manager,
     )
 
 
@@ -389,6 +423,7 @@ def _build_completions(
     config: UniqueAIConfig,
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
+    todo_memory_manager: PersistentShortMemoryManager[TodoState] | None = None,
 ) -> UniqueAI:
     # Uploaded content behavior is always to force uploaded search tool:
     # 1. Add it to forced tools if there are tool choices.
@@ -478,6 +513,7 @@ def _build_completions(
         mcp_servers=event.payload.mcp_servers,
         message_step_logger=common_components.message_step_logger,
         loop_iteration_runner=loop_iteration_runner,
+        todo_memory_manager=todo_memory_manager,
     )
 
 
