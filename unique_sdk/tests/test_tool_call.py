@@ -5,12 +5,24 @@ Conforms to unique_skills/.claude/skills/python-testing (naming, docstrings, moc
 
 import pytest
 
+from unique_sdk import ToolCall as ToolCallPublic
 from unique_sdk._list_object import ListObject
 from unique_sdk.api_resources._tool_call import (
     MESSAGE_IDS_PAGE_SIZE,
     ToolCall,
     _chunk_message_ids,
 )
+
+
+@pytest.mark.ai
+def test_tool_call_exported_from_unique_sdk():
+    """Purpose: ToolCall is importable from unique_sdk (public API).
+
+    Why this matters: Ensures the new export in unique_sdk/__init__.py is covered
+    so diff-coverage on changed lines passes in CI.
+    Setup summary: Import ToolCall from unique_sdk. Assert it is the same class as the module-level ToolCall.
+    """
+    assert ToolCallPublic is ToolCall
 
 
 def _make_list_object(data=None):
