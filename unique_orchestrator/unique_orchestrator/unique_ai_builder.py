@@ -256,44 +256,22 @@ async def _build_responses(
         }
     )
 
-    assert config.agent.experimental.responses_api_config is not None
-
     postprocessor_manager = common_components.postprocessor_manager
 
-    code_interpreter_config_tools = None
+    code_interpreter_config = None
     for tool in config.space.tools:
         if tool.is_enabled and tool.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
-            code_interpreter_config_tools = cast(
+            code_interpreter_config = cast(
                 CodeInterpreterExtendedConfig, tool.configuration
             )
             break
 
-    code_interpreter_config_experimental = (
-        config.agent.experimental.responses_api_config.code_interpreter
-    )
-
-    code_interpreter_config = (
-        code_interpreter_config_tools or code_interpreter_config_experimental
-    )
-
     if code_interpreter_config is not None:
-        if code_interpreter_config_tools is None:
-            logger.info("Automatically adding code interpreter to the tools")
-            config = config.model_copy(deep=True)
-            config.space.tools.append(
-                ToolBuildConfig(
-                    name=OpenAIBuiltInToolName.CODE_INTERPRETER,
-                    configuration=code_interpreter_config.tool_config,
-                )
+        postprocessor_manager.add_postprocessor(
+            ShowExecutedCodePostprocessor(
+                config=code_interpreter_config.executed_code_display_config
             )
-            common_components.tool_manager_config.tools = config.space.tools
-
-        if code_interpreter_config.executed_code_display_config is not None:
-            postprocessor_manager.add_postprocessor(
-                ShowExecutedCodePostprocessor(
-                    config=code_interpreter_config.executed_code_display_config
-                )
-            )
+        )
 
         postprocessor_manager.add_postprocessor(
             DisplayCodeInterpreterFilesPostProcessor(
