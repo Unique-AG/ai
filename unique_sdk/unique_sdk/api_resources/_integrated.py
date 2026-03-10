@@ -23,7 +23,10 @@ if TYPE_CHECKING:
         ToolParam,
         response_create_params,
     )
-    from openai.types.shared_params import Metadata, Reasoning  # pyright: ignore[reportMissingImports]
+    from openai.types.shared_params import (  # pyright: ignore[reportMissingImports]
+        Metadata,
+        Reasoning,
+    )
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
