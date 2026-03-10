@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.51.0] - 2026-03-10
+- Make `ToolBuildConfig` generic over the configuration type (`ToolBuildConfig[T]` where `T` is bound to `BaseToolConfig`, default `BaseToolConfig`). Enables downstream consumers to parameterize the configuration type without invariant-override type errors. Fully backward compatible — unparameterized usage behaves identically.
+
 ## [1.50.4] - 2026-03-05
 - Add `INGESTION_UPLOAD_API_URL_INTERNAL` environment variable to override the ingestion upload URL. This can be used to upload content from within a private network like a Kubernetes cluster.
 
