@@ -285,7 +285,6 @@ class TestBuildTodoMemoryManager:
         Setup: Config with standard tools only.
         """
         from unique_toolkit.agentic.tools.config import ToolBuildConfig
-        from unique_toolkit.agentic.tools.todo.config import TodoConfig
 
         from unique_orchestrator.unique_ai_builder import _build_todo_memory_manager
 

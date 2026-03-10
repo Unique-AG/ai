@@ -1,10 +1,14 @@
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.todo.config import TodoConfig
-from unique_toolkit.agentic.tools.todo.schemas import TodoItem, TodoState, TodoWriteInput
+from unique_toolkit.agentic.tools.todo.schemas import (
+    TodoItem,
+    TodoState,
+    TodoWriteInput,
+)
 from unique_toolkit.agentic.tools.todo.service import (
     TodoReadTool,
     TodoWriteTool,
@@ -201,7 +205,7 @@ class TestTodoWriteTool:
             ).model_dump_json()
         )
 
-        response = await tool.run(call)
+        await tool.run(call)
 
         saved_state: TodoState = tool._memory_manager.save_async.call_args[0][0]
         by_id = {t.id: t for t in saved_state.todos}
@@ -233,7 +237,7 @@ class TestTodoWriteTool:
             ).model_dump_json()
         )
 
-        response = await tool.run(call)
+        await tool.run(call)
 
         saved_state: TodoState = tool._memory_manager.save_async.call_args[0][0]
         assert len(saved_state.todos) == 1

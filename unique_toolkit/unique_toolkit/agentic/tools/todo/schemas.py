@@ -4,7 +4,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 TodoStatus = Literal["pending", "in_progress", "completed", "cancelled"]
 
 
