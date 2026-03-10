@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Annotated, Any
+from typing import Annotated, Any, Generic
 
 from pydantic import (
     BaseModel,
@@ -9,9 +9,12 @@ from pydantic import (
     field_serializer,
     model_validator,
 )
+from typing_extensions import TypeVar
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
+
+T = TypeVar("T", bound=BaseToolConfig, default=BaseToolConfig)
 
 
 class ToolIcon(StrEnum):
@@ -45,12 +48,12 @@ def handle_undefined_icon(value: Any) -> ToolIcon:
         return ToolIcon.BOOK
 
 
-class ToolBuildConfig(BaseModel):
+class ToolBuildConfig(BaseModel, Generic[T]):
     model_config = get_configuration_dict()
     """Main tool configuration"""
 
     name: str
-    configuration: BaseToolConfig
+    configuration: T
     display_name: str = ""
     icon: Annotated[ToolIcon, BeforeValidator(handle_undefined_icon)] = Field(
         default=ToolIcon.BOOK,
@@ -124,5 +127,5 @@ class ToolBuildConfig(BaseModel):
         return value
 
     @field_serializer("configuration")
-    def serialize_config(self, value: BaseToolConfig) -> dict[str, Any]:
+    def serialize_config(self, value: T) -> dict[str, Any]:
         return value.__class__.model_dump(value)
