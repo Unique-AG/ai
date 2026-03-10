@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.53.0] - 2026-03-10
+- Add `TodoWriteTool` and `TodoReadTool` for agent-side task tracking in multi-step workflows
+- Add `TodoConfig` with configurable `memory_key`, `max_todos`, and `inject_system_reminder`
+- Add `format_todo_state` and `format_todo_system_reminder` formatting helpers
+
 ## [1.52.0] - 2026-03-10
 - Refactor loop runner architecture: make `BasicLoopIterationRunner` an extensible base class with overridable hooks (`_handle_forced_tools`, `_handle_last_iteration`, `_handle_normal_iteration`)
 - Add `tool_choice_override` parameter to `run_forced_tools_iteration` for model-specific tool choice handling

@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, timezone
 from logging import Logger
-from typing import overload
+from typing import TYPE_CHECKING, overload
 
 import jinja2
 from typing_extensions import deprecated
@@ -20,6 +20,9 @@ from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
+from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
+    PersistentShortMemoryManager,
+)
 from unique_toolkit.agentic.thinking_manager.thinking_manager import ThinkingManager
 from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
@@ -32,6 +35,7 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelAssistantMessage
 from unique_toolkit.language_model.schemas import (
+    LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelStreamResponse,
 )
@@ -41,6 +45,9 @@ from unique_toolkit.protocols.support import (
 )
 
 from unique_orchestrator.config import UniqueAIConfig
+
+if TYPE_CHECKING:
+    from unique_toolkit.agentic.tools.todo.schemas import TodoState
 
 EMPTY_MESSAGE_WARNING = (
     "⚠️ **The language model was unable to produce an output.**\n"
@@ -74,6 +81,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner,
+        todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
     ) -> None: ...
 
     # Responses API Dependencies
@@ -96,6 +104,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: ResponsesLoopIterationRunner,
+        todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
     ) -> None: ...
 
     def __init__(
@@ -117,6 +126,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner | ResponsesLoopIterationRunner,
+        todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
     ) -> None:
         self._logger = logger
         self._event = event
@@ -141,6 +151,7 @@ class UniqueAI:
         # Helper variable to support control loop
         self._tool_took_control = False
         self._loop_iteration_runner = loop_iteration_runner
+        self._todo_memory_manager = todo_memory_manager
 
     ############################################################
     # Override of base methods
@@ -277,6 +288,41 @@ class UniqueAI:
             rendered_system_message_string,
             self._postprocessor_manager.remove_from_text,
         )
+
+        if self._todo_memory_manager is not None:
+            messages = await self._inject_todo_reminder(messages)
+
+        return messages
+
+    async def _inject_todo_reminder(
+        self, messages: LanguageModelMessages
+    ) -> LanguageModelMessages:
+        """Load TODO state and append as system-reminder to the last user message.
+
+        Note: mutates the content of the last user message in-place.
+        """
+        assert self._todo_memory_manager is not None
+        state = await self._todo_memory_manager.load_async()
+        if state is None or not state.todos:
+            return messages
+
+        has_active = any(t.status != "completed" for t in state.todos)
+        if not has_active:
+            return messages
+
+        from unique_toolkit.agentic.tools.todo.service import (
+            format_todo_system_reminder,
+        )
+
+        reminder = format_todo_system_reminder(state)
+
+        for msg in reversed(messages.root):
+            if msg.role == LanguageModelMessageRole.USER and isinstance(
+                msg.content, str
+            ):
+                msg.content += reminder
+                break
+
         return messages
 
     async def _render_user_prompt(self) -> str:
@@ -599,6 +645,7 @@ class UniqueAIResponsesApi(UniqueAI):
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: ResponsesLoopIterationRunner,
+        todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
     ) -> None:
         super().__init__(
             logger,
@@ -617,4 +664,5 @@ class UniqueAIResponsesApi(UniqueAI):
             message_step_logger=message_step_logger,
             mcp_servers=mcp_servers,
             loop_iteration_runner=loop_iteration_runner,
+            todo_memory_manager=todo_memory_manager,
         )

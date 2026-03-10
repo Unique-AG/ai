@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from logging import Logger
-from typing import NamedTuple, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 from unique_follow_up_questions.follow_up_postprocessor import (
     FollowUpPostprocessor,
@@ -38,6 +38,9 @@ from unique_toolkit.agentic.responses_api import (
     DisplayCodeInterpreterFilesPostProcessor,
     ShowExecutedCodePostprocessor,
 )
+from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
+    PersistentShortMemoryManager,
+)
 from unique_toolkit.agentic.thinking_manager.thinking_manager import (
     ThinkingManager,
     ThinkingManagerConfig,
@@ -68,10 +71,44 @@ from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
+from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
 from unique_orchestrator._builders import build_loop_iteration_runner
 from unique_orchestrator.config import CodeInterpreterExtendedConfig, UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
+
+if TYPE_CHECKING:
+    from unique_toolkit.agentic.tools.todo.schemas import TodoState
+
+
+def _build_todo_memory_manager(
+    event: ChatEvent,
+    config: UniqueAIConfig,
+) -> "PersistentShortMemoryManager[TodoState] | None":
+    """Build a PersistentShortMemoryManager for TODO state if TodoWriteTool is enabled."""
+    todo_tool_cfg = None
+    for tool in config.space.tools:
+        if tool.is_enabled and tool.name == "todo_write":
+            todo_tool_cfg = tool
+            break
+    if todo_tool_cfg is None:
+        return None
+
+    from unique_toolkit.agentic.tools.todo.config import TodoConfig
+    from unique_toolkit.agentic.tools.todo.schemas import TodoState
+
+    todo_config = (
+        todo_tool_cfg.configuration
+        if isinstance(todo_tool_cfg.configuration, TodoConfig)
+        else TodoConfig()
+    )
+    if not todo_config.inject_system_reminder:
+        return None
+    return PersistentShortMemoryManager(
+        short_term_memory_service=ShortTermMemoryService(event=event),
+        short_term_memory_schema=TodoState,
+        short_term_memory_name=todo_config.memory_key,
+    )
 
 
 async def build_unique_ai(
@@ -81,6 +118,7 @@ async def build_unique_ai(
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
     common_components = _build_common(event, logger, config)
+    todo_memory_manager = _build_todo_memory_manager(event, config)
 
     if config.agent.experimental.responses_api_config.use_responses_api:
         return await _build_responses(
@@ -89,6 +127,7 @@ async def build_unique_ai(
             config=config,
             debug_info_manager=debug_info_manager,
             common_components=common_components,
+            todo_memory_manager=todo_memory_manager,
         )
     else:
         return _build_completions(
@@ -97,6 +136,7 @@ async def build_unique_ai(
             config=config,
             debug_info_manager=debug_info_manager,
             common_components=common_components,
+            todo_memory_manager=todo_memory_manager,
         )
 
 
@@ -245,6 +285,7 @@ async def _build_responses(
     config: UniqueAIConfig,
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
+    todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
 ) -> UniqueAI:
     client = get_async_openai_client().copy(
         default_headers={
@@ -380,6 +421,7 @@ async def _build_responses(
         message_step_logger=common_components.message_step_logger,
         mcp_servers=event.payload.mcp_servers,
         loop_iteration_runner=loop_iteration_runner,
+        todo_memory_manager=todo_memory_manager,
     )
 
 
@@ -389,6 +431,7 @@ def _build_completions(
     config: UniqueAIConfig,
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
+    todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
 ) -> UniqueAI:
     # Uploaded content behavior is always to force uploaded search tool:
     # 1. Add it to forced tools if there are tool choices.
@@ -478,6 +521,7 @@ def _build_completions(
         mcp_servers=event.payload.mcp_servers,
         message_step_logger=common_components.message_step_logger,
         loop_iteration_runner=loop_iteration_runner,
+        todo_memory_manager=todo_memory_manager,
     )
 
 
