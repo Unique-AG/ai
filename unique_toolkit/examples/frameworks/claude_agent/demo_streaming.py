@@ -383,7 +383,6 @@ async def _run_demo(args: argparse.Namespace) -> None:
     result = await runner._run_claude_loop(
         prompt=query_text,
         options=options,
-        verbose=True,
     )
 
     elapsed = time.monotonic() - start

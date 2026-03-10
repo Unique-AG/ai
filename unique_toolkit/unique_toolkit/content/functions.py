@@ -897,6 +897,67 @@ def get_content_info(
     )
 
 
+async def list_contents_in_scope_async(
+    user_id: str,
+    company_id: str,
+    scope_id: str,
+) -> list[Content]:
+    """List all content files in a KB scope by scope ID.
+
+    Skills are stored as ``{scope}/{skill_name}/SKILL.md``, so the scope's
+    direct children are *folders*, not files.  We therefore:
+
+    1. Call ``/folder/infos?parentId=scope_id`` to enumerate subfolders.
+    2. For each subfolder, call ``/content/infos?parentId=subfolder_id`` to
+       list the actual files.
+    3. Prepend the subfolder name to each file's ``key`` so that callers
+       receive paths like ``pdf/SKILL.md`` rather than bare ``SKILL.md``.
+
+    Files placed directly in the scope root (no subfolder) are also included.
+    Only one level of nesting is traversed; deeper nesting is not expected for
+    skills.
+
+    Uses REST endpoints rather than GraphQL search because
+    ``ContentWhereInput`` does not expose a ``scopeId`` filter.
+    """
+    try:
+        contents: list[Content] = []
+
+        # Files placed directly in the scope root (uncommon for skills, but
+        # we handle them to be safe).
+        root_result = await unique_sdk.Content.get_infos_async(
+            user_id=user_id,
+            company_id=company_id,
+            parentId=scope_id,
+        )
+        for info in root_result.get("contentInfos", []):
+            contents.append(Content(id=info["id"], key=info["key"]))
+
+        # Subfolders (the normal case: one folder per skill, e.g. "pdf/").
+        folder_result = await unique_sdk.Folder.get_infos_async(
+            user_id=user_id,
+            company_id=company_id,
+            parentId=scope_id,
+        )
+        for folder in folder_result.get("folderInfos", []):
+            subfolder_id: str = folder["id"]
+            subfolder_name: str = folder["name"]
+            child_result = await unique_sdk.Content.get_infos_async(
+                user_id=user_id,
+                company_id=company_id,
+                parentId=subfolder_id,
+            )
+            for info in child_result.get("contentInfos", []):
+                # Preserve the subfolder name so callers get "pdf/SKILL.md".
+                prefixed_key = f"{subfolder_name}/{info['key']}"
+                contents.append(Content(id=info["id"], key=prefixed_key))
+
+        return contents
+    except Exception as e:
+        logger.error(f"Error listing contents in scope {scope_id}: {e}")
+        raise e
+
+
 def get_folder_info(user_id: str, company_id: str, *, scope_id: str) -> FolderInfo:
     info = unique_sdk.Folder.get_info(
         user_id=user_id, company_id=company_id, scopeId=scope_id

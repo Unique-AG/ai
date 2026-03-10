@@ -17,6 +17,7 @@ from unique_toolkit.content.functions import (
     download_content_to_bytes,
     download_content_to_bytes_async,
     download_content_to_file_by_id,
+    list_contents_in_scope_async,
     request_content_by_id,
     search_content_chunks,
     search_content_chunks_async,
@@ -761,6 +762,24 @@ class ContentService:
             company_id=self._company_id,
             content_id=content_id,
             chat_id=chat_id,
+        )
+
+    async def list_contents_in_scope_async(self, scope_id: str) -> list[Content]:
+        """List all content files in a KB scope by scope ID.
+
+        Uses /content/infos (parentId filter) — ContentWhereInput does not
+        support scopeId, so search_contents_async cannot be used for this.
+
+        Args:
+            scope_id: The KB scope (folder) ID.
+
+        Returns:
+            list[Content]: Content objects with id and key populated.
+        """
+        return await list_contents_in_scope_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            scope_id=scope_id,
         )
 
     def get_documents_uploaded_to_chat(self) -> list[Content]:

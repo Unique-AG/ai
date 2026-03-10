@@ -78,7 +78,7 @@ async def test_L2_workspace_roundtrip(tmp_path: Path) -> None:
     """
     content_service = _init_platform()
 
-    with patch.object(workspace_module, "WORKSPACE_BASE", tmp_path):
+    with patch.object(workspace_module, "_TMP_DIR", tmp_path):
         workspace_dir = await workspace_module.setup_workspace(
             content_service=content_service,
             chat_id=WORKSPACE_E2E_CHAT_ID,
@@ -100,7 +100,7 @@ async def test_L2_workspace_roundtrip(tmp_path: Path) -> None:
     )
 
     # Simulate a new turn: fresh setup should restore from checkpoint (same WORKSPACE_BASE)
-    with patch.object(workspace_module, "WORKSPACE_BASE", tmp_path):
+    with patch.object(workspace_module, "_TMP_DIR", tmp_path):
         workspace_dir2 = await workspace_module.setup_workspace(
             content_service=content_service,
             chat_id=WORKSPACE_E2E_CHAT_ID,
@@ -122,7 +122,7 @@ async def test_L2_workspace_skills_download(tmp_path: Path) -> None:
     """
     content_service = _init_platform()
 
-    with patch.object(workspace_module, "WORKSPACE_BASE", tmp_path):
+    with patch.object(workspace_module, "_TMP_DIR", tmp_path):
         workspace_dir = await workspace_module.setup_workspace(
             content_service=content_service,
             chat_id=WORKSPACE_E2E_CHAT_ID,

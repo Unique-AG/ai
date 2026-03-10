@@ -26,6 +26,8 @@ from unique_toolkit.agentic.claude_agent.workspace import (
 )
 from unique_toolkit.content.schemas import Content
 
+_WORKSPACE_PATCH = "unique_toolkit.agentic.claude_agent.workspace._TMP_DIR"
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
@@ -56,7 +58,7 @@ def _make_content_service(
 
     Args:
         chat_contents: Files returned for ownerId searches.
-        skill_contents: Files returned for scopeId searches.
+        skill_contents: Files returned by list_contents_in_scope_async.
         download_map: Maps content_id → bytes for download calls.
     """
     service = MagicMock()
@@ -65,9 +67,10 @@ def _make_content_service(
     async def _search(where: dict, chat_id: str = "") -> list[Content]:
         if "ownerId" in where:
             return chat_contents or []
-        if "scopeId" in where:
-            return skill_contents or []
         return []
+
+    async def _list_scope(scope_id: str) -> list[Content]:
+        return skill_contents or []
 
     async def _download(content_id: str, chat_id: str | None = None) -> bytes:
         return download_map.get(content_id, b"")
@@ -76,6 +79,7 @@ def _make_content_service(
         return MagicMock(spec=Content)
 
     service.search_contents_async = AsyncMock(side_effect=_search)
+    service.list_contents_in_scope_async = AsyncMock(side_effect=_list_scope)
     service.download_content_to_bytes_async = AsyncMock(side_effect=_download)
     service.upload_content_from_bytes_async = AsyncMock(side_effect=_upload)
     return service
@@ -98,9 +102,7 @@ class TestSetupWorkspace:
         """Workspace directory is created even when there are no chat files."""
         service = _make_content_service(chat_contents=[])
 
-        with patch(
-            "unique_toolkit.agentic.claude_agent.workspace.WORKSPACE_BASE", tmp_path
-        ):
+        with patch(_WORKSPACE_PATCH, tmp_path):
             result = await setup_workspace(service, CHAT_ID, _make_logger())
 
         assert result.exists()
@@ -124,9 +126,7 @@ class TestSetupWorkspace:
             },
         )
 
-        with patch(
-            "unique_toolkit.agentic.claude_agent.workspace.WORKSPACE_BASE", tmp_path
-        ):
+        with patch(_WORKSPACE_PATCH, tmp_path):
             result = await setup_workspace(service, CHAT_ID, _make_logger())
 
         assert (result / "report.md").read_bytes() == b"# Report"
@@ -144,9 +144,7 @@ class TestSetupWorkspace:
             download_map={"cont_ckpt": zip_bytes},
         )
 
-        with patch(
-            "unique_toolkit.agentic.claude_agent.workspace.WORKSPACE_BASE", tmp_path
-        ):
+        with patch(_WORKSPACE_PATCH, tmp_path):
             result = await setup_workspace(service, CHAT_ID, _make_logger())
 
         assert (result / "notes.txt").read_bytes() == b"prior turn notes"
@@ -168,9 +166,7 @@ class TestSetupWorkspace:
             download_map={"cont_ckpt": zip_bytes},
         )
 
-        with patch(
-            "unique_toolkit.agentic.claude_agent.workspace.WORKSPACE_BASE", tmp_path
-        ):
+        with patch(_WORKSPACE_PATCH, tmp_path):
             result = await setup_workspace(service, CHAT_ID, _make_logger())
 
         assert (result / ".claude" / "session.json").exists()
@@ -183,9 +179,7 @@ class TestSetupWorkspace:
         """When no checkpoint exists the workspace is fresh (first turn)."""
         service = _make_content_service(chat_contents=[])
 
-        with patch(
-            "unique_toolkit.agentic.claude_agent.workspace.WORKSPACE_BASE", tmp_path
-        ):
+        with patch(_WORKSPACE_PATCH, tmp_path):
             result = await setup_workspace(service, CHAT_ID, _make_logger())
 
         assert result.exists()
@@ -204,9 +198,7 @@ class TestSetupWorkspace:
         )
         logger = _make_logger()
 
-        with patch(
-            "unique_toolkit.agentic.claude_agent.workspace.WORKSPACE_BASE", tmp_path
-        ):
+        with patch(_WORKSPACE_PATCH, tmp_path):
             result = await setup_workspace(service, CHAT_ID, logger)
 
         # Workspace still returned — not None.
@@ -227,9 +219,7 @@ class TestSetupWorkspace:
             download_map={"cont_skill": b"---\nname: intro\n---\n# Intro skill"},
         )
 
-        with patch(
-            "unique_toolkit.agentic.claude_agent.workspace.WORKSPACE_BASE", tmp_path
-        ):
+        with patch(_WORKSPACE_PATCH, tmp_path):
             result = await setup_workspace(
                 service, CHAT_ID, _make_logger(), skills_scope_id="scope-skills-1"
             )
@@ -245,20 +235,13 @@ class TestSetupWorkspace:
         """Skills are not downloaded when skills_scope_id is None."""
         service = _make_content_service(chat_contents=[])
 
-        with patch(
-            "unique_toolkit.agentic.claude_agent.workspace.WORKSPACE_BASE", tmp_path
-        ):
+        with patch(_WORKSPACE_PATCH, tmp_path):
             result = await setup_workspace(
                 service, CHAT_ID, _make_logger(), skills_scope_id=None
             )
 
-        # search_contents_async should only have been called once (for chat files),
-        # not for skills.
-        call_args_list = service.search_contents_async.call_args_list
-        scope_calls = [
-            c for c in call_args_list if "scopeId" in (c.kwargs.get("where") or {})
-        ]
-        assert len(scope_calls) == 0
+        # list_contents_in_scope_async must not have been called when scope_id is None.
+        service.list_contents_in_scope_async.assert_not_called()
         # No skill subdirectories should have been created.
         assert not (result / ".claude" / "skills").exists()
 

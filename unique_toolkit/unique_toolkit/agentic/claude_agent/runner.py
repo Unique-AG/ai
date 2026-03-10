@@ -17,24 +17,12 @@ from __future__ import annotations
 
 import asyncio
 import os
-from collections.abc import AsyncIterator
 from datetime import datetime
 from logging import Logger
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from claude_agent_sdk import (
-    AssistantMessage,
-    ClaudeAgentOptions,
-    ClaudeSDKError,
-    query,
-)
-from claude_agent_sdk.types import (
-    McpSdkServerConfig,
-    ResultMessage,
-    StreamEvent,
-    ToolUseBlock,
-)
+from claude_agent_sdk.types import McpSdkServerConfig
 
 from unique_toolkit._common.execution import SafeTaskExecutor
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
@@ -143,7 +131,6 @@ class ClaudeAgentRunner:
             claude_result = await self._run_claude_loop(
                 prompt=self._event.payload.user_message.text,
                 options=options,
-                verbose=self._claude_config.verbose_logging,
             )
 
             await self._run_post_processing(claude_result)
@@ -322,150 +309,22 @@ class ClaudeAgentRunner:
         self,
         prompt: str,
         options: dict[str, Any],
-        verbose: bool = False,
     ) -> str:
-        """Run the Claude Agent SDK query loop and stream results to the frontend.
+        """Run the Claude Agent SDK query loop and return accumulated_text.
 
-        Iterates over the async event stream from claude_agent_sdk.query():
-        - content_block_delta / text_delta → accumulate text + stream via
-          modify_assistant_message_async() (PATCH /message → AMQP → frontend)
-        - assistant messages → log tool_use blocks; detect TodoWrite state
-        - result → capture final text if no deltas were streamed
-        - SDK errors → log, set user-facing error message, do NOT re-raise
-
-        Returns accumulated_text string consumed by _run_post_processing().
-
-        Current limitation: only the final text response is streamed to the
-        frontend. Intermediate tool-call events (KB search, Bash, Write, etc.)
-        are logged but not forwarded. A future iteration will add streaming of
-        each tool-call event to the frontend and persist the full turn (assistant
-        + tool messages) to the DB for structured multi-turn history replay.
+        Delegates to streaming.run_claude_loop() which owns the event loop,
+        streaming logic, and all per-event handlers.
         """
-        accumulated_text = ""
-        tool_call_count = 0
+        from .streaming import run_claude_loop
 
-        sdk_options_kwargs = dict(options)
-        if self._claude_config.stderr_logging:
-
-            def _stderr_handler(data: str) -> None:
-                self._logger.debug("Claude Agent SDK stderr: %s", data.strip())
-
-            sdk_options_kwargs["stderr"] = _stderr_handler
-
-        sdk_options = ClaudeAgentOptions(**sdk_options_kwargs)
-
-        try:
-            # Pass prompt as an async iterable so the SDK uses stream_input(),
-            # which keeps stdin open until the first result arrives before closing.
-            # The string-prompt path closes stdin immediately via end_input(), which
-            # breaks MCP control-request responses (CLIConnectionError: ProcessTransport
-            # is not ready for writing). stream_input() is aware of sdk_mcp_servers and
-            # waits for the first result before closing the channel.
-            async def _prompt_iter() -> AsyncIterator[dict[str, Any]]:
-                yield {
-                    "type": "user",
-                    "session_id": "",
-                    "message": {"role": "user", "content": prompt},
-                    "parent_tool_use_id": None,
-                }
-
-            turn = 0
-            async for message in query(prompt=_prompt_iter(), options=sdk_options):
-                if isinstance(message, StreamEvent):
-                    event = message.event
-                    event_type = event.get("type", "unknown")
-
-                    if event_type == "content_block_delta":
-                        delta = event.get("delta", {})
-                        if delta.get("type") == "text_delta":
-                            text = delta.get("text", "")
-                            if text:
-                                accumulated_text += text
-                                await self._chat_service.modify_assistant_message_async(
-                                    content=accumulated_text
-                                )
-                    elif event_type == "message_start":
-                        turn += 1
-                        if verbose:
-                            usage = event.get("message", {}).get("usage", {})
-                            self._logger.info(
-                                "[claude-agent] ← message_start | turn=%d | input_tokens=%s",
-                                turn,
-                                usage.get("input_tokens", "?"),
-                            )
-                    elif event_type == "message_stop":
-                        if verbose:
-                            self._logger.info(
-                                "[claude-agent] ← message_stop | turn=%d | streamed=%d chars",
-                                turn,
-                                len(accumulated_text),
-                            )
-                    elif verbose and event_type not in (
-                        "content_block_start",
-                        "content_block_stop",
-                        "ping",
-                    ):
-                        self._logger.debug("[claude-agent] ← event type=%s", event_type)
-
-                elif isinstance(message, AssistantMessage):
-                    for block in message.content:
-                        if isinstance(block, ToolUseBlock):
-                            tool_call_count += 1
-                            input_preview = str(block.input)[:300]
-                            if verbose:
-                                self._logger.info(
-                                    "[claude-agent] → tool_call #%d | tool=%s | input=%s",
-                                    tool_call_count,
-                                    block.name,
-                                    input_preview,
-                                )
-                            else:
-                                self._logger.debug(
-                                    "Claude agent tool call #%d: %s | input: %s",
-                                    tool_call_count,
-                                    block.name,
-                                    input_preview,
-                                )
-                            if block.name == "TodoWrite":
-                                todos = (block.input or {}).get("todos", [])
-                                for todo in todos:
-                                    status = todo.get("status", "?")
-                                    content = todo.get("activeForm") or todo.get(
-                                        "content", ""
-                                    )
-                                    self._logger.debug(
-                                        "todo [%s]: %s", status, content[:100]
-                                    )
-
-                elif isinstance(message, ResultMessage):
-                    if verbose:
-                        usage = getattr(message, "usage", None)
-                        self._logger.info(
-                            "[claude-agent] ← result | tool_calls=%d | final_text=%d chars%s",
-                            tool_call_count,
-                            len(accumulated_text),
-                            f" | usage={usage}" if usage else "",
-                        )
-                    if message.result and not accumulated_text:
-                        accumulated_text = message.result
-
-        except ClaudeSDKError as e:
-            self._logger.error("Claude Agent SDK error: %s", e, exc_info=True)
-            if not accumulated_text:
-                accumulated_text = (
-                    "An error occurred while processing your request. Please try again."
-                )
-
-        except Exception as e:
-            self._logger.error(
-                "Unexpected error in Claude Agent loop: %s", e, exc_info=True
-            )
-            if not accumulated_text:
-                accumulated_text = (
-                    "An error occurred while processing your request. Please try again."
-                )
-
-        return accumulated_text
+        return await run_claude_loop(
+            prompt=prompt,
+            options=options,
+            chat_service=self._chat_service,
+            tool_progress_reporter=self._tool_progress_reporter,
+            claude_config=self._claude_config,
+            logger=self._logger,
+        )
 
     async def _run_post_processing(self, claude_result: str) -> None:
         """Run evaluations and postprocessors after Claude's loop exits.

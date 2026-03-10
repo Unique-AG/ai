@@ -2,7 +2,7 @@
 Workspace persistence for Claude Agent SDK (T1.1).
 
 Lifecycle per turn:
-  1. setup_workspace()   — create /tmp/claude-workspace/{chat_id}/, download chat
+  1. setup_workspace()   — create /tmp/{chat_id}-claude-workspace/, download chat
                           files, restore checkpoint zip (incl. ~/.claude/ session
                           state), download skills into .claude/skills/.
   2. Claude runs with cwd=workspace_dir.
@@ -28,35 +28,40 @@ from pathlib import Path
 from unique_toolkit.content.schemas import Content
 from unique_toolkit.content.service import ContentService
 
-WORKSPACE_BASE = Path("/tmp/claude-workspace")
+# Parent directory for all chat workspaces. Private — tests patch this to tmp_path.
+_TMP_DIR = Path("/tmp")
 CHECKPOINT_FILENAME = "claude-workspace-checkpoint.zip"
 
 
-async def setup_workspace(
+def _get_workspace_dir(chat_id: str) -> Path:
+    """Return the workspace directory path for a given chat ID.
+
+    Format: /tmp/{chat_id}-claude-workspace — chat_id as prefix makes workspaces
+    easy to identify, isolate, and clean up per chat.
+    """
+    return _TMP_DIR / f"{chat_id}-claude-workspace"
+
+
+def _create_workspace_dirs(workspace_dir: Path) -> None:
+    """Create workspace root and output/ subdirectory."""
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    (workspace_dir / "output").mkdir(parents=True, exist_ok=True)
+
+
+async def _download_chat_files(
     content_service: ContentService,
     chat_id: str,
+    workspace_dir: Path,
     logger: Logger,
-    skills_scope_id: str | None = None,
-) -> Path:
-    """Create workspace dir, download chat files, restore checkpoint, and load skills.
+) -> tuple[Content | None, list[Content]]:
+    """List all chat files, download regular files to workspace, separate checkpoint.
 
-    Args:
-        content_service: Platform content service for file operations.
-        chat_id: Chat identifier — used as workspace subdirectory name.
-        logger: Logger for diagnostics.
-        skills_scope_id: KB scope containing skill files. If None, skill
-            download is skipped.
+    unique_sdk.utils.file_io exists but is synchronous and lacks skip_ingestion
+    support. ContentService is used here for async compatibility and
+    skip_ingestion=True on checkpoints.
 
-    Returns:
-        Path to the workspace directory (always created, even if setup fails).
+    Returns (checkpoint_content_or_None, regular_files_list).
     """
-    workspace_dir = WORKSPACE_BASE / chat_id
-    output_dir = workspace_dir / "output"
-
-    workspace_dir.mkdir(parents=True, exist_ok=True)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # List all files owned by this chat.
     chat_files: list[Content] = []
     try:
         chat_files = await content_service.search_contents_async(
@@ -66,7 +71,6 @@ async def setup_workspace(
     except Exception as e:
         logger.warning("workspace: failed to list chat files: %s", e)
 
-    # Separate the checkpoint zip from regular chat files.
     checkpoint = None
     regular_files = []
     for content in chat_files:
@@ -75,7 +79,6 @@ async def setup_workspace(
         else:
             regular_files.append(content)
 
-    # Download regular chat files into workspace root.
     for content in regular_files:
         try:
             file_bytes = await content_service.download_content_to_bytes_async(
@@ -91,29 +94,78 @@ async def setup_workspace(
                 "workspace: failed to download chat file %s: %s", content.key, e
             )
 
-    # Restore checkpoint zip (overwrites chat files if there is a conflict —
-    # checkpoint is always the most recent state).
+    return checkpoint, regular_files
+
+
+async def _restore_checkpoint(
+    content_service: ContentService,
+    chat_id: str,
+    workspace_dir: Path,
+    checkpoint: Content,
+    logger: Logger,
+) -> None:
+    """Download and extract the checkpoint zip into workspace_dir.
+
+    unique_sdk.utils.file_io exists but is synchronous and lacks skip_ingestion
+    support. ContentService is used here for async compatibility and
+    skip_ingestion=True on checkpoints.
+    """
+    try:
+        zip_bytes = await content_service.download_content_to_bytes_async(
+            content_id=checkpoint.id,
+            chat_id=chat_id,
+        )
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+            zf.extractall(workspace_dir)
+        logger.debug("workspace: checkpoint restored from %s", CHECKPOINT_FILENAME)
+    except zipfile.BadZipFile as e:
+        logger.warning(
+            "workspace: checkpoint zip is corrupted — starting with fresh workspace: %s",
+            e,
+        )
+    except Exception as e:
+        logger.warning("workspace: failed to restore checkpoint: %s", e)
+
+
+async def setup_workspace(
+    content_service: ContentService,
+    chat_id: str,
+    logger: Logger,
+    skills_scope_id: str | None = None,
+) -> Path:
+    """Create workspace dir, download chat files, restore checkpoint, and load skills.
+
+    Args:
+        content_service: Platform content service for file operations.
+        chat_id: Chat identifier — used as workspace directory name prefix.
+        logger: Logger for diagnostics.
+        skills_scope_id: KB scope containing skill files. If None, skill
+            download is skipped.
+
+    Returns:
+        Path to the workspace directory (always created, even if setup fails).
+    """
+    workspace_dir = _get_workspace_dir(chat_id)
+    _create_workspace_dirs(workspace_dir)
+
+    checkpoint, _ = await _download_chat_files(
+        content_service=content_service,
+        chat_id=chat_id,
+        workspace_dir=workspace_dir,
+        logger=logger,
+    )
+
     if checkpoint is not None:
-        try:
-            zip_bytes = await content_service.download_content_to_bytes_async(
-                content_id=checkpoint.id,
-                chat_id=chat_id,
-            )
-            with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
-                zf.extractall(workspace_dir)
-            logger.debug("workspace: checkpoint restored from %s", CHECKPOINT_FILENAME)
-        except zipfile.BadZipFile as e:
-            logger.warning(
-                "workspace: checkpoint zip is corrupted — starting with fresh workspace: %s",
-                e,
-            )
-        except Exception as e:
-            logger.warning("workspace: failed to restore checkpoint: %s", e)
+        await _restore_checkpoint(
+            content_service=content_service,
+            chat_id=chat_id,
+            workspace_dir=workspace_dir,
+            checkpoint=checkpoint,
+            logger=logger,
+        )
     else:
         logger.debug("workspace: no checkpoint found — fresh workspace for first turn")
 
-    # Download skill files into .claude/skills/ so Claude can load them via
-    # setting_sources=["project"].
     if skills_scope_id is not None:
         await _download_skills(
             content_service=content_service,
@@ -136,9 +188,8 @@ async def _download_skills(
     """Download skill files from KB into {workspace}/.claude/skills/."""
     skills_dir = workspace_dir / ".claude" / "skills"
     try:
-        skill_files = await content_service.search_contents_async(
-            where={"scopeId": {"equals": skills_scope_id}},
-            chat_id=chat_id,
+        skill_files = await content_service.list_contents_in_scope_async(
+            skills_scope_id
         )
     except Exception as e:
         logger.warning(
@@ -203,7 +254,12 @@ async def _upload_output_files(
     chat_id: str,
     logger: Logger,
 ) -> None:
-    """Upload each file in ./output/ as a chat attachment."""
+    """Upload each file in ./output/ as a chat attachment.
+
+    unique_sdk.utils.file_io exists but is synchronous and lacks skip_ingestion
+    support. ContentService is used here for async compatibility and
+    skip_ingestion=True on checkpoints.
+    """
     output_dir = workspace_dir / "output"
     if not output_dir.exists():
         logger.debug("workspace: no output dir — skipping output upload")
