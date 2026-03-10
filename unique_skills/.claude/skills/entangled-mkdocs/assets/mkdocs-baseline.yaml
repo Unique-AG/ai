@@ -5,14 +5,18 @@
 # from an existing project's mkdocs.yaml / mkdocs.yml.
 #
 # Required packages:
-#   pip install mkdocs-material mkdocs-entangled-plugin entangled-cli
+#   uv add --dev mkdocs-material mkdocs-entangled-plugin "entangled-cli>=2.0"
+#   (or: poetry add --dev ...)
 #
-# After editing, verify with:
-#   entangled tangle
-#   mkdocs serve
+# After editing, preview with:
+#   mkdocs serve   # the entangled plugin runs the tangle step automatically
 
 site_name: My Project
 docs_dir: docs
+
+# Exclude internal files from the published site (requires MkDocs >= 1.5)
+exclude_docs: |
+  entangled-registry.json
 
 # ---------------------------------------------------------------------------
 # Theme
