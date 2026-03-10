@@ -142,7 +142,7 @@ class TestConfigMaxLoopIterations:
         config.agent.experimental.loop_configuration.model_specific.qwen.max_loop_iterations = qwen_max_iterations
         config.agent.max_loop_iterations = 8
 
-        assert config.max_loop_iterations == qwen_max_iterations
+        assert config.effective_max_loop_iterations == qwen_max_iterations
 
     @pytest.mark.ai
     def test_max_loop_iterations__returns_agent_value__for_non_qwen_model(self) -> None:
@@ -156,4 +156,4 @@ class TestConfigMaxLoopIterations:
         config.agent.max_loop_iterations = agent_max_iterations
         config.agent.experimental.loop_configuration.model_specific.qwen.max_loop_iterations = 3
 
-        assert config.max_loop_iterations == agent_max_iterations
+        assert config.effective_max_loop_iterations == agent_max_iterations
