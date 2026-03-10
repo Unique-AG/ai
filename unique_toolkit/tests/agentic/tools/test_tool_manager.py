@@ -1987,3 +1987,169 @@ def test_responses_api_tool_manager__filter_tool_calls_by_max_tool_calls_allowed
 
     # Assert
     assert len(filtered) == 5
+
+
+# ============================================================================
+# Graceful Degradation Tests (UN-17197)
+# ============================================================================
+
+
+class FailingToolConfig(BaseToolConfig):
+    """Config for a tool whose constructor raises."""
+
+    pass
+
+
+class FailingTool(Tool[FailingToolConfig]):
+    """Tool that raises during construction."""
+
+    name = "failing_tool"
+
+    def __init__(self, config, event, tool_progress_reporter=None):
+        raise RuntimeError("Simulated tool init failure")
+
+    def tool_description(self):
+        raise NotImplementedError
+
+    def evaluation_check_list(self):
+        return []
+
+    def get_evaluation_checks_based_on_tool_response(self, tool_response):
+        return []
+
+    async def run(self, tool_call):
+        raise NotImplementedError
+
+
+@pytest.fixture
+def register_failing_tool():
+    """Register and cleanup FailingTool in ToolFactory."""
+    ToolFactory.register_tool(FailingTool, FailingToolConfig)
+    yield
+    ToolFactory.tool_map.pop("failing_tool", None)
+    ToolFactory.tool_config_map.pop("failing_tool", None)
+
+
+@pytest.mark.ai
+def test_tool_manager__init_with_failing_tool__skips_bad_tool_keeps_others(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    register_failing_tool,
+    caplog,
+) -> None:
+    """
+    Purpose: Verify ToolManager skips a failing tool but keeps healthy ones.
+    Why this matters: A single broken tool must not crash the entire system.
+    Setup summary: Register one healthy and one failing tool, assert only healthy is loaded.
+    """
+    # Arrange
+    healthy_config = ToolBuildConfig(
+        name="mock_tool",
+        configuration=MockToolConfig(),
+        display_name="Healthy Tool",
+        is_enabled=True,
+    )
+    failing_config = ToolBuildConfig(
+        name="failing_tool",
+        configuration=FailingToolConfig(),
+        display_name="Failing Tool",
+        is_enabled=True,
+    )
+    config = ToolManagerConfig(tools=[healthy_config, failing_config])
+
+    # Act
+    with caplog.at_level(logging.WARNING):
+        tm = ToolManager(
+            logger=logger,
+            config=config,
+            event=base_event,
+            tool_progress_reporter=tool_progress_reporter,
+            mcp_manager=mcp_manager,
+            a2a_manager=a2a_manager,
+        )
+
+    # Assert
+    tools = tm.get_tools()
+    tool_names = [t.name for t in tools]
+    assert "mock_tool" in tool_names
+    assert "failing_tool" not in tool_names
+    assert "Skipping tool" in caplog.text or "initialization failure" in caplog.text
+
+
+@pytest.mark.ai
+def test_tool_manager__init_with_all_tools_failing__initializes_empty(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    register_failing_tool,
+) -> None:
+    """
+    Purpose: Verify ToolManager initializes even when all tools fail.
+    Why this matters: System must remain operational even with no working tools.
+    Setup summary: Register only a failing tool, assert ToolManager has empty tool list.
+    """
+    # Arrange
+    failing_config = ToolBuildConfig(
+        name="failing_tool",
+        configuration=FailingToolConfig(),
+        display_name="Failing Tool",
+        is_enabled=True,
+    )
+    config = ToolManagerConfig(tools=[failing_config])
+
+    # Act
+    tm = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    # Assert
+    assert tm.get_tools() == []
+
+
+@pytest.mark.ai
+def test_tool_manager__init_skips_disabled_tool__does_not_build_it(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    caplog,
+) -> None:
+    """
+    Purpose: Verify disabled tools are skipped during init and not built.
+    Why this matters: Disabled tools must not consume resources or cause failures.
+    Setup summary: Create a tool config with is_enabled=False, assert it is skipped.
+    """
+    # Arrange
+    disabled_config = ToolBuildConfig(
+        name="mock_tool",
+        configuration=MockToolConfig(),
+        display_name="Disabled Tool",
+        is_enabled=False,
+    )
+    config = ToolManagerConfig(tools=[disabled_config])
+
+    # Act
+    with caplog.at_level(logging.INFO):
+        tm = ToolManager(
+            logger=logger,
+            config=config,
+            event=base_event,
+            tool_progress_reporter=tool_progress_reporter,
+            mcp_manager=mcp_manager,
+            a2a_manager=a2a_manager,
+        )
+
+    # Assert
+    assert tm.get_tools() == []
+    assert "Skipping disabled tool" in caplog.text
