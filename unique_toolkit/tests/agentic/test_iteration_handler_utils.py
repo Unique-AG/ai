@@ -666,3 +666,98 @@ class TestRunForcedToolsIteration:
         assert len(result.tool_calls) == 1
         assert result.tool_calls[0].name == "Tool1"
         mock_stream.assert_called_once()
+
+
+class TestRunForcedToolsIterationToolChoiceOverride:
+    @pytest.mark.ai
+    @patch(
+        "unique_toolkit.agentic.loop_runner._iteration_handler_utils.stream_response",
+        new_callable=AsyncMock,
+    )
+    async def test_run_forced_tools_iteration__uses_override__when_provided(
+        self,
+        mock_stream: AsyncMock,
+        base_kwargs: _LoopIterationRunnerKwargs,
+    ) -> None:
+        """
+        Purpose: Verify tool_choice_override replaces named dict.
+        Why this matters: Model-specific runners pass overrides (e.g. Mistral uses "any").
+        """
+        mock_stream.return_value = create_stream_response()
+
+        tool_choices: list[ChatCompletionNamedToolChoiceParam] = [
+            {"type": "function", "function": {"name": "SearchTool"}}
+        ]
+        base_kwargs["tool_choices"] = tool_choices
+        base_kwargs["tools"] = [create_mock_tool("SearchTool")]
+
+        await run_forced_tools_iteration(
+            loop_runner_kwargs=base_kwargs,
+            tool_choice_override="any",
+        )
+
+        call_kwargs = mock_stream.call_args.kwargs
+        assert call_kwargs.get("tool_choice") == "any"
+
+    @pytest.mark.ai
+    @patch(
+        "unique_toolkit.agentic.loop_runner._iteration_handler_utils.stream_response",
+        new_callable=AsyncMock,
+    )
+    async def test_run_forced_tools_iteration__uses_named_dict__without_override(
+        self,
+        mock_stream: AsyncMock,
+        base_kwargs: _LoopIterationRunnerKwargs,
+    ) -> None:
+        """
+        Purpose: Verify default behavior uses named dict when no override.
+        Why this matters: Non-overridden runners must preserve the named format.
+        """
+        mock_stream.return_value = create_stream_response()
+
+        tool_choice: ChatCompletionNamedToolChoiceParam = {
+            "type": "function",
+            "function": {"name": "SearchTool"},
+        }
+        base_kwargs["tool_choices"] = [tool_choice]
+        base_kwargs["tools"] = [create_mock_tool("SearchTool")]
+
+        await run_forced_tools_iteration(loop_runner_kwargs=base_kwargs)
+
+        call_kwargs = mock_stream.call_args.kwargs
+        assert call_kwargs.get("tool_choice") == tool_choice
+
+    @pytest.mark.ai
+    @patch(
+        "unique_toolkit.agentic.loop_runner._iteration_handler_utils.stream_response",
+        new_callable=AsyncMock,
+    )
+    async def test_run_forced_tools_iteration__override_applies_to_all_tools(
+        self,
+        mock_stream: AsyncMock,
+        base_kwargs: _LoopIterationRunnerKwargs,
+    ) -> None:
+        """
+        Purpose: Verify override applies to every tool choice in the iteration.
+        Why this matters: All forced calls must use the override consistently.
+        """
+        mock_stream.return_value = create_stream_response()
+
+        tool_choices: list[ChatCompletionNamedToolChoiceParam] = [
+            {"type": "function", "function": {"name": "Tool1"}},
+            {"type": "function", "function": {"name": "Tool2"}},
+        ]
+        base_kwargs["tool_choices"] = tool_choices
+        base_kwargs["tools"] = [
+            create_mock_tool("Tool1"),
+            create_mock_tool("Tool2"),
+        ]
+
+        await run_forced_tools_iteration(
+            loop_runner_kwargs=base_kwargs,
+            tool_choice_override="any",
+        )
+
+        assert mock_stream.call_count == 2
+        for call in mock_stream.call_args_list:
+            assert call.kwargs.get("tool_choice") == "any"
