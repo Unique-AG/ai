@@ -122,4 +122,10 @@ jobs:
             -r /tmp/reviewdog \
             -b ${{ github.base_ref || 'main' }} \
             ${{ github.workspace }}/${{ matrix.dir }} \
-            /tmp/basedpyright.json || true
+            /tmp/basedpyright.json
+          EXIT=$?
+          if [ "${{ matrix.require_zero_errors }}" = "true" ]; then
+            exit $EXIT
+          else
+            exit 0
+          fi
