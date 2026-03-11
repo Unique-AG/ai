@@ -16,8 +16,8 @@
  * Token storage:
  *  - Tokens and auth codes are stored in-memory (Map). They are lost on server restart
  *    and do not replicate across processes. This is suitable for single-process deployments.
- *  - Tokens expire after 1 hour (TOKEN_LIFETIME). Expired tokens are lazily cleaned up
- *    on the next validation attempt.
+ *  - Tokens expire after 1 hour (TOKEN_LIFETIME). Expired tokens/auth codes are swept
+ *    from memory periodically and also removed on direct lookup when expired.
  *  - There is no revocation endpoint — tokens can only expire naturally.
  */
 import express, { Router, type RequestHandler } from "express";
@@ -29,6 +29,21 @@ const tokens = new Map<string, { clientId: string; expiresAt: number }>();
 const authCodes = new Map<string, { clientId: string; codeChallenge: string; redirectUri: string; expiresAt: number }>();
 const TOKEN_LIFETIME = 3600; // 1 hour in seconds
 const CODE_LIFETIME = 60; // 1 minute in seconds
+const CLEANUP_INTERVAL_MS = 60_000;
+
+function sweepExpiredEntries(now = Math.floor(Date.now() / 1000)): void {
+  for (const [token, info] of tokens) {
+    if (info.expiresAt < now) tokens.delete(token);
+  }
+  for (const [code, info] of authCodes) {
+    if (info.expiresAt < now) authCodes.delete(code);
+  }
+}
+
+const cleanupTimer = setInterval(() => {
+  sweepExpiredEntries();
+}, CLEANUP_INTERVAL_MS);
+cleanupTimer.unref();
 
 function authEnabled(): boolean {
   return !!(process.env.MCP_CLIENT_ID && process.env.MCP_CLIENT_SECRET);
@@ -104,6 +119,7 @@ router.post("/register", express.json(), (req, res, next) => {
 // Authorization endpoint — auto-approves and redirects with code
 router.get("/authorize", (req, res, next) => {
   if (!authEnabled()) return next();
+  sweepExpiredEntries();
 
   const { client_id, redirect_uri, state, code_challenge, code_challenge_method, response_type } = req.query;
 
@@ -141,6 +157,7 @@ router.post("/token", express.urlencoded({ extended: false }), (req, res, next) 
   if (!authEnabled()) return next();
 
   const now = Math.floor(Date.now() / 1000);
+  sweepExpiredEntries(now);
   const grantType = req.body?.grant_type;
 
   // Authenticate client (Basic header or body params)
@@ -209,6 +226,7 @@ router.post("/token", express.urlencoded({ extended: false }), (req, res, next) 
 // Bearer token validation on MCP requests
 const middleware: RequestHandler = (req, res, next) => {
   if (!authEnabled()) return next();
+  sweepExpiredEntries();
 
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
