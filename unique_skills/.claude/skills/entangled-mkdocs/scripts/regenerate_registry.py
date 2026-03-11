@@ -23,18 +23,39 @@ DOCS_DIR = pathlib.Path("docs")
 REGISTRY_PATH = DOCS_DIR / "entangled-registry.json"
 
 
+# Fence at line start (3+ backticks). Group 1 = backticks.
+_FENCE_OPEN = re.compile(r"^(`{3,})")
+# Closing fence: line is only backticks and optional whitespace.
+_FENCE_CLOSE = re.compile(r"^(`{3,})\s*$")
+
+
 def build_registry(docs_dir: pathlib.Path) -> dict[str, list[str]]:
     blocks: dict[str, list[str]] = {}
     for md in sorted(docs_dir.rglob("*.md")):
+        fence_stack: list[int] = []  # backtick count of each open fence
         for line in md.read_text(encoding="utf-8").splitlines():
-            if not re.match(r"^`{3,}", line):
+            close_m = _FENCE_CLOSE.match(line)
+            if close_m:
+                n = len(close_m.group(1))
+                if fence_stack and fence_stack[-1] == n:
+                    _ = fence_stack.pop()
                 continue
+            open_m = _FENCE_OPEN.match(line)
+            if not open_m:
+                continue
+            n = len(open_m.group(1))
+            if fence_stack:
+                # Inside a doc example (e.g. 4-backtick); treat as nested, do not register.
+                fence_stack.append(n)
+                continue
+            # Top-level fence: register #id and file= for this block.
             id_m = re.search(r"#([\w-]+)", line)
             file_m = re.search(r"file=([^\s}]+)", line)
             if id_m:
                 blocks.setdefault("#" + id_m.group(1), []).append(str(md))
             if file_m:
                 blocks.setdefault("file=" + file_m.group(1), []).append(str(md))
+            fence_stack.append(n)
     return blocks
 
 
