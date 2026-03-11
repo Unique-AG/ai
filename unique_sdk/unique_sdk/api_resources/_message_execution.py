@@ -5,7 +5,7 @@ from unique_sdk._request_options import RequestOptions
 
 
 class MessageExecution(APIResource["MessageExecution"]):
-    OBJECT_NAME: ClassVar[Literal["message_execution"]] = "message_execution"
+    OBJECT_NAME: ClassVar[str] = "message_execution"
     RESOURCE_URL = "/message-execution"
 
     TypeLiteral = Literal["DEEP_RESEARCH"]
@@ -98,7 +98,7 @@ class MessageExecution(APIResource["MessageExecution"]):
         )
 
     @classmethod
-    def get(
+    def get(  # pyright: ignore[reportIncompatibleMethodOverride]
         cls,
         user_id: str,
         company_id: str,
@@ -132,7 +132,7 @@ class MessageExecution(APIResource["MessageExecution"]):
         )
 
     @classmethod
-    def update(
+    def update(  # pyright: ignore[reportIncompatibleMethodOverride]
         cls,
         user_id: str,
         company_id: str,

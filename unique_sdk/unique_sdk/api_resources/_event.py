@@ -4,7 +4,7 @@ from unique_sdk._api_resource import APIResource
 
 
 class Event(APIResource["Event"]):
-    OBJECT_NAME: ClassVar[Literal["event"]] = "event"
+    OBJECT_NAME: ClassVar[str] = "event"
 
     event: Literal[
         "unique.chat.user-message.created", "unique.chat.external-module.chosen"

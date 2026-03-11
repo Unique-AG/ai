@@ -20,7 +20,7 @@ MODE_TYPES = Literal["FORM", "URL"]
 
 
 class Elicitation(APIResource["Elicitation"]):
-    OBJECT_NAME: ClassVar[Literal["elicitation"]] = "elicitation"
+    OBJECT_NAME: ClassVar[str] = "elicitation"
 
     class CreateParams(RequestOptions):
         """

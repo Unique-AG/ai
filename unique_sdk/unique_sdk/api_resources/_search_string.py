@@ -12,7 +12,7 @@ class HistoryMessage(TypedDict):
 
 
 class SearchString(APIResource["SearchString"]):
-    OBJECT_NAME: ClassVar[Literal["search.search-string"]] = "search.search-string"
+    OBJECT_NAME: ClassVar[str] = "search.search-string"
 
     class CreateParams(RequestOptions):
         prompt: str

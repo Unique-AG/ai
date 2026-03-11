@@ -25,7 +25,7 @@ class Message(APIResource["Message"]):
     This object represents a chat message. Use it to answer user prompts with a generated assistant message.
     """
 
-    OBJECT_NAME: ClassVar[Literal["message"]] = "message"
+    OBJECT_NAME: ClassVar[str] = "message"
 
     class Reference(TypedDict):
         name: str
@@ -293,7 +293,7 @@ class Message(APIResource["Message"]):
 
     @overload
     @staticmethod
-    def delete(
+    def delete(  # pyright: ignore[reportInconsistentOverload]
         id: str, user_id: str, company_id: str, **params: Unpack["Message.DeleteParams"]
     ) -> "Message":
         """
@@ -311,7 +311,7 @@ class Message(APIResource["Message"]):
         ...
 
     @class_method_variant("_cls_delete")
-    def delete(  # pyright: ignore[reportGeneralTypeIssues]
+    def delete(  # pyright: ignore[reportGeneralTypeIssues, reportInconsistentOverload]
         self,
         user_id: str,
         company_id: str,

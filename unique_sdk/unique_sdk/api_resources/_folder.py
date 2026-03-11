@@ -15,7 +15,7 @@ from unique_sdk._request_options import RequestOptions
 
 
 class Folder(APIResource["Folder"]):
-    OBJECT_NAME: ClassVar[Literal["folder"]] = "folder"
+    OBJECT_NAME: ClassVar[str] = "folder"
     RESOURCE_URL = "/folder"
 
     class ScopeAccess(TypedDict):
@@ -478,7 +478,7 @@ class Folder(APIResource["Folder"]):
         )
 
     @classmethod
-    def update(
+    def update(  # pyright: ignore[reportIncompatibleMethodOverride]
         cls,
         user_id: str,
         company_id: str,

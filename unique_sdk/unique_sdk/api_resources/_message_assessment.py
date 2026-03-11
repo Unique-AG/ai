@@ -9,7 +9,7 @@ from unique_sdk._request_options import RequestOptions
 
 
 class MessageAssessment(APIResource["MessageAssessment"]):
-    OBJECT_NAME: ClassVar[Literal["message_assessment"]] = "message_assessment"
+    OBJECT_NAME: ClassVar[str] = "message_assessment"
     RESOURCE_URL = "/message-assessment"
 
     class CreateParams(RequestOptions):

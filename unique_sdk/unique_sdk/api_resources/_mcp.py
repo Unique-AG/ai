@@ -53,7 +53,7 @@ class CallToolContentDto(TypedDict):
 
 
 class MCP(APIResource["MCP"]):
-    OBJECT_NAME: ClassVar[Literal["mcp.call_tool"]] = "mcp.call_tool"
+    OBJECT_NAME: ClassVar[str] = "mcp.call_tool"
 
     class CallToolParams(RequestOptions):
         """Parameters for calling an MCP tool."""

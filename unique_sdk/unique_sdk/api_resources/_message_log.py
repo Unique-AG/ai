@@ -14,7 +14,7 @@ from unique_sdk._request_options import RequestOptions
 
 
 class MessageLog(APIResource["MessageLog"]):
-    OBJECT_NAME: ClassVar[Literal["message_log"]] = "message_log"
+    OBJECT_NAME: ClassVar[str] = "message_log"
     RESOURCE_URL = "/message-log"
 
     StatusLiteral = Literal["RUNNING", "COMPLETED", "FAILED"]
@@ -118,7 +118,7 @@ class MessageLog(APIResource["MessageLog"]):
         )
 
     @classmethod
-    def update(
+    def update(  # pyright: ignore[reportIncompatibleMethodOverride]
         cls,
         user_id: str,
         company_id: str,

@@ -5,7 +5,7 @@ from unique_sdk._request_options import RequestOptions
 
 
 class Search(APIResource["Search"]):
-    OBJECT_NAME: ClassVar[Literal["search.search"]] = "search.search"
+    OBJECT_NAME: ClassVar[str] = "search.search"
 
     class CreateParams(RequestOptions):
         chatId: NotRequired[Optional[str]]

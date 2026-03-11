@@ -265,7 +265,13 @@ class AIOHTTPClient(HTTPClient):
 
         return self._cached_session
 
-    def request(self) -> tuple[bytes, int, Mapping[str, str]]:
+    def request(
+        self,
+        method: str,
+        url: str,
+        headers: Mapping[str, str],
+        post_data: Any = None,
+    ) -> tuple[bytes, int, Mapping[str, str]]:
         raise NotImplementedError(
             "AIOHTTPClient does not support synchronous requests."
         )

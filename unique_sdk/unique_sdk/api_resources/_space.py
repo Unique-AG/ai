@@ -14,7 +14,7 @@ from unique_sdk._request_options import RequestOptions
 
 
 class Space(APIResource["Space"]):
-    OBJECT_NAME: ClassVar[Literal["space"]] = "space"
+    OBJECT_NAME: ClassVar[str] = "space"
 
     UiType: TypeAlias = Literal[
         "MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"

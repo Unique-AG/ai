@@ -3,7 +3,6 @@ from typing import (
     ClassVar,
     Dict,
     List,
-    Literal,
     NotRequired,
     Optional,
     TypedDict,
@@ -16,7 +15,7 @@ from unique_sdk._request_options import RequestOptions
 
 
 class Group(APIResource["Group"]):
-    OBJECT_NAME: ClassVar[Literal["group"]] = "group"
+    OBJECT_NAME: ClassVar[str] = "group"
 
     class GetParams(RequestOptions):
         """

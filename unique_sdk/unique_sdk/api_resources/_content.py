@@ -4,7 +4,6 @@ from typing import (
     ClassVar,
     Dict,
     List,
-    Literal,
     Optional,
     TypedDict,
     cast,
@@ -18,7 +17,7 @@ from unique_sdk._request_options import RequestOptions
 
 
 class Content(APIResource["Content"]):
-    OBJECT_NAME: ClassVar[Literal["content.search"]] = "content.search"
+    OBJECT_NAME: ClassVar[str] = "content.search"
 
     id: str
     key: str
@@ -53,9 +52,7 @@ class Content(APIResource["Content"]):
         startsWith: Optional[str]
 
     class NestedStringFilter(StringFilter):
-        not_: Optional[
-            "Content.NestedStringFilter"
-        ]  # Inherit from StringFilter and redefine 'not_' for nested usage
+        pass  # not_ inherited from StringFilter as Optional[NestedStringFilter]
 
     class StringNullableFilter(TypedDict, total=False):
         contains: Optional[str]
@@ -71,7 +68,7 @@ class Content(APIResource["Content"]):
         notIn: Optional[List[str]]
 
     class NestedStringNullableFilter(StringNullableFilter):
-        not_: Optional["Content.NestedStringNullableFilter"]
+        pass  # not_ inherited from StringNullableFilter
 
     class ContentWhereInput(TypedDict, total=False):
         AND: Optional[List["Content.ContentWhereInput"]]
@@ -491,7 +488,7 @@ class Content(APIResource["Content"]):
         )
 
     @classmethod
-    def update(
+    def update(  # pyright: ignore[reportIncompatibleMethodOverride]
         cls,
         user_id: str,
         company_id: str,

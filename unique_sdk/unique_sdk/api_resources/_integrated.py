@@ -38,7 +38,7 @@ class Integrated(APIResource["Integrated"]):
     This object represents the integrated route. It is used to run complex APIs on the Unique platform
     """
 
-    OBJECT_NAME: ClassVar[Literal["integrated"]] = "integrated"
+    OBJECT_NAME: ClassVar[str] = "integrated"
 
     class SearchResult(TypedDict, total=False):
         id: str

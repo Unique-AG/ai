@@ -1,11 +1,11 @@
-from typing import ClassVar, List, Literal, NotRequired, TypedDict, Unpack, cast
+from typing import ClassVar, List, NotRequired, TypedDict, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 
 
 class LLMModels(APIResource["LLMModels"]):
-    OBJECT_NAME: ClassVar[Literal["llm-models"]] = "llm-models"
+    OBJECT_NAME: ClassVar[str] = "llm-models"
 
     class GetParams(RequestOptions):
         """

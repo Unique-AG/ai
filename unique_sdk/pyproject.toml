@@ -63,15 +63,11 @@ target-version = "py311"
 extend-select = ["I"]
 
 [tool.basedpyright]
-typeCheckingMode = "recommended"
+typeCheckingMode = "standard"
 include = ["unique_sdk"]
 exclude = ["build", "**/__pycache__", "**/tests/**", "**/test_*.py"]
-# Avoid API-breaking signature changes; fix via typing only
-reportIncompatibleMethodOverride = "none"
-reportIncompatibleVariableOverride = "none"
-allowedUntypedLibraries = ["openai.types.responses", "openai.types.shared_params"]
 reportImportCycles = "none"
-reportInconsistentOverload = "none"
+allowedUntypedLibraries = ["openai.types.responses", "openai.types.shared_params"]
 
 [tool.poe.tasks]
 # Run from package directory: uv run poe <task>

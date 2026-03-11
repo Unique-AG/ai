@@ -1,4 +1,4 @@
-from typing import ClassVar, Literal, Optional, cast
+from typing import ClassVar, Optional, cast
 
 from typing_extensions import NotRequired, Unpack
 
@@ -7,7 +7,7 @@ from unique_sdk._request_options import RequestOptions
 
 
 class ShortTermMemory(APIResource["ShortTermMemory"]):
-    OBJECT_NAME: ClassVar[Literal["ShortTermMemory"]] = "ShortTermMemory"
+    OBJECT_NAME: ClassVar[str] = "ShortTermMemory"
 
     class CreateParams(RequestOptions):
         memoryName: str

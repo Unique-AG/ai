@@ -1,4 +1,4 @@
-from typing import ClassVar, List, Literal, cast
+from typing import ClassVar, List, cast
 
 from typing_extensions import Unpack
 
@@ -7,7 +7,7 @@ from unique_sdk._request_options import RequestOptions
 
 
 class Embeddings(APIResource["Embeddings"]):
-    OBJECT_NAME: ClassVar[Literal["openai.embeddings"]] = "openai.embeddings"
+    OBJECT_NAME: ClassVar[str] = "openai.embeddings"
 
     class CreateParams(RequestOptions):
         texts: List[str]

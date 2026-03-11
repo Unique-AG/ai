@@ -33,7 +33,7 @@ class ChatCompletionChoicesInner(TypedDict):
 
 
 class ChatCompletion(APIResource["ChatCompletion"]):
-    OBJECT_NAME: ClassVar[Literal["openai.chat.completion"]] = "openai.chat.completion"
+    OBJECT_NAME: ClassVar[str] = "openai.chat.completion"
 
     class CreateParams(RequestOptions):
         model: NotRequired[
