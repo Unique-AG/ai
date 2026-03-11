@@ -19,3 +19,4 @@ __queuestorage__/
 
 # Editor / tool settings (user-local)
 .claude/settings.local.json
+.claude/worktrees/

@@ -8,6 +8,8 @@ const CLIENT_ID = "test-client-id";
 const CLIENT_SECRET = "test-client-secret";
 const CODE_VERIFIER = "test-code-verifier-that-is-long-enough-for-pkce";
 const CODE_CHALLENGE = createHash("sha256").update(CODE_VERIFIER).digest("base64url");
+const REDIRECT_URI = "http://localhost:9999/callback";
+const REDIRECT_URI_ENCODED = encodeURIComponent(REDIRECT_URI);
 
 let server: Server;
 let baseUrl: string;
@@ -199,6 +201,32 @@ describe("middleware", () => {
       const res = await fetch(`${baseUrl}/authorize?${params}`);
       assert.strictEqual(res.status, 400);
     });
+
+    it("returns 400 for unsupported code_challenge_method (plain)", async () => {
+      const params = new URLSearchParams({
+        response_type: "code",
+        client_id: CLIENT_ID,
+        redirect_uri: "http://localhost:9999/callback",
+        code_challenge: CODE_CHALLENGE,
+        code_challenge_method: "plain",
+      });
+      const res = await fetch(`${baseUrl}/authorize?${params}`);
+      assert.strictEqual(res.status, 400);
+      const body = await res.json();
+      assert.strictEqual(body.error, "invalid_request");
+    });
+
+    it("accepts explicit code_challenge_method=S256", async () => {
+      const params = new URLSearchParams({
+        response_type: "code",
+        client_id: CLIENT_ID,
+        redirect_uri: "http://localhost:9999/callback",
+        code_challenge: CODE_CHALLENGE,
+        code_challenge_method: "S256",
+      });
+      const res = await fetch(`${baseUrl}/authorize?${params}`, { redirect: "manual" });
+      assert.strictEqual(res.status, 302);
+    });
   });
 
   // ── POST /token ───────────────────────────────────────────────────
@@ -279,7 +307,7 @@ describe("middleware", () => {
             "Content-Type": "application/x-www-form-urlencoded",
             Authorization: basicAuth(CLIENT_ID, CLIENT_SECRET),
           },
-          body: `grant_type=authorization_code&code=${code}&code_verifier=${CODE_VERIFIER}`,
+          body: `grant_type=authorization_code&code=${code}&redirect_uri=${REDIRECT_URI_ENCODED}&code_verifier=${CODE_VERIFIER}`,
         });
         assert.strictEqual(res.status, 200);
         const body = await res.json();
@@ -296,7 +324,7 @@ describe("middleware", () => {
             "Content-Type": "application/x-www-form-urlencoded",
             Authorization: basicAuth(CLIENT_ID, CLIENT_SECRET),
           },
-          body: `grant_type=authorization_code&code=${code}`,
+          body: `grant_type=authorization_code&code=${code}&redirect_uri=${REDIRECT_URI_ENCODED}`,
         });
         assert.strictEqual(res.status, 400);
         const body = await res.json();
@@ -311,7 +339,7 @@ describe("middleware", () => {
             "Content-Type": "application/x-www-form-urlencoded",
             Authorization: basicAuth(CLIENT_ID, CLIENT_SECRET),
           },
-          body: `grant_type=authorization_code&code=${code}&code_verifier=wrong-verifier`,
+          body: `grant_type=authorization_code&code=${code}&redirect_uri=${REDIRECT_URI_ENCODED}&code_verifier=wrong-verifier`,
         });
         assert.strictEqual(res.status, 400);
         const body = await res.json();
@@ -327,7 +355,7 @@ describe("middleware", () => {
             "Content-Type": "application/x-www-form-urlencoded",
             Authorization: basicAuth(CLIENT_ID, CLIENT_SECRET),
           },
-          body: `grant_type=authorization_code&code=${code}&code_verifier=${CODE_VERIFIER}`,
+          body: `grant_type=authorization_code&code=${code}&redirect_uri=${REDIRECT_URI_ENCODED}&code_verifier=${CODE_VERIFIER}`,
         });
         // Second use — should fail
         const res = await fetch(`${baseUrl}/token`, {
@@ -337,6 +365,21 @@ describe("middleware", () => {
             Authorization: basicAuth(CLIENT_ID, CLIENT_SECRET),
           },
           body: `grant_type=authorization_code&code=${code}&code_verifier=${CODE_VERIFIER}`,
+        });
+        assert.strictEqual(res.status, 400);
+        const body = await res.json();
+        assert.strictEqual(body.error, "invalid_grant");
+      });
+
+      it("rejects token exchange with mismatched redirect_uri", async () => {
+        const code = await getAuthCode();
+        const res = await fetch(`${baseUrl}/token`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: basicAuth(CLIENT_ID, CLIENT_SECRET),
+          },
+          body: `grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent("http://evil.example.com/callback")}&code_verifier=${CODE_VERIFIER}`,
         });
         assert.strictEqual(res.status, 400);
         const body = await res.json();
@@ -475,7 +518,7 @@ describe("middleware", () => {
           "Content-Type": "application/x-www-form-urlencoded",
           Authorization: basicAuth(CLIENT_ID, CLIENT_SECRET),
         },
-        body: `grant_type=authorization_code&code=${code}&code_verifier=${CODE_VERIFIER}`,
+        body: `grant_type=authorization_code&code=${code}&redirect_uri=${REDIRECT_URI_ENCODED}&code_verifier=${CODE_VERIFIER}`,
       });
       assert.strictEqual(tokenRes.status, 200);
       const { access_token } = await tokenRes.json();

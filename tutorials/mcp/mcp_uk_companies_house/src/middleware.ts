@@ -105,10 +105,15 @@ router.post("/register", express.json(), (req, res, next) => {
 router.get("/authorize", (req, res, next) => {
   if (!authEnabled()) return next();
 
-  const { client_id, redirect_uri, state, code_challenge, response_type } = req.query;
+  const { client_id, redirect_uri, state, code_challenge, code_challenge_method, response_type } = req.query;
 
   if (response_type !== "code" || !redirect_uri || !code_challenge || !client_id) {
     res.status(400).json({ error: "invalid_request" });
+    return;
+  }
+
+  if (code_challenge_method !== undefined && code_challenge_method !== "S256") {
+    res.status(400).json({ error: "invalid_request", error_description: "Unsupported code_challenge_method: only S256 is supported" });
     return;
   }
 
@@ -164,6 +169,12 @@ router.post("/token", express.urlencoded({ extended: false }), (req, res, next) 
       return;
     }
     authCodes.delete(req.body.code);
+
+    // Validate redirect_uri matches what was presented at /authorize (RFC 6749 §4.1.3)
+    if (req.body.redirect_uri !== codeInfo.redirectUri) {
+      res.status(400).json({ error: "invalid_grant", error_description: "redirect_uri mismatch" });
+      return;
+    }
 
     // PKCE: validate code_verifier against stored code_challenge (S256)
     const codeVerifier = req.body.code_verifier;
