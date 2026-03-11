@@ -8,7 +8,7 @@ Builds the message list for the LLM call by:
 - Delegating to HistoryManager to assemble a clean message stack for the LLM
 
 Code:
-```python
+```{.python #orchestrator-compose-message-plan-execution}
     async def _compose_message_plan_execution(self) -> LanguageModelMessages:
         original_user_message = self._event.payload.user_message.text
         rendered_user_message_string = await self._render_user_prompt()
@@ -37,7 +37,7 @@ Code:
   - MCP server system prompts (some mcp server carry formatting information for now. this however will change and move into the tools.)
 
 Code:
-```python
+```{.python #orchestrator-render-system-prompt}
     async def _render_system_prompt(
           self,
     ) -> str:
@@ -202,7 +202,7 @@ Here are instructions from the user outlining how you should respond:
   - `mcp_server_user_prompts` some mcp server carry formatting information for now. this however will change and move into the tools.
 
 Code:
-```python
+```{.python #orchestrator-render-user-prompt}
     async def _render_user_prompt(self) -> str:
         user_message_template = jinja2.Template(
               self._config.agent.prompt_config.user_message_prompt_template

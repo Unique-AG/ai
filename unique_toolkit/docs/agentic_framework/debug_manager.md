@@ -34,7 +34,7 @@ The `DebugInfoManager` is a service designed to collect, manage, and expose debu
 
 ### 🔄 Code Implementation
 
-```python
+```{.python #debug-manager-implementation}
 class DebugInfoManager:
     def __init__(self):
         self.debug_info = {"tools": []}

@@ -15,8 +15,6 @@ chat_service.create_assistant_message(
 )
 ```
 
-### Full Example
-
 <!--
 ```{.python file=docs/.python_files/chat_prompt_button.py}
 <<full_sse_setup_with_services>>
@@ -40,11 +38,19 @@ chat_service.create_assistant_message(
 )
 ```
 
+<!--
+```{.python file=docs/.python_files/chat_latex_formula.py}
+<<full_sse_setup_with_services>>
+    <<rendering_latex_formula>>
+    <<free_user_input>>
+```
+-->
+
 ### Basic Formula (Manual)
 
 To include a basic formula, wrap it in escaped square brackets:
 
-```python
+```{.python #rendering-latex-block-math-manual}
 # Block math example
 formula = r"\[E = mc^2\]"
 chat_service.create_assistant_message(
@@ -56,7 +62,7 @@ chat_service.create_assistant_message(
 
 For inline formulas within text, use escaped parentheses:
 
-```python
+```{.python #rendering-latex-inline-math}
 # Inline math example
 content = f"The area of a circle is \( \pi r^2 \)."
 chat_service.create_assistant_message(content=content)
@@ -66,7 +72,7 @@ chat_service.create_assistant_message(content=content)
 
 For more complex formulas, ensure all LaTeX syntax is correctly used within the escaped brackets:
 
-```python
+```{.python #rendering-latex-complex-formula}
 # Complex formula with inline math
 content = f"The integral of a function is given by \[\int_{a}^{b} f(x) \, dx\]."
 chat_service.create_assistant_message(content=content)
@@ -88,7 +94,7 @@ chat_service.create_assistant_message(
 
 ### Getting Content ID from Uploaded Images
 
-```python
+```{.python #rendering-image-from-uploaded}
 # Download images and documents from the chat
 images, documents = chat_service.download_chat_images_and_documents()
 
@@ -161,7 +167,7 @@ chat_service.create_assistant_message(
 
 To show multiple instruments for comparison:
 
-```python
+```{.python #rendering-financial-chart-comparative}
 import json
 
 # Multiple instruments for comparative view
@@ -223,7 +229,7 @@ HTML content can be rendered directly within chat messages using the `HtmlRender
 
 Render an HTML file that has been uploaded to the chat or to a knowledge base:
 
-```python
+```{.python #rendering-html-uploaded-content}
 content_id = "cont_csr3nbrc4gfm5kpt574lcm3p"
 
 html_block = f"""```HtmlRendering
@@ -242,7 +248,7 @@ chat_service.create_assistant_message(
 
 Embed a full HTML document directly in the message. This example renders an interactive Plotly bar chart:
 
-```python
+```{.python #rendering-html-inline}
 html_content = """\
 <!DOCTYPE html>
 <html>

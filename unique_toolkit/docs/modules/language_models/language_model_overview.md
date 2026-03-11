@@ -153,7 +153,7 @@ The following properties are documented for each model:
 
 To use any of these models in your application:
 
-```python
+```{.python #language-model-usage-example}
 from unique_toolkit import LanguageModelName
 from unique_toolkit.language_model.infos import LanguageModelInfo
 

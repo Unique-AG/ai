@@ -6,7 +6,7 @@ This page provides practical code examples for implementing knowledge base opera
 
 ### Upload from Memory (Recommended)
 
-```{python #kb_service_upload_bytes}
+```{.python #kb_service_upload_bytes}
 content_bytes = b"Your file content here"
 content = kb_service.upload_content_from_bytes(
     content=content_bytes,
@@ -52,7 +52,7 @@ file_path = Path(__file__).parent/"test.txt"
 
 ### Make Uploaded Document Available to User
 
-```python
+```{.python #kb-service-make-document-available}
 uploaded_content = kb_service.upload_content(
         path_to_content=str(output_filepath),
         content_name=output_filepath.name,

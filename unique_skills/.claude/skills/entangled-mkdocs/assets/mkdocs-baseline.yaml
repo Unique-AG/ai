@@ -1,0 +1,125 @@
+# mkdocs-baseline.yaml
+#
+# Reference configuration for a MkDocs + Entangled documentation site.
+# Use this as a starting point or to identify which extensions are missing
+# from an existing project's mkdocs.yaml / mkdocs.yml.
+#
+# Required packages:
+#   uv add --dev mkdocs-material mkdocs-entangled-plugin "entangled-cli>=2.0"
+#   (or: poetry add --dev ...)
+#
+# After editing, preview with:
+#   mkdocs serve   # the entangled plugin runs the tangle step automatically
+
+site_name: My Project
+docs_dir: docs
+
+# Exclude internal files from the published site (requires MkDocs >= 1.5)
+exclude_docs: |
+  entangled-registry.json
+
+# ---------------------------------------------------------------------------
+# Theme
+# ---------------------------------------------------------------------------
+theme:
+  name: material
+  features:
+    - content.action.edit        # "Edit this page" link
+    - content.code.copy          # Copy button on code blocks
+    - content.code.select        # Text selection in code blocks
+    - navigation.indexes         # Section index pages (each section has index.md)
+    - navigation.instant         # SPA-style page loads
+    - navigation.sections        # Top-level sections always visible in sidebar
+    - navigation.top             # "Back to top" button
+    - toc.follow                 # Active TOC entry follows scroll position
+
+# ---------------------------------------------------------------------------
+# Markdown extensions
+# ---------------------------------------------------------------------------
+markdown_extensions:
+  # Callout / admonition blocks: !!! note, !!! tip, !!! warning, etc.
+  - admonition
+
+  # Collapsible admonitions: ??? tip "Title"
+  - pymdownx.details
+
+  # Attribute lists: {.class #id attr=value}
+  - attr_list
+
+  # Footnotes: [^1] / [^1]: text
+  - footnotes
+
+  # Page-level YAML front matter (tags, hide, search)
+  - meta
+
+  # Code blocks with syntax highlighting and anchor line numbers
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+
+  # Inline code highlighting: `#!python code`
+  - pymdownx.inlinehilite
+
+  # Fenced code blocks with custom fences (required for Mermaid and Entangled)
+  - pymdownx.superfences:
+      custom_fences:
+        # Mermaid diagrams: ```mermaid ... ```
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+  # Math notation (inline: \(...\), block: \[...\])
+  # Do NOT use $...$ or $$...$$ unless explicitly configured
+  - pymdownx.arithmatex:
+      generic: true
+
+  # Tabbed content: === "Tab 1"
+  - pymdownx.tabbed:
+      alternate_style: true
+
+  # Task lists: - [x] done
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+  # Emoji: :material-check:
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+  # File inclusion: --8<-- "path/to/file.py"
+  - pymdownx.snippets
+
+  # Table of contents with anchor links on headings
+  - toc:
+      permalink: true
+
+# ---------------------------------------------------------------------------
+# Plugins
+# ---------------------------------------------------------------------------
+plugins:
+  # Built-in search
+  - search
+
+  # Entangled literate programming — renders Entangled block annotations in HTML
+  # Must be installed: pip install mkdocs-entangled-plugin
+  - entangled
+
+# ---------------------------------------------------------------------------
+# Navigation (example — adapt to your project structure)
+# ---------------------------------------------------------------------------
+# Note: sections with a bare path (e.g. "- guides/index.md") act as section
+# landing pages when navigation.indexes is enabled.
+#
+# IMPORTANT: Never modify !include monorepo entries or external URL entries.
+# Example of entries to preserve unchanged:
+#   - SDK: '!include ./unique_sdk/mkdocs.yaml'
+#   - Changelog: https://github.com/org/repo/releases
+# ---------------------------------------------------------------------------
+nav:
+  - Home: index.md
+  - Guides:
+    - guides/index.md
+    - Getting Started: guides/start.md
+  - Reference:
+    - reference/index.md
