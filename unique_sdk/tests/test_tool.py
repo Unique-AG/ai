@@ -1,28 +1,28 @@
-"""Tests for ToolCall API resource and helpers.
+"""Tests for Tool API resource and helpers.
 
 Conforms to unique_skills/.claude/skills/python-testing (naming, docstrings, mocker, ai mark).
 """
 
 import pytest
 
-from unique_sdk import ToolCall as ToolCallPublic
+from unique_sdk import Tool as ToolPublic
 from unique_sdk._list_object import ListObject
 from unique_sdk.api_resources._tool import (
     MESSAGE_IDS_PAGE_SIZE,
-    ToolCall,
+    Tool,
     _chunk_message_ids,
 )
 
 
 @pytest.mark.ai
-def test_tool_call_exported_from_unique_sdk():
-    """Purpose: ToolCall is importable from unique_sdk (public API).
+def test_tool_exported_from_unique_sdk():
+    """Purpose: Tool is importable from unique_sdk (public API).
 
     Why this matters: Ensures the new export in unique_sdk/__init__.py is covered
     so diff-coverage on changed lines passes in CI.
-    Setup summary: Import ToolCall from unique_sdk. Assert it is the same class as the module-level ToolCall.
+    Setup summary: Import Tool from unique_sdk. Assert it is the same class as the module-level Tool.
     """
-    assert ToolCallPublic is ToolCall
+    assert ToolPublic is Tool
 
 
 def _make_list_object(data=None):
@@ -121,7 +121,7 @@ def test_chunk_message_ids__two_full_pages__returns_two_chunks():
     assert all(c.count(",") == MESSAGE_IDS_PAGE_SIZE - 1 for c in chunks)
 
 
-# --- ToolCall class methods (mocked) ---
+# --- Tool class methods (mocked) ---
 
 
 @pytest.mark.ai
@@ -132,12 +132,12 @@ def test_create_many__success__returns_list_object(mocker):
     Setup summary: Mock _static_request to return a ListObject. Call create_many. Assert type and params.
     """
     mocker.patch.object(
-        ToolCall, "_static_request", return_value=_make_list_object([{"id": "tc-1"}])
+        Tool, "_static_request", return_value=_make_list_object([{"id": "tc-1"}])
     )
-    result = ToolCall.create_many("user", "company", messageId="msg-1", tools=[])
+    result = Tool.create_many("user", "company", messageId="msg-1", tools=[])
     assert isinstance(result, ListObject)
     assert result.get("data") == [{"id": "tc-1"}]
-    ToolCall._static_request.assert_called_once_with(
+    Tool._static_request.assert_called_once_with(
         "post",
         "/messages/tools",
         "user",
@@ -153,9 +153,9 @@ def test_create_many__non_list_object_response__raises_type_error(mocker):
     Why this matters: Defensive check so callers get a clear error.
     Setup summary: Mock _static_request to return a dict. Call create_many. Expect TypeError.
     """
-    mocker.patch.object(ToolCall, "_static_request", return_value={"data": []})
+    mocker.patch.object(Tool, "_static_request", return_value={"data": []})
     with pytest.raises(TypeError, match="Expected list object from API"):
-        ToolCall.create_many("user", "company", messageId="msg-1", tools=[])
+        Tool.create_many("user", "company", messageId="msg-1", tools=[])
 
 
 @pytest.mark.ai
@@ -165,10 +165,10 @@ def test_list__success__returns_list_object(mocker):
     Why this matters: Callers need to load tool calls by message IDs.
     Setup summary: Mock _static_request. Call list with messageIds. Assert call args and return type.
     """
-    mocker.patch.object(ToolCall, "_static_request", return_value=_make_list_object([]))
-    result = ToolCall.list("user", "company", messageIds="msg-1,msg-2")
+    mocker.patch.object(Tool, "_static_request", return_value=_make_list_object([]))
+    result = Tool.list("user", "company", messageIds="msg-1,msg-2")
     assert isinstance(result, ListObject)
-    ToolCall._static_request.assert_called_once_with(
+    Tool._static_request.assert_called_once_with(
         "get",
         "/messages/tools",
         "user",
@@ -184,9 +184,9 @@ def test_list__non_list_object_response__raises_type_error(mocker):
     Why this matters: Defensive check so callers get a clear error instead of AttributeError.
     Setup summary: Mock _static_request to return a dict. Call list. Expect TypeError.
     """
-    mocker.patch.object(ToolCall, "_static_request", return_value={"data": []})
+    mocker.patch.object(Tool, "_static_request", return_value={"data": []})
     with pytest.raises(TypeError, match="Expected list object from API"):
-        ToolCall.list("user", "company", messageIds="msg-1")
+        Tool.list("user", "company", messageIds="msg-1")
 
 
 @pytest.mark.ai
@@ -196,11 +196,11 @@ def test_list_by_message_ids__empty_message_ids__returns_empty_without_request(m
     Why this matters: Avoids unnecessary HTTP when there are no messages to query.
     Setup summary: Patch _static_request. Call list_by_message_ids with messageIds="". Assert data==[] and _static_request not called.
     """
-    mocker.patch.object(ToolCall, "_static_request")
-    result = ToolCall.list_by_message_ids("user", "company", messageIds="")
+    mocker.patch.object(Tool, "_static_request")
+    result = Tool.list_by_message_ids("user", "company", messageIds="")
     assert isinstance(result, ListObject)
     assert result.get("data") == []
-    ToolCall._static_request.assert_not_called()
+    Tool._static_request.assert_not_called()
 
 
 @pytest.mark.ai
@@ -211,11 +211,11 @@ def test_list_by_message_ids__single_chunk__calls_api_once(mocker):
     Setup summary: Mock _static_request. Call list_by_message_ids with one ID. Assert one call and data.
     """
     mocker.patch.object(
-        ToolCall, "_static_request", return_value=_make_list_object([{"id": "tc-1"}])
+        Tool, "_static_request", return_value=_make_list_object([{"id": "tc-1"}])
     )
-    result = ToolCall.list_by_message_ids("user", "company", messageIds="msg-1")
+    result = Tool.list_by_message_ids("user", "company", messageIds="msg-1")
     assert len(result.get("data", [])) == 1
-    ToolCall._static_request.assert_called_once_with(
+    Tool._static_request.assert_called_once_with(
         "get", "/messages/tools", "user", "company", params={"messageIds": "msg-1"}
     )
 
@@ -230,16 +230,16 @@ def test_list_by_message_ids__multiple_chunks__merges_data(mocker):
     ids = [f"m{i}" for i in range(MESSAGE_IDS_PAGE_SIZE + 10)]
     msg_ids_str = ",".join(ids)
     mocker.patch.object(
-        ToolCall,
+        Tool,
         "_static_request",
         side_effect=[
             _make_list_object([{"id": "page1"}]),
             _make_list_object([{"id": "page2"}]),
         ],
     )
-    result = ToolCall.list_by_message_ids("user", "company", messageIds=msg_ids_str)
+    result = Tool.list_by_message_ids("user", "company", messageIds=msg_ids_str)
     assert result.get("data") == [{"id": "page1"}, {"id": "page2"}]
-    assert ToolCall._static_request.call_count == 2
+    assert Tool._static_request.call_count == 2
 
 
 @pytest.mark.ai
@@ -249,9 +249,9 @@ def test_list_by_message_ids__single_chunk_non_list_object__raises_type_error(mo
     Why this matters: Callers get a clear error instead of AttributeError on .get("data").
     Setup summary: Mock _static_request to return a dict. Call with one ID. Expect TypeError.
     """
-    mocker.patch.object(ToolCall, "_static_request", return_value={"data": []})
+    mocker.patch.object(Tool, "_static_request", return_value={"data": []})
     with pytest.raises(TypeError, match="Expected list object from API"):
-        ToolCall.list_by_message_ids("user", "company", messageIds="msg-1")
+        Tool.list_by_message_ids("user", "company", messageIds="msg-1")
 
 
 @pytest.mark.ai
@@ -265,7 +265,7 @@ def test_list_by_message_ids__multi_chunk_page_not_list_object__raises_type_erro
     """
     ids = [f"m{i}" for i in range(MESSAGE_IDS_PAGE_SIZE + 10)]
     mocker.patch.object(
-        ToolCall,
+        Tool,
         "_static_request",
         side_effect=[
             _make_list_object([{"id": "a"}]),
@@ -273,7 +273,7 @@ def test_list_by_message_ids__multi_chunk_page_not_list_object__raises_type_erro
         ],
     )
     with pytest.raises(TypeError, match="Expected list object from API"):
-        ToolCall.list_by_message_ids("user", "company", messageIds=",".join(ids))
+        Tool.list_by_message_ids("user", "company", messageIds=",".join(ids))
 
 
 @pytest.mark.ai
@@ -285,13 +285,13 @@ async def test_create_many_async__success__returns_list_object(mocker):
     Setup summary: Mock _static_request_async. Await create_many_async. Assert ListObject and one call.
     """
     mocker.patch.object(
-        ToolCall, "_static_request_async", return_value=_make_list_object([])
+        Tool, "_static_request_async", return_value=_make_list_object([])
     )
-    result = await ToolCall.create_many_async(
+    result = await Tool.create_many_async(
         "user", "company", messageId="msg-1", tools=[]
     )
     assert isinstance(result, ListObject)
-    ToolCall._static_request_async.assert_called_once()
+    Tool._static_request_async.assert_called_once()
 
 
 @pytest.mark.ai
@@ -302,9 +302,9 @@ async def test_create_many_async__non_list_object_response__raises_type_error(mo
     Why this matters: Same defensive contract as sync create_many.
     Setup summary: Mock _static_request_async to return dict. Await create_many_async. Expect TypeError.
     """
-    mocker.patch.object(ToolCall, "_static_request_async", return_value={"data": []})
+    mocker.patch.object(Tool, "_static_request_async", return_value={"data": []})
     with pytest.raises(TypeError, match="Expected list object from API"):
-        await ToolCall.create_many_async("user", "company", messageId="msg-1", tools=[])
+        await Tool.create_many_async("user", "company", messageId="msg-1", tools=[])
 
 
 @pytest.mark.ai
@@ -316,11 +316,11 @@ async def test_list_async__success__returns_list_object(mocker):
     Setup summary: Mock _static_request_async. Await list_async with messageIds. Assert call and return.
     """
     mocker.patch.object(
-        ToolCall, "_static_request_async", return_value=_make_list_object([])
+        Tool, "_static_request_async", return_value=_make_list_object([])
     )
-    result = await ToolCall.list_async("user", "company", messageIds="msg-1,msg-2")
+    result = await Tool.list_async("user", "company", messageIds="msg-1,msg-2")
     assert isinstance(result, ListObject)
-    ToolCall._static_request_async.assert_called_once_with(
+    Tool._static_request_async.assert_called_once_with(
         "get",
         "/messages/tools",
         "user",
@@ -337,9 +337,9 @@ async def test_list_async__non_list_object_response__raises_type_error(mocker):
     Why this matters: Same defensive contract as sync list.
     Setup summary: Mock _static_request_async to return dict. Await list_async. Expect TypeError.
     """
-    mocker.patch.object(ToolCall, "_static_request_async", return_value={"data": []})
+    mocker.patch.object(Tool, "_static_request_async", return_value={"data": []})
     with pytest.raises(TypeError, match="Expected list object from API"):
-        await ToolCall.list_async("user", "company", messageIds="msg-1")
+        await Tool.list_async("user", "company", messageIds="msg-1")
 
 
 @pytest.mark.ai
@@ -352,11 +352,11 @@ async def test_list_by_message_ids_async__empty_message_ids__returns_empty_witho
     Why this matters: Same early-exit behavior as sync for consistency.
     Setup summary: Patch _static_request_async. Await list_by_message_ids_async with messageIds="". Assert empty data, no call.
     """
-    mocker.patch.object(ToolCall, "_static_request_async")
-    result = await ToolCall.list_by_message_ids_async("user", "company", messageIds="")
+    mocker.patch.object(Tool, "_static_request_async")
+    result = await Tool.list_by_message_ids_async("user", "company", messageIds="")
     assert isinstance(result, ListObject)
     assert result.get("data") == []
-    ToolCall._static_request_async.assert_not_called()
+    Tool._static_request_async.assert_not_called()
 
 
 @pytest.mark.ai
@@ -368,15 +368,13 @@ async def test_list_by_message_ids_async__single_chunk__calls_api_once(mocker):
     Setup summary: Mock _static_request_async. Await list_by_message_ids_async with one ID. Assert one call.
     """
     mocker.patch.object(
-        ToolCall,
+        Tool,
         "_static_request_async",
         return_value=_make_list_object([{"id": "tc-1"}]),
     )
-    result = await ToolCall.list_by_message_ids_async(
-        "user", "company", messageIds="msg-1"
-    )
+    result = await Tool.list_by_message_ids_async("user", "company", messageIds="msg-1")
     assert len(result.get("data", [])) == 1
-    ToolCall._static_request_async.assert_called_once_with(
+    Tool._static_request_async.assert_called_once_with(
         "get", "/messages/tools", "user", "company", params={"messageIds": "msg-1"}
     )
 
@@ -391,9 +389,9 @@ async def test_list_by_message_ids_async__single_chunk_non_list_object__raises_t
     Why this matters: Same defensive contract as sync single-chunk path.
     Setup summary: Mock _static_request_async to return dict. Await with one ID. Expect TypeError.
     """
-    mocker.patch.object(ToolCall, "_static_request_async", return_value={"data": []})
+    mocker.patch.object(Tool, "_static_request_async", return_value={"data": []})
     with pytest.raises(TypeError, match="Expected list object from API"):
-        await ToolCall.list_by_message_ids_async("user", "company", messageIds="msg-1")
+        await Tool.list_by_message_ids_async("user", "company", messageIds="msg-1")
 
 
 @pytest.mark.ai
@@ -407,18 +405,18 @@ async def test_list_by_message_ids_async__multiple_chunks__merges_data(mocker):
     ids = [f"m{i}" for i in range(MESSAGE_IDS_PAGE_SIZE + 10)]
     msg_ids_str = ",".join(ids)
     mocker.patch.object(
-        ToolCall,
+        Tool,
         "_static_request_async",
         side_effect=[
             _make_list_object([{"id": "a"}]),
             _make_list_object([{"id": "b"}]),
         ],
     )
-    result = await ToolCall.list_by_message_ids_async(
+    result = await Tool.list_by_message_ids_async(
         "user", "company", messageIds=msg_ids_str
     )
     assert result.get("data") == [{"id": "a"}, {"id": "b"}]
-    assert ToolCall._static_request_async.call_count == 2
+    assert Tool._static_request_async.call_count == 2
 
 
 @pytest.mark.ai
@@ -433,7 +431,7 @@ async def test_list_by_message_ids_async__multi_chunk_page_not_list_object__rais
     """
     ids = [f"m{i}" for i in range(MESSAGE_IDS_PAGE_SIZE + 10)]
     mocker.patch.object(
-        ToolCall,
+        Tool,
         "_static_request_async",
         side_effect=[
             _make_list_object([{"id": "a"}]),
@@ -441,6 +439,6 @@ async def test_list_by_message_ids_async__multi_chunk_page_not_list_object__rais
         ],
     )
     with pytest.raises(TypeError, match="Expected list object from API"):
-        await ToolCall.list_by_message_ids_async(
+        await Tool.list_by_message_ids_async(
             "user", "company", messageIds=",".join(ids)
         )

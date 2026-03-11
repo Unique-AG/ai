@@ -1,4 +1,4 @@
-"""Tool call persistence API. Backend stores tool data in a single table (MessageTool) with type + jsonb payload."""
+"""Tool persistence API. Backend stores tool data in a single table (MessageTool) with type + jsonb payload."""
 
 from typing import (
     Any,
@@ -40,7 +40,7 @@ def _chunk_message_ids(message_ids_str: str) -> list[str]:
     return chunks
 
 
-class ToolCall(APIResource["ToolCall"]):
+class Tool(APIResource["Tool"]):
     OBJECT_NAME: ClassVar[Literal["tool"]] = "tool"
     RESOURCE_URL = "/messages/tools"
 
@@ -66,8 +66,8 @@ class ToolCall(APIResource["ToolCall"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["ToolCall.CreateParams"],
-    ) -> ListObject["ToolCall"]:
+        **params: Unpack["Tool.CreateParams"],
+    ) -> ListObject["Tool"]:
         result = cls._static_request(
             "post",
             cls.RESOURCE_URL,
@@ -88,8 +88,8 @@ class ToolCall(APIResource["ToolCall"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["ToolCall.CreateParams"],
-    ) -> ListObject["ToolCall"]:
+        **params: Unpack["Tool.CreateParams"],
+    ) -> ListObject["Tool"]:
         result = await cls._static_request_async(
             "post",
             cls.RESOURCE_URL,
@@ -110,8 +110,8 @@ class ToolCall(APIResource["ToolCall"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["ToolCall.ListParams"],
-    ) -> ListObject["ToolCall"]:
+        **params: Unpack["Tool.ListParams"],
+    ) -> ListObject["Tool"]:
         result = cls._static_request(
             "get",
             cls.RESOURCE_URL,
@@ -132,8 +132,8 @@ class ToolCall(APIResource["ToolCall"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["ToolCall.ListParams"],
-    ) -> ListObject["ToolCall"]:
+        **params: Unpack["Tool.ListParams"],
+    ) -> ListObject["Tool"]:
         result = await cls._static_request_async(
             "get",
             cls.RESOURCE_URL,
@@ -154,8 +154,8 @@ class ToolCall(APIResource["ToolCall"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["ToolCall.ListParams"],
-    ) -> ListObject["ToolCall"]:
+        **params: Unpack["Tool.ListParams"],
+    ) -> ListObject["Tool"]:
         message_ids_str = params.get("messageIds") or ""
         chunks = _chunk_message_ids(message_ids_str)
         if not chunks:
@@ -209,8 +209,8 @@ class ToolCall(APIResource["ToolCall"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["ToolCall.ListParams"],
-    ) -> ListObject["ToolCall"]:
+        **params: Unpack["Tool.ListParams"],
+    ) -> ListObject["Tool"]:
         message_ids_str = params.get("messageIds") or ""
         chunks = _chunk_message_ids(message_ids_str)
         if not chunks:
