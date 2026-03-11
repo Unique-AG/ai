@@ -47,9 +47,11 @@ dependencies = [
 [project.optional-dependencies]
 langchain = [
     "openai>=1.105.0,<2",
-    "langchain>=0.3.27,<0.4",
-    "langchain-openai>=0.3.28,<0.4",
-    "langchain-core>=0.3.0,<0.4",
+    "langchain>=1.2.10,<2",
+    "langchain-openai>=1.0.0,<2",
+    "langchain-core>=1.2.18,<2",
+    "langgraph>=0.2.0,<2",
+    "deepagents>=0.4.0,<0.5",
 ]
 fastapi = [
     "fastapi>=0.121.0,<0.122",

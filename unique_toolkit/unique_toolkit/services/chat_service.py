@@ -1022,7 +1022,7 @@ class ChatService(ChatServiceDeprecated):
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
         is_queueable: bool = True,
-        execution_options: dict | None = None,
+        execution_options: dict[str, Any] | None = None,
         progress_title: str | None = None,
     ) -> MessageExecution:
         """Creates a message execution for tracking long-running operations synchronously.
