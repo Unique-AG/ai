@@ -402,6 +402,9 @@
   "#smart_rules_imports": [
     "docs/modules/examples/content/smart_rules.md"
   ],
+  "#standalone_display_imports": [
+    "docs/application_types/standalone_application.md"
+  ],
   "#tool-call-response-schema": [
     "docs/agentic_framework/tool_call_response.md"
   ],
@@ -540,6 +543,9 @@
   ],
   "file=docs/.python_files/chat_edit_debug_information.py": [
     "docs/modules/examples/chat/chat_service.md"
+  ],
+  "file=docs/.python_files/chat_latex_formula.py": [
+    "docs/modules/examples/chat/advanced_rendering.md"
   ],
   "file=docs/.python_files/chat_prompt_button.py": [
     "docs/modules/examples/chat/advanced_rendering.md"
