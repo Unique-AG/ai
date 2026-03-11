@@ -351,7 +351,7 @@ async def test_deep_research_tool__is_followup_question_answer__returns_false__w
                 tool.get_followup_question_message_id = AsyncMock(
                     return_value="followup-msg-123"
                 )
-                tool.chat_service.get_full_history_async = AsyncMock(return_value=None)
+                tool._chat_service.get_full_history_async = AsyncMock(return_value=None)
 
                 # Act
                 result = await tool.is_followup_question_answer()
@@ -392,7 +392,7 @@ async def test_deep_research_tool__is_followup_question_answer__returns_true__wh
 
                 mock_message = Mock()
                 mock_message.id = "followup-msg-123"
-                tool.chat_service.get_full_history_async = AsyncMock(
+                tool._chat_service.get_full_history_async = AsyncMock(
                     return_value=[mock_message]
                 )
 
@@ -435,7 +435,7 @@ async def test_deep_research_tool__is_followup_question_answer__returns_false__w
 
                 mock_message = Mock()
                 mock_message.id = "different-msg-456"
-                tool.chat_service.get_full_history_async = AsyncMock(
+                tool._chat_service.get_full_history_async = AsyncMock(
                     return_value=[mock_message]
                 )
 
@@ -472,7 +472,7 @@ async def test_deep_research_tool__update_execution_status__calls_chat_service__
         with patch("unique_deep_research.service.ContentService"):
             with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
-                tool.chat_service.update_message_execution_async = AsyncMock()
+                tool._chat_service.update_message_execution_async = AsyncMock()
 
                 # Act
                 await tool._update_execution_status(
@@ -480,7 +480,7 @@ async def test_deep_research_tool__update_execution_status__calls_chat_service__
                 )
 
                 # Assert
-                tool.chat_service.update_message_execution_async.assert_called_once_with(
+                tool._chat_service.update_message_execution_async.assert_called_once_with(
                     message_id="test-assistant-message",
                     status="COMPLETED",
                     percentage_completed=100,
@@ -513,7 +513,7 @@ async def test_deep_research_tool__update_execution_status__calls_chat_service__
         with patch("unique_deep_research.service.ContentService"):
             with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
-                tool.chat_service.update_message_execution_async = AsyncMock()
+                tool._chat_service.update_message_execution_async = AsyncMock()
 
                 # Act
                 await tool._update_execution_status(
@@ -521,7 +521,7 @@ async def test_deep_research_tool__update_execution_status__calls_chat_service__
                 )
 
                 # Assert
-                tool.chat_service.update_message_execution_async.assert_called_once_with(
+                tool._chat_service.update_message_execution_async.assert_called_once_with(
                     message_id="test-assistant-message",
                     status=MessageExecutionUpdateStatus.COMPLETED,
                     percentage_completed=50,
@@ -602,7 +602,7 @@ def test_deep_research_tool__get_visible_history_messages__returns_formatted_mes
                 mock_assistant_msg.role = MockRole("assistant")
                 mock_assistant_msg.content = "Assistant response"
 
-                tool.chat_service.get_full_history = Mock(
+                tool._chat_service.get_full_history = Mock(
                     return_value=[mock_user_msg, mock_assistant_msg]
                 )
 
@@ -658,7 +658,7 @@ def test_deep_research_tool__get_visible_history_messages__returns_formatted_mes
                 mock_msg3.role = MockRole("user")
                 mock_msg3.content = "Message 3"
 
-                tool.chat_service.get_full_history = Mock(
+                tool._chat_service.get_full_history = Mock(
                     return_value=[mock_msg1, mock_msg2, mock_msg3]
                 )
 
@@ -864,8 +864,8 @@ async def test_deep_research_tool__run__returns_error_response__when_exception_o
             with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool._run = AsyncMock(side_effect=Exception("Test error"))
-                tool.chat_service.update_debug_info_async = AsyncMock()
-                tool.chat_service.modify_assistant_message_async = AsyncMock()
+                tool._chat_service.update_debug_info_async = AsyncMock()
+                tool._chat_service.modify_assistant_message_async = AsyncMock()
                 tool.write_message_log_text_message = Mock()
 
                 mock_tool_call = Mock()
@@ -920,8 +920,8 @@ async def test_deep_research_tool__run__returns_error_response__when_exception_o
                 tool = DeepResearchTool(config, mock_event, mock_progress_reporter)
                 tool._run = AsyncMock(side_effect=Exception("Test error"))
                 tool._update_execution_status = AsyncMock()
-                tool.chat_service.update_debug_info_async = AsyncMock()
-                tool.chat_service.modify_assistant_message_async = AsyncMock()
+                tool._chat_service.update_debug_info_async = AsyncMock()
+                tool._chat_service.modify_assistant_message_async = AsyncMock()
                 tool.write_message_log_text_message = Mock()
 
                 mock_tool_call = Mock()
@@ -933,8 +933,8 @@ async def test_deep_research_tool__run__returns_error_response__when_exception_o
                 # Assert
                 assert isinstance(result, ToolCallResponse)
                 tool._update_execution_status.assert_called_once()
-                tool.chat_service.update_debug_info_async.assert_called_once()
-                tool.chat_service.modify_assistant_message_async.assert_called_once()
+                tool._chat_service.update_debug_info_async.assert_called_once()
+                tool._chat_service.modify_assistant_message_async.assert_called_once()
                 tool.write_message_log_text_message.assert_called_once_with(
                     "**Research failed for an unknown reason**"
                 )
@@ -1116,7 +1116,7 @@ async def test_deep_research_tool__custom_research__returns_processed_result__wh
                             # Mock validation
                             mock_validate.return_value = ("Processed report", [])
 
-                            tool.chat_service.modify_assistant_message_async = (
+                            tool._chat_service.modify_assistant_message_async = (
                                 AsyncMock()
                             )
 
@@ -1129,7 +1129,7 @@ async def test_deep_research_tool__custom_research__returns_processed_result__wh
                             mock_validate.assert_called_once_with(
                                 "Test research report", []
                             )
-                            tool.chat_service.modify_assistant_message_async.assert_called_once()
+                            tool._chat_service.modify_assistant_message_async.assert_called_once()
 
 
 @pytest.mark.ai
@@ -1281,7 +1281,7 @@ async def test_deep_research_tool__openai_research__returns_processed_result__wh
                             return_value="Final report"
                         )
                         tool._convert_annotations_to_references = Mock(return_value=[])
-                        tool.chat_service.modify_assistant_message_async = AsyncMock()
+                        tool._chat_service.modify_assistant_message_async = AsyncMock()
 
                         # Mock stream processing
                         tool._process_research_stream = AsyncMock(
@@ -1298,7 +1298,7 @@ async def test_deep_research_tool__openai_research__returns_processed_result__wh
                         tool._postprocess_report_with_gpt.assert_called_once_with(
                             "Processed result"
                         )
-                        tool.chat_service.modify_assistant_message_async.assert_called_once()
+                        tool._chat_service.modify_assistant_message_async.assert_called_once()
 
 
 @pytest.mark.ai
@@ -1478,7 +1478,9 @@ async def test_deep_research_tool__clarify_user_request__returns_clarifying_ques
                 ].message.content = (
                     "What specific aspect of AI trends are you interested in?"
                 )
-                tool.chat_service.complete_async = AsyncMock(return_value=mock_response)
+                tool._chat_service.complete_async = AsyncMock(
+                    return_value=mock_response
+                )
 
                 # Mock template rendering
                 mock_template = Mock()
@@ -1497,7 +1499,7 @@ async def test_deep_research_tool__clarify_user_request__returns_clarifying_ques
                         result
                         == "What specific aspect of AI trends are you interested in?"
                     )
-                    tool.chat_service.complete_async.assert_called_once()
+                    tool._chat_service.complete_async.assert_called_once()
                     tool.get_visible_history_messages.assert_called_once_with(4)
 
 
@@ -1910,7 +1912,7 @@ async def test_deep_research_tool__on_cancellation__logs_and_updates_message():
                 tool = DeepResearchTool(config, mock_event, mock_reporter)
                 tool.write_message_log_text_message = Mock()
                 tool._update_execution_status = AsyncMock()
-                tool.chat_service.modify_assistant_message_async = AsyncMock()
+                tool._chat_service.modify_assistant_message_async = AsyncMock()
 
                 from unique_toolkit.chat.cancellation import CancellationEvent
 
@@ -1923,7 +1925,7 @@ async def test_deep_research_tool__on_cancellation__logs_and_updates_message():
                 tool._update_execution_status.assert_called_once_with(
                     MessageExecutionUpdateStatus.FAILED
                 )
-                tool.chat_service.modify_assistant_message_async.assert_called_once_with(
+                tool._chat_service.modify_assistant_message_async.assert_called_once_with(
                     content="Research was stopped.",
                 )
 
@@ -1946,10 +1948,10 @@ async def test_deep_research_tool__run__returns_cancelled_response__when_cancell
         with patch("unique_deep_research.service.ContentService"):
             with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
                 tool = DeepResearchTool(config, mock_event, mock_reporter)
-                tool.chat_service._cancellation_watcher = _mock_cancellation(
+                tool._chat_service._cancellation_watcher = _mock_cancellation(
                     check_returns=True
                 )
-                tool.chat_service.modify_assistant_message_async = AsyncMock()
+                tool._chat_service.modify_assistant_message_async = AsyncMock()
                 tool._clear_original_message = AsyncMock()
                 tool.is_followup_question_answer = AsyncMock(return_value=False)
 
@@ -1979,13 +1981,13 @@ async def test_deep_research_tool__run__returns_cancelled_response__when_cancell
                     call_count += 1
                     return call_count >= 2
 
-                tool.chat_service._cancellation_watcher = _mock_cancellation(
+                tool._chat_service._cancellation_watcher = _mock_cancellation(
                     check_returns=False
                 )
-                tool.chat_service.cancellation.check_cancellation_async = AsyncMock(
+                tool._chat_service.cancellation.check_cancellation_async = AsyncMock(
                     side_effect=check_cancel_side_effect
                 )
-                tool.chat_service.modify_assistant_message_async = AsyncMock()
+                tool._chat_service.modify_assistant_message_async = AsyncMock()
                 tool._clear_original_message = AsyncMock()
                 tool.is_followup_question_answer = AsyncMock(return_value=False)
                 tool.write_message_log_text_message = Mock()
@@ -2010,10 +2012,10 @@ async def test_deep_research_tool__run__returns_cancelled_response__when_cancell
         with patch("unique_deep_research.service.ContentService"):
             with patch("unique_toolkit.agentic.tools.tool.LanguageModelService"):
                 tool = DeepResearchTool(config, mock_event, mock_reporter)
-                tool.chat_service._cancellation_watcher = _mock_cancellation(
+                tool._chat_service._cancellation_watcher = _mock_cancellation(
                     is_cancelled=True, check_returns=False
                 )
-                tool.chat_service.modify_assistant_message_async = AsyncMock()
+                tool._chat_service.modify_assistant_message_async = AsyncMock()
                 tool._clear_original_message = AsyncMock()
                 tool.is_followup_question_answer = AsyncMock(return_value=False)
                 tool.write_message_log_text_message = Mock()
@@ -2124,7 +2126,7 @@ async def test_deep_research_tool__clarify_user_request__passes_date__to_templat
                     mock_response = Mock()
                     mock_response.choices = [Mock()]
                     mock_response.choices[0].message.content = "Clarifying question?"
-                    tool.chat_service.complete_async = AsyncMock(
+                    tool._chat_service.complete_async = AsyncMock(
                         return_value=mock_response
                     )
 

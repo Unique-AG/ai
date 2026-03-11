@@ -17,6 +17,7 @@ from unique_toolkit.agentic.tools.agent_chunks_hanlder import AgentChunksHandler
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig, ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
+from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.language_model.infos import (
     LanguageModelName,
@@ -26,6 +27,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
     LanguageModelToolMessage,
 )
+from unique_toolkit.language_model.service import LanguageModelService
 
 DB_HOST = os.getenv("PGHOST", "localhost")
 DB_PORT = int(os.getenv("PGPORT", "10100"))
@@ -42,6 +44,15 @@ class PMPositionsToolConfig(BaseToolConfig):
 
 class PMPositionsTool(Tool[PMPositionsToolConfig]):
     name = "PM_Positions"
+
+    def __init__(
+        self,
+        config: PMPositionsToolConfig,
+        event: ChatEvent,
+        tool_progress_reporter: object | None = None,
+    ) -> None:
+        super().__init__(config)
+        self._language_model_service = LanguageModelService(event)
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:

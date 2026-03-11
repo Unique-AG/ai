@@ -49,8 +49,8 @@ class MockTool(Tool[MockToolConfig]):
 
     name = "mock_tool"
 
-    def __init__(self, config, event, tool_progress_reporter=None):
-        super().__init__(config, event, tool_progress_reporter)
+    def __init__(self, config, event=None, tool_progress_reporter=None):
+        super().__init__(config)
 
     def tool_description(self):
         from unique_toolkit.language_model.schemas import LanguageModelToolDescription
@@ -80,8 +80,8 @@ class MockExclusiveTool(Tool[MockToolConfig]):
 
     name = "exclusive_tool"
 
-    def __init__(self, config, event, tool_progress_reporter=None):
-        super().__init__(config, event, tool_progress_reporter)
+    def __init__(self, config, event=None, tool_progress_reporter=None):
+        super().__init__(config)
 
     def tool_description(self):
         from unique_toolkit.language_model.schemas import LanguageModelToolDescription
@@ -111,8 +111,8 @@ class MockControlTool(Tool[MockToolConfig]):
 
     name = "control_tool"
 
-    def __init__(self, config, event, tool_progress_reporter=None):
-        super().__init__(config, event, tool_progress_reporter)
+    def __init__(self, config, event=None, tool_progress_reporter=None):
+        super().__init__(config)
 
     def tool_description(self):
         from unique_toolkit.language_model.schemas import LanguageModelToolDescription

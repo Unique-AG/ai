@@ -67,38 +67,26 @@ This method is the heart of the tool's functionality and must be tailored to the
 
 ### 🧩 Initialization
 
-The `Tool` class is initialized with a configuration object, an event, and an optional progress reporter. These components are essential for setting up the tool and ensuring it operates correctly.
+The base `Tool` class is initialized with **configuration only**. The base class is decoupled from chat-frontend concerns (ChatEvent, ChatService, LanguageModelService, ToolProgressReporter).
 
-#### Constructor:
+Tools that need runtime context (event, chat_service, language_model_service, tool_progress_reporter) should accept them in their own `__init__` and create the services they need.
+
+#### Base Constructor:
 ```{.python #tool-init}
-def __init__(
-    self,
-    config: ConfigType,
-    event: ChatEvent,
-    tool_progress_reporter: ToolProgressReporter | None = None,
-):
+def __init__(self, config: ConfigType) -> None:
+    """Initialize the tool with configuration only."""
     self.settings = ToolBuildConfig(
         name=self.name,
         configuration=config,
     )
-
     self.config = config
-    module_name = "default overwrite for module name"
     self.logger = getLogger(f"{module_name}.{__name__}")
     self.debug_info: dict = {}
-
-    # Deprecated properties
-    self._event: ChatEvent = event
-    self._tool_progress_reporter: ToolProgressReporter | None = (
-        tool_progress_reporter
-    )
 ```
 
 #### 🔄 Progress Reporting
 
-Tools can report their progress during execution using the **`tool_progress_reporter`** property. This feature is essential for keeping users informed about the tool's status, especially for long-running operations. For example, a tool might report stages like "Searching...", "Processing results...", or "Preparing output...".
-
-Progress updates are typically sent before any streaming begins, ensuring users are aware of the tool's current state.
+Tools that need progress reporting should accept `tool_progress_reporter` in their `__init__` (passed by ToolManager) and store it. Progress updates are typically sent before any streaming begins, ensuring users are aware of the tool's current state.
 
 ---
 
