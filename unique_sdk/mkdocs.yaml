@@ -75,6 +75,7 @@ nav:
     - SearchString: api_resources/search_string.md
     - Short Term Memory: api_resources/short_term_memory.md
     - Space: api_resources/space.md
+    - Tool: api_resources/tool.md
     - User: api_resources/user.md
   - UniqueQL:
     - Query Language: uniqueql.md
