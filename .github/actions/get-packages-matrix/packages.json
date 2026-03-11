@@ -1,0 +1,15 @@
+[
+  {"id": "toolkit", "dir": "unique_toolkit", "python": "3.12", "install_args": "--extra fastapi", "extras": "fastapi", "min_coverage": "60", "use_baseline": true, "require_zero_errors": false},
+  {"id": "sdk", "dir": "unique_sdk", "python": "3.11", "test_args": "-m \"not integration\"", "min_coverage": "60", "use_baseline": true, "require_zero_errors": false},
+  {"id": "mcp", "dir": "unique_mcp", "python": "3.12", "min_coverage": "60", "use_baseline": true, "require_zero_errors": false},
+  {"id": "orchestrator", "dir": "unique_orchestrator", "python": "3.12", "min_coverage": "60", "use_baseline": true, "require_zero_errors": false},
+  {"id": "web_search", "dir": "tool_packages/unique_web_search", "python": "3.12", "min_coverage": "60", "use_baseline": true, "require_zero_errors": false},
+  {"id": "swot", "dir": "tool_packages/unique_swot", "python": "3.12", "min_coverage": "60", "use_baseline": true, "require_zero_errors": false},
+  {"id": "follow_up_questions", "dir": "postprocessors/unique_follow_up_questions", "python": "3.12", "min_coverage": "60", "use_baseline": true, "require_zero_errors": false},
+  {"id": "stock_ticker", "dir": "postprocessors/unique_stock_ticker", "python": "3.12", "min_coverage": "60", "use_baseline": true, "require_zero_errors": false},
+  {"id": "deep_research", "dir": "tool_packages/unique_deep_research", "python": "3.12", "min_coverage": "60", "use_baseline": true, "require_zero_errors": false},
+  {"id": "internal_search", "dir": "tool_packages/unique_internal_search", "python": "3.12", "min_coverage": "60", "use_baseline": true, "require_zero_errors": false},
+  {"id": "quartr", "dir": "connectors/unique_quartr", "python": "3.12", "min_coverage": "60", "use_baseline": true, "require_zero_errors": false},
+  {"id": "six", "dir": "connectors/unique_six", "python": "3.12", "min_coverage": "60", "use_baseline": true, "require_zero_errors": false},
+  {"id": "search_proxy", "dir": "connectors/unique_search_proxy", "python": "3.12", "min_coverage": "60", "use_baseline": true, "require_zero_errors": false}
+]

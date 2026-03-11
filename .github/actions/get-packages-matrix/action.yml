@@ -1,0 +1,17 @@
+name: 'Get Packages Matrix'
+description: 'Outputs the canonical CI package list. Use with select-packages in ci.yaml and reusable workflows. Publish pipeline (ci-publish) uses its own list.'
+
+outputs:
+  packages:
+    description: 'JSON array of package configs for select-packages'
+    value: ${{ steps.out.outputs.packages }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: out
+      shell: bash
+      run: |
+        echo "packages<<EOF" >> $GITHUB_OUTPUT
+        cat "$GITHUB_WORKSPACE/.github/actions/get-packages-matrix/packages.json" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
