@@ -77,6 +77,11 @@ class FeatureFlags(BaseSettings):
         description="Enable HTML rendering for code interpreter files (UN-15131). Can be 'true' or comma-separated company IDs.",
     )
 
+    enable_code_execution_fence_un_17972: FeatureFlag = Field(
+        default=FeatureFlag(False),
+        description="Emit codeExecution fences in message.text for code interpreter outputs (UN-17972). When disabled, inline file refs are kept as-is. Can be 'true' or comma-separated company IDs.",
+    )
+
     model_config = SettingsConfigDict(
         extra="ignore",
         env_prefix="FEATURE_FLAG_",

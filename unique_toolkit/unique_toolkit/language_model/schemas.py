@@ -93,7 +93,6 @@ class LanguageModelStreamResponseMessage(BaseModel):
     text: str
     original_text: str | None = None
     references: list[ContentReference] = []
-    code_blocks: list[CodeInterpreterBlock] = []
 
     # TODO make sdk return role in lowercase
     # Currently needed as sdk returns role in uppercase

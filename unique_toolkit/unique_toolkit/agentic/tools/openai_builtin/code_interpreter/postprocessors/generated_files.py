@@ -193,7 +193,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 loop_response.message.text, replaced = _replace_container_file_citation(
                     text=loop_response.message.text,
                     filename=filename,
-                    ref_number=ref_number,
+                    content_id=content_id,
                 )
                 changed |= replaced
 
@@ -215,9 +215,17 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 ref_number += 1
 
-        loop_response.message.code_blocks = _build_code_blocks(
-            loop_response, self._content_map
-        )
+        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+            self._company_id
+        ):
+            code_blocks = _build_code_blocks(loop_response, self._content_map)
+            text_before = loop_response.message.text
+            loop_response.message.text = _inject_code_execution_fences(
+                loop_response.message.text,
+                code_blocks,
+            )
+            changed |= loop_response.message.text != text_before
+
         return changed
 
     @override
@@ -291,6 +299,103 @@ def _get_file_type(filename: str) -> CodeInterpreterFileType:
     return "document"
 
 
+def _to_frontend_type(file_type: CodeInterpreterFileType) -> str:
+    """Map our CodeInterpreterFileType to the type token the frontend parser expects."""
+    if file_type == "image":
+        return "chart"
+    if file_type == "html":
+        return "html"
+    return "document"
+
+
+def _build_code_execution_fence(block: CodeInterpreterBlock) -> str:
+    """Build a codeExecution fence for one code block.
+
+    Uses 4 backticks for the outer fence so the inner 3-backtick code fence does
+    not prematurely close it (CommonMark rule: closing fence must match opening
+    backtick count).
+
+    The format matches what parseCodeExecutionData / parseContentIdLines expect:
+      - <summary> tag  → title
+      - inner ```python fence → sourceCode + language
+      - lines after the inner closing ``` → outputRefs (content_id + type)
+    """
+    outer = "````"
+    inner = "```"
+    content_id_lines = "\n".join(
+        f"unique://content/{f.content_id} {_to_frontend_type(f.type)}"
+        for f in block.files
+    )
+    return (
+        f"{outer}codeExecution\n"
+        f"<summary>Code Interpreter Call</summary>\n"
+        f"{inner}python\n"
+        f"{block.code.rstrip()}\n"
+        f"{inner}\n"
+        f"{content_id_lines}\n"
+        f"{outer}"
+    )
+
+
+def _inline_ref_pattern(file: CodeInterpreterFile) -> re.Pattern[str]:
+    """Return a compiled pattern matching the inline ref for a file in message text.
+
+    After apply_postprocessing_to_response replaces sandbox paths, each file type
+    has a distinct inline form in the text:
+      image    → ![image](unique://content/{content_id})
+      document → [{filename}](unique://content/{content_id})
+      html     → ```HtmlRendering\\n100%\\n500px\\n\\nunique://content/{content_id}\\n\\n```
+    """
+    cid = re.escape(file.content_id)
+    fname = re.escape(file.filename)
+    if file.type == "image":
+        return re.compile(rf"!\[image\]\(unique://content/{cid}\)")
+    if file.type == "html":
+        return re.compile(
+            rf"```HtmlRendering\n100%\n500px\n\nunique://content/{cid}\n\n```",
+            re.DOTALL,
+        )
+    return re.compile(rf"\[{fname}\]\(unique://content/{cid}\)")
+
+
+_DETAILS_CODE_BLOCK_RE = re.compile(
+    r"\n*<details><summary>Code Interpreter Call</summary>.*?</details>\n*",
+    re.DOTALL,
+)
+
+
+def _inject_code_execution_fences(
+    text: str, code_blocks: list[CodeInterpreterBlock]
+) -> str:
+    """Replace inline file refs in text with codeExecution fences.
+
+    For each code block, finds the first inline ref belonging to that block and
+    replaces it with the fence. Remaining inline refs for the same block are
+    removed (the files are now represented inside the fence).
+
+    After all blocks are processed, any <details> blocks emitted by
+    ShowExecutedCodePostprocessor are stripped — they are superseded by the fences.
+    """
+    for block in code_blocks:
+        if not block.files:
+            continue
+        fence = _build_code_execution_fence(block)
+        fence_placed = False
+        for file in block.files:
+            pattern = _inline_ref_pattern(file)
+            if not fence_placed:
+                new_text, n = re.subn(pattern, lambda m, _f=fence: _f, text, count=1)
+                if n:
+                    text = new_text
+                    fence_placed = True
+            # Remove all remaining occurrences of this file's inline ref. This covers:
+            # - multi-file blocks where subsequent files' refs follow the fence position
+            # - overwrite cases where the model emitted two download links for the same file
+            if fence_placed:
+                text = re.sub(pattern, "", text)
+    return _DETAILS_CODE_BLOCK_RE.sub("", text)
+
+
 def _build_code_blocks(
     loop_response: ResponsesLanguageModelStreamResponse,
     content_map: dict[str, str | None],
@@ -315,8 +420,12 @@ def _build_code_blocks(
             ):
                 file_to_block_idx[annotation.filename] = idx
 
-    # Step 2: group files by their owning block index.
-    block_files: dict[int, list[CodeInterpreterFile]] = {}
+    # Step 2: group files by their owning block index, deduplicating by filename.
+    # OpenAI may emit multiple annotations for the same filename when a file is
+    # overwritten across executions. Using a dict keyed by filename ensures each
+    # file appears exactly once per block (last annotation wins, consistent with
+    # the last-writer-wins rule applied in step 1).
+    block_file_map: dict[int, dict[str, CodeInterpreterFile]] = {}
     for annotation in loop_response.container_files:
         content_id = content_map.get(annotation.filename)
         if content_id is None:
@@ -324,18 +433,16 @@ def _build_code_blocks(
         idx = file_to_block_idx.get(annotation.filename)
         if idx is None:
             continue
-        block_files.setdefault(idx, []).append(
-            CodeInterpreterFile(
-                filename=annotation.filename,
-                content_id=content_id,
-                type=_get_file_type(annotation.filename),
-            )
+        block_file_map.setdefault(idx, {})[annotation.filename] = CodeInterpreterFile(
+            filename=annotation.filename,
+            content_id=content_id,
+            type=_get_file_type(annotation.filename),
         )
 
     # Step 3: build result preserving block execution order.
     return [
-        CodeInterpreterBlock(code=calls[idx].code, files=files)
-        for idx, files in sorted(block_files.items())
+        CodeInterpreterBlock(code=calls[idx].code, files=list(files.values()))
+        for idx, files in sorted(block_file_map.items())
         if calls[idx].code
     ]
 
@@ -406,7 +513,7 @@ unique://content/{content_id}
 
 
 def _replace_container_file_citation(
-    text: str, filename: str, ref_number: int
+    text: str, filename: str, content_id: str
 ) -> tuple[str, bool]:
     file_markdown = rf"\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
 
@@ -417,6 +524,6 @@ def _replace_container_file_citation(
     logger.info("Displaying file %s", filename)
     return re.sub(
         file_markdown,
-        f"<sup>{ref_number}</sup>",
+        f"[{filename}](unique://content/{content_id})",
         text,
     ), True
