@@ -349,10 +349,10 @@ class RateLimitRetryConfig(BaseSettings):
         description="First wait after SDK retries exhausted. Backoff then 2x (30→60→120s).",
     )
     max_attempts: int = Field(
-        default=3,
+        default=2,
         ge=1,
         le=10,
-        description="Total attempts (1 initial + retries). Default 3 = 2 retries. Set to 1 to disable.",
+        description="Total attempts (1 initial + retries). Default 2 = 1 retry (~30s wait). Set to 1 to disable.",
     )
     log_message_on_retry: bool = Field(
         default=True,
@@ -382,7 +382,7 @@ async def _responses_stream_with_rate_limit_retry(
     responses_args: dict[str, Any],
     model_name: str,
     on_rate_limit_retry: Callable[[int, float], Awaitable[None]] | None = None,
-) -> Any:
+) -> "unique_sdk.Integrated.ResponsesStreamResult":
     """Wrap responses_stream_async with exponential backoff for rate-limit errors.
 
     The SDK already retries 3× (1s/2s/4s) before raising. This layer adds further
@@ -433,7 +433,7 @@ async def _responses_stream_with_rate_limit_retry(
         if on_rate_limit_retry is not None:
             await on_rate_limit_retry(retry_state.attempt_number, wait_secs)
 
-    async def _call() -> Any:
+    async def _call() -> "unique_sdk.Integrated.ResponsesStreamResult":
         return await unique_sdk.Integrated.responses_stream_async(**responses_args)
 
     return await AsyncRetrying(
