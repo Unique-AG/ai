@@ -3,11 +3,8 @@
 from typing import (
     Any,
     ClassVar,
-    Dict,
-    List,
     Literal,
     NotRequired,
-    Optional,
     TypedDict,
     Unpack,
 )
@@ -18,26 +15,26 @@ from unique_sdk._request_options import RequestOptions
 
 
 class ToolCallResponse(TypedDict):
-    content: NotRequired[Optional[str]]
+    content: NotRequired[str | None]
 
 
 class ToolCallItem(TypedDict):
     externalToolCallId: str
     functionName: str
-    arguments: NotRequired[Optional[Dict[str, Any]]]
+    arguments: NotRequired[dict[str, Any] | None]
     roundIndex: int
     sequenceIndex: int
-    response: NotRequired[Optional[ToolCallResponse]]
+    response: NotRequired[ToolCallResponse | None]
 
 
 # Max messageIds per GET request (monorepo API limit); we paginate above this.
 MESSAGE_IDS_PAGE_SIZE = 200
 
 
-def _chunk_message_ids(message_ids_str: str) -> List[str]:
+def _chunk_message_ids(message_ids_str: str) -> list[str]:
     """Split comma-separated message IDs into chunks of at most MESSAGE_IDS_PAGE_SIZE."""
     ids = [s.strip() for s in message_ids_str.split(",") if s.strip()]
-    chunks: List[str] = []
+    chunks: list[str] = []
     for i in range(0, len(ids), MESSAGE_IDS_PAGE_SIZE):
         chunks.append(",".join(ids[i : i + MESSAGE_IDS_PAGE_SIZE]))
     return chunks
@@ -49,7 +46,7 @@ class ToolCall(APIResource["ToolCall"]):
 
     class CreateParams(RequestOptions):
         messageId: str
-        tools: List[ToolCallItem]
+        tools: list[ToolCallItem]
 
     class ListParams(RequestOptions):
         messageIds: str
@@ -57,11 +54,11 @@ class ToolCall(APIResource["ToolCall"]):
     id: str
     externalToolCallId: str
     functionName: str
-    arguments: Optional[Dict[str, Any]]
+    arguments: dict[str, Any] | None
     roundIndex: int
     sequenceIndex: int
     messageId: str
-    response: Optional[Dict[str, Any]]
+    response: dict[str, Any] | None
     createdAt: str
 
     @classmethod
@@ -182,7 +179,7 @@ class ToolCall(APIResource["ToolCall"]):
                 )
             return result
         # Paginate: request each chunk and merge data
-        all_data: List[Any] = []
+        all_data: list[Any] = []
         for chunk in chunks:
             page = cls._static_request(
                 "get",
@@ -237,7 +234,7 @@ class ToolCall(APIResource["ToolCall"]):
                 )
             return result
         # Paginate: request each chunk and merge data
-        all_data: List[Any] = []
+        all_data: list[Any] = []
         for chunk in chunks:
             page = await cls._static_request_async(
                 "get",
