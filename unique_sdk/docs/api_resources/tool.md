@@ -61,6 +61,8 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
 
     Retrieve all tool invocations for one or more messages. Pass message IDs as a comma-separated string.
 
+    Automatically paginates when more than 200 message IDs are provided — the SDK splits the IDs into chunks, issues one GET per chunk, and merges all results into a single `ListObject`. If the message IDs string is empty, returns an empty `ListObject` without calling the API.
+
     **Parameters:**
 
     - `messageIds` (str, required) - Comma-separated message IDs to query
@@ -75,37 +77,15 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
     tools = unique_sdk.Tool.list(
         user_id=user_id,
         company_id=company_id,
-        messageIds="msg_abc123,msg_def456",
+        messageIds=",".join(all_message_ids),
     )
 
     for tool in tools["data"]:
         print(tool["functionName"], tool["arguments"])
     ```
 
-??? example "`unique_sdk.Tool.list_by_message_ids` - List tools with automatic pagination"
-
-    Same as `list`, but automatically paginates when more than 200 message IDs are provided. Results from all pages are merged into a single `ListObject`.
-
-    **Parameters:**
-
-    - `messageIds` (str, required) - Comma-separated message IDs to query
-
-    **Returns:**
-
-    Returns a [`ListObject`](#listobject) containing [`Tool`](#tool) objects.
-
-    **Example:**
-
-    ```python
-    tools = unique_sdk.Tool.list_by_message_ids(
-        user_id=user_id,
-        company_id=company_id,
-        messageIds=",".join(all_message_ids),
-    )
-    ```
-
 !!! tip "Async variants"
-    All methods have async counterparts: `create_many_async`, `list_async`, and `list_by_message_ids_async`.
+    All methods have async counterparts: `create_many_async` and `list_async`.
 
 ## Input Types
 
@@ -152,7 +132,7 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
     - `response` (dict[str, Any] | None) - The tool's response (contains `id`, `content`, `toolCallId`, `createdAt`)
     - `createdAt` (str) - Creation timestamp (ISO 8601)
 
-    **Returned by:** `Tool.create_many()`, `Tool.list()`, `Tool.list_by_message_ids()`
+    **Returned by:** `Tool.create_many()`, `Tool.list()`
 
 #### ListObject {#listobject}
 
@@ -164,7 +144,7 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
     - `has_more` (bool) - Whether there are more items to retrieve
     - `object` (str) - Object type identifier (always "list")
 
-    **Returned by:** `Tool.create_many()`, `Tool.list()`, `Tool.list_by_message_ids()`
+    **Returned by:** `Tool.create_many()`, `Tool.list()`
 
 ## Related Resources
 

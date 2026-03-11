@@ -112,50 +112,6 @@ class Tool(APIResource["Tool"]):
         company_id: str,
         **params: Unpack["Tool.ListParams"],
     ) -> ListObject["Tool"]:
-        result = cls._static_request(
-            "get",
-            cls.RESOURCE_URL,
-            user_id,
-            company_id,
-            params=params,
-        )
-
-        if not isinstance(result, ListObject):
-            raise TypeError(
-                "Expected list object from API, got %s" % (type(result).__name__)
-            )
-
-        return result
-
-    @classmethod
-    async def list_async(
-        cls,
-        user_id: str,
-        company_id: str,
-        **params: Unpack["Tool.ListParams"],
-    ) -> ListObject["Tool"]:
-        result = await cls._static_request_async(
-            "get",
-            cls.RESOURCE_URL,
-            user_id,
-            company_id,
-            params=params,
-        )
-
-        if not isinstance(result, ListObject):
-            raise TypeError(
-                "Expected list object from API, got %s" % (type(result).__name__)
-            )
-
-        return result
-
-    @classmethod
-    def list_by_message_ids(
-        cls,
-        user_id: str,
-        company_id: str,
-        **params: Unpack["Tool.ListParams"],
-    ) -> ListObject["Tool"]:
         message_ids_str = params.get("messageIds") or ""
         chunks = _chunk_message_ids(message_ids_str)
         if not chunks:
@@ -178,7 +134,6 @@ class Tool(APIResource["Tool"]):
                     "Expected list object from API, got %s" % (type(result).__name__)
                 )
             return result
-        # Paginate: request each chunk and merge data
         all_data: list[Any] = []
         for chunk in chunks:
             page = cls._static_request(
@@ -205,7 +160,7 @@ class Tool(APIResource["Tool"]):
         )
 
     @classmethod
-    async def list_by_message_ids_async(
+    async def list_async(
         cls,
         user_id: str,
         company_id: str,
@@ -233,7 +188,6 @@ class Tool(APIResource["Tool"]):
                     "Expected list object from API, got %s" % (type(result).__name__)
                 )
             return result
-        # Paginate: request each chunk and merge data
         all_data: list[Any] = []
         for chunk in chunks:
             page = await cls._static_request_async(
