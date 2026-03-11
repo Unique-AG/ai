@@ -2,15 +2,11 @@
 Tests for Qwen-specific max loop iterations configuration.
 
 This module tests the QwenConfig.max_loop_iterations field, the ClipInt validation
-on UniqueAIAgentConfig.max_loop_iterations, and the _effective_max_loop_iterations
-property in UniqueAI.
+on UniqueAIAgentConfig.max_loop_iterations, and the max_loop_iterations
+property on UniqueAIConfig.
 """
 
 from __future__ import annotations
-
-import sys
-from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -20,9 +16,6 @@ from unique_orchestrator.config import (
     UniqueAIAgentConfig,
     UniqueAIConfig,
 )
-
-if TYPE_CHECKING:
-    from unique_orchestrator.unique_ai import UniqueAI
 
 
 class TestQwenConfigMaxLoopIterations:
@@ -134,131 +127,33 @@ class TestUniqueAIAgentConfigMaxLoopIterations:
         assert config.max_loop_iterations == 1
 
 
-class TestEffectiveMaxLoopIterations:
-    """Test suite for UniqueAI._effective_max_loop_iterations property."""
-
-    @pytest.fixture
-    def mock_unique_ai_with_config(self, monkeypatch: pytest.MonkeyPatch) -> "UniqueAI":
-        """Create a UniqueAI instance with real config and mocked dependencies."""
-        # Mock MessageStepLogger module before importing UniqueAI
-        mock_service_module = MagicMock()
-        mock_service_module.MessageStepLogger = MagicMock()
-        monkeypatch.setitem(
-            sys.modules,
-            "unique_toolkit.agentic.message_log_manager.service",
-            mock_service_module,
-        )
-
-        from unique_orchestrator.unique_ai import UniqueAI
-
-        # Create minimal event structure
-        dummy_event = MagicMock()
-        dummy_event.payload.assistant_message.id = "test-assistant-id"
-
-        # Use REAL config so nested attribute access works correctly
-        config: UniqueAIConfig = UniqueAIConfig()
-
-        ua = UniqueAI(
-            logger=MagicMock(),
-            event=dummy_event,
-            config=config,
-            chat_service=MagicMock(),
-            content_service=MagicMock(),
-            debug_info_manager=MagicMock(),
-            streaming_handler=MagicMock(),
-            reference_manager=MagicMock(),
-            thinking_manager=MagicMock(),
-            tool_manager=MagicMock(),
-            history_manager=MagicMock(),
-            evaluation_manager=MagicMock(),
-            postprocessor_manager=MagicMock(),
-            message_step_logger=MagicMock(),
-            mcp_servers=[],
-            loop_iteration_runner=MagicMock(),
-        )
-        return ua
+class TestConfigMaxLoopIterations:
+    """Test suite for UniqueAIConfig.max_loop_iterations property."""
 
     @pytest.mark.ai
-    def test_effective_max_loop_iterations__returns_qwen_value__for_qwen_model(
-        self,
-        mock_unique_ai_with_config: "UniqueAI",
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
+    def test_max_loop_iterations__returns_qwen_value__for_qwen_model(self) -> None:
         """
-        Purpose: Verify _effective_max_loop_iterations returns Qwen-specific value for Qwen models.
+        Purpose: Verify max_loop_iterations returns Qwen-specific value for Qwen models.
         Why this matters: Qwen models require different iteration limits than other models.
-        Setup summary: Mock is_qwen_model to return True, verify Qwen config value is used.
         """
-        # Arrange
-        monkeypatch.setattr(
-            "unique_orchestrator.unique_ai.is_qwen_model",
-            lambda model: True,
-        )
+        config: UniqueAIConfig = UniqueAIConfig()
+        config.space.language_model = "litellm/qwen3"
         qwen_max_iterations: int = 3
-        mock_unique_ai_with_config._config.agent.experimental.loop_configuration.model_specific.qwen.max_loop_iterations = qwen_max_iterations
-        mock_unique_ai_with_config._config.agent.max_loop_iterations = 8
+        config.agent.experimental.loop_configuration.model_specific.qwen.max_loop_iterations = qwen_max_iterations
+        config.agent.max_loop_iterations = 8
 
-        # Act
-        result: int = mock_unique_ai_with_config._effective_max_loop_iterations
-
-        # Assert
-        assert result == qwen_max_iterations
+        assert config.effective_max_loop_iterations == qwen_max_iterations
 
     @pytest.mark.ai
-    def test_effective_max_loop_iterations__returns_agent_value__for_non_qwen_model(
-        self,
-        mock_unique_ai_with_config: "UniqueAI",
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
+    def test_max_loop_iterations__returns_agent_value__for_non_qwen_model(self) -> None:
         """
-        Purpose: Verify _effective_max_loop_iterations returns agent config value for non-Qwen models.
+        Purpose: Verify max_loop_iterations returns agent config value for non-Qwen models.
         Why this matters: Non-Qwen models should use the standard agent configuration.
-        Setup summary: Mock is_qwen_model to return False, verify agent config value is used.
         """
-        # Arrange
-        monkeypatch.setattr(
-            "unique_orchestrator.unique_ai.is_qwen_model",
-            lambda model: False,
-        )
+        config: UniqueAIConfig = UniqueAIConfig()
+        config.space.language_model = "gpt-4o"
         agent_max_iterations: int = 7
-        mock_unique_ai_with_config._config.agent.max_loop_iterations = (
-            agent_max_iterations
-        )
-        mock_unique_ai_with_config._config.agent.experimental.loop_configuration.model_specific.qwen.max_loop_iterations = 3
+        config.agent.max_loop_iterations = agent_max_iterations
+        config.agent.experimental.loop_configuration.model_specific.qwen.max_loop_iterations = 3
 
-        # Act
-        result: int = mock_unique_ai_with_config._effective_max_loop_iterations
-
-        # Assert
-        assert result == agent_max_iterations
-
-    @pytest.mark.ai
-    def test_effective_max_loop_iterations__uses_correct_language_model__for_check(
-        self,
-        mock_unique_ai_with_config: "UniqueAI",
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """
-        Purpose: Verify _effective_max_loop_iterations passes the correct language model to is_qwen_model.
-        Why this matters: Model type detection must use the configured language model.
-        Setup summary: Mock is_qwen_model, call property, assert called with correct model.
-        """
-        # Arrange
-        captured_model = None
-
-        def capture_is_qwen_model(model):
-            nonlocal captured_model
-            captured_model = model
-            return False
-
-        monkeypatch.setattr(
-            "unique_orchestrator.unique_ai.is_qwen_model",
-            capture_is_qwen_model,
-        )
-        expected_model = mock_unique_ai_with_config._config.space.language_model
-
-        # Act
-        _ = mock_unique_ai_with_config._effective_max_loop_iterations
-
-        # Assert
-        assert captured_model is expected_model
+        assert config.effective_max_loop_iterations == agent_max_iterations

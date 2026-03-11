@@ -1,29 +1,30 @@
-[tool.poetry]
+[project]
 name = "metadata-extractor"
 version = "0.1.0"
 description = ""
-authors = ["Martin Fadler <martin.fadler@unique.ai>"]
+authors = [{ name = "Martin Fadler", email = "martin.fadler@unique.ai" }]
 readme = "README.md"
-packages = [{ include = "src"}]
+requires-python = ">=3.11"
+dependencies = [
+    "python-dotenv>=1.0.1",
+    "unique-sdk>=0.9.4",
+    "gunicorn>=22.0.0",
+    "unique-toolkit>=0.6.8",
+    "pydantic-settings>=2.8.1",
+    "sseclient>=0.0.27",
+    "backoff>=2.2.1",
+    "quart>=0.20.0",
+    "httpx>=0.28.1",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-python-dotenv = "^1.0.1"
-unique-sdk = "^0.9.4"
-gunicorn = "^22.0.0"
-unique-toolkit = "^0.6.8"
-pydantic-settings = "^2.8.1"
-sseclient = "^0.0.27"
-backoff = "^2.2.1"
-quart = "^0.20.0"
-httpx = "^0.28.1"
+[dependency-groups]
+dev = [
+    "ruff>=0.2.1",
+]
 
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.2.1"
+[project.scripts]
+start = "metadata_extractor:app.run"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
-start = "src:app.run"
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
