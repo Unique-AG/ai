@@ -13,9 +13,10 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     DisplayCodeInterpreterFilesPostProcessor,
     DisplayCodeInterpreterFilesPostProcessorConfig,
     _build_code_blocks,
-    _build_code_execution_fence,
+    _build_file_fence,
+    _file_frontend_type,
+    _file_title,
     _inject_code_execution_fences,
-    _to_frontend_type,
 )
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.schemas import (
@@ -425,131 +426,115 @@ def test_build_code_blocks__deduplicates_file__when_two_annotations_for_same_fil
 
 
 # ============================================================================
-# Tests for _to_frontend_type
+# Tests for _file_title
 # ============================================================================
 
 
 @pytest.mark.ai
-def test_to_frontend_type__returns_chart__for_image() -> None:
-    """
-    Purpose: Verify image maps to 'chart' (the frontend type for image outputs).
-    Why this matters: Frontend uses 'chart' not 'image' for CodeExecutionOutputRef type.
-    """
-    assert _to_frontend_type("image") == "chart"
+def test_file_title__strips_extension_and_title_cases() -> None:
+    assert _file_title("monthly_revenue_chart.png") == "Monthly Revenue Chart"
 
 
 @pytest.mark.ai
-def test_to_frontend_type__returns_document__for_document() -> None:
-    assert _to_frontend_type("document") == "document"
+def test_file_title__handles_hyphens() -> None:
+    assert _file_title("random-data.csv") == "Random Data"
 
 
 @pytest.mark.ai
-def test_to_frontend_type__returns_html__for_html() -> None:
-    assert _to_frontend_type("html") == "html"
+def test_file_title__handles_no_extension() -> None:
+    assert _file_title("report") == "Report"
 
 
 # ============================================================================
-# Tests for _build_code_execution_fence
+# Tests for _file_frontend_type
 # ============================================================================
 
 
 @pytest.mark.ai
-def test_build_code_execution_fence__contains_outer_4backtick_fence() -> None:
-    """
-    Purpose: Verify the outer fence uses 4 backticks so the inner 3-backtick
-    code block does not prematurely close it.
-    Why this matters: CommonMark: closing fence must match opening backtick count.
-    """
-    block = CodeInterpreterBlock(
-        code='plt.savefig("/mnt/data/chart.png")',
-        files=[
-            CodeInterpreterFile(
-                filename="chart.png", content_id="cont_img1", type="image"
-            )
-        ],
-    )
-    fence = _build_code_execution_fence(block)
-    assert fence.startswith("````codeExecution\n")
-    assert fence.endswith("\n````")
+def test_file_frontend_type__returns_excel__for_xlsx() -> None:
+    assert _file_frontend_type("data.xlsx") == "excel"
 
 
 @pytest.mark.ai
-def test_build_code_execution_fence__contains_summary_title() -> None:
-    """
-    Purpose: Verify <summary> tag is present so the frontend parser can extract the title.
-    """
-    block = CodeInterpreterBlock(
-        code="print('hello')",
-        files=[
-            CodeInterpreterFile(
-                filename="out.csv", content_id="cont_csv1", type="document"
-            )
-        ],
-    )
-    fence = _build_code_execution_fence(block)
-    assert "<summary>Code Interpreter Call</summary>" in fence
+def test_file_frontend_type__returns_csv__for_csv() -> None:
+    assert _file_frontend_type("data.csv") == "csv"
 
 
 @pytest.mark.ai
-def test_build_code_execution_fence__contains_inner_python_code_block() -> None:
-    """
-    Purpose: Verify inner ```python fence wraps the source code so parseInnerCodeBlock
-    can extract language and sourceCode.
-    """
-    code = 'df.to_excel("/mnt/data/data.xlsx")'
-    block = CodeInterpreterBlock(
-        code=code,
-        files=[
-            CodeInterpreterFile(
-                filename="data.xlsx", content_id="cont_x1", type="document"
-            )
-        ],
-    )
-    fence = _build_code_execution_fence(block)
-    assert "```python\n" in fence
-    assert code in fence
+def test_file_frontend_type__returns_image__for_png() -> None:
+    assert _file_frontend_type("chart.png") == "image"
 
 
 @pytest.mark.ai
-def test_build_code_execution_fence__contains_content_id_lines_with_type() -> None:
-    """
-    Purpose: Verify content_id lines are present in the format parseContentIdLines expects:
-    'unique://content/{id} {type}' — one line per file, after the inner closing fence.
-    """
-    block = CodeInterpreterBlock(
-        code='plt.savefig("/mnt/data/chart.png")',
-        files=[
-            CodeInterpreterFile(
-                filename="chart.png", content_id="cont_img99", type="image"
-            )
-        ],
-    )
-    fence = _build_code_execution_fence(block)
-    assert "unique://content/cont_img99 chart" in fence
+def test_file_frontend_type__returns_pdf__for_pdf() -> None:
+    assert _file_frontend_type("report.pdf") == "pdf"
 
 
 @pytest.mark.ai
-def test_build_code_execution_fence__multiple_files__all_content_id_lines_present() -> (
-    None
-):
+def test_file_frontend_type__returns_document__for_unknown() -> None:
+    assert _file_frontend_type("output.xyz") == "document"
+
+
+# ============================================================================
+# Tests for _build_file_fence
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_build_file_fence__image__uses_imgWithSource_tag() -> None:
     """
-    Purpose: Verify that all files in a block appear as separate content_id lines.
-    Why this matters: Case 2 — one block, multiple files.
+    Purpose: Verify images produce an imgWithSource fence with 4-backtick delimiters.
     """
-    block = CodeInterpreterBlock(
-        code='df.to_excel("/mnt/data/kpis.xlsx")\nplt.savefig("/mnt/data/chart.png")',
-        files=[
-            CodeInterpreterFile(
-                filename="kpis.xlsx", content_id="cont_doc1", type="document"
-            ),
-            CodeInterpreterFile(
-                filename="chart.png", content_id="cont_img2", type="image"
-            ),
-        ],
+    file = CodeInterpreterFile(
+        filename="chart.png", content_id="cont_img1", type="image"
     )
-    fence = _build_code_execution_fence(block)
-    assert "unique://content/cont_doc1 document" in fence
-    assert "unique://content/cont_img2 chart" in fence
+    fence = _build_file_fence(file, 'plt.savefig("/mnt/data/chart.png")', fence_id=1)
+    assert fence.startswith("````imgWithSource(")
+    assert fence.endswith("````")
+    assert "contentId='cont_img1'" in fence
+    assert 'title="Chart"' in fence
+
+
+@pytest.mark.ai
+def test_build_file_fence__document__uses_fileWithSource_tag() -> None:
+    """
+    Purpose: Verify documents produce a fileWithSource fence with type attribute.
+    """
+    file = CodeInterpreterFile(
+        filename="data.xlsx", content_id="cont_doc1", type="document"
+    )
+    fence = _build_file_fence(file, 'df.to_excel("/mnt/data/data.xlsx")', fence_id=2)
+    assert fence.startswith("````fileWithSource(")
+    assert "contentId='cont_doc1'" in fence
+    assert 'type="excel"' in fence
+    assert 'title="Data"' in fence
+
+
+@pytest.mark.ai
+def test_build_file_fence__code_is_escaped__when_contains_double_quotes() -> None:
+    """
+    Purpose: Verify double quotes inside the code string are escaped so the
+    attribute value is not broken.
+    """
+    file = CodeInterpreterFile(
+        filename="out.csv", content_id="cont_c1", type="document"
+    )
+    code = 'df.to_csv("/mnt/data/out.csv")'
+    fence = _build_file_fence(file, code, fence_id=1)
+    assert '\\"' in fence
+    assert '"/mnt/data/out.csv"' not in fence
+
+
+@pytest.mark.ai
+def test_build_file_fence__id_is_present() -> None:
+    """
+    Purpose: Verify the fence_id appears as the id attribute.
+    """
+    file = CodeInterpreterFile(
+        filename="chart.png", content_id="cont_img1", type="image"
+    )
+    fence = _build_file_fence(file, "plt.savefig(...)", fence_id=42)
+    assert "id='42'" in fence
 
 
 # ============================================================================
@@ -558,11 +543,11 @@ def test_build_code_execution_fence__multiple_files__all_content_id_lines_presen
 
 
 @pytest.mark.ai
-def test_inject_code_execution_fences__replaces_image_inline_ref__with_fence() -> None:
+def test_inject_code_execution_fences__replaces_image_inline_ref__with_imgWithSource() -> (
+    None
+):
     """
-    Purpose: Verify an inline image ref is replaced by a codeExecution fence.
-    Why this matters: Core injection for image outputs.
-    Setup summary: Text contains ![image](unique://content/cont_img1); assert fence in result.
+    Purpose: Verify an inline image ref is replaced by an imgWithSource fence.
     """
     block = CodeInterpreterBlock(
         code='plt.savefig("/mnt/data/chart.png")',
@@ -576,19 +561,17 @@ def test_inject_code_execution_fences__replaces_image_inline_ref__with_fence() -
 
     result = _inject_code_execution_fences(text, [block])
 
-    assert "````codeExecution" in result
-    assert "unique://content/cont_img1 chart" in result
+    assert "````imgWithSource(" in result
+    assert "cont_img1" in result
     assert "![image](unique://content/cont_img1)" not in result
 
 
 @pytest.mark.ai
-def test_inject_code_execution_fences__replaces_document_inline_ref__with_fence() -> (
-    None
-):
+def test_inject_code_execution_fences__leaves_document_inline_ref__unchanged() -> None:
     """
-    Purpose: Verify a document link is replaced by a codeExecution fence.
-    Why this matters: Core injection for document outputs.
-    Setup summary: Text has [data.xlsx](unique://content/cont_doc1); assert fence replaces it.
+    Purpose: Verify document links are NOT replaced (scoped to images only for initial release).
+    Why this matters: Non-image files keep their existing download link which already
+    renders on the frontend; fileWithSource is not emitted until frontend builds a parser.
     """
     block = CodeInterpreterBlock(
         code='df.to_excel("/mnt/data/data.xlsx")',
@@ -602,20 +585,16 @@ def test_inject_code_execution_fences__replaces_document_inline_ref__with_fence(
 
     result = _inject_code_execution_fences(text, [block])
 
-    assert "````codeExecution" in result
-    assert "unique://content/cont_doc1 document" in result
-    assert "[data.xlsx](unique://content/cont_doc1)" not in result
+    assert "````fileWithSource(" not in result
+    assert "[data.xlsx](unique://content/cont_doc1)" in result
 
 
 @pytest.mark.ai
-def test_inject_code_execution_fences__one_fence_for_multifile_block__removes_extra_refs() -> (
-    None
-):
+def test_inject_code_execution_fences__image_fence_and_document_link_coexist() -> None:
     """
-    Purpose: Verify that when one block has two files, only ONE fence is injected
-    at the position of the first inline ref, and the second inline ref is removed.
-    Why this matters: Files from the same execution must not produce two separate fences.
-    Setup summary: Text has image ref then document ref for same block; assert one fence only.
+    Purpose: Verify that when one block has an image and a document, the image gets
+    an imgWithSource fence and the document keeps its inline link.
+    Why this matters: Mixed block — image renders via fence, document stays as download link.
     """
     block = CodeInterpreterBlock(
         code='plt.savefig("/mnt/data/chart.png")\ndf.to_excel("/mnt/data/data.xlsx")',
@@ -632,11 +611,10 @@ def test_inject_code_execution_fences__one_fence_for_multifile_block__removes_ex
 
     result = _inject_code_execution_fences(text, [block])
 
-    assert result.count("````codeExecution") == 1
-    assert "unique://content/cont_img1 chart" in result
-    assert "unique://content/cont_doc1 document" in result
+    assert result.count("````imgWithSource(") == 1
+    assert "````fileWithSource(" not in result
     assert "![image](unique://content/cont_img1)" not in result
-    assert "[data.xlsx](unique://content/cont_doc1)" not in result
+    assert "[data.xlsx](unique://content/cont_doc1)" in result
 
 
 @pytest.mark.ai
@@ -644,13 +622,13 @@ def test_inject_code_execution_fences__removes_second_ref__when_same_file_linked
     None
 ):
     """
-    Purpose: Verify that when the model emits two download links for the same file
-    (overwrite case), the fence is placed at the first link and the second is removed.
-    Why this matters: OpenAI may produce two sandbox links for the same filename when a
-    file is overwritten. After deduplication, the block has one CodeInterpreterFile entry,
-    so only the first occurrence gets a fence — the second must still be cleaned up.
-    Setup summary: Text has two identical inline refs for the same file; assert one fence,
-    no leftover inline ref.
+    Purpose: Verify that when the model emits two download links for the same non-image file
+    (overwrite case), both links are left unchanged — no fence emitted, no cleanup.
+    Why this matters: Non-image files are skipped entirely in this release. The duplicate
+    link case is therefore a no-op: both inline refs remain so the user still has a download
+    link.
+    Setup summary: Text has two identical inline refs for the same document file; assert
+    no fence and both refs still present.
     """
     block = CodeInterpreterBlock(
         code='df.to_csv("/mnt/data/data.csv")',
@@ -667,17 +645,15 @@ def test_inject_code_execution_fences__removes_second_ref__when_same_file_linked
 
     result = _inject_code_execution_fences(text, [block])
 
-    assert result.count("````codeExecution") == 1
-    assert "unique://content/cont_csv1 document" in result
-    assert result.count("[data.csv](unique://content/cont_csv1)") == 0
+    assert "````fileWithSource(" not in result
+    assert result.count("[data.csv](unique://content/cont_csv1)") == 2
 
 
 @pytest.mark.ai
 def test_inject_code_execution_fences__two_blocks__produce_two_fences() -> None:
     """
-    Purpose: Verify two separate code blocks produce two separate fences in the text.
-    Why this matters: Case 4 — N blocks, N files — each block must have its own fence.
-    Setup summary: Text has one image ref and one document ref from separate blocks.
+    Purpose: Verify two separate code blocks each produce their own fence.
+    Why this matters: Case 4 — N blocks, N files — each file gets its own fence.
     """
     block1 = CodeInterpreterBlock(
         code='df.to_excel("/mnt/data/kpis.xlsx")',
@@ -701,9 +677,10 @@ def test_inject_code_execution_fences__two_blocks__produce_two_fences() -> None:
 
     result = _inject_code_execution_fences(text, [block1, block2])
 
-    assert result.count("````codeExecution") == 2
-    assert "unique://content/cont_doc1 document" in result
-    assert "unique://content/cont_img2 chart" in result
+    assert result.count("````imgWithSource(") == 1
+    assert "````fileWithSource(" not in result
+    assert "cont_img2" in result
+    assert "[kpis.xlsx](unique://content/cont_doc1)" in result
 
 
 @pytest.mark.ai
@@ -731,8 +708,41 @@ def test_inject_code_execution_fences__strips_details_block__when_present() -> N
 
     result = _inject_code_execution_fences(text, [block])
 
+    assert "````imgWithSource(" in result
     assert "<details>" not in result
-    assert "````codeExecution" in result
+
+
+@pytest.mark.ai
+def test_inject_code_execution_fences__strips_trailing_br__after_details_block() -> (
+    None
+):
+    """
+    Purpose: Verify the stray </br> separator left after <details> stripping is also removed.
+    Why this matters: ShowExecutedCodePostprocessor emits <details>...</details>    \n</br>\n
+    — after stripping <details> the </br> must not be left dangling at the top of the message.
+    """
+    block = CodeInterpreterBlock(
+        code='plt.savefig("/mnt/data/chart.png")',
+        files=[
+            CodeInterpreterFile(
+                filename="chart.png", content_id="cont_img1", type="image"
+            )
+        ],
+    )
+    text = (
+        "<details><summary>Code Interpreter Call</summary>\n"
+        "```python\nplt.savefig('/mnt/data/chart.png')\n```\n"
+        "</details>    \n</br>\n\n"
+        "Here is the chart.\n\n"
+        "![image](unique://content/cont_img1)"
+    )
+
+    result = _inject_code_execution_fences(text, [block])
+
+    assert "</br>" not in result
+    assert "<details>" not in result
+    assert "Here is the chart." in result
+    assert "````imgWithSource(" in result
 
 
 @pytest.mark.ai

@@ -299,42 +299,80 @@ def _get_file_type(filename: str) -> CodeInterpreterFileType:
     return "document"
 
 
-def _to_frontend_type(file_type: CodeInterpreterFileType) -> str:
-    """Map our CodeInterpreterFileType to the type token the frontend parser expects."""
-    if file_type == "image":
-        return "chart"
-    if file_type == "html":
-        return "html"
-    return "document"
+def _file_title(filename: str) -> str:
+    """Derive a human-readable title from a filename.
 
-
-def _build_code_execution_fence(block: CodeInterpreterBlock) -> str:
-    """Build a codeExecution fence for one code block.
-
-    Uses 4 backticks for the outer fence so the inner 3-backtick code fence does
-    not prematurely close it (CommonMark rule: closing fence must match opening
-    backtick count).
-
-    The format matches what parseCodeExecutionData / parseContentIdLines expect:
-      - <summary> tag  → title
-      - inner ```python fence → sourceCode + language
-      - lines after the inner closing ``` → outputRefs (content_id + type)
+    Strips the extension, replaces underscores and hyphens with spaces, and
+    applies title case. e.g. monthly_revenue_chart.png -> Monthly Revenue Chart.
     """
-    outer = "````"
-    inner = "```"
-    content_id_lines = "\n".join(
-        f"unique://content/{f.content_id} {_to_frontend_type(f.type)}"
-        for f in block.files
-    )
+    stem = filename.rsplit(".", 1)[0] if "." in filename else filename
+    return stem.replace("_", " ").replace("-", " ").title()
+
+
+def _file_frontend_type(filename: str) -> str:
+    """Map filename to the type token the frontend expects in fileWithSource.
+
+    Assumed enum (to be confirmed with frontend):
+      excel   → .xlsx / .xls
+      csv     → .csv
+      word    → .docx / .doc
+      pdf     → .pdf
+      html    → .html / .htm
+      image   → image/* MIME
+      document → fallback
+    """
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    mime = guess_type(filename)[0] or ""
+    if mime.startswith("image/"):
+        return "image"
+    mapping = {
+        "xlsx": "excel",
+        "xls": "excel",
+        "csv": "csv",
+        "docx": "word",
+        "doc": "word",
+        "pdf": "pdf",
+        "html": "html",
+        "htm": "html",
+    }
+    return mapping.get(ext, "document")
+
+
+def _escape_code_attr(code: str) -> str:
+    """Escape the code string for embedding as a double-quoted attribute value.
+
+    Replaces backslashes first, then double quotes, then newlines.
+    """
     return (
-        f"{outer}codeExecution\n"
-        f"<summary>Code Interpreter Call</summary>\n"
-        f"{inner}python\n"
-        f"{block.code.rstrip()}\n"
-        f"{inner}\n"
-        f"{content_id_lines}\n"
-        f"{outer}"
+        code.rstrip()
+        .replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "")
     )
+
+
+def _build_file_fence(file: CodeInterpreterFile, code: str, fence_id: int) -> str:
+    """Build a per-file fence marker.
+
+    Images produce an imgWithSource fence; all other types produce a
+    fileWithSource fence. Each fence is self-contained: it carries the
+    content_id, a title derived from the filename, the type, and the
+    escaped source code.
+
+    Format (4 backticks so inner code backticks never close the fence):
+      ````imgWithSource(id='{n}', contentId='{id}', title="{title}", code="{escaped_code}")````
+      ````fileWithSource(id='{n}', contentId='{id}', title="{title}", type="{type}", code="{escaped_code}")````
+    """
+    title = _file_title(file.filename)
+    escaped = _escape_code_attr(code)
+    outer = "````"
+    if file.type == "image":
+        tag = f"imgWithSource(id='{fence_id}', contentId='{file.content_id}', title=\"{title}\", code=\"{escaped}\")"
+    else:
+        ftype = _file_frontend_type(file.filename)
+        tag = f'fileWithSource(id=\'{fence_id}\', contentId=\'{file.content_id}\', title="{title}", type="{ftype}", code="{escaped}")'
+    return f"{outer}{tag}{outer}"
 
 
 def _inline_ref_pattern(file: CodeInterpreterFile) -> re.Pattern[str]:
@@ -359,7 +397,7 @@ def _inline_ref_pattern(file: CodeInterpreterFile) -> re.Pattern[str]:
 
 
 _DETAILS_CODE_BLOCK_RE = re.compile(
-    r"\n*<details><summary>Code Interpreter Call</summary>.*?</details>\n*",
+    r"\n*<details><summary>Code Interpreter Call</summary>.*?</details>[ \t]*\n*(?:[ \t]*</br>[ \t]*\n*)?",
     re.DOTALL,
 )
 
@@ -367,33 +405,37 @@ _DETAILS_CODE_BLOCK_RE = re.compile(
 def _inject_code_execution_fences(
     text: str, code_blocks: list[CodeInterpreterBlock]
 ) -> str:
-    """Replace inline file refs in text with codeExecution fences.
+    """Replace inline image refs with imgWithSource fences; leave all other file refs unchanged.
 
-    For each code block, finds the first inline ref belonging to that block and
-    replaces it with the fence. Remaining inline refs for the same block are
-    removed (the files are now represented inside the fence).
+    Scoped to images only for the initial release. Non-image files (PDF, Excel, Word,
+    CSV, etc.) keep their existing [filename](unique://content/...) inline link which
+    already renders as a download link on the frontend.
 
-    After all blocks are processed, any <details> blocks emitted by
-    ShowExecutedCodePostprocessor are stripped — they are superseded by the fences.
+    Each image gets its own imgWithSource fence placed at the position of its inline
+    ref. Duplicate refs for the same file (overwrite case) are removed after the first
+    is replaced. <details> blocks from ShowExecutedCodePostprocessor are stripped when
+    at least one image fence was injected.
+
+    fence_id is a message-level counter so each fence has a unique id.
     """
+    fence_id = 1
+    any_fence_injected = False
     for block in code_blocks:
-        if not block.files:
-            continue
-        fence = _build_code_execution_fence(block)
-        fence_placed = False
         for file in block.files:
+            if file.type != "image":
+                continue
+            fence = _build_file_fence(file, block.code, fence_id)
             pattern = _inline_ref_pattern(file)
-            if not fence_placed:
-                new_text, n = re.subn(pattern, lambda m, _f=fence: _f, text, count=1)
-                if n:
-                    text = new_text
-                    fence_placed = True
-            # Remove all remaining occurrences of this file's inline ref. This covers:
-            # - multi-file blocks where subsequent files' refs follow the fence position
-            # - overwrite cases where the model emitted two download links for the same file
-            if fence_placed:
-                text = re.sub(pattern, "", text)
-    return _DETAILS_CODE_BLOCK_RE.sub("", text)
+            new_text, n = re.subn(pattern, lambda m, _f=fence: _f, text, count=1)
+            if n:
+                text = new_text
+                fence_id += 1
+                any_fence_injected = True
+            # Remove duplicate refs (overwrite case)
+            text = re.sub(pattern, "", text)
+    if any_fence_injected:
+        text = _DETAILS_CODE_BLOCK_RE.sub("", text)
+    return text
 
 
 def _build_code_blocks(
