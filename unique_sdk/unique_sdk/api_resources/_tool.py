@@ -127,7 +127,7 @@ class Tool(APIResource["Tool"]):
                 cls.RESOURCE_URL,
                 user_id,
                 company_id,
-                params={"messageIds": chunks[0]},
+                params={**params, "messageIds": chunks[0]},
             )
             if not isinstance(result, ListObject):
                 raise TypeError(
@@ -141,7 +141,7 @@ class Tool(APIResource["Tool"]):
                 cls.RESOURCE_URL,
                 user_id,
                 company_id,
-                params={"messageIds": chunk},
+                params={**params, "messageIds": chunk},
             )
             if not isinstance(page, ListObject):
                 raise TypeError(
@@ -181,7 +181,7 @@ class Tool(APIResource["Tool"]):
                 cls.RESOURCE_URL,
                 user_id,
                 company_id,
-                params={"messageIds": chunks[0]},
+                params={**params, "messageIds": chunks[0]},
             )
             if not isinstance(result, ListObject):
                 raise TypeError(
@@ -195,7 +195,7 @@ class Tool(APIResource["Tool"]):
                 cls.RESOURCE_URL,
                 user_id,
                 company_id,
-                params={"messageIds": chunk},
+                params={**params, "messageIds": chunk},
             )
             if not isinstance(page, ListObject):
                 raise TypeError(
