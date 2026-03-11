@@ -7,7 +7,7 @@ import pytest
 
 from unique_sdk import ToolCall as ToolCallPublic
 from unique_sdk._list_object import ListObject
-from unique_sdk.api_resources._tool_call import (
+from unique_sdk.api_resources._tool import (
     MESSAGE_IDS_PAGE_SIZE,
     ToolCall,
     _chunk_message_ids,

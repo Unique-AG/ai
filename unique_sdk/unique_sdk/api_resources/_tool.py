@@ -14,17 +14,17 @@ from unique_sdk._list_object import ListObject
 from unique_sdk._request_options import RequestOptions
 
 
-class ToolCallResponse(TypedDict):
+class ToolResponse(TypedDict):
     content: NotRequired[str | None]
 
 
-class ToolCallItem(TypedDict):
+class ToolItem(TypedDict):
     externalToolCallId: str
     functionName: str
     arguments: NotRequired[dict[str, Any] | None]
     roundIndex: int
     sequenceIndex: int
-    response: NotRequired[ToolCallResponse | None]
+    response: NotRequired[ToolResponse | None]
 
 
 # Max messageIds per GET request (monorepo API limit); we paginate above this.
@@ -46,7 +46,7 @@ class ToolCall(APIResource["ToolCall"]):
 
     class CreateParams(RequestOptions):
         messageId: str
-        tools: list[ToolCallItem]
+        tools: list[ToolItem]
 
     class ListParams(RequestOptions):
         messageIds: str
