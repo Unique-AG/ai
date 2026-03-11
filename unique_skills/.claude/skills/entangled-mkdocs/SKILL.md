@@ -171,10 +171,10 @@ Also include if modified:
 
 ### 5 — Preview
 
-Search for a versioned build script anywhere under the repo (it may live in `scripts/`, `.github/scripts/`, or similar):
+Search for a versioned build script from the **repository root** (so that `scripts/` or `.github/scripts/` at the root are included; if the docs live in a subproject, run `find` from the parent directory that contains `.github/` or the top-level `scripts/`):
 
 ```bash
-find . -name "docs_build_versioned.sh" -path "*/scripts/*" -not -path "*/node_modules/*" | head -1
+find . -name "docs_build_versioned.sh" -not -path "*/node_modules/*" | head -1
 ```
 
 Print the following command for the user to run (do not run it — it starts a live server):
