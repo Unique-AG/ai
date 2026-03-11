@@ -1,5 +1,6 @@
 """Tool persistence API. Backend stores tool data in a single table (MessageTool) with type + jsonb payload."""
 
+import asyncio
 from typing import (
     Any,
     ClassVar,
@@ -174,25 +175,30 @@ class Tool(APIResource["Tool"]):
         chunks = _chunk_message_ids(message_ids_str)
         if not chunks:
             return cls._empty_list(user_id, company_id)
-        pages: list[ListObject["Tool"]] = []
-        for chunk in chunks:
-            pages.append(
-                cls._validate_list_response(
-                    await cls._static_request_async(
-                        "get",
-                        cls.RESOURCE_URL,
-                        user_id,
-                        company_id,
-                        params={**params, "messageIds": chunk},
-                    )
+        if len(chunks) == 1:
+            return cls._validate_list_response(
+                await cls._static_request_async(
+                    "get",
+                    cls.RESOURCE_URL,
+                    user_id,
+                    company_id,
+                    params={**params, "messageIds": chunks[0]},
                 )
             )
-        return (
-            pages[0]
-            if len(pages) == 1
-            else cls._merge_pages(
-                pages,
-                user_id,
-                company_id,
+        results = await asyncio.gather(
+            *(
+                cls._static_request_async(
+                    "get",
+                    cls.RESOURCE_URL,
+                    user_id,
+                    company_id,
+                    params={**params, "messageIds": chunk},
+                )
+                for chunk in chunks
             )
+        )
+        return cls._merge_pages(
+            [cls._validate_list_response(r) for r in results],
+            user_id,
+            company_id,
         )
