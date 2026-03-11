@@ -5,8 +5,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.53.2] - 2026-03-10
-- Code interpreter: emit `codeExecution` fences in `message.text` so frontend can render code execution cards. Each fence contains the executed code and `unique://content/{id}` lines for the files it produced. Files are mapped to their producing code block via `/mnt/data/<filename>` path matching. Old `<details>` blocks and inline file refs for code-interpreter files are replaced by the fence (UN-17972).
+## [1.53.2] - 2026-03-11
+- Code interpreter: replace inline image refs (`![image](unique://content/...)`) with `imgWithSource` fences in `message.text` so frontend can render images with their generating code. Non-image files (CSV, Excel, PDF, etc.) keep their existing inline download link unchanged. `<details>` blocks and trailing `</br>` are stripped only when an image fence was injected. Feature-flagged via `FEATURE_FLAG_ENABLE_CODE_EXECUTION_FENCE_UN_17972` (default off). `debugInfo.code_blocks` and the `code_blocks` field on `LanguageModelStreamResponseMessage` are removed (superseded by the fence). (UN-17972)
 ## [1.53.1] - 2026-03-11
 - Fix RJSF `ui_schema_for_model` and `_unwrap_optional` to handle Python 3.10+ pipe union syntax (`A | B` / `types.UnionType`) in addition to `typing.Union`, so discriminated unions produce correct `anyOf` branches with per-branch metadata
 
