@@ -212,6 +212,36 @@ class TestTodoInjection:
         last_user = [m for m in result.root if m.role.value == "user"][-1]
         assert "<system-reminder>" not in last_user.content
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_compose_messages__completed_and_cancelled__no_reminder(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify no injection when all items are completed or cancelled.
+        Why: Cancelled tasks are not actionable; only pending/in_progress are.
+        Setup: Mix of completed and cancelled items, no pending or in_progress.
+        """
+        state = TodoState(
+            todos=[
+                TodoItem(id="t1", content="Done task", status="completed"),
+                TodoItem(id="t2", content="Dropped task", status="cancelled"),
+            ]
+        )
+        mock_mm = MagicMock()
+        mock_mm.load_async = AsyncMock(return_value=state)
+        ua = _build_unique_ai(todo_memory_manager=mock_mm)
+
+        messages = _make_messages("What's left?")
+        ua._history_manager.get_history_for_model_call = AsyncMock(
+            return_value=messages
+        )
+
+        result = await ua._compose_message_plan_execution()
+
+        last_user = [m for m in result.root if m.role.value == "user"][-1]
+        assert "<system-reminder>" not in last_user.content
+
     @requires_todo
     @pytest.mark.ai
     @pytest.mark.asyncio

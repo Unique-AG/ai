@@ -406,11 +406,9 @@ class TestTodoEdgeCases:
         self, mock_event: ChatEvent, shared_memory: dict
     ) -> None:
         """
-        Purpose: Verify the system-reminder is empty-ish for all-completed state.
-        Why: The orchestrator skips injection when all items are done, but
-             format_todo_system_reminder itself still formats -- we test the skip
-             condition the orchestrator uses.
-        Setup: Complete all tasks, verify the has_active check is false.
+        Purpose: Verify the has_active check is false when all items are terminal.
+        Why: The orchestrator skips injection when no actionable work remains.
+        Setup: Mix of completed and cancelled tasks -- both are terminal.
         """
         tool = _build_tool(mock_event, shared_memory)
 
@@ -418,7 +416,8 @@ class TestTodoEdgeCases:
             _make_write_call(
                 [
                     TodoItem(id="a", content="Task A", status="completed"),
-                    TodoItem(id="b", content="Task B", status="completed"),
+                    TodoItem(id="b", content="Task B", status="cancelled"),
+                    TodoItem(id="c", content="Task C", status="completed"),
                 ],
                 merge=False,
                 call_id="w1",
@@ -426,7 +425,9 @@ class TestTodoEdgeCases:
         )
 
         state = shared_memory["agent_todo_state"]
-        has_active = any(t.status != "completed" for t in state.todos)
+        has_active = any(
+            t.status not in ("completed", "cancelled") for t in state.todos
+        )
         assert not has_active
 
     @pytest.mark.ai
@@ -452,6 +453,43 @@ class TestTodoEdgeCases:
 
         state = shared_memory["agent_todo_state"]
         assert state is not None
+        assert state.last_updated_iteration == 4
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_iteration_counter__preserved_on_replace(
+        self, mock_event: ChatEvent, shared_memory: dict
+    ) -> None:
+        """
+        Purpose: Verify replace (merge=False) preserves the iteration counter.
+        Why: The counter tracks total writes, not just merges.
+        Setup: 3 merge writes, then a replace, verify counter is 4 (not reset to 1).
+        """
+        tool = _build_tool(mock_event, shared_memory)
+
+        for i in range(3):
+            await tool.run(
+                _make_write_call(
+                    [TodoItem(id=f"t{i}", content=f"Step {i}", status="pending")],
+                    merge=True,
+                    call_id=f"w{i}",
+                )
+            )
+
+        state = shared_memory["agent_todo_state"]
+        assert state.last_updated_iteration == 3
+
+        await tool.run(
+            _make_write_call(
+                [TodoItem(id="fresh", content="Fresh start", status="pending")],
+                merge=False,
+                call_id="w3",
+            )
+        )
+
+        state = shared_memory["agent_todo_state"]
+        assert len(state.todos) == 1
+        assert state.todos[0].id == "fresh"
         assert state.last_updated_iteration == 4
 
     @pytest.mark.ai

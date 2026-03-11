@@ -118,7 +118,10 @@ class TodoWriteTool(Tool[TodoConfig]):
         if input_data.merge:
             current_state = current_state.merge(input_data.todos)
         else:
-            current_state = TodoState(todos=input_data.todos)
+            current_state = TodoState(
+                todos=input_data.todos,
+                last_updated_iteration=current_state.last_updated_iteration,
+            )
 
         current_state.todos = current_state.todos[: self.config.max_todos]
         current_state.last_updated_iteration += 1

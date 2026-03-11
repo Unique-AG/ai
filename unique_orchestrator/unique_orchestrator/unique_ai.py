@@ -306,7 +306,9 @@ class UniqueAI:
         if state is None or not state.todos:
             return messages
 
-        has_active = any(t.status != "completed" for t in state.todos)
+        has_active = any(
+            t.status not in ("completed", "cancelled") for t in state.todos
+        )
         if not has_active:
             return messages
 
