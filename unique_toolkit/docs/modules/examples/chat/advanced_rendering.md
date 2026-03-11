@@ -15,8 +15,6 @@ chat_service.create_assistant_message(
 )
 ```
 
-### Full Example
-
 <!--
 ```{.python file=docs/.python_files/chat_prompt_button.py}
 <<full_sse_setup_with_services>>
@@ -39,6 +37,14 @@ chat_service.create_assistant_message(
     content=f"Here is a latex formula: {latex_formula_string}",
 )
 ```
+
+<!--
+```{.python file=docs/.python_files/chat_latex_formula.py}
+<<full_sse_setup_with_services>>
+    <<rendering_latex_formula>>
+    <<free_user_input>>
+```
+-->
 
 ### Basic Formula (Manual)
 
