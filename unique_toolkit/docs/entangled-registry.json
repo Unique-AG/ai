@@ -215,6 +215,9 @@
   "#kb-service-make-document-available": [
     "docs/modules/examples/content/kb_service.md"
   ],
+  "#kb-temp-file-cleanup": [
+    "docs/knowledge_base/index.md"
+  ],
   "#kb_content_search": [
     "docs/modules/examples/content/smart_rules.md"
   ],
@@ -410,10 +413,22 @@
   "#tool-call-response-schema": [
     "docs/agentic_framework/tool_call_response.md"
   ],
+  "#tool-factory-register": [
+    "docs/agentic_framework/tool.md"
+  ],
   "#tool-get-tool-prompts": [
     "docs/agentic_framework/tool.md"
   ],
+  "#tool-icon": [
+    "docs/agentic_framework/tool.md"
+  ],
   "#tool-init": [
+    "docs/agentic_framework/tool.md"
+  ],
+  "#tool-is-enabled": [
+    "docs/agentic_framework/tool.md"
+  ],
+  "#tool-is-exclusive": [
     "docs/agentic_framework/tool.md"
   ],
   "#tool-manager-create-tool-call-response": [
@@ -443,10 +458,16 @@
   "#tool-manager-get-evaluation-check-list": [
     "docs/agentic_framework/tool_manager.md"
   ],
+  "#tool-name-display-name": [
+    "docs/agentic_framework/tool.md"
+  ],
   "#tool-run-method": [
     "docs/agentic_framework/tool.md"
   ],
   "#tool-system-prompts": [
+    "docs/agentic_framework/tool.md"
+  ],
+  "#tool-takes-control": [
     "docs/agentic_framework/tool.md"
   ],
   "#tool-tool-description": [

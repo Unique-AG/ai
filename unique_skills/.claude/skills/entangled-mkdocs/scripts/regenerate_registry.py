@@ -23,10 +23,10 @@ DOCS_DIR = pathlib.Path("docs")
 REGISTRY_PATH = DOCS_DIR / "entangled-registry.json"
 
 
-# Fence at line start (3+ backticks). Group 1 = backticks.
-_FENCE_OPEN = re.compile(r"^(`{3,})")
-# Closing fence: line is only backticks and optional whitespace.
-_FENCE_CLOSE = re.compile(r"^(`{3,})\s*$")
+# Fence: optional leading whitespace (indented list items), then 3+ backticks. Group 1 = backticks.
+_FENCE_OPEN = re.compile(r"^\s*(`{3,})")
+# Closing fence: optional indent, then only backticks and optional trailing whitespace.
+_FENCE_CLOSE = re.compile(r"^\s*(`{3,})\s*$")
 
 
 def build_registry(docs_dir: pathlib.Path) -> dict[str, list[str]]:
@@ -46,10 +46,10 @@ def build_registry(docs_dir: pathlib.Path) -> dict[str, list[str]]:
             n = len(open_m.group(1))
             if fence_stack:
                 if fence_stack[-1] == n:
-                    # Same backtick count: in Markdown a new fence closes the previous (no nesting).
+                    # Same count: in Markdown the next fence line closes the previous and opens new (sequential blocks).
                     _ = fence_stack.pop()
                 else:
-                    # Different count = truly nested (e.g. 3 inside 4-backtick doc example); do not register.
+                    # Different count = nested (e.g. 3 inside 4-backtick doc example); do not register.
                     fence_stack.append(n)
                     continue
             # Top-level fence (or just closed same-count): register #id and file= for this block.
