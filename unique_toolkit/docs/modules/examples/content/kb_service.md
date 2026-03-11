@@ -52,7 +52,7 @@ file_path = Path(__file__).parent/"test.txt"
 
 ### Make Uploaded Document Available to User
 
-```python
+```{.python #kb-service-make-document-available}
 uploaded_content = kb_service.upload_content(
         path_to_content=str(output_filepath),
         content_name=output_filepath.name,

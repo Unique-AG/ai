@@ -26,7 +26,7 @@ UNIQUE_APP_ENDPOINT_SECRET=     # The app endpoint secret provided by the platfo
 
 The following example demonstrates a minimal application setup:
 
-```python
+```{.python #event-driven-ngrok-create-app}
 import logging
 from pathlib import Path
 from unique_toolkit.app.fast_api_factory import build_unique_custom_app
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 def chat_event_handler(event: ChatEvent) -> int:
     """
     Handle incoming chat events from the Unique platform.
-    
+
     Implement your custom logic here to process webhook events.
     """
     # TODO: Implement your event handling logic
@@ -56,7 +56,7 @@ _SETTINGS.init_sdk()
 
 # Create the app using the factory
 _MINIMAL_APP = build_unique_custom_app(
-    title="Unique Minimal Chat App", 
+    title="Unique Minimal Chat App",
     settings=_SETTINGS,
     event_handler=chat_event_handler,
     event_constructor=ChatEvent,
@@ -68,7 +68,7 @@ _MINIMAL_APP = build_unique_custom_app(
 
 To run the application locally:
 
-```python
+```{.python #event-driven-ngrok-run-app}
 import logging
 import uvicorn
 
@@ -78,7 +78,7 @@ if __name__ == "__main__":
         level=logging.DEBUG,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
-    
+
     uvicorn.run(
         "fastapi_app_minimal:_MINIMAL_APP",
         host="0.0.0.0",

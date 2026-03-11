@@ -255,7 +255,7 @@ When users upload source files, you can retrieve the full `Content` objects whic
 
 **Example: Organizing Files by Metadata**
 
-```python
+```{.python #agentic-table-content-metadata-example}
 # Retrieve Content objects for uploaded files
 content = file_content_getter_fn(file_id)
 
@@ -263,7 +263,7 @@ content = file_content_getter_fn(file_id)
 if content.metadata:
     section = content.metadata.get("section")
     department = content.metadata.get("department")
-    
+
 # EXAMPLE: Use ContentRegistry to group files by metadata keys
 # (This is just one approach - implement your own filtering logic!)
 content_registry = ContentRegistry(
@@ -276,7 +276,7 @@ finance_files = content_registry.get_contents_by_metadata_key("Finance")
 
 # Alternative: Implement your own filtering
 finance_files = [
-    c for c in all_contents 
+    c for c in all_contents
     if c.metadata and c.metadata.get("department") == "Finance"
 ]
 ```
@@ -318,7 +318,7 @@ Step 4: Frontend renders as clickable links
 
 **Implementation Example**:
 
-```python
+```{.python #agentic-table-reference-workflow-example}
 # Step 1: Create temporary IDs for your content items
 reference_registry = create_id_map(relevant_contents, prefix="chunk")
 # Returns: {"chunk_a1b2c3d4": content1, "chunk_x9y8z7w6": content2, ...}
@@ -437,7 +437,7 @@ The tutorial examples use several helper functions that encapsulate common patte
 
 Creates a function to retrieve full `Content` objects by file ID. This is essential for accessing file metadata and properties.
 
-```python
+```{.python #agentic-table-file-content-getter}
 # Create the getter function with authentication context
 file_content_getter = get_file_content_getter_fn(user_id, company_id, chat_id)
 
@@ -460,7 +460,7 @@ if content:
 
 Creates a function to download raw file bytes. Useful for processing CSV, Excel, or other binary formats.
 
-```python
+```{.python #agentic-table-file-downloader}
 # Create the downloader with authentication context
 downloader = get_downloader_fn(user_id, company_id, chat_id)
 
@@ -479,7 +479,7 @@ csv_data = pd.read_csv(io.BytesIO(file_bytes))
 
 Creates a function to upload files to the chat. Used for uploading generated artifacts.
 
-```python
+```{.python #agentic-table-file-uploader}
 # Create the uploader with authentication context
 uploader = get_uploader_fn(user_id, company_id, chat_id)
 
@@ -502,7 +502,7 @@ content_id = content.id
 
 Creates a function to convert inline citations into clickable references. This is the core utility for building traceable, source-linked content.
 
-```python
+```{.python #agentic-table-reference-builder}
 # Create the reference builder with authentication context
 reference_builder = get_augmented_text_with_references_fn(
     user_id, company_id, chat_id, assistant_id
@@ -532,7 +532,7 @@ An **example** utility class demonstrating how to organize Content objects by me
 
 **Example usage**:
 
-```python
+```{.python #agentic-table-content-registry}
 # Create a registry with metadata keys
 content_registry = ContentRegistry(
     keys=["Finance", "Legal", "Technical"],
@@ -561,7 +561,7 @@ legal_files = content_registry.get_contents_by_metadata_key("Legal")
 
 Generates temporary IDs for a list of items. Essential for creating citation systems.
 
-```python
+```{.python #agentic-table-create-id-map}
 # Create unique IDs for content items
 id_map = create_id_map(content_list, prefix="chunk")
 # Returns: {"chunk_a1b2c3d4": content1, "chunk_x9y8z7w6": content2, ...}
@@ -605,7 +605,7 @@ The tutorial demonstrates factory functions that encapsulate authentication cont
 
 Use `get_downloader_fn()` for downloading raw file bytes (CSV, Excel, binary formats):
 
-```python
+```{.python #agentic-table-downloader-pattern}
 downloader = get_downloader_fn(user_id, company_id, chat_id)
 file_bytes = downloader(file_id)
 ```
@@ -614,7 +614,7 @@ file_bytes = downloader(file_id)
 
 Use `get_file_content_getter_fn()` for accessing file metadata and properties:
 
-```python
+```{.python #agentic-table-content-getter-pattern}
 content_getter = get_file_content_getter_fn(user_id, company_id, chat_id)
 content = content_getter(file_id)
 
@@ -627,7 +627,7 @@ if content.metadata:
 
 Use `get_uploader_fn()` for uploading generated artifacts:
 
-```python
+```{.python #agentic-table-uploader-pattern}
 uploader = get_uploader_fn(user_id, company_id, chat_id)
 content = uploader(file_bytes, mime_type, filename)
 ```
@@ -636,7 +636,7 @@ content = uploader(file_bytes, mime_type, filename)
 
 Use `get_augmented_text_with_references_fn()` for creating clickable source links:
 
-```python
+```{.python #agentic-table-reference-builder-pattern}
 reference_builder = get_augmented_text_with_references_fn(
     user_id, company_id, chat_id, assistant_id
 )

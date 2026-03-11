@@ -1,0 +1,604 @@
+{
+  "#agentic-table-content-getter-pattern": [
+    "docs/tutorials/agentic_table_app.md"
+  ],
+  "#agentic-table-content-metadata-example": [
+    "docs/tutorials/agentic_table_app.md"
+  ],
+  "#agentic-table-content-registry": [
+    "docs/tutorials/agentic_table_app.md"
+  ],
+  "#agentic-table-create-id-map": [
+    "docs/tutorials/agentic_table_app.md"
+  ],
+  "#agentic-table-downloader-pattern": [
+    "docs/tutorials/agentic_table_app.md"
+  ],
+  "#agentic-table-file-content-getter": [
+    "docs/tutorials/agentic_table_app.md"
+  ],
+  "#agentic-table-file-downloader": [
+    "docs/tutorials/agentic_table_app.md"
+  ],
+  "#agentic-table-file-uploader": [
+    "docs/tutorials/agentic_table_app.md"
+  ],
+  "#agentic-table-reference-builder": [
+    "docs/tutorials/agentic_table_app.md"
+  ],
+  "#agentic-table-reference-builder-pattern": [
+    "docs/tutorials/agentic_table_app.md"
+  ],
+  "#agentic-table-reference-workflow-example": [
+    "docs/tutorials/agentic_table_app.md"
+  ],
+  "#agentic-table-uploader-pattern": [
+    "docs/tutorials/agentic_table_app.md"
+  ],
+  "#architectural-service-imports": [
+    "docs/architectural.md"
+  ],
+  "#cancellation-agent-loop-combined": [
+    "docs/chat/cancellation.md"
+  ],
+  "#cancellation-check-async": [
+    "docs/chat/cancellation.md"
+  ],
+  "#cancellation-check-sync": [
+    "docs/chat/cancellation.md"
+  ],
+  "#cancellation-init-watcher": [
+    "docs/chat/cancellation.md"
+  ],
+  "#cancellation-is-cancelled-flag": [
+    "docs/chat/cancellation.md"
+  ],
+  "#cancellation-run-with-cancel-result": [
+    "docs/chat/cancellation.md"
+  ],
+  "#cancellation-run-with-cancellation": [
+    "docs/chat/cancellation.md"
+  ],
+  "#cancellation-subscribe-event-bus": [
+    "docs/chat/cancellation.md"
+  ],
+  "#cell-rendering-set-cell-metadata-agreement-status": [
+    "docs/agentic_table/cell_rendering.md"
+  ],
+  "#cell-rendering-set-cell-metadata-complete": [
+    "docs/agentic_table/cell_rendering.md"
+  ],
+  "#cell-rendering-set-cell-metadata-selection-method": [
+    "docs/agentic_table/cell_rendering.md"
+  ],
+  "#cell-rendering-set-cell-metadata-signature": [
+    "docs/agentic_table/cell_rendering.md"
+  ],
+  "#cell-rendering-update-row-verification-status": [
+    "docs/agentic_table/cell_rendering.md"
+  ],
+  "#chat_service_assistant_message_with_reference": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#chat_service_chat_memory": [
+    "docs/modules/examples/chat/memories.md"
+  ],
+  "#chat_service_chunk_presentation": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#chat_service_complete_with_references": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#chat_service_create_message_assessment": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#chat_service_document_and_image_download": [
+    "docs/modules/examples/chat/chat_document_handling.md"
+  ],
+  "#chat_service_final_assistant_result": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#chat_service_final_assistant_result2": [
+    "docs/chat/index.md"
+  ],
+  "#chat_service_free_user_input": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#chat_service_images_message_building": [
+    "docs/modules/examples/chat/chat_document_handling.md"
+  ],
+  "#chat_service_intermediate_assistant_result": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#chat_service_intermediate_assistant_result2": [
+    "docs/chat/index.md"
+  ],
+  "#chat_service_modify_message_assessment": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#chat_service_modify_user_message_debug_info": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#chat_service_reference_guidelines": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#chat_service_retrieved_chunks": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#chat_service_send_message": [
+    "docs/modules/examples/chat/chat_document_handling.md"
+  ],
+  "#chat_service_streaming_call_with_sources": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#column-styling-complete-example": [
+    "docs/agentic_table/column_styling.md"
+  ],
+  "#column-styling-selectable-cells": [
+    "docs/agentic_table/column_styling.md"
+  ],
+  "#column-styling-set-cell-renderer": [
+    "docs/agentic_table/column_styling.md"
+  ],
+  "#column-styling-set-column-style-signature": [
+    "docs/agentic_table/column_styling.md"
+  ],
+  "#column-styling-set-column-width": [
+    "docs/agentic_table/column_styling.md"
+  ],
+  "#column-styling-set-editability": [
+    "docs/agentic_table/column_styling.md"
+  ],
+  "#column-styling-set-filter": [
+    "docs/agentic_table/column_styling.md"
+  ],
+  "#combined_folder_and_custom_metadata": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "#common_imports": [
+    "docs/setup/_common_imports.md"
+  ],
+  "#common_library_imports": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "#create_and_run_app": [
+    "docs/tutorials/agentic_table_app.md"
+  ],
+  "#data-extraction-augmented-usage": [
+    "docs/modules/data_extraction.md"
+  ],
+  "#data-extraction-basic-usage": [
+    "docs/modules/data_extraction.md"
+  ],
+  "#debug-manager-implementation": [
+    "docs/agentic_framework/debug_manager.md"
+  ],
+  "#env_content_id": [
+    "docs/application_types/demo_environment.md"
+  ],
+  "#env_scope_id": [
+    "docs/application_types/demo_environment.md"
+  ],
+  "#evaluation-class-definition": [
+    "docs/agentic_framework/evaluation_manager.md"
+  ],
+  "#event-driven-ngrok-create-app": [
+    "docs/application_types/event_driven/event_driven_as_app_with_ngrok.md"
+  ],
+  "#event-driven-ngrok-run-app": [
+    "docs/application_types/event_driven/event_driven_as_app_with_ngrok.md"
+  ],
+  "#free_user_input": [
+    "docs/tutorials/file_creation_and_upload_to_chat.md"
+  ],
+  "#full_sse_setup": [
+    "docs/application_types/event_driven/index.md"
+  ],
+  "#full_sse_setup_with_services": [
+    "docs/application_types/event_driven/index.md"
+  ],
+  "#get_openai_client": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "#import_language_model_name": [
+    "docs/chat/index.md",
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#init_services_from_event": [
+    "docs/application_types/event_driven/index.md"
+  ],
+  "#initialize_kb_service_standalone": [
+    "docs/knowledge_base/index.md"
+  ],
+  "#kb-service-make-document-available": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "#kb_content_search": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "#kb_service_combined_search": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "#kb_service_combined_with_metadafilter": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "#kb_service_content_search": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "#kb_service_delete": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "#kb_service_delete_content": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "#kb_service_download_bytes": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "#kb_service_download_file": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "#kb_service_remove_metadata": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "#kb_service_setup": [
+    "docs/application_types/standalone_application.md"
+  ],
+  "#kb_service_update_metadata": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "#kb_service_upload_bytes": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "#kb_service_upload_from_file": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "#kb_service_upload_from_memory": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "#kb_service_vector_search": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "#langchain_additional_headers": [
+    "docs/plattforms/langchain/langchain.md"
+  ],
+  "#langchain_basic_invoke": [
+    "docs/plattforms/langchain/langchain.md"
+  ],
+  "#langchain_custom_model": [
+    "docs/plattforms/langchain/langchain.md"
+  ],
+  "#langchain_simple_chain": [
+    "docs/plattforms/langchain/langchain.md"
+  ],
+  "#language-model-usage-example": [
+    "docs/modules/language_models/language_model_overview.md"
+  ],
+  "#load_demo_variables": [
+    "docs/application_types/demo_environment.md"
+  ],
+  "#main_event_handler": [
+    "docs/tutorials/agentic_table_app.md"
+  ],
+  "#message_assessment_imports": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#obtaining_sse_client_with_chat_event": [
+    "docs/application_types/event_driven/event_driven_with_sse.md"
+  ],
+  "#openai_chat_completion_developer_message": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "#openai_chat_completion_function_calling": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "#openai_chat_completion_messages": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "#openai_chat_completion_simple_completion": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "#openai_chat_completion_structured_output": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "#openai_response_simple": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "#openai_responses_function_calling": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "#openai_responses_structured_output": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "#openai_tool_description": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "#openai_toolkit_imports": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "#openai_type_imports": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "#orchestrator-compose-message-plan-execution": [
+    "docs/agentic_framework/orchestrator/flow_details/history_construction_and_prompts.md"
+  ],
+  "#orchestrator-handle-no-tool-calls": [
+    "docs/agentic_framework/orchestrator/flow_details/finalization_path.md"
+  ],
+  "#orchestrator-handle-tool-calls": [
+    "docs/agentic_framework/orchestrator/flow_details/tool_handling.md"
+  ],
+  "#orchestrator-init": [
+    "docs/agentic_framework/orchestrator/unqiue_ai_how-it-works.md"
+  ],
+  "#orchestrator-plan-or-execute": [
+    "docs/agentic_framework/orchestrator/flow_details/planning_vs_executing.md"
+  ],
+  "#orchestrator-process-plan": [
+    "docs/agentic_framework/orchestrator/flow_details/plan_processing.md"
+  ],
+  "#orchestrator-render-system-prompt": [
+    "docs/agentic_framework/orchestrator/flow_details/history_construction_and_prompts.md"
+  ],
+  "#orchestrator-render-user-prompt": [
+    "docs/agentic_framework/orchestrator/flow_details/history_construction_and_prompts.md"
+  ],
+  "#orchestrator-run": [
+    "docs/agentic_framework/orchestrator/unqiue_ai_how-it-works.md"
+  ],
+  "#postprocessor-class-definition": [
+    "docs/agentic_framework/postprocessor_manager.md"
+  ],
+  "#rendering-financial-chart-comparative": [
+    "docs/modules/examples/chat/advanced_rendering.md"
+  ],
+  "#rendering-html-inline": [
+    "docs/modules/examples/chat/advanced_rendering.md"
+  ],
+  "#rendering-html-uploaded-content": [
+    "docs/modules/examples/chat/advanced_rendering.md"
+  ],
+  "#rendering-image-from-uploaded": [
+    "docs/modules/examples/chat/advanced_rendering.md"
+  ],
+  "#rendering-latex-block-math-manual": [
+    "docs/modules/examples/chat/advanced_rendering.md"
+  ],
+  "#rendering-latex-complex-formula": [
+    "docs/modules/examples/chat/advanced_rendering.md"
+  ],
+  "#rendering-latex-inline-math": [
+    "docs/modules/examples/chat/advanced_rendering.md"
+  ],
+  "#rendering_financial_chart": [
+    "docs/modules/examples/chat/advanced_rendering.md"
+  ],
+  "#rendering_image": [
+    "docs/modules/examples/chat/advanced_rendering.md"
+  ],
+  "#rendering_latex_formula": [
+    "docs/modules/examples/chat/advanced_rendering.md"
+  ],
+  "#rendering_prompt_buttons": [
+    "docs/modules/examples/chat/advanced_rendering.md"
+  ],
+  "#smart_rule_custom_metadata": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "#smart_rule_file_title": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "#smart_rule_folder_and_subfolder": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "#smart_rule_folder_content": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "#smart_rule_mime_type": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "#smart_rule_mime_type_and_folder_and_sufolder": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "#smart_rules_imports": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "#tool-call-response-schema": [
+    "docs/agentic_framework/tool_call_response.md"
+  ],
+  "#tool-get-tool-prompts": [
+    "docs/agentic_framework/tool.md"
+  ],
+  "#tool-init": [
+    "docs/agentic_framework/tool.md"
+  ],
+  "#tool-manager-create-tool-call-response": [
+    "docs/agentic_framework/tool_manager.md"
+  ],
+  "#tool-manager-does-tool-take-control": [
+    "docs/agentic_framework/tool_manager.md"
+  ],
+  "#tool-manager-execute-parallelized": [
+    "docs/agentic_framework/tool_manager.md"
+  ],
+  "#tool-manager-execute-selected-tools": [
+    "docs/agentic_framework/tool_manager.md"
+  ],
+  "#tool-manager-execute-tool-call": [
+    "docs/agentic_framework/tool_manager.md"
+  ],
+  "#tool-manager-filter-duplicate-tool-calls": [
+    "docs/agentic_framework/tool_manager.md"
+  ],
+  "#tool-manager-forced-tools": [
+    "docs/agentic_framework/tool_manager.md"
+  ],
+  "#tool-manager-get-definitions-prompts": [
+    "docs/agentic_framework/tool_manager.md"
+  ],
+  "#tool-manager-get-evaluation-check-list": [
+    "docs/agentic_framework/tool_manager.md"
+  ],
+  "#tool-run-method": [
+    "docs/agentic_framework/tool.md"
+  ],
+  "#tool-system-prompts": [
+    "docs/agentic_framework/tool.md"
+  ],
+  "#tool-tool-description": [
+    "docs/agentic_framework/tool.md"
+  ],
+  "#tool-user-prompts": [
+    "docs/agentic_framework/tool.md"
+  ],
+  "#tool_description_openai": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "#toolkit_language_model": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "#trivial_message_from_user": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#unique_chat_service_import": [
+    "docs/chat/index.md",
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "#unique_init_service_standalone": [
+    "docs/application_types/standalone_application.md"
+  ],
+  "#unique_init_service_standalone_auto": [
+    "docs/application_types/standalone_application.md"
+  ],
+  "#unique_settings_import": [
+    "docs/application_types/event_driven/event_driven_with_sse.md"
+  ],
+  "#unique_setup_settings_sdk_from_env": [
+    "docs/application_types/event_driven/event_driven_with_sse.md"
+  ],
+  "#unique_setup_settings_sdk_from_env_standalone": [
+    "docs/application_types/standalone_application.md"
+  ],
+  "#unique_sse_setup_import": [
+    "docs/application_types/event_driven/event_driven_with_sse.md"
+  ],
+  "#upload_with_custom_metadata": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "#upload_with_reference_document_creation": [
+    "docs/tutorials/file_creation_and_upload_to_chat.md"
+  ],
+  "#upload_with_reference_initial_message": [
+    "docs/tutorials/file_creation_and_upload_to_chat.md"
+  ],
+  "#upload_with_reference_referencing_in_message": [
+    "docs/tutorials/file_creation_and_upload_to_chat.md"
+  ],
+  "#upload_with_reference_upload_document": [
+    "docs/tutorials/file_creation_and_upload_to_chat.md"
+  ],
+  "file=./docs/.python_files/kb_content_chunk_search_with_smart_rule_on_folders.py": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "file=./docs/.python_files/kb_content_search_with_smart_rule_on_folders.py": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "file=./docs/.python_files/kb_deletion_with_smart_rule_on_folders.py": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "file=./docs/.python_files/kb_remove_metadata_with_smart_rule.py": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "file=./docs/.python_files/kb_service_combined_search_content_chunks.py": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "file=./docs/.python_files/kb_service_delete.py": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "file=./docs/.python_files/kb_service_download_to_file.py": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "file=./docs/.python_files/kb_service_download_to_memory.py": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "file=./docs/.python_files/kb_service_search_content.py": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "file=./docs/.python_files/kb_service_upload_from_file.py": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "file=./docs/.python_files/kb_service_upload_from_memory.py": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "file=./docs/.python_files/kb_service_vector_search_content_chunks.py": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "file=./docs/.python_files/kb_update_metadata_with_smart_rule.py": [
+    "docs/modules/examples/content/smart_rules.md"
+  ],
+  "file=docs/.python_files/chat_app_minimal.py": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "file=docs/.python_files/chat_edit_debug_information.py": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "file=docs/.python_files/chat_prompt_button.py": [
+    "docs/modules/examples/chat/advanced_rendering.md"
+  ],
+  "file=docs/.python_files/chat_service_chat_memory.py": [
+    "docs/modules/examples/chat/memories.md"
+  ],
+  "file=docs/.python_files/chat_upload_to_chat.py": [
+    "docs/tutorials/file_creation_and_upload_to_chat.md"
+  ],
+  "file=docs/.python_files/chat_with_document_app.py": [
+    "docs/modules/examples/chat/chat_document_handling.md"
+  ],
+  "file=docs/.python_files/chat_with_manual_message_and_reference.py": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "file=docs/.python_files/chat_with_manual_message_create_free_user_input.py": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "file=docs/.python_files/chat_with_message_assessment.py": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "file=docs/.python_files/chat_with_streamed_references.py": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "file=docs/.python_files/langchain_simple_invoke.py": [
+    "docs/plattforms/langchain/langchain.md"
+  ],
+  "file=docs/.python_files/minimal_chat_with_manual_modifiy.py": [
+    "docs/modules/examples/chat/chat_service.md"
+  ],
+  "file=docs/.python_files/minimal_chat_with_manual_modifiy2.py": [
+    "docs/chat/index.md"
+  ],
+  "file=docs/.python_files/openai_completion_function_call.py": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "file=docs/.python_files/openai_responses_function_call.py": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "file=docs/.python_files/openai_responses_structured_output.py": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "file=docs/.python_files/openai_simple_completion.py": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "file=docs/.python_files/openai_simple_response.py": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "file=docs/.python_files/openai_structured_completion.py": [
+    "docs/plattforms/openai/openai.md"
+  ],
+  "file=docs/.python_files/sse_setup_with_services.py": [
+    "docs/application_types/event_driven/index.md"
+  ],
+  "file=docs/.python_files/standalone_setup.py": [
+    "docs/application_types/standalone_application.md"
+  ],
+  "file=docs/.python_files/standalone_setup_auto.py": [
+    "docs/application_types/standalone_application.md"
+  ]
+}
