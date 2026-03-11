@@ -1,6 +1,6 @@
 ---
 name: entangled-mkdocs
-description: Add documentation pages to an existing MkDocs + Entangled site
+description: Add documentation pages to an existing MkDocs + Entangled site, explain how to serve locally, help adapt documentation
 license: MIT
 compatibility: claude cursor opencode
 metadata:
@@ -191,11 +191,25 @@ Otherwise:
 mkdocs serve       # preview at http://127.0.0.1:8000
 ```
 
-The `- entangled` plugin runs the tangle step automatically before each build — no manual `entangled tangle` or `entangled sync` is needed.
+The `- entangled` plugin runs a **per-page** tangle step automatically before each build — inline display blocks are
+rendered without any manual step. However, the plugin processes each page in isolation and **cannot resolve `<<noweb>>`
+references that point to blocks defined on other pages**. Cross-page assembly blocks must be kept inside HTML comments
+(`<!-- ... -->`) so they are hidden from rendering but still readable by the `entangled` CLI.
+
+**If the project uses a generate script** (e.g. `generate_examples.sh`) that runs `entangled tangle` CLI across all
+pages and copies outputs into an `examples_from_docs/` (or similar) directory for `<!--codeinclude-->` Full Example
+sections: whenever assembly blocks or noweb references change, run the script and commit both the intermediate tangle
+outputs (e.g. `docs/.python_files/`) and the final examples directory. CI does not run this script — it uses whatever
+is already committed.
+
+```bash
+find . -name "generate_examples.sh" -not -path "*/node_modules/*" | head -1
+```
 
 **Task complete when**: (1) `docs/<new-page>.md` is committed, (2) `docs/entangled-registry.json` is updated and
-committed, (3) `mkdocs.yaml` nav entry is present, and (4) the preview command has been printed. No further action is
-required unless the user responds.
+committed, (3) `mkdocs.yaml` nav entry is present, (4) the generate script has been run and its outputs committed if
+the project uses one, and (5) the preview command has been printed. No further action is required unless the user
+responds.
 
 ---
 
@@ -249,6 +263,12 @@ class Session:
 ````
 
 Use `#id` + noweb when code must be introduced out of narrative order or split across sections.
+
+**Cross-page noweb limitation**: the MkDocs plugin processes each page independently. A `<<block-name>>` reference
+inside a rendered block will appear as raw text if `block-name` is defined on a different page. Cross-page noweb only
+works via the `entangled` CLI (which reads all pages at once). Keep cross-page assembly blocks inside `<!-- ... -->`
+HTML comments so they are tangle-only and never rendered. For display, define imports and snippets locally on the page
+or inline the code directly.
 
 See `assets/mkdocs-baseline.yaml` in this skill's directory for the full recommended MkDocs extension set.
 
