@@ -1,33 +1,30 @@
+import os
 import sys
-from fastapi.responses import JSONResponse
-from fastmcp import FastMCP
-from starlette.requests import Request
-from fastmcp.server.dependencies import get_access_token
-from fastapi.responses import FileResponse
+from pathlib import Path
+from typing import Annotated
+
 import requests
+from dotenv import load_dotenv
+from fastapi.responses import FileResponse, JSONResponse
+from fastmcp import FastMCP
+from fastmcp.server.auth.oauth_proxy import OAuthProxy
+from fastmcp.server.auth.providers.jwt import JWTVerifier
+from fastmcp.server.dependencies import get_access_token
+from pydantic import Field
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
+from starlette.requests import Request
+
+import unique_sdk
+from mcp_sql_demo.db_tool_pm.service import PMPositionsTool
+from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.app.schemas import (
     ChatEvent,
+    ChatEventAssistantMessage,
     ChatEventPayload,
     ChatEventUserMessage,
-    ChatEventAssistantMessage,
 )
-
-
-from unique_toolkit.agentic.tools.factory import ToolFactory
-
 from unique_toolkit.language_model.schemas import LanguageModelFunction
-import unique_sdk
-from fastmcp.server.auth.providers.jwt import JWTVerifier
-from fastmcp.server.auth.oauth_proxy import OAuthProxy
-from typing import Annotated
-from pydantic import Field
-from pathlib import Path
-from dotenv import load_dotenv
-from db_tool_pm.service import PMPositionsTool
-import os
-
 
 # Load environment variables from .env file
 load_dotenv()

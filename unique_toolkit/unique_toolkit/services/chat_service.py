@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from typing_extensions import deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.chat.cancellation import CancellationWatcher
 from unique_toolkit.chat.constants import (
     DEFAULT_MAX_MESSAGES,
@@ -50,6 +51,7 @@ from unique_toolkit.chat.functions import (
     update_message_log_async,
 )
 from unique_toolkit.chat.responses_api import (
+    rate_limit_retry_config,
     stream_responses_with_references,
     stream_responses_with_references_async,
 )
@@ -1637,6 +1639,33 @@ class ChatService(ChatServiceDeprecated):
         reasoning: Reasoning | None = None,
         other_options: dict | None = None,
     ) -> ResponsesLanguageModelStreamResponse:
+        async def _on_rate_limit_retry(attempt: int, wait_secs: float) -> None:
+            if not rate_limit_retry_config.log_message_on_retry:
+                return
+            if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
+                self._company_id
+            ):
+                return
+            from unique_toolkit.agentic.message_log_manager.service import (
+                _request_counters,
+            )
+
+            msg_id = self._assistant_message_id
+            _request_counters[msg_id] += 1
+            order = _request_counters[msg_id]
+            try:
+                await self.create_message_log_async(
+                    message_id=msg_id,
+                    text=f"Rate limit reached; retrying in {wait_secs:.0f}s (attempt {attempt})",
+                    status=MessageLogStatus.RUNNING,
+                    order=order,
+                )
+            except Exception:
+                logger.warning(
+                    "Failed to write rate-limit retry message log",
+                    exc_info=True,
+                )
+
         return await stream_responses_with_references_async(
             company_id=self._company_id,
             user_id=self._user_id,
@@ -1661,6 +1690,7 @@ class ChatService(ChatServiceDeprecated):
             top_p=top_p,
             reasoning=reasoning,
             other_options=other_options,
+            on_rate_limit_retry=_on_rate_limit_retry,
         )
 
     # Chat Content Methods

@@ -14,7 +14,6 @@ from unique_toolkit.agentic.history_manager.history_manager import HistoryManage
 from unique_toolkit.agentic.loop_runner import (
     LoopIterationRunner,
     ResponsesLoopIterationRunner,
-    is_qwen_model,
 )
 from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
@@ -143,16 +142,6 @@ class UniqueAI:
         self._tool_took_control = False
         self._loop_iteration_runner = loop_iteration_runner
 
-    @property
-    def _effective_max_loop_iterations(self) -> int:
-        """Get the effective max loop iterations based on the model type."""
-        if is_qwen_model(model=self._config.space.language_model):
-            qwen_config = (
-                self._config.agent.experimental.loop_configuration.model_specific.qwen
-            )
-            return qwen_config.max_loop_iterations
-        return self._config.agent.max_loop_iterations
-
     ############################################################
     # Override of base methods
     ############################################################
@@ -182,7 +171,7 @@ class UniqueAI:
             self._on_cancellation
         )
         try:
-            max_iterations = self._effective_max_loop_iterations
+            max_iterations = self._config.effective_max_loop_iterations
             for i in range(max_iterations):
                 if await self._chat_service.cancellation.check_cancellation_async():
                     break
@@ -394,7 +383,7 @@ class UniqueAI:
             project_name=self._config.space.project_name,
             custom_instructions=custom_instructions,
             max_tools_per_iteration=self._config.agent.experimental.loop_configuration.max_tool_calls_per_iteration,
-            max_loop_iterations=self._effective_max_loop_iterations,
+            max_loop_iterations=self._config.effective_max_loop_iterations,
             current_iteration=self.current_iteration_index + 1,
             mcp_server_system_prompts=mcp_server_system_prompts,
             use_sub_agent_references=use_sub_agent_references,
