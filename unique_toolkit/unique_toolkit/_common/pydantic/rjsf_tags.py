@@ -13,12 +13,15 @@ Key components:
 
 from __future__ import annotations
 
+import types
 from collections.abc import Callable
 from enum import StrEnum
 from typing import Annotated, Any, Union, get_args, get_origin
 
 from pydantic import BaseModel
 from typing_extensions import get_type_hints
+
+_UNION_ORIGINS = {Union, types.UnionType}
 
 
 class CustomWidgetName(StrEnum):
@@ -774,7 +777,7 @@ def _unwrap_optional(ann: Any) -> Any:
         The unwrapped type if it was Optional/Union with None, otherwise
         the original type unchanged
     """
-    if get_origin(ann) is Union:
+    if get_origin(ann) in _UNION_ORIGINS:
         args = [a for a in get_args(ann) if a not in _NONE_TYPES]
         if len(args) == 1:
             return args[0]
@@ -921,7 +924,7 @@ def ui_schema_for_model(
             node["additionalProperties"] = val_node
 
         # Union -> anyOf branches
-        elif origin is Union:
+        elif origin in _UNION_ORIGINS:
             branches = []
             for alt in get_args(base):
                 if alt in _NONE_TYPES:
