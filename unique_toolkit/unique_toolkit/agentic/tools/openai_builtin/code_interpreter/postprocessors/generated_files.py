@@ -405,16 +405,17 @@ _DETAILS_CODE_BLOCK_RE = re.compile(
 def _inject_code_execution_fences(
     text: str, code_blocks: list[CodeInterpreterBlock]
 ) -> str:
-    """Replace inline image refs with imgWithSource fences; leave all other file refs unchanged.
+    """Replace inline file refs with imgWithSource / fileWithSource fences.
 
-    Scoped to images only for the initial release. Non-image files (PDF, Excel, Word,
-    CSV, etc.) keep their existing [filename](unique://content/...) inline link which
-    already renders as a download link on the frontend.
+    Images get an imgWithSource fence; all other files (PDF, Excel, Word, CSV, etc.)
+    get a fileWithSource fence. Both carry contentId, title, type (fileWithSource only),
+    and the generating code so the frontend can render or offer a download with full
+    context.
 
-    Each image gets its own imgWithSource fence placed at the position of its inline
-    ref. Duplicate refs for the same file (overwrite case) are removed after the first
-    is replaced. <details> blocks from ShowExecutedCodePostprocessor are stripped when
-    at least one image fence was injected.
+    Each file gets its own fence placed at the position of its inline ref. Duplicate
+    refs for the same file (overwrite case) are removed after the first is replaced.
+    <details> blocks from ShowExecutedCodePostprocessor are stripped when at least one
+    fence was injected.
 
     fence_id is a message-level counter so each fence has a unique id.
     """
@@ -422,8 +423,6 @@ def _inject_code_execution_fences(
     any_fence_injected = False
     for block in code_blocks:
         for file in block.files:
-            if file.type != "image":
-                continue
             fence = _build_file_fence(file, block.code, fence_id)
             pattern = _inline_ref_pattern(file)
             new_text, n = re.subn(pattern, lambda m, _f=fence: _f, text, count=1)

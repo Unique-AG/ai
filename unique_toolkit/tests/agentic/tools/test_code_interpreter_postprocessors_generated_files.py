@@ -567,11 +567,13 @@ def test_inject_code_execution_fences__replaces_image_inline_ref__with_imgWithSo
 
 
 @pytest.mark.ai
-def test_inject_code_execution_fences__leaves_document_inline_ref__unchanged() -> None:
+def test_inject_code_execution_fences__replaces_document_inline_ref__with_fileWithSource() -> (
+    None
+):
     """
-    Purpose: Verify document links are NOT replaced (scoped to images only for initial release).
-    Why this matters: Non-image files keep their existing download link which already
-    renders on the frontend; fileWithSource is not emitted until frontend builds a parser.
+    Purpose: Verify a document link is replaced by a fileWithSource fence.
+    Why this matters: Non-image files get a fileWithSource fence carrying contentId,
+    title, type and code so the frontend can offer a download with full context.
     """
     block = CodeInterpreterBlock(
         code='df.to_excel("/mnt/data/data.xlsx")',
@@ -585,16 +587,16 @@ def test_inject_code_execution_fences__leaves_document_inline_ref__unchanged() -
 
     result = _inject_code_execution_fences(text, [block])
 
-    assert "````fileWithSource(" not in result
-    assert "[data.xlsx](unique://content/cont_doc1)" in result
+    assert "````fileWithSource(" in result
+    assert "cont_doc1" in result
+    assert "[data.xlsx](unique://content/cont_doc1)" not in result
 
 
 @pytest.mark.ai
-def test_inject_code_execution_fences__image_fence_and_document_link_coexist() -> None:
+def test_inject_code_execution_fences__image_and_document_each_get_own_fence() -> None:
     """
-    Purpose: Verify that when one block has an image and a document, the image gets
-    an imgWithSource fence and the document keeps its inline link.
-    Why this matters: Mixed block — image renders via fence, document stays as download link.
+    Purpose: Verify that when one block has an image and a document, each gets its own fence.
+    Why this matters: Mixed block — image gets imgWithSource, document gets fileWithSource.
     """
     block = CodeInterpreterBlock(
         code='plt.savefig("/mnt/data/chart.png")\ndf.to_excel("/mnt/data/data.xlsx")',
@@ -612,9 +614,9 @@ def test_inject_code_execution_fences__image_fence_and_document_link_coexist() -
     result = _inject_code_execution_fences(text, [block])
 
     assert result.count("````imgWithSource(") == 1
-    assert "````fileWithSource(" not in result
+    assert result.count("````fileWithSource(") == 1
     assert "![image](unique://content/cont_img1)" not in result
-    assert "[data.xlsx](unique://content/cont_doc1)" in result
+    assert "[data.xlsx](unique://content/cont_doc1)" not in result
 
 
 @pytest.mark.ai
@@ -623,12 +625,12 @@ def test_inject_code_execution_fences__removes_second_ref__when_same_file_linked
 ):
     """
     Purpose: Verify that when the model emits two download links for the same non-image file
-    (overwrite case), both links are left unchanged — no fence emitted, no cleanup.
-    Why this matters: Non-image files are skipped entirely in this release. The duplicate
-    link case is therefore a no-op: both inline refs remain so the user still has a download
-    link.
-    Setup summary: Text has two identical inline refs for the same document file; assert
-    no fence and both refs still present.
+    (overwrite case), the fence is placed at the first occurrence and the duplicate is removed.
+    Why this matters: OpenAI may produce two sandbox links for the same filename when a file
+    is overwritten. After deduplication, the block has one CodeInterpreterFile entry, so only
+    the first occurrence gets a fence — the second must be cleaned up.
+    Setup summary: Text has two identical inline refs for the same document file; assert one
+    fence, no leftover inline ref.
     """
     block = CodeInterpreterBlock(
         code='df.to_csv("/mnt/data/data.csv")',
@@ -645,8 +647,8 @@ def test_inject_code_execution_fences__removes_second_ref__when_same_file_linked
 
     result = _inject_code_execution_fences(text, [block])
 
-    assert "````fileWithSource(" not in result
-    assert result.count("[data.csv](unique://content/cont_csv1)") == 2
+    assert result.count("````fileWithSource(") == 1
+    assert result.count("[data.csv](unique://content/cont_csv1)") == 0
 
 
 @pytest.mark.ai
@@ -678,9 +680,10 @@ def test_inject_code_execution_fences__two_blocks__produce_two_fences() -> None:
     result = _inject_code_execution_fences(text, [block1, block2])
 
     assert result.count("````imgWithSource(") == 1
-    assert "````fileWithSource(" not in result
+    assert result.count("````fileWithSource(") == 1
     assert "cont_img2" in result
-    assert "[kpis.xlsx](unique://content/cont_doc1)" in result
+    assert "cont_doc1" in result
+    assert "[kpis.xlsx](unique://content/cont_doc1)" not in result
 
 
 @pytest.mark.ai
