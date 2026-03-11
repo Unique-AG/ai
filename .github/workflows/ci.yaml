@@ -5,31 +5,86 @@ on:
   merge_group:
 
 jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      changes: ${{ steps.detect.outputs.changes }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: ./.github/actions/detect-changes
+        id: detect
+      - name: Select packages
+        id: set-matrix
+        uses: ./.github/actions/select-packages
+        with:
+          packages: |
+            [
+              {"id": "toolkit",            "dir": "unique_toolkit",                            "python": "3.12", "install_args": "--extra fastapi", "extras": "fastapi", "min_coverage": "60"},
+              {"id": "sdk",                "dir": "unique_sdk",                                "python": "3.11", "test_args": "-m \"not integration\"", "min_coverage": "60"},
+              {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12", "min_coverage": "60"},
+              {"id": "orchestrator",       "dir": "unique_orchestrator",                       "python": "3.12", "min_coverage": "60"},
+              {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "python": "3.12", "min_coverage": "60"},
+              {"id": "swot",               "dir": "tool_packages/unique_swot",                 "python": "3.12", "min_coverage": "60"},
+              {"id": "follow_up_questions","dir": "postprocessors/unique_follow_up_questions", "python": "3.12", "min_coverage": "60"},
+              {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "python": "3.12", "min_coverage": "60"},
+              {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "python": "3.12", "min_coverage": "60"},
+              {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "python": "3.12", "min_coverage": "60"},
+              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12", "min_coverage": "60"},
+              {"id": "six",                "dir": "connectors/unique_six",                     "python": "3.12", "min_coverage": "60"},
+              {"id": "search_proxy",       "dir": "connectors/unique_search_proxy",            "python": "3.12", "min_coverage": "60"}
+            ]
+          selected: ''
+          changes: ${{ steps.detect.outputs.changes }}
+
   lint:
     name: Lint
+    needs: detect-changes
     uses: ./.github/workflows/ci-lint.yaml
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
 
   test:
     name: Test
+    needs: detect-changes
     uses: ./.github/workflows/ci-pytest.yaml
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
 
   types:
     name: Types
+    needs: detect-changes
     uses: ./.github/workflows/ci-type-check.yaml
     permissions:
       contents: read
       pull-requests: write
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
 
   coverage:
     name: Coverage
+    needs: detect-changes
     uses: ./.github/workflows/ci-coverage.yaml
     permissions:
       contents: read
       pull-requests: write
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
 
   deps:
     name: Dependencies
+    needs: detect-changes
     uses: ./.github/workflows/ci-dependency-checks.yaml
+    with:
+      changes: ${{ needs.detect-changes.outputs.changes }}
+      matrix: ${{ needs.detect-changes.outputs.matrix }}
 
   config:
     name: Config Compatibility Check
@@ -48,7 +103,7 @@ jobs:
 
   status:
     name: Gatekeeper
-    needs: [lint, test, types, coverage, deps, config, changelog, pr-title]
+    needs: [detect-changes, lint, test, types, coverage, deps, config, changelog, pr-title]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -57,6 +112,7 @@ jobs:
       - name: Check results
         id: check
         env:
+          DETECT_CHANGES: ${{ needs.detect-changes.result }}
           LINT: ${{ needs.lint.result }}
           TEST: ${{ needs.test.result }}
           TYPES: ${{ needs.types.result }}
@@ -67,6 +123,7 @@ jobs:
           PR_TITLE: ${{ needs.pr-title.result }}
         run: |
           echo "=== CI Status Summary ==="
+          echo "detect-changes: $DETECT_CHANGES"
           echo "lint: $LINT"
           echo "test: $TEST"
           echo "types: $TYPES"
@@ -80,7 +137,7 @@ jobs:
           failed=false
 
           # Required checks (skipped is OK for when no packages changed or merge_group)
-          for check in "lint:$LINT" "test:$TEST" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "changelog:$CHANGELOG" "pr-title:$PR_TITLE"; do
+          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "changelog:$CHANGELOG" "pr-title:$PR_TITLE"; do
             name="${check%%:*}"
             result="${check##*:}"
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
