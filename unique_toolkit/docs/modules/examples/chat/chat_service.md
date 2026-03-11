@@ -199,24 +199,24 @@ Lets assume that the vector search has retrieved the following chunks
 
 ```{.python #chat_service_retrieved_chunks}
 chunks = [ContentChunk(text="Unique is a company that provides the platform for AI-powered solutions.",
-                                     order=0,
-                                     chunk_id="chunk_id_0",
-                                     key="key_0",
-                                     title="title_0",
-                                     start_page=1,
-                                     end_page=1,
-                                     url="https://www.unique.ai",
-                                     id="id_0"),
+                        order=0,
+                        chunk_id="chunk_id_0",
+                        key="key_0",
+                        title="title_0",
+                        start_page=1,
+                        end_page=1,
+                        url="https://www.unique.ai",
+                        id="id_0"),
           ContentChunk(text="Unique is your Responsible AI Partner, with extensive experience in implementing AI solutions for enterprise clients in financial services.",
-                                     order=1,
-                                     chunk_id="chunk_id_1",
-                                     key="key_1",
-                                     title="title_1",
-                                     start_page=1,
-                                     end_page=1,
-                                     url="https://www.unique.ai",
-                                     id="id_1")
-                                     ]
+                       order=1,
+                       chunk_id="chunk_id_1",
+                       key="key_1",
+                       title="title_1",
+                       start_page=1,
+                       end_page=1,
+                       url="https://www.unique.ai",
+                       id="id_1")
+          ]
 ```
 
 If we want the LLM be able to reference them in its answer we need to present the information nicely, e.g. in a markdown table

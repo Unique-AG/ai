@@ -1,14 +1,6 @@
 
 # Chat Service - Basics
 
-<!--
-```{.python #import_language_model_name}
-from unique_toolkit import LanguageModelName
-```
--->
-
-
-
 
 The chat service is responsible for all interactions with the Unique chat frontend as seen below
 
@@ -27,7 +19,7 @@ The following elements are directly influenced by it.
 
 The `ChatService` from the `unique_toolkit` is used to communicate to these elments. Please see [Event Driven Applications](../application_types/event_driven/index.md) on how to initialize services and setup a development setup. The service itself can be imported as
 
-```{.python #unique_chat_service_import}
+```{.python #chat-service-import}
 from unique_toolkit import ChatService
 ```
 

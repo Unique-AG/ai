@@ -77,6 +77,9 @@
   "#cell-rendering-update-row-verification-status": [
     "docs/agentic_table/cell_rendering.md"
   ],
+  "#chat-service-import": [
+    "docs/chat/index.md"
+  ],
   "#chat_service_assistant_message_with_reference": [
     "docs/modules/examples/chat/chat_service.md"
   ],
@@ -201,7 +204,6 @@
     "docs/plattforms/openai/openai.md"
   ],
   "#import_language_model_name": [
-    "docs/chat/index.md",
     "docs/modules/examples/chat/chat_service.md"
   ],
   "#init_services_from_event": [
@@ -463,7 +465,6 @@
     "docs/modules/examples/chat/chat_service.md"
   ],
   "#unique_chat_service_import": [
-    "docs/chat/index.md",
     "docs/modules/examples/chat/chat_service.md"
   ],
   "#unique_init_service_standalone": [
