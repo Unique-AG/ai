@@ -50,7 +50,7 @@ def main() -> int:
     )
     print(f"Registry written: {len(blocks)} entries → {REGISTRY_PATH}")
 
-    duplicates = {k: v for k, v in blocks.items() if len(v) > 1}
+    duplicates = {k: v for k, v in blocks.items() if len(set(v)) > 1}
     if duplicates:
         print(f"\nWARNING: {len(duplicates)} duplicate(s) found:", file=sys.stderr)
         for key, files in duplicates.items():
