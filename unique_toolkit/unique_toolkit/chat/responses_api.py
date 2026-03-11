@@ -1,5 +1,7 @@
 import json
 import logging
+import random
+from collections.abc import Awaitable, Callable
 from typing import Any, NamedTuple, Sequence
 
 import unique_sdk
@@ -13,7 +15,14 @@ from openai.types.responses import (
     response_create_params,
 )
 from openai.types.shared_params import Metadata, Reasoning
-from pydantic import BaseModel, TypeAdapter, ValidationError
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from tenacity import (
+    AsyncRetrying,
+    RetryCallState,
+    retry_if_exception,
+    stop_after_attempt,
+)
 
 from unique_toolkit._common.execution import (
     failsafe,
@@ -329,6 +338,114 @@ def _prepare_responses_args(
     return options
 
 
+_RATE_LIMIT_KEYWORDS = ("too_many_requests", "too many requests", "ratelimitreached")
+
+
+class RateLimitRetryConfig(BaseSettings):
+    """Config for Responses API rate-limit retry. Set via env vars with prefix RATE_LIMIT_RETRY_."""
+
+    initial_delay_seconds: float = Field(
+        default=30.0,
+        description="First wait after SDK retries exhausted. Backoff then 2x (30→60→120s).",
+    )
+    max_attempts: int = Field(
+        default=2,
+        ge=1,
+        le=10,
+        description="Total attempts (1 initial + retries). Default 2 = 1 retry (~30s wait). Set to 1 to disable.",
+    )
+    log_message_on_retry: bool = Field(
+        default=True,
+        description="Write a message-log entry when a retry is about to sleep (e.g. 'Retrying in 30s').",
+    )
+
+    model_config = SettingsConfigDict(
+        env_prefix="RATE_LIMIT_RETRY_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
+rate_limit_retry_config = RateLimitRetryConfig()
+
+
+def _rate_limit_wait(retry_state: RetryCallState) -> float:
+    """Exponential backoff with up to 10% jitter: initial_delay → 2x → 4x."""
+    n = retry_state.attempt_number - 1  # 0-indexed
+    base = rate_limit_retry_config.initial_delay_seconds * (2.0**n)
+    return base + random.uniform(0.0, base * 0.1)
+
+
+async def _responses_stream_with_rate_limit_retry(
+    responses_args: dict[str, Any],
+    model_name: str,
+    on_rate_limit_retry: Callable[[int, float], Awaitable[None]] | None = None,
+) -> "unique_sdk.Integrated.ResponsesStreamResult":
+    """Wrap responses_stream_async with exponential backoff for rate-limit errors.
+
+    The SDK already retries 3× (1s/2s/4s) before raising. This layer adds further
+    retries with longer delays, which are needed for models with tighter RPM limits
+    (e.g. GPT-4o) when large-token requests (web search, code execution) are in the loop.
+
+    Args:
+        responses_args: Keyword arguments forwarded to responses_stream_async.
+        model_name: Model name used in log messages.
+        on_rate_limit_retry: Optional async callback invoked before each retry sleep.
+            Receives (attempt_1based, wait_seconds). Useful for writing a message-log
+            entry so the user sees progress during long waits.
+    """
+
+    def _is_rate_limit(exc: BaseException) -> bool:
+        return isinstance(exc, unique_sdk.APIError) and any(
+            kw in str(exc).lower() for kw in _RATE_LIMIT_KEYWORDS
+        )
+
+    max_attempts = rate_limit_retry_config.max_attempts
+    max_retries = max_attempts - 1
+
+    def _log_attempt(retry_state: RetryCallState) -> None:
+        exc = retry_state.outcome.exception() if retry_state.outcome else None
+        if exc is None:
+            return
+        logger.error(
+            "responses_stream_async error on toolkit attempt %d/%d "
+            "model=%s code=%s http_status=%s is_rate_limit=%s original_error=%r",
+            retry_state.attempt_number,
+            max_attempts,
+            model_name,
+            getattr(exc, "code", None),
+            getattr(exc, "http_status", None),
+            _is_rate_limit(exc),
+            getattr(exc, "original_error", None),
+        )
+
+    async def _before_sleep(retry_state: RetryCallState) -> None:
+        wait_secs = retry_state.upcoming_sleep
+        logger.warning(
+            "Rate limit hit for model=%s. Toolkit-level retry %d/%d in %.1fs",
+            model_name,
+            retry_state.attempt_number,
+            max_retries,
+            wait_secs,
+        )
+        if on_rate_limit_retry is not None:
+            await on_rate_limit_retry(retry_state.attempt_number, wait_secs)
+
+    async def _call() -> "unique_sdk.Integrated.ResponsesStreamResult":
+        return await unique_sdk.Integrated.responses_stream_async(**responses_args)
+
+    return await AsyncRetrying(
+        retry=retry_if_exception(_is_rate_limit),
+        stop=stop_after_attempt(max_attempts),
+        wait=_rate_limit_wait,
+        after=_log_attempt,
+        before_sleep=_before_sleep,
+        reraise=True,
+    )(_call)
+
+
 def stream_responses_with_references(
     *,
     company_id: str,
@@ -426,6 +543,7 @@ async def stream_responses_with_references_async(
     top_p: float | None = None,
     reasoning: Reasoning | None = None,
     other_options: dict | None = None,
+    on_rate_limit_retry: Callable[[int, float], Awaitable[None]] | None = None,
 ) -> ResponsesLanguageModelStreamResponse:
     responses_params = _prepare_responses_params_util(
         model_name=model_name,
@@ -458,8 +576,14 @@ async def stream_responses_with_references_async(
         other_options=other_options,
     )
 
+    logger.info(
+        "Calling responses_stream_async model=%s",
+        responses_params.model_name,
+    )
     return ResponsesLanguageModelStreamResponse.model_validate(
-        await unique_sdk.Integrated.responses_stream_async(
-            **responses_args,
+        await _responses_stream_with_rate_limit_retry(
+            responses_args=responses_args,
+            model_name=responses_params.model_name,
+            on_rate_limit_retry=on_rate_limit_retry,
         )
     )
