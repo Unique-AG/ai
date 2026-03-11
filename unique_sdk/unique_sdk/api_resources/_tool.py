@@ -28,15 +28,15 @@ class ToolItem(TypedDict):
 
 
 # Max messageIds per GET request (monorepo API limit); we paginate above this.
-MESSAGE_IDS_PAGE_SIZE = 200
+_MESSAGE_IDS_PAGE_SIZE = 200
 
 
 def _chunk_message_ids(message_ids_str: str) -> list[str]:
-    """Split comma-separated message IDs into chunks of at most MESSAGE_IDS_PAGE_SIZE."""
+    """Split comma-separated message IDs into chunks of at most _MESSAGE_IDS_PAGE_SIZE."""
     ids = [s.strip() for s in message_ids_str.split(",") if s.strip()]
     chunks: list[str] = []
-    for i in range(0, len(ids), MESSAGE_IDS_PAGE_SIZE):
-        chunks.append(",".join(ids[i : i + MESSAGE_IDS_PAGE_SIZE]))
+    for i in range(0, len(ids), _MESSAGE_IDS_PAGE_SIZE):
+        chunks.append(",".join(ids[i : i + _MESSAGE_IDS_PAGE_SIZE]))
     return chunks
 
 

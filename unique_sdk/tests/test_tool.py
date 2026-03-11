@@ -8,7 +8,7 @@ import pytest
 from unique_sdk import Tool as ToolPublic
 from unique_sdk._list_object import ListObject
 from unique_sdk.api_resources._tool import (
-    MESSAGE_IDS_PAGE_SIZE,
+    _MESSAGE_IDS_PAGE_SIZE,
     Tool,
     _chunk_message_ids,
 )
@@ -83,15 +83,15 @@ def test_chunk_message_ids__leading_trailing_whitespace__stripped():
 
 @pytest.mark.ai
 def test_chunk_message_ids__exactly_page_size__returns_one_chunk():
-    """Purpose: Exactly MESSAGE_IDS_PAGE_SIZE IDs fit in one chunk.
+    """Purpose: Exactly _MESSAGE_IDS_PAGE_SIZE IDs fit in one chunk.
 
     Why this matters: Boundary ensures we do not over-paginate at the limit.
     Setup summary: Build 200 IDs, chunk. Assert len(chunks) == 1 and chunk has 199 commas.
     """
-    ids = [f"m{i}" for i in range(MESSAGE_IDS_PAGE_SIZE)]
+    ids = [f"m{i}" for i in range(_MESSAGE_IDS_PAGE_SIZE)]
     chunks = _chunk_message_ids(",".join(ids))
     assert len(chunks) == 1
-    assert chunks[0].count(",") == MESSAGE_IDS_PAGE_SIZE - 1
+    assert chunks[0].count(",") == _MESSAGE_IDS_PAGE_SIZE - 1
 
 
 @pytest.mark.ai
@@ -101,11 +101,11 @@ def test_chunk_message_ids__over_page_size__returns_two_chunks():
     Why this matters: Pagination must kick in so API limit is never exceeded.
     Setup summary: Build 201 IDs, chunk. Assert two chunks; second has single ID.
     """
-    ids = [f"m{i}" for i in range(MESSAGE_IDS_PAGE_SIZE + 1)]
+    ids = [f"m{i}" for i in range(_MESSAGE_IDS_PAGE_SIZE + 1)]
     chunks = _chunk_message_ids(",".join(ids))
     assert len(chunks) == 2
-    assert chunks[0].count(",") == MESSAGE_IDS_PAGE_SIZE - 1
-    assert chunks[1] == f"m{MESSAGE_IDS_PAGE_SIZE}"
+    assert chunks[0].count(",") == _MESSAGE_IDS_PAGE_SIZE - 1
+    assert chunks[1] == f"m{_MESSAGE_IDS_PAGE_SIZE}"
 
 
 @pytest.mark.ai
@@ -115,10 +115,10 @@ def test_chunk_message_ids__two_full_pages__returns_two_chunks():
     Why this matters: Ensures correct chunk sizing for large message ID lists.
     Setup summary: Build 400 IDs, chunk. Assert two chunks, each with 199 commas.
     """
-    ids = [f"m{i}" for i in range(MESSAGE_IDS_PAGE_SIZE * 2)]
+    ids = [f"m{i}" for i in range(_MESSAGE_IDS_PAGE_SIZE * 2)]
     chunks = _chunk_message_ids(",".join(ids))
     assert len(chunks) == 2
-    assert all(c.count(",") == MESSAGE_IDS_PAGE_SIZE - 1 for c in chunks)
+    assert all(c.count(",") == _MESSAGE_IDS_PAGE_SIZE - 1 for c in chunks)
 
 
 # --- Tool class methods (mocked) ---
@@ -227,7 +227,7 @@ def test_list_by_message_ids__multiple_chunks__merges_data(mocker):
     Why this matters: Long chats must not hit the 200-messageIds limit; results must be combined.
     Setup summary: 210 IDs. side_effect returns two ListObjects. Assert merged data and call_count==2.
     """
-    ids = [f"m{i}" for i in range(MESSAGE_IDS_PAGE_SIZE + 10)]
+    ids = [f"m{i}" for i in range(_MESSAGE_IDS_PAGE_SIZE + 10)]
     msg_ids_str = ",".join(ids)
     mocker.patch.object(
         Tool,
@@ -263,7 +263,7 @@ def test_list_by_message_ids__multi_chunk_page_not_list_object__raises_type_erro
     Why this matters: Defensive check when merging multiple pages.
     Setup summary: 210 IDs; first call returns ListObject, second returns dict. Expect TypeError.
     """
-    ids = [f"m{i}" for i in range(MESSAGE_IDS_PAGE_SIZE + 10)]
+    ids = [f"m{i}" for i in range(_MESSAGE_IDS_PAGE_SIZE + 10)]
     mocker.patch.object(
         Tool,
         "_static_request",
@@ -402,7 +402,7 @@ async def test_list_by_message_ids_async__multiple_chunks__merges_data(mocker):
     Why this matters: Long async loads must also respect the 200-ID limit and merge pages.
     Setup summary: 210 IDs, side_effect two ListObjects. Await list_by_message_ids_async. Assert merged data, call_count 2.
     """
-    ids = [f"m{i}" for i in range(MESSAGE_IDS_PAGE_SIZE + 10)]
+    ids = [f"m{i}" for i in range(_MESSAGE_IDS_PAGE_SIZE + 10)]
     msg_ids_str = ",".join(ids)
     mocker.patch.object(
         Tool,
@@ -429,7 +429,7 @@ async def test_list_by_message_ids_async__multi_chunk_page_not_list_object__rais
     Why this matters: Defensive check when merging multiple async pages.
     Setup summary: 210 IDs; first async call returns ListObject, second returns dict. Expect TypeError.
     """
-    ids = [f"m{i}" for i in range(MESSAGE_IDS_PAGE_SIZE + 10)]
+    ids = [f"m{i}" for i in range(_MESSAGE_IDS_PAGE_SIZE + 10)]
     mocker.patch.object(
         Tool,
         "_static_request_async",
