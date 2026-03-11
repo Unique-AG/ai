@@ -20,6 +20,10 @@ inputs:
   baseline_file:
     description: 'Path to baseline JSON file (optional)'
     required: false
+  type_level:
+    description: 'Override typeCheckingMode for this run (e.g. recommended, standard). Empty to use pyproject.toml.'
+    required: false
+    default: ''
   output_file:
     description: 'Path to output JSON file'
     required: false
@@ -49,6 +53,16 @@ runs:
         else
           echo "No baseline to apply"
           rm -f .basedpyright/baseline.json
+        fi
+
+    - name: Override type checking level
+      if: inputs.type_level != ''
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: |
+        if grep -q 'typeCheckingMode' pyproject.toml; then
+          sed -i 's/typeCheckingMode = ".*"/typeCheckingMode = "${{ inputs.type_level }}"/' pyproject.toml
+          echo "Set typeCheckingMode to ${{ inputs.type_level }} for this run"
         fi
 
     - name: Run basedpyright

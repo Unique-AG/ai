@@ -56,19 +56,19 @@ jobs:
         with:
           packages: |
             [
-              {"id": "toolkit",            "dir": "unique_toolkit",                            "python": "3.12"},
-              {"id": "sdk",                "dir": "unique_sdk",                                "python": "3.11"},
-              {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12"},
-              {"id": "orchestrator",       "dir": "unique_orchestrator",                       "python": "3.12"},
-              {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "python": "3.12"},
-              {"id": "swot",               "dir": "tool_packages/unique_swot",                 "python": "3.12"},
-              {"id": "follow_up_questions","dir": "postprocessors/unique_follow_up_questions", "python": "3.12"},
-              {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "python": "3.12"},
-              {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "python": "3.12"},
-              {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "python": "3.12"},
-              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12"},
-              {"id": "six",                "dir": "connectors/unique_six",                     "python": "3.12"},
-              {"id": "search_proxy",       "dir": "connectors/unique_search_proxy",            "python": "3.12"}
+              {"id": "toolkit",            "dir": "unique_toolkit",                            "python": "3.12", "type_level": "recommended", "use_baseline": true},
+              {"id": "sdk",                "dir": "unique_sdk",                                "python": "3.11", "type_level": "standard", "use_baseline": true},
+              {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12", "type_level": "recommended", "use_baseline": true},
+              {"id": "orchestrator",       "dir": "unique_orchestrator",                       "python": "3.12", "type_level": "recommended", "use_baseline": true},
+              {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "python": "3.12", "type_level": "recommended", "use_baseline": true},
+              {"id": "swot",               "dir": "tool_packages/unique_swot",                 "python": "3.12", "type_level": "recommended", "use_baseline": true},
+              {"id": "follow_up_questions","dir": "postprocessors/unique_follow_up_questions", "python": "3.12", "type_level": "recommended", "use_baseline": true},
+              {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "python": "3.12", "type_level": "recommended", "use_baseline": true},
+              {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "python": "3.12", "type_level": "recommended", "use_baseline": true},
+              {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "python": "3.12", "type_level": "recommended", "use_baseline": true},
+              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12", "type_level": "recommended", "use_baseline": true},
+              {"id": "six",                "dir": "connectors/unique_six",                     "python": "3.12", "type_level": "recommended", "use_baseline": true},
+              {"id": "search_proxy",       "dir": "connectors/unique_search_proxy",            "python": "3.12", "type_level": "recommended", "use_baseline": true}
             ]
           selected: ${{ github.event.inputs.package }}
           changes: ${{ inputs.changes || steps.detect.outputs.changes }}
@@ -98,6 +98,7 @@ jobs:
           curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b /tmp
 
       - name: Create baseline from base branch
+        if: matrix.use_baseline
         uses: ./.github/actions/create-type-baseline
         with:
           package_dir: ${{ matrix.dir }}
@@ -109,7 +110,8 @@ jobs:
         with:
           package_dir: ${{ matrix.dir }}
           python_version: ${{ matrix.python }}
-          baseline_file: /tmp/baseline.json
+          type_level: ${{ matrix.type_level }}
+          baseline_file: ${{ matrix.use_baseline && '/tmp/baseline.json' || '' }}
           output_file: /tmp/basedpyright.json
 
       - name: Report type errors
