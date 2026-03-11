@@ -45,6 +45,10 @@ class Tool(APIResource["Tool"]):
     OBJECT_NAME: ClassVar[Literal["tool"]] = "tool"
     RESOURCE_URL = "/messages/tools"
 
+    @classmethod
+    def class_url(cls) -> str:
+        return cls.RESOURCE_URL
+
     class CreateParams(RequestOptions):
         messageId: str
         tools: list[ToolItem]
