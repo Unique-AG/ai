@@ -2,11 +2,12 @@
 Tests for the RJSF tags module.
 """
 
-from typing import Annotated, Union
+from enum import StrEnum
+from typing import Annotated, Generic, Literal, TypeVar, Union
 
 import pytest
 from humps import camelize
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from unique_toolkit._common.pydantic.rjsf_tags import (
     _NONE_TYPES,
@@ -1636,3 +1637,69 @@ def test_AI_field_named_items_is_transformed_by_key_transform() -> None:
     for key in ("items", "type", "normalField"):
         assert key in schema["ui:order"], f"{key} must appear in ui:order"
         assert key in schema, f"{key} must appear as schema key"
+
+
+@pytest.mark.ai
+def test_AI_ui_schema_for_model__pipe_union_with_annotated_models__resolves_anyof() -> (
+    None
+):
+    """
+    Purpose: Verify that ui_schema_for_model resolves Union branches declared
+        with the Python 3.10+ pipe syntax (A | B) which produces types.UnionType.
+    Why this matters: types.UnionType differs from typing.Union; without handling
+        both, the Union branch in ui_schema_for_model is skipped and the field's
+        uiSchema is empty instead of containing anyOf with per-branch metadata.
+    Setup summary: Define a discriminated union using pipe syntax where each
+        variant carries distinct RJSFMetaTag annotations, call ui_schema_for_model,
+        and assert the resulting anyOf structure matches expected per-branch schemas.
+    """
+
+    class _CaseName(StrEnum):
+        CASE1 = "case1"
+        CASE2 = "case2"
+
+    _T = TypeVar("_T", bound=_CaseName)
+
+    class _BaseCase(BaseModel, Generic[_T]):
+        name: _T
+        a: int
+
+    class _Case1(_BaseCase):
+        name: Annotated[
+            Literal[_CaseName.CASE1], RJSFMetaTag.SpecialWidget.hidden()
+        ] = _CaseName.CASE1
+
+    class _Case2(_BaseCase):
+        name: Annotated[
+            Literal[_CaseName.CASE2],
+            RJSFMetaTag.StringWidget.textfield(disabled=True),
+        ] = _CaseName.CASE2
+
+    class _OrCase(BaseModel):
+        case: _Case1 | _Case2 = Field(default=_Case1(a=1))
+
+    schema = ui_schema_for_model(_OrCase)
+
+    expected = {
+        "case": {
+            "anyOf": [
+                {
+                    "name": {"ui:widget": "hidden"},
+                    "a": {},
+                    "ui:order": ["name", "a"],
+                },
+                {
+                    "name": {
+                        "ui:widget": "text",
+                        "ui:disabled": True,
+                        "ui:readonly": False,
+                        "ui:autofocus": False,
+                    },
+                    "a": {},
+                    "ui:order": ["name", "a"],
+                },
+            ],
+        },
+        "ui:order": ["case"],
+    }
+    assert schema == expected

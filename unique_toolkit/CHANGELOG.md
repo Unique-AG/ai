@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `get_content_info_async()` to `functions` for fetching content info asynchronously
 - Add `get_folder_info_async()` to `functions` for fetching folder info asynchronously
 
+## [1.53.1] - 2026-03-11
+- Fix RJSF `ui_schema_for_model` and `_unwrap_optional` to handle Python 3.10+ pipe union syntax (`A | B` / `types.UnionType`) in addition to `typing.Union`, so discriminated unions produce correct `anyOf` branches with per-branch metadata
+
+## [1.53.0] - 2026-03-10
+- Responses API: rate-limit retry via **tenacity** (new dependency). Default 1 retry with ~30s backoff for `too_many_requests`; config via `RATE_LIMIT_RETRY_*` env vars. When new answers UI feature flag (`enable_new_answers_ui_un_14411`) is active, a step is written to the message log during each retry wait so the user is informed.
+
+## [1.52.1] - 2026-03-10
+- Responses API: rate-limit retry via **tenacity** (new dependency). Exponential backoff (30s→60s→120s) for `too_many_requests`; config via `RATE_LIMIT_RETRY_*` env vars. When new answers UI feature flag (`enable_new_answers_ui_un_14411`) is active, a step is written to the message log during each retry wait.
+
 ## [1.52.0] - 2026-03-10
 - Refactor loop runner architecture: make `BasicLoopIterationRunner` an extensible base class with overridable hooks (`_handle_forced_tools`, `_handle_last_iteration`, `_handle_normal_iteration`)
 - Add `tool_choice_override` parameter to `run_forced_tools_iteration` for model-specific tool choice handling
