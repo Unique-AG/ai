@@ -18,11 +18,11 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     _file_title,
     _inject_code_execution_fences,
 )
-from unique_toolkit.content.schemas import ContentReference
-from unique_toolkit.language_model.schemas import (
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import (
     CodeInterpreterBlock,
     CodeInterpreterFile,
 )
+from unique_toolkit.content.schemas import ContentReference
 
 
 @pytest.mark.ai

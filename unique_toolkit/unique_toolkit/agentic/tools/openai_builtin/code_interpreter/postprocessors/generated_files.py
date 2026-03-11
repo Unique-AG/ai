@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import re
 from mimetypes import guess_type
@@ -19,14 +20,17 @@ from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memo
     PersistentShortMemoryManager,
 )
 from unique_toolkit.agentic.tools.config import get_configuration_dict
-from unique_toolkit.content.schemas import ContentReference
-from unique_toolkit.content.service import ContentService
-from unique_toolkit.language_model.schemas import (
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
+    strip_executed_code_blocks,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import (
     CodeInterpreterBlock,
     CodeInterpreterFile,
     CodeInterpreterFileType,
-    ResponsesLanguageModelStreamResponse,
 )
+from unique_toolkit.content.schemas import ContentReference
+from unique_toolkit.content.service import ContentService
+from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
@@ -341,15 +345,10 @@ def _file_frontend_type(filename: str) -> str:
 def _escape_code_attr(code: str) -> str:
     """Escape the code string for embedding as a double-quoted attribute value.
 
-    Replaces backslashes first, then double quotes, then newlines.
+    Uses JSON encoding so all special characters (quotes, backslashes, newlines,
+    control chars) are handled consistently and safely.
     """
-    return (
-        code.rstrip()
-        .replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("\n", "\\n")
-        .replace("\r", "")
-    )
+    return json.dumps(code.rstrip())[1:-1]
 
 
 def _build_file_fence(file: CodeInterpreterFile, code: str, fence_id: int) -> str:
@@ -396,12 +395,6 @@ def _inline_ref_pattern(file: CodeInterpreterFile) -> re.Pattern[str]:
     return re.compile(rf"\[{fname}\]\(unique://content/{cid}\)")
 
 
-_DETAILS_CODE_BLOCK_RE = re.compile(
-    r"\n*<details><summary>Code Interpreter Call</summary>.*?</details>[ \t]*\n*(?:[ \t]*</br>[ \t]*\n*)?",
-    re.DOTALL,
-)
-
-
 def _inject_code_execution_fences(
     text: str, code_blocks: list[CodeInterpreterBlock]
 ) -> str:
@@ -414,8 +407,8 @@ def _inject_code_execution_fences(
 
     Each file gets its own fence placed at the position of its inline ref. Duplicate
     refs for the same file (overwrite case) are removed after the first is replaced.
-    <details> blocks from ShowExecutedCodePostprocessor are stripped when at least one
-    fence was injected.
+    When at least one fence was injected, executed-code <details> blocks are
+    stripped via strip_executed_code_blocks() from the code_display postprocessor.
 
     fence_id is a message-level counter so each fence has a unique id.
     """
@@ -433,7 +426,7 @@ def _inject_code_execution_fences(
             # Remove duplicate refs (overwrite case)
             text = re.sub(pattern, "", text)
     if any_fence_injected:
-        text = _DETAILS_CODE_BLOCK_RE.sub("", text)
+        text = strip_executed_code_blocks(text)
     return text
 
 
