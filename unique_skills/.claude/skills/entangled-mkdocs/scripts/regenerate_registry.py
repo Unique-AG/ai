@@ -45,10 +45,14 @@ def build_registry(docs_dir: pathlib.Path) -> dict[str, list[str]]:
                 continue
             n = len(open_m.group(1))
             if fence_stack:
-                # Inside a doc example (e.g. 4-backtick); treat as nested, do not register.
-                fence_stack.append(n)
-                continue
-            # Top-level fence: register #id and file= for this block.
+                if fence_stack[-1] == n:
+                    # Same backtick count: in Markdown a new fence closes the previous (no nesting).
+                    _ = fence_stack.pop()
+                else:
+                    # Different count = truly nested (e.g. 3 inside 4-backtick doc example); do not register.
+                    fence_stack.append(n)
+                    continue
+            # Top-level fence (or just closed same-count): register #id and file= for this block.
             id_m = re.search(r"#([\w-]+)", line)
             file_m = re.search(r"file=([^\s}]+)", line)
             if id_m:
