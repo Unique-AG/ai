@@ -15,7 +15,7 @@ from unique_toolkit.agentic.reference_manager.reference_manager import Reference
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.chat.schemas import MessageToolRecord, MessageToolResponseRecord
+from unique_toolkit.chat.schemas import ChatMessageTool, ChatMessageToolResponse
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
@@ -243,14 +243,14 @@ class HistoryManager:
             )
         return LanguageModelMessages(history)
 
-    def extract_message_tool_records(self) -> list[MessageToolRecord]:
-        """Extracts MessageToolRecord objects from the in-memory loop history.
+    def extract_message_tools(self) -> list[ChatMessageTool]:
+        """Extracts ChatMessageTool objects from the in-memory loop history.
 
         Walks through _loop_history looking for assistant messages with tool_calls
-        followed by their corresponding tool responses, and builds MessageToolRecord
+        followed by their corresponding tool responses, and builds ChatMessageTool
         objects with round and sequence indices for ordering.
         """
-        records: list[MessageToolRecord] = []
+        records: list[ChatMessageTool] = []
         round_index = 0
         i = 0
         while i < len(self._loop_history):
@@ -272,12 +272,12 @@ class HistoryManager:
                             break
 
                     response = (
-                        MessageToolResponseRecord(content=response_content)
+                        ChatMessageToolResponse(content=response_content)
                         if response_content is not None
                         else None
                     )
                     records.append(
-                        MessageToolRecord(
+                        ChatMessageTool(
                             external_tool_call_id=tc.id or "",
                             function_name=tc.function.name,
                             arguments=tc.function.arguments,
@@ -291,10 +291,10 @@ class HistoryManager:
         return records
 
     @staticmethod
-    def compact_message_tool_records(
-        records: list[MessageToolRecord],
+    def compact_message_tools(
+        records: list[ChatMessageTool],
         assistant_text: str | None,
-    ) -> list[MessageToolRecord]:
+    ) -> list[ChatMessageTool]:
         """Strip uncited sources from tool response content.
 
         Parses ``[sourceN]`` citations from the final assistant message and

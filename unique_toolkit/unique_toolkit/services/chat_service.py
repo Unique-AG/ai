@@ -66,6 +66,7 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
     ChatMessageRole,
+    ChatMessageTool,
     MessageExecution,
     MessageExecutionType,
     MessageExecutionUpdateStatus,
@@ -73,7 +74,6 @@ from unique_toolkit.chat.schemas import (
     MessageLogDetails,
     MessageLogStatus,
     MessageLogUncitedReferences,
-    MessageToolRecord,
 )
 from unique_toolkit.content.functions import (
     download_content_to_bytes,
@@ -2202,8 +2202,8 @@ class ChatService(ChatServiceDeprecated):
         self,
         *,
         message_id: str,
-        tool_calls: list[MessageToolRecord],
-    ) -> list[MessageToolRecord]:
+        tool_calls: list[ChatMessageTool],
+    ) -> list[ChatMessageTool]:
         """Persists message tools for an assistant message synchronously.
 
         Args:
@@ -2224,8 +2224,8 @@ class ChatService(ChatServiceDeprecated):
         self,
         *,
         message_id: str,
-        tool_calls: list[MessageToolRecord],
-    ) -> list[MessageToolRecord]:
+        tool_calls: list[ChatMessageTool],
+    ) -> list[ChatMessageTool]:
         """Persists message tools for an assistant message asynchronously.
 
         Args:
@@ -2247,7 +2247,7 @@ class ChatService(ChatServiceDeprecated):
         *,
         message_id: str | None = None,
         message_ids: list[str] | None = None,
-    ) -> list[MessageToolRecord]:
+    ) -> list[ChatMessageTool]:
         """Gets message tools for given message(s) synchronously."""
         return get_message_tools(
             user_id=self._user_id,
@@ -2261,7 +2261,7 @@ class ChatService(ChatServiceDeprecated):
         *,
         message_id: str | None = None,
         message_ids: list[str] | None = None,
-    ) -> list[MessageToolRecord]:
+    ) -> list[ChatMessageTool]:
         """Gets message tools for given message(s) asynchronously."""
         return await get_message_tools_async(
             user_id=self._user_id,
