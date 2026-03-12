@@ -784,7 +784,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=400_000, token_limit_output=128_000
+                        token_limit_input=272_000, token_limit_output=128_000
                     ),
                     info_cutoff_at=date(2024, 9, 30),
                     published_at=date(2026, 3, 5),
@@ -1822,7 +1822,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=400_000, token_limit_output=128_000
+                        token_limit_input=272_000, token_limit_output=128_000
                     ),
                     info_cutoff_at=date(2024, 9, 30),
                     published_at=date(2026, 3, 5),
@@ -1850,7 +1850,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.VISION,
                     ],
                     token_limits=LanguageModelTokenLimits(
-                        token_limit_input=400_000, token_limit_output=128_000
+                        token_limit_input=272_000, token_limit_output=128_000
                     ),
                     info_cutoff_at=date(2024, 9, 30),
                     published_at=date(2026, 3, 5),
