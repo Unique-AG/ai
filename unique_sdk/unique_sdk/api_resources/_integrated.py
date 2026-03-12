@@ -104,7 +104,7 @@ class Integrated(APIResource["Integrated"]):
     class StreamCompletionResult(TypedDict):
         object: Literal["streamResult"]
         message: Message
-        toolCalls: List["Integrated.ToolCall"]
+        toolCalls: list["Integrated.ToolCall"]
         usage: "Integrated.Usage"
 
     @classmethod
