@@ -387,7 +387,7 @@ class AgenticTableService:
             user_id=self._user_id,
             company_id=self._company_id,
             tableId=self.table_id,
-            includeSheetMetadata=True,  # type: ignore[arg-type]
+            includeSheetMetadata=True,  # pyright: ignore[reportCallIssue]
         )
         return [
             RowMetadataEntry.model_validate(metadata)

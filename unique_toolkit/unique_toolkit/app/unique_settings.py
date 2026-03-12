@@ -1,7 +1,7 @@
 import os
 from logging import getLogger
 from pathlib import Path
-from typing import TYPE_CHECKING, Self, TypeVar
+from typing import TYPE_CHECKING, Any, Self, TypeVar
 from urllib.parse import ParseResult, urlparse, urlunparse
 
 import unique_sdk
@@ -177,7 +177,7 @@ class UniqueAuth(BaseSettings):
         return warn_about_defaults(self)
 
     @classmethod
-    def from_event(cls, event: "BaseEvent") -> Self:
+    def from_event(cls, event: "BaseEvent[Any]") -> Self:
         return cls(
             company_id=SecretStr(event.company_id),
             user_id=SecretStr(event.user_id),
@@ -292,10 +292,10 @@ class UniqueSettings:
 
         # Initialize settings with environment file if provided
         env_file_str = str(env_file) if env_file else None
-        auth = UniqueAuth(_env_file=env_file_str)  # type: ignore[call-arg]
-        app = UniqueApp(_env_file=env_file_str)  # type: ignore[call-arg]
-        api = UniqueApi(_env_file=env_file_str)  # type: ignore[call-arg]
-        event_filter_options = UniqueChatEventFilterOptions(_env_file=env_file_str)  # type: ignore[call-arg]
+        auth = UniqueAuth(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
+        app = UniqueApp(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
+        api = UniqueApi(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
+        event_filter_options = UniqueChatEventFilterOptions(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
         return cls(
             auth=auth,
             app=app,
@@ -356,7 +356,7 @@ class UniqueSettings:
         settings.init_sdk()
         return settings
 
-    def update_from_event(self, event: "BaseEvent") -> None:
+    def update_from_event(self, event: "BaseEvent[Any]") -> None:
         self._auth = UniqueAuth.from_event(event)
 
     @property
