@@ -1,4 +1,6 @@
 site_name: Unique Toolkit
+extra_css:
+  - stylesheets/extra.css
 site_description: Documentation for the Unique Toolkit
 site_author: Unique Team
 # IMPORTANT: site_url is set dynamically by CI to versioned path
@@ -150,6 +152,8 @@ markdown_extensions:
 
 docs_dir: docs
 site_dir: site
+exclude_docs: |
+  entangled-registry.json
 
 plugins:
   - search

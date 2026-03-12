@@ -37,7 +37,7 @@ This ordering preserves causal integrity (what was intended vs. what happened), 
 
 
 Code:
-```python
+```{.python #orchestrator-handle-tool-calls}
     async def _handle_tool_calls(
           self, loop_response: LanguageModelStreamResponse
     ) -> bool:

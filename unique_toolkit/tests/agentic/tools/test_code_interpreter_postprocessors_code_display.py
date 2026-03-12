@@ -7,6 +7,7 @@ import pytest
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
     ShowExecutedCodePostprocessor,
     ShowExecutedCodePostprocessorConfig,
+    strip_executed_code_blocks,
 )
 
 
@@ -128,3 +129,19 @@ async def test_show_executed_code_postprocessor__remove_from_text__leaves_text_u
 
     # Assert
     assert result == text
+
+
+@pytest.mark.ai
+def test_strip_executed_code_blocks__removes_details_and_trailing_br() -> None:
+    """
+    Purpose: Verify strip_executed_code_blocks removes the block emitted by this
+    postprocessor (including trailing </br>) so other postprocessors can supersede it.
+    """
+    text = (
+        "<details><summary>Code Interpreter Call</summary>\n"
+        "```python\nx = 1\n```\n</details>    \n</br>\n\nKeep this."
+    )
+    result = strip_executed_code_blocks(text)
+    assert "<details>" not in result
+    assert "</br>" not in result
+    assert result.strip() == "Keep this."

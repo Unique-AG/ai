@@ -24,6 +24,23 @@ _TEMPLATE = """
 
 """.lstrip()
 
+# Pattern matching the block emitted by _TEMPLATE (including trailing </br>).
+# Used when another postprocessor supersedes this content (e.g. fence injection).
+_EXECUTED_CODE_BLOCK_RE = re.compile(
+    r"\n*<details><summary>Code Interpreter Call</summary>.*?</details>[ \t]*\n*(?:[ \t]*</br>[ \t]*\n*)?",
+    re.DOTALL,
+)
+
+
+def strip_executed_code_blocks(text: str) -> str:
+    """Remove all executed-code <details> blocks emitted by this postprocessor.
+
+    Call this when the same content is represented elsewhere (e.g. imgWithSource
+    / fileWithSource fences) so the message does not contain duplicate code blocks.
+    """
+    return _EXECUTED_CODE_BLOCK_RE.sub("", text)
+
+
 logger = logging.getLogger(__name__)
 
 

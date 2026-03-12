@@ -13,11 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LoopTokenReducer preserves ResponseOutputItem instances during reduction (no source reduction applied)
 - Add unit tests for HistoryManager and LoopTokenReducer with Responses API output items
 
+## [1.53.2] - 2026-03-11
+- Code interpreter: replace all inline file refs in `message.text` with structured fences — `imgWithSource` for images (PNG etc.) and `fileWithSource` for documents (CSV, Excel, PDF, Word, HTML, Markdown). Each fence carries `id` (message-scoped counter), `contentId`, `title` (derived from filename), `type` (for fileWithSource), and the generating `code`. `<details>` blocks and trailing `</br>` from `ShowExecutedCodePostprocessor` are stripped when at least one fence is injected. Feature-flagged via `FEATURE_FLAG_ENABLE_CODE_EXECUTION_FENCE_UN_17972` (default off, safe to merge). `debugInfo.code_blocks` and the `code_blocks` field on `LanguageModelStreamResponseMessage` are removed (superseded by the fences). (UN-17972)
+## [1.53.1] - 2026-03-11
+- Fix RJSF `ui_schema_for_model` and `_unwrap_optional` to handle Python 3.10+ pipe union syntax (`A | B` / `types.UnionType`) in addition to `typing.Union`, so discriminated unions produce correct `anyOf` branches with per-branch metadata
+
 ## [1.53.0] - 2026-03-10
 - Responses API: rate-limit retry via **tenacity** (new dependency). Default 1 retry with ~30s backoff for `too_many_requests`; config via `RATE_LIMIT_RETRY_*` env vars. When new answers UI feature flag (`enable_new_answers_ui_un_14411`) is active, a step is written to the message log during each retry wait so the user is informed.
 
 ## [1.52.1] - 2026-03-10
 - Responses API: rate-limit retry via **tenacity** (new dependency). Exponential backoff (30s→60s→120s) for `too_many_requests`; config via `RATE_LIMIT_RETRY_*` env vars. When new answers UI feature flag (`enable_new_answers_ui_un_14411`) is active, a step is written to the message log during each retry wait.
+
 ## [1.52.0] - 2026-03-10
 - Refactor loop runner architecture: make `BasicLoopIterationRunner` an extensible base class with overridable hooks (`_handle_forced_tools`, `_handle_last_iteration`, `_handle_normal_iteration`)
 - Add `tool_choice_override` parameter to `run_forced_tools_iteration` for model-specific tool choice handling

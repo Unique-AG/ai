@@ -102,7 +102,7 @@ Get loaded tools and log them:
       show_source: true
 
 Expose tool definitions and prompts (prompt enhancements):
-```python
+```{.python #tool-manager-get-definitions-prompts}
 def get_tool_definitions(
     self,
 ) -> list[LanguageModelTool | LanguageModelToolDescription]:
@@ -113,7 +113,7 @@ def get_tool_prompts(self) -> list[ToolPrompts]:
 ```
 
 Evaluation metrics aggregation:
-```python
+```{.python #tool-manager-get-evaluation-check-list}
 def get_evaluation_check_list(self) -> list[EvaluationMetricName]:
     return list(self._tool_evaluation_check_list)
 ```
@@ -124,7 +124,7 @@ def get_evaluation_check_list(self) -> list[EvaluationMetricName]:
 Users can force a subset of tools via the UI. Forced tools are surfaced in an LLM API-compatible structure. So that the orchestrator can hand this information over to the LLM call in the correct format.
 
 Retrieve forced tools and add a forced tool programmatically:
-```python
+```{.python #tool-manager-forced-tools}
 def get_forced_tools(self) -> list[dict[str, Any]]:
     return [
         self._convert_to_forced_tool(t.name)
@@ -152,7 +152,7 @@ def _convert_to_forced_tool(self, tool_name: str) -> dict[str, Any]:
 Some tools request a handover from the main orchestrator so they can “take control” of the session. The orchestrator can check this before deciding weather to yield control or to continue its flow.
 
 Check if any selected call belongs to a control-taking tool:
-```python
+```{.python #tool-manager-does-tool-take-control}
 def does_a_tool_take_control(self, tool_calls: list[LanguageModelFunction]) -> bool:
     for tool_call in tool_calls:
         tool_instance = self.get_tool_by_name(tool_call.name)
@@ -179,7 +179,7 @@ The Tool Manager handles the execution of selected tools with the following step
    - Extracts references and debug information for further use.
 
 This streamlined process ensures efficient, accurate, and manageable tool execution.",
-```python
+```{.python #tool-manager-execute-selected-tools}
 async def execute_selected_tools(
     self,
     tool_calls: list[LanguageModelFunction],
@@ -209,7 +209,7 @@ async def execute_selected_tools(
 ```
 
 Parallel execution strategy:
-```python
+```{.python #tool-manager-execute-parallelized}
 async def _execute_parallelized(
     self,
     tool_calls: list[LanguageModelFunction],
@@ -242,7 +242,7 @@ async def _execute_parallelized(
 ```
 
 Execute a single tool call:
-```python
+```{.python #tool-manager-execute-tool-call}
 async def execute_tool_call(
     self, tool_call: LanguageModelFunction
 ) -> ToolCallResponse:
@@ -270,7 +270,7 @@ async def execute_tool_call(
 ```
 
 Normalize outcomes from the task executor:
-```python
+```{.python #tool-manager-create-tool-call-response}
 def _create_tool_call_response(
     self, result: Result[ToolCallResponse], tool_call: LanguageModelFunction
 ) -> ToolCallResponse:
@@ -296,7 +296,7 @@ def _create_tool_call_response(
 Before executing, the Tool Manager removes duplicate calls with identical names and arguments to prevent repeated work in the same round.
 
 Deduplicate calls and warn when filtered:
-```python
+```{.python #tool-manager-filter-duplicate-tool-calls}
 def filter_duplicate_tool_calls(
     self,
     tool_calls: list[LanguageModelFunction],

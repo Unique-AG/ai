@@ -14,7 +14,7 @@ The `Evaluation` class is an abstract base class that defines the structure and 
 4. **`evaluation_metric_to_assessment`**: Converts the evaluation result into a user-facing assessment message.
 
 #### Evaluation Class Definition:
-```python
+```{.python #evaluation-class-definition}
 class Evaluation(ABC):
     def __init__(self, name: EvaluationMetricName):
         self.name = name
