@@ -12,6 +12,9 @@ from unique_sdk.api_resources._content import Content
 
 # download readUrl a random directory in /tmp
 def download_file(url: str, filename: str):
+    # Guard for callers without a type checker: fail fast with a clear error before reaching requests.
+    if not isinstance(url, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+        raise ValueError("URL must be a string.")  # pyright: ignore[reportUnreachable]
     # Create a random directory inside /tmp
     random_dir = tempfile.mkdtemp(dir="/tmp")
 
@@ -119,6 +122,9 @@ def download_content(
     filename: str,
     chat_id: str | None = None,
 ):
+    # Guard for callers without a type checker: f-string would silently coerce None to "None" otherwise.
+    if not isinstance(content_id, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+        raise ValueError("content_id must be a string.")  # pyright: ignore[reportUnreachable]
     url = f"{unique_sdk.api_base}/content/{content_id}/file"
     if chat_id:
         url = f"{url}?chatId={chat_id}"
