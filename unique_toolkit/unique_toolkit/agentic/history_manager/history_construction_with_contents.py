@@ -33,7 +33,7 @@ class ChatMessageWithContents(ChatMessage):
     contents: list[Content] = []
 
 
-class ChatHistoryWithContent(RootModel):
+class ChatHistoryWithContent(RootModel[list[ChatMessageWithContents]]):
     root: list[ChatMessageWithContents]
 
     @classmethod
