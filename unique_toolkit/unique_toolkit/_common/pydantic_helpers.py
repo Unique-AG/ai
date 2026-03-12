@@ -35,15 +35,14 @@ NoneToDefault = BeforeValidator(_none_to_default)
 
 
 def get_configuration_dict(**kwargs: Unpack[ConfigDict]) -> ConfigDict:
-    config = {
+    base: dict[str, object] = {
         "alias_generator": to_camel,
         "field_title_generator": field_title_generator,
         "model_title_generator": model_title_generator,
         "populate_by_name": True,
-        # protected_namespaces=(),
     }
-    config.update(kwargs)
-    return ConfigDict(**config)
+    base.update(kwargs)  # pyright: ignore[reportArgumentType]
+    return ConfigDict(**base)  # pyright: ignore[reportArgumentType]
 
 
 ModelTypeA = TypeVar("ModelTypeA", bound=BaseModel)

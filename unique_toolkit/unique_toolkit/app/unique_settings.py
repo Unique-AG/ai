@@ -383,6 +383,43 @@ class UniqueApi(BaseSettings):
         return urlunparse(parsed._replace(path=path, query=None, fragment=None))
 
 
+@register_config()
+class UniqueAuth(BaseSettings):
+    company_id: SecretStr = Field(
+        default=SecretStr("dummy_company_id"),
+        validation_alias=AliasChoices(
+            "unique_auth_company_id",
+            "company_id",
+            "UNIQUE_AUTH_COMPANY_ID",
+            "COMPANY_ID",
+        ),
+    )
+    user_id: SecretStr = Field(
+        default=SecretStr("dummy_user_id"),
+        validation_alias=AliasChoices(
+            "unique_auth_user_id", "user_id", "UNIQUE_AUTH_USER_ID", "USER_ID"
+        ),
+    )
+
+    model_config = SettingsConfigDict(
+        env_prefix="unique_auth_",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    @model_validator(mode="after")
+    def _warn_about_defaults(self) -> Self:
+        return warn_about_defaults(self)
+
+    @classmethod
+    def from_event(cls, event: "BaseEvent[Any]") -> Self:
+        return cls(
+            company_id=SecretStr(event.company_id),
+            user_id=SecretStr(event.user_id),
+        )
+
+
 # EventFilterOptions
 # Settings only as only obtained from the environment.
 class UniqueChatEventFilterOptions(BaseSettings):
@@ -517,10 +554,10 @@ class UniqueSettings:
 
         # Initialize settings with environment file if provided
         env_file_str = str(env_file) if env_file else None
-        auth = UniqueAuth(_env_file=env_file_str)  # type: ignore[call-arg]
-        app = UniqueApp(_env_file=env_file_str)  # type: ignore[call-arg]
-        api = UniqueApi(_env_file=env_file_str)  # type: ignore[call-arg]
-        event_filter_options = UniqueChatEventFilterOptions(_env_file=env_file_str)  # type: ignore[call-arg]
+        auth = UniqueAuth(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
+        app = UniqueApp(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
+        api = UniqueApi(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
+        event_filter_options = UniqueChatEventFilterOptions(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
         return cls(
             auth=auth,
             app=app,
@@ -608,13 +645,10 @@ class UniqueSettings:
         return self._context
 
     def update_from_event(self, event: BaseEvent) -> None:
-        # Use UniqueAuth.from_event so the deprecated settings.auth property
-        # keeps working for callers that haven't migrated yet.
         self._context = UniqueContext(
             auth=UniqueAuth.from_event(event), chat=self._context.chat
         )
 
-    # utility method to return a copy with new auth context
     def with_auth(self, auth: AuthContextProtocol) -> Self:
         """Return a copy of the settings with the new auth context."""
         return self.__class__(
