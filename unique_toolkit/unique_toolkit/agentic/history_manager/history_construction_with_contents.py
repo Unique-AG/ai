@@ -12,7 +12,7 @@ from unique_toolkit._common.token.token_counting import (
 )
 from unique_toolkit._common.utils import files as FileUtils
 from unique_toolkit.app import ChatEventUserMessage
-from unique_toolkit.chat.schemas import ChatMessage, ToolCallRecord
+from unique_toolkit.chat.schemas import ChatMessage, MessageToolRecord
 from unique_toolkit.chat.schemas import ChatMessageRole as ChatRole
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import Content
@@ -243,20 +243,21 @@ def get_full_history_with_contents_and_tool_calls(
     chat_history = chat_service.get_full_history()
 
     assistant_message_ids = [
-        msg.id for msg in chat_history
-        if msg.role == ChatRole.ASSISTANT and msg.id
+        msg.id for msg in chat_history if msg.role == ChatRole.ASSISTANT and msg.id
     ]
-    tool_calls_by_message: dict[str, list[ToolCallRecord]] = {}
+    tool_calls_by_message: dict[str, list[MessageToolRecord]] = {}
     if assistant_message_ids:
         try:
-            all_tool_calls = chat_service.list_tool_calls_by_message_ids(
+            all_tool_calls = chat_service.get_message_tools(
                 message_ids=assistant_message_ids,
             )
             for tc in all_tool_calls:
                 if tc.message_id:
                     tool_calls_by_message.setdefault(tc.message_id, []).append(tc)
         except Exception:
-            logger.warning("Failed to batch-load tool calls, falling back to empty", exc_info=True)
+            logger.warning(
+                "Failed to batch-load tool calls, falling back to empty", exc_info=True
+            )
 
     grouped_elements = get_chat_history_with_contents(
         user_message=user_message,
@@ -286,9 +287,7 @@ def get_full_history_with_contents_and_tool_calls(
                         arguments=tc.arguments,
                     )
                     builder.messages.append(
-                        LanguageModelAssistantMessage.from_functions(
-                            tool_calls=[fn]
-                        )
+                        LanguageModelAssistantMessage.from_functions(tool_calls=[fn])
                     )
                     if tc.response and tc.response.content:
                         builder.messages.append(
