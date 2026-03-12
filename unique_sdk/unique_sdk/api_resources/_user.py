@@ -1,10 +1,7 @@
 from typing import (
     Any,
-    Dict,
-    List,
     Literal,
     NotRequired,
-    Optional,
     TypedDict,
     Unpack,
     cast,
@@ -25,29 +22,29 @@ class User(APIResource["User"]):
         Parameters for getting users in a company.
         """
 
-        skip: NotRequired[Optional[int]]
-        take: NotRequired[Optional[int]]
-        email: NotRequired[Optional[str]]
-        displayName: NotRequired[Optional[str]]
-        userName: NotRequired[Optional[str]]
+        skip: NotRequired[int | None]
+        take: NotRequired[int | None]
+        email: NotRequired[str | None]
+        displayName: NotRequired[str | None]
+        userName: NotRequired[str | None]
 
     class UpdateUserConfigurationParams(RequestOptions):
         """
         Parameters for updating user configuration.
         """
 
-        userConfiguration: Dict[str, Any]
+        userConfiguration: dict[str, Any]
 
     class UserGroup(TypedDict):
         id: str
         name: str
-        externalId: Optional[str]
-        parentId: Optional[str]
+        externalId: str | None
+        parentId: str | None
         createdAt: str
         updatedAt: str
 
     class UserGroupsResponse(TypedDict):
-        groups: List["User.UserGroup"]
+        groups: list["User.UserGroup"]
 
     class User(TypedDict):
         """
@@ -55,7 +52,7 @@ class User(APIResource["User"]):
         """
 
         id: str
-        externalId: Optional[str]
+        externalId: str | None
         firstName: str
         lastName: str
         displayName: str
@@ -70,14 +67,14 @@ class User(APIResource["User"]):
         Represents a user in the company with configuration.
         """
 
-        userConfiguration: Dict[str, Any]
+        userConfiguration: dict[str, Any]
 
     class Users(TypedDict):
         """
         Response for getting users.
         """
 
-        users: List["User.User"]
+        users: list["User.User"]
 
     @classmethod
     def get_users(

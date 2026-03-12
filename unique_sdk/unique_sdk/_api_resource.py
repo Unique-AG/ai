@@ -1,8 +1,8 @@
+from collections.abc import Mapping
 from typing import (
     Any,
     Generic,
     Literal,
-    Mapping,
     Self,
     TypeVar,
 )

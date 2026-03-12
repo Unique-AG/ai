@@ -1,9 +1,8 @@
+from collections.abc import Iterator, Mapping
 from typing import (
     Any,
     Generic,
-    Iterator,
     Literal,
-    Mapping,
     TypeVar,
     cast,
 )
