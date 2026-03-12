@@ -202,7 +202,7 @@ def get_json_schema_extra_for_base_model_type(model: type[BaseModel]):
     """
     sample_params = base_model_to_parameter_list(model)
 
-    def _mutate(schema: dict) -> None:
+    def _mutate(schema: dict[str, Any]) -> None:
         json_default = json.dumps(model.model_json_schema())
         params_default = [p.model_dump() for p in sample_params]
 

@@ -90,7 +90,7 @@ async def create_memory_async(
     user_id: str,
     company_id: str,
     key: str,
-    value: str | dict,
+    value: str | dict[str, Any],
     chat_id: str | None = None,
     message_id: str | None = None,
 ):
@@ -136,7 +136,7 @@ def create_memory(
     user_id: str,
     company_id: str,
     key: str,
-    value: str | dict,
+    value: str | dict[str, Any],
     chat_id: str | None = None,
     message_id: str | None = None,
 ):

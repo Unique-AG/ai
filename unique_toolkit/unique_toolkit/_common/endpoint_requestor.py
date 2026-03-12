@@ -71,7 +71,7 @@ def build_fake_requestor(
     combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
     return_value: dict[str, Any],
 ) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
-    class FakeRequestor(EndpointRequestorProtocol):
+    class FakeRequestor(EndpointRequestorProtocol[Any, Any]):
         _operation = operation_type
 
         @classmethod
@@ -126,7 +126,7 @@ def build_request_requestor(
 ) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     import requests
 
-    class RequestRequestor(EndpointRequestorProtocol):
+    class RequestRequestor(EndpointRequestorProtocol[Any, Any]):
         _operation = operation_type
 
         @classmethod
@@ -203,7 +203,7 @@ def build_httpx_requestor(
 ) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     import httpx
 
-    class HttpxRequestor(EndpointRequestorProtocol):
+    class HttpxRequestor(EndpointRequestorProtocol[Any, Any]):
         _operation = operation_type
 
         @classmethod
@@ -311,7 +311,7 @@ def build_aiohttp_requestor(
 ) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     import aiohttp
 
-    class AiohttpRequestor(EndpointRequestorProtocol):
+    class AiohttpRequestor(EndpointRequestorProtocol[Any, Any]):
         _operation = operation_type
 
         @classmethod

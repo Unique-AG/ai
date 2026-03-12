@@ -173,7 +173,7 @@ class Tool(ABC, Generic[ConfigType]):
         self.config = config
         module_name = "default overwrite for module name"
         self.logger = getLogger(f"{module_name}.{__name__}")
-        self.debug_info: dict = {}
+        self.debug_info: dict[str, Any] = {}
 
         if event is not None:
             from unique_toolkit.agentic.message_log_manager.service import (

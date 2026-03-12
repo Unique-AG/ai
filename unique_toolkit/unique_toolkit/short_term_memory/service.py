@@ -1,4 +1,4 @@
-from typing import overload
+from typing import Any, overload
 
 from typing_extensions import deprecated
 
@@ -24,7 +24,7 @@ class ShortTermMemoryService:
         "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: Event | ChatEvent | BaseEvent): ...
+    def __init__(self, event: Event | ChatEvent | BaseEvent[Any]): ...
 
     """
         Initialize the ShortTermMemoryService with an event (deprecated)
@@ -46,7 +46,7 @@ class ShortTermMemoryService:
 
     def __init__(
         self,
-        event: Event | ChatEvent | BaseEvent | None = None,
+        event: Event | ChatEvent | BaseEvent[Any] | None = None,
         user_id: str | None = None,
         company_id: str | None = None,
         chat_id: str | None = None,
@@ -86,7 +86,7 @@ class ShortTermMemoryService:
     @deprecated(
         "The event property is deprecated and will be removed in a future version."
     )
-    def event(self) -> Event | BaseEvent | None:
+    def event(self) -> Event | BaseEvent[Any] | None:
         """
         Get the event object (deprecated).
 
@@ -253,7 +253,7 @@ class ShortTermMemoryService:
             message_id=self._message_id,
         )
 
-    async def create_memory_async(self, key: str, value: str | dict):
+    async def create_memory_async(self, key: str, value: str | dict[str, Any]):
         """
         Create a short term memory.
 
@@ -277,7 +277,7 @@ class ShortTermMemoryService:
             message_id=self._message_id,
         )
 
-    def create_memory(self, key: str, value: str | dict):
+    def create_memory(self, key: str, value: str | dict[str, Any]):
         """
         Create a short term memory.
 
@@ -301,7 +301,7 @@ class ShortTermMemoryService:
         )
 
     @deprecated("Use create_memory_async instead")
-    async def set(self, key: str, value: str | dict):
+    async def set(self, key: str, value: str | dict[str, Any]):
         return await create_memory_async(
             user_id=self._user_id,
             company_id=self._company_id,
