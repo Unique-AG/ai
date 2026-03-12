@@ -1,15 +1,27 @@
-from typing import Any, Generic, Iterator, List, Mapping, Optional, TypeVar, cast
+from typing import (
+    Any,
+    Generic,
+    Iterator,
+    Literal,
+    Mapping,
+    TypeVar,
+    cast,
+)
 
 from typing_extensions import Self
 
 from unique_sdk._unique_object import UniqueObject
+from unique_sdk._util import classproperty
 
 T = TypeVar("T", bound=UniqueObject)
 
 
 class ListObject(UniqueObject, Generic[T]):
-    OBJECT_NAME = "list"
-    data: List[T]
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["list"]:
+        return "list"
+
+    data: list[T]
     has_more: bool
     url: str
 
@@ -75,8 +87,8 @@ class ListObject(UniqueObject, Generic[T]):
     @classmethod
     def _empty_list(
         cls,
-        user_id: Optional[str],
-        company_id: Optional[str],
+        user_id: str | None,
+        company_id: str | None,
     ) -> Self:
         return cls.construct_from(
             {"data": []},

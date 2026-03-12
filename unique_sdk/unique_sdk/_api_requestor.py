@@ -4,7 +4,8 @@ import json
 import platform
 import time
 from collections import OrderedDict
-from typing import Any, Callable, Dict, List, Mapping, NoReturn, Optional, cast
+from collections.abc import Mapping
+from typing import Any, Callable, NoReturn, cast
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import unique_sdk
@@ -62,17 +63,17 @@ def _build_api_url(url, query):
 
 
 class APIRequestor(object):
-    api_key: Optional[str]
-    app_id: Optional[str]
+    api_key: str | None
+    app_id: str | None
     api_base: str
     api_version: str
-    user_id: Optional[str]
-    company_id: Optional[str]
+    user_id: str | None
+    company_id: str | None
 
     def __init__(
         self,
-        user_id: Optional[str],
-        company_id: Optional[str],
+        user_id: str | None,
+        company_id: str | None,
         key=None,
         app_id=None,
     ):
@@ -95,8 +96,8 @@ class APIRequestor(object):
         self,
         method: str,
         url: str,
-        params: Optional[Mapping[str, Any]] = None,
-        headers: Optional[Mapping[str, str]] = None,
+        params: Mapping[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> UniqueResponse:
         rbody, rcode, rheaders = self.request_raw(
             method.lower(), url, params, headers, is_streaming=False
@@ -108,8 +109,8 @@ class APIRequestor(object):
         self,
         method: str,
         url: str,
-        params: Optional[Mapping[str, Any]] = None,
-        headers: Optional[Mapping[str, str]] = None,
+        params: Mapping[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> UniqueResponse:
         rbody, rcode, rheaders = await self.request_raw_async(
             method.lower(), url, params, headers, is_streaming=False
@@ -126,7 +127,9 @@ class APIRequestor(object):
             "publisher": "unique",
             "httplib": self._client.name,
         }
-        ua_parts: List[tuple[str, Callable[[], str]]] = [
+        # Typed list + isinstance guard: basedpyright can't infer the mixed
+        # list[list[str | Callable]] the original code used.
+        ua_parts: list[tuple[str, Callable[[], str]]] = [
             ("lang_version", platform.python_version),
             ("platform", platform.platform),
             ("uname", lambda: " ".join(platform.uname())),
@@ -161,8 +164,8 @@ class APIRequestor(object):
         self,
         method: str,
         url: str,
-        params: Optional[Mapping[str, Any]] = None,
-        supplied_headers: Optional[Mapping[str, str]] = None,
+        params: Mapping[str, Any] | None = None,
+        supplied_headers: Mapping[str, str] | None = None,
         is_streaming: bool = False,
     ):
         method, abs_url, headers, post_data = self._get_request_args(
@@ -197,8 +200,8 @@ class APIRequestor(object):
         self,
         method: str,
         url: str,
-        params: Optional[Mapping[str, Any]] = None,
-        supplied_headers: Optional[Mapping[str, str]] = None,
+        params: Mapping[str, Any] | None = None,
+        supplied_headers: Mapping[str, str] | None = None,
         is_streaming: bool = False,
     ):
         method, abs_url, headers, post_data = self._get_request_args(
@@ -233,17 +236,17 @@ class APIRequestor(object):
         self,
         method: str,
         url: str,
-        params: Optional[Mapping[str, Any]] = None,
-        supplied_headers: Optional[Mapping[str, str]] = None,
+        params: Mapping[str, Any] | None = None,
+        supplied_headers: Mapping[str, str] | None = None,
     ):
-        supplied_headers_dict: Optional[Dict[str, str]] = (
+        supplied_headers_dict: dict[str, str] | None = (
             dict(supplied_headers) if supplied_headers is not None else None
         )
 
         if params is not None:
             res = self.rename_keys(params)
             # casting needed due to list processing in rename_keys
-            params = cast(Optional[Mapping[str, Any]], res)
+            params = cast(Mapping[str, Any] | None, res)
 
         if self.api_key:
             my_api_key = self.api_key
@@ -306,7 +309,7 @@ class APIRequestor(object):
 
         return method, abs_url, headers, post_data
 
-    def rename_keys(self, obj: Optional[Mapping[str, Any]]):
+    def rename_keys(self, obj: Mapping[str, Any] | None):
         if obj is None:
             return None
         if isinstance(obj, dict):

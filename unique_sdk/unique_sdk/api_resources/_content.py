@@ -1,10 +1,7 @@
 from enum import Enum
 from typing import (
     Any,
-    Dict,
-    List,
     Literal,
-    Optional,
     TypedDict,
     cast,
 )
@@ -24,66 +21,64 @@ class Content(APIResource["Content"]):
 
     id: str
     key: str
-    url: Optional[str]
-    title: Optional[str]
+    url: str | None
+    title: str | None
     updatedAt: str
-    chunks: Optional[List["Content.Chunk"]]
-    metadata: Optional[Dict[str, Any]]
-    writeUrl: Optional[str]
-    readUrl: Optional[str]
-    expiredAt: Optional[str]
-    appliedIngestionConfig: Optional[Dict[str, Any]]
+    chunks: list["Content.Chunk"] | None
+    metadata: dict[str, Any] | None
+    writeUrl: str | None
+    readUrl: str | None
+    expiredAt: str | None
+    appliedIngestionConfig: dict[str, Any] | None
 
     class QueryMode(Enum):
         Default = "default"
         Insensitive = "insensitive"
 
     class StringFilter(TypedDict, total=False):
-        contains: Optional[str]
-        endsWith: Optional[str]
-        equals: Optional[str]
-        gt: Optional[str]
-        gte: Optional[str]
-        in_: Optional[
-            List[str]
-        ]  # Changed 'in' to 'in_' as 'in' is a reserved keyword in Python
-        lt: Optional[str]
-        lte: Optional[str]
-        mode: Optional["Content.QueryMode"]
-        not_: Optional["Content.NestedStringFilter"]  # Changed 'not' to 'not_'
-        notIn: Optional[List[str]]
-        startsWith: Optional[str]
+        contains: str | None
+        endsWith: str | None
+        equals: str | None
+        gt: str | None
+        gte: str | None
+        in_: (
+            list[str] | None
+        )  # Changed 'in' to 'in_' as 'in' is a reserved keyword in Python
+        lt: str | None
+        lte: str | None
+        mode: "Content.QueryMode | None"  # quoted: basedpyright can't use | with unresolved forward ref
+        not_: "Content.NestedStringFilter | None"  # Changed 'not' to 'not_'
+        notIn: list[str] | None
+        startsWith: str | None
 
     class NestedStringFilter(StringFilter):
-        not_: Optional[
-            "Content.NestedStringFilter"
-        ]  # Inherit from StringFilter and redefine 'not_' for nested usage
+        pass  # not_ inherited from StringFilter as Optional[NestedStringFilter]
 
     class StringNullableFilter(TypedDict, total=False):
-        contains: Optional[str]
-        endsWith: Optional[str]
-        equals: Optional[str]
-        gt: Optional[str]
-        gte: Optional[str]
-        in_: Optional[List[str]]
-        lt: Optional[str]
-        lte: Optional[str]
-        mode: Optional["Content.QueryMode"]
-        not_: Optional["Content.NestedStringNullableFilter"]
-        notIn: Optional[List[str]]
+        contains: str | None
+        endsWith: str | None
+        equals: str | None
+        gt: str | None
+        gte: str | None
+        in_: list[str] | None
+        lt: str | None
+        lte: str | None
+        mode: "Content.QueryMode | None"
+        not_: "Content.NestedStringNullableFilter | None"
+        notIn: list[str] | None
 
     class NestedStringNullableFilter(StringNullableFilter):
-        not_: Optional["Content.NestedStringNullableFilter"]
+        pass  # not_ inherited from StringNullableFilter
 
     class ContentWhereInput(TypedDict, total=False):
-        AND: Optional[List["Content.ContentWhereInput"]]
-        NOT: Optional[List["Content.ContentWhereInput"]]
-        OR: Optional[List["Content.ContentWhereInput"]]
-        id: Optional["Content.StringFilter"]
-        key: Optional["Content.StringFilter"]
-        ownerId: Optional["Content.StringFilter"]
-        title: Optional["Content.StringNullableFilter"]
-        url: Optional["Content.StringNullableFilter"]
+        AND: list["Content.ContentWhereInput"] | None
+        NOT: list["Content.ContentWhereInput"] | None
+        OR: list["Content.ContentWhereInput"] | None
+        id: "Content.StringFilter | None"
+        key: "Content.StringFilter | None"
+        ownerId: "Content.StringFilter | None"
+        title: "Content.StringNullableFilter | None"
+        url: "Content.StringNullableFilter | None"
 
     class SearchParams(RequestOptions):
         where: "Content.ContentWhereInput"
@@ -117,31 +112,31 @@ class Content(APIResource["Content"]):
 
     class CustomApiOptions(TypedDict):
         apiIdentifier: str
-        apiPayload: Optional[str]
+        apiPayload: str | None
         customisationType: str
 
     class VttConfig(TypedDict, total=False):
-        languageModel: Optional[str]
+        languageModel: str | None
 
     class IngestionConfig(TypedDict, total=False):
-        chunkMaxTokens: Optional[int]
-        chunkMaxTokensOnePager: Optional[int]
-        chunkMinTokens: Optional[int]
-        chunkStrategy: Optional[str]
-        customApiOptions: Optional[List["Content.CustomApiOptions"]]
-        documentMinTokens: Optional[int]
-        excelReadMode: Optional[str]
-        jpgReadMode: Optional[str]
-        pdfReadMode: Optional[str]
-        pptReadMode: Optional[str]
+        chunkMaxTokens: int | None
+        chunkMaxTokensOnePager: int | None
+        chunkMinTokens: int | None
+        chunkStrategy: str | None
+        customApiOptions: list["Content.CustomApiOptions"] | None
+        documentMinTokens: int | None
+        excelReadMode: str | None
+        jpgReadMode: str | None
+        pdfReadMode: str | None
+        pptReadMode: str | None
         uniqueIngestionMode: str
-        vttConfig: Optional["Content.VttConfig"]
-        wordReadMode: Optional[str]
-        hideInChat: Optional[bool]
+        vttConfig: "Content.VttConfig | None"
+        wordReadMode: str | None
+        hideInChat: bool | None
 
     class Input(TypedDict):
         key: str
-        title: Optional[str]
+        title: str | None
         mimeType: str
         description: NotRequired[str | None]
         ownerType: NotRequired[str | None]
@@ -175,9 +170,9 @@ class Content(APIResource["Content"]):
     class Chunk(TypedDict):
         id: str
         text: str
-        startPage: Optional[int]
-        endPage: Optional[int]
-        order: Optional[int]
+        startPage: int | None
+        endPage: int | None
+        order: int | None
 
     class ContentInfo(TypedDict):
         """
@@ -189,7 +184,7 @@ class Content(APIResource["Content"]):
         key: str
         url: str | None
         title: str | None
-        metadata: Dict[str, Any] | None
+        metadata: dict[str, Any] | None
         mimeType: str
         description: str | None
         byteSize: int
@@ -201,11 +196,11 @@ class Content(APIResource["Content"]):
         expiredAt: str | None
 
     class PaginatedContentInfo(TypedDict):
-        contentInfo: List["Content.ContentInfo"]
+        contentInfo: list["Content.ContentInfo"]
         totalCount: int
 
     class PaginatedContentInfos(TypedDict):
-        contentInfos: List["Content.ContentInfo"]
+        contentInfos: list["Content.ContentInfo"]
         totalCount: int
 
     class DeleteParams(RequestOptions):
@@ -223,18 +218,18 @@ class Content(APIResource["Content"]):
 
     class MagicTableRow(TypedDict):
         rowId: str
-        columns: List["Content.MagicTableSheetTableColumn"]
+        columns: list["Content.MagicTableSheetTableColumn"]
         context: NotRequired[str]
         rowMetadata: NotRequired[str]
 
     class MagicTableSheetIngestionConfiguration(TypedDict):
-        columnIdsInMetadata: List[str]
-        columnIdsInChunkText: List[str]
+        columnIdsInMetadata: list[str]
+        columnIdsInChunkText: list[str]
 
     class MagicTableSheetIngestParams(TypedDict):
-        data: List["Content.MagicTableRow"]
+        data: list["Content.MagicTableRow"]
         ingestionConfiguration: "Content.MagicTableSheetIngestionConfiguration"
-        metadata: Dict[str, Optional[str]]
+        metadata: dict[str, str | None]
         scopeId: str
         sheetName: str
         context: NotRequired[str]
@@ -244,7 +239,7 @@ class Content(APIResource["Content"]):
         contentId: str
 
     class MagicTableSheetResponse(TypedDict):
-        rowIdsToContentIds: List["Content.MagicTableSheetRowIdToContentId"]
+        rowIdsToContentIds: list["Content.MagicTableSheetRowIdToContentId"]
 
     @classmethod
     def search(
@@ -252,9 +247,9 @@ class Content(APIResource["Content"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Content.SearchParams"],
-    ) -> List["Content"]:
+    ) -> list["Content"]:
         return cast(
-            List["Content"],
+            list["Content"],
             cls._static_request(
                 "post",
                 "/content/search",
@@ -270,9 +265,9 @@ class Content(APIResource["Content"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Content.SearchParams"],
-    ) -> List["Content"]:
+    ) -> list["Content"]:
         return cast(
-            List["Content"],
+            list["Content"],
             await cls._static_request_async(
                 "post",
                 "/content/search",
@@ -493,7 +488,7 @@ class Content(APIResource["Content"]):
         )
 
     @classmethod
-    def update(
+    def update(  # pyright: ignore[reportIncompatibleMethodOverride]
         cls,
         user_id: str,
         company_id: str,

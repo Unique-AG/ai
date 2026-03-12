@@ -18,6 +18,7 @@ def load_history(
             chatId=chatId,
         )
 
+        # cast to list: messages["data"] is Any; basedpyright needs narrowing
         messages = cast(list[Any], messages["data"])[:-2]
         filteredMessages = []
         for message in messages:

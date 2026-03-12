@@ -1,7 +1,4 @@
-from typing import (
-    Literal,
-    Unpack,
-)
+from typing import Literal, Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions

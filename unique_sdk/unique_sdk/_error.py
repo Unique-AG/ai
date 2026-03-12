@@ -1,29 +1,29 @@
-from typing import Dict, Optional, Union, cast
+from typing import cast
 
 
 class UniqueError(Exception):
-    _message: Optional[str]
-    http_body: Optional[str]
-    http_status: Optional[int]
-    json_body: Optional[object]
-    headers: Optional[Dict[str, str]]
-    code: Optional[str]
-    request_id: Optional[str]
-    original_error: Optional[Exception | str]
+    _message: str | None
+    http_body: str | None
+    http_status: int | None
+    json_body: object | None
+    headers: dict[str, str] | None
+    code: str | None
+    request_id: str | None
+    original_error: Exception | str | None
 
     def __init__(
         self,
-        message: Optional[str] = None,
-        http_body: Optional[Union[bytes, str]] = None,
-        http_status: Optional[int] = None,
-        json_body: Optional[object] = None,
-        headers: Optional[Dict[str, str]] = None,
-        code: Optional[str] = None,
-        original_error: Optional[Exception | str] = None,
+        message: str | None = None,
+        http_body: bytes | str | None = None,
+        http_status: int | None = None,
+        json_body: object | None = None,
+        headers: dict[str, str] | None = None,
+        code: str | None = None,
+        original_error: Exception | str | None = None,
     ):
         super(UniqueError, self).__init__(message)
 
-        body: Optional[str] = None
+        body: str | None = None
         if http_body and hasattr(http_body, "decode"):
             try:
                 body = cast(bytes, http_body).decode("utf-8")
@@ -50,14 +50,30 @@ class UniqueError(Exception):
 
 
 class UniqueErrorWithParamsCode(UniqueError):
-    # Widened from Dict[str, str] | None: InvalidRequestError callers pass plain strings
-    params: Optional[Union[Dict[str, str], str]]
+    # str included: InvalidRequestError callers pass plain strings (e.g. "id")
+    params: dict[str, str] | str | None
+
+    def __init__(
+        self,
+        message: str | None = None,
+        http_body: bytes | str | None = None,
+        http_status: int | None = None,
+        json_body: object | None = None,
+        headers: dict[str, str] | None = None,
+        code: str | None = None,
+        original_error: Exception | str | None = None,
+        params: dict[str, str] | str | None = None,
+    ):
+        super().__init__(
+            message, http_body, http_status, json_body, headers, code, original_error
+        )
+        self.params = params
 
     def __repr__(self):
         return "%s(message=%r, params=%r, code=%r, http_status=%r, request_id=%r)" % (
             self.__class__.__name__,
             self._message,
-            self.params,  # type: ignore
+            self.params,
             self.code,
             self.http_status,
             self.request_id,
