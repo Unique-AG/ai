@@ -1758,7 +1758,7 @@ class ChatService(ChatServiceDeprecated):
             user_id=self._user_id,
             company_id=self._company_id,
             content_id=content_id,
-            chat_id=self._chat_id,
+            chat_id=self._content_scope_chat_id,
         )
 
     async def download_chat_content_to_bytes_async(self, *, content_id: str) -> bytes:
@@ -1786,8 +1786,8 @@ class ChatService(ChatServiceDeprecated):
         for c in search_contents(
             user_id=self._user_id,
             company_id=self._company_id,
-            chat_id=self._chat_id,
-            where={"ownerId": {"equals": self._chat_id}},
+            chat_id=self._content_scope_chat_id,
+            where={"ownerId": {"equals": self._content_scope_chat_id}},
         ):
             if is_file_content(filename=c.key):
                 files.append(c)

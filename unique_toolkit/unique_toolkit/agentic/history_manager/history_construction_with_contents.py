@@ -278,7 +278,10 @@ def get_full_history_with_contents_and_tool_calls(
 
         # For assistant messages, interleave tool calls before the final response
         if c.role == ChatRole.ASSISTANT and c.id and c.id in tool_calls_by_message:
-            tc_records = tool_calls_by_message[c.id]
+            tc_records = sorted(
+                tool_calls_by_message[c.id],
+                key=lambda tc: (tc.round_index, tc.sequence_index),
+            )
             if tc_records:
                 for tc in tc_records:
                     fn = LanguageModelFunction(
