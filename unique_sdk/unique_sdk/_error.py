@@ -50,7 +50,7 @@ class UniqueError(Exception):
 
 
 class UniqueErrorWithParamsCode(UniqueError):
-    params: dict[str, str] | None
+    params: dict[str, str] | str | None
 
     def __init__(
         self,
@@ -61,7 +61,7 @@ class UniqueErrorWithParamsCode(UniqueError):
         headers: dict[str, str] | None = None,
         code: str | None = None,
         original_error: Exception | str | None = None,
-        params: dict[str, str] | None = None,
+        params: dict[str, str] | str | None = None,
     ):
         super().__init__(
             message, http_body, http_status, json_body, headers, code, original_error

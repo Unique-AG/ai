@@ -356,7 +356,7 @@ class AgenticTable(APIResource["AgenticTable"]):
                     for cell in cells
                 ]
             }
-        except (KeyError, Exception) as e:
+        except KeyError as e:
             raise ValueError(f"Invalid data or missing required fields: {e}")
         return cast(
             "ColumnMetadataUpdateStatus",
