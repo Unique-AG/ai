@@ -309,7 +309,7 @@ class Message(APIResource["Message"]):
         ...
 
     @class_method_variant("_cls_delete")
-    def delete(  # pyright: ignore[reportGeneralTypeIssues, reportInconsistentOverload]
+    def delete(  # pyright: ignore[reportInconsistentOverload]
         self,
         user_id: str,
         company_id: str,
@@ -326,7 +326,7 @@ class Message(APIResource["Message"]):
             params=params,
         )
 
-    async def delete_async(  # pyright: ignore[reportGeneralTypeIssues]
+    async def delete_async(
         self,
         user_id: str,
         company_id: str,

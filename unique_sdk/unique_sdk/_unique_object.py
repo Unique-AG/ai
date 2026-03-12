@@ -1,10 +1,10 @@
+from collections.abc import Mapping
 from copy import deepcopy
 from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
     Literal,
-    Mapping,
     Self,
     cast,
 )
@@ -48,7 +48,7 @@ class UniqueObject(dict[str, Any]):
 
     # UniqueObject inherits from `dict` which has an update method, and this doesn't quite match
     # the full signature of the update method in MutableMapping. But we ignore.
-    def update(  # pyright: ignore
+    def update(  # pyright: ignore[reportIncompatibleMethodOverride]
         self, update_dict: Mapping[str, Any]
     ) -> None:
         for k in update_dict:

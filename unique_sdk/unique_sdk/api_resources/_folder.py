@@ -1,9 +1,7 @@
 from typing import (
     Any,
-    List,
     Literal,
     NotRequired,
-    Optional,
     TypedDict,
     Unpack,
     cast,
@@ -52,7 +50,7 @@ class Folder(APIResource["Folder"]):
         chunkMaxTokensOnePager: NotRequired[int | None]
         chunkMinTokens: NotRequired[int | None]
         chunkStrategy: NotRequired[str | None]
-        customApiOptions: NotRequired[List["Folder.CustomApiOptions"] | None]
+        customApiOptions: NotRequired[list["Folder.CustomApiOptions"] | None]
         documentMinTokens: NotRequired[int | None]
         excelReadMode: NotRequired[str | None]
         jpgReadMode: NotRequired[str | None]
@@ -66,15 +64,15 @@ class Folder(APIResource["Folder"]):
         id: str
         object: str
         name: str
-        parentId: Optional[str]
+        parentId: str | None
 
     class CreateFolderStructureResponse(TypedDict):
-        createdFolders: List["Folder.CreatedFolder"]
+        createdFolders: list["Folder.CreatedFolder"]
 
     class CreateParams(RequestOptions):
-        paths: NotRequired[List[str] | None]
+        paths: NotRequired[list[str] | None]
         parentScopeId: NotRequired[str | None]
-        relativePaths: NotRequired[List[str] | None]
+        relativePaths: NotRequired[list[str] | None]
         inheritAccess: NotRequired[bool]
 
     class FolderInfo(TypedDict):
@@ -91,13 +89,13 @@ class Folder(APIResource["Folder"]):
         externalId: str | None
 
     class FolderInfos(TypedDict):
-        folderInfos: List["Folder.FolderInfo"]
+        folderInfos: list["Folder.FolderInfo"]
         totalCount: int
 
     id: str
     name: str
-    scopeAccess: List[ScopeAccess]
-    children: List[Children]
+    scopeAccess: list[ScopeAccess]
+    children: list[Children]
 
     class UpdateIngestionConfigParams(TypedDict):
         """
@@ -116,7 +114,7 @@ class Folder(APIResource["Folder"]):
 
         scopeId: NotRequired[str | None]
         folderPath: NotRequired[str | None]
-        scopeAccesses: List["Folder.ScopeAccess"]
+        scopeAccesses: list["Folder.ScopeAccess"]
         applyToSubScopes: bool
 
     class RemoveAccessParams(TypedDict):
@@ -126,7 +124,7 @@ class Folder(APIResource["Folder"]):
 
         scopeId: NotRequired[str | None]
         folderPath: NotRequired[str | None]
-        scopeAccesses: List["Folder.ScopeAccess"]
+        scopeAccesses: list["Folder.ScopeAccess"]
         applyToSubScopes: bool
 
     class DeleteFolderParams(TypedDict):
@@ -182,8 +180,8 @@ class Folder(APIResource["Folder"]):
         Response for deleting a folder.
         """
 
-        successFolders: List["Folder.DeleteFolderResponse"]
-        failedFolders: List["Folder.DeleteFolderResponse"]
+        successFolders: list["Folder.DeleteFolderResponse"]
+        failedFolders: list["Folder.DeleteFolderResponse"]
 
     class FolderPathResponse(TypedDict):
         """
