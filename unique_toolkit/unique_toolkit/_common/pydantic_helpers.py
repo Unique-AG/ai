@@ -41,7 +41,7 @@ def get_configuration_dict(**kwargs: Unpack[ConfigDict]) -> ConfigDict:
         "model_title_generator": model_title_generator,
         "populate_by_name": True,
     }
-    base.update(kwargs)  # pyright: ignore[reportArgumentType]
+    base.update(kwargs)
     return ConfigDict(**base)  # pyright: ignore[reportArgumentType]
 
 

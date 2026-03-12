@@ -62,10 +62,10 @@ class AugmentedDataExtractor(BaseDataExtractor):
             )
             fields[field_name] = wrapped_field
 
-        return create_model(
+        return create_model(  # pyright: ignore[reportCallIssue]
             schema.__name__,
             **fields,
-            __config__={"extra": "forbid" if self._strict else "ignore"},
+            __config__=ConfigDict(extra="forbid" if self._strict else "ignore"),
             __doc__=schema.__doc__,
         )
 

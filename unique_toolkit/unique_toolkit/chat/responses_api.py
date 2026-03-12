@@ -326,7 +326,7 @@ def _prepare_responses_args(
         "top_p": top_p,
     }
 
-    openai_options.update({k: v for k, v in explicit_options.items() if v is not None})  # pyright: ignore[reportCallIssue]
+    openai_options.update({k: v for k, v in explicit_options.items() if v is not None})  # pyright: ignore[reportArgumentType]
 
     # allow any other openai.resources.responses.Response.create options
     if other_options is not None:
