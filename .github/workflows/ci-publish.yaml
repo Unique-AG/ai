@@ -33,7 +33,6 @@ on:
           - internal_search
           - quartr
           - six
-          - search_proxy
         default: ''
 
 jobs:
