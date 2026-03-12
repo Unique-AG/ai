@@ -1,3 +1,5 @@
+from typing import Any, cast
+
 import regex as re
 
 import unique_sdk
@@ -16,9 +18,8 @@ def load_history(
             chatId=chatId,
         )
 
-        # .get() + isinstance: basedpyright can't verify dict["data"] access
-        data = messages.get("data", [])
-        messages = data[:-2] if isinstance(data, list) else []
+        # cast to list: messages["data"] is Any; basedpyright needs narrowing
+        messages = cast(list[Any], messages["data"])[:-2]
         filteredMessages = []
         for message in messages:
             if message["text"] is None:
