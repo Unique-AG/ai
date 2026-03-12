@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import re
 from mimetypes import guess_type
@@ -19,6 +20,14 @@ from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memo
     PersistentShortMemoryManager,
 )
 from unique_toolkit.agentic.tools.config import get_configuration_dict
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
+    strip_executed_code_blocks,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import (
+    CodeInterpreterBlock,
+    CodeInterpreterFile,
+    CodeInterpreterFileType,
+)
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
@@ -188,7 +197,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 loop_response.message.text, replaced = _replace_container_file_citation(
                     text=loop_response.message.text,
                     filename=filename,
-                    ref_number=ref_number,
+                    content_id=content_id,
                 )
                 changed |= replaced
 
@@ -209,6 +218,18 @@ class DisplayCodeInterpreterFilesPostProcessor(
                     )
                 )
                 ref_number += 1
+
+        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+            self._company_id
+        ):
+            code_blocks = _build_code_blocks(loop_response, self._content_map)
+            text_before = loop_response.message.text
+            loop_response.message.text = _inject_code_execution_fences(
+                loop_response.message.text,
+                code_blocks,
+            )
+            changed |= loop_response.message.text != text_before
+
         return changed
 
     @override
@@ -271,6 +292,193 @@ class DisplayCodeInterpreterFilesPostProcessor(
         await self._short_term_memory_manager.save_async(
             _DisplayedFilesShortTermMemorySchema(root=content_infos)
         )
+
+
+def _get_file_type(filename: str) -> CodeInterpreterFileType:
+    mime = guess_type(filename)[0] or ""
+    if mime.startswith("image/"):
+        return "image"
+    if mime == "text/html":
+        return "html"
+    return "document"
+
+
+def _file_title(filename: str) -> str:
+    """Derive a human-readable title from a filename.
+
+    Strips the extension, replaces underscores and hyphens with spaces, and
+    applies title case. e.g. monthly_revenue_chart.png -> Monthly Revenue Chart.
+    """
+    stem = filename.rsplit(".", 1)[0] if "." in filename else filename
+    return stem.replace("_", " ").replace("-", " ").title()
+
+
+def _file_frontend_type(filename: str) -> str:
+    """Map filename to the type token the frontend expects in fileWithSource.
+
+    Assumed enum (to be confirmed with frontend):
+      excel   → .xlsx / .xls
+      csv     → .csv
+      word    → .docx / .doc
+      pdf     → .pdf
+      html    → .html / .htm
+      image   → image/* MIME
+      document → fallback
+    """
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    mime = guess_type(filename)[0] or ""
+    if mime.startswith("image/"):
+        return "image"
+    mapping = {
+        "xlsx": "excel",
+        "xls": "excel",
+        "csv": "csv",
+        "docx": "word",
+        "doc": "word",
+        "pdf": "pdf",
+        "html": "html",
+        "htm": "html",
+    }
+    return mapping.get(ext, "document")
+
+
+def _escape_code_attr(code: str) -> str:
+    """Escape the code string for embedding as a double-quoted attribute value.
+
+    Uses JSON encoding so all special characters (quotes, backslashes, newlines,
+    control chars) are handled consistently and safely.
+    """
+    return json.dumps(code.rstrip())[1:-1]
+
+
+def _build_file_fence(file: CodeInterpreterFile, code: str, fence_id: int) -> str:
+    """Build a per-file fence marker.
+
+    Images produce an imgWithSource fence; all other types produce a
+    fileWithSource fence. Each fence is self-contained: it carries the
+    content_id, a title derived from the filename, the type, and the
+    escaped source code.
+
+    Format (4 backticks so inner code backticks never close the fence):
+      ````imgWithSource(id='{n}', contentId='{id}', title="{title}", code="{escaped_code}")````
+      ````fileWithSource(id='{n}', contentId='{id}', title="{title}", type="{type}", code="{escaped_code}")````
+    """
+    title = _file_title(file.filename)
+    escaped = _escape_code_attr(code)
+    outer = "````"
+    if file.type == "image":
+        tag = f"imgWithSource(id='{fence_id}', contentId='{file.content_id}', title=\"{title}\", code=\"{escaped}\")"
+    else:
+        ftype = _file_frontend_type(file.filename)
+        tag = f'fileWithSource(id=\'{fence_id}\', contentId=\'{file.content_id}\', title="{title}", type="{ftype}", code="{escaped}")'
+    return f"{outer}{tag}{outer}"
+
+
+def _inline_ref_pattern(file: CodeInterpreterFile) -> re.Pattern[str]:
+    """Return a compiled pattern matching the inline ref for a file in message text.
+
+    After apply_postprocessing_to_response replaces sandbox paths, each file type
+    has a distinct inline form in the text:
+      image    → ![image](unique://content/{content_id})
+      document → [{filename}](unique://content/{content_id})
+      html     → ```HtmlRendering\\n100%\\n500px\\n\\nunique://content/{content_id}\\n\\n```
+    """
+    cid = re.escape(file.content_id)
+    fname = re.escape(file.filename)
+    if file.type == "image":
+        return re.compile(rf"!\[image\]\(unique://content/{cid}\)")
+    if file.type == "html":
+        return re.compile(
+            rf"```HtmlRendering\n100%\n500px\n\nunique://content/{cid}\n\n```",
+            re.DOTALL,
+        )
+    return re.compile(rf"\[{fname}\]\(unique://content/{cid}\)")
+
+
+def _inject_code_execution_fences(
+    text: str, code_blocks: list[CodeInterpreterBlock]
+) -> str:
+    """Replace inline file refs with imgWithSource / fileWithSource fences.
+
+    Images get an imgWithSource fence; all other files (PDF, Excel, Word, CSV, etc.)
+    get a fileWithSource fence. Both carry contentId, title, type (fileWithSource only),
+    and the generating code so the frontend can render or offer a download with full
+    context.
+
+    Each file gets its own fence placed at the position of its inline ref. Duplicate
+    refs for the same file (overwrite case) are removed after the first is replaced.
+    When at least one fence was injected, executed-code <details> blocks are
+    stripped via strip_executed_code_blocks() from the code_display postprocessor.
+
+    fence_id is a message-level counter so each fence has a unique id.
+    """
+    fence_id = 1
+    any_fence_injected = False
+    for block in code_blocks:
+        for file in block.files:
+            fence = _build_file_fence(file, block.code, fence_id)
+            pattern = _inline_ref_pattern(file)
+            new_text, n = re.subn(pattern, lambda m, _f=fence: _f, text, count=1)
+            if n:
+                text = new_text
+                fence_id += 1
+                any_fence_injected = True
+            # Remove duplicate refs (overwrite case)
+            text = re.sub(pattern, "", text)
+    if any_fence_injected:
+        text = strip_executed_code_blocks(text)
+    return text
+
+
+def _build_code_blocks(
+    loop_response: ResponsesLanguageModelStreamResponse,
+    content_map: dict[str, str | None],
+) -> list[CodeInterpreterBlock]:
+    """Map each code interpreter call to the files it produced via /mnt/data/ path matching.
+
+    For each file, the LAST code block that references its path is treated as the
+    producer — this handles the case where a file is overwritten across blocks, where
+    the final content belongs to the last writer.
+    """
+    calls = loop_response.code_interpreter_calls
+
+    # Step 1: for each file, find the index of the last block that references it.
+    file_to_block_idx: dict[str, int] = {}
+    for idx, call in enumerate(calls):
+        if not call.code:
+            continue
+        for annotation in loop_response.container_files:
+            if (
+                content_map.get(annotation.filename) is not None
+                and f"/mnt/data/{annotation.filename}" in call.code
+            ):
+                file_to_block_idx[annotation.filename] = idx
+
+    # Step 2: group files by their owning block index, deduplicating by filename.
+    # OpenAI may emit multiple annotations for the same filename when a file is
+    # overwritten across executions. Using a dict keyed by filename ensures each
+    # file appears exactly once per block (last annotation wins, consistent with
+    # the last-writer-wins rule applied in step 1).
+    block_file_map: dict[int, dict[str, CodeInterpreterFile]] = {}
+    for annotation in loop_response.container_files:
+        content_id = content_map.get(annotation.filename)
+        if content_id is None:
+            continue
+        idx = file_to_block_idx.get(annotation.filename)
+        if idx is None:
+            continue
+        block_file_map.setdefault(idx, {})[annotation.filename] = CodeInterpreterFile(
+            filename=annotation.filename,
+            content_id=content_id,
+            type=_get_file_type(annotation.filename),
+        )
+
+    # Step 3: build result preserving block execution order.
+    return [
+        CodeInterpreterBlock(code=calls[idx].code, files=list(files.values()))
+        for idx, files in sorted(block_file_map.items())
+        if calls[idx].code
+    ]
 
 
 def _get_next_ref_number(references: list[ContentReference]) -> int:
@@ -339,7 +547,7 @@ unique://content/{content_id}
 
 
 def _replace_container_file_citation(
-    text: str, filename: str, ref_number: int
+    text: str, filename: str, content_id: str
 ) -> tuple[str, bool]:
     file_markdown = rf"\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
 
@@ -350,6 +558,6 @@ def _replace_container_file_citation(
     logger.info("Displaying file %s", filename)
     return re.sub(
         file_markdown,
-        f"<sup>{ref_number}</sup>",
+        f"[{filename}](unique://content/{content_id})",
         text,
     ), True
