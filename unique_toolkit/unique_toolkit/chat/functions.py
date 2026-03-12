@@ -63,7 +63,7 @@ def modify_message(
     content: str | None = None,
     original_content: str | None = None,
     references: list[ContentReference] | None = None,
-    debug_info: dict | None = None,
+    debug_info: dict[str, Any] | None = None,
     message_id: str | None = None,
     set_completed_at: bool = False,
 ) -> ChatMessage:
@@ -125,7 +125,7 @@ async def modify_message_async(
     content: str | None = None,
     original_content: str | None = None,
     references: list[ContentReference] | None = None,
-    debug_info: dict | None = None,
+    debug_info: dict[str, Any] | None = None,
     message_id: str | None = None,
     set_completed_at: bool = False,
 ) -> ChatMessage:
@@ -220,7 +220,7 @@ def _construct_message_modify_params(
     content: str | None = None,
     original_content: str | None = None,
     references: list[ContentReference] | None = None,
-    debug_info: dict | None = None,
+    debug_info: dict[str, Any] | None = None,
     message_id: str | None = None,
     set_completed_at: bool = False,
 ) -> dict[str, Any]:
@@ -263,7 +263,7 @@ def create_message(
     content: str | None = None,
     original_content: str | None = None,
     references: list[ContentReference] | None = None,
-    debug_info: dict | None = None,
+    debug_info: dict[str, Any] | None = None,
     set_completed_at: bool | None = False,
 ) -> ChatMessage:
     """Creates a message in the chat session synchronously.
@@ -320,7 +320,7 @@ async def create_message_async(
     content: str | None = None,
     original_content: str | None = None,
     references: list[ContentReference] | None = None,
-    debug_info: dict | None = None,
+    debug_info: dict[str, Any] | None = None,
     set_completed_at: bool | None = False,
 ):
     """Creates a message in the chat session synchronously.
@@ -377,7 +377,7 @@ def _construct_message_create_params(
     content: str | None = None,
     original_content: str | None = None,
     references: list[ContentReference] | None = None,
-    debug_info: dict | None = None,
+    debug_info: dict[str, Any] | None = None,
     set_completed_at: bool | None = False,
 ) -> dict[str, Any]:
     if original_content is None:
@@ -427,7 +427,7 @@ def get_selection_from_history(
 
 
 @deprecated("Use ChatMessage directly")
-def map_to_chat_messages(messages: list[dict]) -> list[ChatMessage]:
+def map_to_chat_messages(messages: list[dict[str, Any]]) -> list[ChatMessage]:
     return [ChatMessage(**msg) for msg in messages]
 
 
@@ -745,12 +745,12 @@ def stream_complete_to_chat(
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     content_chunks: list[ContentChunk] | None = None,
-    debug_info: dict = {},
+    debug_info: dict[str, Any] = {},
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
 ) -> LanguageModelStreamResponse:
     return stream_complete_with_references(
         company_id=company_id,
@@ -781,13 +781,13 @@ def stream_complete_with_references(
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     content_chunks: list[ContentChunk] | None = None,
-    debug_info: dict | None = None,
+    debug_info: dict[str, Any] | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
     tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
 ) -> LanguageModelStreamResponse:
     """Streams a completion synchronously.
 
@@ -837,7 +837,7 @@ def stream_complete_with_references(
             timeout=timeout,
             assistantId=assistant_id,
             debugInfo=debug_info or {},
-            options=options,  # type: ignore
+            options=options,  # pyright: ignore[reportCallIssue]
             startText=start_text,
         )
         return LanguageModelStreamResponse(**response)
@@ -857,12 +857,12 @@ async def stream_complete_to_chat_async(
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     content_chunks: list[ContentChunk] | None = None,
-    debug_info: dict = {},
+    debug_info: dict[str, Any] = {},
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
     start_text: str | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
 ) -> LanguageModelStreamResponse:
     return await stream_complete_with_references_async(
         company_id=company_id,
@@ -893,13 +893,13 @@ async def stream_complete_with_references_async(
     messages: LanguageModelMessages | list[ChatCompletionMessageParam],
     model_name: LanguageModelName | str,
     content_chunks: list[ContentChunk] | None = None,
-    debug_info: dict | None = None,
+    debug_info: dict[str, Any] | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
     tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
     start_text: str | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
 ) -> LanguageModelStreamResponse:
     """Streams a completion asynchronously.
 
@@ -934,7 +934,7 @@ async def stream_complete_with_references_async(
             timeout=timeout,
             assistantId=assistant_id,
             debugInfo=debug_info or {},
-            options=options,  # type: ignore
+            options=options,  # pyright: ignore[reportCallIssue]
             startText=start_text,
         )
         return LanguageModelStreamResponse(**response)
@@ -943,7 +943,7 @@ async def stream_complete_with_references_async(
         raise e
 
 
-def _get_model_dump_or_none(model: BaseModel | None) -> dict | None:
+def _get_model_dump_or_none(model: BaseModel | None) -> dict[str, Any] | None:
     if model is None:
         return None
     return model.model_dump()
@@ -1166,7 +1166,7 @@ def create_message_execution(
     seconds_remaining: int | None = None,
     percentage_completed: int | None = None,
     is_queueable: bool = True,
-    execution_options: dict | None = None,
+    execution_options: dict[str, Any] | None = None,
     progress_title: str | None = None,
 ) -> MessageExecution:
     """Creates a message execution synchronously.
@@ -1195,10 +1195,7 @@ def create_message_execution(
             user_id=user_id,
             company_id=company_id,
             messageId=message_id,
-            chatId=chat_id,
             type=type.value,
-            secondsRemaining=seconds_remaining,
-            percentageCompleted=percentage_completed,
             isQueueable=is_queueable,
             executionOptions=execution_options,
             progressTitle=progress_title,
@@ -1218,7 +1215,7 @@ async def create_message_execution_async(
     seconds_remaining: int | None = None,
     percentage_completed: int | None = None,
     is_queueable: bool = True,
-    execution_options: dict | None = None,
+    execution_options: dict[str, Any] | None = None,
     progress_title: str | None = None,
 ) -> MessageExecution:
     """Creates a message execution asynchronously.
@@ -1247,10 +1244,7 @@ async def create_message_execution_async(
             user_id=user_id,
             company_id=company_id,
             messageId=message_id,
-            chatId=chat_id,
             type=type.value,
-            secondsRemaining=seconds_remaining,
-            percentageCompleted=percentage_completed,
             isQueueable=is_queueable,
             executionOptions=execution_options,
             progressTitle=progress_title,
