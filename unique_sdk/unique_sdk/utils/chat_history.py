@@ -1,5 +1,3 @@
-from typing import Any, cast
-
 import regex as re
 
 import unique_sdk
@@ -12,14 +10,13 @@ def load_history(
     userId, companyId, chatId, maxTokens, percentOfMaxTokens=0.15, maxMessages=4
 ):
     def get_chat_history(userId, companyId, chatId):
-        messages = unique_sdk.Message.list(
+        list_result = unique_sdk.Message.list(
             user_id=userId,
             company_id=companyId,
             chatId=chatId,
         )
 
-        # cast to list: messages["data"] is Any; basedpyright needs narrowing
-        messages = cast(list[Any], messages["data"])[:-2]
+        messages = list_result.data[:-2]
         filteredMessages = []
         for message in messages:
             if message["text"] is None:

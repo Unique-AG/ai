@@ -688,9 +688,7 @@ class Content(APIResource["Content"]):
             content_infos = file_info.get("contentInfo")
             resolved_id = (
                 content_infos[0].get("id")
-                if file_info.get("totalCount", 0) > 0
-                and content_infos is not None
-                and len(content_infos) > 0
+                if file_info.get("totalCount", 0) > 0 and len(content_infos) > 0
                 else None
             )
             if not resolved_id:
