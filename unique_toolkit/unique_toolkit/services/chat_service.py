@@ -1130,8 +1130,6 @@ class ChatService(ChatServiceDeprecated):
         *,
         message_id: str,
         type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
-        seconds_remaining: int | None = None,
-        percentage_completed: int | None = None,
         is_queueable: bool = True,
         execution_options: dict[str, Any] | None = None,
         progress_title: str | None = None,
@@ -1141,8 +1139,6 @@ class ChatService(ChatServiceDeprecated):
         Args:
             message_id (str): The ID of the message this execution belongs to
             type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
-            seconds_remaining (int | None): Estimated seconds remaining for completion
-            percentage_completed (int | None): Percentage of completion (0-100)
             is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline. Set to False if you want to update the progress manually.
             execution_options (dict | None): Additional execution options. Defaults to None.
             progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
@@ -1158,10 +1154,7 @@ class ChatService(ChatServiceDeprecated):
             user_id=self._user_id,
             company_id=self._company_id,
             message_id=message_id,
-            chat_id=self._chat_id,
             type=type,
-            seconds_remaining=seconds_remaining,
-            percentage_completed=percentage_completed,
             is_queueable=is_queueable,
             execution_options=execution_options,
             progress_title=progress_title,
@@ -1172,8 +1165,6 @@ class ChatService(ChatServiceDeprecated):
         *,
         message_id: str,
         type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
-        seconds_remaining: int | None = None,
-        percentage_completed: int | None = None,
         is_queueable: bool = True,
         execution_options: dict[str, Any] | None = None,
         progress_title: str | None = None,
@@ -1183,8 +1174,6 @@ class ChatService(ChatServiceDeprecated):
         Args:
             message_id (str): The ID of the message this execution belongs to
             type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
-            seconds_remaining (int | None): Estimated seconds remaining for completion
-            percentage_completed (int | None): Percentage of completion (0-100)
             is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline. Set to False if you want to update the progress manually.
             execution_options (dict | None): Additional execution options. Defaults to None.
             progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
@@ -1200,10 +1189,7 @@ class ChatService(ChatServiceDeprecated):
             user_id=self._user_id,
             company_id=self._company_id,
             message_id=message_id,
-            chat_id=self._chat_id,
             type=type,
-            seconds_remaining=seconds_remaining,
-            percentage_completed=percentage_completed,
             is_queueable=is_queueable,
             execution_options=execution_options,
             progress_title=progress_title,
