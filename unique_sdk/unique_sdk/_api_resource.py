@@ -1,10 +1,8 @@
 from typing import (
     Any,
-    Dict,
     Generic,
     Literal,
     Mapping,
-    Optional,
     Self,
     TypeVar,
 )
@@ -143,8 +141,8 @@ class APIResource(UniqueObject, Generic[T]):
         url_: str,
         user_id: str,
         company_id: str,
-        headers: Optional[Dict[str, str]] = None,
-        params: Optional[Mapping[str, Any]] = None,
+        headers: dict[str, str] | None = None,
+        params: Mapping[str, Any] | None = None,
     ) -> Self:
         obj = UniqueObject._request(
             self,
@@ -167,8 +165,8 @@ class APIResource(UniqueObject, Generic[T]):
         url_: str,
         user_id: str,
         company_id: str,
-        headers: Optional[Dict[str, str]] = None,
-        params: Optional[Mapping[str, Any]] = None,
+        headers: dict[str, str] | None = None,
+        params: Mapping[str, Any] | None = None,
     ) -> Self:
         obj = await UniqueObject._request_async(
             self,
@@ -191,8 +189,8 @@ class APIResource(UniqueObject, Generic[T]):
         cls,
         method_,
         url_,
-        user_id: Optional[str] = None,
-        company_id: Optional[str] = None,
+        user_id: str | None = None,
+        company_id: str | None = None,
         params=None,
     ):
         params = None if params is None else params.copy()
@@ -210,8 +208,8 @@ class APIResource(UniqueObject, Generic[T]):
         cls,
         method_,
         url_,
-        user_id: Optional[str] = None,
-        company_id: Optional[str] = None,
+        user_id: str | None = None,
+        company_id: str | None = None,
         params=None,
     ):
         params = None if params is None else params.copy()

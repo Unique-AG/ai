@@ -1,9 +1,7 @@
 from typing import (
     Any,
-    List,
     Literal,
     NotRequired,
-    Optional,
     TypedDict,
     Unpack,
     cast,
@@ -17,8 +15,8 @@ from unique_sdk._util import classproperty
 class ChatCompletionRequestMessage(TypedDict, total=False):
     role: Literal["system", "user", "assistant"]
     content: str
-    name: Optional[str]
-    tool_call_id: Optional[str]
+    name: str | None
+    tool_call_id: str | None
 
 
 class ChatCompletionResponseMessage(TypedDict):
@@ -44,15 +42,15 @@ class ChatCompletion(APIResource["ChatCompletion"]):
                 "AZURE_GPT_4_32K_0613",
             ]
         ]
-        timeout: NotRequired[Optional["int"]]
-        messages: List[ChatCompletionRequestMessage]
+        timeout: NotRequired[int | None]
+        messages: list[ChatCompletionRequestMessage]
         options: NotRequired[dict[str, Any]]
 
     model: Literal[
         "AZURE_GPT_4_0613",
         "AZURE_GPT_4_32K_0613",
     ]
-    choices: List[ChatCompletionChoicesInner]
+    choices: list[ChatCompletionChoicesInner]
 
     @classmethod
     def create(

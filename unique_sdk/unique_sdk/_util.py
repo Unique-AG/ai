@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import functools
 import logging
@@ -10,17 +12,15 @@ from functools import wraps
 from typing import (
     Any,
     Callable,
-    Dict,
-    List,
     Optional,
+    Type,
     TypedDict,
     TypeVar,
-    Union,
     cast,
     overload,
 )
 
-from typing_extensions import TYPE_CHECKING, Type
+from typing_extensions import TYPE_CHECKING
 
 import unique_sdk  # noqa: F401
 from unique_sdk._error import APIConnectionError, APIError, UniqueError
@@ -96,36 +96,38 @@ def get_object_classes():
     return OBJECT_CLASSES
 
 
-Resp = Union["UniqueResponse", Dict[str, Any], List["Resp"]]
+Resp = "UniqueResponse" | dict[str, Any] | list["Resp"]
 
 
+# Suppress reportInvalidTypeForm for convert_to_unique_object (Type["UniqueObject"] in overloads)
+# pyright: reportInvalidTypeForm=false
 @overload
 def convert_to_unique_object(
-    resp: Union["UniqueResponse", Dict[str, Any]],
-    user_id: Optional[str],
-    company_id: Optional[str],
-    params: Optional[Dict[str, Any]] = None,
+    resp: "UniqueResponse" | dict[str, Any],
+    user_id: str | None,
+    company_id: str | None,
+    params: dict[str, Any] | None = None,
     klass_: Optional[Type["UniqueObject"]] = None,
 ) -> "UniqueObject": ...
 
 
 @overload
 def convert_to_unique_object(
-    resp: List[Resp],
-    user_id: Optional[str],
-    company_id: Optional[str],
-    params: Optional[Dict[str, Any]] = None,
+    resp: list[Resp],
+    user_id: str | None,
+    company_id: str | None,
+    params: dict[str, Any] | None = None,
     klass_: Optional[Type["UniqueObject"]] = None,
-) -> List["UniqueObject"]: ...
+) -> list["UniqueObject"]: ...
 
 
 def convert_to_unique_object(
     resp: Resp,
-    user_id: Optional[str],
-    company_id: Optional[str],
-    params: Optional[Dict[str, Any]] = None,
+    user_id: str | None,
+    company_id: str | None,
+    params: dict[str, Any] | None = None,
     klass_: Optional[Type["UniqueObject"]] = None,
-) -> Union["UniqueObject", List["UniqueObject"]]:
+) -> "UniqueObject" | list["UniqueObject"]:
     # If we get a UniqueResponse, we'll want to return a
     # UniqueObject with the last_response field filled out with
     # the raw API response information
@@ -142,7 +144,7 @@ def convert_to_unique_object(
     if isinstance(resp, list):
         return [
             convert_to_unique_object(
-                cast("Union[UniqueResponse, Dict[str, Any]]", i),
+                cast("UniqueResponse | dict[str, Any]", i),
                 user_id,
                 company_id,
                 klass_=klass_,
@@ -185,7 +187,7 @@ def convert_to_unique_object(
 
 
 class RetryOptions(TypedDict):
-    error_messages: List[str]
+    error_messages: list[str]
     max_retries: int
     initial_delay: int
     backoff_factor: int
@@ -205,7 +207,7 @@ class class_method_variant(object):
         self.method = method
         return cast(T, self)
 
-    def __get__(self, obj, objtype: Optional[Type[Any]] = None):
+    def __get__(self, obj, objtype: type[Any] | None = None):
         @functools.wraps(self.method)
         def _wrapper(*args, **kwargs):
             if obj is not None:
@@ -226,7 +228,7 @@ class class_method_variant(object):
 
 
 def retry_on_error(
-    error_messages: List[str],
+    error_messages: list[str],
     max_retries: int = 3,
     initial_delay: int = 1,
     backoff_factor: int = 2,

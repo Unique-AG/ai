@@ -1,6 +1,6 @@
 import asyncio
 import warnings
-from typing import Any, List, Literal
+from typing import Any, Literal
 
 from unique_sdk.api_resources._message import Message
 from unique_sdk.api_resources._space import Space
@@ -15,7 +15,7 @@ async def send_message_and_wait_for_completion(
     company_id: str,
     assistant_id: str,
     text: str,
-    tool_choices: List[str] | None = None,
+    tool_choices: list[str] | None = None,
     scope_rules: dict[str, Any] | None = None,
     chat_id: str | None = None,
     poll_interval: float = 1.0,

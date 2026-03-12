@@ -3,7 +3,6 @@ import hmac
 import json
 import time
 from collections import OrderedDict
-from typing import Union
 
 import unique_sdk
 from unique_sdk.api_resources._event import Event
@@ -14,9 +13,9 @@ class Webhook:
 
     @staticmethod
     def construct_event(
-        message: Union[str, bytes],
+        message: str | bytes,
         sig_header: str,
-        timestamp: Union[str, int],
+        timestamp: str | int,
         secret: str,
         tolerance=DEFAULT_TOLERANCE,
     ):

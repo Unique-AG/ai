@@ -1,4 +1,4 @@
-from typing import List, Literal, cast
+from typing import Literal, cast
 
 from typing_extensions import Unpack
 
@@ -13,9 +13,9 @@ class Embeddings(APIResource["Embeddings"]):
         return "openai.embeddings"
 
     class CreateParams(RequestOptions):
-        texts: List[str]
+        texts: list[str]
 
-    embeddings: List[List[float]]
+    embeddings: list[list[float]]
 
     @classmethod
     def create(

@@ -1,11 +1,8 @@
 from typing import (
     TYPE_CHECKING,
     Any,
-    List,
     Literal,
     NotRequired,
-    Optional,
-    Union,
     Unpack,
     cast,
 )
@@ -53,11 +50,11 @@ class Integrated(APIResource["Integrated"]):
     class ChatCompletionRequestMessage(TypedDict, total=False):
         role: Literal["system", "user", "assistant"]
         content: str
-        name: Optional[str]
+        name: str | None
 
     class CommonIntegratedParams(RequestOptions):
         model: NotRequired[str]
-        searchContext: NotRequired[List["Integrated.SearchResult"]]
+        searchContext: NotRequired[list["Integrated.SearchResult"]]
         chatId: str
         assistantId: str
         assistantMessageId: str
@@ -67,7 +64,7 @@ class Integrated(APIResource["Integrated"]):
 
     class CreateStream(CommonIntegratedParams):
         timeout: NotRequired["int"]
-        messages: List["Integrated.ChatCompletionRequestMessage"]
+        messages: list["Integrated.ChatCompletionRequestMessage"]
 
     # For further details about the responses parameters, see the OpenAI API documentation.
     # Note that other parameters from openai.resources.responses.Response.create can be passed
@@ -75,7 +72,7 @@ class Integrated(APIResource["Integrated"]):
         include: NotRequired[list["ResponseIncludable"] | None]
         instructions: NotRequired[str | None]
         max_output_tokens: NotRequired[int | None]
-        metadata: NotRequired[Union["Metadata", None]]
+        metadata: NotRequired["Metadata | None"]
         parallel_tool_calls: NotRequired[bool | None]
         temperature: NotRequired[float | None]
         text: NotRequired["ResponseTextConfigParam"]
@@ -85,7 +82,7 @@ class Integrated(APIResource["Integrated"]):
         reasoning: NotRequired["Reasoning"]
 
     class CreateStreamResponsesParams(CommonIntegratedParams):
-        input: Union[str, "ResponseInputParam"]
+        input: "str | ResponseInputParam"
         options: NotRequired["Integrated.CreateStreamResponsesOpenaiParams"]
 
     class ToolCall(TypedDict):
@@ -96,7 +93,7 @@ class Integrated(APIResource["Integrated"]):
     class ResponsesStreamResult(TypedDict):
         id: str
         message: Message
-        toolCalls: List["Integrated.ToolCall"]
+        toolCalls: list["Integrated.ToolCall"]
         output: list["ResponseOutputItem"]
 
     @classmethod

@@ -1,4 +1,4 @@
-from typing import Literal, Optional, cast
+from typing import Literal, cast
 
 from typing_extensions import NotRequired, Unpack
 
@@ -14,20 +14,20 @@ class ShortTermMemory(APIResource["ShortTermMemory"]):
 
     class CreateParams(RequestOptions):
         memoryName: str
-        chatId: Optional[str]
-        messageId: NotRequired[Optional[str]]
-        data: Optional[str]
+        chatId: str | None
+        messageId: NotRequired[str | None]
+        data: str | None
 
     class FindParams(RequestOptions):
         memoryName: str
-        chatId: Optional[str]
-        messageId: NotRequired[Optional[str]]
+        chatId: str | None
+        messageId: NotRequired[str | None]
 
     id: str
     memoryName: str
-    chatId: Optional[str]
-    messageId: Optional[str]
-    data: Optional[str]
+    chatId: str | None
+    messageId: str | None
+    data: str | None
 
     @classmethod
     def create(

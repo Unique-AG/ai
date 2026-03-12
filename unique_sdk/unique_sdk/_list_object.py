@@ -2,10 +2,8 @@ from typing import (
     Any,
     Generic,
     Iterator,
-    List,
     Literal,
     Mapping,
-    Optional,
     TypeVar,
     cast,
 )
@@ -23,7 +21,7 @@ class ListObject(UniqueObject, Generic[T]):
     def OBJECT_NAME(cls) -> Literal["list"]:
         return "list"
 
-    data: List[T]
+    data: list[T]
     has_more: bool
     url: str
 
@@ -89,8 +87,8 @@ class ListObject(UniqueObject, Generic[T]):
     @classmethod
     def _empty_list(
         cls,
-        user_id: Optional[str],
-        company_id: Optional[str],
+        user_id: str | None,
+        company_id: str | None,
     ) -> Self:
         return cls.construct_from(
             {"data": []},
