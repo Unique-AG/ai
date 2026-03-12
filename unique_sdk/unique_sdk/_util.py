@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import inspect
 import logging
 import os
 import random
@@ -311,7 +312,7 @@ def retry_on_error(
                     time.sleep(delay + jitter)
 
         # Return the appropriate wrapper based on whether the function is async
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
             return async_wrapper
         return sync_wrapper
 
