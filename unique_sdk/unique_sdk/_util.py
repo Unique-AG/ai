@@ -16,6 +16,7 @@ from typing import (
     Type,
     TypedDict,
     TypeVar,
+    Union,
     cast,
     overload,
 )
@@ -96,7 +97,7 @@ def get_object_classes():
     return OBJECT_CLASSES
 
 
-Resp = "UniqueResponse" | dict[str, Any] | list["Resp"]
+Resp = Union["UniqueResponse", dict[str, Any], list["Resp"]]
 
 
 # Suppress reportInvalidTypeForm for convert_to_unique_object (Type["UniqueObject"] in overloads)
