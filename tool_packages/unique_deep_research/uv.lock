@@ -3827,7 +3827,7 @@ dev = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.84"
+version = "0.10.85"
 source = { editable = "../../unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
@@ -3868,7 +3868,7 @@ dev = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.50.4"
+version = "1.53.1"
 source = { editable = "../../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -3891,6 +3891,7 @@ dependencies = [
     { name = "python-docx" },
     { name = "requests" },
     { name = "sseclient" },
+    { name = "tenacity" },
     { name = "tiktoken" },
     { name = "tokenizers" },
     { name = "typing-extensions" },
@@ -3925,6 +3926,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.32.0,<3" },
     { name = "sseclient", specifier = ">=0.0.27,<0.0.28" },
     { name = "starlette", marker = "extra == 'fastapi'", specifier = ">=0.49.1" },
+    { name = "tenacity", specifier = ">=9.1.4" },
     { name = "tiktoken", specifier = ">=0.12.0,<0.13" },
     { name = "tokenizers", specifier = ">=0.21.0,<0.22" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
