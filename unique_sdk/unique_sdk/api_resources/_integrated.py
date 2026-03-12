@@ -11,7 +11,7 @@ from typing_extensions import TypedDict
 
 # Avoid introducing a dependency on the openai sdk as it's only used for type hints
 if TYPE_CHECKING:
-    from openai.types.responses import (  # pyright: ignore[reportMissingImports]
+    from openai.types.responses import (
         ResponseIncludable,
         ResponseInputParam,
         ResponseOutputItem,
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
         ToolParam,
         response_create_params,
     )
-    from openai.types.shared_params import (  # pyright: ignore[reportMissingImports]
+    from openai.types.shared_params import (
         Metadata,
         Reasoning,
     )

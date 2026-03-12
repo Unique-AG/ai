@@ -31,12 +31,15 @@ class LogEntry(TypedDict):
     details: NotRequired[LogDetail]
 
 
-class AgenticTableCell(TypedDict, total=False):
-    sheetId: str
+class _AgenticTableCellRequired(TypedDict):
     rowOrder: int
     columnOrder: int
-    rowLocked: bool
     text: str
+
+
+class AgenticTableCell(_AgenticTableCellRequired, total=False):
+    sheetId: str
+    rowLocked: bool
     logEntries: list[LogEntry] | None
 
 
@@ -349,9 +352,9 @@ class AgenticTable(APIResource["AgenticTable"]):
             params_api = {
                 "cells": [
                     {
-                        "rowOrder": cell["rowOrder"],  # pyright: ignore[reportTypedDictNotRequiredAccess]
-                        "columnOrder": cell["columnOrder"],  # pyright: ignore[reportTypedDictNotRequiredAccess]
-                        "data": cell["text"],  # pyright: ignore[reportTypedDictNotRequiredAccess]
+                        "rowOrder": cell["rowOrder"],
+                        "columnOrder": cell["columnOrder"],
+                        "data": cell["text"],
                     }
                     for cell in cells
                 ]
