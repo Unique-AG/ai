@@ -1,28 +1,28 @@
-"""Tests for Tool API resource and helpers.
+"""Tests for MessageTool API resource and helpers.
 
 Conforms to unique_skills/.claude/skills/python-testing (naming, docstrings, mocker, ai mark).
 """
 
 import pytest
 
-from unique_sdk import Tool as ToolPublic
+from unique_sdk import MessageTool as MessageToolPublic
 from unique_sdk._list_object import ListObject
-from unique_sdk.api_resources._tool import (
+from unique_sdk.api_resources._message_tool import (
     _MESSAGE_IDS_PAGE_SIZE,
-    Tool,
+    MessageTool,
     _chunk_message_ids,
 )
 
 
 @pytest.mark.ai
-def test_tool_exported_from_unique_sdk():
-    """Purpose: Tool is importable from unique_sdk (public API).
+def test_message_tool_exported_from_unique_sdk():
+    """Purpose: MessageTool is importable from unique_sdk (public API).
 
     Why this matters: Ensures the new export in unique_sdk/__init__.py is covered
     so diff-coverage on changed lines passes in CI.
-    Setup summary: Import Tool from unique_sdk. Assert it is the same class as the module-level Tool.
+    Setup summary: Import MessageTool from unique_sdk. Assert it is the same class as the module-level MessageTool.
     """
-    assert ToolPublic is Tool
+    assert MessageToolPublic is MessageTool
 
 
 def _make_list_object(data=None):
@@ -121,7 +121,7 @@ def test_chunk_message_ids__two_full_pages__returns_two_chunks():
     assert all(c.count(",") == _MESSAGE_IDS_PAGE_SIZE - 1 for c in chunks)
 
 
-# --- Tool class methods (mocked) ---
+# --- MessageTool class methods (mocked) ---
 
 
 @pytest.mark.ai
@@ -132,12 +132,12 @@ def test_create_many__success__returns_list_object(mocker):
     Setup summary: Mock _static_request to return a ListObject. Call create_many. Assert type and params.
     """
     mocker.patch.object(
-        Tool, "_static_request", return_value=_make_list_object([{"id": "tc-1"}])
+        MessageTool, "_static_request", return_value=_make_list_object([{"id": "tc-1"}])
     )
-    result = Tool.create_many("user", "company", messageId="msg-1", tools=[])
+    result = MessageTool.create_many("user", "company", messageId="msg-1", tools=[])
     assert isinstance(result, ListObject)
     assert result.get("data") == [{"id": "tc-1"}]
-    Tool._static_request.assert_called_once_with(
+    MessageTool._static_request.assert_called_once_with(
         "post",
         "/messages/tools",
         "user",
@@ -153,39 +153,39 @@ def test_create_many__non_list_object_response__raises_type_error(mocker):
     Why this matters: Defensive check so callers get a clear error.
     Setup summary: Mock _static_request to return a dict. Call create_many. Expect TypeError.
     """
-    mocker.patch.object(Tool, "_static_request", return_value={"data": []})
+    mocker.patch.object(MessageTool, "_static_request", return_value={"data": []})
     with pytest.raises(TypeError, match="Expected list object from API"):
-        Tool.create_many("user", "company", messageId="msg-1", tools=[])
+        MessageTool.create_many("user", "company", messageId="msg-1", tools=[])
 
 
 @pytest.mark.ai
-def test_get_tools__empty_message_ids__returns_empty_without_request(mocker):
+def test_get_message_tools__empty_message_ids__returns_empty_without_request(mocker):
     """Purpose: Empty messageIds returns empty list without calling the API.
 
     Why this matters: Avoids unnecessary HTTP when there are no messages to query.
-    Setup summary: Patch _static_request. Call get_tools with messageIds="". Assert data==[] and no API call.
+    Setup summary: Patch _static_request. Call get_message_tools with messageIds="". Assert data==[] and no API call.
     """
-    mocker.patch.object(Tool, "_static_request")
-    result = Tool.get_tools("user", "company", messageIds="")
+    mocker.patch.object(MessageTool, "_static_request")
+    result = MessageTool.get_message_tools("user", "company", messageIds="")
     assert isinstance(result, ListObject)
     assert result.get("data") == []
-    Tool._static_request.assert_not_called()
+    MessageTool._static_request.assert_not_called()
 
 
 @pytest.mark.ai
-def test_get_tools__single_chunk__calls_api_once(mocker):
+def test_get_message_tools__single_chunk__calls_api_once(mocker):
     """Purpose: Fewer than 201 IDs result in a single GET.
 
     Why this matters: No pagination when under the API limit.
-    Setup summary: Mock _static_request. Call get_tools with two IDs. Assert one call with normalized params.
+    Setup summary: Mock _static_request. Call get_message_tools with two IDs. Assert one call with normalized params.
     """
     mocker.patch.object(
-        Tool, "_static_request", return_value=_make_list_object([{"id": "tc-1"}])
+        MessageTool, "_static_request", return_value=_make_list_object([{"id": "tc-1"}])
     )
-    result = Tool.get_tools("user", "company", messageIds="msg-1,msg-2")
+    result = MessageTool.get_message_tools("user", "company", messageIds="msg-1,msg-2")
     assert isinstance(result, ListObject)
     assert len(result.get("data", [])) == 1
-    Tool._static_request.assert_called_once_with(
+    MessageTool._static_request.assert_called_once_with(
         "get",
         "/messages/tools",
         "user",
@@ -195,7 +195,7 @@ def test_get_tools__single_chunk__calls_api_once(mocker):
 
 
 @pytest.mark.ai
-def test_get_tools__multiple_chunks__merges_data(mocker):
+def test_get_message_tools__multiple_chunks__merges_data(mocker):
     """Purpose: Over 200 IDs trigger multiple GETs and merged data.
 
     Why this matters: Long chats must not hit the 200-messageIds limit; results must be combined.
@@ -204,42 +204,42 @@ def test_get_tools__multiple_chunks__merges_data(mocker):
     ids = [f"m{i}" for i in range(_MESSAGE_IDS_PAGE_SIZE + 10)]
     msg_ids_str = ",".join(ids)
     mocker.patch.object(
-        Tool,
+        MessageTool,
         "_static_request",
         side_effect=[
             _make_list_object([{"id": "page1"}]),
             _make_list_object([{"id": "page2"}]),
         ],
     )
-    result = Tool.get_tools("user", "company", messageIds=msg_ids_str)
+    result = MessageTool.get_message_tools("user", "company", messageIds=msg_ids_str)
     assert result.get("data") == [{"id": "page1"}, {"id": "page2"}]
-    assert Tool._static_request.call_count == 2
+    assert MessageTool._static_request.call_count == 2
 
 
 @pytest.mark.ai
-def test_get_tools__single_chunk_non_list_object__raises_type_error(mocker):
-    """Purpose: get_tools raises TypeError when single-chunk API response is not ListObject.
+def test_get_message_tools__single_chunk_non_list_object__raises_type_error(mocker):
+    """Purpose: get_message_tools raises TypeError when single-chunk API response is not ListObject.
 
     Why this matters: Callers get a clear error instead of AttributeError on .get("data").
     Setup summary: Mock _static_request to return a dict. Call with one ID. Expect TypeError.
     """
-    mocker.patch.object(Tool, "_static_request", return_value={"data": []})
+    mocker.patch.object(MessageTool, "_static_request", return_value={"data": []})
     with pytest.raises(TypeError, match="Expected list object from API"):
-        Tool.get_tools("user", "company", messageIds="msg-1")
+        MessageTool.get_message_tools("user", "company", messageIds="msg-1")
 
 
 @pytest.mark.ai
-def test_get_tools__multi_chunk_page_not_list_object__raises_type_error(
+def test_get_message_tools__multi_chunk_page_not_list_object__raises_type_error(
     mocker,
 ):
-    """Purpose: get_tools raises TypeError when a paginated page is not ListObject.
+    """Purpose: get_message_tools raises TypeError when a paginated page is not ListObject.
 
     Why this matters: Defensive check when merging multiple pages.
     Setup summary: 210 IDs; first call returns ListObject, second returns dict. Expect TypeError.
     """
     ids = [f"m{i}" for i in range(_MESSAGE_IDS_PAGE_SIZE + 10)]
     mocker.patch.object(
-        Tool,
+        MessageTool,
         "_static_request",
         side_effect=[
             _make_list_object([{"id": "a"}]),
@@ -247,7 +247,7 @@ def test_get_tools__multi_chunk_page_not_list_object__raises_type_error(
         ],
     )
     with pytest.raises(TypeError, match="Expected list object from API"):
-        Tool.get_tools("user", "company", messageIds=",".join(ids))
+        MessageTool.get_message_tools("user", "company", messageIds=",".join(ids))
 
 
 @pytest.mark.ai
@@ -259,13 +259,13 @@ async def test_create_many_async__success__returns_list_object(mocker):
     Setup summary: Mock _static_request_async. Await create_many_async. Assert ListObject and one call.
     """
     mocker.patch.object(
-        Tool, "_static_request_async", return_value=_make_list_object([])
+        MessageTool, "_static_request_async", return_value=_make_list_object([])
     )
-    result = await Tool.create_many_async(
+    result = await MessageTool.create_many_async(
         "user", "company", messageId="msg-1", tools=[]
     )
     assert isinstance(result, ListObject)
-    Tool._static_request_async.assert_called_once()
+    MessageTool._static_request_async.assert_called_once()
 
 
 @pytest.mark.ai
@@ -276,45 +276,49 @@ async def test_create_many_async__non_list_object_response__raises_type_error(mo
     Why this matters: Same defensive contract as sync create_many.
     Setup summary: Mock _static_request_async to return dict. Await create_many_async. Expect TypeError.
     """
-    mocker.patch.object(Tool, "_static_request_async", return_value={"data": []})
+    mocker.patch.object(MessageTool, "_static_request_async", return_value={"data": []})
     with pytest.raises(TypeError, match="Expected list object from API"):
-        await Tool.create_many_async("user", "company", messageId="msg-1", tools=[])
+        await MessageTool.create_many_async(
+            "user", "company", messageId="msg-1", tools=[]
+        )
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_get_tools_async__empty_message_ids__returns_empty_without_request(
+async def test_get_message_tools_async__empty_message_ids__returns_empty_without_request(
     mocker,
 ):
-    """Purpose: Async get_tools with empty messageIds does not call API.
+    """Purpose: Async get_message_tools with empty messageIds does not call API.
 
     Why this matters: Same early-exit behavior as sync for consistency.
-    Setup summary: Patch _static_request_async. Await get_tools_async with messageIds="". Assert empty data, no call.
+    Setup summary: Patch _static_request_async. Await get_message_tools_async with messageIds="". Assert empty data, no call.
     """
-    mocker.patch.object(Tool, "_static_request_async")
-    result = await Tool.get_tools_async("user", "company", messageIds="")
+    mocker.patch.object(MessageTool, "_static_request_async")
+    result = await MessageTool.get_message_tools_async("user", "company", messageIds="")
     assert isinstance(result, ListObject)
     assert result.get("data") == []
-    Tool._static_request_async.assert_not_called()
+    MessageTool._static_request_async.assert_not_called()
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_get_tools_async__single_chunk__calls_api_once(mocker):
-    """Purpose: get_tools_async with IDs under the limit calls API once and returns ListObject.
+async def test_get_message_tools_async__single_chunk__calls_api_once(mocker):
+    """Purpose: get_message_tools_async with IDs under the limit calls API once and returns ListObject.
 
     Why this matters: Single-chunk path must be covered for async as well as sync.
-    Setup summary: Mock _static_request_async. Await get_tools_async with two IDs. Assert one call.
+    Setup summary: Mock _static_request_async. Await get_message_tools_async with two IDs. Assert one call.
     """
     mocker.patch.object(
-        Tool,
+        MessageTool,
         "_static_request_async",
         return_value=_make_list_object([{"id": "tc-1"}]),
     )
-    result = await Tool.get_tools_async("user", "company", messageIds="msg-1,msg-2")
+    result = await MessageTool.get_message_tools_async(
+        "user", "company", messageIds="msg-1,msg-2"
+    )
     assert isinstance(result, ListObject)
     assert len(result.get("data", [])) == 1
-    Tool._static_request_async.assert_called_once_with(
+    MessageTool._static_request_async.assert_called_once_with(
         "get",
         "/messages/tools",
         "user",
@@ -325,53 +329,57 @@ async def test_get_tools_async__single_chunk__calls_api_once(mocker):
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_get_tools_async__single_chunk_non_list_object__raises_type_error(mocker):
-    """Purpose: get_tools_async raises TypeError when single-chunk response is not ListObject.
+async def test_get_message_tools_async__single_chunk_non_list_object__raises_type_error(
+    mocker,
+):
+    """Purpose: get_message_tools_async raises TypeError when single-chunk response is not ListObject.
 
     Why this matters: Same defensive contract as sync single-chunk path.
     Setup summary: Mock _static_request_async to return dict. Await with one ID. Expect TypeError.
     """
-    mocker.patch.object(Tool, "_static_request_async", return_value={"data": []})
+    mocker.patch.object(MessageTool, "_static_request_async", return_value={"data": []})
     with pytest.raises(TypeError, match="Expected list object from API"):
-        await Tool.get_tools_async("user", "company", messageIds="msg-1")
+        await MessageTool.get_message_tools_async("user", "company", messageIds="msg-1")
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_get_tools_async__multiple_chunks__merges_data(mocker):
-    """Purpose: Async get_tools paginates and merges like sync.
+async def test_get_message_tools_async__multiple_chunks__merges_data(mocker):
+    """Purpose: Async get_message_tools paginates and merges like sync.
 
     Why this matters: Long async loads must also respect the 200-ID limit and merge pages.
-    Setup summary: 210 IDs, side_effect two ListObjects. Await get_tools_async. Assert merged data, call_count 2.
+    Setup summary: 210 IDs, side_effect two ListObjects. Await get_message_tools_async. Assert merged data, call_count 2.
     """
     ids = [f"m{i}" for i in range(_MESSAGE_IDS_PAGE_SIZE + 10)]
     msg_ids_str = ",".join(ids)
     mocker.patch.object(
-        Tool,
+        MessageTool,
         "_static_request_async",
         side_effect=[
             _make_list_object([{"id": "a"}]),
             _make_list_object([{"id": "b"}]),
         ],
     )
-    result = await Tool.get_tools_async("user", "company", messageIds=msg_ids_str)
+    result = await MessageTool.get_message_tools_async(
+        "user", "company", messageIds=msg_ids_str
+    )
     assert result.get("data") == [{"id": "a"}, {"id": "b"}]
-    assert Tool._static_request_async.call_count == 2
+    assert MessageTool._static_request_async.call_count == 2
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_get_tools_async__multi_chunk_page_not_list_object__raises_type_error(
+async def test_get_message_tools_async__multi_chunk_page_not_list_object__raises_type_error(
     mocker,
 ):
-    """Purpose: get_tools_async raises TypeError when a paginated page is not ListObject.
+    """Purpose: get_message_tools_async raises TypeError when a paginated page is not ListObject.
 
     Why this matters: Defensive check when merging multiple async pages.
     Setup summary: 210 IDs; first async call returns ListObject, second returns dict. Expect TypeError.
     """
     ids = [f"m{i}" for i in range(_MESSAGE_IDS_PAGE_SIZE + 10)]
     mocker.patch.object(
-        Tool,
+        MessageTool,
         "_static_request_async",
         side_effect=[
             _make_list_object([{"id": "a"}]),
@@ -379,4 +387,6 @@ async def test_get_tools_async__multi_chunk_page_not_list_object__raises_type_er
         ],
     )
     with pytest.raises(TypeError, match="Expected list object from API"):
-        await Tool.get_tools_async("user", "company", messageIds=",".join(ids))
+        await MessageTool.get_message_tools_async(
+            "user", "company", messageIds=",".join(ids)
+        )

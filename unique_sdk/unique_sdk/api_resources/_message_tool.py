@@ -1,4 +1,4 @@
-"""Tool persistence API. Backend stores tool data in a single table (MessageTool) with type + jsonb payload."""
+"""MessageTool persistence API. Backend stores tool data in a single table (MessageTool) with type + jsonb payload."""
 
 import asyncio
 from typing import (
@@ -41,8 +41,8 @@ def _chunk_message_ids(message_ids_str: str) -> list[str]:
     return chunks
 
 
-class Tool(APIResource["Tool"]):
-    OBJECT_NAME: ClassVar[Literal["tool"]] = "tool"
+class MessageTool(APIResource["MessageTool"]):
+    OBJECT_NAME: ClassVar[Literal["messageTool"]] = "messageTool"
     RESOURCE_URL = "/messages/tools"
 
     @classmethod
@@ -53,7 +53,7 @@ class Tool(APIResource["Tool"]):
         messageId: str
         tools: list[ToolItem]
 
-    class GetToolsParams(RequestOptions):
+    class GetMessageToolsParams(RequestOptions):
         messageIds: str
 
     id: str
@@ -67,7 +67,7 @@ class Tool(APIResource["Tool"]):
     createdAt: str
 
     @classmethod
-    def _validate_list_response(cls, result: object) -> ListObject["Tool"]:
+    def _validate_list_response(cls, result: object) -> ListObject["MessageTool"]:
         if not isinstance(result, ListObject):
             raise TypeError(
                 "Expected list object from API, got %s" % (type(result).__name__)
@@ -75,7 +75,7 @@ class Tool(APIResource["Tool"]):
         return result
 
     @classmethod
-    def _empty_list(cls, user_id: str, company_id: str) -> ListObject["Tool"]:
+    def _empty_list(cls, user_id: str, company_id: str) -> ListObject["MessageTool"]:
         return ListObject.construct_from(
             {"data": [], "has_more": False, "url": cls.RESOURCE_URL},
             user_id=user_id,
@@ -86,10 +86,10 @@ class Tool(APIResource["Tool"]):
     @classmethod
     def _merge_pages(
         cls,
-        pages: list[ListObject["Tool"]],
+        pages: list[ListObject["MessageTool"]],
         user_id: str,
         company_id: str,
-    ) -> ListObject["Tool"]:
+    ) -> ListObject["MessageTool"]:
         all_data: list[Any] = []
         for page in pages:
             all_data.extend(page.get("data", []))
@@ -106,8 +106,8 @@ class Tool(APIResource["Tool"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["Tool.CreateParams"],
-    ) -> ListObject["Tool"]:
+        **params: Unpack["MessageTool.CreateParams"],
+    ) -> ListObject["MessageTool"]:
         return cls._validate_list_response(
             cls._static_request(
                 "post",
@@ -123,8 +123,8 @@ class Tool(APIResource["Tool"]):
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["Tool.CreateParams"],
-    ) -> ListObject["Tool"]:
+        **params: Unpack["MessageTool.CreateParams"],
+    ) -> ListObject["MessageTool"]:
         return cls._validate_list_response(
             await cls._static_request_async(
                 "post",
@@ -136,12 +136,12 @@ class Tool(APIResource["Tool"]):
         )
 
     @classmethod
-    def get_tools(
+    def get_message_tools(
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["Tool.GetToolsParams"],
-    ) -> ListObject["Tool"]:
+        **params: Unpack["MessageTool.GetMessageToolsParams"],
+    ) -> ListObject["MessageTool"]:
         message_ids_str = params.get("messageIds") or ""
         chunks = _chunk_message_ids(message_ids_str)
         if not chunks:
@@ -169,12 +169,12 @@ class Tool(APIResource["Tool"]):
         )
 
     @classmethod
-    async def get_tools_async(
+    async def get_message_tools_async(
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["Tool.GetToolsParams"],
-    ) -> ListObject["Tool"]:
+        **params: Unpack["MessageTool.GetMessageToolsParams"],
+    ) -> ListObject["MessageTool"]:
         message_ids_str = params.get("messageIds") or ""
         chunks = _chunk_message_ids(message_ids_str)
         if not chunks:

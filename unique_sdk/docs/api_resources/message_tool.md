@@ -1,10 +1,10 @@
-# Tool API
+# MessageTool API
 
-The Tool API allows you to persist and retrieve tool call invocations associated with chat messages.
+The MessageTool API allows you to persist and retrieve tool call invocations associated with chat messages.
 
 ## Overview
 
-The Tool resource provides methods to:
+The MessageTool resource provides methods to:
 
 - Batch-create tool invocations (call + optional response) for a message
 - Retrieve tool invocations by message ID(s)
@@ -14,7 +14,7 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
 
 ## Methods
 
-??? example "`unique_sdk.Tool.create_many` - Batch-create tool invocations"
+??? example "`unique_sdk.MessageTool.create_many` - Batch-create tool invocations"
 
     Create one or more tool invocations for a message. Each item includes the function call details and an optional response.
 
@@ -25,12 +25,12 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
 
     **Returns:**
 
-    Returns a [`ListObject`](#listobject) containing [`Tool`](#tool) objects.
+    Returns a [`ListObject`](#listobject) containing [`MessageTool`](#messagetool) objects.
 
     **Example:**
 
     ```python
-    result = unique_sdk.Tool.create_many(
+    result = unique_sdk.MessageTool.create_many(
         user_id=user_id,
         company_id=company_id,
         messageId=message_id,
@@ -57,7 +57,7 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
         print(tool["functionName"], tool["response"])
     ```
 
-??? example "`unique_sdk.Tool.get_tools` - Get tools by message IDs"
+??? example "`unique_sdk.MessageTool.get_message_tools` - Get tools by message IDs"
 
     Retrieve all tool invocations for one or more messages. Pass message IDs as a comma-separated string.
 
@@ -69,12 +69,12 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
 
     **Returns:**
 
-    Returns a [`ListObject`](#listobject) containing [`Tool`](#tool) objects.
+    Returns a [`ListObject`](#listobject) containing [`MessageTool`](#messagetool) objects.
 
     **Example:**
 
     ```python
-    tools = unique_sdk.Tool.get_tools(
+    tools = unique_sdk.MessageTool.get_message_tools(
         user_id=user_id,
         company_id=company_id,
         messageIds=",".join(all_message_ids),
@@ -85,7 +85,7 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
     ```
 
 !!! tip "Async variants"
-    All methods have async counterparts: `create_many_async` and `get_tools_async`.
+    All methods have async counterparts: `create_many_async` and `get_message_tools_async`.
 
 ## Input Types
 
@@ -102,7 +102,7 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
     - `sequenceIndex` (int, required) - Order within a round for parallel calls (0-based)
     - `response` ([`ToolResponse`](#toolresponse) | None, optional) - The tool's response, if available
 
-    **Used in:** `Tool.create_many()`
+    **Used in:** `MessageTool.create_many()`
 
 #### ToolResponse {#toolresponse}
 
@@ -116,9 +116,9 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
 
 ## Return Types
 
-#### Tool {#tool}
+#### MessageTool {#messagetool}
 
-??? note "The `Tool` object represents a complete tool invocation (call + response)"
+??? note "The `MessageTool` object represents a complete tool invocation (call + response)"
 
     **Fields:**
 
@@ -132,19 +132,19 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
     - `response` (dict[str, Any] | None) - The tool's response (contains `id`, `content`, `toolCallId`, `createdAt`)
     - `createdAt` (str) - Creation timestamp (ISO 8601)
 
-    **Returned by:** `Tool.create_many()`, `Tool.get_tools()`
+    **Returned by:** `MessageTool.create_many()`, `MessageTool.get_message_tools()`
 
 #### ListObject {#listobject}
 
-??? note "The `ListObject` type represents a paginated list of tools"
+??? note "The `ListObject` type represents a paginated list of message tools"
 
     **Fields:**
 
-    - `data` (list[Tool]) - List of tool objects
+    - `data` (list[MessageTool]) - List of message tool objects
     - `has_more` (bool) - Whether there are more items to retrieve
     - `object` (str) - Object type identifier (always "list")
 
-    **Returned by:** `Tool.create_many()`, `Tool.get_tools()`
+    **Returned by:** `MessageTool.create_many()`, `MessageTool.get_message_tools()`
 
 ## Related Resources
 
