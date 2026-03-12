@@ -88,11 +88,13 @@ def _add_sub_agent_references_in_place(
             message_text=text,
             message_refs=refs,
             new_refs=sub_agent_refs,
-            ref_pattern_f=lambda x: r"\s*"  # Normalize spaces
-            + SubAgentTool.get_sub_agent_reference_re(
-                name=response.name,
-                sequence_number=response.sequence_number,
-                reference_number=x,
+            ref_pattern_f=lambda x: (
+                r"\s*"  # Normalize spaces
+                + SubAgentTool.get_sub_agent_reference_re(
+                    name=response.name,
+                    sequence_number=response.sequence_number,
+                    reference_number=x,
+                )
             ),
             ref_replacement_f=lambda x: " " + get_reference_pattern(x),
         )

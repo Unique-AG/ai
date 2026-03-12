@@ -62,18 +62,14 @@ with the generated key.
 
 Environment variables are loaded implicitely through the `UniqueSettings` that can be passed to the services as
 
-<!--
+```{.python #standalone_display_imports}
+from unique_toolkit import KnowledgeBaseService
+from unique_toolkit.app.unique_settings import UniqueSettings
+```
+
 ```{.python #unique_setup_settings_sdk_from_env_standalone}
 settings = UniqueSettings.from_env_auto_with_sdk_init()
 ```
--->
-
-```{.python #kb_service_setup}
-<<common_imports>>
-kb_service = KnowledgeBaseService.from_settings()
-```
-
-
 
 ```{.python #unique_init_service_standalone}
 kb_service = KnowledgeBaseService.from_settings(settings=settings)
@@ -91,6 +87,13 @@ kb_service = KnowledgeBaseService.from_settings()
     [Standalone Init](../examples_from_docs/standalone_setup.py)
     [Auto Standalone Init](../examples_from_docs/standalone_setup_auto.py)
     <!--/codeinclude-->
+
+<!--
+```{.python #kb_service_setup}
+<<common_imports>>
+kb_service = KnowledgeBaseService.from_settings()
+```
+-->
 
 <!--
 ```{.python file=docs/.python_files/standalone_setup.py}

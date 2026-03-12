@@ -23,7 +23,7 @@ sequenceDiagram
 
 The `CancellationWatcher` is available on every `ChatService` instance via the `cancellation` property:
 
-```python
+```{.python #cancellation-init-watcher}
 from unique_toolkit import ChatService
 
 chat_service = ChatService(event)
@@ -36,7 +36,7 @@ watcher = chat_service.cancellation
 
 Use `check_cancellation_async()` to poll the database once. Returns `True` if the user has requested cancellation.
 
-```python
+```{.python #cancellation-check-async}
 if await chat_service.cancellation.check_cancellation_async():
     # handle cancellation
     return
@@ -44,7 +44,7 @@ if await chat_service.cancellation.check_cancellation_async():
 
 A synchronous variant is also available:
 
-```python
+```{.python #cancellation-check-sync}
 if chat_service.cancellation.check_cancellation():
     return
 ```
@@ -53,7 +53,7 @@ if chat_service.cancellation.check_cancellation():
 
 After a successful check, `is_cancelled` stays `True` for the lifetime of the watcher. Use this for lightweight checks between operations without hitting the database again:
 
-```python
+```{.python #cancellation-is-cancelled-flag}
 if chat_service.cancellation.is_cancelled:
     break
 ```
@@ -62,7 +62,7 @@ if chat_service.cancellation.is_cancelled:
 
 For long-running async operations, `run_with_cancellation` executes a coroutine while polling for cancellation in the background:
 
-```python
+```{.python #cancellation-run-with-cancellation}
 result = await chat_service.cancellation.run_with_cancellation(
     some_long_running_coroutine(),
     poll_interval=2.0,
@@ -71,7 +71,7 @@ result = await chat_service.cancellation.run_with_cancellation(
 
 If the user cancels during execution, the coroutine is cancelled and `None` is returned by default. You can specify a custom return value with `cancel_result` to avoid `None` checks:
 
-```python
+```{.python #cancellation-run-with-cancel-result}
 result = await chat_service.cancellation.run_with_cancellation(
     some_long_running_coroutine(),
     cancel_result=my_default_response,
@@ -83,7 +83,7 @@ result = await chat_service.cancellation.run_with_cancellation(
 
 The watcher exposes a `TypedEventBus` via `on_cancellation`. Subscribe a handler to be notified the moment cancellation is detected:
 
-```python
+```{.python #cancellation-subscribe-event-bus}
 from unique_toolkit.chat.cancellation import CancellationEvent
 
 async def on_cancel(event: CancellationEvent):
@@ -103,7 +103,7 @@ Both sync and async handlers are supported. The subscription is cleaned up by ca
 
 A typical agent loop combines all three mechanisms:
 
-```python
+```{.python #cancellation-agent-loop-combined}
 async def run(self):
     sub = self.chat_service.cancellation.on_cancellation.subscribe(
         self._on_cancellation
