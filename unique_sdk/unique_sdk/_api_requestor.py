@@ -127,8 +127,6 @@ class APIRequestor(object):
             "publisher": "unique",
             "httplib": self._client.name,
         }
-        # Typed list + isinstance guard: basedpyright can't infer the mixed
-        # list[list[str | Callable]] the original code used.
         ua_parts: list[tuple[str, Callable[[], str]]] = [
             ("lang_version", platform.python_version),
             ("platform", platform.platform),
@@ -139,7 +137,7 @@ class APIRequestor(object):
                 val = func()
             except Exception:
                 val = "(disabled)"
-            ua[attr] = val if isinstance(val, str) else str(val)
+            ua[attr] = val
 
         headers = {
             "X-Unique-Client-User-Agent": json.dumps(ua),
