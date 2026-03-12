@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.53.3] - 2026-03-12
+- Remove deprecated `chat_id`, `seconds_remaining`, and `percentage_completed` parameters from `ChatService.create_message_execution` and `ChatService.create_message_execution_async` — these were no longer forwarded to the SDK and would have caused a `TypeError` at runtime if passed by callers
+- Enable basedpyright `recommended` type-checking mode for `unique_toolkit` with `require_zero_errors` in CI; fix all 464 errors and 3883 warnings surfaced by the stricter mode
+
 ## [1.53.2] - 2026-03-11
 - Code interpreter: replace all inline file refs in `message.text` with structured fences — `imgWithSource` for images (PNG etc.) and `fileWithSource` for documents (CSV, Excel, PDF, Word, HTML, Markdown). Each fence carries `id` (message-scoped counter), `contentId`, `title` (derived from filename), `type` (for fileWithSource), and the generating `code`. `<details>` blocks and trailing `</br>` from `ShowExecutedCodePostprocessor` are stripped when at least one fence is injected. Feature-flagged via `FEATURE_FLAG_ENABLE_CODE_EXECUTION_FENCE_UN_17972` (default off, safe to merge). `debugInfo.code_blocks` and the `code_blocks` field on `LanguageModelStreamResponseMessage` are removed (superseded by the fences). (UN-17972)
 ## [1.53.1] - 2026-03-11
