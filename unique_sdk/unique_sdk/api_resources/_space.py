@@ -1,6 +1,5 @@
 from typing import (
     Any,
-    ClassVar,
     Dict,
     List,
     Literal,
@@ -14,10 +13,13 @@ from typing import (
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class Space(APIResource["Space"]):
-    OBJECT_NAME: ClassVar[Literal["space"]] = "space"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["space"]:
+        return "space"
 
     UiType: TypeAlias = Literal[
         "MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"

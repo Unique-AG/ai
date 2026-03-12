@@ -1,5 +1,4 @@
 from typing import (
-    ClassVar,
     List,
     Literal,
     NotRequired,
@@ -11,10 +10,14 @@ from typing import (
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class Folder(APIResource["Folder"]):
-    OBJECT_NAME: ClassVar[Literal["folder"]] = "folder"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["folder"]:
+        return "folder"
+
     RESOURCE_URL = "/folder"
 
     class ScopeAccess(TypedDict):

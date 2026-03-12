@@ -1,5 +1,4 @@
 from typing import (
-    ClassVar,
     List,
     Literal,
     NotRequired,
@@ -11,6 +10,7 @@ from typing import (
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class ChatCompletionRequestMessage(TypedDict, total=False):
@@ -32,7 +32,9 @@ class ChatCompletionChoicesInner(TypedDict):
 
 
 class ChatCompletion(APIResource["ChatCompletion"]):
-    OBJECT_NAME: ClassVar[Literal["openai.chat.completion"]] = "openai.chat.completion"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["openai.chat.completion"]:
+        return "openai.chat.completion"
 
     class CreateParams(RequestOptions):
         model: NotRequired[

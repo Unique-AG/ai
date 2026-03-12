@@ -30,12 +30,15 @@ class LogEntry(TypedDict):
     details: NotRequired[LogDetail]
 
 
-class AgenticTableCell(TypedDict, total=False):
-    sheetId: str
+class _AgenticTableCellRequired(TypedDict):
     rowOrder: int
     columnOrder: int
-    rowLocked: bool
     text: str
+
+
+class AgenticTableCell(_AgenticTableCellRequired, total=False):
+    sheetId: str
+    rowLocked: bool
     logEntries: list[LogEntry] | None
 
 

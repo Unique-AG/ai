@@ -1,7 +1,6 @@
 from enum import Enum
 from typing import (
     Any,
-    ClassVar,
     Dict,
     List,
     Literal,
@@ -15,10 +14,13 @@ from typing_extensions import NotRequired, Unpack
 import unique_sdk
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class Content(APIResource["Content"]):
-    OBJECT_NAME: ClassVar[Literal["content.search"]] = "content.search"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["content.search"]:
+        return "content.search"
 
     id: str
     key: str

@@ -50,6 +50,9 @@ class UniqueError(Exception):
 
 
 class UniqueErrorWithParamsCode(UniqueError):
+    # Widened from Dict[str, str] | None: InvalidRequestError callers pass plain strings
+    params: Optional[Union[Dict[str, str], str]]
+
     def __repr__(self):
         return "%s(message=%r, params=%r, code=%r, http_status=%r, request_id=%r)" % (
             self.__class__.__name__,

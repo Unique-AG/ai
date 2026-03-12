@@ -1,11 +1,15 @@
-from typing import ClassVar, Literal, NotRequired, Unpack, cast
+from typing import Literal, NotRequired, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class MessageExecution(APIResource["MessageExecution"]):
-    OBJECT_NAME: ClassVar[Literal["message_execution"]] = "message_execution"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["message_execution"]:
+        return "message_execution"
+
     RESOURCE_URL = "/message-execution"
 
     TypeLiteral = Literal["DEEP_RESEARCH"]

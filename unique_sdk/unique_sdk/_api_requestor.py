@@ -4,7 +4,7 @@ import json
 import platform
 import time
 from collections import OrderedDict
-from typing import Any, Dict, Mapping, NoReturn, Optional, cast
+from typing import Any, Callable, Dict, List, Mapping, NoReturn, Optional, cast
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import unique_sdk
@@ -126,16 +126,17 @@ class APIRequestor(object):
             "publisher": "unique",
             "httplib": self._client.name,
         }
-        for attr, func in [
-            ["lang_version", platform.python_version],
-            ["platform", platform.platform],
-            ["uname", lambda: " ".join(platform.uname())],
-        ]:
+        ua_parts: List[tuple[str, Callable[[], str]]] = [
+            ("lang_version", platform.python_version),
+            ("platform", platform.platform),
+            ("uname", lambda: " ".join(platform.uname())),
+        ]
+        for attr, func in ua_parts:
             try:
                 val = func()
             except Exception:
                 val = "(disabled)"
-            ua[attr] = val
+            ua[attr] = val if isinstance(val, str) else str(val)
 
         headers = {
             "X-Unique-Client-User-Agent": json.dumps(ua),

@@ -1,7 +1,6 @@
 from typing import (
     TYPE_CHECKING,
     Any,
-    ClassVar,
     List,
     Literal,
     NotRequired,
@@ -27,6 +26,7 @@ if TYPE_CHECKING:
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 from unique_sdk.api_resources._message import Message
 
 
@@ -35,7 +35,9 @@ class Integrated(APIResource["Integrated"]):
     This object represents the integrated route. It is used to run complex APIs on the Unique platform
     """
 
-    OBJECT_NAME: ClassVar[Literal["integrated"]] = "integrated"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["integrated"]:
+        return "integrated"
 
     class SearchResult(TypedDict, total=False):
         id: str

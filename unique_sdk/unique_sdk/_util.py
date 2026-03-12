@@ -7,7 +7,18 @@ import re
 import sys
 import time
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast, overload
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    TypedDict,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 
 from typing_extensions import TYPE_CHECKING, Type
 
@@ -64,6 +75,22 @@ def logfmt(props):
         return "{key}={val}".format(key=key, val=val)
 
     return " ".join([fmt(key, val) for key, val in sorted(props.items())])
+
+
+class classproperty:
+    """Read-only descriptor so subclasses can override with Literal return types.
+
+    ClassVar[str] doesn't let basedpyright narrow per-subclass; a property
+    returning Literal["..."] does, while keeping the cls.OBJECT_NAME call-site.
+    """
+
+    def __init__(self, f: Callable[..., str]) -> None:
+        self.f = f
+
+    def __get__(self, obj: Any, objtype: Optional[Type[Any]] = None) -> str:
+        if objtype is None:
+            objtype = type(obj)
+        return self.f(objtype)
 
 
 def get_object_classes():
@@ -161,13 +188,21 @@ def convert_to_unique_object(
         return cast("UniqueObject", resp)
 
 
+class RetryOptions(TypedDict):
+    error_messages: List[str]
+    max_retries: int
+    initial_delay: int
+    backoff_factor: int
+    should_retry_5xx: bool
+
+
 class class_method_variant(object):
     def __init__(self, class_method_name):
         self.class_method_name = class_method_name
 
     T = TypeVar("T")
 
-    method: Any
+    method: Any = None
 
     def __call__(self, method: T) -> T:
         T = TypeVar("T")

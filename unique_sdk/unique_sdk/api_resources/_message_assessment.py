@@ -1,15 +1,18 @@
 from typing import (
-    ClassVar,
     Literal,
     Unpack,
 )
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class MessageAssessment(APIResource["MessageAssessment"]):
-    OBJECT_NAME: ClassVar[Literal["message_assessment"]] = "message_assessment"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["message_assessment"]:
+        return "message_assessment"
+
     RESOURCE_URL = "/message-assessment"
 
     class CreateParams(RequestOptions):

@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import (
     Any,
-    ClassVar,
     Dict,
     List,
     Literal,
@@ -17,7 +16,7 @@ from urllib.parse import quote_plus
 from unique_sdk._api_resource import APIResource
 from unique_sdk._list_object import ListObject
 from unique_sdk._request_options import RequestOptions
-from unique_sdk._util import class_method_variant
+from unique_sdk._util import class_method_variant, classproperty
 
 
 class Message(APIResource["Message"]):
@@ -25,7 +24,9 @@ class Message(APIResource["Message"]):
     This object represents a chat message. Use it to answer user prompts with a generated assistant message.
     """
 
-    OBJECT_NAME: ClassVar[Literal["message"]] = "message"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["message"]:
+        return "message"
 
     class Reference(TypedDict):
         name: str

@@ -1,11 +1,15 @@
-from typing import ClassVar, Literal, NotRequired, Optional, TypedDict, Unpack, cast
+from typing import Literal, NotRequired, Optional, TypedDict, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class MessageLog(APIResource["MessageLog"]):
-    OBJECT_NAME: ClassVar[Literal["message_log"]] = "message_log"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["message_log"]:
+        return "message_log"
+
     RESOURCE_URL = "/message-log"
 
     StatusLiteral = Literal["RUNNING", "COMPLETED", "FAILED"]

@@ -66,6 +66,8 @@ def upload_file(
     )
 
     uploadUrl = createdContent.writeUrl
+    if uploadUrl is None:
+        raise ValueError("createdContent.writeUrl is None")
 
     # upload to azure blob storage SAS url uploadUrl the pdf file translatedFile make sure it is treated as a application/pdf
     with open(path_to_file, "rb") as file:
