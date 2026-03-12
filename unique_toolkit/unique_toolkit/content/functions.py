@@ -41,7 +41,7 @@ def search_content_chunks(
     reranker_config: ContentRerankerConfig | None = None,
     scope_ids: list[str] | None = None,
     chat_only: bool | None = None,
-    metadata_filter: dict | None = None,
+    metadata_filter: dict[str, Any] | None = None,
     content_ids: list[str] | None = None,
     score_threshold: float | None = None,
 ) -> list[ContentChunk]:
@@ -103,7 +103,7 @@ async def search_content_chunks_async(
     reranker_config: ContentRerankerConfig | None = None,
     scope_ids: list[str] | None = None,
     chat_only: bool | None = None,
-    metadata_filter: dict | None = None,
+    metadata_filter: dict[str, Any] | None = None,
     content_ids: list[str] | None = None,
     score_threshold: float | None = None,
 ):
@@ -146,7 +146,7 @@ def search_contents(
     user_id: str,
     company_id: str,
     chat_id: str,
-    where: dict,
+    where: dict[str, Any],
     include_failed_content: bool = False,
 ) -> list[Content]:
     """
@@ -183,7 +183,7 @@ async def search_contents_async(
     user_id: str,
     company_id: str,
     chat_id: str,
-    where: dict,
+    where: dict[str, Any],
     include_failed_content: bool = False,
 ):
     """Asynchronously searches for content in the knowledge base."""
@@ -207,7 +207,7 @@ async def search_contents_async(
 def _upsert_content(
     user_id: str,
     company_id: str,
-    input_data: dict,
+    input_data: dict[str, Any],
     scope_id: str | None = None,
     chat_id: str | None = None,
     file_url: str | None = None,
@@ -226,7 +226,7 @@ def _upsert_content(
 async def _upsert_content_async(
     user_id: str,
     company_id: str,
-    input_data: dict,
+    input_data: dict[str, Any],
     scope_id: str | None = None,
     chat_id: str | None = None,
     file_url: str | None = None,

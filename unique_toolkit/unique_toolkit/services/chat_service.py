@@ -140,7 +140,7 @@ class ChatService(ChatServiceDeprecated):
 
         return self._elicitation_service
 
-    async def update_debug_info_async(self, debug_info: dict):
+    async def update_debug_info_async(self, debug_info: dict[str, Any]):
         """Updates the debug information for the chat session.
 
         Args:
@@ -158,7 +158,7 @@ class ChatService(ChatServiceDeprecated):
             debug_info=debug_info,
         )
 
-    def replace_debug_info(self, debug_info: dict):
+    def replace_debug_info(self, debug_info: dict[str, Any]):
         """Replace the debug information in the last user message
 
         Args:
@@ -183,7 +183,7 @@ class ChatService(ChatServiceDeprecated):
         self,
         content: str,
         references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         message_id: str | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
@@ -222,7 +222,7 @@ class ChatService(ChatServiceDeprecated):
         self,
         content: str,
         references: list[ContentReference] = [],
-        debug_info: dict = {},
+        debug_info: dict[str, Any] = {},
         message_id: str | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
@@ -262,7 +262,7 @@ class ChatService(ChatServiceDeprecated):
         content: str | None = None,
         original_content: str | None = None,
         references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         message_id: str | None = None,
         set_completed_at: bool | None = None,
     ) -> ChatMessage:
@@ -305,7 +305,7 @@ class ChatService(ChatServiceDeprecated):
         content: str | None = None,
         original_content: str | None = None,
         references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         message_id: str | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
@@ -347,7 +347,7 @@ class ChatService(ChatServiceDeprecated):
         content: str,
         original_content: str | None = None,
         references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
         """Creates a message in the chat session synchronously.
@@ -387,7 +387,7 @@ class ChatService(ChatServiceDeprecated):
         content: str,
         original_content: str | None = None,
         references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
         """Creates a message in the chat session asynchronously.
@@ -427,7 +427,7 @@ class ChatService(ChatServiceDeprecated):
         content: str,
         original_content: str | None = None,
         references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
         """Creates a user message in the chat session synchronously.
@@ -467,7 +467,7 @@ class ChatService(ChatServiceDeprecated):
         content: str,
         original_content: str | None = None,
         references: list[ContentReference] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         set_completed_at: bool | None = False,
     ) -> ChatMessage:
         """Creates a user message in the chat session asynchronously.
@@ -1022,7 +1022,7 @@ class ChatService(ChatServiceDeprecated):
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
         is_queueable: bool = True,
-        execution_options: dict | None = None,
+        execution_options: dict[str, Any] | None = None,
         progress_title: str | None = None,
     ) -> MessageExecution:
         """Creates a message execution for tracking long-running operations synchronously.
@@ -1064,7 +1064,7 @@ class ChatService(ChatServiceDeprecated):
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
         is_queueable: bool = True,
-        execution_options: dict | None = None,
+        execution_options: dict[str, Any] | None = None,
         progress_title: str | None = None,
     ) -> MessageExecution:
         """Creates a message execution for tracking long-running operations asynchronously.
@@ -1221,7 +1221,7 @@ class ChatService(ChatServiceDeprecated):
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
         is_queueable: bool = True,
-        execution_options: dict | None = None,
+        execution_options: dict[str, Any] | None = None,
         progress_title: str | None = None,
     ) -> MessageExecution:
         """Creates a message execution for the current assistant message synchronously.
@@ -1260,7 +1260,7 @@ class ChatService(ChatServiceDeprecated):
         seconds_remaining: int | None = None,
         percentage_completed: int | None = None,
         is_queueable: bool = True,
-        execution_options: dict | None = None,
+        execution_options: dict[str, Any] | None = None,
         progress_title: str | None = None,
     ) -> MessageExecution:
         """Creates a message execution for the current assistant message asynchronously.
@@ -1391,13 +1391,13 @@ class ChatService(ChatServiceDeprecated):
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict = {},
+        debug_info: dict[str, Any] = {},
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse:
         return self.complete_with_references(
             messages=messages,
@@ -1417,13 +1417,13 @@ class ChatService(ChatServiceDeprecated):
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse:
         """Streams a completion in the chat session synchronously."""
         return stream_complete_with_references(
@@ -1450,13 +1450,13 @@ class ChatService(ChatServiceDeprecated):
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelResponse:
         response = self.complete_with_references(
             messages=messages,
@@ -1479,13 +1479,13 @@ class ChatService(ChatServiceDeprecated):
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse:
         """Stream a completion in the chat session asynchronously."""
         return await self.complete_with_references_async(
@@ -1506,13 +1506,13 @@ class ChatService(ChatServiceDeprecated):
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         start_text: str | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse:
         return await stream_complete_with_references_async(
             company_id=self._company_id,
@@ -1538,13 +1538,13 @@ class ChatService(ChatServiceDeprecated):
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelResponse:
         response = self.complete_with_references_async(
             messages=messages,
@@ -1575,7 +1575,7 @@ class ChatService(ChatServiceDeprecated):
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         start_text: str | None = None,
         include: list[ResponseIncludable] | None = None,
         instructions: str | None = None,
@@ -1586,7 +1586,7 @@ class ChatService(ChatServiceDeprecated):
         tool_choice: response_create_params.ToolChoice | None = None,
         top_p: float | None = None,
         reasoning: Reasoning | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> ResponsesLanguageModelStreamResponse:
         return stream_responses_with_references(
             company_id=self._company_id,
@@ -1626,7 +1626,7 @@ class ChatService(ChatServiceDeprecated):
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         start_text: str | None = None,
         include: list[ResponseIncludable] | None = None,
         instructions: str | None = None,
@@ -1637,7 +1637,7 @@ class ChatService(ChatServiceDeprecated):
         tool_choice: response_create_params.ToolChoice | None = None,
         top_p: float | None = None,
         reasoning: Reasoning | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> ResponsesLanguageModelStreamResponse:
         async def _on_rate_limit_retry(attempt: int, wait_secs: float) -> None:
             if not rate_limit_retry_config.log_message_on_retry:
@@ -1815,7 +1815,7 @@ class ChatService(ChatServiceDeprecated):
     ############################################################################
 
     def create_chat_memory_by_id(
-        self, *, chat_id: str, key: str, value: str | dict | BaseModel
+        self, *, chat_id: str, key: str, value: str | dict[str, Any] | BaseModel
     ) -> ShortTermMemory:
         """Creates a short-term memory for a specific chat synchronously.
 
@@ -1843,7 +1843,7 @@ class ChatService(ChatServiceDeprecated):
         )
 
     async def create_chat_memory_by_id_async(
-        self, *, chat_id: str, key: str, value: str | dict | BaseModel
+        self, *, chat_id: str, key: str, value: str | dict[str, Any] | BaseModel
     ) -> ShortTermMemory:
         """Creates a short-term memory for a specific chat asynchronously.
 
@@ -1871,7 +1871,7 @@ class ChatService(ChatServiceDeprecated):
         )
 
     def create_message_memory_by_id(
-        self, *, message_id: str, key: str, value: str | dict | BaseModel
+        self, *, message_id: str, key: str, value: str | dict[str, Any] | BaseModel
     ) -> ShortTermMemory:
         """Creates a short-term memory for a specific message synchronously.
 
@@ -1899,7 +1899,7 @@ class ChatService(ChatServiceDeprecated):
         )
 
     async def create_message_memory_by_id_async(
-        self, *, message_id: str, key: str, value: str | dict | BaseModel
+        self, *, message_id: str, key: str, value: str | dict[str, Any] | BaseModel
     ) -> ShortTermMemory:
         """Creates a short-term memory for a specific message asynchronously.
 
@@ -2016,7 +2016,7 @@ class ChatService(ChatServiceDeprecated):
     ############################################################################
 
     def create_chat_memory(
-        self, *, key: str, value: str | dict | BaseModel
+        self, *, key: str, value: str | dict[str, Any] | BaseModel
     ) -> ShortTermMemory:
         """Creates a short-term memory for the current chat synchronously.
 
@@ -2037,7 +2037,7 @@ class ChatService(ChatServiceDeprecated):
         )
 
     async def create_chat_memory_async(
-        self, *, key: str, value: str | dict | BaseModel
+        self, *, key: str, value: str | dict[str, Any] | BaseModel
     ) -> ShortTermMemory:
         """Creates a short-term memory for the current chat asynchronously.
 
@@ -2062,16 +2062,20 @@ class ChatService(ChatServiceDeprecated):
         self,
         *,
         key: str,
-        value: str | dict | BaseModel,
+        value: str | dict[str, Any] | BaseModel,
     ) -> ShortTermMemory: ...
 
     @overload
     def create_message_memory(
-        self, *, key: str, value: str | dict | BaseModel, message_id: str
+        self, *, key: str, value: str | dict[str, Any] | BaseModel, message_id: str
     ) -> ShortTermMemory: ...
 
     def create_message_memory(
-        self, *, key: str, value: str | dict | BaseModel, message_id: str | None = None
+        self,
+        *,
+        key: str,
+        value: str | dict[str, Any] | BaseModel,
+        message_id: str | None = None,
     ) -> ShortTermMemory:
         """Creates a short-term memory for the current assistant message synchronously.
 
@@ -2096,16 +2100,20 @@ class ChatService(ChatServiceDeprecated):
         self,
         *,
         key: str,
-        value: str | dict | BaseModel,
+        value: str | dict[str, Any] | BaseModel,
     ) -> ShortTermMemory: ...
 
     @overload
     async def create_message_memory_async(
-        self, *, key: str, value: str | dict | BaseModel, message_id: str
+        self, *, key: str, value: str | dict[str, Any] | BaseModel, message_id: str
     ) -> ShortTermMemory: ...
 
     async def create_message_memory_async(
-        self, *, key: str, value: str | dict | BaseModel, message_id: str | None = None
+        self,
+        *,
+        key: str,
+        value: str | dict[str, Any] | BaseModel,
+        message_id: str | None = None,
     ) -> ShortTermMemory:
         """Creates a short-term memory for the current assistant message asynchronously.
 
