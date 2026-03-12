@@ -65,10 +65,26 @@ target-version = "py311"
 extend-select = ["I"]
 
 [tool.basedpyright]
-typeCheckingMode = "standard"
+typeCheckingMode = "recommended"
 include = ["unique_sdk"]
 exclude = ["build", "**/__pycache__", "**/tests/**", "**/test_*.py"]
 allowedUntypedLibraries = ["openai.types.responses", "openai.types.shared_params"]
+# Suppress rules that require full annotation coverage of legacy internals —
+# out of scope for this SDK; we enforce modern typing syntax via reportDeprecated.
+reportAny = "none"
+reportExplicitAny = "none"
+reportUnknownArgumentType = "none"
+reportUnknownParameterType = "none"
+reportMissingParameterType = "none"
+reportUnknownVariableType = "none"
+reportUnknownMemberType = "none"
+reportUnknownLambdaType = "none"
+reportUnusedCallResult = "none"
+reportUnannotatedClassAttribute = "none"
+reportImplicitOverride = "none"
+reportImplicitStringConcatenation = "none"
+reportUnusedParameter = "none"
+reportImportCycles = "none"
 
 [tool.poe.tasks]
 # Run from package directory: uv run poe <task>
