@@ -53,7 +53,7 @@ class ChunkRelevancySorter:
         "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: ChatEvent | BaseEvent):
+    def __init__(self, event: ChatEvent | BaseEvent[Any]):
         """
         Initialize the ChunkRelevancySorter with an event (deprecated)
         """
@@ -66,7 +66,7 @@ class ChunkRelevancySorter:
 
     def __init__(
         self,
-        event: ChatEvent | BaseEvent | None = None,
+        event: ChatEvent | BaseEvent[Any] | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
     ):
@@ -81,7 +81,7 @@ class ChunkRelevancySorter:
         self.logger = logging.getLogger(f"{module_name}.{__name__}")
 
     @classmethod
-    def from_event(cls, event: ChatEvent | BaseEvent):
+    def from_event(cls, event: ChatEvent | BaseEvent[Any]):
         return cls(company_id=event.company_id, user_id=event.user_id)
 
     async def run(
@@ -336,7 +336,9 @@ class ChunkRelevancySorter:
         sorted_chunk_relevancies = sorted(
             chunk_relevancies,
             key=lambda obj: (
-                relevancy_level_order[obj.relevancy.value.lower()],  # type: ignore
+                relevancy_level_order[obj.relevancy.value.lower()]
+                if obj.relevancy is not None
+                else 0,
                 chunk_order[obj.chunk.chunk_id],
             ),
         )
@@ -366,7 +368,8 @@ class ChunkRelevancySorter:
         return [
             chunk_relevancy
             for chunk_relevancy in chunk_relevancies
-            if chunk_relevancy.relevancy.value.lower() in levels_to_consider  # type: ignore
+            if chunk_relevancy.relevancy is not None
+            and chunk_relevancy.relevancy.value.lower() in levels_to_consider
         ]
 
     def _count_distinct_values(self, chunk_relevancies: list[ChunkRelevancy]):
