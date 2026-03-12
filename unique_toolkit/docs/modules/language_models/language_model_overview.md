@@ -75,8 +75,8 @@ The following properties are documented for each model:
 | [litellm:openai-gpt-5-1-thinking](models/model_litellm:openai-gpt-5-1-thinking.md) | LITELLM | 272,000 | 128,000 | 400,000 |
 | [litellm:openai-gpt-5-2](models/model_litellm:openai-gpt-5-2.md) | LITELLM | 272,000 | 128,000 | 400,000 |
 | [litellm:openai-gpt-5-2-thinking](models/model_litellm:openai-gpt-5-2-thinking.md) | LITELLM | 272,000 | 128,000 | 400,000 |
-| [litellm:openai-gpt-5-4](models/model_litellm:openai-gpt-5-4.md) | LITELLM | 1,050,000 | 128,000 | 1,178,000 |
-| [litellm:openai-gpt-5-4-thinking](models/model_litellm:openai-gpt-5-4-thinking.md) | LITELLM | 1,050,000 | 128,000 | 1,178,000 |
+| [litellm:openai-gpt-5-4](models/model_litellm:openai-gpt-5-4.md) | LITELLM | 200,000 | 128,000 | 328,000 |
+| [litellm:openai-gpt-5-4-thinking](models/model_litellm:openai-gpt-5-4-thinking.md) | LITELLM | 200,000 | 128,000 | 328,000 |
 | [litellm:openai-gpt-5-chat](models/model_litellm:openai-gpt-5-chat.md) | LITELLM | 128,000 | 16,384 | 144,384 |
 | [litellm:openai-gpt-5-mini](models/model_litellm:openai-gpt-5-mini.md) | LITELLM | 272,000 | 128,000 | 400,000 |
 | [litellm:openai-gpt-5-nano](models/model_litellm:openai-gpt-5-nano.md) | LITELLM | 272,000 | 128,000 | 400,000 |
