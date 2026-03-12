@@ -21,6 +21,7 @@ from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.openai_builtin.base import (
+    BUILTIN_TOOL_API_TYPE,
     OpenAIBuiltInTool,
     OpenAIBuiltInToolName,
 )
@@ -441,8 +442,11 @@ def _convert_to_forced_tool(
         }
     else:
         if tool_name in OpenAIBuiltInToolName:
-            # Built-in have a special syntax for forcing
-            return {"type": tool_name}  # type: ignore
+            # Built-in tools use {"type": <api_type>} for forcing.
+            # The API type may differ from the internal name
+            # (e.g. "hosted_shell" → "shell").
+            api_type = BUILTIN_TOOL_API_TYPE.get(tool_name, tool_name)
+            return {"type": api_type}  # type: ignore
         else:
             return {
                 "name": tool_name,

@@ -17,6 +17,15 @@ class OpenAIBuiltInToolName(StrEnum):
     HOSTED_SHELL = "hosted_shell"
 
 
+# Maps internal tool names to the type value expected by the OpenAI Responses API
+# in tool_choice. e.g. HOSTED_SHELL is "hosted_shell" internally but the API
+# expects {"type": "shell"}.
+BUILTIN_TOOL_API_TYPE: dict[str, str] = {
+    "code_interpreter": "code_interpreter",
+    "hosted_shell": "shell",
+}
+
+
 BuiltInToolType = CodeInterpreter | FunctionShellToolParam
 ToolType = TypeVar("ToolType", bound=BuiltInToolType)
 
