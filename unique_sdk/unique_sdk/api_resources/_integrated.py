@@ -94,13 +94,24 @@ class Integrated(APIResource["Integrated"]):
         toolCalls: List["Integrated.ToolCall"]
         output: list["ResponseOutputItem"]
 
+    class Usage(TypedDict):
+        promptTokens: int
+        completionTokens: int
+        totalTokens: int
+
+    class StreamCompletionResult(TypedDict):
+        object: Literal["streamResult"]
+        message: Message
+        toolCalls: List["Integrated.ToolCall"]
+        usage: "Integrated.Usage"
+
     @classmethod
     def chat_stream_completion(
         cls,
         user_id: str,
         company_id: str,
         **params: Unpack["Integrated.CreateStream"],
-    ) -> "Message":
+    ) -> "Integrated.StreamCompletionResult":
         """
         Executes a call to the language model and streams to the chat in real-time.
         It automatically inserts references that are mentioned by the model.
@@ -108,7 +119,7 @@ class Integrated(APIResource["Integrated"]):
         """
         url = "/integrated/chat/stream-completions"
         return cast(
-            "Message",
+            "Integrated.StreamCompletionResult",
             cls._static_request(
                 "post",
                 url,
@@ -124,7 +135,7 @@ class Integrated(APIResource["Integrated"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Integrated.CreateStream"],
-    ) -> "Message":
+    ) -> "Integrated.StreamCompletionResult":
         """
         Executes a call to the language model and streams to the chat in real-time.
         It automatically inserts references that are mentioned by the model.
@@ -132,7 +143,7 @@ class Integrated(APIResource["Integrated"]):
         """
         url = "/integrated/chat/stream-completions"
         return cast(
-            "Message",
+            "Integrated.StreamCompletionResult",
             await cls._static_request_async(
                 "post",
                 url,

@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.86] - 2026-03-12
+- Fix return type for `Integrated.chat_stream_completion` and `Integrated.chat_stream_completion_async` to correctly reflect `StreamCompletionResult` (message, toolCalls, usage) instead of `Message`
+
 ## [0.10.85] - 2026-03-10
 - Examples: migrate custom-assistant from Poetry to uv with `src/` layout
 - Examples: replace hardcoded credentials in custom-assistant with `os.getenv()` for env-based configuration
