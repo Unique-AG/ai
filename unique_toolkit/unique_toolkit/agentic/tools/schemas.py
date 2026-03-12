@@ -15,9 +15,9 @@ class ToolCallResponse(BaseModel):
     id: str
     name: str
     content: str = ""
-    debug_info: Optional[dict] = None  # TODO: Make the default {}
+    debug_info: Optional[dict[str, Any]] = None  # TODO: Make the default {}
     content_chunks: Optional[list[ContentChunk]] = None  # TODO: Make the default []
-    reasoning_result: Optional[dict] = None  # TODO: Make the default {}
+    reasoning_result: Optional[dict[str, Any]] = None  # TODO: Make the default {}
     error_message: str = ""
     image_data_urls: list[str] = Field(
         default_factory=list,

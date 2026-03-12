@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
 from humps import camelize
 from openai.types.chat import (
@@ -77,10 +77,10 @@ class ChatMessage(BaseModel):
     content: str | None = Field(default=None, alias="text")
     original_content: str | None = Field(default=None, alias="originalText")
     role: ChatMessageRole
-    gpt_request: list[dict] | None = None
+    gpt_request: list[dict[str, Any]] | None = None
     tool_calls: list[ToolCall] | None = None
     tool_call_id: str | None = None
-    debug_info: dict | None = {}
+    debug_info: dict[str, Any] | None = {}
     created_at: datetime | None = None
     completed_at: datetime | None = None
     user_aborted_at: datetime | None = None
@@ -232,7 +232,7 @@ class MessageExecution(BaseModel):
     seconds_remaining: int | None = None
     percentage_completed: int | None = None
     is_queueable: bool | None = None
-    execution_options: dict | None = None
+    execution_options: dict[str, Any] | None = None
     progress_title: str | None = None
     position_in_queue: int | None = None
     created_at: datetime | None = None
