@@ -283,7 +283,7 @@ class EventPayload(ChatEventPayload):
     # additional_parameters: Optional[EventAdditionalParameters] = None
 
 
-class ChatEvent(BaseEvent):
+class ChatEvent(BaseEvent[UniqueChatEventFilterOptions]):
     model_config = model_config
 
     payload: ChatEventPayload
