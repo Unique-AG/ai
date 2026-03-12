@@ -517,11 +517,12 @@ def _build_code_blocks(
         )
 
     # Step 3: build result preserving block execution order.
-    return [
-        CodeInterpreterBlock(code=calls[idx].code, files=list(files.values()))
-        for idx, files in sorted(block_file_map.items())
-        if calls[idx].code
-    ]
+    result: list[CodeInterpreterBlock] = []
+    for idx, files in sorted(block_file_map.items()):
+        code = calls[idx].code
+        if code:
+            result.append(CodeInterpreterBlock(code=code, files=list(files.values())))
+    return result
 
 
 def _warn_missing_content_ids(text: str, content_map: dict[str, str | None]) -> None:
