@@ -686,9 +686,13 @@ class Content(APIResource["Content"]):
                 filePath=file_path,
             )
             content_infos = file_info.get("contentInfo")
+            # contentInfo is typed non-optional in the TypedDict, but .get() returns None
+            # when the key is absent at runtime (API schema drift or untyped caller).
             resolved_id = (
                 content_infos[0].get("id")
-                if file_info.get("totalCount", 0) > 0 and len(content_infos) > 0
+                if file_info.get("totalCount", 0) > 0
+                and content_infos is not None  # pyright: ignore[reportUnnecessaryComparison]
+                and len(content_infos) > 0
                 else None
             )
             if not resolved_id:
