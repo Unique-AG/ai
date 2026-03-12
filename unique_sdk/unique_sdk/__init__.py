@@ -1,6 +1,6 @@
 # ruff: noqa: E402
 # ruff: noqa: I001
-from typing import Literal, Optional
+from typing import Literal
 
 # Unique SDK
 # Authors:
@@ -12,7 +12,7 @@ app_id: str | None = None
 api_base: str = "https://gateway.unique.app/public/chat-gen2"
 api_version: str = _ApiVersion.CURRENT
 api_verify_mode: bool = True
-default_http_client: Optional["HTTPClient"] = None
+default_http_client: "HTTPClient | None" = None
 
 # Set to either 'debug' or 'info', controls console logging
 log: Literal["debug", "info"] | None = None

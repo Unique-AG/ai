@@ -1,6 +1,6 @@
 [
   {"id": "toolkit", "dir": "unique_toolkit", "python": "3.12", "install_args": "--extra fastapi", "extras": "fastapi", "min_coverage": "60", "typecheck_use_baseline": true, "pypi_name": "unique_toolkit"},
-  {"id": "sdk", "dir": "unique_sdk", "python": "3.11", "test_args": "-m \"not integration\"", "min_coverage": "60", "typecheck_use_baseline": true, "pypi_name": "unique_sdk"},
+  {"id": "sdk", "dir": "unique_sdk", "python": "3.11", "test_args": "-m \"not integration\"", "min_coverage": "60", "typecheck_use_baseline": false, "typecheck_require_zero_errors": true, "pypi_name": "unique_sdk"},
   {"id": "mcp", "dir": "unique_mcp", "python": "3.12", "min_coverage": "60", "typecheck_use_baseline": true, "pypi_name": "unique-mcp"},
   {"id": "orchestrator", "dir": "unique_orchestrator", "python": "3.12", "min_coverage": "60", "typecheck_use_baseline": true, "pypi_name": "unique_orchestrator"},
   {"id": "web_search", "dir": "tool_packages/unique_web_search", "python": "3.12", "min_coverage": "60", "typecheck_use_baseline": true, "pypi_name": "unique_web_search"},

@@ -2033,7 +2033,7 @@ wheels = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.84"
+version = "0.10.87"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -2055,6 +2055,7 @@ dev = [
     { name = "basedpyright" },
     { name = "deptry" },
     { name = "ipykernel" },
+    { name = "openai" },
     { name = "poethepoet" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -2082,6 +2083,7 @@ dev = [
     { name = "basedpyright", specifier = ">=1.35.0,<2" },
     { name = "deptry", specifier = ">=0.24.0,<0.25" },
     { name = "ipykernel", specifier = ">=7.1.0,<8" },
+    { name = "openai", specifier = ">=1.105.0,<2" },
     { name = "poethepoet", specifier = ">=0.32.0,<0.33" },
     { name = "pytest", specifier = ">=8.0,<9" },
     { name = "pytest-asyncio", specifier = ">=0.24.0,<0.25" },

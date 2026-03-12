@@ -1,38 +1,41 @@
-from typing import Any, ClassVar, Dict, Literal, NotRequired, Optional, Unpack, cast
+from typing import Any, Literal, NotRequired, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class Search(APIResource["Search"]):
-    OBJECT_NAME: ClassVar[Literal["search.search"]] = "search.search"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["search.search"]:
+        return "search.search"
 
     class CreateParams(RequestOptions):
-        chatId: NotRequired[Optional[str]]
+        chatId: NotRequired[str | None]
         searchString: str
         searchType: Literal["VECTOR", "COMBINED", "FULL_TEXT", "POSTGRES_FULL_TEXT"]
-        language: NotRequired[Optional[str]]
-        reranker: NotRequired[Optional[dict[str, Any]]]
-        scopeIds: NotRequired[Optional[list[str]]]
-        chatOnly: NotRequired[Optional[bool]]
-        limit: NotRequired[Optional[int]]
-        page: NotRequired[Optional[int]]
-        metaDataFilter: NotRequired[Optional[dict[str, Any]]]
-        contentIds: NotRequired[Optional[list[str]]]
-        scoreThreshold: NotRequired[Optional[float]]
+        language: NotRequired[str | None]
+        reranker: NotRequired[dict[str, Any] | None]
+        scopeIds: NotRequired[list[str] | None]
+        chatOnly: NotRequired[bool | None]
+        limit: NotRequired[int | None]
+        page: NotRequired[int | None]
+        metaDataFilter: NotRequired[dict[str, Any] | None]
+        contentIds: NotRequired[list[str] | None]
+        scoreThreshold: NotRequired[float | None]
 
     id: str
     chunkId: str
     text: str
     createdAt: str
     updatedAt: str
-    url: Optional[str]
-    title: Optional[str]
-    key: Optional[str]
+    url: str | None
+    title: str | None
+    key: str | None
     order: int
     startPage: int
     endPage: int
-    metadata: Optional[Dict[str, Any]]
+    metadata: dict[str, Any] | None
 
     @classmethod
     def create(

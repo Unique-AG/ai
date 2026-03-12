@@ -1,11 +1,7 @@
 from typing import (
     Any,
-    ClassVar,
-    Dict,
-    List,
     Literal,
     NotRequired,
-    Optional,
     TypeAlias,
     TypedDict,
     Unpack,
@@ -14,10 +10,13 @@ from typing import (
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class Space(APIResource["Space"]):
-    OBJECT_NAME: ClassVar[Literal["space"]] = "space"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["space"]:
+        return "space"
 
     UiType: TypeAlias = Literal[
         "MAGIC_TABLE", "UNIQUE_CUSTOM", "TRANSLATION", "UNIQUE_AI"
@@ -25,45 +24,45 @@ class Space(APIResource["Space"]):
 
     class ModuleParams(TypedDict):
         name: str
-        description: NotRequired[Optional[str]]
-        weight: NotRequired[Optional[int]]
-        isExternal: NotRequired[Optional[bool]]
-        isCustomInstructionEnabled: NotRequired[Optional[bool]]
-        configuration: NotRequired[Optional[Dict[str, Any]]]
-        toolDefinition: NotRequired[Optional[Dict[str, Any]]]
+        description: NotRequired[str | None]
+        weight: NotRequired[int | None]
+        isExternal: NotRequired[bool | None]
+        isCustomInstructionEnabled: NotRequired[bool | None]
+        configuration: NotRequired[dict[str, Any] | None]
+        toolDefinition: NotRequired[dict[str, Any] | None]
 
     class UpdateModuleParams(TypedDict):
         moduleId: str
-        configuration: NotRequired[Optional[Dict[str, Any]]]
-        name: NotRequired[Optional[str]]
-        description: NotRequired[Optional[str]]
-        weight: NotRequired[Optional[int]]
+        configuration: NotRequired[dict[str, Any] | None]
+        name: NotRequired[str | None]
+        description: NotRequired[str | None]
+        weight: NotRequired[int | None]
 
     class CreateSpaceParams(RequestOptions):
         name: str
         fallbackModule: str
-        modules: List["Space.ModuleParams"]
-        explanation: NotRequired[Optional[str]]
-        alert: NotRequired[Optional[str]]
-        chatUpload: NotRequired[Optional[Literal["ENABLED", "DISABLED"]]]
-        languageModel: NotRequired[Optional[str]]
-        isExternal: NotRequired[Optional[bool]]
-        isPinned: NotRequired[Optional[bool]]
-        uiType: NotRequired[Optional["Space.UiType"]]
-        settings: NotRequired[Optional[Dict[str, Any]]]
+        modules: list["Space.ModuleParams"]
+        explanation: NotRequired[str | None]
+        alert: NotRequired[str | None]
+        chatUpload: NotRequired[Literal["ENABLED", "DISABLED"] | None]
+        languageModel: NotRequired[str | None]
+        isExternal: NotRequired[bool | None]
+        isPinned: NotRequired[bool | None]
+        uiType: NotRequired["Space.UiType | None"]
+        settings: NotRequired[dict[str, Any] | None]
 
     class UpdateParams(RequestOptions):
-        name: NotRequired[Optional[str]]
-        title: NotRequired[Optional[str]]
-        modules: NotRequired[Optional[List["Space.UpdateModuleParams"]]]
-        explanation: NotRequired[Optional[str]]
-        alert: NotRequired[Optional[str]]
-        chatUpload: NotRequired[Optional[Literal["ENABLED", "DISABLED"]]]
-        languageModel: NotRequired[Optional[str]]
-        isPinned: NotRequired[Optional[bool]]
-        settings: NotRequired[Optional[Dict[str, Any]]]
-        allowEndUserSpace: NotRequired[Optional[bool]]
-        uiType: NotRequired[Optional["Space.UiType"]]
+        name: NotRequired[str | None]
+        title: NotRequired[str | None]
+        modules: NotRequired[list["Space.UpdateModuleParams"] | None]
+        explanation: NotRequired[str | None]
+        alert: NotRequired[str | None]
+        chatUpload: NotRequired[Literal["ENABLED", "DISABLED"] | None]
+        languageModel: NotRequired[str | None]
+        isPinned: NotRequired[bool | None]
+        settings: NotRequired[dict[str, Any] | None]
+        allowEndUserSpace: NotRequired[bool | None]
+        uiType: NotRequired["Space.UiType | None"]
 
     class AccessEntry(TypedDict):
         entityId: str
@@ -71,10 +70,10 @@ class Space(APIResource["Space"]):
         type: Literal["USE", "MANAGE", "UPLOAD"]
 
     class AddSpaceAccessParams(RequestOptions):
-        access: List["Space.AccessEntry"]
+        access: list["Space.AccessEntry"]
 
     class DeleteSpaceAccessParams(RequestOptions):
-        accessIds: List[str]
+        accessIds: list[str]
 
     class Correlation(TypedDict):
         parentMessageId: str
@@ -89,8 +88,8 @@ class Space(APIResource["Space"]):
         chatId: NotRequired[str | None]
         assistantId: str
         text: NotRequired[str | None]
-        toolChoices: NotRequired[List[str] | None]
-        scopeRules: NotRequired[dict | None]
+        toolChoices: NotRequired[list[str] | None]
+        scopeRules: NotRequired[dict[str, Any] | None]
         correlation: NotRequired["Space.Correlation | None"]
 
     class GetChatMessagesParams(RequestOptions):
@@ -107,10 +106,10 @@ class Space(APIResource["Space"]):
         """
 
         name: str
-        description: Optional[str]
-        url: Optional[str]
+        description: str | None
+        url: str | None
         sequenceNumber: int
-        originalIndex: Optional[list[int]]
+        originalIndex: list[int] | None
         sourceId: str
         source: str
 
@@ -143,15 +142,15 @@ class Space(APIResource["Space"]):
         text: str | None
         originalText: str | None
         role: Literal["SYSTEM", "USER", "ASSISTANT"]
-        debugInfo: Optional[Dict[str, Any]]
-        gptRequest: Optional[Dict[str, Any]]
+        debugInfo: dict[str, Any] | None
+        gptRequest: dict[str, Any] | None
         completedAt: str | None
         createdAt: str | None
         updatedAt: str | None
         startedStreamingAt: str | None
         stoppedStreamingAt: str | None
-        references: Optional[List["Space.Reference"]]
-        assessment: Optional[List["Space.Assessment"]]
+        references: list["Space.Reference"] | None
+        assessment: list["Space.Assessment"] | None
 
     class DeleteChatResponse(TypedDict):
         """
@@ -165,7 +164,7 @@ class Space(APIResource["Space"]):
         Response for getting all messages in a chat.
         """
 
-        messages: List["Space.Message"]
+        messages: list["Space.Message"]
         totalCount: int
 
     class McpServer(TypedDict):
@@ -188,14 +187,14 @@ class Space(APIResource["Space"]):
 
         id: str
         name: str
-        description: Optional[str]
-        toolDefinition: Optional[Dict[str, Any]]
-        configuration: Dict[str, Any]
+        description: str | None
+        toolDefinition: dict[str, Any] | None
+        configuration: dict[str, Any]
         assistantId: str
         weight: int
         isExternal: bool
         isCustomInstructionEnabled: bool
-        moduleTemplateId: Optional[str]
+        moduleTemplateId: str | None
         createdAt: str
         updatedAt: str
 
@@ -208,7 +207,7 @@ class Space(APIResource["Space"]):
         assistantId: str
         title: str
         companyId: str
-        rule: Dict[str, Any]
+        rule: dict[str, Any]
         isAdvanced: bool
         createdAt: str
         updatedAt: str
@@ -220,7 +219,7 @@ class Space(APIResource["Space"]):
         type: str
 
     class SpaceAccessResponse(TypedDict):
-        access: List["Space.Access"]
+        access: list["Space.Access"]
 
     class DeleteSpaceAccessResponse(TypedDict):
         success: bool
@@ -230,26 +229,26 @@ class Space(APIResource["Space"]):
 
     id: str
     name: str
-    defaultForCompanyId: Optional[str]
-    title: Optional[str]
-    subtitle: Optional[str]
-    explanation: Optional[str]
-    alert: Optional[str]
-    inputLimit: Optional[int]
-    inputPlaceholder: Optional[str]
+    defaultForCompanyId: str | None
+    title: str | None
+    subtitle: str | None
+    explanation: str | None
+    alert: str | None
+    inputLimit: int | None
+    inputPlaceholder: str | None
     chatUpload: str
-    goals: List[str]
-    languageModel: Optional[str]
+    goals: list[str]
+    languageModel: str | None
     fallbackModule: str
-    access: List[str]
+    access: list[str]
     isExternal: bool
     isPinned: bool
     uiType: str
-    settings: Optional[Dict[str, Any]]
-    assistantMcpServers: List["Space.McpServer"]
-    modules: List["Space.Module"]
-    scopeRules: List["Space.ScopeRule"]
-    assistantAccess: List["Space.Access"]
+    settings: dict[str, Any] | None
+    assistantMcpServers: list["Space.McpServer"]
+    modules: list["Space.Module"]
+    scopeRules: list["Space.ScopeRule"]
+    assistantAccess: list["Space.Access"]
     createdAt: str
     updatedAt: str
 

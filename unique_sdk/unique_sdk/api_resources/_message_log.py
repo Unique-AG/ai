@@ -1,11 +1,23 @@
-from typing import ClassVar, Literal, NotRequired, Optional, TypedDict, Unpack, cast
+from typing import (
+    Any,
+    Literal,
+    NotRequired,
+    Optional,
+    TypedDict,
+    Unpack,
+    cast,
+)
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class MessageLog(APIResource["MessageLog"]):
-    OBJECT_NAME: ClassVar[Literal["message_log"]] = "message_log"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["message_log"]:
+        return "message_log"
+
     RESOURCE_URL = "/message-log"
 
     StatusLiteral = Literal["RUNNING", "COMPLETED", "FAILED"]
@@ -28,8 +40,8 @@ class MessageLog(APIResource["MessageLog"]):
         text: str
         status: "MessageLog.StatusLiteral"
         order: int
-        details: NotRequired[dict | None]
-        uncitedReferences: NotRequired[dict | None]
+        details: NotRequired[dict[str, Any] | None]
+        uncitedReferences: NotRequired[dict[str, Any] | None]
         references: NotRequired[list["MessageLog.Reference"] | None]
 
     class UpdateMessageLogParams(RequestOptions):
@@ -40,16 +52,16 @@ class MessageLog(APIResource["MessageLog"]):
         text: NotRequired[str | None]
         status: NotRequired["MessageLog.StatusLiteral | None"]
         order: NotRequired[int | None]
-        details: NotRequired[dict | None]
-        uncitedReferences: NotRequired[dict | None]
+        details: NotRequired[dict[str, Any] | None]
+        uncitedReferences: NotRequired[dict[str, Any] | None]
         references: NotRequired[list["MessageLog.Reference"] | None]
 
     id: str
     messageId: str
     status: "MessageLog.StatusLiteral"
     text: str
-    details: dict
-    uncitedReferences: dict
+    details: dict[str, Any]
+    uncitedReferences: dict[str, Any]
     order: int
     createdAt: str
     updatedAt: str
@@ -109,7 +121,7 @@ class MessageLog(APIResource["MessageLog"]):
         )
 
     @classmethod
-    def update(
+    def update(  # pyright: ignore[reportIncompatibleMethodOverride]
         cls,
         user_id: str,
         company_id: str,
