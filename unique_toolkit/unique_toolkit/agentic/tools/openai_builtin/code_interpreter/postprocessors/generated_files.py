@@ -223,12 +223,16 @@ class DisplayCodeInterpreterFilesPostProcessor(
             self._company_id
         ):
             code_blocks = _build_code_blocks(loop_response, self._content_map)
+            _warn_unmatched_code_blocks(self._content_map, code_blocks)
             text_before = loop_response.message.text
             loop_response.message.text = _inject_code_execution_fences(
                 loop_response.message.text,
                 code_blocks,
             )
             changed |= loop_response.message.text != text_before
+
+        _warn_missing_content_ids(loop_response.message.text, self._content_map)
+        _warn_dangling_sandbox_links(loop_response.message.text)
 
         return changed
 
@@ -395,6 +399,35 @@ def _inline_ref_pattern(file: CodeInterpreterFile) -> re.Pattern[str]:
     return re.compile(rf"\[{fname}\]\(unique://content/{cid}\)")
 
 
+_FENCE_BLOCK_START = re.compile(
+    r"^[^\n`]+?(````(?:imgWithSource|fileWithSource)\()",
+    re.MULTILINE,
+)
+
+# Matches two fence blocks that sit on the same line (no newline between them),
+# including the case where there is no gap at all between closing ```` and opening ````.
+_CONSECUTIVE_FENCES_RE = re.compile(
+    r"(````(?:imgWithSource|fileWithSource)\([^\n]*\)````)"
+    r"[^\n`]*"
+    r"(?=````(?:imgWithSource|fileWithSource)\()"
+)
+
+
+def _ensure_fences_are_standalone(text: str) -> str:
+    """Strip any prefix text on the same line as a fence block.
+
+    The LLM sometimes puts file references inside list items or labels, e.g.:
+        - File: ````fileWithSource(...)````
+    After fence injection the label is left over. Strip it so the frontend
+    always receives the fence at the start of its own line, which is required
+    for correct parsing by the markdown renderer.
+
+    Only the prefix is removed; any trailing content after the closing `````
+    is preserved (it's unusual but not harmful).
+    """
+    return _FENCE_BLOCK_START.sub(r"\1", text)
+
+
 def _inject_code_execution_fences(
     text: str, code_blocks: list[CodeInterpreterBlock]
 ) -> str:
@@ -423,10 +456,20 @@ def _inject_code_execution_fences(
                 text = new_text
                 fence_id += 1
                 any_fence_injected = True
+            else:
+                logger.warning(
+                    "Fence injection skipped: no inline ref matched for '%s' "
+                    "(content_id=%s); fence discarded. "
+                    "The file was uploaded but will not appear in the message.",
+                    file.filename,
+                    file.content_id,
+                )
             # Remove duplicate refs (overwrite case)
             text = re.sub(pattern, "", text)
     if any_fence_injected:
         text = strip_executed_code_blocks(text)
+        text = _ensure_fences_are_standalone(text)
+        text = _CONSECUTIVE_FENCES_RE.sub(r"\1\n\n", text)
     return text
 
 
@@ -481,6 +524,75 @@ def _build_code_blocks(
     ]
 
 
+def _warn_missing_content_ids(text: str, content_map: dict[str, str | None]) -> None:
+    """End-of-pipeline validation: warn for any uploaded file whose content_id is absent from text.
+
+    After all postprocessing stages have run every successfully uploaded file should
+    have its content_id referenced somewhere in the message text (either as a
+    unique://content/<id> link or embedded in a fence attribute).  A missing content_id
+    means the file was uploaded but the user will never see it.
+    """
+    for filename, content_id in content_map.items():
+        if content_id is None:
+            continue
+        if content_id not in text:
+            logger.warning(
+                "End-of-pipeline check: content_id '%s' for file '%s' is not present "
+                "in the final message text — the file was uploaded but will not be "
+                "visible to the user.",
+                content_id,
+                filename,
+            )
+
+
+_SANDBOX_LINK_RE = re.compile(r"sandbox:/mnt/data/\S+")
+
+
+def _warn_dangling_sandbox_links(text: str) -> None:
+    """Warn if any sandbox:/mnt/data/ links remain in the final text.
+
+    A dangling link means either the LLM referenced a file that was never uploaded
+    (hallucination), or the sandbox link did not match the expected regex pattern
+    in stage-1 and was silently skipped.  Either way the user would see a broken link.
+    """
+    matches = _SANDBOX_LINK_RE.findall(text)
+    for match in matches:
+        logger.warning(
+            "Dangling sandbox link found in final text: '%s'. "
+            "The file was either never uploaded or the link format did not match "
+            "the expected pattern — the user will see a broken link.",
+            match,
+        )
+
+
+def _warn_unmatched_code_blocks(
+    content_map: dict[str, str | None],
+    code_blocks: list[CodeInterpreterBlock],
+) -> None:
+    """Warn for files that were uploaded but could not be matched to any code block.
+
+    When the fence feature flag is on, every uploaded file should map to a code block
+    via its /mnt/data/<filename> path so it can receive a fence.  If a file is not
+    matched (e.g. the LLM used a variable for the output path rather than a literal
+    string) it falls back to a plain unique://content/ link with no code context.
+    The user can still download it, but the frontend artifact UI will not be shown.
+    """
+    fenced_filenames = {f.filename for block in code_blocks for f in block.files}
+    for filename, content_id in content_map.items():
+        if content_id is None:
+            continue
+        if filename not in fenced_filenames:
+            logger.warning(
+                "File '%s' (content_id=%s) could not be matched to any code block "
+                "(literal path '/mnt/data/%s' not found in executed code). "
+                "It will appear as a plain download link without code context — "
+                "consider re-running the query if the artifact UI is expected.",
+                filename,
+                content_id,
+                filename,
+            )
+
+
 def _get_next_ref_number(references: list[ContentReference]) -> int:
     max_ref_number = 0
     for ref in references:
@@ -494,10 +606,14 @@ def _replace_container_file_error(
     image_markdown = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
 
     if not re.search(image_markdown, text):
-        logger.info("No image markdown found for %s", filename)
+        logger.warning(
+            "No sandbox link found for '%s'; file was uploaded but the LLM did not "
+            "reference it — it will not be displayed.",
+            filename,
+        )
         return text, False
 
-    logger.info("Displaying image %s", filename)
+    logger.info("Replacing failed download for '%s' with error message", filename)
     return re.sub(
         image_markdown,
         error_message,
@@ -511,10 +627,15 @@ def _replace_container_image_citation(
     image_markdown = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
 
     if not re.search(image_markdown, text):
-        logger.info("No image markdown found for %s", filename)
+        logger.warning(
+            "No sandbox link found for image '%s' (content_id=%s); "
+            "file was uploaded but the LLM did not reference it — it will not be displayed.",
+            filename,
+            content_id,
+        )
         return text, False
 
-    logger.info("Displaying image %s", filename)
+    logger.info("Inserting image citation for '%s'", filename)
     return re.sub(
         image_markdown,
         f"![image](unique://content/{content_id})",
@@ -528,10 +649,15 @@ def _replace_container_html_citation(
     html_markdown = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
 
     if not re.search(html_markdown, text):
-        logger.info("No HTML markdown found for %s", filename)
+        logger.warning(
+            "No sandbox link found for HTML file '%s' (content_id=%s); "
+            "file was uploaded but the LLM did not reference it — it will not be displayed.",
+            filename,
+            content_id,
+        )
         return text, False
 
-    logger.info("Displaying HTML %s", filename)
+    logger.info("Inserting HTML rendering block for '%s'", filename)
     html_rendering_block = f"""```HtmlRendering
 100%
 500px
@@ -552,10 +678,15 @@ def _replace_container_file_citation(
     file_markdown = rf"\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
 
     if not re.search(file_markdown, text):
-        logger.info("No file markdown found for %s", filename)
+        logger.warning(
+            "No sandbox link found for file '%s' (content_id=%s); "
+            "file was uploaded but the LLM did not reference it — it will not be displayed.",
+            filename,
+            content_id,
+        )
         return text, False
 
-    logger.info("Displaying file %s", filename)
+    logger.info("Inserting file citation for '%s'", filename)
     return re.sub(
         file_markdown,
         f"[{filename}](unique://content/{content_id})",

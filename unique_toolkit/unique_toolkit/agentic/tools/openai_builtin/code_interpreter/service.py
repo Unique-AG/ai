@@ -5,6 +5,7 @@ from openai import AsyncOpenAI, BaseModel, NotFoundError
 from openai.types.responses.tool_param import CodeInterpreter
 
 from unique_toolkit import ContentService, ShortTermMemoryService
+from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
 )
@@ -13,6 +14,7 @@ from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInToolName,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
     OpenAICodeInterpreterConfig,
 )
 from unique_toolkit.agentic.tools.schemas import ToolPrompts
@@ -145,6 +147,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         self,
         config: OpenAICodeInterpreterConfig,
         container_id: str | None,
+        company_id: str = "",
         is_exclusive: bool = False,
     ) -> None:
         self._config = config
@@ -153,6 +156,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
             raise ValueError("`container_id` required when not using `auto` containers")
 
         self._container_id = container_id
+        self._company_id = company_id
         self._is_exclusive = is_exclusive
 
     @property
@@ -196,7 +200,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
     ) -> "OpenAICodeInterpreterTool":
         if config.use_auto_container:
             logger.info("Using `auto` container setting")
-            return cls(config=config, container_id=None)
+            return cls(config=config, container_id=None, company_id=company_id)
 
         memory_manager = _get_container_code_execution_short_term_memory_manager(
             company_id=company_id,
@@ -229,16 +233,30 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         assert memory.container_id is not None
 
         return OpenAICodeInterpreterTool(
-            config=config, container_id=memory.container_id, is_exclusive=is_exclusive
+            config=config,
+            container_id=memory.container_id,
+            company_id=company_id,
+            is_exclusive=is_exclusive,
         )
 
     @override
     def get_tool_prompts(self) -> ToolPrompts:
+        # When the fence feature flag is on the frontend derives the artifact title
+        # from the filename, so the LLM no longer needs to produce a markdown heading.
+        # When the flag is off we fall back to the operator-configured prompt (which
+        # includes the title instruction) to preserve existing rendering behaviour.
+        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+            self._company_id
+        ):
+            system_prompt = DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
+        else:
+            system_prompt = self._config.tool_description_for_system_prompt
+
         return ToolPrompts(
             name="python",  # https://platform.openai.com/docs/guides/tools-code-interpreter
             display_name=self.DISPLAY_NAME,
             tool_description=self._config.tool_description,
-            tool_system_prompt=self._config.tool_description_for_system_prompt,
+            tool_system_prompt=system_prompt,
             tool_format_information_for_system_prompt="",
             tool_user_prompt=self._config.tool_description_for_user_prompt,
             tool_format_information_for_user_prompt="",

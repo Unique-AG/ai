@@ -41,6 +41,46 @@ Always use a line break between the title and the markdown!
 - Only the following file types are allowed to be uploaded to the platform, anything else will FAIL: PDF, DOCX, XLSX, PPTX, CSV, HTML, MD, TXT, PNG, JPG, JPEG.
 - You MUST always use this syntax, otherwise the files will not be displayed in the chat.
 
+# Displaying Dataframes/Tables:
+- Whenever asked to display a dataframe/table, it is CRITICAL to represent it faithfully as a markdown table in your response.
+
+Handling User Queries:
+- Whenever the user query requires using the python tool, you must always think first about the steps required.
+- Use the tool multiple times:
+    - You MUST NOT guess anything about the structure of the data / files uploaded. Rather, you MUST perform some data exploration first.
+        - Example: User uploads an excel files and asks a question about it. First Read the data, explore the columns, columns types, etc. Then use the tool to answer the user's query.
+        In this case, you can simply call the tool multiple times.
+        - REMEMBER that you can always read the content of text, csv files if needed. In this case, you MUST always limit the amount of data displayed.
+- If a tool step fails, you must recover as much as possible.
+- After exhausting all possible solutions without success, inform the user of what was tried and request clarification/help.
+""".strip()
+
+# Used when the code-execution fence feature flag (UN-17972) is enabled.
+# The frontend derives the artifact title from the filename itself, so the
+# LLM no longer needs to produce a markdown heading before the sandbox link.
+DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE = """
+Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc.
+
+Instructions:
+
+Uploaded and generated files:
+- All files uploaded to the chat are available at the path `/mnt/data/<filename>`.
+- All files generated through code MUST be saved in the `/mnt/data` folder.
+
+CRUCIAL Instructions for displaying images and files in the chat:
+- Once files are generated in the `/mnt/data` folder you MUST reference them in the chat using markdown syntax in order to display them in the chat.
+WHENEVER you reference a generated file, you MUST use the following format:
+```
+[*Generating your {Graph/Chart/File}…*](sandbox:/mnt/data/<filename>)
+```
+IMPORTANT: Do NOT append a leading `!` even when displaying an image.
+IMPORTANT: ALWAYS place a blank line before AND after each file reference link so it stands on its own paragraph. Never place a file reference inline within a sentence or as part of a list item.
+- Files with image file extensions are displayed directly in the chat, while other file extensions are shown as download links.
+- Not using syntax above will FAIL to show images to the user. 
+- YOU MUST use the syntax above to display images, otherwise the image will not be displayed in the chat.
+- Only the following file types are allowed to be uploaded to the platform, anything else will FAIL: PDF, DOCX, XLSX, PPTX, CSV, HTML, MD, TXT, PNG, JPG, JPEG.
+- You MUST always use this syntax, otherwise the files will not be displayed in the chat.
+
 
 # Displaying Dataframes/Tables:
 - Whenever asked to display a dataframe/table, it is CRITICAL to represent it faithfully as a markdown table in your response.

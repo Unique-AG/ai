@@ -1,5 +1,6 @@
 """Tests for code interpreter generated-files postprocessor (config, __init__, helpers)."""
 
+import logging
 from unittest.mock import MagicMock
 
 import pytest
@@ -14,9 +15,13 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     DisplayCodeInterpreterFilesPostProcessorConfig,
     _build_code_blocks,
     _build_file_fence,
+    _ensure_fences_are_standalone,
     _file_frontend_type,
     _file_title,
     _inject_code_execution_fences,
+    _warn_dangling_sandbox_links,
+    _warn_missing_content_ids,
+    _warn_unmatched_code_blocks,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import (
     CodeInterpreterBlock,
@@ -757,3 +762,485 @@ def test_inject_code_execution_fences__no_op__when_code_blocks_empty() -> None:
     text = "The answer is 42."
     result = _inject_code_execution_fences(text, [])
     assert result == text
+
+
+# ============================================================================
+# Tests for warning paths — fence injection
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_inject_code_execution_fences__logs_warning__when_no_inline_ref_matches(
+    caplog,
+) -> None:
+    """
+    Purpose: Verify a WARNING is emitted when the inline ref for a file cannot be found
+    in the text, so the fence is discarded.
+    Why this matters: Silent drops make production debugging very hard; a warning makes
+    the missing link immediately visible in logs.
+    Setup summary: Text has no matching unique://content ref for the file; assert warning logged.
+    """
+    block = CodeInterpreterBlock(
+        code='plt.savefig("/mnt/data/chart.png")',
+        files=[
+            CodeInterpreterFile(
+                filename="chart.png", content_id="cont_img1", type="image"
+            )
+        ],
+    )
+    text = "No image ref here."
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        result = _inject_code_execution_fences(text, [block])
+
+    assert result == text
+    assert any(
+        "chart.png" in r.message and r.levelno == logging.WARNING
+        for r in caplog.records
+    )
+
+
+@pytest.mark.ai
+def test_inject_code_execution_fences__no_warning__when_ref_matches(caplog) -> None:
+    """
+    Purpose: Verify no WARNING is emitted when the inline ref is found and the fence is
+    successfully injected.
+    Why this matters: Ensures no false-positive noise in production logs.
+    """
+    block = CodeInterpreterBlock(
+        code='plt.savefig("/mnt/data/chart.png")',
+        files=[
+            CodeInterpreterFile(
+                filename="chart.png", content_id="cont_img1", type="image"
+            )
+        ],
+    )
+    text = "Here: ![image](unique://content/cont_img1)"
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        _inject_code_execution_fences(text, [block])
+
+    assert not any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+# ============================================================================
+# Tests for warning paths — stage-1 replacement helpers
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_replace_container_image_citation__logs_warning__when_no_sandbox_link(
+    caplog,
+) -> None:
+    """
+    Purpose: Verify a WARNING is emitted by _replace_container_image_citation when no
+    sandbox link is present for the filename.
+    Why this matters: Makes it visible in production that the LLM omitted the link.
+    """
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        _, replaced = gen_mod._replace_container_image_citation(
+            text="No link here.", filename="plot.png", content_id="cont_x"
+        )
+
+    assert replaced is False
+    assert any(
+        "plot.png" in r.message and r.levelno == logging.WARNING for r in caplog.records
+    )
+
+
+@pytest.mark.ai
+def test_replace_container_file_citation__logs_warning__when_no_sandbox_link(
+    caplog,
+) -> None:
+    """
+    Purpose: Verify a WARNING is emitted by _replace_container_file_citation when no
+    sandbox link is present for the filename.
+    """
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        _, replaced = gen_mod._replace_container_file_citation(
+            text="No link here.", filename="data.csv", content_id="cont_y"
+        )
+
+    assert replaced is False
+    assert any(
+        "data.csv" in r.message and r.levelno == logging.WARNING for r in caplog.records
+    )
+
+
+@pytest.mark.ai
+def test_replace_container_html_citation__logs_warning__when_no_sandbox_link(
+    caplog,
+) -> None:
+    """
+    Purpose: Verify a WARNING is emitted by _replace_container_html_citation when no
+    sandbox link is present for the filename.
+    """
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        _, replaced = gen_mod._replace_container_html_citation(
+            text="No link here.", filename="report.html", content_id="cont_z"
+        )
+
+    assert replaced is False
+    assert any(
+        "report.html" in r.message and r.levelno == logging.WARNING
+        for r in caplog.records
+    )
+
+
+# ============================================================================
+# Tests for _warn_missing_content_ids (end-of-pipeline check)
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_warn_missing_content_ids__logs_warning__when_content_id_absent(
+    caplog,
+) -> None:
+    """
+    Purpose: Verify a WARNING is emitted when a content_id from content_map is not
+    present in the final message text.
+    Why this matters: Catches the case where a file was uploaded but never rendered —
+    without this check the drop is invisible in production.
+    Setup summary: content_map has one entry whose content_id is absent from text.
+    """
+    content_map: dict[str, str | None] = {"chart.png": "cont_img1"}
+    text = "The answer is 42."
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        _warn_missing_content_ids(text, content_map)
+
+    assert any(
+        "cont_img1" in r.message and r.levelno == logging.WARNING
+        for r in caplog.records
+    )
+
+
+@pytest.mark.ai
+def test_warn_missing_content_ids__no_warning__when_content_id_present(
+    caplog,
+) -> None:
+    """
+    Purpose: Verify no WARNING is emitted when all content_ids appear in the final text.
+    Why this matters: Ensures no false-positive noise when the pipeline ran correctly.
+    """
+    content_map: dict[str, str | None] = {"chart.png": "cont_img1"}
+    text = "````imgWithSource(id='1', contentId='cont_img1', ...)````"
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        _warn_missing_content_ids(text, content_map)
+
+    assert not any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+@pytest.mark.ai
+def test_warn_missing_content_ids__skips_none_content_ids(caplog) -> None:
+    """
+    Purpose: Verify files whose content_id is None (upload failed) are silently skipped.
+    Why this matters: Upload failures are already handled upstream; no double warning here.
+    """
+    content_map: dict[str, str | None] = {"broken.xlsx": None}
+    text = "Some text with no content id."
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        _warn_missing_content_ids(text, content_map)
+
+    assert not any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+@pytest.mark.ai
+def test_warn_missing_content_ids__warns_only_missing__when_mixed(caplog) -> None:
+    """
+    Purpose: Verify only the absent content_id triggers a warning when some are present
+    and some are missing.
+    Why this matters: Partial-success pipelines should surface exactly the gap.
+    Setup summary: Two files; first present in text, second absent; assert one warning.
+    """
+    content_map: dict[str, str | None] = {
+        "chart.png": "cont_present",
+        "data.csv": "cont_missing",
+    }
+    text = "See ````imgWithSource(contentId='cont_present')````"
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        _warn_missing_content_ids(text, content_map)
+
+    warning_messages = [
+        r.message for r in caplog.records if r.levelno == logging.WARNING
+    ]
+    assert len(warning_messages) == 1
+    assert "cont_missing" in warning_messages[0]
+
+
+# ============================================================================
+# Tests for _ensure_fences_are_standalone
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_ensure_fences_are_standalone__strips_list_prefix__before_file_fence() -> None:
+    """
+    Purpose: Verify a '- File: ' list-item prefix before a fileWithSource fence is stripped.
+    Why this matters: The LLM often wraps file links in markdown list items
+    (e.g. '- File: [link](sandbox:...)').  After stage-1 replacement the link
+    becomes a fence, leaving '- File: ````fileWithSource(...)````. The frontend
+    markdown parser cannot extract a fence that is not at the start of its line.
+    Setup summary: Text with '- File: ````fileWithSource(...)```'; assert prefix stripped.
+    """
+    text = 'Results:\n\n- File: ````fileWithSource(id=\'1\', contentId=\'cid\', title="Data", type="csv", code="")````\n\nDone.'
+
+    result = _ensure_fences_are_standalone(text)
+
+    assert "- File: " not in result
+    assert "````fileWithSource(" in result
+    assert result.count("````fileWithSource(") == 1
+    assert "Results:" in result
+    assert "Done." in result
+
+
+@pytest.mark.ai
+def test_ensure_fences_are_standalone__strips_list_prefix__before_img_fence() -> None:
+    """
+    Purpose: Verify a list-item prefix before an imgWithSource fence is also stripped.
+    """
+    text = "- Chart: ````imgWithSource(id='1', contentId='cid', title=\"Chart\", code=\"\")````"
+
+    result = _ensure_fences_are_standalone(text)
+
+    assert "- Chart: " not in result
+    assert result.startswith("````imgWithSource(")
+
+
+@pytest.mark.ai
+def test_ensure_fences_are_standalone__no_change__when_fence_already_standalone() -> (
+    None
+):
+    """
+    Purpose: Verify text is unchanged when the fence already starts at the beginning
+    of its line.
+    Why this matters: No-op on well-formed output avoids accidental mutations.
+    """
+    text = 'Here is the result:\n\n````fileWithSource(id=\'1\', contentId=\'cid\', title="Data", type="csv", code="")````\n\nDone.'
+
+    result = _ensure_fences_are_standalone(text)
+
+    assert result == text
+
+
+@pytest.mark.ai
+def test_inject_code_execution_fences__file_fence_standalone__when_llm_uses_list_item() -> (
+    None
+):
+    """
+    Purpose: End-to-end verify that a fence injected into a list-item context
+    (e.g. '- File: [data.csv](unique://content/...)') ends up standalone after injection.
+    Why this matters: Serhan (frontend) reported fileWithSource fences were being
+    embedded inside markdown list items ('- File: ````fileWithSource(...)````'),
+    which prevents the frontend markdown parser from extracting them.
+    Setup summary: Text has '- File: [data.csv](unique://content/cid)'; after injection
+    the fence must start at the beginning of its line with no leading text.
+    """
+    block = CodeInterpreterBlock(
+        code='df.to_csv("/mnt/data/data.csv")',
+        files=[
+            CodeInterpreterFile(
+                filename="data.csv", content_id="cont_csv1", type="document"
+            )
+        ],
+    )
+    text = "Generated the file:\n\n- File: [data.csv](unique://content/cont_csv1)\n\nWould you like a preview?"
+
+    result = _inject_code_execution_fences(text, [block])
+
+    assert "````fileWithSource(" in result
+    # Fence must not be preceded by any non-whitespace text on the same line
+    for line in result.splitlines():
+        if "````fileWithSource(" in line:
+            assert line.lstrip() == line or line.strip().startswith("````"), (
+                f"Fence is not at the start of its line: {line!r}"
+            )
+    assert "- File: " not in result
+    assert "Generated the file:" in result
+    assert "Would you like a preview?" in result
+
+
+# ============================================================================
+# Tests for consecutive fences on the same line
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_inject_code_execution_fences__separates_fences__when_inline_refs_on_same_line() -> (
+    None
+):
+    """
+    Purpose: Verify that two fences which end up on the same line (because the LLM
+    placed both inline refs on the same line) are separated by a blank line.
+    Why this matters: Consecutive fences with no newline between them may not be
+    parseable by the frontend markdown tokeniser.
+    Setup summary: Text has two unique:// refs on the same line; assert two fences
+    on separate paragraphs after injection.
+    """
+    block = CodeInterpreterBlock(
+        code='plt.savefig("/mnt/data/chart.png")\ndf.to_csv("/mnt/data/data.csv")',
+        files=[
+            CodeInterpreterFile(
+                filename="chart.png", content_id="cont_img1", type="image"
+            ),
+            CodeInterpreterFile(
+                filename="data.csv", content_id="cont_csv1", type="document"
+            ),
+        ],
+    )
+    # Both refs on the same line — edge case the LLM could produce
+    text = "Files: ![image](unique://content/cont_img1) and [data.csv](unique://content/cont_csv1)"
+
+    result = _inject_code_execution_fences(text, [block])
+
+    img_pos = result.index("````imgWithSource(")
+    csv_pos = result.index("````fileWithSource(")
+    between = result[img_pos:csv_pos]
+    assert "\n" in between, "Expected newline between consecutive fences"
+
+
+@pytest.mark.ai
+def test_inject_code_execution_fences__no_double_separator__when_fences_already_on_separate_lines() -> (
+    None
+):
+    """
+    Purpose: Verify that fences already separated by a newline are not given an extra
+    blank line (i.e. the separator pass is idempotent for the normal case).
+    """
+    block1 = CodeInterpreterBlock(
+        code='plt.savefig("/mnt/data/chart.png")',
+        files=[
+            CodeInterpreterFile(
+                filename="chart.png", content_id="cont_img1", type="image"
+            )
+        ],
+    )
+    block2 = CodeInterpreterBlock(
+        code='df.to_csv("/mnt/data/data.csv")',
+        files=[
+            CodeInterpreterFile(
+                filename="data.csv", content_id="cont_csv1", type="document"
+            )
+        ],
+    )
+    text = (
+        "![image](unique://content/cont_img1)\n[data.csv](unique://content/cont_csv1)"
+    )
+
+    result = _inject_code_execution_fences(text, [block1, block2])
+
+    assert result.count("````imgWithSource(") == 1
+    assert result.count("````fileWithSource(") == 1
+    # Both fences present; no duplication
+    assert result.count("````") == 4  # 2 opening + 2 closing
+
+
+# ============================================================================
+# Tests for _warn_dangling_sandbox_links
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_warn_dangling_sandbox_links__logs_warning__when_sandbox_link_present(
+    caplog,
+) -> None:
+    """
+    Purpose: Verify a WARNING is emitted when a sandbox:/mnt/data/ link remains in
+    the final text (indicating a hallucinated file or a missed stage-1 replacement).
+    Why this matters: The user would see a broken link; the warning makes this
+    immediately visible in production logs.
+    """
+    text = "Download: [chart](sandbox:/mnt/data/chart.png)"
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        _warn_dangling_sandbox_links(text)
+
+    assert any(
+        "sandbox:/mnt/data/chart.png" in r.message and r.levelno == logging.WARNING
+        for r in caplog.records
+    )
+
+
+@pytest.mark.ai
+def test_warn_dangling_sandbox_links__no_warning__when_no_sandbox_link(caplog) -> None:
+    """
+    Purpose: Verify no WARNING when the text contains no dangling sandbox links.
+    """
+    text = "Here is your result: ````imgWithSource(contentId='cont_1')````"
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        _warn_dangling_sandbox_links(text)
+
+    assert not any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+# ============================================================================
+# Tests for _warn_unmatched_code_blocks
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_warn_unmatched_code_blocks__logs_warning__when_file_not_in_any_block(
+    caplog,
+) -> None:
+    """
+    Purpose: Verify a WARNING is emitted when an uploaded file (with a valid content_id)
+    is not present in any code block.
+    Why this matters: This means the file won't receive a fence when FF=on.  It will
+    appear as a plain download link and the frontend artifact UI won't be shown.
+    The warning tells the operator the query should be re-run.
+    Setup summary: content_map has one file; code_blocks is empty; assert warning.
+    """
+    content_map: dict[str, str | None] = {"report.xlsx": "cont_abc"}
+    code_blocks: list[CodeInterpreterBlock] = []
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        _warn_unmatched_code_blocks(content_map, code_blocks)
+
+    assert any(
+        "report.xlsx" in r.message and r.levelno == logging.WARNING
+        for r in caplog.records
+    )
+
+
+@pytest.mark.ai
+def test_warn_unmatched_code_blocks__no_warning__when_file_is_in_block(
+    caplog,
+) -> None:
+    """
+    Purpose: Verify no WARNING when the file is correctly matched to a code block.
+    """
+    content_map: dict[str, str | None] = {"chart.png": "cont_img1"}
+    code_blocks = [
+        CodeInterpreterBlock(
+            code='plt.savefig("/mnt/data/chart.png")',
+            files=[
+                CodeInterpreterFile(
+                    filename="chart.png", content_id="cont_img1", type="image"
+                )
+            ],
+        )
+    ]
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        _warn_unmatched_code_blocks(content_map, code_blocks)
+
+    assert not any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+@pytest.mark.ai
+def test_warn_unmatched_code_blocks__skips_none_content_ids(caplog) -> None:
+    """
+    Purpose: Verify files whose upload failed (content_id=None) are silently skipped.
+    Why this matters: Upload failures are already handled upstream; no double warning.
+    """
+    content_map: dict[str, str | None] = {"broken.xlsx": None}
+    code_blocks: list[CodeInterpreterBlock] = []
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+        _warn_unmatched_code_blocks(content_map, code_blocks)
+
+    assert not any(r.levelno == logging.WARNING for r in caplog.records)
