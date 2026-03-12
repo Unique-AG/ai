@@ -68,7 +68,7 @@ jobs:
       && (needs.detect-changes.result == 'success' || needs.detect-changes.result == 'skipped')
       && fromJson(inputs.matrix || needs.detect-changes.outputs.matrix).include[0] != null
     runs-on: ubuntu-latest
-    continue-on-error: ${{ !matrix.require_zero_errors }}
+    continue-on-error: ${{ matrix.typecheck_require_zero_errors != 'true' }}
     permissions:
       contents: read
       pull-requests: write
@@ -86,7 +86,7 @@ jobs:
           curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b /tmp
 
       - name: Create baseline from base branch
-        if: matrix.use_baseline
+        if: matrix.typecheck_use_baseline == 'true'
         uses: ./.github/actions/create-type-baseline
         with:
           package_dir: ${{ matrix.dir }}
@@ -98,11 +98,11 @@ jobs:
         with:
           package_dir: ${{ matrix.dir }}
           python_version: ${{ matrix.python }}
-          baseline_file: ${{ matrix.use_baseline && '/tmp/baseline.json' || '' }}
+          baseline_file: ${{ matrix.typecheck_use_baseline == 'true' && '/tmp/baseline.json' || '' }}
           output_file: /tmp/basedpyright.json
 
       - name: Report type errors
-        continue-on-error: ${{ !matrix.require_zero_errors }}
+        continue-on-error: ${{ matrix.typecheck_require_zero_errors != 'true' }}
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

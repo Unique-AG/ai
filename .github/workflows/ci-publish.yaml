@@ -33,6 +33,7 @@ on:
           - internal_search
           - quartr
           - six
+          - search_proxy
         default: ''
 
 jobs:
@@ -47,27 +48,25 @@ jobs:
         id: detect
         if: github.event_name == 'push'
 
+      - uses: ./.github/actions/get-packages-matrix
+        id: pkgs
+
+      - name: Filter publishable packages
+        id: filter
+        run: |
+          PACKAGES='${{ steps.pkgs.outputs.packages }}'
+          FILTERED=$(echo "$PACKAGES" | jq -c '[.[] | select((.publish_skip != true) and (.pypi_name != null))]')
+          echo "packages<<EOF" >> $GITHUB_OUTPUT
+          echo "$FILTERED" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Select packages
         id: set-matrix
         uses: ./.github/actions/select-packages
         with:
-          packages: |
-            [
-              {"id": "sdk",                "dir": "unique_sdk",                                "pypi_name": "unique_sdk",                  "python": "3.11"},
-              {"id": "toolkit",            "dir": "unique_toolkit",                            "pypi_name": "unique_toolkit",              "python": "3.12"},
-              {"id": "mcp",                "dir": "unique_mcp",                                "pypi_name": "unique-mcp",                  "python": "3.12"},
-              {"id": "orchestrator",       "dir": "unique_orchestrator",                       "pypi_name": "unique_orchestrator",         "python": "3.12"},
-              {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "pypi_name": "unique_web_search",           "python": "3.12"},
-              {"id": "swot",               "dir": "tool_packages/unique_swot",                 "pypi_name": "unique-swot",                 "python": "3.12"},
-              {"id": "follow_up_questions","dir": "postprocessors/unique_follow_up_questions", "pypi_name": "unique_follow_up_questions",  "python": "3.12"},
-              {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "pypi_name": "unique_stock_ticker",         "python": "3.12"},
-              {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "pypi_name": "unique_deep_research",        "python": "3.12"},
-              {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "pypi_name": "unique_internal_search",      "python": "3.12"},
-              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "pypi_name": "unique_quartr",               "python": "3.12"},
-              {"id": "six",                "dir": "connectors/unique_six",                     "pypi_name": "unique_six",                  "python": "3.12"}
-            ]
+          packages: ${{ steps.filter.outputs.packages }}
           selected: ${{ github.event.inputs.package }}
-          changes: ${{ steps.detect.outputs.changes }}
+          changes: ${{ steps.detect.outputs.changes || '{}' }}
 
   publish:
     needs: detect-changes
