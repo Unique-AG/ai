@@ -64,7 +64,7 @@ class ToolCall(BaseModel):
         )
 
 
-class MessageToolResponseRecord(BaseModel):
+class ChatMessageToolResponse(BaseModel):
     model_config = model_config
 
     id: str | None = None
@@ -73,7 +73,7 @@ class MessageToolResponseRecord(BaseModel):
     created_at: datetime | None = None
 
 
-class MessageToolRecord(BaseModel):
+class ChatMessageTool(BaseModel):
     model_config = model_config
 
     id: str | None = None
@@ -83,7 +83,7 @@ class MessageToolRecord(BaseModel):
     round_index: int
     sequence_index: int
     message_id: str | None = None
-    response: MessageToolResponseRecord | None = None
+    response: ChatMessageToolResponse | None = None
     created_at: datetime | None = None
 
 

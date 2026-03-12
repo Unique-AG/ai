@@ -21,6 +21,7 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
     ChatMessageRole,
+    ChatMessageTool,
     MessageExecution,
     MessageExecutionType,
     MessageExecutionUpdateStatus,
@@ -28,7 +29,6 @@ from unique_toolkit.chat.schemas import (
     MessageLogDetails,
     MessageLogStatus,
     MessageLogUncitedReferences,
-    MessageToolRecord,
 )
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model.constants import (
@@ -1414,8 +1414,8 @@ def create_message_tools(
     user_id: str,
     company_id: str,
     message_id: str,
-    tool_calls: list[MessageToolRecord],
-) -> list[MessageToolRecord]:
+    tool_calls: list[ChatMessageTool],
+) -> list[ChatMessageTool]:
     """Persists message tools (with optional responses) for an assistant message."""
     try:
         tool_call_items = [
@@ -1439,7 +1439,7 @@ def create_message_tools(
             messageId=message_id,
             tools=tool_call_items,  # type: ignore
         )
-        return [MessageToolRecord(**item) for item in result["data"]]
+        return [ChatMessageTool(**item) for item in result["data"]]
     except Exception as e:
         logger.error(f"Failed to create message tools: {e}")
         raise e
@@ -1449,8 +1449,8 @@ async def create_message_tools_async(
     user_id: str,
     company_id: str,
     message_id: str,
-    tool_calls: list[MessageToolRecord],
-) -> list[MessageToolRecord]:
+    tool_calls: list[ChatMessageTool],
+) -> list[ChatMessageTool]:
     """Persists message tools (with optional responses) for an assistant message (async)."""
     try:
         tool_call_items = [
@@ -1474,7 +1474,7 @@ async def create_message_tools_async(
             messageId=message_id,
             tools=tool_call_items,  # type: ignore
         )
-        return [MessageToolRecord(**item) for item in result["data"]]
+        return [ChatMessageTool(**item) for item in result["data"]]
     except Exception as e:
         logger.error(f"Failed to create message tools: {e}")
         raise e
@@ -1485,7 +1485,7 @@ def get_message_tools(
     company_id: str,
     message_id: str | None = None,
     message_ids: list[str] | None = None,
-) -> list[MessageToolRecord]:
+) -> list[ChatMessageTool]:
     """Gets message tools for given message(s).
 
     Either message_id (single) or message_ids (batch) can be provided.
@@ -1499,7 +1499,7 @@ def get_message_tools(
             company_id=company_id,
             messageIds=ids,
         )
-        return [MessageToolRecord(**item) for item in result["data"]]
+        return [ChatMessageTool(**item) for item in result["data"]]
     except Exception as e:
         logger.error(f"Failed to get message tools: {e}")
         raise e
@@ -1510,7 +1510,7 @@ async def get_message_tools_async(
     company_id: str,
     message_id: str | None = None,
     message_ids: list[str] | None = None,
-) -> list[MessageToolRecord]:
+) -> list[ChatMessageTool]:
     """Gets message tools for given message(s) (async).
 
     Either message_id (single) or message_ids (batch) can be provided.
@@ -1524,7 +1524,7 @@ async def get_message_tools_async(
             company_id=company_id,
             messageIds=ids,
         )
-        return [MessageToolRecord(**item) for item in result["data"]]
+        return [ChatMessageTool(**item) for item in result["data"]]
     except Exception as e:
         logger.error(f"Failed to get message tools: {e}")
         raise e

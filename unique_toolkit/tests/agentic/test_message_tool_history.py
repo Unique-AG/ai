@@ -9,8 +9,8 @@ from unique_toolkit.agentic.history_manager.history_manager import HistoryManage
 from unique_toolkit.chat.schemas import (
     ChatMessage,
     ChatMessageRole,
-    MessageToolRecord,
-    MessageToolResponseRecord,
+    ChatMessageTool,
+    ChatMessageToolResponse,
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
@@ -21,7 +21,7 @@ from unique_toolkit.language_model.schemas import (
 )
 
 
-class TestExtractMessageToolRecords:
+class TestExtractMessageTools:
     def _make_history_manager(self) -> HistoryManager:
         hm = HistoryManager.__new__(HistoryManager)
         hm._loop_history = []
@@ -29,7 +29,7 @@ class TestExtractMessageToolRecords:
 
     def test_empty_history(self):
         hm = self._make_history_manager()
-        assert hm.extract_message_tool_records() == []
+        assert hm.extract_message_tools() == []
 
     def test_single_round_single_tool(self):
         hm = self._make_history_manager()
@@ -40,7 +40,7 @@ class TestExtractMessageToolRecords:
                 tool_call_id="call_1", content="result", name="search"
             ),
         ]
-        records = hm.extract_message_tool_records()
+        records = hm.extract_message_tools()
         assert len(records) == 1
         assert records[0].external_tool_call_id == "call_1"
         assert records[0].function_name == "search"
@@ -63,7 +63,7 @@ class TestExtractMessageToolRecords:
                 tool_call_id="call_b", content="res_b", name="calc"
             ),
         ]
-        records = hm.extract_message_tool_records()
+        records = hm.extract_message_tools()
         assert len(records) == 2
         assert records[0].sequence_index == 0
         assert records[1].sequence_index == 1
@@ -79,7 +79,7 @@ class TestExtractMessageToolRecords:
             LanguageModelAssistantMessage.from_functions(tool_calls=[fn2]),
             LanguageModelToolMessage(tool_call_id="c2", content="r2", name="t2"),
         ]
-        records = hm.extract_message_tool_records()
+        records = hm.extract_message_tools()
         assert len(records) == 2
         assert records[0].round_index == 0
         assert records[1].round_index == 1
@@ -90,7 +90,7 @@ class TestExtractMessageToolRecords:
         hm._loop_history = [
             LanguageModelAssistantMessage.from_functions(tool_calls=[fn]),
         ]
-        records = hm.extract_message_tool_records()
+        records = hm.extract_message_tools()
         assert len(records) == 1
         assert records[0].response is None
 
@@ -103,7 +103,7 @@ class TestExtractMessageToolRecords:
         )
         assistant_msg = LanguageModelAssistantMessage(content="", tool_calls=[tc])
         hm._loop_history = [assistant_msg]
-        records = hm.extract_message_tool_records()
+        records = hm.extract_message_tools()
         assert len(records) == 1
         assert records[0].external_tool_call_id == ""
 
@@ -141,14 +141,14 @@ class TestGetFullHistoryWithContentsAndToolCalls:
         ]
 
         tool_call_records = [
-            MessageToolRecord(
+            ChatMessageTool(
                 external_tool_call_id="tc1",
                 function_name="calculator",
                 arguments={"expr": "2+2"},
                 round_index=0,
                 sequence_index=0,
                 message_id="msg2",
-                response=MessageToolResponseRecord(content="4"),
+                response=ChatMessageToolResponse(content="4"),
             ),
         ]
         mock_chat_service.get_message_tools.return_value = tool_call_records
@@ -250,7 +250,7 @@ class TestGetFullHistoryWithContentsAndToolCalls:
         assert result.root[0].role.value == "user"
 
 
-class TestCompactMessageToolRecords:
+class TestCompactMessageTools:
     def _make_sources(self, source_numbers: list[int]) -> str:
         return json.dumps(
             [
@@ -259,14 +259,14 @@ class TestCompactMessageToolRecords:
             ]
         )
 
-    def _make_record(self, response_content: str | None = None) -> MessageToolRecord:
-        return MessageToolRecord(
+    def _make_record(self, response_content: str | None = None) -> ChatMessageTool:
+        return ChatMessageTool(
             external_tool_call_id="call_1",
             function_name="search",
             arguments={"q": "test"},
             round_index=0,
             sequence_index=0,
-            response=MessageToolResponseRecord(content=response_content)
+            response=ChatMessageToolResponse(content=response_content)
             if response_content is not None
             else None,
         )
@@ -274,27 +274,25 @@ class TestCompactMessageToolRecords:
     def test_no_assistant_text_returns_records_unchanged(self):
         content = self._make_sources([0, 1, 2])
         records = [self._make_record(content)]
-        result = HistoryManager.compact_message_tool_records(records, None)
+        result = HistoryManager.compact_message_tools(records, None)
         assert result[0].response.content == content
 
     def test_empty_assistant_text_returns_records_unchanged(self):
         content = self._make_sources([0, 1, 2])
         records = [self._make_record(content)]
-        result = HistoryManager.compact_message_tool_records(records, "")
+        result = HistoryManager.compact_message_tools(records, "")
         assert result[0].response.content == content
 
     def test_no_citations_returns_records_unchanged(self):
         content = self._make_sources([0, 1, 2])
         records = [self._make_record(content)]
-        result = HistoryManager.compact_message_tool_records(
-            records, "No sources used here."
-        )
+        result = HistoryManager.compact_message_tools(records, "No sources used here.")
         assert result[0].response.content == content
 
     def test_strips_uncited_sources(self):
         content = self._make_sources([0, 1, 2, 3, 4])
         records = [self._make_record(content)]
-        result = HistoryManager.compact_message_tool_records(
+        result = HistoryManager.compact_message_tools(
             records, "The answer is sunny [source0] and warm [source3]."
         )
         parsed = json.loads(result[0].response.content)
@@ -304,7 +302,7 @@ class TestCompactMessageToolRecords:
     def test_keeps_all_when_all_cited(self):
         content = self._make_sources([5, 6])
         records = [self._make_record(content)]
-        result = HistoryManager.compact_message_tool_records(
+        result = HistoryManager.compact_message_tools(
             records, "Info from [source5] and [source6]."
         )
         parsed = json.loads(result[0].response.content)
@@ -312,30 +310,26 @@ class TestCompactMessageToolRecords:
 
     def test_non_json_content_left_unchanged(self):
         records = [self._make_record("plain text result")]
-        result = HistoryManager.compact_message_tool_records(
-            records, "Used [source0] here."
-        )
+        result = HistoryManager.compact_message_tools(records, "Used [source0] here.")
         assert result[0].response.content == "plain text result"
 
     def test_no_response_record_is_safe(self):
         records = [self._make_record(None)]
         records[0].response = None
-        result = HistoryManager.compact_message_tool_records(
-            records, "Used [source0] here."
-        )
+        result = HistoryManager.compact_message_tools(records, "Used [source0] here.")
         assert result[0].response is None
 
     def test_multiple_records_compacted_independently(self):
         r1 = self._make_record(self._make_sources([0, 1, 2]))
-        r2 = MessageToolRecord(
+        r2 = ChatMessageTool(
             external_tool_call_id="call_2",
             function_name="web_search",
             arguments={"q": "weather"},
             round_index=1,
             sequence_index=0,
-            response=MessageToolResponseRecord(content=self._make_sources([3, 4, 5])),
+            response=ChatMessageToolResponse(content=self._make_sources([3, 4, 5])),
         )
-        result = HistoryManager.compact_message_tool_records(
+        result = HistoryManager.compact_message_tools(
             [r1, r2], "From [source1] and [source4] we know..."
         )
         parsed_r1 = json.loads(result[0].response.content)
@@ -348,7 +342,7 @@ class TestCompactMessageToolRecords:
     def test_case_insensitive_citation_matching(self):
         content = self._make_sources([0, 1])
         records = [self._make_record(content)]
-        result = HistoryManager.compact_message_tool_records(
+        result = HistoryManager.compact_message_tools(
             records, "Per [Source0] this is correct."
         )
         parsed = json.loads(result[0].response.content)

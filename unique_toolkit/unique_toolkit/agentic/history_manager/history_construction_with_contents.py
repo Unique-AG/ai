@@ -12,7 +12,7 @@ from unique_toolkit._common.token.token_counting import (
 )
 from unique_toolkit._common.utils import files as FileUtils
 from unique_toolkit.app import ChatEventUserMessage
-from unique_toolkit.chat.schemas import ChatMessage, MessageToolRecord
+from unique_toolkit.chat.schemas import ChatMessage, ChatMessageTool
 from unique_toolkit.chat.schemas import ChatMessageRole as ChatRole
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import Content
@@ -245,7 +245,7 @@ def get_full_history_with_contents_and_tool_calls(
     assistant_message_ids = [
         msg.id for msg in chat_history if msg.role == ChatRole.ASSISTANT and msg.id
     ]
-    tool_calls_by_message: dict[str, list[MessageToolRecord]] = {}
+    tool_calls_by_message: dict[str, list[ChatMessageTool]] = {}
     if assistant_message_ids:
         try:
             all_tool_calls = chat_service.get_message_tools(
