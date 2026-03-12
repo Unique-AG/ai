@@ -123,8 +123,9 @@ jobs:
 
           failed=false
 
-          # Required checks (skipped is OK for when no packages changed or merge_group)
-          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "changelog:$CHANGELOG" "pr-title:$PR_TITLE"; do
+          # Required checks (skipped is OK for when no packages changed or merge_group).
+          # Types: failure means a package with typecheck_require_zero_errors failed, so we treat it as blocking.
+          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "types:$TYPES" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "changelog:$CHANGELOG" "pr-title:$PR_TITLE"; do
             name="${check%%:*}"
             result="${check##*:}"
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
@@ -132,11 +133,6 @@ jobs:
               failed=true
             fi
           done
-
-          # Types is continue-on-error, report but don't fail
-          if [[ "$TYPES" == "failure" ]]; then
-            echo "⚠️ types failed (non-blocking)"
-          fi
 
           if [[ "$failed" == "true" ]]; then
             echo "status=failure" >> $GITHUB_OUTPUT

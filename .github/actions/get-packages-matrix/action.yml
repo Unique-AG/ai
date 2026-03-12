@@ -13,5 +13,5 @@ runs:
       shell: bash
       run: |
         echo "packages<<EOF" >> $GITHUB_OUTPUT
-        cat "$GITHUB_WORKSPACE/.github/actions/get-packages-matrix/packages.json" >> $GITHUB_OUTPUT
+        cat "$GITHUB_WORKSPACE/.github/actions/get-packages-matrix/package_configuration.json" >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
