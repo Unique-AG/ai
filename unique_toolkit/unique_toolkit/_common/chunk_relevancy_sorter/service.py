@@ -338,7 +338,7 @@ class ChunkRelevancySorter:
             key=lambda obj: (
                 relevancy_level_order[obj.relevancy.value.lower()]
                 if obj.relevancy is not None
-                else 0,
+                else len(relevancy_level_order),
                 chunk_order[obj.chunk.chunk_id],
             ),
         )
