@@ -33,7 +33,9 @@ The reminder to add to the tool response. The reminder can be a Jinja template a
 """.strip()
 
 
-class NoReferenceSystemReminderConfig(SystemReminderConfig):
+class NoReferenceSystemReminderConfig(
+    SystemReminderConfig[Literal[SubAgentSystemReminderType.NO_REFERENCE]]
+):
     """A system reminder that is only added if the sub agent response does not contain any references."""
 
     type: Literal[SubAgentSystemReminderType.NO_REFERENCE] = (
@@ -45,7 +47,9 @@ class NoReferenceSystemReminderConfig(SystemReminderConfig):
     )
 
 
-class ReferenceSystemReminderConfig(SystemReminderConfig):
+class ReferenceSystemReminderConfig(
+    SystemReminderConfig[Literal[SubAgentSystemReminderType.REFERENCE]]
+):
     type: Literal[SubAgentSystemReminderType.REFERENCE] = (
         SubAgentSystemReminderType.REFERENCE
     )
@@ -55,7 +59,9 @@ class ReferenceSystemReminderConfig(SystemReminderConfig):
     )
 
 
-class FixedSystemReminderConfig(SystemReminderConfig):
+class FixedSystemReminderConfig(
+    SystemReminderConfig[Literal[SubAgentSystemReminderType.FIXED]]
+):
     type: Literal[SubAgentSystemReminderType.FIXED] = SubAgentSystemReminderType.FIXED
     reminder: str = Field(
         description=_SYSTEM_REMINDER_FIELD_DESCRIPTION,
@@ -70,7 +76,9 @@ The reminder to add to the tool response. The reminder can be a Jinja template a
 """.strip()
 
 
-class RegExpDetectedSystemReminderConfig(SystemReminderConfig):
+class RegExpDetectedSystemReminderConfig(
+    SystemReminderConfig[Literal[SubAgentSystemReminderType.REGEXP]]
+):
     """A system reminder that is only added if the sub agent response matches a regular expression."""
 
     type: Literal[SubAgentSystemReminderType.REGEXP] = SubAgentSystemReminderType.REGEXP

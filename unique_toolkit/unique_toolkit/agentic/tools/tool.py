@@ -172,7 +172,7 @@ class Tool(ABC, Generic[ConfigType]):
         self.config = config
         module_name = "default overwrite for module name"
         self.logger = getLogger(f"{module_name}.{__name__}")
-        self.debug_info: dict = {}
+        self.debug_info: dict[str, Any] = {}
 
         # TODO: Remove these properties as soon as possible
         self._event: ChatEvent = event

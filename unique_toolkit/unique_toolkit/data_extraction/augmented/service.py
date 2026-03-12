@@ -1,5 +1,5 @@
 from docxtpl.template import Any
-from pydantic import BaseModel, create_model
+from pydantic import BaseModel, ConfigDict, create_model
 from pydantic.alias_generators import to_pascal
 from pydantic.fields import FieldInfo
 from typing_extensions import override
@@ -24,10 +24,10 @@ def _build_augmented_model_for_field(
         field_name: field_type,
     }
 
-    return create_model(
+    return create_model(  # pyright: ignore[reportCallIssue]
         f"{camelized_field_name}Value",
-        **fields,  # type: ignore
-        __config__={"extra": "forbid" if strict else "ignore"},
+        __config__=ConfigDict(extra="forbid" if strict else "ignore"),
+        **fields,
     )
 
 
@@ -62,10 +62,10 @@ class AugmentedDataExtractor(BaseDataExtractor):
             )
             fields[field_name] = wrapped_field
 
-        return create_model(
+        return create_model(  # pyright: ignore[reportCallIssue]
             schema.__name__,
             **fields,
-            __config__={"extra": "forbid" if self._strict else "ignore"},
+            __config__=ConfigDict(extra="forbid" if self._strict else "ignore"),
             __doc__=schema.__doc__,
         )
 

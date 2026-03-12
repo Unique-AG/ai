@@ -18,7 +18,7 @@ class DebugInfoManager:
                 if tool_call_response.debug_info
                 else {}
             )
-            tool_info: dict = {
+            tool_info: dict[str, Any] = {
                 "name": tool_call_response.name,
                 "info": debug_info,
             }

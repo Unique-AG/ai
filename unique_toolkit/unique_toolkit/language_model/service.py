@@ -40,7 +40,7 @@ class LanguageModelService:
         "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: Event | ChatEvent | BaseEvent): ...
+    def __init__(self, event: Event | ChatEvent | BaseEvent[Any]): ...
 
     """
         Initialize the LanguageModelService with an event (deprecated)
@@ -55,7 +55,7 @@ class LanguageModelService:
 
     def __init__(
         self,
-        event: Event | ChatEvent | BaseEvent | None = None,
+        event: Event | ChatEvent | BaseEvent[Any] | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
         **kwargs: dict[str, Any],  # only here for backward compatibility
@@ -81,7 +81,7 @@ class LanguageModelService:
             self._assistant_id: str | None = None
 
     @classmethod
-    def from_event(cls, event: BaseEvent):
+    def from_event(cls, event: BaseEvent[Any]):
         """
         Initialize the LanguageModelService with an event.
         """
@@ -106,7 +106,7 @@ class LanguageModelService:
     @deprecated(
         "The event property is deprecated and will be removed in a future version."
     )
-    def event(self) -> Event | BaseEvent | None:
+    def event(self) -> Event | BaseEvent[Any] | None:
         """
         Get the event object (deprecated).
 
@@ -228,7 +228,7 @@ class LanguageModelService:
         tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         structured_output_model: Optional[Type[BaseModel] | dict[str, Any]] = None,
         structured_output_enforce_schema: bool = False,
-        other_options: Optional[dict] = None,
+        other_options: Optional[dict[str, Any]] = None,
     ) -> LanguageModelResponse:
         """
         Calls the completion endpoint synchronously without streaming the response.
@@ -256,7 +256,7 @@ class LanguageModelService:
         tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         structured_output_model: Optional[Type[BaseModel] | dict[str, Any]] = None,
         structured_output_enforce_schema: bool = False,
-        other_options: Optional[dict] = None,
+        other_options: Optional[dict[str, Any]] = None,
     ) -> LanguageModelResponse:
         """
         Calls the completion endpoint asynchronously without streaming the response.
@@ -288,7 +288,7 @@ class LanguageModelService:
         tools: Optional[list[LanguageModelTool | LanguageModelToolDescription]] = None,
         structured_output_model: Optional[Type[BaseModel] | dict[str, Any]] = None,
         structured_output_enforce_schema: bool = False,
-        other_options: Optional[dict] = None,
+        other_options: Optional[dict[str, Any]] = None,
     ) -> LanguageModelResponse:
         """
         Calls the completion endpoint asynchronously without streaming the response.
@@ -312,7 +312,7 @@ class LanguageModelService:
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict = {},
+        debug_info: dict[str, Any] = {},
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
@@ -337,7 +337,7 @@ class LanguageModelService:
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict = {},
+        debug_info: dict[str, Any] = {},
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,

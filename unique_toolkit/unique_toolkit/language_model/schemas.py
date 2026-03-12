@@ -251,7 +251,7 @@ class LanguageModelFunctionCall(BaseModel):
 class LanguageModelMessage(BaseModel):
     model_config = model_config
     role: LanguageModelMessageRole
-    content: str | list[dict] | None = None
+    content: str | list[dict[str, Any]] | None = None
 
     def __str__(self):
         message = ""
@@ -329,7 +329,7 @@ class LanguageModelUserMessage(LanguageModelMessage):
 # from openai.types.chat.chat_completion_assistant_message_param import ChatCompletionAssistantMessageParam
 class LanguageModelAssistantMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.ASSISTANT
-    parsed: dict | None = None
+    parsed: dict[str, Any] | None = None
     refusal: str | None = None
     tool_calls: list[LanguageModelFunctionCall] | None = None
 
@@ -481,11 +481,11 @@ LanguageModelMessageOptions = (
 )
 
 
-class LanguageModelMessages(RootModel):
+class LanguageModelMessages(RootModel[list[LanguageModelMessageOptions]]):
     root: list[LanguageModelMessageOptions]
 
     @classmethod
-    def load_messages_to_root(cls, data: list[dict] | dict) -> Self:
+    def load_messages_to_root(cls, data: list[dict[str, Any]] | dict[str, Any]) -> Self:
         """Convert list of dictionaries to appropriate message objects based on role."""
         # Handle case where data is already wrapped in root
         if isinstance(data, dict) and "root" in data:

@@ -33,7 +33,7 @@ def default_event_handler(event: Any) -> int:
         return 200
 
 
-T = TypeVar("T", bound=BaseEvent)
+T = TypeVar("T", bound=BaseEvent[Any])
 
 EventHandlerType = Callable[[T], Awaitable[int]] | Callable[[T], int]
 
@@ -43,7 +43,7 @@ def build_unique_custom_app(
     title: str = "Unique Chat App",
     webhook_path: str = "/webhook",
     settings: UniqueSettings,
-    event_handler: EventHandlerType = default_event_handler,
+    event_handler: EventHandlerType[T] = default_event_handler,
     event_constructor: Callable[..., T] = ChatEvent,
     subscribed_event_names: list[str] | None = None,
 ) -> "FastAPI":

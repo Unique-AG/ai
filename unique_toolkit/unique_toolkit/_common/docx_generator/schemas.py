@@ -66,7 +66,7 @@ class ContentField(BaseModel):
             #     content.download_image(self.download_path)
             #     content.add(sd) # type: ignore
             # else:
-            content.add(sd)  # type: ignore
+            content.add(sd)  # pyright: ignore[reportArgumentType]
         return sd
 
     def __str__(self):

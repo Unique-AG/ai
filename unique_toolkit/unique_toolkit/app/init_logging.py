@@ -1,6 +1,7 @@
 from logging import Formatter
 from logging.config import dictConfig
 from time import gmtime
+from typing import Any
 
 
 class UTCFormatter(Formatter):
@@ -27,5 +28,5 @@ unique_log_config = {
 }
 
 
-def init_logging(config: dict = unique_log_config):
+def init_logging(config: dict[str, Any] = unique_log_config):
     return dictConfig(config)

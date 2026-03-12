@@ -143,7 +143,7 @@ class HumanVerificationManagerForApiCalling(
 
         class VerificationModel(BaseModel):
             confirmation: HumanConfirmation
-            modifiable_params: self._modifiable_payload_params_model  # type: ignore
+            modifiable_params: self._modifiable_payload_params_model  # pyright: ignore[reportInvalidTypeForm]
 
         self._verification_model = VerificationModel
 
