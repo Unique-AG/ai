@@ -44,7 +44,7 @@ class Elicitation(APIResource["Elicitation"]):
 
         elicitationId: str
         action: ACTION_TYPES
-        content: NotRequired[dict[str, str | int | bool | list[str] | None]]
+        content: NotRequired[dict[str, str | int | bool | list[str]] | None]
 
     class Elicitation(TypedDict):
         """
