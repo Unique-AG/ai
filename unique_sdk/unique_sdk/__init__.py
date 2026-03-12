@@ -5,12 +5,12 @@ from typing import Literal
 # Unique SDK
 # Authors:
 # Konstantin Krauss<konstantin@unique.ch>
-from unique_sdk._api_version import _ApiVersion
+from unique_sdk._api_version import ApiVersion
 
 api_key: str | None = None
 app_id: str | None = None
 api_base: str = "https://gateway.unique.app/public/chat-gen2"
-api_version: str = _ApiVersion.CURRENT
+api_version: str = ApiVersion.CURRENT
 api_verify_mode: bool = True
 default_http_client: "HTTPClient | None" = None
 

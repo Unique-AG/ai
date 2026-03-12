@@ -2,7 +2,6 @@ from typing import (
     Any,
     Literal,
     NotRequired,
-    Optional,
     TypedDict,
     Unpack,
     cast,
@@ -24,10 +23,10 @@ class MessageLog(APIResource["MessageLog"]):
 
     class Reference(TypedDict):
         name: str
-        description: Optional[str]
-        url: Optional[str]
+        description: str | None
+        url: str | None
         sequenceNumber: int
-        originalIndex: Optional[list[int]]
+        originalIndex: list[int] | None
         sourceId: str
         source: str
 

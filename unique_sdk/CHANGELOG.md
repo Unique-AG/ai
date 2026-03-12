@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.89] - 2026-03-13
+- Chore: switch basedpyright to `recommended` mode with zero errors/warnings
+- Refactor: replace deprecated `typing` aliases (`Optional`, `List`, `Dict`, `Type`, `typing.Mapping`, `typing.Iterator`) with modern PEP 585/604 equivalents
+- Fix: restore runtime `isinstance` guards in `_list_object.__getitem__`, `file_io.download_file`, and `file_io.download_content` with explanatory comments
+- Fix: restore `content_infos is not None` guard in `Content.resolve_id_by_file_path` (API schema drift or untyped caller can make `.get()` return `None`)
+- Fix: correct `Optional` placement in `RespondParams.content` — the dict itself is nullable, not its values
+- Refactor: rename `_ApiVersion` → `ApiVersion`; use `inspect.iscoroutinefunction` instead of deprecated `asyncio.iscoroutinefunction`
+
 ## [0.10.88] - 2026-03-12
 - Add `MessageTool` API resource for node-chat `POST/GET /messages/tools` (batch create and get by messageIds). Enables toolkit and orchestrator to persist and load tool calls via a dedicated table.
 

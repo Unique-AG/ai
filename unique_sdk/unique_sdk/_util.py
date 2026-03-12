@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import inspect
 import logging
 import os
 import random
@@ -12,11 +13,9 @@ from functools import wraps
 from typing import (
     Any,
     Callable,
-    Optional,
-    Type,
     TypedDict,
     TypeVar,
-    Union,
+    Union,  # required for Resp alias: PEP 604 `|` with string forward refs crashes at runtime  # pyright: ignore[reportDeprecated]
     cast,
     overload,
 )
@@ -104,7 +103,7 @@ def get_object_classes():
 # Union[] required: PEP 604 `|` with string forward references crashes at
 # runtime on Python 3.11 (`from __future__ import annotations` only defers
 # annotations, not type alias assignments).
-Resp = Union["UniqueResponse", dict[str, Any], list["Resp"]]
+Resp = Union["UniqueResponse", dict[str, Any], list["Resp"]]  # pyright: ignore[reportDeprecated]
 
 
 # basedpyright rejects `Type["UniqueObject"]` in overload signatures as an
@@ -116,7 +115,7 @@ def convert_to_unique_object(
     user_id: str | None,
     company_id: str | None,
     params: dict[str, Any] | None = None,
-    klass_: Optional[Type["UniqueObject"]] = None,
+    klass_: type["UniqueObject"] | None = None,
 ) -> "UniqueObject": ...
 
 
@@ -126,7 +125,7 @@ def convert_to_unique_object(
     user_id: str | None,
     company_id: str | None,
     params: dict[str, Any] | None = None,
-    klass_: Optional[Type["UniqueObject"]] = None,
+    klass_: type["UniqueObject"] | None = None,
 ) -> list["UniqueObject"]: ...
 
 
@@ -135,7 +134,7 @@ def convert_to_unique_object(
     user_id: str | None,
     company_id: str | None,
     params: dict[str, Any] | None = None,
-    klass_: Optional[Type["UniqueObject"]] = None,
+    klass_: type["UniqueObject"] | None = None,
 ) -> "UniqueObject" | list["UniqueObject"]:
     # If we get a UniqueResponse, we'll want to return a
     # UniqueObject with the last_response field filled out with
@@ -188,7 +187,7 @@ def convert_to_unique_object(
                 or (getattr(obj, "object") == "search_result")
             )
         ):
-            obj._retrieve_params = params
+            obj._retrieve_params = params  # pyright: ignore[reportPrivateUsage]
 
         return obj
     else:
@@ -311,7 +310,7 @@ def retry_on_error(
                     time.sleep(delay + jitter)
 
         # Return the appropriate wrapper based on whether the function is async
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
             return async_wrapper
         return sync_wrapper
 

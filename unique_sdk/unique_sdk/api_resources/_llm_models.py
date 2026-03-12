@@ -1,4 +1,4 @@
-from typing import List, Literal, NotRequired, TypedDict, Unpack, cast
+from typing import Literal, NotRequired, TypedDict, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -22,7 +22,7 @@ class LLMModels(APIResource["LLMModels"]):
         Response for getting available LLM models.
         """
 
-        models: List[str]
+        models: list[str]
 
     @classmethod
     def get_models(

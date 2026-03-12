@@ -1,9 +1,8 @@
+from collections.abc import Iterator, Mapping
 from typing import (
     Any,
     Generic,
-    Iterator,
     Literal,
-    Mapping,
     TypeVar,
     cast,
 )
@@ -43,26 +42,26 @@ class ListObject(UniqueObject, Generic[T]):
         )
 
     def __getitem__(self, k: str) -> T:
-        if isinstance(k, str):
-            return super(ListObject, self).__getitem__(k)
-        else:
-            raise KeyError(
+        # Guard for callers without a type checker: surface a helpful message instead of a bare KeyError.
+        if not isinstance(k, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise KeyError(  # pyright: ignore[reportUnreachable]
                 "You tried to access the %s index, but ListObject types only "
                 "support string keys. (HINT: List calls return an object with "
                 "a 'data' (which is the data array). You likely want to call "
                 ".data[%s])" % (repr(k), repr(k))
             )
+        return super(ListObject, self).__getitem__(k)
 
     #  Pyright doesn't like this because ListObject inherits from UniqueObject inherits from Dict[str, Any]
     #  and so it wants the type of __iter__ to agree with __iter__ from Dict[str, Any]
     #  But we are iterating through "data", which is a List[T].
-    def __iter__(self) -> Iterator[T]:  # pyright: ignore
+    def __iter__(self) -> Iterator[T]:  # pyright: ignore[reportIncompatibleMethodOverride]
         return getattr(self, "data", []).__iter__()
 
     def __len__(self) -> int:
         return getattr(self, "data", []).__len__()
 
-    def __reversed__(self) -> Iterator[T]:  # pyright: ignore (see above)
+    def __reversed__(self) -> Iterator[T]:  # pyright: ignore[reportIncompatibleMethodOverride]
         return getattr(self, "data", []).__reversed__()
 
     def auto_paging_iter(self) -> Iterator[T]:
