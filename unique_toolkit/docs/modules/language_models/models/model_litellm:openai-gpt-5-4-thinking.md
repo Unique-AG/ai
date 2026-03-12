@@ -7,9 +7,9 @@
 - **Encoder**: o200k_base
 
 ## Token Limits
-- **Input Limit**: 272,000 tokens
+- **Input Limit**: 1,050,000 tokens
 - **Output Limit**: 128,000 tokens
-- **Total Limit**: 400,000 tokens
+- **Total Limit**: 1,178,000 tokens
 
 ## Capabilities
 - chat_completions_api
