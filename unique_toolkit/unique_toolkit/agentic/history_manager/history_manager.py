@@ -331,9 +331,6 @@ class HistoryManager:
         return records
 
 
-_SOURCE_ITEM_PATTERN = re.compile(r"\[source(\d+)\]", re.IGNORECASE)
-
-
 def _strip_uncited_sources_from_content(content: str, cited: set[int]) -> str:
     """Filter a tool response content string to only keep cited source items.
 
