@@ -203,8 +203,10 @@ def context_text_from_stream_response(
         SourceSelectionMode.FROM_ORDER: lambda: _from_order_source_selection_mode(
             response_references, selected_chunks
         ),
-        SourceSelectionMode.FROM_ORIGINAL_RESPONSE: lambda: _from_original_response_source_selection_mode(
-            response.message.original_text, selected_chunks, reference_pattern
+        SourceSelectionMode.FROM_ORIGINAL_RESPONSE: lambda: (
+            _from_original_response_source_selection_mode(
+                response.message.original_text, selected_chunks, reference_pattern
+            )
         ),
     }
 

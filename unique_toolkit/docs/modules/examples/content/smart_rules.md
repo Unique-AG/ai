@@ -144,7 +144,7 @@ infos =kb_service.get_paginated_content_infos(
 
 **⚠️ Warning:** This operation is irreversible and will permanently delete all content matching the filter criteria.
 
-```{python #upload_with_custom_metadata}
+```{.python #upload_with_custom_metadata}
 content_bytes = b"Your file content here"
 content = kb_service.upload_content_from_bytes(
     content=content_bytes,
@@ -155,7 +155,7 @@ content = kb_service.upload_content_from_bytes(
 )
 ```
 
-```{python #combined_folder_and_custom_metadata}
+```{.python #combined_folder_and_custom_metadata}
 smart_rule_folders_and_mime = AndStatement(and_list=[smart_rule_folder_content, 
                                                      smart_rule_custom])
 metadata_filter = smart_rule_folders_and_mime.model_dump(mode="json") 
