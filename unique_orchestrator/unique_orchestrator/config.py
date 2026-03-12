@@ -37,6 +37,9 @@ from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolNa
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     CodeInterpreterExtendedConfig,
 )
+from unique_toolkit.agentic.tools.openai_builtin.hosted_shell.config import (
+    HostedShellExtendedConfig,
+)
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
@@ -390,6 +393,28 @@ class UniqueAIConfig(BaseToolConfig):
 
         if (
             OpenAIBuiltInToolName.CODE_INTERPRETER in tool_names
+            and model_supports_responses_api
+        ):
+            self.agent.experimental.responses_api_config.use_responses_api = True
+
+        return self
+
+    @model_validator(mode="after")
+    def enable_responses_api_for_hosted_shell_tool(self) -> "UniqueAIConfig":
+        """Auto-enable the Responses API when Hosted Shell is added directly as a tool.
+
+        Mirrors the Code Interpreter validator: when Hosted Shell appears in
+        space.tools and the selected model supports the Responses API, the
+        validator ensures `use_responses_api` is set so that
+        `unique_ai_builder` routes the request correctly.
+        """
+        tool_names = [tool.name for tool in self.space.tools if tool.is_enabled]
+        model_supports_responses_api = (
+            ModelCapabilities.RESPONSES_API in self.space.language_model.capabilities
+        )
+
+        if (
+            OpenAIBuiltInToolName.HOSTED_SHELL in tool_names
             and model_supports_responses_api
         ):
             self.agent.experimental.responses_api_config.use_responses_api = True

@@ -38,6 +38,10 @@ from unique_toolkit.agentic.responses_api import (
     DisplayCodeInterpreterFilesPostProcessor,
     ShowExecutedCodePostprocessor,
 )
+from unique_toolkit.agentic.tools.openai_builtin.hosted_shell import (
+    HostedShellExtendedConfig,
+    ShowExecutedCommandPostprocessor,
+)
 from unique_toolkit.agentic.thinking_manager.thinking_manager import (
     ThinkingManager,
     ThinkingManagerConfig,
@@ -300,6 +304,32 @@ async def _build_responses(
                 client=client,
                 content_service=common_components.content_service,
                 config=code_interpreter_config.generated_files_config,
+                user_id=event.user_id,
+                company_id=event.company_id,
+                chat_id=event.payload.chat_id,
+                chat_service=common_components.chat_service,
+            )
+        )
+
+    hosted_shell_config: HostedShellExtendedConfig | None = None
+    for tool in config.space.tools:
+        if tool.is_enabled and tool.name == OpenAIBuiltInToolName.HOSTED_SHELL:
+            hosted_shell_config = cast(HostedShellExtendedConfig, tool.configuration)
+            break
+
+    if hosted_shell_config is not None:
+        if hosted_shell_config.executed_command_display_config is not None:
+            postprocessor_manager.add_postprocessor(
+                ShowExecutedCommandPostprocessor(
+                    config=hosted_shell_config.executed_command_display_config
+                )
+            )
+
+        postprocessor_manager.add_postprocessor(
+            DisplayCodeInterpreterFilesPostProcessor(
+                client=client,
+                content_service=common_components.content_service,
+                config=hosted_shell_config.generated_files_config,
                 user_id=event.user_id,
                 company_id=event.company_id,
                 chat_id=event.payload.chat_id,
