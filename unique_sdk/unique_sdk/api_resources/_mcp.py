@@ -1,6 +1,5 @@
 from typing import (
     Any,
-    ClassVar,
     Dict,
     List,
     Literal,
@@ -15,6 +14,7 @@ from typing_extensions import NotRequired
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class CallToolTextResourceDto(TypedDict):
@@ -53,7 +53,9 @@ class CallToolContentDto(TypedDict):
 
 
 class MCP(APIResource["MCP"]):
-    OBJECT_NAME: ClassVar[str] = "mcp.call_tool"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["mcp.call_tool"]:
+        return "mcp.call_tool"
 
     class CallToolParams(RequestOptions):
         """Parameters for calling an MCP tool."""

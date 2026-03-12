@@ -77,6 +77,18 @@ def logfmt(props):
     return " ".join([fmt(key, val) for key, val in sorted(props.items())])
 
 
+class classproperty:
+    """Read-only descriptor for class-level attributes (e.g. cls.OBJECT_NAME)."""
+
+    def __init__(self, f: Callable[..., str]) -> None:
+        self.f = f
+
+    def __get__(self, obj: Any, objtype: type[Any] | None = None) -> str:
+        if objtype is None:
+            objtype = type(obj)
+        return self.f(objtype)
+
+
 def get_object_classes():
     # This is here to avoid a circular dependency
     from unique_sdk._object_classes import OBJECT_CLASSES

@@ -1,13 +1,16 @@
-from typing import ClassVar, List, cast
+from typing import List, Literal, cast
 
 from typing_extensions import Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class Embeddings(APIResource["Embeddings"]):
-    OBJECT_NAME: ClassVar[str] = "openai.embeddings"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["openai.embeddings"]:
+        return "openai.embeddings"
 
     class CreateParams(RequestOptions):
         texts: List[str]

@@ -1,6 +1,5 @@
 from typing import (
     Any,
-    ClassVar,
     Dict,
     Generic,
     Literal,
@@ -16,6 +15,7 @@ from unique_sdk._error import InvalidRequestError
 from unique_sdk._unique_object import UniqueObject
 from unique_sdk._util import (
     RetryOptions,
+    classproperty,
     convert_to_unique_object,
     retry_on_error,
 )
@@ -38,7 +38,11 @@ retry_dict: RetryOptions = {
 
 
 class APIResource(UniqueObject, Generic[T]):
-    OBJECT_NAME: ClassVar[str]
+    @classproperty
+    def OBJECT_NAME(cls) -> str:
+        raise NotImplementedError(
+            "APIResource is abstract. Subclasses must define OBJECT_NAME."
+        )
 
     def refresh(self, user_id, company_id) -> Self:
         return self._request_and_refresh(

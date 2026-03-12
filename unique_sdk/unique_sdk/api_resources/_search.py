@@ -1,11 +1,14 @@
-from typing import Any, ClassVar, Dict, Literal, NotRequired, Optional, Unpack, cast
+from typing import Any, Dict, Literal, NotRequired, Optional, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class Search(APIResource["Search"]):
-    OBJECT_NAME: ClassVar[str] = "search.search"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["search.search"]:
+        return "search.search"
 
     class CreateParams(RequestOptions):
         chatId: NotRequired[Optional[str]]
