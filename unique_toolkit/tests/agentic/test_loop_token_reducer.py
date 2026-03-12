@@ -945,7 +945,7 @@ def test_get_encoder__uses_model_get_encoder_AI(
 # Integration-style Tests (still unit tests but test larger flows)
 @pytest.mark.ai
 @patch(
-    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls"
 )
 @patch.object(LoopTokenReducer, "_count_message_tokens")
 async def test_get_history_for_model_call__returns_messages__when_under_limit_AI(
@@ -982,7 +982,7 @@ async def test_get_history_for_model_call__returns_messages__when_under_limit_AI
 
 @pytest.mark.ai
 @patch(
-    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls"
 )
 @patch.object(LoopTokenReducer, "_count_message_tokens")
 async def test_get_history_for_model_call__appends_image_urls_to_user_message__when_provided_AI(
