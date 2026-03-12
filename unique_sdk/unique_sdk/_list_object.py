@@ -42,6 +42,14 @@ class ListObject(UniqueObject, Generic[T]):
         )
 
     def __getitem__(self, k: str) -> T:
+        # Guard for callers without a type checker: surface a helpful message instead of a bare KeyError.
+        if not isinstance(k, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise KeyError(  # pyright: ignore[reportUnreachable]
+                "You tried to access the %s index, but ListObject types only "
+                "support string keys. (HINT: List calls return an object with "
+                "a 'data' (which is the data array). You likely want to call "
+                ".data[%s])" % (repr(k), repr(k))
+            )
         return super(ListObject, self).__getitem__(k)
 
     #  Pyright doesn't like this because ListObject inherits from UniqueObject inherits from Dict[str, Any]
