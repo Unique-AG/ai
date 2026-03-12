@@ -124,7 +124,7 @@ async def chat_against_file(
             chat_id=chat_id,
         )
         content_id = upload_response.get("id")
-        if content_id is None:
+        if content_id is None:  # guard: basedpyright needs None narrowing
             raise ValueError("upload response missing id")
 
         await _wait_for_ingestion_completion(

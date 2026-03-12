@@ -50,6 +50,7 @@ class UniqueError(Exception):
 
 
 class UniqueErrorWithParamsCode(UniqueError):
+    # str included: InvalidRequestError callers pass plain strings (e.g. "id")
     params: dict[str, str] | str | None
 
     def __init__(

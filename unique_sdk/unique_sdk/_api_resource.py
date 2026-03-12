@@ -36,6 +36,8 @@ retry_dict: RetryOptions = {
 
 
 class APIResource(UniqueObject, Generic[T]):
+    # Subclasses override with @classproperty returning Literal["..."] so
+    # basedpyright can narrow the type per-subclass (ClassVar can't do this).
     @classproperty
     def OBJECT_NAME(cls) -> str:
         raise NotImplementedError(

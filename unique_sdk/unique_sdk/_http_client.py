@@ -166,7 +166,7 @@ class HTTPXClient(HTTPClient):
         self._client = httpx.Client(**kwargs)
         self._timeout = timeout
 
-    def _get_request_args_kwargs(
+    def _get_request_args_kwargs(  # was returning list; tuple is more precise
         self, method: str, url: str, headers: Mapping[str, str], post_data: Any
     ) -> tuple[tuple[str, str], dict[str, Any]]:
         kwargs: dict[str, Any] = {}
@@ -265,7 +265,7 @@ class AIOHTTPClient(HTTPClient):
 
         return self._cached_session
 
-    def request(
+    def request(  # signature must match parent HTTPClient for basedpyright
         self,
         method: str,
         url: str,

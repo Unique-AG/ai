@@ -127,6 +127,8 @@ class APIRequestor(object):
             "publisher": "unique",
             "httplib": self._client.name,
         }
+        # Typed list + isinstance guard: basedpyright can't infer the mixed
+        # list[list[str | Callable]] the original code used.
         ua_parts: list[tuple[str, Callable[[], str]]] = [
             ("lang_version", platform.python_version),
             ("platform", platform.platform),

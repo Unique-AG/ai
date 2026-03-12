@@ -79,7 +79,11 @@ def logfmt(props):
 
 
 class classproperty:
-    """Read-only descriptor for class-level attributes (e.g. cls.OBJECT_NAME)."""
+    """Read-only descriptor so subclasses can override with Literal return types.
+
+    ClassVar[str] doesn't let basedpyright narrow per-subclass; a property
+    returning Literal["..."] does, while keeping the cls.OBJECT_NAME call-site.
+    """
 
     def __init__(self, f: Callable[..., str]) -> None:
         self.f = f
@@ -97,10 +101,14 @@ def get_object_classes():
     return OBJECT_CLASSES
 
 
+# Union[] required: PEP 604 `|` with string forward references crashes at
+# runtime on Python 3.11 (`from __future__ import annotations` only defers
+# annotations, not type alias assignments).
 Resp = Union["UniqueResponse", dict[str, Any], list["Resp"]]
 
 
-# Suppress reportInvalidTypeForm for convert_to_unique_object (Type["UniqueObject"] in overloads)
+# basedpyright rejects `Type["UniqueObject"]` in overload signatures as an
+# invalid type form even with `from __future__ import annotations`.
 # pyright: reportInvalidTypeForm=false
 @overload
 def convert_to_unique_object(
@@ -201,7 +209,7 @@ class class_method_variant(object):
 
     T = TypeVar("T")
 
-    method: Any = None
+    method: Any = None  # basedpyright requires class attrs to be initialized
 
     def __call__(self, method: T) -> T:
         T = TypeVar("T")

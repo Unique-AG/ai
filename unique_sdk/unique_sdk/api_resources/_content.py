@@ -46,7 +46,7 @@ class Content(APIResource["Content"]):
         )  # Changed 'in' to 'in_' as 'in' is a reserved keyword in Python
         lt: str | None
         lte: str | None
-        mode: "Content.QueryMode | None"
+        mode: "Content.QueryMode | None"  # quoted: basedpyright can't use | with unresolved forward ref
         not_: "Content.NestedStringFilter | None"  # Changed 'not' to 'not_'
         notIn: list[str] | None
         startsWith: str | None

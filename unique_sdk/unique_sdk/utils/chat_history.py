@@ -16,6 +16,7 @@ def load_history(
             chatId=chatId,
         )
 
+        # .get() + isinstance: basedpyright can't verify dict["data"] access
         data = messages.get("data", [])
         messages = data[:-2] if isinstance(data, list) else []
         filteredMessages = []
