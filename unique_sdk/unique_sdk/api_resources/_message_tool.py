@@ -3,7 +3,6 @@
 import asyncio
 from typing import (
     Any,
-    ClassVar,
     Literal,
     NotRequired,
     TypedDict,
@@ -13,6 +12,7 @@ from typing import (
 from unique_sdk._api_resource import APIResource
 from unique_sdk._list_object import ListObject
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class ToolResponse(TypedDict):
@@ -42,8 +42,11 @@ def _chunk_message_ids(message_ids_str: str) -> list[str]:
 
 
 class MessageTool(APIResource["MessageTool"]):
-    OBJECT_NAME: ClassVar[Literal["messageTool"]] = "messageTool"
     RESOURCE_URL = "/messages/tools"
+
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["messageTool"]:
+        return "messageTool"
 
     @classmethod
     def class_url(cls) -> str:
