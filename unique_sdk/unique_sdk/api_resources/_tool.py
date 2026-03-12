@@ -53,7 +53,7 @@ class Tool(APIResource["Tool"]):
         messageId: str
         tools: list[ToolItem]
 
-    class ListParams(RequestOptions):
+    class GetToolsParams(RequestOptions):
         messageIds: str
 
     id: str
@@ -136,11 +136,11 @@ class Tool(APIResource["Tool"]):
         )
 
     @classmethod
-    def list(
+    def get_tools(
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["Tool.ListParams"],
+        **params: Unpack["Tool.GetToolsParams"],
     ) -> ListObject["Tool"]:
         message_ids_str = params.get("messageIds") or ""
         chunks = _chunk_message_ids(message_ids_str)
@@ -169,11 +169,11 @@ class Tool(APIResource["Tool"]):
         )
 
     @classmethod
-    async def list_async(
+    async def get_tools_async(
         cls,
         user_id: str,
         company_id: str,
-        **params: Unpack["Tool.ListParams"],
+        **params: Unpack["Tool.GetToolsParams"],
     ) -> ListObject["Tool"]:
         message_ids_str = params.get("messageIds") or ""
         chunks = _chunk_message_ids(message_ids_str)

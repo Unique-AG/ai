@@ -7,7 +7,7 @@ The Tool API allows you to persist and retrieve tool call invocations associated
 The Tool resource provides methods to:
 
 - Batch-create tool invocations (call + optional response) for a message
-- List tool invocations by message ID(s)
+- Retrieve tool invocations by message ID(s)
 - Automatically paginate when querying more than 200 message IDs
 
 Each tool invocation represents a full round-trip: the assistant requesting a function call and (optionally) the tool's response. Under the hood, the backend stores these as paired rows in a single `MessageTool` table, but the SDK always returns the merged view.
@@ -57,7 +57,7 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
         print(tool["functionName"], tool["response"])
     ```
 
-??? example "`unique_sdk.Tool.list` - List tools by message IDs"
+??? example "`unique_sdk.Tool.get_tools` - Get tools by message IDs"
 
     Retrieve all tool invocations for one or more messages. Pass message IDs as a comma-separated string.
 
@@ -74,7 +74,7 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
     **Example:**
 
     ```python
-    tools = unique_sdk.Tool.list(
+    tools = unique_sdk.Tool.get_tools(
         user_id=user_id,
         company_id=company_id,
         messageIds=",".join(all_message_ids),
@@ -85,7 +85,7 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
     ```
 
 !!! tip "Async variants"
-    All methods have async counterparts: `create_many_async` and `list_async`.
+    All methods have async counterparts: `create_many_async` and `get_tools_async`.
 
 ## Input Types
 
@@ -132,7 +132,7 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
     - `response` (dict[str, Any] | None) - The tool's response (contains `id`, `content`, `toolCallId`, `createdAt`)
     - `createdAt` (str) - Creation timestamp (ISO 8601)
 
-    **Returned by:** `Tool.create_many()`, `Tool.list()`
+    **Returned by:** `Tool.create_many()`, `Tool.get_tools()`
 
 #### ListObject {#listobject}
 
@@ -144,7 +144,7 @@ Each tool invocation represents a full round-trip: the assistant requesting a fu
     - `has_more` (bool) - Whether there are more items to retrieve
     - `object` (str) - Object type identifier (always "list")
 
-    **Returned by:** `Tool.create_many()`, `Tool.list()`
+    **Returned by:** `Tool.create_many()`, `Tool.get_tools()`
 
 ## Related Resources
 
