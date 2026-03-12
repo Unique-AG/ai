@@ -57,7 +57,7 @@ class KnowledgeBaseService:
         self,
         company_id: str,
         user_id: str,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
     ):
         """
         Initialize the ContentService with a company_id, user_id and chat_id.
@@ -70,7 +70,7 @@ class KnowledgeBaseService:
         self._metadata_filter = metadata_filter
 
     @classmethod
-    def from_event(cls, event: BaseEvent):
+    def from_event(cls, event: BaseEvent[Any]):
         """
         Initialize the ContentService with an event.
         """
@@ -89,7 +89,7 @@ class KnowledgeBaseService:
     def from_settings(
         cls,
         settings: UniqueSettings | str | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
     ):
         """
         Initialize the ContentService with a settings object and metadata filter.
@@ -129,7 +129,7 @@ class KnowledgeBaseService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
-        metadata_filter: dict,
+        metadata_filter: dict[str, Any],
         scope_ids: list[str] | None = None,
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
@@ -143,7 +143,7 @@ class KnowledgeBaseService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
-        metadata_filter: dict,
+        metadata_filter: dict[str, Any],
         content_ids: list[str],
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
@@ -159,7 +159,7 @@ class KnowledgeBaseService:
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
         scope_ids: list[str] | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
     ) -> list[ContentChunk]:
@@ -228,7 +228,7 @@ class KnowledgeBaseService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
-        metadata_filter: dict,
+        metadata_filter: dict[str, Any],
         scope_ids: list[str] | None = None,
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
@@ -242,7 +242,7 @@ class KnowledgeBaseService:
         search_string: str,
         search_type: ContentSearchType,
         limit: int,
-        metadata_filter: dict,
+        metadata_filter: dict[str, Any],
         content_ids: list[str],
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
@@ -258,7 +258,7 @@ class KnowledgeBaseService:
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
         scope_ids: list[str] | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
     ):
@@ -309,7 +309,7 @@ class KnowledgeBaseService:
     def search_contents(
         self,
         *,
-        where: dict,
+        where: dict[str, Any],
         include_failed_content: bool = False,
     ) -> list[Content]:
         """
@@ -334,7 +334,7 @@ class KnowledgeBaseService:
     async def search_contents_async(
         self,
         *,
-        where: dict,
+        where: dict[str, Any],
         include_failed_content: bool = False,
     ) -> list[Content]:
         """
@@ -367,7 +367,7 @@ class KnowledgeBaseService:
         scope_id: str,
         skip_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Content:
         """
         Uploads content to the knowledge base.
@@ -407,7 +407,7 @@ class KnowledgeBaseService:
         scope_id: str,
         skip_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Content:
         """
         Uploads content to the knowledge base.

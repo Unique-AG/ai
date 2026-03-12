@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from typing_extensions import deprecated
 
 from unique_toolkit.app.schemas import ChatEvent, Correlation, Event
@@ -285,7 +287,7 @@ class ChatServiceDeprecated:
         self._user_message_text = value
 
     @deprecated("Use `replace_debug_info`")
-    def update_debug_info(self, debug_info: dict):
+    def update_debug_info(self, debug_info: dict[str, Any]):
         """Updates the debug information for the chat session.
 
         Args:

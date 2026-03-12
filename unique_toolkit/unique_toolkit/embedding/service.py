@@ -1,4 +1,4 @@
-from typing import overload
+from typing import Any, overload
 
 from typing_extensions import deprecated
 
@@ -20,7 +20,7 @@ class EmbeddingService(BaseService):
         "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: Event | BaseEvent): ...
+    def __init__(self, event: Event | BaseEvent[Any]): ...
 
     """
         Initialize the EmbeddingService with an event (deprecated)
@@ -35,7 +35,7 @@ class EmbeddingService(BaseService):
 
     def __init__(
         self,
-        event: Event | BaseEvent | None = None,
+        event: Event | BaseEvent[Any] | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
     ):
@@ -49,7 +49,7 @@ class EmbeddingService(BaseService):
             self._user_id: str = user_id
 
     @classmethod
-    def from_event(cls, event: Event | BaseEvent):
+    def from_event(cls, event: Event | BaseEvent[Any]):
         """
         Initialize the EmbeddingService with an event.
         """
@@ -75,7 +75,7 @@ class EmbeddingService(BaseService):
     @deprecated(
         "The event property is deprecated and will be removed in a future version."
     )
-    def event(self) -> Event | BaseEvent | None:
+    def event(self) -> Event | BaseEvent[Any] | None:
         """
         Get the event object (deprecated).
 

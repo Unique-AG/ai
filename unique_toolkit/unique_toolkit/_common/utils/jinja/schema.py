@@ -29,7 +29,7 @@ class ToolPromptParams(Jinja2PromptParams):
     tool_format_reminder_for_user_prompt: str = ""
 
     @classmethod
-    def from_tool(cls, tool: Tool) -> "ToolPromptParams":
+    def from_tool(cls, tool: "Tool[Any]") -> "ToolPromptParams":
         return cls(
             name=tool.name,
             tool_description_for_system_prompt=tool.tool_description_for_system_prompt(),
