@@ -1,3 +1,5 @@
+import json
+import re
 from logging import Logger
 from typing import Annotated, Awaitable, Callable
 
@@ -13,6 +15,7 @@ from unique_toolkit.agentic.reference_manager.reference_manager import Reference
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.schemas import ChatMessageTool, ChatMessageToolResponse
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
@@ -123,9 +126,7 @@ class HistoryManager:
         self._tool_calls: list[LanguageModelFunction] = []
         self._loop_history: list[LanguageModelMessage] = []
         self._source_enumerator = 0
-        self._collected_tool_response_image_urls: list[
-            tuple[str, str]
-        ] = []  # (url, tool_call_id)
+        self._collected_tool_response_image_urls: list[tuple[str, str]] = []
 
     def add_tool_call(self, tool_call: LanguageModelFunction) -> None:
         self._tool_calls.append(tool_call)
@@ -191,9 +192,7 @@ class HistoryManager:
         if tool_response.system_reminder:
             content += f"\n\n{tool_response.system_reminder}"
 
-        # Tool message content must be string (API rejects array content for tool role).
-        # Tool result images are attached to the user message so the model sees them. This is the only way to get the images from tool to the model as of 17.2.26.
-
+        # Append the result to the history
         return LanguageModelToolMessage(
             content=content,
             tool_call_id=tool_response.id,  # type: ignore
@@ -252,3 +251,101 @@ class HistoryManager:
                 LanguageModelAssistantMessage(content=assistant_message_text)
             )
         return LanguageModelMessages(history)
+
+    def extract_message_tools(self) -> list[ChatMessageTool]:
+        """Convert the in-memory loop history into persistable ChatMessageTool records."""
+        records: list[ChatMessageTool] = []
+        round_index = 0
+        i = 0
+        while i < len(self._loop_history):
+            msg = self._loop_history[i]
+            if isinstance(msg, LanguageModelAssistantMessage) and msg.tool_calls:
+                for seq_index, tc in enumerate(msg.tool_calls):
+                    response_content = None
+                    for j in range(i + 1, len(self._loop_history)):
+                        candidate = self._loop_history[j]
+                        if (
+                            isinstance(candidate, LanguageModelToolMessage)
+                            and candidate.tool_call_id == tc.id
+                        ):
+                            response_content = (
+                                candidate.content
+                                if isinstance(candidate.content, str)
+                                else None
+                            )
+                            break
+
+                    response = (
+                        ChatMessageToolResponse(content=response_content)
+                        if response_content is not None
+                        else None
+                    )
+                    records.append(
+                        ChatMessageTool(
+                            external_tool_call_id=tc.id or "",
+                            function_name=tc.function.name,
+                            arguments=tc.function.arguments,
+                            round_index=round_index,
+                            sequence_index=seq_index,
+                            response=response,
+                        )
+                    )
+                round_index += 1
+            i += 1
+        return records
+
+    @staticmethod
+    def compact_message_tools(
+        records: list[ChatMessageTool],
+        assistant_text: str | None,
+    ) -> list[ChatMessageTool]:
+        """Strip uncited source items from tool response content before persistence."""
+        if not assistant_text:
+            return records
+
+        cited: set[int] = {
+            int(m)
+            for m in re.findall(r"\[source(\d+)\]", assistant_text, re.IGNORECASE)
+        }
+        if not cited:
+            return records
+
+        return [
+            record.model_copy(
+                update={
+                    "response": record.response.model_copy(
+                        update={
+                            "content": _strip_uncited_sources_from_content(
+                                record.response.content, cited
+                            )
+                        }
+                    )
+                }
+            )
+            if record.response and record.response.content
+            else record
+            for record in records
+        ]
+
+
+def _strip_uncited_sources_from_content(content: str, cited: set[int]) -> str:
+    """Filter a tool response content string to only keep cited source items.
+
+    The content is expected to be a JSON array of
+    ``{"source_number": N, "content": "..."}`` dicts.  Items whose
+    ``source_number`` is not in *cited* are removed.  If the content is
+    not in the expected JSON format it is returned unchanged.
+    """
+    try:
+        data = json.loads(content)
+    except (json.JSONDecodeError, TypeError):
+        return content
+
+    if not isinstance(data, list):
+        return content
+
+    if not data or "source_number" not in data[0]:
+        return content
+
+    filtered = [item for item in data if item.get("source_number") in cited]
+    return json.dumps(filtered)

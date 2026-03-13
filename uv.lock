@@ -2831,7 +2831,7 @@ wheels = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.84"
+version = "0.10.88"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -2842,14 +2842,14 @@ dependencies = [
     { name = "tiktoken" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6d/fc/f920f0c8e404482314d713b30a68b2f1f3afc2db3da90cce697061cafd55/unique_sdk-0.10.84.tar.gz", hash = "sha256:18fd3a325d0fddf39fc23ff7ebeb402b89795f5ac69540d5fb9fafe060f6b9d2", size = 38667, upload-time = "2026-03-05T13:14:29.968Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cf/68/7c42fe15f20728bf05a086c7889539407707c461e7a762a0bbc2ebfff2fc/unique_sdk-0.10.88.tar.gz", hash = "sha256:9e7ad194c5b108de72c725770f1864a11f9ca1d4e205106bfe27e5141209332c", size = 40682, upload-time = "2026-03-12T20:31:42.768Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/65/da/9bbf2afa1b7a925e248f602a7f02833d27f89d07eba95eb384962d977618/unique_sdk-0.10.84-py3-none-any.whl", hash = "sha256:78b26a60874b2ba473126a6c12de3d4f06545d0e667c04b061d5a1fac029dc4b", size = 55848, upload-time = "2026-03-05T13:14:31.299Z" },
+    { url = "https://files.pythonhosted.org/packages/1d/d1/0cef639168bc1c21ba4a35b98bc791f2a553969d9d0db86b84b70047c6f4/unique_sdk-0.10.88-py3-none-any.whl", hash = "sha256:f7cacb32b39f1b9601a5e7b2a46be254029bfa4fb6e4827fffc14a94170658ee", size = 58925, upload-time = "2026-03-12T20:31:41.855Z" },
 ]
 
 [[package]]
 name = "unique-toolkit"
-version = "1.53.1"
+version = "1.53.4"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -2911,7 +2911,7 @@ requires-dist = [
     { name = "tiktoken", specifier = ">=0.12.0,<0.13" },
     { name = "tokenizers", specifier = ">=0.21.0,<0.22" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
-    { name = "unique-sdk", specifier = ">=0.10.80,<0.11" },
+    { name = "unique-sdk", specifier = ">=0.10.85,<0.11" },
     { name = "uvicorn", marker = "extra == 'fastapi'", specifier = ">=0.37.0,<0.38" },
 ]
 provides-extras = ["langchain", "fastapi"]
