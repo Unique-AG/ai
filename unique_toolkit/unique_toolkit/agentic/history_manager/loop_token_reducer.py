@@ -202,8 +202,8 @@ class LoopTokenReducer:
     ) -> list[LanguageModelMessage]:
         """
         Replaces the original user message with the rendered string.
-        When image_data_urls_from_tools is set (from any tool—MCP or internal—that
-        returns ToolCallResponse.image_data_urls), appends those as image_url parts to
+        When image_data_urls_from_tools is set (from any tool that returns
+        ToolCallResponse.image_data_urls), appends those as image_url parts to
         the last user message so the model can see tool result images. This is only used
         for the outgoing model request (in-memory); the enriched message is never persisted.
         """
@@ -317,19 +317,61 @@ class LoopTokenReducer:
         return self.ensure_last_message_is_user_message(limited_history_messages)
 
     def _limit_to_token_window(
-        self, messages: list[LanguageModelMessage], token_limit: int
+        self,
+        messages: list[LanguageModelMessage],
+        token_limit: int,
+        allow_mid_turn_truncation: bool = False,
     ) -> list[LanguageModelMessage]:
-        selected_messages = []
+        """Trim *messages* so their total token count fits within *token_limit*.
+
+        When *allow_mid_turn_truncation* is ``False`` (the default), messages
+        are first grouped into conversational turns at USER message boundaries.
+        Turns are included or dropped as whole units (most-recent first), which
+        prevents interleaved tool-call sequences from being split mid-sequence.
+
+        When *allow_mid_turn_truncation* is ``True``, the simpler per-message
+        approach is used: messages are added from the back until the budget is
+        exhausted.  This can leave the window starting mid-turn, so callers
+        must use :meth:`ensure_last_message_is_user_message` afterwards.
+        """
+        if allow_mid_turn_truncation:
+            selected: list[LanguageModelMessage] = []
+            token_count = 0
+            for msg in messages[::-1]:
+                msg_tokens = self._count_message_tokens(
+                    LanguageModelMessages(root=[msg])
+                )
+                if token_count + msg_tokens > token_limit:
+                    break
+                selected.append(msg)
+                token_count += msg_tokens
+            return selected[::-1]
+
+        # Turn-based truncation: group at USER boundaries and drop whole turns.
+        turns: list[list[LanguageModelMessage]] = []
+        current_turn: list[LanguageModelMessage] = []
+        for msg in messages:
+            if msg.role == LanguageModelMessageRole.USER and current_turn:
+                turns.append(current_turn)
+                current_turn = [msg]
+            else:
+                current_turn.append(msg)
+        if current_turn:
+            turns.append(current_turn)
+
+        selected_turns: list[list[LanguageModelMessage]] = []
         token_count = 0
-        for msg in messages[::-1]:
-            msg_token_count = self._count_message_tokens(
-                LanguageModelMessages(root=[msg])
+        for turn in turns[::-1]:
+            turn_tokens = sum(
+                self._count_message_tokens(LanguageModelMessages(root=[msg]))
+                for msg in turn
             )
-            if token_count + msg_token_count > token_limit:
+            if token_count + turn_tokens > token_limit:
                 break
-            selected_messages.append(msg)
-            token_count += msg_token_count
-        return selected_messages[::-1]
+            selected_turns.append(turn)
+            token_count += turn_tokens
+
+        return [msg for turn in selected_turns[::-1] for msg in turn]
 
     async def _clean_messages(
         self,
@@ -343,6 +385,16 @@ class LoopTokenReducer:
         remove_from_text: Callable[[str], Awaitable[str]],
     ) -> list[LanguageModelMessage]:
         for message in messages:
+            # Skip tool messages and assistant messages that carry tool_calls —
+            # their content may be structured JSON and applying prose-cleaning
+            # transforms to it would corrupt the data.
+            if isinstance(message, LanguageModelToolMessage):
+                continue
+            if (
+                isinstance(message, LanguageModelAssistantMessage)
+                and message.tool_calls
+            ):
+                continue
             if isinstance(message.content, str):
                 message.content = await remove_from_text(message.content)
             else:
@@ -361,8 +413,6 @@ class LoopTokenReducer:
             if message.role == LanguageModelMessageRole.USER:
                 break
 
-        # FIXME: This might reduce the history by a lot if we have a lot of tool calls / references in the history. Could make sense to summarize the messages and include
-        # FIXME: We should remove chunks no longer in history from handler
         return limited_history_messages[idx:]
 
     def _reduce_message_length_by_reducing_sources_in_tool_response(
