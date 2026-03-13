@@ -93,6 +93,7 @@ class Integrated(APIResource["Integrated"]):
         message: Message
         toolCalls: List["Integrated.ToolCall"]
         output: list["ResponseOutputItem"]
+        usage: "Integrated.Usage | None"
 
     class Usage(TypedDict):
         promptTokens: int
