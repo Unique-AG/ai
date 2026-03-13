@@ -22,6 +22,7 @@ from unique_toolkit.agentic.loop_runner.runners.qwen.helpers import (
     append_qwen_forced_tool_call_instruction,
     append_qwen_last_iteration_assistant_message,
 )
+from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.schemas import (
@@ -30,7 +31,6 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelStreamResponse,
-    LanguageModelStreamResponseMessage,
     LanguageModelSystemMessage,
     LanguageModelUserMessage,
 )
@@ -44,7 +44,7 @@ def create_stream_response(
 ) -> LanguageModelStreamResponse:
     """Helper function to create LanguageModelStreamResponse instances for testing."""
     return LanguageModelStreamResponse(
-        message=LanguageModelStreamResponseMessage(
+        message=ChatMessage(
             id="msg_123",
             previous_message_id="prev_msg_123",
             role=LanguageModelMessageRole.ASSISTANT,

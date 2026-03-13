@@ -31,7 +31,6 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelStreamResponse,
-    LanguageModelStreamResponseMessage,
     LanguageModelTool,
     LanguageModelToolParameterProperty,
     LanguageModelToolParameters,
@@ -904,7 +903,7 @@ class TestChatServiceUnit:
     def test_stream_complete_to_chat(self, mock_stream_complete):
         """Test stream_complete method delegates correctly to function"""
         mock_stream_complete.return_value = LanguageModelStreamResponse(
-            message=LanguageModelStreamResponseMessage(
+            message=ChatMessage(
                 id="id",
                 previous_message_id="previous_message_id",
                 role=LanguageModelMessageRole.ASSISTANT,
@@ -945,7 +944,7 @@ class TestChatServiceUnit:
     async def test_stream_complete_to_chat_async(self, mock_stream_complete_async):
         """Test stream_complete_async method delegates correctly to function"""
         mock_stream_complete_async.return_value = LanguageModelStreamResponse(
-            message=LanguageModelStreamResponseMessage(
+            message=ChatMessage(
                 id="id",
                 previous_message_id="previous_message_id",
                 role=LanguageModelMessageRole.ASSISTANT,
