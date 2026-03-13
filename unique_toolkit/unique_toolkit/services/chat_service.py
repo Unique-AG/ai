@@ -1754,6 +1754,17 @@ class ChatService(ChatServiceDeprecated):
         )
 
     def download_chat_content_to_bytes(self, *, content_id: str) -> bytes:
+        """Download content by id from the content-scope chat (e.g. parent chat when subagent).
+
+        Uses the service's content-scope chat id, so when running as a subagent
+        with correlation, this accesses files from the primary chat session.
+
+        Args:
+            content_id: The content id to download.
+
+        Returns:
+            bytes: The raw content bytes.
+        """
         return download_content_to_bytes(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -1781,6 +1792,14 @@ class ChatService(ChatServiceDeprecated):
         )
 
     def download_chat_images_and_documents(self) -> tuple[list[Content], list[Content]]:
+        """Return images and documents uploaded to the content-scope chat.
+
+        Uses the service's content-scope chat id, so when running as a subagent
+        with correlation, this accesses files from the primary chat session.
+
+        Returns:
+            tuple[list[Content], list[Content]]: (images, documents) from the chat.
+        """
         images: list[Content] = []
         files: list[Content] = []
         for c in search_contents(

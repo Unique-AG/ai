@@ -319,17 +319,31 @@ class LoopTokenReducer:
     def _limit_to_token_window(
         self, messages: list[LanguageModelMessage], token_limit: int
     ) -> list[LanguageModelMessage]:
-        selected_messages = []
+        # Split into complete turns at USER message boundaries so that
+        # interleaved tool-call sequences (assistant-with-tool_calls → tool
+        # responses → final assistant) are always included or dropped as a
+        # whole unit, never truncated mid-sequence.
+        turns: list[list[LanguageModelMessage]] = []
+        current_turn: list[LanguageModelMessage] = []
+        for msg in messages:
+            if msg.role == LanguageModelMessageRole.USER and current_turn:
+                turns.append(current_turn)
+                current_turn = [msg]
+            else:
+                current_turn.append(msg)
+        if current_turn:
+            turns.append(current_turn)
+
+        selected_turns: list[list[LanguageModelMessage]] = []
         token_count = 0
-        for msg in messages[::-1]:
-            msg_token_count = self._count_message_tokens(
-                LanguageModelMessages(root=[msg])
-            )
-            if token_count + msg_token_count > token_limit:
+        for turn in turns[::-1]:
+            turn_tokens = self._count_message_tokens(LanguageModelMessages(root=turn))
+            if token_count + turn_tokens > token_limit:
                 break
-            selected_messages.append(msg)
-            token_count += msg_token_count
-        return selected_messages[::-1]
+            selected_turns.append(turn)
+            token_count += turn_tokens
+
+        return [msg for turn in selected_turns[::-1] for msg in turn]
 
     async def _clean_messages(
         self,
@@ -343,6 +357,16 @@ class LoopTokenReducer:
         remove_from_text: Callable[[str], Awaitable[str]],
     ) -> list[LanguageModelMessage]:
         for message in messages:
+            # Skip tool messages and assistant messages that carry tool_calls —
+            # their content may be structured JSON and applying prose-cleaning
+            # transforms to it would corrupt the data.
+            if isinstance(message, LanguageModelToolMessage):
+                continue
+            if (
+                isinstance(message, LanguageModelAssistantMessage)
+                and message.tool_calls
+            ):
+                continue
             if isinstance(message.content, str):
                 message.content = await remove_from_text(message.content)
             else:
