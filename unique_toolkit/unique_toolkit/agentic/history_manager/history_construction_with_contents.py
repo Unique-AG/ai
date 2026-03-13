@@ -4,6 +4,10 @@ import mimetypes
 from datetime import datetime
 from enum import StrEnum
 from itertools import groupby
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from unique_toolkit.language_model.builder import MessagesBuilder
 
 import numpy as np
 from pydantic import RootModel
@@ -163,6 +167,49 @@ def file_content_serialization(
             )
 
 
+def _append_element_to_builder(
+    builder: "MessagesBuilder",
+    c: ChatMessageWithContents,
+    text: str,
+    include_images: ImageContentInclusion,
+    file_content_serialization_type: FileContentSerialization,
+    content_service: ContentService,
+    chat_id: str,
+) -> None:
+    """Append a single history element to the builder, handling file/image contents."""
+    if len(c.contents) > 0:
+        file_contents = [co for co in c.contents if FileUtils.is_file_content(co.key)]
+        image_contents = [co for co in c.contents if FileUtils.is_image_content(co.key)]
+        content = (
+            text
+            + "\n\n"
+            + file_content_serialization(
+                file_contents,
+                file_content_serialization_type,
+            )
+        ).strip()
+        if include_images and len(image_contents) > 0:
+            builder.image_message_append(
+                content=content,
+                images=download_encoded_images(
+                    contents=image_contents,
+                    content_service=content_service,
+                    chat_id=chat_id,
+                ),
+                role=map_chat_llm_message_role[c.role],
+            )
+        else:
+            builder.message_append(
+                role=map_chat_llm_message_role[c.role],
+                content=content,
+            )
+    else:
+        builder.message_append(
+            role=map_chat_llm_message_role[c.role],
+            content=text,
+        )
+
+
 def get_full_history_with_contents(
     user_message: ChatEventUserMessage,
     chat_id: str,
@@ -180,7 +227,7 @@ def get_full_history_with_contents(
 
     builder = LanguageModelMessages([]).builder()
     for c in grouped_elements:
-        # LanguageModelUserMessage has not field original content
+        # LanguageModelUserMessage has no field original_content
         text = c.original_content if c.original_content else c.content
         if text is None:
             if c.role == ChatRole.USER:
@@ -188,45 +235,15 @@ def get_full_history_with_contents(
                     "Content or original_content of LanguageModelMessages should exist.",
                 )
             text = ""
-
-        if len(c.contents) > 0:
-            file_contents = [
-                co for co in c.contents if FileUtils.is_file_content(co.key)
-            ]
-            image_contents = [
-                co for co in c.contents if FileUtils.is_image_content(co.key)
-            ]
-
-            content = (
-                text
-                + "\n\n"
-                + file_content_serialization(
-                    file_contents,
-                    file_content_serialization_type,
-                )
-            )
-            content = content.strip()
-
-            if include_images and len(image_contents) > 0:
-                builder.image_message_append(
-                    content=content,
-                    images=download_encoded_images(
-                        contents=image_contents,
-                        content_service=content_service,
-                        chat_id=chat_id,
-                    ),
-                    role=map_chat_llm_message_role[c.role],
-                )
-            else:
-                builder.message_append(
-                    role=map_chat_llm_message_role[c.role],
-                    content=content,
-                )
-        else:
-            builder.message_append(
-                role=map_chat_llm_message_role[c.role],
-                content=text,
-            )
+        _append_element_to_builder(
+            builder=builder,
+            c=c,
+            text=text,
+            include_images=include_images,
+            file_content_serialization_type=file_content_serialization_type,
+            content_service=content_service,
+            chat_id=chat_id,
+        )
     return builder.build()
 
 
@@ -287,63 +304,51 @@ def get_full_history_with_contents_and_tool_calls(
                     tc_records, key=lambda tc: tc.round_index
                 ):
                     round_tcs = list(round_group)
+                    # Only include tool calls that have a response; without a
+                    # matching LanguageModelToolMessage the assistant message
+                    # would reference a tool_call_id that never gets a reply,
+                    # which LLM APIs (e.g. OpenAI) reject.
+                    round_tcs_with_response = [
+                        tc
+                        for tc in round_tcs
+                        if tc.response and tc.response.content is not None
+                    ]
+                    if not round_tcs_with_response:
+                        continue
+                    # Build LanguageModelFunction objects first so we can read
+                    # back the post-validator id: the randomize_id validator
+                    # replaces an empty string with a UUID, and we must use
+                    # the same id in the LanguageModelToolMessage so the
+                    # tool_call_id references match.
                     fns = [
                         LanguageModelFunction(
                             id=tc.external_tool_call_id,
                             name=tc.function_name,
                             arguments=tc.arguments,
                         )
-                        for tc in round_tcs
+                        for tc in round_tcs_with_response
                     ]
                     builder.messages.append(
                         LanguageModelAssistantMessage.from_functions(tool_calls=fns)
                     )
-                    for tc in round_tcs:
-                        if tc.response and tc.response.content is not None:
-                            builder.messages.append(
-                                LanguageModelToolMessage(
-                                    tool_call_id=tc.external_tool_call_id,
-                                    content=tc.response.content,
-                                    name=tc.function_name,
-                                )
+                    for fn, tc in zip(fns, round_tcs_with_response):
+                        builder.messages.append(
+                            LanguageModelToolMessage(
+                                tool_call_id=fn.id,
+                                content=tc.response.content,  # type: ignore[union-attr]
+                                name=tc.function_name,
                             )
+                        )
 
-        if len(c.contents) > 0:
-            file_contents = [
-                co for co in c.contents if FileUtils.is_file_content(co.key)
-            ]
-            image_contents = [
-                co for co in c.contents if FileUtils.is_image_content(co.key)
-            ]
-            content = (
-                text
-                + "\n\n"
-                + file_content_serialization(
-                    file_contents,
-                    file_content_serialization_type,
-                )
-            ).strip()
-
-            if include_images and len(image_contents) > 0:
-                builder.image_message_append(
-                    content=content,
-                    images=download_encoded_images(
-                        contents=image_contents,
-                        content_service=content_service,
-                        chat_id=chat_id,
-                    ),
-                    role=map_chat_llm_message_role[c.role],
-                )
-            else:
-                builder.message_append(
-                    role=map_chat_llm_message_role[c.role],
-                    content=content,
-                )
-        else:
-            builder.message_append(
-                role=map_chat_llm_message_role[c.role],
-                content=text,
-            )
+        _append_element_to_builder(
+            builder=builder,
+            c=c,
+            text=text,
+            include_images=include_images,
+            file_content_serialization_type=file_content_serialization_type,
+            content_service=content_service,
+            chat_id=chat_id,
+        )
     return builder.build()
 
 

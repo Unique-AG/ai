@@ -408,6 +408,92 @@ class TestGetFullHistoryWithContentsAndToolCalls:
     @patch(
         "unique_toolkit.agentic.history_manager.history_construction_with_contents.get_chat_history_with_contents"
     )
+    def test_tool_call_without_response_omitted_to_keep_valid_sequence(
+        self, mock_get_contents
+    ):
+        mock_chat_service, mock_content_service, user_msg, history = (
+            self._make_history_context(
+                assistant_messages=[("msg1", "Tried a tool but got no response.")],
+                tool_call_records=[
+                    ChatMessageTool(
+                        external_tool_call_id="tc_no_resp",
+                        function_name="noop",
+                        arguments=None,
+                        round_index=0,
+                        sequence_index=0,
+                        message_id="msg1",
+                        response=None,
+                    ),
+                ],
+            )
+        )
+        mock_get_contents.return_value = history
+
+        result = get_full_history_with_contents_and_tool_calls(
+            user_message=user_msg,
+            chat_id="chat1",
+            chat_service=mock_chat_service,
+            content_service=mock_content_service,
+        )
+
+        # The tool call has no response so the entire round is skipped;
+        # no LanguageModelAssistantMessage with tool_calls is emitted.
+        messages = result.root
+        tool_assistant_msgs = [
+            m
+            for m in messages
+            if isinstance(m, LanguageModelAssistantMessage) and m.tool_calls
+        ]
+        assert tool_assistant_msgs == []
+        tool_messages = [m for m in messages if isinstance(m, LanguageModelToolMessage)]
+        assert tool_messages == []
+
+    @patch(
+        "unique_toolkit.agentic.history_manager.history_construction_with_contents.get_chat_history_with_contents"
+    )
+    def test_empty_external_id_tool_call_ids_match(self, mock_get_contents):
+        mock_chat_service, mock_content_service, user_msg, history = (
+            self._make_history_context(
+                assistant_messages=[("msg1", "Used a tool with empty id.")],
+                tool_call_records=[
+                    ChatMessageTool(
+                        external_tool_call_id="",
+                        function_name="tool_x",
+                        arguments=None,
+                        round_index=0,
+                        sequence_index=0,
+                        message_id="msg1",
+                        response=ChatMessageToolResponse(content="ok"),
+                    ),
+                ],
+            )
+        )
+        mock_get_contents.return_value = history
+
+        result = get_full_history_with_contents_and_tool_calls(
+            user_message=user_msg,
+            chat_id="chat1",
+            chat_service=mock_chat_service,
+            content_service=mock_content_service,
+        )
+
+        messages = result.root
+        asst_msg = next(
+            m
+            for m in messages
+            if isinstance(m, LanguageModelAssistantMessage) and m.tool_calls
+        )
+        tool_msg = next(m for m in messages if isinstance(m, LanguageModelToolMessage))
+        # The randomize_id validator replaces "" with a UUID in LanguageModelFunction.
+        # Both the assistant message's tool_call id and the tool response's
+        # tool_call_id must reference that same (possibly randomized) id.
+        assigned_id = asst_msg.tool_calls[0].id
+        assert assigned_id != ""
+        assert tool_msg.tool_call_id == assigned_id
+
+    @patch(
+        "unique_toolkit.agentic.history_manager.history_construction_with_contents.get_chat_history_with_contents"
+    )
     def test_sdk_failure_falls_back_to_history_without_tool_calls(
         self, mock_get_contents
     ):
