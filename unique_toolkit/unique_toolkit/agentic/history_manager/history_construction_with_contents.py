@@ -287,26 +287,32 @@ def get_full_history_with_contents_and_tool_calls(
                     tc_records, key=lambda tc: tc.round_index
                 ):
                     round_tcs = list(round_group)
+                    complete_round_tcs = [
+                        tc
+                        for tc in round_tcs
+                        if tc.response and tc.response.content is not None
+                    ]
+                    if not complete_round_tcs:
+                        continue
                     fns = [
                         LanguageModelFunction(
                             id=tc.external_tool_call_id,
                             name=tc.function_name,
                             arguments=tc.arguments,
                         )
-                        for tc in round_tcs
+                        for tc in complete_round_tcs
                     ]
                     builder.messages.append(
                         LanguageModelAssistantMessage.from_functions(tool_calls=fns)
                     )
-                    for tc in round_tcs:
-                        if tc.response and tc.response.content is not None:
-                            builder.messages.append(
-                                LanguageModelToolMessage(
-                                    tool_call_id=tc.external_tool_call_id,
-                                    content=tc.response.content,
-                                    name=tc.function_name,
-                                )
+                    for tc in complete_round_tcs:
+                        builder.messages.append(
+                            LanguageModelToolMessage(
+                                tool_call_id=tc.external_tool_call_id,
+                                content=tc.response.content,
+                                name=tc.function_name,
                             )
+                        )
 
         if len(c.contents) > 0:
             file_contents = [

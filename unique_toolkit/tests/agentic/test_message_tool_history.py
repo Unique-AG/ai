@@ -207,6 +207,106 @@ class TestGetFullHistoryWithContentsAndToolCalls:
     @patch(
         "unique_toolkit.agentic.history_manager.history_construction_with_contents.get_chat_history_with_contents"
     )
+    def test_skips_tool_calls_without_response(self, mock_get_contents):
+        mock_chat_service = MagicMock()
+        mock_content_service = MagicMock()
+        mock_content_service.search_contents.return_value = []
+
+        user_msg = MagicMock()
+        user_msg.id = "msg3"
+        user_msg.text = "follow up"
+        user_msg.original_text = "follow up"
+        user_msg.created_at = "2026-01-01T00:00:02"
+
+        mock_chat_service.get_full_history.return_value = [
+            ChatMessage(
+                id="msg1",
+                chat_id="chat1",
+                role=ChatMessageRole.USER,
+                text="hello",
+                created_at=datetime(2026, 1, 1, 0, 0, 0),
+            ),
+            ChatMessage(
+                id="msg2",
+                chat_id="chat1",
+                role=ChatMessageRole.ASSISTANT,
+                text="The answer is 4.",
+                created_at=datetime(2026, 1, 1, 0, 0, 1),
+            ),
+        ]
+
+        mock_chat_service.get_message_tools.return_value = [
+            ChatMessageTool(
+                external_tool_call_id="tc1",
+                function_name="calculator",
+                arguments={"expr": "2+2"},
+                round_index=0,
+                sequence_index=0,
+                message_id="msg2",
+                response=ChatMessageToolResponse(content="4"),
+            ),
+            ChatMessageTool(
+                external_tool_call_id="tc2",
+                function_name="calculator",
+                arguments={"expr": "2+3"},
+                round_index=0,
+                sequence_index=1,
+                message_id="msg2",
+                response=None,
+            ),
+        ]
+
+        from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
+            ChatHistoryWithContent,
+            ChatMessageWithContents,
+        )
+
+        mock_get_contents.return_value = ChatHistoryWithContent(
+            root=[
+                ChatMessageWithContents(
+                    chat_id="chat1",
+                    role=ChatMessageRole.USER,
+                    text="hello",
+                    originalText="hello",
+                    created_at=datetime(2026, 1, 1, 0, 0, 0),
+                ),
+                ChatMessageWithContents(
+                    id="msg2",
+                    chat_id="chat1",
+                    role=ChatMessageRole.ASSISTANT,
+                    text="The answer is 4.",
+                    originalText="The answer is 4.",
+                    created_at=datetime(2026, 1, 1, 0, 0, 1),
+                ),
+                ChatMessageWithContents(
+                    chat_id="chat1",
+                    role=ChatMessageRole.USER,
+                    text="follow up",
+                    originalText="follow up",
+                    created_at=datetime(2026, 1, 1, 0, 0, 2),
+                ),
+            ]
+        )
+
+        result = get_full_history_with_contents_and_tool_calls(
+            user_message=user_msg,
+            chat_id="chat1",
+            chat_service=mock_chat_service,
+            content_service=mock_content_service,
+        )
+
+        assert isinstance(result, LanguageModelMessages)
+        # The incomplete tc2 is omitted to keep assistant/tool sequence valid.
+        assert len(result.root) == 5
+        assert isinstance(result.root[1], LanguageModelAssistantMessage)
+        assert len(result.root[1].tool_calls or []) == 1
+        assert result.root[1].tool_calls[0].id == "tc1"
+        assert isinstance(result.root[2], LanguageModelToolMessage)
+        assert result.root[2].tool_call_id == "tc1"
+
+    @patch(
+        "unique_toolkit.agentic.history_manager.history_construction_with_contents.get_chat_history_with_contents"
+    )
     def test_user_only_history(self, mock_get_contents):
         mock_chat_service = MagicMock()
         mock_content_service = MagicMock()
