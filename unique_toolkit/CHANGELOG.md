@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.60.0] - 2026-03-21
+- Add `MessageTool` persistence and history reconstruction (UN-15977): after each agentic loop, tool calls and their responses are persisted to the database via `unique_sdk.MessageTool`. On subsequent turns, the full tool-call history is batch-loaded and interleaved into the LLM message history (parallel calls grouped into a single assistant message per round). New `ChatService` methods: `create_message_tools`, `create_message_tools_async`, `get_message_tools`, `get_message_tools_async`. New schema types: `ChatMessageTool`, `ChatMessageToolResponse`. New `HistoryManager` methods: `extract_message_tools`, `compact_message_tools`. Requires `unique-sdk>=0.10.85`.
+
 ## [1.59.1] - 2026-03-19
 - Add `UniqueServiceFactory` for registry-based service creation via `UniqueContext` (UN-18236)
 - Add `UniqueContext` with `from_chat_event` / `from_event` / `from_settings` factory methods
@@ -58,6 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.53.4] - 2026-03-13
 - Code interpreter (UN-17972 review fixes): `_warn_missing_content_ids` downgraded from WARNING to INFO. Dangling `sandbox:/mnt/data/` links are now replaced with the configured error message in addition to logging a warning. Fence prompt updated (example blank lines, component description, "files" not "images"). Consecutive fences normalised to exactly one newline between them (same-line, list-item, and blank-line cases).
+
 
 ## [1.53.3] - 2026-03-12
 - Code interpreter (UN-17972 follow-up): prompt update — `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` variant removes the "Descriptive Title" instruction; selected automatically in `get_tool_prompts()` when `FEATURE_FLAG_ENABLE_CODE_EXECUTION_FENCE_UN_17972` is on; legacy prompt (with title) used when flag is off, preserving exact pre-fence behaviour. `company_id` stored on `OpenAICodeInterpreterTool` to enable per-company FF evaluation at prompt-render time.
