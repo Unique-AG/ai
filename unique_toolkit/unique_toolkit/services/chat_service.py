@@ -35,10 +35,14 @@ from unique_toolkit.chat.functions import (
     create_message_execution_async,
     create_message_log,
     create_message_log_async,
+    create_message_tools,
+    create_message_tools_async,
     get_full_history,
     get_full_history_async,
     get_message_execution,
     get_message_execution_async,
+    get_message_tools,
+    get_message_tools_async,
     get_selection_from_history,
     modify_message,
     modify_message_assessment,
@@ -63,6 +67,7 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
     ChatMessageRole,
+    ChatMessageTool,
     MessageExecution,
     MessageExecutionType,
     MessageExecutionUpdateStatus,
@@ -1895,13 +1900,11 @@ class ChatService(ChatServiceDeprecated):
     def download_chat_images_and_documents(self) -> tuple[list[Content], list[Content]]:
         """Return images and documents from the content-scope chat (e.g. parent chat when subagent).
 
-        Searches content owned by the content-scope chat id, so when running as
-        a subagent with correlation, this returns files uploaded in the
-        primary chat session.
+        Uses the service's content-scope chat id, so when running as a subagent
+        with correlation, this accesses files from the primary chat session.
 
         Returns:
-            tuple[list[Content], list[Content]]: (images, documents) from the
-                content-scope chat.
+            tuple[list[Content], list[Content]]: (images, documents) from the content-scope chat.
         """
         images: list[Content] = []
         files: list[Content] = []
@@ -2315,4 +2318,75 @@ class ChatService(ChatServiceDeprecated):
         return await self.find_message_memory_by_id_async(
             message_id=message_id or self._assistant_message_id,
             key=key,
+        )
+
+    # Message Tool Methods
+    ############################################################################
+
+    def create_message_tools(
+        self,
+        *,
+        tool_calls: list[ChatMessageTool],
+        message_id: str | None = None,
+    ) -> list[ChatMessageTool]:
+        """Persist tool call records for an assistant message.
+
+        Args:
+            tool_calls: The tool call records to persist.
+            message_id: The assistant message to attach records to.
+                Defaults to the current turn's assistant message.
+        """
+        return create_message_tools(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id or self._assistant_message_id,
+            tool_calls=tool_calls,
+        )
+
+    async def create_message_tools_async(
+        self,
+        *,
+        tool_calls: list[ChatMessageTool],
+        message_id: str | None = None,
+    ) -> list[ChatMessageTool]:
+        """Async variant of create_message_tools.
+
+        Args:
+            tool_calls: The tool call records to persist.
+            message_id: The assistant message to attach records to.
+                Defaults to the current turn's assistant message.
+        """
+        return await create_message_tools_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id or self._assistant_message_id,
+            tool_calls=tool_calls,
+        )
+
+    def get_message_tools(
+        self,
+        *,
+        message_id: str | None = None,
+        message_ids: list[str] | None = None,
+    ) -> list[ChatMessageTool]:
+        """Fetch persisted tool call records for one or more assistant messages."""
+        return get_message_tools(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            message_ids=message_ids,
+        )
+
+    async def get_message_tools_async(
+        self,
+        *,
+        message_id: str | None = None,
+        message_ids: list[str] | None = None,
+    ) -> list[ChatMessageTool]:
+        """Async variant of get_message_tools."""
+        return await get_message_tools_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            message_ids=message_ids,
         )
