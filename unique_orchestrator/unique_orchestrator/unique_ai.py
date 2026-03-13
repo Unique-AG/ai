@@ -511,14 +511,10 @@ class UniqueAI:
             records, self._last_assistant_text
         )
         try:
-            assistant_message_id = self._chat_service.assistant_message_id
             await self._chat_service.create_message_tools_async(
-                message_id=assistant_message_id,
                 tool_calls=records,
             )
-            self._logger.info(
-                f"Persisted {len(records)} tool call records for message {assistant_message_id}"
-            )
+            self._logger.info(f"Persisted {len(records)} tool call records")
         except Exception as e:
             self._logger.error(f"Failed to persist tool calls: {e}")
 
