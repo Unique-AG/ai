@@ -19,7 +19,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     _file_frontend_type,
     _file_title,
     _inject_code_execution_fences,
-    _warn_dangling_sandbox_links,
+    _replace_dangling_sandbox_links,
     _warn_missing_content_ids,
     _warn_unmatched_code_blocks,
 )
@@ -893,25 +893,25 @@ def test_replace_container_html_citation__logs_warning__when_no_sandbox_link(
 
 
 @pytest.mark.ai
-def test_warn_missing_content_ids__logs_warning__when_content_id_absent(
+def test_warn_missing_content_ids__logs_info__when_content_id_absent(
     caplog,
 ) -> None:
     """
-    Purpose: Verify a WARNING is emitted when a content_id from content_map is not
-    present in the final message text.
-    Why this matters: Catches the case where a file was uploaded but never rendered —
-    without this check the drop is invisible in production.
+    Purpose: Verify an INFO message is emitted when a content_id from content_map is
+    not present in the final message text.
+    Why this matters: An absent content_id can occur during normal LLM iteration
+    (e.g. the model retried and overwrote a file), so INFO rather than WARNING
+    avoids false-positive noise while still being visible in verbose logs.
     Setup summary: content_map has one entry whose content_id is absent from text.
     """
     content_map: dict[str, str | None] = {"chart.png": "cont_img1"}
     text = "The answer is 42."
 
-    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+    with caplog.at_level(logging.INFO, logger="unique_toolkit"):
         _warn_missing_content_ids(text, content_map)
 
     assert any(
-        "cont_img1" in r.message and r.levelno == logging.WARNING
-        for r in caplog.records
+        "cont_img1" in r.message and r.levelno == logging.INFO for r in caplog.records
     )
 
 
@@ -948,12 +948,13 @@ def test_warn_missing_content_ids__skips_none_content_ids(caplog) -> None:
 
 
 @pytest.mark.ai
-def test_warn_missing_content_ids__warns_only_missing__when_mixed(caplog) -> None:
+def test_warn_missing_content_ids__logs_info_only_missing__when_mixed(caplog) -> None:
     """
-    Purpose: Verify only the absent content_id triggers a warning when some are present
-    and some are missing.
-    Why this matters: Partial-success pipelines should surface exactly the gap.
-    Setup summary: Two files; first present in text, second absent; assert one warning.
+    Purpose: Verify only the absent content_id triggers an INFO log when some are
+    present and some are missing.
+    Why this matters: Partial-success pipelines should surface exactly the gap at
+    INFO level (not WARNING, since missing IDs can occur during normal LLM iteration).
+    Setup summary: Two files; first present in text, second absent; assert one INFO log.
     """
     content_map: dict[str, str | None] = {
         "chart.png": "cont_present",
@@ -961,14 +962,12 @@ def test_warn_missing_content_ids__warns_only_missing__when_mixed(caplog) -> Non
     }
     text = "See ````imgWithSource(contentId='cont_present')````"
 
-    with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
+    with caplog.at_level(logging.INFO, logger="unique_toolkit"):
         _warn_missing_content_ids(text, content_map)
 
-    warning_messages = [
-        r.message for r in caplog.records if r.levelno == logging.WARNING
-    ]
-    assert len(warning_messages) == 1
-    assert "cont_missing" in warning_messages[0]
+    info_messages = [r.message for r in caplog.records if r.levelno == logging.INFO]
+    assert len(info_messages) == 1
+    assert "cont_missing" in info_messages[0]
 
 
 # ============================================================================
@@ -1073,12 +1072,12 @@ def test_inject_code_execution_fences__separates_fences__when_inline_refs_on_sam
     None
 ):
     """
-    Purpose: Verify that two fences which end up on the same line (because the LLM
-    placed both inline refs on the same line) are separated by a blank line.
-    Why this matters: Consecutive fences with no newline between them may not be
-    parseable by the frontend markdown tokeniser.
-    Setup summary: Text has two unique:// refs on the same line; assert two fences
-    on separate paragraphs after injection.
+    Purpose: Verify that two fences which end up on the same line are separated by
+    exactly one newline.
+    Why this matters: The frontend expects exactly one newline between consecutive
+    fences regardless of how the LLM originally spaced the refs.
+    Setup summary: Text has two unique:// refs on the same line; assert fences are
+    separated by exactly one newline after injection.
     """
     block = CodeInterpreterBlock(
         code='plt.savefig("/mnt/data/chart.png")\ndf.to_csv("/mnt/data/data.csv")',
@@ -1096,19 +1095,23 @@ def test_inject_code_execution_fences__separates_fences__when_inline_refs_on_sam
 
     result = _inject_code_execution_fences(text, [block])
 
-    img_pos = result.index("````imgWithSource(")
-    csv_pos = result.index("````fileWithSource(")
-    between = result[img_pos:csv_pos]
-    assert "\n" in between, "Expected newline between consecutive fences"
+    img_end = result.index("````imgWithSource(")
+    img_end = result.index("````", img_end + 4) + 4  # end of closing ````
+    csv_start = result.index("````fileWithSource(")
+    between = result[img_end:csv_start]
+    assert between == "\n", (
+        f"Expected exactly one newline between fences, got {between!r}"
+    )
 
 
 @pytest.mark.ai
-def test_inject_code_execution_fences__no_double_separator__when_fences_already_on_separate_lines() -> (
+def test_inject_code_execution_fences__normalises_to_one_newline__when_fences_on_separate_lines() -> (
     None
 ):
     """
-    Purpose: Verify that fences already separated by a newline are not given an extra
-    blank line (i.e. the separator pass is idempotent for the normal case).
+    Purpose: Verify that fences already separated by one newline stay at one newline
+    (idempotent), and that fences separated by two newlines are normalised down to one.
+    Why this matters: The frontend expects exactly one newline between consecutive fences.
     """
     block1 = CodeInterpreterBlock(
         code='plt.savefig("/mnt/data/chart.png")',
@@ -1126,38 +1129,56 @@ def test_inject_code_execution_fences__no_double_separator__when_fences_already_
             )
         ],
     )
-    text = (
+
+    # Case 1: already one newline — should stay as one newline
+    text_one = (
         "![image](unique://content/cont_img1)\n[data.csv](unique://content/cont_csv1)"
     )
+    result_one = _inject_code_execution_fences(text_one, [block1, block2])
+    img_end = result_one.index("````imgWithSource(")
+    img_end = result_one.index("````", img_end + 4) + 4
+    csv_start = result_one.index("````fileWithSource(")
+    assert result_one[img_end:csv_start] == "\n", (
+        "One newline should stay as one newline"
+    )
 
-    result = _inject_code_execution_fences(text, [block1, block2])
-
-    assert result.count("````imgWithSource(") == 1
-    assert result.count("````fileWithSource(") == 1
-    # Both fences present; no duplication
-    assert result.count("````") == 4  # 2 opening + 2 closing
+    # Case 2: two newlines (blank line) — should be normalised to one newline
+    text_two = (
+        "![image](unique://content/cont_img1)\n\n[data.csv](unique://content/cont_csv1)"
+    )
+    result_two = _inject_code_execution_fences(text_two, [block1, block2])
+    img_end2 = result_two.index("````imgWithSource(")
+    img_end2 = result_two.index("````", img_end2 + 4) + 4
+    csv_start2 = result_two.index("````fileWithSource(")
+    assert result_two[img_end2:csv_start2] == "\n", (
+        "Two newlines should be normalised to one"
+    )
 
 
 # ============================================================================
-# Tests for _warn_dangling_sandbox_links
+# Tests for _replace_dangling_sandbox_links
 # ============================================================================
 
 
 @pytest.mark.ai
-def test_warn_dangling_sandbox_links__logs_warning__when_sandbox_link_present(
+def test_replace_dangling_sandbox_links__replaces_and_warns__when_sandbox_link_present(
     caplog,
 ) -> None:
     """
-    Purpose: Verify a WARNING is emitted when a sandbox:/mnt/data/ link remains in
-    the final text (indicating a hallucinated file or a missed stage-1 replacement).
-    Why this matters: The user would see a broken link; the warning makes this
-    immediately visible in production logs.
+    Purpose: Verify that dangling sandbox links are replaced with the error message
+    and a WARNING is logged.
+    Why this matters: Without replacement the user sees a broken link; the warning
+    makes the incident visible in production logs.
     """
     text = "Download: [chart](sandbox:/mnt/data/chart.png)"
+    error_msg = "⚠️ File download failed ..."
 
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        _warn_dangling_sandbox_links(text)
+        result, replaced = _replace_dangling_sandbox_links(text, error_msg)
 
+    assert replaced is True
+    assert error_msg in result
+    assert "sandbox:/mnt/data/chart.png" not in result
     assert any(
         "sandbox:/mnt/data/chart.png" in r.message and r.levelno == logging.WARNING
         for r in caplog.records
@@ -1165,15 +1186,21 @@ def test_warn_dangling_sandbox_links__logs_warning__when_sandbox_link_present(
 
 
 @pytest.mark.ai
-def test_warn_dangling_sandbox_links__no_warning__when_no_sandbox_link(caplog) -> None:
+def test_replace_dangling_sandbox_links__no_change__when_no_sandbox_link(
+    caplog,
+) -> None:
     """
-    Purpose: Verify no WARNING when the text contains no dangling sandbox links.
+    Purpose: Verify no replacement or WARNING when the text contains no dangling
+    sandbox links.
     """
     text = "Here is your result: ````imgWithSource(contentId='cont_1')````"
+    error_msg = "⚠️ File download failed ..."
 
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        _warn_dangling_sandbox_links(text)
+        result, replaced = _replace_dangling_sandbox_links(text, error_msg)
 
+    assert replaced is False
+    assert result == text
     assert not any(r.levelno == logging.WARNING for r in caplog.records)
 
 

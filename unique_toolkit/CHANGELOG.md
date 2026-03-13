@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.53.4] - 2026-03-13
+- Code interpreter (UN-17972 review fixes): `_warn_missing_content_ids` downgraded from WARNING to INFO. Dangling `sandbox:/mnt/data/` links are now replaced with the configured error message in addition to logging a warning. Fence prompt updated (example blank lines, component description, "files" not "images"). Consecutive fences normalised to exactly one newline between them (same-line, list-item, and blank-line cases).
+
 ## [1.53.3] - 2026-03-12
 - Code interpreter (UN-17972 follow-up): prompt update — `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` variant removes the "Descriptive Title" instruction; selected automatically in `get_tool_prompts()` when `FEATURE_FLAG_ENABLE_CODE_EXECUTION_FENCE_UN_17972` is on; legacy prompt (with title) used when flag is off, preserving exact pre-fence behaviour. `company_id` stored on `OpenAICodeInterpreterTool` to enable per-company FF evaluation at prompt-render time.
 - Code interpreter: link/file validation — upgraded stage-1 replacement helpers (`_replace_container_*_citation`) from INFO to WARNING when no sandbox link is found for an uploaded file; added WARNING in `_inject_code_execution_fences` when a fence is discarded (no inline ref match); added `_warn_missing_content_ids` end-of-pipeline check that warns for any `content_id` absent from the final message text.

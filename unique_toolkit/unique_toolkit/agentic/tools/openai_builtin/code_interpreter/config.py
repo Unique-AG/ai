@@ -71,13 +71,15 @@ CRUCIAL Instructions for displaying images and files in the chat:
 - Once files are generated in the `/mnt/data` folder you MUST reference them in the chat using markdown syntax in order to display them in the chat.
 WHENEVER you reference a generated file, you MUST use the following format:
 ```
+
 [*Generating your {Graph/Chart/File}…*](sandbox:/mnt/data/<filename>)
+
 ```
 IMPORTANT: Do NOT append a leading `!` even when displaying an image.
 IMPORTANT: ALWAYS place a blank line before AND after each file reference link so it stands on its own paragraph. Never place a file reference inline within a sentence or as part of a list item.
-- Files with image file extensions are displayed directly in the chat, while other file extensions are shown as download links.
-- Not using syntax above will FAIL to show images to the user. 
-- YOU MUST use the syntax above to display images, otherwise the image will not be displayed in the chat.
+- Files are displayed as interactive components in the chat — images are shown inline, other files show the filename with an option to view the generating code and download the file.
+- Not using syntax above will FAIL to show files to the user.
+- YOU MUST use the syntax above to display files, otherwise the file will not be displayed in the chat.
 - Only the following file types are allowed to be uploaded to the platform, anything else will FAIL: PDF, DOCX, XLSX, PPTX, CSV, HTML, MD, TXT, PNG, JPG, JPEG.
 - You MUST always use this syntax, otherwise the files will not be displayed in the chat.
 

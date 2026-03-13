@@ -232,7 +232,10 @@ class DisplayCodeInterpreterFilesPostProcessor(
             changed |= loop_response.message.text != text_before
 
         _warn_missing_content_ids(loop_response.message.text, self._content_map)
-        _warn_dangling_sandbox_links(loop_response.message.text)
+        loop_response.message.text, dangling_replaced = _replace_dangling_sandbox_links(
+            loop_response.message.text, self._config.file_download_failed_message
+        )
+        changed |= dangling_replaced
 
         return changed
 
@@ -404,11 +407,14 @@ _FENCE_BLOCK_START = re.compile(
     re.MULTILINE,
 )
 
-# Matches two fence blocks that sit on the same line (no newline between them),
-# including the case where there is no gap at all between closing ```` and opening ````.
+# Matches two consecutive fence blocks and normalises the gap between them to
+# exactly one newline.  Two cases are handled:
+#   - same line: any non-newline, non-backtick content (e.g. " and ", ", ")
+#   - cross-line: 1 or 2 newlines optionally surrounded by horizontal whitespace
+#     (list-item linebreak, or blank-line paragraph gap)
 _CONSECUTIVE_FENCES_RE = re.compile(
     r"(````(?:imgWithSource|fileWithSource)\([^\n]*\)````)"
-    r"[^\n`]*"
+    r"(?:[^\n`]*|[ \t]*\n{1,2}[ \t]*)"
     r"(?=````(?:imgWithSource|fileWithSource)\()"
 )
 
@@ -469,7 +475,7 @@ def _inject_code_execution_fences(
     if any_fence_injected:
         text = strip_executed_code_blocks(text)
         text = _ensure_fences_are_standalone(text)
-        text = _CONSECUTIVE_FENCES_RE.sub(r"\1\n\n", text)
+        text = _CONSECUTIVE_FENCES_RE.sub(r"\1\n", text)
     return text
 
 
@@ -537,7 +543,7 @@ def _warn_missing_content_ids(text: str, content_map: dict[str, str | None]) -> 
         if content_id is None:
             continue
         if content_id not in text:
-            logger.warning(
+            logger.info(
                 "End-of-pipeline check: content_id '%s' for file '%s' is not present "
                 "in the final message text — the file was uploaded but will not be "
                 "visible to the user.",
@@ -547,23 +553,31 @@ def _warn_missing_content_ids(text: str, content_map: dict[str, str | None]) -> 
 
 
 _SANDBOX_LINK_RE = re.compile(r"sandbox:/mnt/data/\S+")
+# Matches the full markdown link (including optional leading !) wrapping a sandbox URL,
+# so the entire `[label](sandbox://...)` token can be replaced rather than just the URL.
+_SANDBOX_MARKDOWN_LINK_RE = re.compile(r"!?\[.*?\]\(sandbox:/mnt/data/\S+?\)")
 
 
-def _warn_dangling_sandbox_links(text: str) -> None:
-    """Warn if any sandbox:/mnt/data/ links remain in the final text.
+def _replace_dangling_sandbox_links(text: str, error_message: str) -> tuple[str, bool]:
+    """Replace any remaining sandbox:/mnt/data/ markdown links with an error message.
 
-    A dangling link means either the LLM referenced a file that was never uploaded
-    (hallucination), or the sandbox link did not match the expected regex pattern
-    in stage-1 and was silently skipped.  Either way the user would see a broken link.
+    A dangling link means either the LLM hallucinated a file reference (the sandbox
+    link appears in the text but no matching container file annotation was emitted by
+    OpenAI), or the link format did not match the expected regex in stage-1.  In both
+    cases the user would see a broken link; this function replaces each such link with
+    the configured error message and logs a warning so the incident is visible in logs.
     """
-    matches = _SANDBOX_LINK_RE.findall(text)
+    matches = _SANDBOX_MARKDOWN_LINK_RE.findall(text)
+    if not matches:
+        return text, False
     for match in matches:
         logger.warning(
             "Dangling sandbox link found in final text: '%s'. "
             "The file was either never uploaded or the link format did not match "
-            "the expected pattern — the user will see a broken link.",
+            "the expected pattern — replacing with error message.",
             match,
         )
+    return _SANDBOX_MARKDOWN_LINK_RE.sub(error_message, text), True
 
 
 def _warn_unmatched_code_blocks(
