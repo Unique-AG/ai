@@ -2,7 +2,7 @@ import asyncio
 import os
 import tempfile
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -39,10 +39,10 @@ def upload_file(
     path_to_file,
     displayed_filename,
     mime_type,
-    description: Optional[str] = None,
+    description: str | None = None,
     scope_or_unique_path=None,
     chat_id=None,
-    ingestion_config: Optional[Content.IngestionConfig] = None,
+    ingestion_config: Content.IngestionConfig | None = None,
     metadata: dict[str, Any] | None = None,
 ):
     # check that chatid or scope_or_unique_path is provided
@@ -68,6 +68,8 @@ def upload_file(
     uploadUrl = createdContent.writeUrl
 
     # upload to azure blob storage SAS url uploadUrl the pdf file translatedFile make sure it is treated as a application/pdf
+    if uploadUrl is None:  # guard: writeUrl is Optional, basedpyright needs narrowing
+        raise ValueError("createdContent.writeUrl is None")
     with open(path_to_file, "rb") as file:
         requests.put(
             uploadUrl,

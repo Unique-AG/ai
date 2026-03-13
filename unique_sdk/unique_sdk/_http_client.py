@@ -1,6 +1,7 @@
 import json
 import threading
-from typing import ClassVar, Mapping, Optional, Tuple
+from collections.abc import Mapping
+from typing import Any, ClassVar
 
 try:
     import requests
@@ -43,7 +44,7 @@ class HTTPClient(object):
 
     def __init__(
         self,
-        async_fallback_client: Optional["HTTPClient"] = None,
+        async_fallback_client: "HTTPClient | None" = None,
     ):
         self._thread_local = threading.local()
         self._async_fallback_client = async_fallback_client
@@ -76,7 +77,7 @@ class RequestsClient(HTTPClient):
         self,
         timeout=600,
         session=None,
-        async_fallback_client: Optional[HTTPClient] = None,
+        async_fallback_client: HTTPClient | None = None,
         **kwargs,
     ):
         super(RequestsClient, self).__init__(
@@ -150,7 +151,7 @@ class HTTPXClient(HTTPClient):
 
     def __init__(
         self,
-        timeout: Optional[float] = 600,
+        timeout: float | None = 600,
         **kwargs,
     ):
         super(HTTPXClient, self).__init__(**kwargs)
@@ -165,21 +166,21 @@ class HTTPXClient(HTTPClient):
         self._client = httpx.Client(**kwargs)
         self._timeout = timeout
 
-    def _get_request_args_kwargs(
-        self, method: str, url: str, headers: Mapping[str, str], post_data
-    ):
-        kwargs = {}
+    def _get_request_args_kwargs(  # was returning list; tuple is more precise
+        self, method: str, url: str, headers: Mapping[str, str], post_data: Any
+    ) -> tuple[tuple[str, str], dict[str, Any]]:
+        kwargs: dict[str, Any] = {}
 
         if self._timeout:
             kwargs["timeout"] = self._timeout
-        return [
+        return (
             (method, url),
             {
                 "headers": headers,
                 "data": json.dumps(post_data) if post_data is not None else None,
                 **kwargs,
             },
-        ]
+        )
 
     def request(
         self,
@@ -187,7 +188,7 @@ class HTTPXClient(HTTPClient):
         url: str,
         headers: Mapping[str, str],
         post_data=None,
-    ) -> Tuple[bytes, int, Mapping[str, str]]:
+    ) -> tuple[bytes, int, Mapping[str, str]]:
         args, kwargs = self._get_request_args_kwargs(method, url, headers, post_data)
         try:
             response = self._client.request(*args, **kwargs)
@@ -210,7 +211,7 @@ class HTTPXClient(HTTPClient):
         url: str,
         headers: Mapping[str, str],
         post_data=None,
-    ) -> Tuple[bytes, int, Mapping[str, str]]:
+    ) -> tuple[bytes, int, Mapping[str, str]]:
         args, kwargs = self._get_request_args_kwargs(method, url, headers, post_data)
         try:
             response = await self._client_async.request(*args, **kwargs)
@@ -240,7 +241,7 @@ class AIOHTTPClient(HTTPClient):
 
     def __init__(
         self,
-        timeout: Optional[float] = 80,
+        timeout: float | None = 80,
         **kwargs,
     ):
         super(AIOHTTPClient, self).__init__(**kwargs)
@@ -264,7 +265,13 @@ class AIOHTTPClient(HTTPClient):
 
         return self._cached_session
 
-    def request(self) -> Tuple[bytes, int, Mapping[str, str]]:
+    def request(  # signature must match parent HTTPClient for basedpyright
+        self,
+        method: str,
+        url: str,
+        headers: Mapping[str, str],
+        post_data: Any = None,
+    ) -> tuple[bytes, int, Mapping[str, str]]:
         raise NotImplementedError(
             "AIOHTTPClient does not support synchronous requests."
         )
@@ -287,7 +294,7 @@ class AIOHTTPClient(HTTPClient):
         url: str,
         headers: Mapping[str, str],
         post_data=None,
-    ) -> Tuple[bytes, int, Mapping[str, str]]:
+    ) -> tuple[bytes, int, Mapping[str, str]]:
         (
             content,
             status_code,

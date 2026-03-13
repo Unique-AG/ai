@@ -1,11 +1,8 @@
 from typing import (
     Any,
-    ClassVar,
-    Dict,
     Generic,
     Literal,
     Mapping,
-    Optional,
     Self,
     TypeVar,
 )
@@ -14,11 +11,16 @@ from urllib.parse import quote_plus
 from unique_sdk._api_requestor import APIRequestor
 from unique_sdk._error import InvalidRequestError
 from unique_sdk._unique_object import UniqueObject
-from unique_sdk._util import convert_to_unique_object, retry_on_error
+from unique_sdk._util import (
+    RetryOptions,
+    classproperty,
+    convert_to_unique_object,
+    retry_on_error,
+)
 
 T = TypeVar("T", bound=UniqueObject)
 
-retry_dict = {
+retry_dict: RetryOptions = {
     "error_messages": [
         "problem proxying the request",
         "Upstream service reached a hard timeout",
@@ -34,7 +36,13 @@ retry_dict = {
 
 
 class APIResource(UniqueObject, Generic[T]):
-    OBJECT_NAME: ClassVar[str]
+    # Subclasses override with @classproperty returning Literal["..."] so
+    # basedpyright can narrow the type per-subclass (ClassVar can't do this).
+    @classproperty
+    def OBJECT_NAME(cls) -> str:
+        raise NotImplementedError(
+            "APIResource is abstract. Subclasses must define OBJECT_NAME."
+        )
 
     def refresh(self, user_id, company_id) -> Self:
         return self._request_and_refresh(
@@ -135,8 +143,8 @@ class APIResource(UniqueObject, Generic[T]):
         url_: str,
         user_id: str,
         company_id: str,
-        headers: Optional[Dict[str, str]] = None,
-        params: Optional[Mapping[str, Any]] = None,
+        headers: dict[str, str] | None = None,
+        params: Mapping[str, Any] | None = None,
     ) -> Self:
         obj = UniqueObject._request(
             self,
@@ -159,8 +167,8 @@ class APIResource(UniqueObject, Generic[T]):
         url_: str,
         user_id: str,
         company_id: str,
-        headers: Optional[Dict[str, str]] = None,
-        params: Optional[Mapping[str, Any]] = None,
+        headers: dict[str, str] | None = None,
+        params: Mapping[str, Any] | None = None,
     ) -> Self:
         obj = await UniqueObject._request_async(
             self,
@@ -183,8 +191,8 @@ class APIResource(UniqueObject, Generic[T]):
         cls,
         method_,
         url_,
-        user_id: Optional[str] = None,
-        company_id: Optional[str] = None,
+        user_id: str | None = None,
+        company_id: str | None = None,
         params=None,
     ):
         params = None if params is None else params.copy()
@@ -202,8 +210,8 @@ class APIResource(UniqueObject, Generic[T]):
         cls,
         method_,
         url_,
-        user_id: Optional[str] = None,
-        company_id: Optional[str] = None,
+        user_id: str | None = None,
+        company_id: str | None = None,
         params=None,
     ):
         params = None if params is None else params.copy()

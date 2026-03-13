@@ -1,12 +1,7 @@
 from typing import (
     Any,
-    ClassVar,
-    Dict,
-    List,
     Literal,
-    Optional,
     TypedDict,
-    Union,
     Unpack,
     cast,
 )
@@ -15,13 +10,14 @@ from typing_extensions import NotRequired
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class CallToolTextResourceDto(TypedDict):
     """Text resource containing URI, optional MIME type, and text content."""
 
     uri: str
-    mimeType: Optional[str]
+    mimeType: str | None
     text: str
 
 
@@ -29,7 +25,7 @@ class CallToolBlobResourceDto(TypedDict):
     """Blob resource containing URI, optional MIME type, and base64-encoded content."""
 
     uri: str
-    mimeType: Optional[str]
+    mimeType: str | None
     blob: str
 
 
@@ -39,21 +35,21 @@ class CallToolContentDto(TypedDict):
     type: Literal["text", "image", "audio", "resource_link", "resource"]
 
     # Optional fields for different content types
-    text: NotRequired[Optional[str]]  # For type: "text"
-    data: NotRequired[Optional[str]]  # Base64 data for type: "image" or "audio"
-    mimeType: NotRequired[
-        Optional[str]
-    ]  # For type: "image", "audio", or "resource_link"
-    uri: NotRequired[Optional[str]]  # For type: "resource_link"
-    name: NotRequired[Optional[str]]  # For type: "resource_link"
-    description: NotRequired[Optional[str]]  # For type: "resource_link"
+    text: NotRequired[str | None]  # For type: "text"
+    data: NotRequired[str | None]  # Base64 data for type: "image" or "audio"
+    mimeType: NotRequired[str | None]  # For type: "image", "audio", or "resource_link"
+    uri: NotRequired[str | None]  # For type: "resource_link"
+    name: NotRequired[str | None]  # For type: "resource_link"
+    description: NotRequired[str | None]  # For type: "resource_link"
     resource: NotRequired[
-        Optional[Union[CallToolTextResourceDto, CallToolBlobResourceDto]]
+        (CallToolTextResourceDto | CallToolBlobResourceDto) | None
     ]  # For type: "resource"
 
 
 class MCP(APIResource["MCP"]):
-    OBJECT_NAME: ClassVar[Literal["mcp.call_tool"]] = "mcp.call_tool"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["mcp.call_tool"]:
+        return "mcp.call_tool"
 
     class CallToolParams(RequestOptions):
         """Parameters for calling an MCP tool."""
@@ -61,10 +57,10 @@ class MCP(APIResource["MCP"]):
         name: str
         messageId: str
         chatId: str
-        arguments: Dict[str, Any]
+        arguments: dict[str, Any]
 
     # Response fields
-    content: List[CallToolContentDto]
+    content: list[CallToolContentDto]
     isError: bool
     mcpServerId: str
     name: str
