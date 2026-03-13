@@ -1987,3 +1987,68 @@ def test_responses_api_tool_manager__filter_tool_calls_by_max_tool_calls_allowed
 
     # Assert
     assert len(filtered) == 5
+
+
+# --- Tests for add_tool, remove_tool ---
+
+
+def test_tool_manager__add_tool__injects_external_tool(
+    logger, base_event, tool_progress_reporter, mcp_manager, a2a_manager
+):
+    config = ToolManagerConfig(tools=[], max_tool_calls=10)
+    tm = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    assert tm.get_tool_by_name("mock_tool") is None
+
+    tool = MockTool(MockToolConfig(), base_event, tool_progress_reporter)
+    tm.add_tool(tool)
+
+    assert tm.get_tool_by_name("mock_tool") is not None
+    assert any(td.name == "mock_tool" for td in tm.get_tool_definitions())
+
+
+def test_tool_manager__remove_tool__removes_from_all_lists(
+    logger, base_event, tool_config, tool_progress_reporter, mcp_manager, a2a_manager
+):
+    config = ToolManagerConfig(tools=[tool_config], max_tool_calls=10)
+    tm = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    assert tm.get_tool_by_name("mock_tool") is not None
+
+    result = tm.remove_tool("mock_tool")
+
+    assert result is True
+    assert tm.get_tool_by_name("mock_tool") is None
+    assert not any(td.name == "mock_tool" for td in tm.get_tool_definitions())
+
+
+def test_tool_manager__remove_tool__returns_false_for_missing(
+    logger, base_event, tool_progress_reporter, mcp_manager, a2a_manager
+):
+    config = ToolManagerConfig(tools=[], max_tool_calls=10)
+    tm = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    result = tm.remove_tool("nonexistent")
+
+    assert result is False
