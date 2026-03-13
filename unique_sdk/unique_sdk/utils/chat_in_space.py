@@ -1,6 +1,6 @@
 import asyncio
 import warnings
-from typing import List, Literal
+from typing import Any, Literal
 
 from unique_sdk.api_resources._message import Message
 from unique_sdk.api_resources._space import Space
@@ -15,8 +15,8 @@ async def send_message_and_wait_for_completion(
     company_id: str,
     assistant_id: str,
     text: str,
-    tool_choices: List[str] | None = None,
-    scope_rules: dict | None = None,
+    tool_choices: list[str] | None = None,
+    scope_rules: dict[str, Any] | None = None,
     chat_id: str | None = None,
     poll_interval: float = 1.0,
     max_wait: float = 60.0,
@@ -124,6 +124,8 @@ async def chat_against_file(
             chat_id=chat_id,
         )
         content_id = upload_response.get("id")
+        if content_id is None:  # guard: basedpyright needs None narrowing
+            raise ValueError("upload response missing id")
 
         await _wait_for_ingestion_completion(
             user_id=user_id,

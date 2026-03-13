@@ -1,8 +1,8 @@
 from typing import (
     Any,
-    ClassVar,
     Dict,
     List,
+    Literal,
     NotRequired,
     Optional,
     TypedDict,
@@ -12,10 +12,13 @@ from typing import (
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class User(APIResource["User"]):
-    OBJECT_NAME: ClassVar[str] = "users"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["users"]:
+        return "users"
 
     class GetParams(RequestOptions):
         """

@@ -1,30 +1,33 @@
-from typing import ClassVar, Literal, Optional, cast
+from typing import Literal, cast
 
 from typing_extensions import NotRequired, Unpack
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class ShortTermMemory(APIResource["ShortTermMemory"]):
-    OBJECT_NAME: ClassVar[Literal["ShortTermMemory"]] = "ShortTermMemory"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["ShortTermMemory"]:
+        return "ShortTermMemory"
 
     class CreateParams(RequestOptions):
         memoryName: str
-        chatId: Optional[str]
-        messageId: NotRequired[Optional[str]]
-        data: Optional[str]
+        chatId: str | None
+        messageId: NotRequired[str | None]
+        data: str | None
 
     class FindParams(RequestOptions):
         memoryName: str
-        chatId: Optional[str]
-        messageId: NotRequired[Optional[str]]
+        chatId: str | None
+        messageId: NotRequired[str | None]
 
     id: str
     memoryName: str
-    chatId: Optional[str]
-    messageId: Optional[str]
-    data: Optional[str]
+    chatId: str | None
+    messageId: str | None
+    data: str | None
 
     @classmethod
     def create(
