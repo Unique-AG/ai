@@ -10,6 +10,7 @@ import unique_sdk
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -19,6 +20,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 )
 from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
+from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.functions import upload_content_from_bytes
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -38,9 +40,13 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         config: MCPToolConfig,
         event: ChatEvent,
         tool_progress_reporter: ToolProgressReporter | None = None,
-    ):
+    ) -> None:
         self.name = mcp_tool.name
-        super().__init__(config, event, tool_progress_reporter)
+        super().__init__(config)
+        self._event = event
+        self._tool_progress_reporter = tool_progress_reporter
+        self._chat_service = ChatService(event)
+        self._message_step_logger = MessageStepLogger(chat_service=self._chat_service)
         self._mcp_tool = mcp_tool
         self._mcp_server = mcp_server
 
@@ -121,7 +127,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         if (
             self._tool_progress_reporter
             and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                self.event.company_id
+                self._event.company_id
             )
         ):
             await self._tool_progress_reporter.notify_from_tool_call(
@@ -160,7 +166,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             if (
                 self._tool_progress_reporter
                 and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                    self.event.company_id
+                    self._event.company_id
                 )
             ):
                 await self._tool_progress_reporter.notify_from_tool_call(
@@ -186,7 +192,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
             if (
                 self._tool_progress_reporter
                 and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                    self.event.company_id
+                    self._event.company_id
                 )
             ):
                 await self._tool_progress_reporter.notify_from_tool_call(
@@ -348,12 +354,12 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
 
         try:
             content = upload_content_from_bytes(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
+                user_id=self._event.user_id,
+                company_id=self._event.company_id,
                 content=img_bytes,
                 content_name=f"mcp_tool_{self.name}_image_{uuid.uuid4().hex[:12]}_{index}{ext}",
                 mime_type=mime_type,
-                chat_id=self.event.payload.chat_id,
+                chat_id=self._event.payload.chat_id,
                 skip_ingestion=True,
                 hide_in_chat=True,
             )
@@ -372,11 +378,11 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         """Call MCP tool via SDK to public API"""
         try:
             result = unique_sdk.MCP.call_tool(
-                user_id=self.event.user_id,
-                company_id=self.event.company_id,
+                user_id=self._event.user_id,
+                company_id=self._event.company_id,
                 name=self.name,
-                messageId=self.event.payload.assistant_message.id,
-                chatId=self.event.payload.chat_id,
+                messageId=self._event.payload.assistant_message.id,
+                chatId=self._event.payload.chat_id,
                 arguments=arguments,
             )
 
