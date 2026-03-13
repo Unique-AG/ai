@@ -299,7 +299,7 @@ def get_full_history_with_contents_and_tool_calls(
                         LanguageModelAssistantMessage.from_functions(tool_calls=fns)
                     )
                     for tc in round_tcs:
-                        if tc.response and tc.response.content:
+                        if tc.response and tc.response.content is not None:
                             builder.messages.append(
                                 LanguageModelToolMessage(
                                     tool_call_id=tc.external_tool_call_id,
