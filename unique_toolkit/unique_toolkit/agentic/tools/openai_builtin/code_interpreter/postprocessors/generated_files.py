@@ -526,7 +526,7 @@ def _build_code_blocks(
     result: list[CodeInterpreterBlock] = []
     for idx, files in sorted(block_file_map.items()):
         code = calls[idx].code
-        if code:
+        if code is not None:
             result.append(CodeInterpreterBlock(code=code, files=list(files.values())))
     return result
 
@@ -552,7 +552,6 @@ def _warn_missing_content_ids(text: str, content_map: dict[str, str | None]) -> 
             )
 
 
-_SANDBOX_LINK_RE = re.compile(r"sandbox:/mnt/data/\S+")
 # Matches the full markdown link (including optional leading !) wrapping a sandbox URL,
 # so the entire `[label](sandbox://...)` token can be replaced rather than just the URL.
 _SANDBOX_MARKDOWN_LINK_RE = re.compile(r"!?\[.*?\]\(sandbox:/mnt/data/\S+?\)")
