@@ -3,6 +3,7 @@ import logging
 import mimetypes
 from datetime import datetime
 from enum import StrEnum
+from itertools import groupby
 
 import numpy as np
 from pydantic import RootModel
@@ -276,30 +277,36 @@ def get_full_history_with_contents_and_tool_calls(
                 )
             text = ""
 
-        # For assistant messages, interleave tool calls before the final response
         if c.role == ChatRole.ASSISTANT and c.id and c.id in tool_calls_by_message:
             tc_records = sorted(
                 tool_calls_by_message[c.id],
                 key=lambda tc: (tc.round_index, tc.sequence_index),
             )
             if tc_records:
-                for tc in tc_records:
-                    fn = LanguageModelFunction(
-                        id=tc.external_tool_call_id,
-                        name=tc.function_name,
-                        arguments=tc.arguments,
-                    )
-                    builder.messages.append(
-                        LanguageModelAssistantMessage.from_functions(tool_calls=[fn])
-                    )
-                    if tc.response and tc.response.content:
-                        builder.messages.append(
-                            LanguageModelToolMessage(
-                                tool_call_id=tc.external_tool_call_id,
-                                content=tc.response.content,
-                                name=tc.function_name,
-                            )
+                for _round, round_group in groupby(
+                    tc_records, key=lambda tc: tc.round_index
+                ):
+                    round_tcs = list(round_group)
+                    fns = [
+                        LanguageModelFunction(
+                            id=tc.external_tool_call_id,
+                            name=tc.function_name,
+                            arguments=tc.arguments,
                         )
+                        for tc in round_tcs
+                    ]
+                    builder.messages.append(
+                        LanguageModelAssistantMessage.from_functions(tool_calls=fns)
+                    )
+                    for tc in round_tcs:
+                        if tc.response and tc.response.content:
+                            builder.messages.append(
+                                LanguageModelToolMessage(
+                                    tool_call_id=tc.external_tool_call_id,
+                                    content=tc.response.content,
+                                    name=tc.function_name,
+                                )
+                            )
 
         if len(c.contents) > 0:
             file_contents = [
