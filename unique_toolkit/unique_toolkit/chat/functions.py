@@ -1416,7 +1416,29 @@ def create_message_tools(
     message_id: str,
     tool_calls: list[ChatMessageTool],
 ) -> list[ChatMessageTool]:
-    """Persists message tools (with optional responses) for an assistant message."""
+    """Persist tool call records for an assistant message.
+
+    Writes one ``MessageTool`` row per entry in *tool_calls* to the backend,
+    associating them with *message_id*.  Typically called at the end of each
+    agentic loop turn so that the tool-call history can be reconstructed on
+    future turns via :func:`get_message_tools`.
+
+    Args:
+        user_id: ID of the authenticated user.
+        company_id: ID of the company/tenant.
+        message_id: ID of the assistant ``ChatMessage`` these tool calls
+            belong to.
+        tool_calls: The tool call records to persist.  Each record's
+            ``response`` is included if present.
+
+    Returns:
+        The created ``ChatMessageTool`` records as returned by the backend,
+        with server-assigned ``id`` and ``created_at`` fields populated.
+
+    Raises:
+        Exception: Re-raises any error from the underlying SDK call after
+            logging it.
+    """
     try:
         tool_call_items = [
             {
@@ -1451,7 +1473,22 @@ async def create_message_tools_async(
     message_id: str,
     tool_calls: list[ChatMessageTool],
 ) -> list[ChatMessageTool]:
-    """Persists message tools (with optional responses) for an assistant message (async)."""
+    """Async variant of :func:`create_message_tools`.
+
+    Args:
+        user_id: ID of the authenticated user.
+        company_id: ID of the company/tenant.
+        message_id: ID of the assistant ``ChatMessage`` these tool calls
+            belong to.
+        tool_calls: The tool call records to persist.
+
+    Returns:
+        The created ``ChatMessageTool`` records with server-assigned fields.
+
+    Raises:
+        Exception: Re-raises any error from the underlying SDK call after
+            logging it.
+    """
     try:
         tool_call_items = [
             {
@@ -1486,9 +1523,31 @@ def get_message_tools(
     message_id: str | None = None,
     message_ids: list[str] | None = None,
 ) -> list[ChatMessageTool]:
-    """Gets message tools for given message(s).
+    """Fetch persisted tool call records for one or more assistant messages.
 
-    Either message_id (single) or message_ids (batch) can be provided.
+    Exactly one of *message_id* or *message_ids* should be provided.  When
+    *message_ids* is given, the IDs are batched into chunks of at most 200
+    (the backend API limit) and fetched in parallel by the SDK.
+
+    Early returns ``[]`` without a network call when:
+
+    * both *message_id* and *message_ids* are ``None`` (nothing to look up).
+    * *message_ids* is an explicit empty list ``[]`` (caller already knows
+      there are no messages).
+
+    Args:
+        user_id: ID of the authenticated user.
+        company_id: ID of the company/tenant.
+        message_id: Fetch tool calls for a single assistant message ID.
+        message_ids: Fetch tool calls for a batch of assistant message IDs.
+
+    Returns:
+        All ``ChatMessageTool`` records associated with the requested
+        message(s), in the order returned by the backend.
+
+    Raises:
+        Exception: Re-raises any error from the underlying SDK call after
+            logging it.
     """
     if message_ids is not None and not message_ids:
         return []
@@ -1513,9 +1572,21 @@ async def get_message_tools_async(
     message_id: str | None = None,
     message_ids: list[str] | None = None,
 ) -> list[ChatMessageTool]:
-    """Gets message tools for given message(s) (async).
+    """Async variant of :func:`get_message_tools`.
 
-    Either message_id (single) or message_ids (batch) can be provided.
+    Args:
+        user_id: ID of the authenticated user.
+        company_id: ID of the company/tenant.
+        message_id: Fetch tool calls for a single assistant message ID.
+        message_ids: Fetch tool calls for a batch of assistant message IDs.
+
+    Returns:
+        All ``ChatMessageTool`` records associated with the requested
+        message(s), in the order returned by the backend.
+
+    Raises:
+        Exception: Re-raises any error from the underlying SDK call after
+            logging it.
     """
     if message_ids is not None and not message_ids:
         return []

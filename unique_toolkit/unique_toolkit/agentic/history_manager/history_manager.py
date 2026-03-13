@@ -253,11 +253,35 @@ class HistoryManager:
         return LanguageModelMessages(history)
 
     def extract_message_tools(self) -> list[ChatMessageTool]:
-        """Extracts ChatMessageTool objects from the in-memory loop history.
+        """Convert the in-memory loop history into persistable tool call records.
 
-        Walks through _loop_history looking for assistant messages with tool_calls
-        followed by their corresponding tool responses, and builds ChatMessageTool
-        objects with round and sequence indices for ordering.
+        Walks ``_loop_history`` and collects every
+        ``LanguageModelAssistantMessage`` that carries ``tool_calls``.  For
+        each function call it looks ahead in the history for a matching
+        ``LanguageModelToolMessage`` (matched by ``tool_call_id``) and wraps
+        everything into a ``ChatMessageTool``.
+
+        The resulting list is ready to be passed directly to
+        :meth:`ChatService.create_message_tools` so the backend can persist
+        the full tool-call history for the current turn.
+
+        Ordering guarantees:
+
+        * ``round_index`` increments every time a new
+          ``LanguageModelAssistantMessage`` with tool calls is encountered,
+          so sequential (non-parallel) rounds each get a distinct index.
+        * ``sequence_index`` is the zero-based position of a call within its
+          parallel round (i.e. within a single assistant message's
+          ``tool_calls`` list).
+
+        Tool calls without a matching response are still included with
+        ``response=None``.  This can happen when the agentic loop was
+        interrupted before all responses were received.
+
+        Returns:
+            Ordered list of ``ChatMessageTool`` records ready for
+            persistence.  Returns ``[]`` when ``_loop_history`` is empty or
+            contains no tool-call messages.
         """
         records: list[ChatMessageTool] = []
         round_index = 0
@@ -304,15 +328,35 @@ class HistoryManager:
         records: list[ChatMessageTool],
         assistant_text: str | None,
     ) -> list[ChatMessageTool]:
-        """Strip uncited sources from tool response content.
+        """Strip uncited source items from tool response content before persistence.
 
-        Parses ``[sourceN]`` citations from the final assistant message and
-        removes any source items from the tool response JSON that are not
-        referenced.  Source numbers are **not** renumbered so that existing
-        citations in the persisted assistant message stay valid.
+        Many tools return a JSON array of ``{"source_number": N, "content":
+        "..."}`` search results.  The final assistant reply typically only
+        cites a small subset of those sources.  Persisting the full result
+        set wastes storage and, on future turns, inflates the tool-call
+        history that gets replayed into the LLM context.
 
-        If *assistant_text* is ``None`` or empty, records are returned as-is
-        (no compaction possible without knowing what was cited).
+        This method parses ``[sourceN]`` / ``[SourceN]`` patterns from
+        *assistant_text* and removes any source items from each tool
+        response whose ``source_number`` is not referenced.
+
+        Important: source numbers are **not** renumbered.  Existing
+        citations in the persisted assistant message remain valid after
+        compaction.
+
+        Non-JSON tool response content is left unchanged.  Records whose
+        ``response`` is ``None`` are passed through untouched.
+
+        Args:
+            records: The tool call records to compact.  Modified **in place**
+                and also returned.
+            assistant_text: The final assistant message text used to determine
+                which source numbers are cited.  When ``None`` or ``""`` the
+                records are returned unchanged because there is no citation
+                information to act on.
+
+        Returns:
+            The (possibly modified) *records* list.
         """
         if not assistant_text:
             return records

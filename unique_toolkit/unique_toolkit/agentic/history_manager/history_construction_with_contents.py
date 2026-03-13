@@ -176,7 +176,21 @@ def _append_element_to_builder(
     content_service: ContentService,
     chat_id: str,
 ) -> None:
-    """Append a single history element to the builder, handling file/image contents."""
+    """Append one ``ChatMessageWithContents`` element to a ``MessagesBuilder``.
+
+    Handles three cases:
+
+    * **No attached contents** — appends a plain text message.
+    * **Contents, no images** (or ``include_images=NONE``) — serialises file
+      names via :func:`file_content_serialization` and appends a text
+      message with the combined content.
+    * **Contents with images** — as above but also downloads and base64-
+      encodes the image files, then calls ``builder.image_message_append``.
+
+    This function is used by both :func:`get_full_history_with_contents` and
+    :func:`get_full_history_with_contents_and_tool_calls` to avoid
+    duplicating the content-rendering logic.
+    """
     if len(c.contents) > 0:
         file_contents = [co for co in c.contents if FileUtils.is_file_content(co.key)]
         image_contents = [co for co in c.contents if FileUtils.is_image_content(co.key)]
@@ -255,8 +269,53 @@ def get_full_history_with_contents_and_tool_calls(
     include_images: ImageContentInclusion = ImageContentInclusion.ALL,
     file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
 ) -> LanguageModelMessages:
-    """Like get_full_history_with_contents, but also loads tool calls from the DB
-    and interleaves them into the history before each assistant message.
+    """Build the full LLM message history, including persisted tool call rounds.
+
+    Extends :func:`get_full_history_with_contents` by batch-loading all
+    ``ChatMessageTool`` records for every assistant message in the chat
+    history and interleaving them into the ``LanguageModelMessages`` sequence
+    before the corresponding final assistant message.
+
+    **Interleaving rules**
+
+    For each assistant message that has persisted tool calls:
+
+    1. Tool call records are sorted by ``(round_index, sequence_index)``.
+    2. Records are grouped by ``round_index``.  All calls sharing the same
+       ``round_index`` were issued in parallel by the model in one request and
+       are collected into a single
+       :class:`~unique_toolkit.language_model.schemas.LanguageModelAssistantMessage`
+       (via ``from_functions``), followed by one
+       :class:`~unique_toolkit.language_model.schemas.LanguageModelToolMessage`
+       per call.
+    3. Rounds where **no** tool call has a response are skipped entirely.
+       Emitting an assistant message that references tool call IDs without
+       corresponding tool messages would cause LLM APIs to reject the
+       request.
+    4. The ``tool_call_id`` in each ``LanguageModelToolMessage`` is taken
+       from the ``LanguageModelFunction.id`` **after** Pydantic validation,
+       not from the raw ``external_tool_call_id``, because the ``randomize_id``
+       validator replaces empty strings with UUIDs.
+
+    **Failure handling**
+
+    If the backend call to load tool calls raises an exception, a warning is
+    logged and the history is returned without any tool-call interleaving
+    rather than propagating the error.
+
+    Args:
+        user_message: The current user turn message (appended at the end).
+        chat_id: ID of the chat session, used for content scoping.
+        chat_service: Provides ``get_full_history`` and ``get_message_tools``.
+        content_service: Used for image/file content retrieval.
+        include_images: Whether to include base64-encoded images in the
+            history (default: all images included).
+        file_content_serialization_type: How to represent uploaded files in
+            the text (default: file name listing).
+
+    Returns:
+        The complete ``LanguageModelMessages`` sequence ready to be passed
+        to an LLM API call.
     """
     chat_history = chat_service.get_full_history()
 

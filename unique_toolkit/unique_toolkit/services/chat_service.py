@@ -2248,7 +2248,19 @@ class ChatService(ChatServiceDeprecated):
         message_id: str | None = None,
         message_ids: list[str] | None = None,
     ) -> list[ChatMessageTool]:
-        """Gets message tools for given message(s) synchronously."""
+        """Fetch persisted tool call records for one or more assistant messages.
+
+        Provide either *message_id* (single lookup) or *message_ids* (batch).
+        Returns ``[]`` immediately if both are ``None`` or if *message_ids* is
+        an empty list.  Large batches are chunked automatically by the SDK.
+
+        Args:
+            message_id: Fetch tool calls for a single assistant message ID.
+            message_ids: Fetch tool calls for multiple assistant message IDs.
+
+        Returns:
+            All ``ChatMessageTool`` records for the requested message(s).
+        """
         return get_message_tools(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -2262,7 +2274,15 @@ class ChatService(ChatServiceDeprecated):
         message_id: str | None = None,
         message_ids: list[str] | None = None,
     ) -> list[ChatMessageTool]:
-        """Gets message tools for given message(s) asynchronously."""
+        """Async variant of :meth:`get_message_tools`.
+
+        Args:
+            message_id: Fetch tool calls for a single assistant message ID.
+            message_ids: Fetch tool calls for multiple assistant message IDs.
+
+        Returns:
+            All ``ChatMessageTool`` records for the requested message(s).
+        """
         return await get_message_tools_async(
             user_id=self._user_id,
             company_id=self._company_id,
