@@ -204,6 +204,272 @@ class TestGetFullHistoryWithContentsAndToolCalls:
         assert result.root[3].role.value == "assistant"
         assert result.root[4].role.value == "user"
 
+    def _make_history_context(
+        self,
+        assistant_messages: list[tuple[str, str]],
+        tool_call_records: list[ChatMessageTool],
+        user_follow_up: str = "follow up",
+    ):
+        """Build the standard mock objects for get_full_history_with_contents_and_tool_calls."""
+        from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
+            ChatHistoryWithContent,
+            ChatMessageWithContents,
+        )
+
+        mock_chat_service = MagicMock()
+        mock_content_service = MagicMock()
+        mock_content_service.search_contents.return_value = []
+
+        user_msg = MagicMock()
+        user_msg.id = "user_followup"
+        user_msg.text = user_follow_up
+        user_msg.original_text = user_follow_up
+        user_msg.created_at = "2026-01-01T00:01:00"
+
+        history_messages = []
+        content_messages = []
+        for idx, (msg_id, text) in enumerate(assistant_messages):
+            dt = datetime(2026, 1, 1, 0, 0, idx)
+            history_messages.append(
+                ChatMessage(
+                    id=msg_id,
+                    chat_id="chat1",
+                    role=ChatMessageRole.ASSISTANT,
+                    text=text,
+                    created_at=dt,
+                )
+            )
+            content_messages.append(
+                ChatMessageWithContents(
+                    id=msg_id,
+                    chat_id="chat1",
+                    role=ChatMessageRole.ASSISTANT,
+                    text=text,
+                    originalText=text,
+                    created_at=dt,
+                )
+            )
+
+        mock_chat_service.get_full_history.return_value = history_messages
+        mock_chat_service.get_message_tools.return_value = tool_call_records
+
+        content_messages.append(
+            ChatMessageWithContents(
+                chat_id="chat1",
+                role=ChatMessageRole.USER,
+                text=user_follow_up,
+                originalText=user_follow_up,
+                created_at=datetime(2026, 1, 1, 0, 1, 0),
+            )
+        )
+        mock_get_contents = ChatHistoryWithContent(root=content_messages)
+        return mock_chat_service, mock_content_service, user_msg, mock_get_contents
+
+    @patch(
+        "unique_toolkit.agentic.history_manager.history_construction_with_contents.get_chat_history_with_contents"
+    )
+    def test_parallel_tool_calls_grouped_into_single_assistant_message(
+        self, mock_get_contents
+    ):
+        mock_chat_service, mock_content_service, user_msg, history = (
+            self._make_history_context(
+                assistant_messages=[("msg1", "Used two tools in parallel.")],
+                tool_call_records=[
+                    ChatMessageTool(
+                        external_tool_call_id="tc_a",
+                        function_name="search",
+                        arguments={"q": "a"},
+                        round_index=0,
+                        sequence_index=0,
+                        message_id="msg1",
+                        response=ChatMessageToolResponse(content="res_a"),
+                    ),
+                    ChatMessageTool(
+                        external_tool_call_id="tc_b",
+                        function_name="calc",
+                        arguments={"x": 1},
+                        round_index=0,
+                        sequence_index=1,
+                        message_id="msg1",
+                        response=ChatMessageToolResponse(content="res_b"),
+                    ),
+                ],
+            )
+        )
+        mock_get_contents.return_value = history
+
+        result = get_full_history_with_contents_and_tool_calls(
+            user_message=user_msg,
+            chat_id="chat1",
+            chat_service=mock_chat_service,
+            content_service=mock_content_service,
+        )
+
+        # Expected: assistant(2 tool_calls) -> tool_msg_a -> tool_msg_b -> assistant_final -> user
+        messages = result.root
+        assert len(messages) == 5
+        assert isinstance(messages[0], LanguageModelAssistantMessage)
+        assert messages[0].tool_calls is not None
+        assert len(messages[0].tool_calls) == 2
+        assert {tc.function.name for tc in messages[0].tool_calls} == {"search", "calc"}
+        assert isinstance(messages[1], LanguageModelToolMessage)
+        assert isinstance(messages[2], LanguageModelToolMessage)
+        assert {messages[1].content, messages[2].content} == {"res_a", "res_b"}
+        assert messages[3].role.value == "assistant"
+        assert messages[4].role.value == "user"
+
+    @patch(
+        "unique_toolkit.agentic.history_manager.history_construction_with_contents.get_chat_history_with_contents"
+    )
+    def test_multi_round_tool_calls_interleaved_in_order(self, mock_get_contents):
+        mock_chat_service, mock_content_service, user_msg, history = (
+            self._make_history_context(
+                assistant_messages=[("msg1", "Two rounds of tool calls.")],
+                tool_call_records=[
+                    ChatMessageTool(
+                        external_tool_call_id="tc1",
+                        function_name="first_tool",
+                        arguments=None,
+                        round_index=0,
+                        sequence_index=0,
+                        message_id="msg1",
+                        response=ChatMessageToolResponse(content="r1"),
+                    ),
+                    ChatMessageTool(
+                        external_tool_call_id="tc2",
+                        function_name="second_tool",
+                        arguments=None,
+                        round_index=1,
+                        sequence_index=0,
+                        message_id="msg1",
+                        response=ChatMessageToolResponse(content="r2"),
+                    ),
+                ],
+            )
+        )
+        mock_get_contents.return_value = history
+
+        result = get_full_history_with_contents_and_tool_calls(
+            user_message=user_msg,
+            chat_id="chat1",
+            chat_service=mock_chat_service,
+            content_service=mock_content_service,
+        )
+
+        # Expected: asst(tc1) -> tool(r1) -> asst(tc2) -> tool(r2) -> asst_final -> user
+        messages = result.root
+        assert len(messages) == 6
+        assert isinstance(messages[0], LanguageModelAssistantMessage)
+        assert messages[0].tool_calls[0].function.name == "first_tool"
+        assert isinstance(messages[1], LanguageModelToolMessage)
+        assert messages[1].content == "r1"
+        assert isinstance(messages[2], LanguageModelAssistantMessage)
+        assert messages[2].tool_calls[0].function.name == "second_tool"
+        assert isinstance(messages[3], LanguageModelToolMessage)
+        assert messages[3].content == "r2"
+        assert messages[4].role.value == "assistant"
+        assert messages[5].role.value == "user"
+
+    @patch(
+        "unique_toolkit.agentic.history_manager.history_construction_with_contents.get_chat_history_with_contents"
+    )
+    def test_empty_string_response_generates_tool_message(self, mock_get_contents):
+        mock_chat_service, mock_content_service, user_msg, history = (
+            self._make_history_context(
+                assistant_messages=[("msg1", "Tool returned empty string.")],
+                tool_call_records=[
+                    ChatMessageTool(
+                        external_tool_call_id="tc1",
+                        function_name="noop",
+                        arguments=None,
+                        round_index=0,
+                        sequence_index=0,
+                        message_id="msg1",
+                        response=ChatMessageToolResponse(content=""),
+                    ),
+                ],
+            )
+        )
+        mock_get_contents.return_value = history
+
+        result = get_full_history_with_contents_and_tool_calls(
+            user_message=user_msg,
+            chat_id="chat1",
+            chat_service=mock_chat_service,
+            content_service=mock_content_service,
+        )
+
+        # Empty string content="" is not None, so a LanguageModelToolMessage must be emitted
+        messages = result.root
+        tool_messages = [m for m in messages if isinstance(m, LanguageModelToolMessage)]
+        assert len(tool_messages) == 1
+        assert tool_messages[0].content == ""
+
+    @patch(
+        "unique_toolkit.agentic.history_manager.history_construction_with_contents.get_chat_history_with_contents"
+    )
+    def test_sdk_failure_falls_back_to_history_without_tool_calls(
+        self, mock_get_contents
+    ):
+        from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
+            ChatHistoryWithContent,
+            ChatMessageWithContents,
+        )
+
+        mock_chat_service = MagicMock()
+        mock_content_service = MagicMock()
+        mock_content_service.search_contents.return_value = []
+        mock_chat_service.get_full_history.return_value = [
+            ChatMessage(
+                id="msg1",
+                chat_id="chat1",
+                role=ChatMessageRole.ASSISTANT,
+                text="answer",
+                created_at=datetime(2026, 1, 1, 0, 0, 0),
+            )
+        ]
+        mock_chat_service.get_message_tools.side_effect = RuntimeError("DB down")
+
+        user_msg = MagicMock()
+        user_msg.id = "u1"
+        user_msg.text = "hi"
+        user_msg.original_text = "hi"
+        user_msg.created_at = "2026-01-01T00:01:00"
+
+        mock_get_contents.return_value = ChatHistoryWithContent(
+            root=[
+                ChatMessageWithContents(
+                    id="msg1",
+                    chat_id="chat1",
+                    role=ChatMessageRole.ASSISTANT,
+                    text="answer",
+                    originalText="answer",
+                    created_at=datetime(2026, 1, 1, 0, 0, 0),
+                ),
+                ChatMessageWithContents(
+                    chat_id="chat1",
+                    role=ChatMessageRole.USER,
+                    text="hi",
+                    originalText="hi",
+                    created_at=datetime(2026, 1, 1, 0, 1, 0),
+                ),
+            ]
+        )
+
+        result = get_full_history_with_contents_and_tool_calls(
+            user_message=user_msg,
+            chat_id="chat1",
+            chat_service=mock_chat_service,
+            content_service=mock_content_service,
+        )
+
+        # No tool messages should be present — falls back gracefully
+        messages = result.root
+        assert not any(isinstance(m, LanguageModelToolMessage) for m in messages)
+        assert len(messages) == 2
+        assert messages[0].role.value == "assistant"
+        assert messages[1].role.value == "user"
+
     @patch(
         "unique_toolkit.agentic.history_manager.history_construction_with_contents.get_chat_history_with_contents"
     )
