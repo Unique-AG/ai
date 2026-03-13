@@ -246,14 +246,6 @@ async def _build_responses(
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
-    has_valid_uploaded_documents, has_tool_choices = (
-        _configure_uploaded_search_tool(
-            event=event,
-            logger=logger,
-            common_components=common_components,
-        )
-    )
-
     client = get_async_openai_client().copy(
         default_headers={
             "x-model": config.space.language_model.name,
@@ -314,6 +306,14 @@ async def _build_responses(
                 chat_service=common_components.chat_service,
             )
         )
+
+    has_valid_uploaded_documents, has_tool_choices = (
+        _configure_uploaded_search_tool(
+            event=event,
+            logger=logger,
+            common_components=common_components,
+        )
+    )
 
     builtin_tool_manager = await OpenAIBuiltInToolManager.build_manager(
         uploaded_files=common_components.uploaded_documents,
