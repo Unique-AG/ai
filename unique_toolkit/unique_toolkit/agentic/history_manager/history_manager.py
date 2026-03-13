@@ -310,13 +310,22 @@ class HistoryManager:
         if not cited:
             return records
 
-        for record in records:
-            if record.response and record.response.content:
-                record.response.content = _strip_uncited_sources_from_content(
-                    record.response.content, cited
-                )
-
-        return records
+        return [
+            record.model_copy(
+                update={
+                    "response": record.response.model_copy(
+                        update={
+                            "content": _strip_uncited_sources_from_content(
+                                record.response.content, cited
+                            )
+                        }
+                    )
+                }
+            )
+            if record.response and record.response.content
+            else record
+            for record in records
+        ]
 
 
 def _strip_uncited_sources_from_content(content: str, cited: set[int]) -> str:

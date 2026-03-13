@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, Literal
@@ -96,10 +97,15 @@ class ChatMessageTool(BaseModel):
     response: ChatMessageToolResponse | None = None
     created_at: datetime | None = None
 
+    @field_validator("arguments", mode="before")
+    @classmethod
+    def parse_arguments(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return json.loads(value)
+        return value
+
 
 class ChatMessage(BaseModel):
-    # TODO: The below seems not to be True anymore @irina-unique. To be checked in separate PR
-    # This model should strictly meets https://github.com/Unique-AG/monorepo/blob/master/node/apps/node-chat/src/public-api/2023-12-06/dtos/message/public-message.dto.ts
     model_config = model_config
 
     id: str | None = None

@@ -410,8 +410,6 @@ class LoopTokenReducer:
             if message.role == LanguageModelMessageRole.USER:
                 break
 
-        # FIXME: This might reduce the history by a lot if we have a lot of tool calls / references in the history. Could make sense to summarize the messages and include
-        # FIXME: We should remove chunks no longer in history from handler
         return limited_history_messages[idx:]
 
     def _reduce_message_length_by_reducing_sources_in_tool_response(
