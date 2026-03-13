@@ -1439,7 +1439,7 @@ def create_message_tools(
             messageId=message_id,
             tools=tool_call_items,  # type: ignore
         )
-        return [ChatMessageTool(**item) for item in result["data"]]
+        return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
     except Exception as e:
         logger.error(f"Failed to create message tools: {e}")
         raise e
@@ -1474,7 +1474,7 @@ async def create_message_tools_async(
             messageId=message_id,
             tools=tool_call_items,  # type: ignore
         )
-        return [ChatMessageTool(**item) for item in result["data"]]
+        return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
     except Exception as e:
         logger.error(f"Failed to create message tools: {e}")
         raise e
@@ -1492,14 +1492,16 @@ def get_message_tools(
     """
     if message_ids is not None and not message_ids:
         return []
+    ids: str = ",".join(message_ids) if message_ids else (message_id or "")
+    if not ids:
+        return []
     try:
-        ids = ",".join(message_ids) if message_ids else message_id
         result = unique_sdk.MessageTool.get_message_tools(
             user_id=user_id,
             company_id=company_id,
             messageIds=ids,
         )
-        return [ChatMessageTool(**item) for item in result["data"]]
+        return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
     except Exception as e:
         logger.error(f"Failed to get message tools: {e}")
         raise e
@@ -1517,14 +1519,16 @@ async def get_message_tools_async(
     """
     if message_ids is not None and not message_ids:
         return []
+    ids: str = ",".join(message_ids) if message_ids else (message_id or "")
+    if not ids:
+        return []
     try:
-        ids = ",".join(message_ids) if message_ids else message_id
         result = await unique_sdk.MessageTool.get_message_tools_async(
             user_id=user_id,
             company_id=company_id,
             messageIds=ids,
         )
-        return [ChatMessageTool(**item) for item in result["data"]]
+        return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
     except Exception as e:
         logger.error(f"Failed to get message tools: {e}")
         raise e

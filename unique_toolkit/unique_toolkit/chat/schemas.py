@@ -142,6 +142,11 @@ class ChatMessage(BaseModel):
 
                 return assistant_message
 
+            case _:
+                raise NotImplementedError(
+                    f"to_openai_param not implemented for role: {self.role}"
+                )
+
 
 class ChatMessageAssessmentStatus(StrEnum):
     PENDING = "PENDING"
