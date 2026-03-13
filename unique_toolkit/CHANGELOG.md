@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.53.4] - 2026-03-09
+## [1.53.4] - 2026-03-13
 - Add GPT-5.4 (`2026-03-05`) language model definitions: `AZURE_GPT_54_2026_0305`, `LITELLM_OPENAI_GPT_54`, `LITELLM_OPENAI_GPT_54_THINKING` with token limits `922_000` input / `128_000` output (1,050,000 total context window per [Azure docs](https://learn.microsoft.com/en-gb/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure?pivots=azure-openai#gpt-54))
 - Fix pre-existing bug: `AZURE_GPT_52_2025_1211`, `LITELLM_OPENAI_GPT_52`, `LITELLM_OPENAI_GPT_52_THINKING` had incorrect `token_limit_input=400_000`; corrected to `272_000` (400,000 total − 128,000 output)
 - Add documentation: `language_model_overview.md` overview and capabilities tables updated; individual model pages added for GPT-5.4, GPT-5.2, and GPT-5.1 variants
