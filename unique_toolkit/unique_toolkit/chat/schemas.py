@@ -65,13 +65,7 @@ class ToolCall(BaseModel):
 
 
 class ChatMessageToolResponse(BaseModel):
-    """The response produced by a single tool call execution.
-
-    Persisted alongside the parent ``ChatMessageTool`` record in the backend
-    ``MessageTool`` table.  ``content`` holds the raw string returned by the
-    tool; it may be ``None`` when the tool was invoked but did not finish
-    (e.g. the session ended mid-loop).
-    """
+    """Persisted response for a single tool call."""
 
     model_config = model_config
 
@@ -82,38 +76,12 @@ class ChatMessageToolResponse(BaseModel):
 
 
 class ChatMessageTool(BaseModel):
-    """A persisted record of one tool call issued during an agentic loop.
+    """Persisted record of one tool call issued during an agentic loop.
 
-    The backend ``MessageTool`` table stores one row per tool call.  Rows are
-    grouped by the assistant ``message_id`` they belong to and ordered by
-    ``round_index`` (which sequential round of tool-calling) and
-    ``sequence_index`` (position within a parallel round).  On subsequent
-    turns ``HistoryManager`` loads these records via
-    ``ChatService.get_message_tools`` and reconstructs the full
-    assistant → tool-call → tool-response message sequence so that the LLM
-    context is correctly replayed.
-
-    Attributes:
-        id: Database primary key assigned by the backend (``None`` before
-            persistence).
-        external_tool_call_id: The ``id`` field carried in the
-            ``LanguageModelFunctionCall`` as seen by the LLM (e.g.
-            ``"call_abc123"``).  Used as the ``tool_call_id`` in matching
-            ``LanguageModelToolMessage`` objects when replaying history.
-        function_name: Name of the tool / function that was called.
-        arguments: Decoded JSON arguments dict passed to the tool (may be
-            ``None`` for tools that take no arguments).
-        round_index: Zero-based index of the tool-calling round within the
-            agentic loop turn.  All parallel tool calls in the same batch
-            share the same ``round_index``.
-        sequence_index: Zero-based position of this call within its round.
-            Together with ``round_index`` this uniquely orders every tool
-            call within a turn.
-        message_id: ID of the parent assistant ``ChatMessage`` in the DB.
-            Set after persistence; ``None`` before.
-        response: The tool's response, or ``None`` if the tool was called
-            but the session ended before a response was recorded.
-        created_at: Server-side creation timestamp.
+    Rows are ordered by ``round_index`` (sequential rounds) and
+    ``sequence_index`` (position within a parallel batch).  Used by
+    ``HistoryManager`` to reconstruct the full tool-call/response sequence
+    on subsequent turns.
     """
 
     model_config = model_config
