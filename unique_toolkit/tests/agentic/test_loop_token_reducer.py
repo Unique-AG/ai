@@ -35,6 +35,8 @@ from unique_toolkit.language_model.infos import (
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
+    LanguageModelFunction,
+    LanguageModelFunctionCall,
     LanguageModelMessage,
     LanguageModelMessageRole,
     LanguageModelMessages,
@@ -844,6 +846,149 @@ def test_limit_to_token_window__returns_empty__when_first_message_exceeds_limit_
 
     # Assert
     assert len(result) == 0
+
+
+@pytest.mark.ai
+def test_limit_to_token_window__drops_whole_turn__when_turn_exceeds_budget_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Turn-based mode drops an entire turn when it doesn't fit.
+    Why this matters: Partial turns would leave the window starting
+    mid-sequence (e.g. ASSISTANT message before a USER), which confuses
+    the LLM.
+    """
+    # Arrange – turn 1 is large, turn 2 fits on its own
+    turn1: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="old question " * 50),
+        LanguageModelAssistantMessage(content="old answer " * 50),
+    ]
+    turn2: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="recent question"),
+        LanguageModelAssistantMessage(content="recent answer"),
+    ]
+    messages = turn1 + turn2
+
+    # Find a budget that fits turn2 but not turn1+turn2
+    turn2_tokens = loop_token_reducer._count_message_tokens(
+        LanguageModelMessages(root=turn2)
+    )
+    token_limit = turn2_tokens + 5  # a few tokens of headroom, but not enough for turn1
+
+    # Act
+    result = loop_token_reducer._limit_to_token_window(
+        messages, token_limit=token_limit
+    )
+
+    # Assert – only turn2 is included, never a partial turn1
+    assert result == turn2
+
+
+@pytest.mark.ai
+def test_limit_to_token_window__includes_multiple_complete_turns__when_budget_allows_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Turn-based mode includes as many complete turns as the budget allows.
+    Why this matters: History should be as rich as possible without splitting turns.
+    """
+    # Arrange
+    turn1: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="q1"),
+        LanguageModelAssistantMessage(content="a1"),
+    ]
+    turn2: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="q2"),
+        LanguageModelAssistantMessage(content="a2"),
+    ]
+    turn3: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="q3"),
+        LanguageModelAssistantMessage(content="a3"),
+    ]
+    messages = turn1 + turn2 + turn3
+
+    # Act – generous budget that fits all three turns
+    result = loop_token_reducer._limit_to_token_window(messages, token_limit=10_000)
+
+    # Assert
+    assert result == messages
+
+
+@pytest.mark.ai
+def test_limit_to_token_window__mid_turn_truncation__can_split_turn_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: allow_mid_turn_truncation=True uses per-message logic and may
+    split a turn at the budget boundary.
+    Why this matters: Some callers (e.g. those that follow up with
+    ensure_last_message_is_user_message) want the raw per-message behaviour.
+    """
+    # Arrange – turn whose ASSISTANT message would push over the limit
+    messages: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="question"),
+        LanguageModelAssistantMessage(content="answer " * 200),
+        LanguageModelUserMessage(content="follow-up"),
+    ]
+    user_only_tokens = loop_token_reducer._count_message_tokens(
+        LanguageModelMessages(root=[messages[0], messages[2]])
+    )
+    # Budget fits the two USER messages but not the large ASSISTANT message
+    token_limit = user_only_tokens + 5
+
+    # Act
+    result = loop_token_reducer._limit_to_token_window(
+        messages, token_limit=token_limit, allow_mid_turn_truncation=True
+    )
+
+    # Assert – per-message mode kept the last USER message; the large
+    # ASSISTANT message was dropped because it exceeded the budget
+    assert result[-1].content == "follow-up"
+    assert not any(m.content and "answer" in m.content for m in result)
+
+
+@pytest.mark.ai
+def test_limit_to_token_window__turn_based_default__preserves_tool_sequence_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Turn-based mode never splits an interleaved tool-call sequence.
+    Why this matters: An assistant message referencing tool_call_ids without
+    the matching tool messages causes LLM API rejections.
+    """
+    # Arrange – turn containing a tool-call sequence
+    tool_turn: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="search for something"),
+        LanguageModelAssistantMessage(
+            content=None,
+            tool_calls=[
+                LanguageModelFunctionCall(
+                    id="tc1",
+                    function=LanguageModelFunction(name="search", arguments={}),
+                )
+            ],
+        ),
+        LanguageModelToolMessage(tool_call_id="tc1", content="results", name="search"),
+        LanguageModelAssistantMessage(content="Here is what I found."),
+    ]
+    follow_up_turn: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="thanks"),
+    ]
+    messages = tool_turn + follow_up_turn
+
+    # Budget fits only the follow-up turn
+    follow_up_tokens = loop_token_reducer._count_message_tokens(
+        LanguageModelMessages(root=follow_up_turn)
+    )
+    token_limit = follow_up_tokens + 5
+
+    # Act
+    result = loop_token_reducer._limit_to_token_window(
+        messages, token_limit=token_limit
+    )
+
+    # Assert – tool_turn is dropped as a whole unit, not partially included
+    assert result == follow_up_turn
 
 
 # Full Source Reduction Flow Tests
