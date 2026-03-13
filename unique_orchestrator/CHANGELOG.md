@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.14.0] - 2026-03-10
 - Refactor `build_loop_iteration_runner`: replace `is_qwen_model` check with inline `_get_model_family` helper and if/elif/else dispatch; add `MistralLoopIterationRunner` selection for Mistral models
 - Update `UniqueAI._effective_max_loop_iterations`: replace `is_qwen_model` import with inline string check
+- Persist tool calls and compacted responses to the database after each agentic loop via `_persist_tool_calls()`
 
 ## [1.13.07] - 2026-03-05
 - Build: migrate from Poetry to uv
