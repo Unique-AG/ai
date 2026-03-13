@@ -17,13 +17,13 @@ from unique_toolkit.agentic.evaluation.hallucination.utils import (
     context_text_from_stream_response,
 )
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricInput
+from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.content import ContentReference
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelStreamResponse,
-    LanguageModelStreamResponseMessage,
 )
 
 
@@ -580,7 +580,7 @@ def test_context_text_from_stream_response__extracts_context__using_from_ids_mod
     """
     # Arrange
     response: LanguageModelStreamResponse = LanguageModelStreamResponse(
-        message=LanguageModelStreamResponseMessage(
+        message=ChatMessage(
             id="msg_1",
             previous_message_id=None,
             role=LanguageModelMessageRole.ASSISTANT,
@@ -612,7 +612,7 @@ def test_context_text_from_stream_response__extracts_context__using_from_order_m
     """
     # Arrange
     response: LanguageModelStreamResponse = LanguageModelStreamResponse(
-        message=LanguageModelStreamResponseMessage(
+        message=ChatMessage(
             id="msg_1",
             previous_message_id=None,
             role=LanguageModelMessageRole.ASSISTANT,
@@ -653,7 +653,7 @@ def test_context_text_from_stream_response__extracts_context__using_from_origina
         )
     ]
     response: LanguageModelStreamResponse = LanguageModelStreamResponse(
-        message=LanguageModelStreamResponseMessage(
+        message=ChatMessage(
             id="msg_1",
             previous_message_id=None,
             role=LanguageModelMessageRole.ASSISTANT,
@@ -690,7 +690,7 @@ def test_context_text_from_stream_response__falls_back_to_default__with_invalid_
     """
     # Arrange
     response: LanguageModelStreamResponse = LanguageModelStreamResponse(
-        message=LanguageModelStreamResponseMessage(
+        message=ChatMessage(
             id="msg_1",
             previous_message_id=None,
             role=LanguageModelMessageRole.ASSISTANT,
@@ -731,7 +731,7 @@ def test_context_text_from_stream_response__falls_back_to_default__on_extraction
         )
     ]
     response: LanguageModelStreamResponse = LanguageModelStreamResponse(
-        message=LanguageModelStreamResponseMessage(
+        message=ChatMessage(
             id="msg_1",
             previous_message_id=None,
             role=LanguageModelMessageRole.ASSISTANT,
@@ -763,7 +763,7 @@ def test_context_text_from_stream_response__returns_text_strings__not_chunk_obje
     """
     # Arrange
     response: LanguageModelStreamResponse = LanguageModelStreamResponse(
-        message=LanguageModelStreamResponseMessage(
+        message=ChatMessage(
             id="msg_1",
             previous_message_id=None,
             role=LanguageModelMessageRole.ASSISTANT,
