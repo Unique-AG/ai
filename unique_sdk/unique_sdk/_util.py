@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import functools
 import logging
@@ -7,9 +9,19 @@ import re
 import sys
 import time
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union, cast, overload
+from typing import (
+    Any,
+    Callable,
+    Optional,
+    Type,
+    TypedDict,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 
-from typing_extensions import TYPE_CHECKING, Type
+from typing_extensions import TYPE_CHECKING
 
 import unique_sdk  # noqa: F401
 from unique_sdk._error import APIConnectionError, APIError, UniqueError
@@ -66,6 +78,22 @@ def logfmt(props):
     return " ".join([fmt(key, val) for key, val in sorted(props.items())])
 
 
+class classproperty:
+    """Read-only descriptor so subclasses can override with Literal return types.
+
+    ClassVar[str] doesn't let basedpyright narrow per-subclass; a property
+    returning Literal["..."] does, while keeping the cls.OBJECT_NAME call-site.
+    """
+
+    def __init__(self, f: Callable[..., str]) -> None:
+        self.f = f
+
+    def __get__(self, obj: Any, objtype: type[Any] | None = None) -> str:
+        if objtype is None:
+            objtype = type(obj)
+        return self.f(objtype)
+
+
 def get_object_classes():
     # This is here to avoid a circular dependency
     from unique_sdk._object_classes import OBJECT_CLASSES
@@ -73,36 +101,42 @@ def get_object_classes():
     return OBJECT_CLASSES
 
 
-Resp = Union["UniqueResponse", Dict[str, Any], List["Resp"]]
+# Union[] required: PEP 604 `|` with string forward references crashes at
+# runtime on Python 3.11 (`from __future__ import annotations` only defers
+# annotations, not type alias assignments).
+Resp = Union["UniqueResponse", dict[str, Any], list["Resp"]]
 
 
+# basedpyright rejects `Type["UniqueObject"]` in overload signatures as an
+# invalid type form even with `from __future__ import annotations`.
+# pyright: reportInvalidTypeForm=false
 @overload
 def convert_to_unique_object(
-    resp: Union["UniqueResponse", Dict[str, Any]],
-    user_id: Optional[str],
-    company_id: Optional[str],
-    params: Optional[Dict[str, Any]] = None,
+    resp: "UniqueResponse" | dict[str, Any],
+    user_id: str | None,
+    company_id: str | None,
+    params: dict[str, Any] | None = None,
     klass_: Optional[Type["UniqueObject"]] = None,
 ) -> "UniqueObject": ...
 
 
 @overload
 def convert_to_unique_object(
-    resp: List[Resp],
-    user_id: Optional[str],
-    company_id: Optional[str],
-    params: Optional[Dict[str, Any]] = None,
+    resp: list[Resp],
+    user_id: str | None,
+    company_id: str | None,
+    params: dict[str, Any] | None = None,
     klass_: Optional[Type["UniqueObject"]] = None,
-) -> List["UniqueObject"]: ...
+) -> list["UniqueObject"]: ...
 
 
 def convert_to_unique_object(
     resp: Resp,
-    user_id: Optional[str],
-    company_id: Optional[str],
-    params: Optional[Dict[str, Any]] = None,
+    user_id: str | None,
+    company_id: str | None,
+    params: dict[str, Any] | None = None,
     klass_: Optional[Type["UniqueObject"]] = None,
-) -> Union["UniqueObject", List["UniqueObject"]]:
+) -> "UniqueObject" | list["UniqueObject"]:
     # If we get a UniqueResponse, we'll want to return a
     # UniqueObject with the last_response field filled out with
     # the raw API response information
@@ -119,7 +153,7 @@ def convert_to_unique_object(
     if isinstance(resp, list):
         return [
             convert_to_unique_object(
-                cast("Union[UniqueResponse, Dict[str, Any]]", i),
+                cast("UniqueResponse | dict[str, Any]", i),
                 user_id,
                 company_id,
                 klass_=klass_,
@@ -161,20 +195,28 @@ def convert_to_unique_object(
         return cast("UniqueObject", resp)
 
 
+class RetryOptions(TypedDict):
+    error_messages: list[str]
+    max_retries: int
+    initial_delay: int
+    backoff_factor: int
+    should_retry_5xx: bool
+
+
 class class_method_variant(object):
     def __init__(self, class_method_name):
         self.class_method_name = class_method_name
 
     T = TypeVar("T")
 
-    method: Any
+    method: Any = None  # basedpyright requires class attrs to be initialized
 
     def __call__(self, method: T) -> T:
         T = TypeVar("T")
         self.method = method
         return cast(T, self)
 
-    def __get__(self, obj, objtype: Optional[Type[Any]] = None):
+    def __get__(self, obj, objtype: type[Any] | None = None):
         @functools.wraps(self.method)
         def _wrapper(*args, **kwargs):
             if obj is not None:
@@ -195,14 +237,14 @@ class class_method_variant(object):
 
 
 def retry_on_error(
-    error_messages: List[str],
+    error_messages: list[str],
     max_retries: int = 3,
     initial_delay: int = 1,
     backoff_factor: int = 2,
     error_class=APIError,
     should_retry_5xx=False,
 ):
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         async def async_wrapper(*args, **kwargs) -> Any:
             attempts = 0

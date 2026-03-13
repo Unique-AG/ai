@@ -46,11 +46,13 @@ def integration_test_config() -> IntegrationTestConfig:
         pytest.skip(f"Integration test configuration missing: {e}")
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session")
 def setup_unique_sdk(integration_test_config: IntegrationTestConfig) -> None:
     """
     Configure unique_sdk with API credentials and base URL from test configuration.
-    This fixture runs once per test session and sets up the SDK.
+    This fixture runs once per test session. Only used by integration tests (see
+    tests/api_resources/conftest.py); unit tests do not request it so they run
+    in CI without integration_test.env.
     """
     unique_sdk.api_key = integration_test_config.api_key
     unique_sdk.app_id = integration_test_config.app_id
@@ -68,7 +70,7 @@ def created_folders() -> Generator[list[str], None, None]:
     # Cleanup happens in teardown_folder_cleanup fixture
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def setup_folder_cleanup(
     integration_test_config: IntegrationTestConfig,
 ) -> None:
@@ -107,7 +109,7 @@ def setup_folder_cleanup(
         pass
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="module")
 def teardown_folder_cleanup(
     integration_test_config: IntegrationTestConfig,
     created_folders: list[str],

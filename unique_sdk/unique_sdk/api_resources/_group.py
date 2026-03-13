@@ -1,6 +1,5 @@
 from typing import (
     Any,
-    ClassVar,
     Dict,
     List,
     Literal,
@@ -13,10 +12,13 @@ from typing import (
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class Group(APIResource["Group"]):
-    OBJECT_NAME: ClassVar[Literal["group"]] = "group"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["group"]:
+        return "group"
 
     class GetParams(RequestOptions):
         """

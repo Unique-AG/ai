@@ -1,10 +1,13 @@
-from typing import Any, ClassVar, Dict, Literal
+from typing import Any, Dict, Literal
 
 from unique_sdk._api_resource import APIResource
+from unique_sdk._util import classproperty
 
 
 class Event(APIResource["Event"]):
-    OBJECT_NAME: ClassVar[Literal["event"]] = "event"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["event"]:
+        return "event"
 
     event: Literal[
         "unique.chat.user-message.created", "unique.chat.external-module.chosen"

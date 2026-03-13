@@ -1,12 +1,8 @@
 from datetime import datetime
 from typing import (
     Any,
-    ClassVar,
-    Dict,
-    List,
     Literal,
     NotRequired,
-    Optional,
     TypedDict,
     Unpack,
     cast,
@@ -17,7 +13,7 @@ from urllib.parse import quote_plus
 from unique_sdk._api_resource import APIResource
 from unique_sdk._list_object import ListObject
 from unique_sdk._request_options import RequestOptions
-from unique_sdk._util import class_method_variant
+from unique_sdk._util import class_method_variant, classproperty
 
 
 class Message(APIResource["Message"]):
@@ -25,14 +21,16 @@ class Message(APIResource["Message"]):
     This object represents a chat message. Use it to answer user prompts with a generated assistant message.
     """
 
-    OBJECT_NAME: ClassVar[Literal["message"]] = "message"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["message"]:
+        return "message"
 
     class Reference(TypedDict):
         name: str
-        description: Optional[str]
-        url: Optional[str]
+        description: str | None
+        url: str | None
         sequenceNumber: int
-        originalIndex: Optional[list[int]]
+        originalIndex: list[int] | None
         sourceId: str
         source: str
 
@@ -45,19 +43,19 @@ class Message(APIResource["Message"]):
         chatId: str
         assistantId: str
         role: Literal["ASSISTANT"]
-        text: NotRequired[Optional["str"]]
-        references: Optional[List["Message.Reference"]]
-        debugInfo: Optional[Dict[str, Any]]
-        completedAt: Optional[datetime]
-        correlation: NotRequired[Optional["Message.Correlation"]]
+        text: NotRequired[str | None]
+        references: list["Message.Reference"] | None
+        debugInfo: dict[str, Any] | None
+        completedAt: datetime | None
+        correlation: NotRequired["Message.Correlation | None"]
 
     class ModifyParams(RequestOptions):
         chatId: str
         originalText: NotRequired[str | None]
-        text: NotRequired[Optional["str"]]
-        references: NotRequired[List["Message.Reference"] | None]
-        gptRequest: NotRequired[Dict[str, Any] | None]
-        debugInfo: NotRequired[Dict[str, Any] | None]
+        text: NotRequired[str | None]
+        references: NotRequired[list["Message.Reference"] | None]
+        gptRequest: NotRequired[dict[str, Any] | None]
+        debugInfo: NotRequired[dict[str, Any] | None]
         startedStreamingAt: NotRequired[datetime | None]
         stoppedStreamingAt: NotRequired[datetime | None]
         completedAt: NotRequired[datetime | None]
@@ -75,12 +73,12 @@ class Message(APIResource["Message"]):
         messageId: str
 
     chatId: str
-    text: Optional[str]
+    text: str | None
     role: Literal["SYSTEM", "USER", "ASSISTANT"]
-    gptRequest: Optional[Dict[str, Any]]
-    debugInfo: Optional[Dict[str, Any]]
-    startedStreamingAt: Optional[datetime]
-    stoppedStreamingAt: Optional[datetime]
+    gptRequest: dict[str, Any] | None
+    debugInfo: dict[str, Any] | None
+    startedStreamingAt: datetime | None
+    stoppedStreamingAt: datetime | None
 
     @classmethod
     def list(
@@ -293,7 +291,7 @@ class Message(APIResource["Message"]):
 
     @overload
     @staticmethod
-    def delete(
+    def delete(  # pyright: ignore[reportInconsistentOverload]
         id: str, user_id: str, company_id: str, **params: Unpack["Message.DeleteParams"]
     ) -> "Message":
         """
@@ -311,7 +309,7 @@ class Message(APIResource["Message"]):
         ...
 
     @class_method_variant("_cls_delete")
-    def delete(  # pyright: ignore[reportGeneralTypeIssues]
+    def delete(  # pyright: ignore[reportGeneralTypeIssues, reportInconsistentOverload]
         self,
         user_id: str,
         company_id: str,

@@ -19,4 +19,5 @@ This section contains documentation for all API resources available in the Uniqu
 - [SearchString API](search_string.md) - String-based search operations
 - [Short Term Memory API](short_term_memory.md) - Short-term memory management
 - [Space API](space.md) - Space management operations
+- [Tool API](tool.md) - Tool call invocation persistence and retrieval
 - [User API](user.md) - User management operations

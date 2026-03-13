@@ -1,12 +1,8 @@
 from typing import (
     TYPE_CHECKING,
     Any,
-    ClassVar,
-    List,
     Literal,
     NotRequired,
-    Optional,
-    Union,
     Unpack,
     cast,
 )
@@ -23,10 +19,14 @@ if TYPE_CHECKING:
         ToolParam,
         response_create_params,
     )
-    from openai.types.shared_params import Metadata, Reasoning
+    from openai.types.shared_params import (
+        Metadata,
+        Reasoning,
+    )
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 from unique_sdk.api_resources._message import Message
 
 
@@ -35,7 +35,9 @@ class Integrated(APIResource["Integrated"]):
     This object represents the integrated route. It is used to run complex APIs on the Unique platform
     """
 
-    OBJECT_NAME: ClassVar[Literal["integrated"]] = "integrated"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["integrated"]:
+        return "integrated"
 
     class SearchResult(TypedDict, total=False):
         id: str
@@ -48,11 +50,11 @@ class Integrated(APIResource["Integrated"]):
     class ChatCompletionRequestMessage(TypedDict, total=False):
         role: Literal["system", "user", "assistant"]
         content: str
-        name: Optional[str]
+        name: str | None
 
     class CommonIntegratedParams(RequestOptions):
         model: NotRequired[str]
-        searchContext: NotRequired[List["Integrated.SearchResult"]]
+        searchContext: NotRequired[list["Integrated.SearchResult"]]
         chatId: str
         assistantId: str
         assistantMessageId: str
@@ -62,7 +64,7 @@ class Integrated(APIResource["Integrated"]):
 
     class CreateStream(CommonIntegratedParams):
         timeout: NotRequired["int"]
-        messages: List["Integrated.ChatCompletionRequestMessage"]
+        messages: list["Integrated.ChatCompletionRequestMessage"]
 
     # For further details about the responses parameters, see the OpenAI API documentation.
     # Note that other parameters from openai.resources.responses.Response.create can be passed
@@ -70,7 +72,7 @@ class Integrated(APIResource["Integrated"]):
         include: NotRequired[list["ResponseIncludable"] | None]
         instructions: NotRequired[str | None]
         max_output_tokens: NotRequired[int | None]
-        metadata: NotRequired[Union["Metadata", None]]
+        metadata: NotRequired["Metadata | None"]
         parallel_tool_calls: NotRequired[bool | None]
         temperature: NotRequired[float | None]
         text: NotRequired["ResponseTextConfigParam"]
@@ -80,7 +82,7 @@ class Integrated(APIResource["Integrated"]):
         reasoning: NotRequired["Reasoning"]
 
     class CreateStreamResponsesParams(CommonIntegratedParams):
-        input: Union[str, "ResponseInputParam"]
+        input: "str | ResponseInputParam"
         options: NotRequired["Integrated.CreateStreamResponsesOpenaiParams"]
 
     class ToolCall(TypedDict):
@@ -91,8 +93,19 @@ class Integrated(APIResource["Integrated"]):
     class ResponsesStreamResult(TypedDict):
         id: str
         message: Message
-        toolCalls: List["Integrated.ToolCall"]
+        toolCalls: list["Integrated.ToolCall"]
         output: list["ResponseOutputItem"]
+
+    class Usage(TypedDict):
+        promptTokens: int
+        completionTokens: int
+        totalTokens: int
+
+    class StreamCompletionResult(TypedDict):
+        object: Literal["streamResult"]
+        message: Message
+        toolCalls: list["Integrated.ToolCall"]
+        usage: "Integrated.Usage"
 
     @classmethod
     def chat_stream_completion(
@@ -100,7 +113,7 @@ class Integrated(APIResource["Integrated"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Integrated.CreateStream"],
-    ) -> "Message":
+    ) -> "Integrated.StreamCompletionResult":
         """
         Executes a call to the language model and streams to the chat in real-time.
         It automatically inserts references that are mentioned by the model.
@@ -108,7 +121,7 @@ class Integrated(APIResource["Integrated"]):
         """
         url = "/integrated/chat/stream-completions"
         return cast(
-            "Message",
+            "Integrated.StreamCompletionResult",
             cls._static_request(
                 "post",
                 url,
@@ -124,7 +137,7 @@ class Integrated(APIResource["Integrated"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Integrated.CreateStream"],
-    ) -> "Message":
+    ) -> "Integrated.StreamCompletionResult":
         """
         Executes a call to the language model and streams to the chat in real-time.
         It automatically inserts references that are mentioned by the model.
@@ -132,7 +145,7 @@ class Integrated(APIResource["Integrated"]):
         """
         url = "/integrated/chat/stream-completions"
         return cast(
-            "Message",
+            "Integrated.StreamCompletionResult",
             await cls._static_request_async(
                 "post",
                 url,
