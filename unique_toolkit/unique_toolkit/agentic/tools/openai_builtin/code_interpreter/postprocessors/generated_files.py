@@ -552,7 +552,6 @@ def _warn_missing_content_ids(text: str, content_map: dict[str, str | None]) -> 
             )
 
 
-_SANDBOX_LINK_RE = re.compile(r"sandbox:/mnt/data/\S+")
 # Matches the full markdown link (including optional leading !) wrapping a sandbox URL,
 # so the entire `[label](sandbox://...)` token can be replaced rather than just the URL.
 _SANDBOX_MARKDOWN_LINK_RE = re.compile(r"!?\[.*?\]\(sandbox:/mnt/data/\S+?\)")
