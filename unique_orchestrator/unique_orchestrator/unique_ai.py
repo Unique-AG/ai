@@ -206,7 +206,9 @@ class UniqueAI:
                 self._reference_manager.add_references(
                     loop_response.message.references or []
                 )
-                self._last_assistant_text = loop_response.message.original_text or loop_response.message.text
+                self._last_assistant_text = (
+                    loop_response.message.original_text or loop_response.message.text
+                )
                 self._logger.info("Done with adding references")
 
                 self._thinking_manager.update_tool_progress_reporter(loop_response)
@@ -502,15 +504,15 @@ class UniqueAI:
         content so that only sources referenced in the final assistant message
         are kept (compaction).
         """
-        records = self._history_manager.extract_tool_call_records()
+        records = self._history_manager.extract_message_tools()
         if not records:
             return
-        records = self._history_manager.compact_tool_call_records(
+        records = HistoryManager.compact_message_tools(
             records, self._last_assistant_text
         )
         try:
             assistant_message_id = self._chat_service._assistant_message_id
-            await self._chat_service.create_tool_calls_async(
+            await self._chat_service.create_message_tools_async(
                 message_id=assistant_message_id,
                 tool_calls=records,
             )
