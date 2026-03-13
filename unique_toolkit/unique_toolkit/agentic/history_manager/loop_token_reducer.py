@@ -317,12 +317,37 @@ class LoopTokenReducer:
         return self.ensure_last_message_is_user_message(limited_history_messages)
 
     def _limit_to_token_window(
-        self, messages: list[LanguageModelMessage], token_limit: int
+        self,
+        messages: list[LanguageModelMessage],
+        token_limit: int,
+        allow_mid_turn_truncation: bool = False,
     ) -> list[LanguageModelMessage]:
-        # Split into complete turns at USER message boundaries so that
-        # interleaved tool-call sequences (assistant-with-tool_calls → tool
-        # responses → final assistant) are always included or dropped as a
-        # whole unit, never truncated mid-sequence.
+        """Trim *messages* so their total token count fits within *token_limit*.
+
+        When *allow_mid_turn_truncation* is ``False`` (the default), messages
+        are first grouped into conversational turns at USER message boundaries.
+        Turns are included or dropped as whole units (most-recent first), which
+        prevents interleaved tool-call sequences from being split mid-sequence.
+
+        When *allow_mid_turn_truncation* is ``True``, the simpler per-message
+        approach is used: messages are added from the back until the budget is
+        exhausted.  This can leave the window starting mid-turn, so callers
+        must use :meth:`ensure_last_message_is_user_message` afterwards.
+        """
+        if allow_mid_turn_truncation:
+            selected: list[LanguageModelMessage] = []
+            token_count = 0
+            for msg in messages[::-1]:
+                msg_tokens = self._count_message_tokens(
+                    LanguageModelMessages(root=[msg])
+                )
+                if token_count + msg_tokens > token_limit:
+                    break
+                selected.append(msg)
+                token_count += msg_tokens
+            return selected[::-1]
+
+        # Turn-based truncation: group at USER boundaries and drop whole turns.
         turns: list[list[LanguageModelMessage]] = []
         current_turn: list[LanguageModelMessage] = []
         for msg in messages:
