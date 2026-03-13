@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from typing import Any, Sequence
@@ -21,6 +22,7 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
     ChatMessageRole,
+    ChatMessageTool,
     MessageExecution,
     MessageExecutionType,
     MessageExecutionUpdateStatus,
@@ -382,11 +384,13 @@ def _construct_message_create_params(
     if original_content is None:
         original_content = content
 
-    return {
+    role_value = role.value.upper()
+
+    params: dict[str, Any] = {
         "user_id": user_id,
         "company_id": company_id,
         "assistantId": assistant_id,
-        "role": role.value.upper(),
+        "role": role_value,
         "chatId": chat_id,
         "text": content,
         "originalText": original_content,
@@ -394,6 +398,7 @@ def _construct_message_create_params(
         "debugInfo": debug_info or {},
         "completedAt": _time_utils.get_datetime_now() if set_completed_at else None,
     }
+    return params
 
 
 def get_selection_from_history(
@@ -520,7 +525,9 @@ def filter_valid_messages(
     messages: ListObject[unique_sdk.Message],
 ) -> list[dict[str, Any]]:
     SYSTEM_MESSAGE_PREFIX = "[SYSTEM] "
-    roles_to_filter = [ChatMessageRole.SYSTEM.value.lower()]
+    roles_to_filter = [
+        ChatMessageRole.SYSTEM.value.lower(),
+    ]
 
     # Remove the last two messages
     messages = messages["data"][:-2]  # type: ignore
@@ -1401,4 +1408,115 @@ async def update_message_execution_async(
         return MessageExecution(**message_execution)
     except Exception as e:
         logger.error(f"Failed to update message execution: {e}")
+        raise e
+
+
+def _build_tool_call_items(
+    tool_calls: list[ChatMessageTool],
+) -> list[dict[str, object]]:
+    return [
+        {
+            "externalToolCallId": tc.external_tool_call_id,
+            "functionName": tc.function_name,
+            "arguments": json.dumps(tc.arguments) if tc.arguments is not None else None,
+            "roundIndex": tc.round_index,
+            "sequenceIndex": tc.sequence_index,
+            **({"response": {"content": tc.response.content}} if tc.response else {}),
+        }
+        for tc in tool_calls
+    ]
+
+
+def _resolve_message_ids(
+    message_id: str | None,
+    message_ids: list[str] | None,
+) -> str | None:
+    """Return a comma-joined id string, or None when the input is empty."""
+    if message_ids is not None and not message_ids:
+        return None
+    ids = ",".join(message_ids) if message_ids else (message_id or "")
+    return ids or None
+
+
+def create_message_tools(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    tool_calls: list[ChatMessageTool],
+) -> list[ChatMessageTool]:
+    """Persist tool call records for an assistant message."""
+    try:
+        result = unique_sdk.MessageTool.create_many(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            tools=_build_tool_call_items(tool_calls),  # type: ignore
+        )
+        return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
+    except Exception as e:
+        logger.error(f"Failed to create message tools: {e}")
+        raise e
+
+
+async def create_message_tools_async(
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    tool_calls: list[ChatMessageTool],
+) -> list[ChatMessageTool]:
+    """Async variant of create_message_tools."""
+    try:
+        result = await unique_sdk.MessageTool.create_many_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            tools=_build_tool_call_items(tool_calls),  # type: ignore
+        )
+        return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
+    except Exception as e:
+        logger.error(f"Failed to create message tools: {e}")
+        raise e
+
+
+def get_message_tools(
+    user_id: str,
+    company_id: str,
+    message_id: str | None = None,
+    message_ids: list[str] | None = None,
+) -> list[ChatMessageTool]:
+    """Fetch persisted tool call records for one or more assistant messages."""
+    ids = _resolve_message_ids(message_id, message_ids)
+    if ids is None:
+        return []
+    try:
+        result = unique_sdk.MessageTool.get_message_tools(
+            user_id=user_id,
+            company_id=company_id,
+            messageIds=ids,
+        )
+        return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
+    except Exception as e:
+        logger.error(f"Failed to get message tools: {e}")
+        raise e
+
+
+async def get_message_tools_async(
+    user_id: str,
+    company_id: str,
+    message_id: str | None = None,
+    message_ids: list[str] | None = None,
+) -> list[ChatMessageTool]:
+    """Async variant of get_message_tools."""
+    ids = _resolve_message_ids(message_id, message_ids)
+    if ids is None:
+        return []
+    try:
+        result = await unique_sdk.MessageTool.get_message_tools_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageIds=ids,
+        )
+        return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
+    except Exception as e:
+        logger.error(f"Failed to get message tools: {e}")
         raise e
