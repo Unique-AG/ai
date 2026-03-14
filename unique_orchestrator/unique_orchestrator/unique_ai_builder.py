@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone
 from logging import Logger
-from typing import NamedTuple, cast
+from typing import Any, NamedTuple, cast
 
 from unique_follow_up_questions.follow_up_postprocessor import (
     FollowUpPostprocessor,
@@ -79,10 +81,20 @@ async def build_unique_ai(
     logger: Logger,
     config: UniqueAIConfig,
     debug_info_manager: DebugInfoManager,
-) -> UniqueAI:
+) -> Any:  # UniqueAI | ClaudeAgentRunner — ClaudeAgentRunner lazily imported
     common_components = _build_common(event, logger, config)
 
-    if config.agent.experimental.responses_api_config.use_responses_api:
+    if config.agent.experimental.claude_agent_config is not None:
+        # Claude Agent SDK route — explicit opt-in only (Decision B6).
+        # Takes priority over the responses_api route.
+        return _build_claude_agent(
+            event=event,
+            logger=logger,
+            config=config,
+            debug_info_manager=debug_info_manager,
+            common_components=common_components,
+        )
+    elif config.agent.experimental.responses_api_config.use_responses_api:
         return await _build_responses(
             event=event,
             logger=logger,
@@ -236,6 +248,44 @@ def _build_common(
         postprocessor_manager=postprocessor_manager,
         response_watcher=response_watcher,
         message_step_logger=MessageStepLogger(chat_service),
+    )
+
+
+def _build_claude_agent(
+    event: ChatEvent,
+    logger: Logger,
+    config: UniqueAIConfig,
+    common_components: _CommonComponents,
+    debug_info_manager: DebugInfoManager,
+) -> Any:  # ClaudeAgentRunner — lazily imported to avoid hard dep before toolkit ships
+    """Construct a ClaudeAgentRunner from shared platform components.
+
+    Called by build_unique_ai() when claude_agent_config is explicitly set on
+    ExperimentalConfig. Synchronous — no async setup needed at construction time.
+
+    The runner bypasses UniqueAI.run() entirely and drives its own turn:
+    workspace → prompt → history → SDK loop → post-processing.
+    """
+    from unique_toolkit.agentic.claude_agent import ClaudeAgentRunner  # lazy import
+
+    claude_config = config.agent.experimental.claude_agent_config
+    assert claude_config is not None  # guaranteed by routing check above
+
+    return ClaudeAgentRunner(
+        event=event,
+        logger=logger,
+        config=config,
+        claude_config=claude_config,
+        chat_service=common_components.chat_service,
+        content_service=common_components.content_service,
+        evaluation_manager=common_components.evaluation_manager,
+        postprocessor_manager=common_components.postprocessor_manager,
+        reference_manager=common_components.reference_manager,
+        thinking_manager=common_components.thinking_manager,
+        tool_progress_reporter=common_components.tool_progress_reporter,
+        message_step_logger=common_components.message_step_logger,
+        history_manager=common_components.history_manager,
+        debug_info_manager=debug_info_manager,
     )
 
 

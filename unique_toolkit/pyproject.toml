@@ -1,6 +1,6 @@
 [project]
 name = "unique_toolkit"
-version = "1.53.3"
+version = "1.53.5"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12"
@@ -41,7 +41,7 @@ dependencies = [
     "click>=8.1.0,<9",
     "deepdiff>=8.6.1,<9",
     "pypandoc>=1.16.2,<2",
-    "tenacity>=9.1.4",
+    "claude-agent-sdk>=0.1.44,<0.2",
 ]
 
 [project.optional-dependencies]
