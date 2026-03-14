@@ -246,9 +246,11 @@ path. See `runner.py` for the full comment. Worth reporting upstream.
 
 Honest status for review — these are known gaps, not defects:
 
-- **Structured history injection** — `HistoryManager` is injected but not wired.
-  Conversation context is injected as plain text in the system prompt for MVP.
-  Structured Anthropic-format message history is planned post-MVP.
+- **Platform-side DB-backed history** — cross-turn conversation history stored in
+  the Unique DB and replayed as structured Anthropic-format messages is not yet
+  implemented. SDK-native session persistence (`continue_conversation=True` +
+  `HOME=workspace_dir` pointing to the restored `.claude/` dir) handles conversational
+  continuity for now. Structured DB history is planned post-MVP for full audit trail.
 - **Evaluation check list** — `EvaluationManager` receives an empty `[]` check list
   (not wired to real tool config). Evaluations run but always see no checks to execute.
 - **ThinkingManager** — injected but not wired; placeholder in `runner.py`.
