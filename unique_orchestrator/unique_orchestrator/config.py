@@ -349,6 +349,15 @@ class ExperimentalConfig(BaseToolConfig):
 
     responses_api_config: SkipJsonSchema[ResponsesApiConfig] = ResponsesApiConfig()
 
+    claude_agent_config: SkipJsonSchema[Any] = Field(
+        default=None,
+        description=(
+            "If set, routes to Claude Agent SDK runner instead of the OpenAI completions/responses "
+            "pipeline. Accepts a ClaudeAgentConfig from unique_toolkit.agentic.claude_agent. "
+            "Explicit opt-in only — never auto-enabled by model name. See Decision B6."
+        ),
+    )
+
 
 class UniqueAIAgentConfig(BaseToolConfig):
     max_loop_iterations: Annotated[
