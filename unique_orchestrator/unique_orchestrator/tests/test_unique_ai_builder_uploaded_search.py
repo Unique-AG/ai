@@ -2,12 +2,13 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from unique_internal_search.uploaded_search.service import UploadedSearchTool
-from unique_orchestrator.config import UniqueAIConfig
+from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
+
+from unique_orchestrator.config import CodeInterpreterExtendedConfig, UniqueAIConfig
 from unique_orchestrator.unique_ai_builder import (
-    _CommonComponents,
     _build_responses,
+    _CommonComponents,
 )
 
 
@@ -160,3 +161,58 @@ async def test_build_responses_appends_uploaded_search_to_existing_tool_choices(
         UploadedSearchTool.name,
     ]
     assert _FakeResponsesApiToolManager.instances[0].forced_tools == []
+
+
+@pytest.mark.asyncio
+async def test_build_responses_keeps_uploaded_search_when_code_interpreter_is_auto_added(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event = _make_event(tool_choices=[])
+    uploaded_document = MagicMock(expired_at=None)
+    common_components = _make_common_components([uploaded_document])
+    config = UniqueAIConfig()
+    config.agent.experimental.responses_api_config.code_interpreter = (
+        CodeInterpreterExtendedConfig()
+    )
+    logger = MagicMock()
+
+    fake_client = MagicMock()
+    fake_client.copy.return_value = fake_client
+
+    _FakeResponsesApiToolManager.instances.clear()
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.get_async_openai_client",
+        lambda: fake_client,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.OpenAIBuiltInToolManager.build_manager",
+        AsyncMock(return_value=MagicMock()),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.ResponsesApiToolManager",
+        _FakeResponsesApiToolManager,
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.build_loop_iteration_runner",
+        lambda **kwargs: MagicMock(),
+    )
+    monkeypatch.setattr(
+        "unique_orchestrator.unique_ai_builder.UniqueAI",
+        lambda **kwargs: kwargs,
+    )
+
+    await _build_responses(
+        event=event,
+        logger=logger,
+        config=config,
+        common_components=common_components,
+        debug_info_manager=MagicMock(),
+    )
+
+    tool_names = [tool.name for tool in common_components.tool_manager_config.tools]
+
+    assert UploadedSearchTool.name in tool_names
+    assert OpenAIBuiltInToolName.CODE_INTERPRETER in tool_names
+    assert _FakeResponsesApiToolManager.instances[0].forced_tools == [
+        UploadedSearchTool.name
+    ]
