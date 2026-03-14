@@ -128,7 +128,7 @@ class TestBuildOptions:
         opts = runner._build_options(system_prompt="sys", workspace_dir=None)
 
         assert opts["system_prompt"] == "sys"
-        assert opts["model"] == "claude-sonnet-4-20250514"
+        assert opts["model"] == "claude-sonnet-4-6"
         assert opts["max_turns"] == 20
         assert opts["max_budget_usd"] == 2.0
         assert opts["permission_mode"] == "bypassPermissions"

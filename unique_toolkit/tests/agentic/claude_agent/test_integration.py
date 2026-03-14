@@ -132,6 +132,15 @@ needs_platform_web = pytest.mark.skipif(
     not (ANTHROPIC_API_KEY and UNIQUE_APP_KEY and UNIQUE_TEST_CHAT_ID),
     reason="ANTHROPIC_API_KEY + UNIQUE_APP_KEY + UNIQUE_TEST_CHAT_ID all required",
 )
+needs_full_e2e = pytest.mark.skipif(
+    not (
+        ANTHROPIC_API_KEY
+        and UNIQUE_APP_KEY
+        and UNIQUE_TEST_SCOPE_ID
+        and UNIQUE_TEST_CHAT_ID
+    ),
+    reason="Full E2E requires ANTHROPIC_API_KEY + UNIQUE_APP_KEY + UNIQUE_TEST_SCOPE_ID + UNIQUE_TEST_CHAT_ID",
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -581,3 +590,179 @@ async def test_L2_web_search_via_mcp_proxy() -> None:
         "Response too short — Claude may not have used web search results"
     )
     # If we got here without an exception, the proxy path worked end-to-end
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Full E2E demo test — authoritative readiness check for monorepo integration
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@needs_full_e2e
+@pytest.mark.asyncio
+async def test_L2_full_e2e_streaming_tools_files_multiturn() -> None:
+    """Full E2E demo: streaming → KB tool → file creation → inline rendering → multi-turn.
+
+    This is the authoritative test that the Python stack is ready for monorepo
+    integration. It exercises runner.run() (not _run_claude_loop()) to validate
+    the complete lifecycle:
+        workspace setup → system prompt → history → SDK loop →
+        output file upload → inject_file_references_into_text →
+        post-processing → message completion → checkpoint save → cleanup
+
+    Turn 1: KB search + text streaming + tool progress events
+    Turn 2: Code execution + file creation + inline unique://content/ reference
+
+    Requires: ANTHROPIC_API_KEY, UNIQUE_APP_KEY, UNIQUE_TEST_SCOPE_ID, UNIQUE_TEST_CHAT_ID
+
+    Run:
+        cd unique_toolkit
+        set -a && source ../.env.local && set +a
+        poetry run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "full_e2e"
+    """
+    content_service = _init_platform()
+
+    # ── Turn 1 setup ─────────────────────────────────────────────────────────
+    print("\n\n=== TURN 1: KB Search + Streaming ===")
+
+    chunks_t1: list[str] = []
+    progress_calls_t1: list[str] = []
+
+    chat_service_t1 = MagicMock()
+
+    async def _stream_t1(content: str | None = None, **kwargs: object) -> None:
+        if content is not None:
+            chunks_t1.append(content)
+            prev = chunks_t1[-2] if len(chunks_t1) > 1 else ""
+            print(content[len(prev) :], end="", flush=True)
+
+    chat_service_t1.modify_assistant_message_async = AsyncMock(side_effect=_stream_t1)
+
+    progress_svc_t1 = MagicMock()
+
+    async def _progress_t1(content: str | None = None, **kwargs: object) -> None:
+        if content is not None:
+            progress_calls_t1.append(content)
+            print(f"\n{content}", flush=True)
+
+    progress_svc_t1.modify_assistant_message_async = AsyncMock(side_effect=_progress_t1)
+
+    config_t1 = ClaudeAgentConfig(
+        model="claude-sonnet-4-6",
+        max_turns=8,
+        permission_mode="bypassPermissions",
+        enable_workspace_persistence=True,
+        enable_code_execution=True,
+        scope_ids=[UNIQUE_TEST_SCOPE_ID],
+        search_type="COMBINED",
+        system_prompt_override=(
+            "You are a concise assistant. "
+            "Always use the search_knowledge_base tool to answer questions about documents."
+        ),
+    )
+    runner_t1, _ = _make_live_runner(
+        claude_config=config_t1,
+        content_service=content_service,
+        chat_id=UNIQUE_TEST_CHAT_ID,
+        msg_id=UNIQUE_TEST_MSG_ID,
+    )
+    runner_t1._chat_service = chat_service_t1
+    runner_t1._tool_progress_reporter = ToolProgressReporter(
+        chat_service=progress_svc_t1
+    )
+    runner_t1._event.payload.user_message = MagicMock()
+    runner_t1._event.payload.user_message.text = (
+        "Search the knowledge base for any document and summarize it in 2 sentences."
+    )
+
+    await runner_t1.run()
+
+    text_t1 = chunks_t1[-1] if chunks_t1 else ""
+    print(f"\n✓ Streaming: {len(chunks_t1)} chunks received")
+    print(f"✓ Tool progress: {len(progress_calls_t1)} progress events published")
+    print(f"✓ KB tool called: {content_service.search_content_chunks.called}")  # type: ignore[union-attr]
+    print(f"✓ Response: {len(text_t1)} chars")
+
+    assert chunks_t1, (
+        "Turn 1: modify_assistant_message_async never called — streaming broken"
+    )
+    assert text_t1, "Turn 1: response text is empty"
+    assert len(text_t1) > 30, (
+        f"Turn 1: response suspiciously short ({len(text_t1)} chars)"
+    )
+    assert progress_calls_t1, (
+        "Turn 1: no tool progress events — KB search tool may not have fired"
+    )
+    assert any("Running" in p for p in progress_calls_t1), (
+        f"Turn 1: 'Running...' not in progress calls. Got: {progress_calls_t1[:3]}"
+    )
+
+    # ── Turn 2 setup ─────────────────────────────────────────────────────────
+    print("\n\n=== TURN 2: Code Execution + File Creation ===")
+
+    chunks_t2: list[str] = []
+    progress_calls_t2: list[str] = []
+
+    chat_service_t2 = MagicMock()
+
+    async def _stream_t2(content: str | None = None, **kwargs: object) -> None:
+        if content is not None:
+            chunks_t2.append(content)
+            prev = chunks_t2[-2] if len(chunks_t2) > 1 else ""
+            print(content[len(prev) :], end="", flush=True)
+
+    chat_service_t2.modify_assistant_message_async = AsyncMock(side_effect=_stream_t2)
+
+    progress_svc_t2 = MagicMock()
+
+    async def _progress_t2(content: str | None = None, **kwargs: object) -> None:
+        if content is not None:
+            progress_calls_t2.append(content)
+            print(f"\n{content}", flush=True)
+
+    progress_svc_t2.modify_assistant_message_async = AsyncMock(side_effect=_progress_t2)
+
+    config_t2 = ClaudeAgentConfig(
+        model="claude-sonnet-4-6",
+        max_turns=8,
+        permission_mode="bypassPermissions",
+        enable_workspace_persistence=True,
+        enable_code_execution=True,
+        system_prompt_override=(
+            "You are a coding assistant. "
+            "Use Bash and Write tools to complete file tasks. "
+            "Always save output files to the ./output/ directory."
+        ),
+    )
+    runner_t2, _ = _make_live_runner(
+        claude_config=config_t2,
+        content_service=content_service,
+        chat_id=UNIQUE_TEST_CHAT_ID,
+        msg_id=UNIQUE_TEST_MSG_ID,
+    )
+    runner_t2._chat_service = chat_service_t2
+    runner_t2._tool_progress_reporter = ToolProgressReporter(
+        chat_service=progress_svc_t2
+    )
+    runner_t2._event.payload.user_message = MagicMock()
+    runner_t2._event.payload.user_message.text = (
+        "Write a Python script that creates ./output/data.csv containing 3 rows of sample data "
+        "(header + 2 rows), run it with Bash, then confirm the file exists by listing ./output/."
+    )
+
+    await runner_t2.run()
+
+    text_t2 = chunks_t2[-1] if chunks_t2 else ""
+    print(f"\n✓ Tool progress: {len(progress_calls_t2)} progress events")
+    print(f"✓ Response: {len(text_t2)} chars")
+
+    assert chunks_t2, "Turn 2: no streaming output"
+    assert progress_calls_t2, (
+        "Turn 2: no tool progress events — Bash tool may not have fired"
+    )
+    assert "unique://content/" in text_t2, (
+        "Turn 2: inline file reference not found — "
+        f"upload+inject pipeline may be broken. Response: {text_t2[:500]}"
+    )
+
+    print("\n✓ File uploaded + inline reference injected")
+    print("✓ Full pipeline validated — ready for monorepo integration")

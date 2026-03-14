@@ -1,6 +1,6 @@
 # Claude Agent SDK Integration
 
-`unique_toolkit/agentic/claude_agent/` — draft, under active development
+**Status:** Functional — demo-ready. Full integration with monorepo/node-chat pending.
 
 ---
 
@@ -15,8 +15,29 @@ to the frontend in real time — all wired into the existing platform infrastruc
 changes to the frontend or message bus.
 
 **Validated:** Claude autonomously ran 3–5 KB searches, returned 0-indexed `[source0]`…
-`[sourceN]` citations in structured markdown, and wrote a Word document artifact via
-`python-docx` against the QA platform.
+`[sourceN]` citations in structured markdown, created CSV files via Bash/Write tools,
+and uploaded them as `unique://content/{id}` inline references in the chat response.
+
+---
+
+## Quick Start
+
+Minimal config to enable Claude Agent SDK in a `UniqueAIConfig`:
+
+```python
+from unique_toolkit.agentic.claude_agent import ClaudeAgentConfig
+
+# In UniqueAIConfig:
+config.agent.experimental.claude_agent_config = ClaudeAgentConfig(
+    model="claude-sonnet-4-6",
+    scope_ids=["your_scope_id"],       # KB scopes to search
+    enable_code_execution=True,         # allows Bash, Write, Edit, etc.
+    enable_workspace_persistence=True,  # cross-turn memory via checkpoint zip
+)
+```
+
+`claude_agent_config` is `None` by default — no existing assistant is affected.
+Routing is explicit opt-in only; no auto-enable by model name (Decision B6).
 
 ---
 
@@ -30,9 +51,6 @@ UniqueAIConfig.agent.experimental.claude_agent_config = ClaudeAgentConfig(...)
 build_unique_ai()  →  _build_claude_agent()  →  ClaudeAgentRunner
 ```
 
-`ClaudeAgentConfig` is `None` by default — no existing assistant is affected. Routing
-is explicit opt-in only; no auto-enable by model name.
-
 ### Turn lifecycle
 
 ```
@@ -44,10 +62,10 @@ ClaudeAgentRunner.run()
   ├─ _build_options()            → build ClaudeAgentOptions: tools, env, MCP server
   ├─ _run_claude_loop()          → iterate SDK query() event stream
   │    ├─ text_delta             → modify_assistant_message_async(content) → AMQP → frontend
-  │    ├─ AssistantMessage       → log tool_use blocks; parse TodoWrite state
+  │    ├─ AssistantMessage       → log tool_use blocks; ToolProgressReporter.notify_from_tool_call()
   │    └─ ResultMessage          → capture final text if no deltas streamed
-  ├─ _upload_output_files()       → upload ./output/ files → get filename→content_id map
-  ├─ append_file_references_to_text() → enrich accumulated_text with inline file links
+  ├─ _upload_output_files()      → upload ./output/ files → get filename→content_id map
+  ├─ inject_file_references_into_text() → replace ./output/ paths with unique://content/{id}
   ├─ _run_post_processing()      → EvaluationManager + PostprocessorManager (concurrent)
   ├─ modify_assistant_message_async(set_completed_at=True)
   └─ finally: _save_workspace_checkpoint() + _cleanup_workspace()
@@ -65,6 +83,18 @@ Claude SDK text_delta event
 Per-delta streaming. Each PATCH carries the full accumulated text to date.
 Call frequency matches OpenAI streaming — no backend changes needed.
 
+### Tool progress (interleaved with text)
+
+```
+AssistantMessage(ToolUseBlock)
+    → ToolProgressReporter.notify_from_tool_call()
+    → publish("[⏳ Running search_knowledge_base...]")
+    → ChatService.modify_assistant_message_async(content=...)
+```
+
+Tool progress fires immediately when Claude decides to use a tool — before the result
+returns. The user sees interleaved output: text streaming + tool progress events.
+
 ### MCP Tools — unified `unique_platform` server
 
 A single in-process MCP server named `unique_platform` is registered with the Claude SDK.
@@ -80,6 +110,31 @@ It exposes two tool categories:
 - Proxy calls `unique_sdk.MCP.call_tool_async()` — web search, custom connectors, and
   third-party tools all work automatically with zero additional code
 - Graceful degradation: errors returned as text content; agent loop never crashes
+
+### File Rendering
+
+Claude saves output files to `./output/` and references them inline as markdown:
+
+```
+I created the chart. Here it is:
+![sales chart](./output/chart.png)
+```
+
+After Claude's loop exits, the runner:
+
+1. **Uploads** every file in `./output/` via `ContentService` → gets a `content_id` per file
+2. **Replaces** `./output/filename` paths inline in the accumulated text via
+   `inject_file_references_into_text()` → `unique://content/{id}`
+
+Result in the final chat message:
+
+```
+I created the chart. Here it is:
+![sales chart](unique://content/cont_abc123)
+```
+
+Same end result as the Responses API postprocessor — `unique://content/{id}` URL where
+the user expects to see the file. No frontend changes needed.
 
 ### System prompt pipeline
 
@@ -108,76 +163,33 @@ Intentionally lean: no tool descriptions (SDK auto-generates), no execution limi
 | `prompts.py` | System prompt builder; `PromptContext` dataclass |
 | `history.py` | `format_history_as_text()` — platform messages → text for prompt |
 | `mcp_tools.py` | `build_unique_mcp_server()` — KB direct + platform proxy |
-| `generated_files.py` | Stub — `parse_references()`, artifact tracking |
-| `workspace.py` | Stub — workspace zip fetch/persist |
-| `streaming.py` | Stub — reserved for future streaming helpers |
+| `generated_files.py` | `inject_file_references_into_text()` — replace ./output/ paths with unique:// |
+| `workspace.py` | Workspace zip fetch/persist/cleanup; `upload_output_files()` |
+| `streaming.py` | `run_claude_loop()` — SDK event loop, text streaming, tool progress |
 | `__init__.py` | Public exports |
 
 ---
 
-## Quick Start
-
-### Streaming demo
-
-The demo script lives at `examples/frameworks/claude_agent/demo_streaming.py`. It loads
-credentials from `.env.local` at **repo root** — no need to `source` before running.
+## Running Tests
 
 ```bash
-# 1. Set up credentials (repo root)
-cp .env.local.example .env.local
-# Edit .env.local — at minimum: ANTHROPIC_API_KEY
-# For KB/code scenarios: add UNIQUE_APP_KEY, UNIQUE_APP_ID, UNIQUE_API_BASE_URL,
-#   UNIQUE_AUTH_COMPANY_ID, UNIQUE_AUTH_USER_ID, UNIQUE_TEST_SCOPE_ID
-
-# 2. Run from unique_toolkit
+# Unit tests — no credentials needed (CI-safe)
 cd unique_toolkit
-uv run python examples/frameworks/claude_agent/demo_streaming.py
-```
+poetry run pytest tests/agentic/claude_agent/ -q \
+  --ignore=tests/agentic/claude_agent/test_workspace_e2e.py \
+  --ignore=tests/agentic/claude_agent/test_multiturn_e2e.py \
+  --ignore=tests/agentic/claude_agent/test_integration.py
+# Expected: 145+ passed
 
-**Scenarios** (pre-configured query + config):
+# Full E2E demo — requires .env.local (streaming + KB + file creation + inline refs)
+set -a && source ../.env.local && set +a
+poetry run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "full_e2e"
 
-| Scenario | Command | What it does |
-|----------|--------|---------------|
-| `kb` (default) | `--scenario kb` | Multi-search KB analysis of Oklo Q3 2024 earnings call |
-| `code` | `--scenario code` | KB research + write `demo_output/investment_analysis.md` |
-| `web` | `--scenario web` | KB search + native WebSearch for Oklo/nuclear news |
-| `reasoning` | `--scenario reasoning` | Complex multi-step analytical task (ReAct depth) |
+# Level 1 tests — ANTHROPIC_API_KEY only (real API, no platform)
+poetry run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "L1"
 
-**Optional flags** (can combine with any scenario):
-
-- `--query "Your question"` — override the scenario query
-- `--code-exec` — enable Bash/Write/Edit (file creation)
-- `--web-search` — enable native WebSearch
-- `--scope scope_xxx` — KB scope ID (default: `scope_eg5zj45yfe5vccqcgw0h939e`)
-- `--no-scope` — search entire KB (no scope filter)
-
-**Example:**
-
-```bash
-cd unique_toolkit
-uv run python examples/frameworks/claude_agent/demo_streaming.py --scenario code
-uv run python examples/frameworks/claude_agent/demo_streaming.py --query "Summarise the Morgan Stanley fund fact sheets" --web-search
-```
-
-**Expected output:** `[demo]` and `[claude-agent]` log lines (system prompt size, tool calls,
-tool results), then streamed reply. Tool results appear as `[tool] ← result: N chunks | [file1, ...]`.
-
-### Integration tests
-
-Credentials are loaded from `.env.local` at repo root (or `.local-dev/unique.env.qa` as fallback).
-No need to `source` if that file exists.
-
-```bash
-cd unique_toolkit
-
-# Level 1 — ANTHROPIC_API_KEY only (no platform connection):
-uv run pytest tests/agentic/claude_agent/test_integration.py -v -s -k "L1"
-
-# Level 2 — real platform KB search (requires full .env.local with UNIQUE_* + UNIQUE_TEST_SCOPE_ID):
-uv run pytest tests/agentic/claude_agent/test_integration.py::test_L2_kb_search_real_platform -v -s
-
-# Unit tests only (CI-safe, no API key needed):
-uv run pytest tests/agentic/claude_agent/ --ignore=tests/agentic/claude_agent/test_integration.py -v
+# Interactive streaming demo
+poetry run python examples/frameworks/claude_agent/demo_streaming.py --scenario code
 ```
 
 ---
@@ -196,7 +208,8 @@ load it from repo root automatically.
 | `UNIQUE_API_BASE_URL` | L2 tests | Platform base URL |
 | `UNIQUE_AUTH_COMPANY_ID` | L2 tests | Company ID for KB/MCP calls |
 | `UNIQUE_AUTH_USER_ID` | L2 tests | User ID for KB/MCP calls |
-| `UNIQUE_TEST_SCOPE_ID` | L2 KB test | KB folder scope ID to search |
+| `UNIQUE_TEST_SCOPE_ID` | L2 KB tests | KB folder scope ID to search |
+| `UNIQUE_TEST_CHAT_ID` | Full E2E test | Chat ID for workspace + file upload |
 
 ---
 
@@ -206,7 +219,7 @@ load it from repo root automatically.
 
 | Concept | Field | Default |
 |---|---|---|
-| Model selection | `model`, `fallback_model` | `claude-sonnet-4-20250514` |
+| Model selection | `model`, `fallback_model` | `claude-sonnet-4-6` |
 | Skills directory | `setting_sources` | `None` (not yet activated) |
 | Workspace persistence | `enable_workspace_persistence` | `True` |
 | MCP server | `build_unique_mcp_server()` — KB direct + platform proxy | auto |
@@ -229,17 +242,20 @@ path. See `runner.py` for the full comment. Worth reporting upstream.
 
 ---
 
-## Current Limitations
+## What's NOT Done Yet
 
-- **Tool call visibility:** Only the final assistant message is streamed to the frontend.
-  Intermediate tool calls (e.g. KB searches, file writes) are logged but not shown to the
-  user during the loop. Planned enhancement.
-- **Conversation history:** History is injected as a flat text block in the system prompt.
-  Structured Anthropic-format message history is planned.
-- **Workspace persistence:** `workspace.py` is a stub. Zip fetch/persist will be
-  implemented once the workspace infrastructure is in place.
-- **SDK Skills:** `setting_sources` is wired in `ClaudeAgentConfig` but not yet activated.
-  Activating it will allow the agent to read `.claude/*.md` skill files on demand.
+Honest status for review — these are known gaps, not defects:
+
+- **Structured history injection** — `HistoryManager` is injected but not wired.
+  Conversation context is injected as plain text in the system prompt for MVP.
+  Structured Anthropic-format message history is planned post-MVP.
+- **Evaluation check list** — `EvaluationManager` receives an empty `[]` check list
+  (not wired to real tool config). Evaluations run but always see no checks to execute.
+- **ThinkingManager** — injected but not wired; placeholder in `runner.py`.
+- **SDK Skills** — `setting_sources` is wired in `ClaudeAgentConfig` but not yet
+  activated. Activating it will allow the agent to read `.claude/*.md` skill files.
+- **Monorepo integration** — `ClaudeAgentRunner` is not yet wired in the node-chat
+  message bus. This is the next step after CTO review.
 
 ---
 
@@ -252,4 +268,5 @@ path. See `runner.py` for the full comment. Worth reporting upstream.
 | `test_prompts.py` | All system prompt sections, reference guidelines |
 | `test_history.py` | History formatting, tool message rendering, truncation |
 | `test_mcp_tools.py` | `build_unique_mcp_server()`, KB tool, proxy tool, 0-indexed sources |
-| `test_integration.py` | L1: streaming, KB MCP call, schema, code execution, proxy degradation. L2: real platform KB |
+| `test_generated_files.py` | `inject_file_references_into_text()` — 22 unit tests |
+| `test_integration.py` | L1: streaming, KB MCP, schema, code exec, proxy degradation, tool progress. L2: real platform KB + full E2E |

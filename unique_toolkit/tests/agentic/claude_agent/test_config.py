@@ -22,7 +22,7 @@ class TestClaudeAgentConfigDefaults:
         """Test that all defaults match the spec."""
         config = ClaudeAgentConfig()
 
-        assert config.model == "claude-sonnet-4-20250514"
+        assert config.model == "claude-sonnet-4-6"
         assert config.fallback_model is None
         assert config.max_thinking_tokens is None
         assert config.max_turns == 20
