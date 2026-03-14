@@ -669,6 +669,9 @@ async def test_L2_full_e2e_streaming_tools_files_multiturn() -> None:
     runner_t1._tool_progress_reporter = ToolProgressReporter(
         chat_service=progress_svc_t1
     )
+    # SafeTaskExecutor.execute_async() awaits these — must be AsyncMock not MagicMock
+    runner_t1._postprocessor_manager.run_postprocessors = AsyncMock()
+    runner_t1._evaluation_manager.run_evaluations = AsyncMock(return_value=[])
     runner_t1._event.payload.user_message = MagicMock()
     runner_t1._event.payload.user_message.text = (
         "Search the knowledge base for any document and summarize it in 2 sentences."
@@ -679,8 +682,8 @@ async def test_L2_full_e2e_streaming_tools_files_multiturn() -> None:
     text_t1 = chunks_t1[-1] if chunks_t1 else ""
     print(f"\n✓ Streaming: {len(chunks_t1)} chunks received")
     print(f"✓ Tool progress: {len(progress_calls_t1)} progress events published")
-    print(f"✓ KB tool called: {content_service.search_content_chunks.called}")  # type: ignore[union-attr]
     print(f"✓ Response: {len(text_t1)} chars")
+    print(f"\n--- TURN 1 FINAL RESPONSE (as sent to UI) ---\n{text_t1}\n--- END ---")
 
     assert chunks_t1, (
         "Turn 1: modify_assistant_message_async never called — streaming broken"
@@ -743,6 +746,9 @@ async def test_L2_full_e2e_streaming_tools_files_multiturn() -> None:
     runner_t2._tool_progress_reporter = ToolProgressReporter(
         chat_service=progress_svc_t2
     )
+    # SafeTaskExecutor.execute_async() awaits these — must be AsyncMock not MagicMock
+    runner_t2._postprocessor_manager.run_postprocessors = AsyncMock()
+    runner_t2._evaluation_manager.run_evaluations = AsyncMock(return_value=[])
     runner_t2._event.payload.user_message = MagicMock()
     runner_t2._event.payload.user_message.text = (
         "Write a Python script that creates ./output/data.csv containing 3 rows of sample data "
@@ -754,14 +760,15 @@ async def test_L2_full_e2e_streaming_tools_files_multiturn() -> None:
     text_t2 = chunks_t2[-1] if chunks_t2 else ""
     print(f"\n✓ Tool progress: {len(progress_calls_t2)} progress events")
     print(f"✓ Response: {len(text_t2)} chars")
+    print(f"\n--- TURN 2 FINAL RESPONSE (as sent to UI) ---\n{text_t2}\n--- END ---")
 
     assert chunks_t2, "Turn 2: no streaming output"
     assert progress_calls_t2, (
         "Turn 2: no tool progress events — Bash tool may not have fired"
     )
     assert "unique://content/" in text_t2, (
-        "Turn 2: inline file reference not found — "
-        f"upload+inject pipeline may be broken. Response: {text_t2[:500]}"
+        "Turn 2: inline file reference not found — upload+inject pipeline may be broken. "
+        f"Response:\n{text_t2}"
     )
 
     print("\n✓ File uploaded + inline reference injected")

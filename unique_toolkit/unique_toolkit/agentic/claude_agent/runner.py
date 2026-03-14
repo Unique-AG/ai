@@ -140,12 +140,17 @@ class ClaudeAgentRunner:
                 options=options,
             )
 
-            # Upload output files and enrich accumulated text with inline references
-            # before post-processing so file links appear in the final message.
+            # Upload output files and enrich accumulated text with inline references.
+            # If references were injected, push the enriched text to the chat service
+            # so the UI sees unique://content/ URLs rather than ./output/ paths.
             uploaded_files = await self._upload_output_files(workspace_dir)
             enriched_result = inject_file_references_into_text(
                 claude_result, uploaded_files
             )
+            if enriched_result != claude_result:
+                await self._chat_service.modify_assistant_message_async(
+                    content=enriched_result,
+                )
 
             await self._run_post_processing(enriched_result)
 
