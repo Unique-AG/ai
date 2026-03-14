@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12, <4"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -2844,11 +2844,11 @@ wheels = [
 
 [[package]]
 name = "pyjwt"
-version = "2.11.0"
+version = "2.12.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/5c/5a/b46fa56bf322901eee5b0454a34343cdbdae202cd421775a8ee4e42fd519/pyjwt-2.11.0.tar.gz", hash = "sha256:35f95c1f0fbe5d5ba6e43f00271c275f7a1a4db1dab27bf708073b75318ea623", size = 98019, upload-time = "2026-01-30T19:59:55.694Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a8/10/e8192be5f38f3e8e7e046716de4cae33d56fd5ae08927a823bb916be36c1/pyjwt-2.12.0.tar.gz", hash = "sha256:2f62390b667cd8257de560b850bb5a883102a388829274147f1d724453f8fb02", size = 102511, upload-time = "2026-03-12T17:15:30.831Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6f/01/c26ce75ba460d5cd503da9e13b21a33804d38c2165dec7b716d06b13010c/pyjwt-2.11.0-py3-none-any.whl", hash = "sha256:94a6bde30eb5c8e04fee991062b534071fd1439ef58d2adc9ccb823e7bcd0469", size = 28224, upload-time = "2026-01-30T19:59:54.539Z" },
+    { url = "https://files.pythonhosted.org/packages/15/70/70f895f404d363d291dcf62c12c85fdd47619ad9674ac0f53364d035925a/pyjwt-2.12.0-py3-none-any.whl", hash = "sha256:9bb459d1bdd0387967d287f5656bf7ec2b9a26645d1961628cda1764e087fd6e", size = 29700, upload-time = "2026-03-12T17:15:29.257Z" },
 ]
 
 [package.optional-dependencies]
@@ -3821,7 +3821,7 @@ dev = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.84"
+version = "0.10.88"
 source = { editable = "../unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
@@ -3851,10 +3851,12 @@ dev = [
     { name = "basedpyright", specifier = ">=1.35.0,<2" },
     { name = "deptry", specifier = ">=0.24.0,<0.25" },
     { name = "ipykernel", specifier = ">=7.1.0,<8" },
+    { name = "openai", specifier = ">=1.105.0,<2" },
     { name = "poethepoet", specifier = ">=0.32.0,<0.33" },
     { name = "pytest", specifier = ">=8.0,<9" },
     { name = "pytest-asyncio", specifier = ">=0.24.0,<0.25" },
     { name = "pytest-cov", specifier = ">=4.1.0,<5" },
+    { name = "pytest-mock", specifier = ">=3.14.0,<4" },
     { name = "python-dotenv", specifier = ">=1.1.0,<2" },
     { name = "ruff", specifier = "==0.11.7" },
     { name = "tox", specifier = ">=4.11.4,<5" },
@@ -3973,7 +3975,7 @@ dev = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.52.0"
+version = "1.53.3"
 source = { editable = "../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -3996,6 +3998,7 @@ dependencies = [
     { name = "python-docx" },
     { name = "requests" },
     { name = "sseclient" },
+    { name = "tenacity" },
     { name = "tiktoken" },
     { name = "tokenizers" },
     { name = "typing-extensions" },
@@ -4030,6 +4033,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.32.0,<3" },
     { name = "sseclient", specifier = ">=0.0.27,<0.0.28" },
     { name = "starlette", marker = "extra == 'fastapi'", specifier = ">=0.49.1" },
+    { name = "tenacity", specifier = ">=9.1.4" },
     { name = "tiktoken", specifier = ">=0.12.0,<0.13" },
     { name = "tokenizers", specifier = ">=0.21.0,<0.22" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
