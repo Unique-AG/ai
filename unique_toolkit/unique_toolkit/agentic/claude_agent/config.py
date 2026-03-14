@@ -15,7 +15,7 @@ class ClaudeAgentConfig(BaseToolConfig):
 
     # ─── Model & Reasoning ───
     model: str = Field(
-        default="claude-sonnet-4-20250514",
+        default="claude-sonnet-4-6",
         description="Claude model identifier. Short names ('opus', 'sonnet', 'haiku') or full IDs.",
     )
     fallback_model: str | None = Field(

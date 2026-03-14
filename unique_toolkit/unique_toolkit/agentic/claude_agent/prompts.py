@@ -31,6 +31,7 @@ class PromptContext:
     user_instructions: str | None = None
     project_name: str = "Unique AI"
     history_text: str = field(default="")
+    enable_code_execution: bool = False
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -188,6 +189,19 @@ Example:
 </html>
 ```"""
 
+_FILE_OUTPUT_INSTRUCTIONS = """
+# File Output
+When you generate files (charts, images, reports, CSVs, PDFs, HTML dashboards, etc.) that should be visible to the user:
+
+1. **Save to `./output/`** — always use this directory. Examples: `./output/chart.png`, `./output/report.html`, `./output/data.csv`
+
+2. **Reference inline** — embed the file at the exact point in your response where it is relevant, using markdown syntax with the `./output/` path:
+   - Images and charts: `![Description of what the chart shows](./output/chart.png)`
+   - HTML dashboards / interactive reports: `![Report title](./output/report.html)`
+   - Other files (CSV, PDF, etc.): `[📎 filename.csv](./output/data.csv)`
+
+The `./output/` paths are automatically replaced with hosted URLs — **do not use any other path**. Place the reference immediately after the sentence that introduces the file, so it renders in context."""
+
 
 def conversation_style() -> str:
     return _CONVERSATION_STYLE
@@ -203,6 +217,10 @@ def reference_guidelines() -> str:
 
 def html_rendering_instructions() -> str:
     return _HTML_RENDERING_INSTRUCTIONS
+
+
+def file_output_instructions() -> str:
+    return _FILE_OUTPUT_INSTRUCTIONS
 
 
 def custom_instructions_section(
@@ -266,6 +284,7 @@ def build_system_prompt(context: PromptContext) -> str:
         answer_style(),
         reference_guidelines(),
         html_rendering_instructions(),
+        file_output_instructions() if context.enable_code_execution else "",
         custom_instructions_section(
             context.custom_instructions,
             context.user_instructions,

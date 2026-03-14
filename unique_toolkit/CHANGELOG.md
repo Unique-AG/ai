@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.53.5] - 2026-03-14
+- Claude agent (T1.2): `workspace._upload_output_files()` returns `dict[str, str]` (filename→content_id); new `upload_output_files()` public wrapper; `persist_workspace()` propagates the map
+- Claude agent (T1.2): `generated_files.append_file_references_to_text()` appends inline image (markdown img), HTML (HtmlRendering block), and file (download link) references to the response text
+- Claude agent (T1.2): `prompts._FILE_OUTPUT_INSTRUCTIONS` section conditionally included in system prompt when `enable_code_execution=True`
+- Claude agent (T1.2): runner `run()` restructured — output files uploaded before post-processing so enriched text flows through postprocessor pipeline; workspace checkpoint saved in finally block
+
+## [1.53.4] - 2026-03-13
+- Code interpreter (UN-17972 review fixes): `_warn_missing_content_ids` downgraded from WARNING to INFO — an absent `content_id` can occur during normal LLM iteration (e.g. a file was overwritten) and is not an error condition. Dangling `sandbox:/mnt/data/` links are now replaced with the configured error message (`file_download_failed_message`) in addition to logging a warning, so users never see a broken link when the LLM hallucinates a file reference. Updated fence-prompt (`DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): example now shows blank lines around the file reference link (consistent with the surrounding instruction), description updated to reflect that files are rendered as interactive components (not plain download links), and the failure message corrected from "images" to "files". `_CONSECUTIVE_FENCES_RE` now normalises consecutive fence separation to exactly one newline in all cases (same-line refs, list-item linebreak, and blank-line paragraph gap).
+
+## [1.53.3] - 2026-03-12
+- Code interpreter (UN-17972 follow-up): prompt update — `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` variant removes the "Descriptive Title" instruction; selected automatically in `get_tool_prompts()` when `FEATURE_FLAG_ENABLE_CODE_EXECUTION_FENCE_UN_17972` is on; legacy prompt (with title) used when flag is off, preserving exact pre-fence behaviour. `company_id` stored on `OpenAICodeInterpreterTool` to enable per-company FF evaluation at prompt-render time.
+- Code interpreter: link/file validation — upgraded stage-1 replacement helpers (`_replace_container_*_citation`) from INFO to WARNING when no sandbox link is found for an uploaded file; added WARNING in `_inject_code_execution_fences` when a fence is discarded (no inline ref match); added `_warn_missing_content_ids` end-of-pipeline check that warns for any `content_id` absent from the final message text.
+- Code interpreter: fence rendering fix — added `_ensure_fences_are_standalone` (strips markdown list-item prefix before a fence) and `_CONSECUTIVE_FENCES_RE` separator pass (ensures `\n\n` between two fences that land on the same line), so `imgWithSource`/`fileWithSource` blocks are always standalone blocks parseable by the frontend. FF=on prompt updated to instruct the LLM to place a blank line before and after every file reference link.
+- Code interpreter: logging coverage — added `_warn_dangling_sandbox_links` (warns when a `sandbox:/mnt/data/` link survives into the final text, indicating a hallucinated or unmatched file) and `_warn_unmatched_code_blocks` (warns when an uploaded file could not be matched to any code block and will fall back to a plain download link without the artifact UI).
+
+## [1.53.2] - 2026-03-11
+- Code interpreter: replace all inline file refs in `message.text` with structured fences — `imgWithSource` for images (PNG etc.) and `fileWithSource` for documents (CSV, Excel, PDF, Word, HTML, Markdown). Each fence carries `id` (message-scoped counter), `contentId`, `title` (derived from filename), `type` (for fileWithSource), and the generating `code`. `<details>` blocks and trailing `</br>` from `ShowExecutedCodePostprocessor` are stripped when at least one fence is injected. Feature-flagged via `FEATURE_FLAG_ENABLE_CODE_EXECUTION_FENCE_UN_17972` (default off, safe to merge). `debugInfo.code_blocks` and the `code_blocks` field on `LanguageModelStreamResponseMessage` are removed (superseded by the fences). (UN-17972)
+## [1.53.1] - 2026-03-11
+- Fix RJSF `ui_schema_for_model` and `_unwrap_optional` to handle Python 3.10+ pipe union syntax (`A | B` / `types.UnionType`) in addition to `typing.Union`, so discriminated unions produce correct `anyOf` branches with per-branch metadata
+
+## [1.53.0] - 2026-03-10
+- Responses API: rate-limit retry via **tenacity** (new dependency). Default 1 retry with ~30s backoff for `too_many_requests`; config via `RATE_LIMIT_RETRY_*` env vars. When new answers UI feature flag (`enable_new_answers_ui_un_14411`) is active, a step is written to the message log during each retry wait so the user is informed.
+
+## [1.52.1] - 2026-03-10
+- Responses API: rate-limit retry via **tenacity** (new dependency). Exponential backoff (30s→60s→120s) for `too_many_requests`; config via `RATE_LIMIT_RETRY_*` env vars. When new answers UI feature flag (`enable_new_answers_ui_un_14411`) is active, a step is written to the message log during each retry wait.
+
+## [1.52.0] - 2026-03-10
+- Refactor loop runner architecture: make `BasicLoopIterationRunner` an extensible base class with overridable hooks (`_handle_forced_tools`, `_handle_last_iteration`, `_handle_normal_iteration`)
+- Add `tool_choice_override` parameter to `run_forced_tools_iteration` for model-specific tool choice handling
+- Add `MistralLoopIterationRunner` (subclass of `BasicLoopIterationRunner`) that forces `tool_choice="any"` for Mistral models during forced tool iterations
+- Refactor `QwenLoopIterationRunner` to subclass `BasicLoopIterationRunner`; align constructor to accept `config: BasicLoopIterationRunnerConfig` instead of bare `max_loop_iterations`
+- Remove model-detection helpers `is_qwen_model` and `is_mistral_model` from the toolkit; runner selection is now the orchestrator's responsibility
+
+## [1.51.0] - 2026-03-10
+- Make `ToolBuildConfig` generic over the configuration type. Enables downstream consumers to parameterize the configuration type without invariant-override type errors.
+
 ## [1.50.4] - 2026-03-05
 - Add `INGESTION_UPLOAD_API_URL_INTERNAL` environment variable to override the ingestion upload URL. This can be used to upload content from within a private network like a Kubernetes cluster.
 

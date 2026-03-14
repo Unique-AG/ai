@@ -47,6 +47,7 @@ from unique_toolkit.language_model.schemas import (
 
 from . import workspace as workspace_module
 from .config import ClaudeAgentConfig, build_tool_policy
+from .generated_files import inject_file_references_into_text
 from .mcp_tools import build_unique_mcp_server
 from .prompts import PromptContext, build_system_prompt
 
@@ -112,7 +113,13 @@ class ClaudeAgentRunner:
         """Execute a single Claude Agent SDK turn.
 
         Flow: workspace setup → prompt → history → options → Claude loop →
-        post-processing → message completion → workspace persist → cleanup.
+        output file upload → text enrichment → post-processing →
+        message completion → checkpoint save → cleanup.
+
+        Output files are uploaded BEFORE post-processing so that inline
+        image/file references flow through the postprocessor pipeline and
+        appear in the final chat message. The workspace checkpoint is saved
+        afterwards (in finally) to capture the full turn state.
 
         Each phase is isolated in a private method for clear separation of concerns.
         """
@@ -133,14 +140,21 @@ class ClaudeAgentRunner:
                 options=options,
             )
 
-            await self._run_post_processing(claude_result)
+            # Upload output files and enrich accumulated text with inline references
+            # before post-processing so file links appear in the final message.
+            uploaded_files = await self._upload_output_files(workspace_dir)
+            enriched_result = inject_file_references_into_text(
+                claude_result, uploaded_files
+            )
+
+            await self._run_post_processing(enriched_result)
 
             await self._chat_service.modify_assistant_message_async(
                 set_completed_at=True,
             )
         finally:
             if workspace_dir is not None:
-                await self._persist_workspace(workspace_dir)
+                await self._save_workspace_checkpoint(workspace_dir)
                 self._cleanup_workspace(workspace_dir)
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -190,6 +204,7 @@ class ClaudeAgentRunner:
                 or "Unique AI"
             ),
             history_text=self._format_history(),
+            enable_code_execution=self._claude_config.enable_code_execution,
         )
         return build_system_prompt(context)
 
@@ -373,10 +388,33 @@ class ClaudeAgentRunner:
 
         self._logger.info("Post-processing complete.")
 
-    async def _persist_workspace(self, workspace_dir: Path) -> None:
-        """Zip and upload workspace checkpoint, then upload output files."""
+    async def _upload_output_files(self, workspace_dir: Path | None) -> dict[str, str]:
+        """Upload files from ./output/ and return filename → content_id map.
+
+        Returns empty dict if workspace is disabled or upload fails.
+        Called before post-processing so file references can be injected into
+        the response text before the postprocessor pipeline runs.
+        """
+        if workspace_dir is None:
+            return {}
         try:
-            await workspace_module.persist_workspace(
+            return await workspace_module.upload_output_files(
+                workspace_dir=workspace_dir,
+                content_service=self._content_service,
+                chat_id=self._event.payload.chat_id,
+                logger=self._logger,
+            )
+        except Exception as e:
+            self._logger.warning(
+                "workspace: output file upload failed — files will not appear inline: %s",
+                e,
+            )
+            return {}
+
+    async def _save_workspace_checkpoint(self, workspace_dir: Path) -> None:
+        """Zip and upload full workspace as a checkpoint for the next turn."""
+        try:
+            await workspace_module._save_checkpoint(
                 workspace_dir=workspace_dir,
                 content_service=self._content_service,
                 chat_id=self._event.payload.chat_id,
@@ -384,7 +422,7 @@ class ClaudeAgentRunner:
             )
         except Exception as e:
             self._logger.error(
-                "workspace: persist failed — workspace may be lost: %s",
+                "workspace: checkpoint save failed — workspace may be lost: %s",
                 e,
                 exc_info=True,
             )

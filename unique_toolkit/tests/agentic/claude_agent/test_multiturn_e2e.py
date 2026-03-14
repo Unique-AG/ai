@@ -147,7 +147,7 @@ async def test_multiturn_session_resume() -> None:
     print(f"✓ secret.txt confirmed locally: {secret_file.read_text()!r}")
 
     # Persist workspace → uploads checkpoint zip to ContentService
-    await runner1._persist_workspace(workspace_dir)
+    await runner1._save_workspace_checkpoint(workspace_dir)
     print("✓ Workspace persisted to ContentService")
 
     # Verify the checkpoint zip landed in ContentService
@@ -285,7 +285,7 @@ async def test_multiturn_conversational_memory() -> None:
     print("✓ Claude confirmed ALPHA-7 in turn 1")
 
     # Persist workspace → uploads checkpoint zip (including .claude/ session state)
-    await runner1._persist_workspace(workspace_dir)
+    await runner1._save_workspace_checkpoint(workspace_dir)
     print("✓ Workspace persisted to ContentService")
 
     # ── Simulate container restart ─────────────────────────────────────────────

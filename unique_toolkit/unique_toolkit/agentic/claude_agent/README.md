@@ -46,9 +46,11 @@ ClaudeAgentRunner.run()
   │    ├─ text_delta             → modify_assistant_message_async(content) → AMQP → frontend
   │    ├─ AssistantMessage       → log tool_use blocks; parse TodoWrite state
   │    └─ ResultMessage          → capture final text if no deltas streamed
+  ├─ _upload_output_files()       → upload ./output/ files → get filename→content_id map
+  ├─ append_file_references_to_text() → enrich accumulated_text with inline file links
   ├─ _run_post_processing()      → EvaluationManager + PostprocessorManager (concurrent)
   ├─ modify_assistant_message_async(set_completed_at=True)
-  └─ finally: _persist_workspace() + _cleanup_workspace()
+  └─ finally: _save_workspace_checkpoint() + _cleanup_workspace()
 ```
 
 ### Streaming

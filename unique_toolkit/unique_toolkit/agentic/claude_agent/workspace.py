@@ -216,12 +216,41 @@ async def _download_skills(
             logger.warning("workspace: failed to download skill %s: %s", skill.key, e)
 
 
+async def upload_output_files(
+    workspace_dir: Path,
+    content_service: ContentService,
+    chat_id: str,
+    logger: Logger,
+) -> dict[str, str]:
+    """Upload each file in ./output/ as a chat attachment.
+
+    Returns a dict mapping filename → content_id for all successfully uploaded
+    files. This map is used by generated_files.append_file_references_to_text()
+    to render inline images and download links in the chat response.
+
+    Args:
+        workspace_dir: Local workspace directory path.
+        content_service: Platform content service for file operations.
+        chat_id: Chat identifier — used as the file owner.
+        logger: Logger for diagnostics.
+
+    Returns:
+        Dict mapping filename → content_id for successfully uploaded files.
+    """
+    return await _upload_output_files(
+        workspace_dir=workspace_dir,
+        content_service=content_service,
+        chat_id=chat_id,
+        logger=logger,
+    )
+
+
 async def persist_workspace(
     workspace_dir: Path,
     content_service: ContentService,
     chat_id: str,
     logger: Logger,
-) -> None:
+) -> dict[str, str]:
     """Upload output files and save the full workspace as a checkpoint zip.
 
     Output files (in ./output/) are uploaded as chat attachments visible to the
@@ -233,8 +262,11 @@ async def persist_workspace(
         content_service: Platform content service for file operations.
         chat_id: Chat identifier — used as the file owner.
         logger: Logger for diagnostics.
+
+    Returns:
+        Dict mapping filename → content_id for all successfully uploaded output files.
     """
-    await _upload_output_files(
+    uploaded_files = await _upload_output_files(
         workspace_dir=workspace_dir,
         content_service=content_service,
         chat_id=chat_id,
@@ -246,6 +278,7 @@ async def persist_workspace(
         chat_id=chat_id,
         logger=logger,
     )
+    return uploaded_files
 
 
 async def _upload_output_files(
@@ -253,40 +286,46 @@ async def _upload_output_files(
     content_service: ContentService,
     chat_id: str,
     logger: Logger,
-) -> None:
+) -> dict[str, str]:
     """Upload each file in ./output/ as a chat attachment.
 
-    unique_sdk.utils.file_io exists but is synchronous and lacks skip_ingestion
-    support. ContentService is used here for async compatibility and
-    skip_ingestion=True on checkpoints.
+    Returns a dict mapping filename → content_id for all successfully uploaded files.
     """
+    uploaded: dict[str, str] = {}
     output_dir = workspace_dir / "output"
     if not output_dir.exists():
         logger.debug("workspace: no output dir — skipping output upload")
-        return
+        return uploaded
 
     output_files = [f for f in output_dir.iterdir() if f.is_file()]
     if not output_files:
         logger.debug("workspace: output dir is empty — skipping output upload")
-        return
+        return uploaded
 
     for output_file in output_files:
         try:
             file_bytes = output_file.read_bytes()
             mime_type, _ = mimetypes.guess_type(output_file.name)
             mime_type = mime_type or "application/octet-stream"
-            _ = await content_service.upload_content_from_bytes_async(
+            result = await content_service.upload_content_from_bytes_async(
                 content=file_bytes,
                 content_name=output_file.name,
                 mime_type=mime_type,
                 chat_id=chat_id,
                 skip_ingestion=True,
             )
-            logger.debug("workspace: uploaded output file %s", output_file.name)
+            if result is not None and hasattr(result, "id"):
+                uploaded[output_file.name] = result.id
+            logger.debug(
+                "workspace: uploaded output file %s → %s",
+                output_file.name,
+                uploaded.get(output_file.name),
+            )
         except Exception as e:
             logger.warning(
                 "workspace: failed to upload output file %s: %s", output_file.name, e
             )
+    return uploaded
 
 
 async def _save_checkpoint(
