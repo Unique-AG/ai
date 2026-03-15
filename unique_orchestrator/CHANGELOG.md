@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.07] - 2026-03-15
+- Fix uploaded PDF handling in Responses mode by registering `UploadedSearch` before forcing it for non-PDF uploads
+- Align the orchestrator package dependency with the toolkit release that preserves PDF `content_id` values for `OpenPdf`
+
 ## [1.13.06] - 2026-03-03
 - Fix cancellation polling: replace passive `is_cancelled` flag checks with active `check_cancellation_async()` calls so the orchestrator actually detects user aborts
 

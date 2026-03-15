@@ -124,6 +124,24 @@ class _CommonComponents(NamedTuple):
     mcp_servers: list[McpServer]
 
 
+def _ensure_uploaded_search_tool_registered(
+    common_components: _CommonComponents,
+) -> None:
+    if any(
+        tool.name == UploadedSearchTool.name
+        for tool in common_components.tool_manager_config.tools
+    ):
+        return
+
+    common_components.tool_manager_config.tools.append(
+        ToolBuildConfig(
+            name=UploadedSearchTool.name,
+            display_name=UploadedSearchTool.name,
+            configuration=UploadedSearchConfig(),
+        )
+    )
+
+
 def _build_common(
     event: ChatEvent,
     logger: Logger,
@@ -272,22 +290,18 @@ def _handle_uploaded_pdf_tool_choices(
     if uploaded_pdfs and "InternalSearch" in event.payload.tool_choices:
         event.payload.tool_choices.remove("InternalSearch")
         logger.info(
-            f"Uploaded PDFs detected ({[d.key for d in uploaded_pdfs]}) — "
-            "removed InternalSearch from forced tools; PDFs attached directly."
+            "Uploaded PDFs detected (%s files) - removed InternalSearch from forced "
+            "tools; PDFs attached directly.",
+            len(uploaded_pdfs),
         )
 
     if uploaded_non_pdfs:
         logger.info(
-            f"Non-PDF uploads detected ({[d.key for d in uploaded_non_pdfs]}) — "
-            "adding UploadedSearch for these files."
+            "Non-PDF uploads detected (%s files) - adding UploadedSearch for "
+            "these files.",
+            len(uploaded_non_pdfs),
         )
-        common_components.tool_manager_config.tools.append(
-            ToolBuildConfig(
-                name=UploadedSearchTool.name,
-                display_name=UploadedSearchTool.name,
-                configuration=UploadedSearchConfig(),
-            )
-        )
+        _ensure_uploaded_search_tool_registered(common_components)
         if event.payload.tool_choices:
             event.payload.tool_choices.append(str(UploadedSearchTool.name))
         return True
@@ -410,6 +424,12 @@ async def _build_responses(
             )
         )
 
+    has_non_pdf_uploads = False
+    if config.agent.experimental.open_pdf_tool_config.enabled:
+        has_non_pdf_uploads = _handle_uploaded_pdf_tool_choices(
+            config, event, common_components, logger
+        )
+
     builtin_tool_manager = await OpenAIBuiltInToolManager.build_manager(
         uploaded_files=common_components.uploaded_documents,
         content_service=common_components.content_service,
@@ -432,10 +452,7 @@ async def _build_responses(
 
     agent_file_registry: list[str] = []
     if config.agent.experimental.open_pdf_tool_config.enabled:
-        _has_non_pdf_uploads = _handle_uploaded_pdf_tool_choices(
-            config, event, common_components, logger
-        )
-        if _has_non_pdf_uploads and not event.payload.tool_choices:
+        if has_non_pdf_uploads and not event.payload.tool_choices:
             tool_manager.add_forced_tool(UploadedSearchTool.name)
 
         common_components, agent_file_registry = (
@@ -534,13 +551,7 @@ def _build_completions(
         logger.info(
             f"Number of valid uploaded documents: {len(UPLOADED_DOCUMENTS_VALID)}"
         )
-        common_components.tool_manager_config.tools.append(
-            ToolBuildConfig(
-                name=UploadedSearchTool.name,
-                display_name=UploadedSearchTool.name,
-                configuration=UploadedSearchConfig(),
-            )
-        )
+        _ensure_uploaded_search_tool_registered(common_components)
     if TOOL_CHOICES and UPLOADED_DOCUMENTS_VALID:
         event.payload.tool_choices.append(str(UploadedSearchTool.name))
 

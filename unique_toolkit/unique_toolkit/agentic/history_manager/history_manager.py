@@ -73,7 +73,7 @@ class HistoryManagerConfig(BaseModel):
     include_content_id_for_pdf_chunks: bool = Field(
         default=False,
         description="Include content_id in serialised sources for PDF chunks.",
-    ) # experimental feature UN-17905
+    )  # experimental feature UN-17905
 
     uploaded_content_config: (
         Annotated[
@@ -186,6 +186,7 @@ class HistoryManager:
             stringified_sources, sources = transform_chunks_to_string(
                 content_chunks,
                 self._source_enumerator,
+                include_content_id_for_pdf_chunks=self._config.include_content_id_for_pdf_chunks,
             )
             content = stringified_sources
 

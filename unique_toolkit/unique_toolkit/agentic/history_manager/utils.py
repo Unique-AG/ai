@@ -101,11 +101,6 @@ def transform_chunks_to_string(
     return json.dumps(sources), sources
 
 
-def _chunk_is_from_pdf_document(chunk: "ContentChunk") -> bool:
-    """Backward-compatible alias for the older helper name."""
-    return _chunk_is_pdf(chunk)
-
-
 def load_sources_from_string(
     source_string: str,
 ) -> list[Source] | None:
