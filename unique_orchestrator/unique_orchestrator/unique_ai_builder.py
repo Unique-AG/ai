@@ -83,7 +83,10 @@ async def build_unique_ai(
 ) -> UniqueAI:
     common_components = _build_common(event, logger, config)
 
-    if config.agent.experimental.responses_api_config.use_responses_api or config.agent.experimental.use_responses_api:
+    if (
+        config.agent.experimental.responses_api_config.use_responses_api
+        or config.agent.experimental.use_responses_api
+    ):
         return await _build_responses(
             event=event,
             logger=logger,
@@ -157,7 +160,7 @@ def _build_common(
         percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
         language_model=config.space.language_model,
         uploaded_content_config=config.agent.services.uploaded_content_config,
-        include_content_id_for_pdf_chunks=config.agent.experimental.open_pdf_tool_config.enabled, # experimental feature UN-17905
+        include_content_id_for_pdf_chunks=config.agent.experimental.open_pdf_tool_config.enabled,  # experimental feature UN-17905
     )
     history_manager = HistoryManager(
         logger,
@@ -334,9 +337,7 @@ def _configure_pdf_payload_for_open_pdf_tool(
     agent_file_registry: list[str] = []
 
     if config.agent.experimental.open_pdf_tool_config.send_pdf_files_in_payload:
-        tool_manager.add_tool(
-            OpenPdfTool(event=event, registry=agent_file_registry)
-        )
+        tool_manager.add_tool(OpenPdfTool(event=event, registry=agent_file_registry))
 
     return common_components, agent_file_registry
 
@@ -429,6 +430,7 @@ async def _build_responses(
         builtin_tool_manager=builtin_tool_manager,
     )
 
+    agent_file_registry: list[str] = []
     if config.agent.experimental.open_pdf_tool_config.enabled:
         _has_non_pdf_uploads = _handle_uploaded_pdf_tool_choices(
             config, event, common_components, logger
@@ -436,8 +438,10 @@ async def _build_responses(
         if _has_non_pdf_uploads and not event.payload.tool_choices:
             tool_manager.add_forced_tool(UploadedSearchTool.name)
 
-        common_components, agent_file_registry = _configure_pdf_payload_for_open_pdf_tool(
-            config, event, logger, common_components, tool_manager
+        common_components, agent_file_registry = (
+            _configure_pdf_payload_for_open_pdf_tool(
+                config, event, logger, common_components, tool_manager
+            )
         )
 
     postprocessor_manager = common_components.postprocessor_manager

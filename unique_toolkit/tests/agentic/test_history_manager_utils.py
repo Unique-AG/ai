@@ -1,13 +1,10 @@
 import json
 
-import pytest
-
 from unique_toolkit.agentic.history_manager.utils import (
     _chunk_is_pdf,
     transform_chunks_to_string,
 )
 from unique_toolkit.content.schemas import ContentChunk, ContentMetadata
-
 
 # --- _chunk_is_pdf ---
 
@@ -51,7 +48,9 @@ def test_chunk_is_pdf__non_pdf_mime_type():
         id="cont_abc",
         text="text",
         key="file.docx",
-        metadata=ContentMetadata(key="file.docx", mime_type="application/vnd.openxmlformats"),
+        metadata=ContentMetadata(
+            key="file.docx", mime_type="application/vnd.openxmlformats"
+        ),
     )
     assert _chunk_is_pdf(chunk) is False
 

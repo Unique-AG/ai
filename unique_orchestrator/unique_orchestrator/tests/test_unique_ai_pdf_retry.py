@@ -13,12 +13,12 @@ Covers:
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, PropertyMock
+from unittest.mock import MagicMock
 
 import pytest
 
 if TYPE_CHECKING:
-    from unique_orchestrator.unique_ai import UniqueAI
+    pass
 
 
 def _make_messages(*msgs):
@@ -59,7 +59,7 @@ def _function(name, arguments=None, id=None):
 
 @pytest.fixture
 def mock_unique_ai(monkeypatch):
-    """Create a minimal UniqueAI with mocked dependencies."""
+    """Create a minimal OpenPdfFeatureRuntime with mocked dependencies."""
     mock_service_module = MagicMock()
     import sys
 
@@ -69,42 +69,30 @@ def mock_unique_ai(monkeypatch):
         mock_service_module,
     )
 
-    from unique_orchestrator.unique_ai import UniqueAI
-
-    dummy_event = MagicMock()
-    dummy_event.payload.assistant_message.id = "assist_1"
-    dummy_event.payload.user_message.text = "query"
+    from unique_orchestrator.open_pdf_feature import OpenPdfFeatureRuntime
 
     mock_config = MagicMock()
-    mock_config.agent.prompt_config.user_metadata = []
-    mock_config.agent.experimental.responses_api_config.send_pdf_files_in_payload = False
-    mock_config.agent.experimental.responses_api_config.send_uploaded_pdf_in_payload = False
+    mock_config.agent.experimental.open_pdf_tool_config.enabled = True
+    mock_config.agent.experimental.open_pdf_tool_config.send_pdf_files_in_payload = (
+        False
+    )
+    mock_config.agent.experimental.open_pdf_tool_config.send_uploaded_pdf_in_payload = (
+        False
+    )
     mock_config.agent.experimental.responses_api_config.use_responses_api = True
+    mock_config.agent.experimental.use_responses_api = False
 
     mock_content_service = MagicMock()
     mock_content_service.get_documents_uploaded_to_chat.return_value = []
 
-    ua = UniqueAI(
+    return OpenPdfFeatureRuntime(
         logger=MagicMock(),
-        event=dummy_event,
         config=mock_config,
-        chat_service=MagicMock(),
         content_service=mock_content_service,
-        debug_info_manager=MagicMock(),
-        streaming_handler=MagicMock(),
-        reference_manager=MagicMock(),
-        thinking_manager=MagicMock(),
         tool_manager=MagicMock(),
-        history_manager=MagicMock(),
-        evaluation_manager=MagicMock(),
-        postprocessor_manager=MagicMock(),
         message_step_logger=MagicMock(),
-        mcp_servers=[],
-        loop_iteration_runner=MagicMock(),
         agent_file_registry=["cont_kb1"],
     )
-
-    return ua
 
 
 # ---- _strip_file_parts_from_messages (static) ----
@@ -112,59 +100,72 @@ def mock_unique_ai(monkeypatch):
 
 class TestStripFilePartsFromMessages:
     def test_strips_file_parts_keeps_text(self):
-        from unique_orchestrator.unique_ai import UniqueAI
+        from unique_orchestrator.open_pdf_feature import OpenPdfFeatureRuntime
 
         messages = _make_messages(
-            _user_msg([
-                {"type": "text", "text": "Summarize this"},
-                {"type": "file", "file": {"filename": "doc.pdf", "file_data": "unique://content/cont_1"}},
-            ])
+            _user_msg(
+                [
+                    {"type": "text", "text": "Summarize this"},
+                    {
+                        "type": "file",
+                        "file": {
+                            "filename": "doc.pdf",
+                            "file_data": "unique://content/cont_1",
+                        },
+                    },
+                ]
+            )
         )
 
-        result = UniqueAI._strip_file_parts_from_messages(messages)
+        result = OpenPdfFeatureRuntime.strip_file_parts_from_messages(messages)
 
         assert len(result.root) == 1
         assert result.root[0].content == "Summarize this"
 
     def test_leaves_string_content_untouched(self):
-        from unique_orchestrator.unique_ai import UniqueAI
+        from unique_orchestrator.open_pdf_feature import OpenPdfFeatureRuntime
 
         messages = _make_messages(_user_msg("plain text"))
 
-        result = UniqueAI._strip_file_parts_from_messages(messages)
+        result = OpenPdfFeatureRuntime.strip_file_parts_from_messages(messages)
 
         assert result.root[0].content == "plain text"
 
     def test_preserves_non_user_messages(self):
-        from unique_orchestrator.unique_ai import UniqueAI
         from unique_toolkit.language_model.schemas import LanguageModelSystemMessage
+
+        from unique_orchestrator.open_pdf_feature import OpenPdfFeatureRuntime
 
         sys_msg = LanguageModelSystemMessage(content="system prompt")
         messages = _make_messages(
             sys_msg,
-            _user_msg([
-                {"type": "text", "text": "hello"},
-                {"type": "file", "file": {"filename": "x.pdf", "file_data": "..."}},
-            ]),
+            _user_msg(
+                [
+                    {"type": "text", "text": "hello"},
+                    {"type": "file", "file": {"filename": "x.pdf", "file_data": "..."}},
+                ]
+            ),
         )
 
-        result = UniqueAI._strip_file_parts_from_messages(messages)
+        result = OpenPdfFeatureRuntime.strip_file_parts_from_messages(messages)
 
         assert result.root[0].content == "system prompt"
         assert result.root[1].content == "hello"
 
     def test_joins_multiple_text_parts(self):
-        from unique_orchestrator.unique_ai import UniqueAI
+        from unique_orchestrator.open_pdf_feature import OpenPdfFeatureRuntime
 
         messages = _make_messages(
-            _user_msg([
-                {"type": "text", "text": "Part A"},
-                {"type": "file", "file": {"filename": "f.pdf", "file_data": "..."}},
-                {"type": "text", "text": "Part B"},
-            ])
+            _user_msg(
+                [
+                    {"type": "text", "text": "Part A"},
+                    {"type": "file", "file": {"filename": "f.pdf", "file_data": "..."}},
+                    {"type": "text", "text": "Part B"},
+                ]
+            )
         )
 
-        result = UniqueAI._strip_file_parts_from_messages(messages)
+        result = OpenPdfFeatureRuntime.strip_file_parts_from_messages(messages)
 
         assert result.root[0].content == "Part A Part B"
 
@@ -238,7 +239,9 @@ class TestInjectUploadedPdfFallbackMessages:
         assert assistant.tool_calls is not None
         assert len(assistant.tool_calls) == 1
         assert assistant.tool_calls[0].function.name == "OpenPdf"
-        assert assistant.tool_calls[0].function.arguments == {"content_ids": ["cont_upload1"]}
+        assert assistant.tool_calls[0].function.arguments == {
+            "content_ids": ["cont_upload1"]
+        }
 
         tool_response = messages.root[2]
         assert tool_response.name == "OpenPdf"
@@ -273,15 +276,15 @@ class TestInjectUploadedPdfFallbackMessages:
 class TestShouldRetryWithoutPdfFiles:
     def test_returns_false_when_both_flags_off(self, mock_unique_ai):
         exc = Exception("413 Request Entity Too Large")
-        assert mock_unique_ai._should_retry_without_pdf_files(exc) is False
+        assert mock_unique_ai.should_retry_without_pdf_files(exc) is False
 
     def test_returns_true_for_kb_flag_with_registry(self, mock_unique_ai):
-        mock_unique_ai._config.agent.experimental.responses_api_config.send_pdf_files_in_payload = True
+        mock_unique_ai._config.agent.experimental.open_pdf_tool_config.send_pdf_files_in_payload = True
         exc = Exception("413 Request Entity Too Large")
-        assert mock_unique_ai._should_retry_without_pdf_files(exc) is True
+        assert mock_unique_ai.should_retry_without_pdf_files(exc) is True
 
     def test_returns_true_for_upload_flag_with_docs(self, mock_unique_ai):
-        mock_unique_ai._config.agent.experimental.responses_api_config.send_uploaded_pdf_in_payload = True
+        mock_unique_ai._config.agent.experimental.open_pdf_tool_config.send_uploaded_pdf_in_payload = True
         mock_doc = MagicMock()
         mock_doc.id = "cont_up1"
         mock_doc.key = "report.pdf"
@@ -290,21 +293,21 @@ class TestShouldRetryWithoutPdfFiles:
         mock_unique_ai._agent_file_registry = []
 
         exc = Exception("403 Forbidden from application-gateway")
-        assert mock_unique_ai._should_retry_without_pdf_files(exc) is True
+        assert mock_unique_ai.should_retry_without_pdf_files(exc) is True
 
     def test_returns_false_when_no_pdfs_in_payload(self, mock_unique_ai):
-        mock_unique_ai._config.agent.experimental.responses_api_config.send_pdf_files_in_payload = True
+        mock_unique_ai._config.agent.experimental.open_pdf_tool_config.send_pdf_files_in_payload = True
         mock_unique_ai._agent_file_registry = []
         mock_unique_ai._cached_uploaded_documents = []
 
         exc = Exception("413 Request Entity Too Large")
-        assert mock_unique_ai._should_retry_without_pdf_files(exc) is False
+        assert mock_unique_ai.should_retry_without_pdf_files(exc) is False
 
     def test_returns_false_for_unrelated_error(self, mock_unique_ai):
-        mock_unique_ai._config.agent.experimental.responses_api_config.send_pdf_files_in_payload = True
+        mock_unique_ai._config.agent.experimental.open_pdf_tool_config.send_pdf_files_in_payload = True
 
         exc = Exception("Connection timeout after 30 seconds")
-        assert mock_unique_ai._should_retry_without_pdf_files(exc) is False
+        assert mock_unique_ai.should_retry_without_pdf_files(exc) is False
 
     @pytest.mark.parametrize(
         "error_text",
@@ -320,10 +323,10 @@ class TestShouldRetryWithoutPdfFiles:
         ],
     )
     def test_matches_various_error_signals(self, mock_unique_ai, error_text):
-        mock_unique_ai._config.agent.experimental.responses_api_config.send_pdf_files_in_payload = True
+        mock_unique_ai._config.agent.experimental.open_pdf_tool_config.send_pdf_files_in_payload = True
 
         exc = Exception(error_text)
-        assert mock_unique_ai._should_retry_without_pdf_files(exc) is True
+        assert mock_unique_ai.should_retry_without_pdf_files(exc) is True
 
 
 # ---- _inject_open_pdf_reminder ----
@@ -340,7 +343,7 @@ class TestInjectOpenPdfReminder:
         resp.content_chunks = [chunk]
         resp.system_reminder = None
 
-        mock_unique_ai._inject_open_pdf_reminder([resp])
+        mock_unique_ai.inject_open_pdf_reminder([resp])
 
         assert resp.system_reminder is not None
         assert "OpenPdf" in resp.system_reminder
@@ -352,7 +355,7 @@ class TestInjectOpenPdfReminder:
         resp.name = "InternalSearch"
         original_reminder = resp.system_reminder
 
-        mock_unique_ai._inject_open_pdf_reminder([resp])
+        mock_unique_ai.inject_open_pdf_reminder([resp])
 
         assert resp.system_reminder == original_reminder
 
@@ -366,7 +369,7 @@ class TestInjectOpenPdfReminder:
         resp.content_chunks = [chunk]
         resp.system_reminder = None
 
-        mock_unique_ai._inject_open_pdf_reminder([resp])
+        mock_unique_ai.inject_open_pdf_reminder([resp])
 
         assert resp.system_reminder is None
 
@@ -377,7 +380,7 @@ class TestInjectOpenPdfReminder:
         resp.name = "UploadedSearch"
         original_reminder = resp.system_reminder
 
-        mock_unique_ai._inject_open_pdf_reminder([resp])
+        mock_unique_ai.inject_open_pdf_reminder([resp])
 
         assert resp.system_reminder == original_reminder
 
@@ -387,7 +390,7 @@ class TestInjectOpenPdfReminder:
 
 class TestCollectContentFileParts:
     def test_returns_uploaded_pdfs_when_upload_flag_on(self, mock_unique_ai):
-        cfg = mock_unique_ai._config.agent.experimental.responses_api_config
+        cfg = mock_unique_ai._config.agent.experimental.open_pdf_tool_config
         cfg.send_uploaded_pdf_in_payload = True
         cfg.send_pdf_files_in_payload = False
 
@@ -404,7 +407,7 @@ class TestCollectContentFileParts:
         assert parts[0]["file"]["file_data"] == "unique://content/cont_up1"
 
     def test_returns_kb_pdfs_when_kb_flag_on(self, mock_unique_ai):
-        cfg = mock_unique_ai._config.agent.experimental.responses_api_config
+        cfg = mock_unique_ai._config.agent.experimental.open_pdf_tool_config
         cfg.send_uploaded_pdf_in_payload = False
         cfg.send_pdf_files_in_payload = True
 
@@ -418,7 +421,7 @@ class TestCollectContentFileParts:
         assert parts[1]["file"]["file_data"] == "unique://content/cont_kb2"
 
     def test_returns_both_when_both_flags_on(self, mock_unique_ai):
-        cfg = mock_unique_ai._config.agent.experimental.responses_api_config
+        cfg = mock_unique_ai._config.agent.experimental.open_pdf_tool_config
         cfg.send_uploaded_pdf_in_payload = True
         cfg.send_pdf_files_in_payload = True
 
@@ -437,7 +440,7 @@ class TestCollectContentFileParts:
         assert "unique://content/cont_kb1" in ids
 
     def test_deduplicates_across_sources(self, mock_unique_ai):
-        cfg = mock_unique_ai._config.agent.experimental.responses_api_config
+        cfg = mock_unique_ai._config.agent.experimental.open_pdf_tool_config
         cfg.send_uploaded_pdf_in_payload = True
         cfg.send_pdf_files_in_payload = True
 
@@ -453,7 +456,7 @@ class TestCollectContentFileParts:
         assert len(parts) == 1
 
     def test_returns_empty_when_both_flags_off(self, mock_unique_ai):
-        cfg = mock_unique_ai._config.agent.experimental.responses_api_config
+        cfg = mock_unique_ai._config.agent.experimental.open_pdf_tool_config
         cfg.send_uploaded_pdf_in_payload = False
         cfg.send_pdf_files_in_payload = False
 
@@ -478,21 +481,33 @@ class TestFullRetryMessageState:
         pdf_func = _function("OpenPdf", {"content_ids": ["cont_kb1"]}, id="c_pdf")
 
         messages = _make_messages(
-            _user_msg([
-                {"type": "text", "text": "Analyze the PDF"},
-                {"type": "file", "file": {"filename": "cont_kb1", "file_data": "unique://content/cont_kb1"}},
-            ]),
+            _user_msg(
+                [
+                    {"type": "text", "text": "Analyze the PDF"},
+                    {
+                        "type": "file",
+                        "file": {
+                            "filename": "cont_kb1",
+                            "file_data": "unique://content/cont_kb1",
+                        },
+                    },
+                ]
+            ),
             _assistant_msg_with_tool_calls([search_func]),
-            _tool_msg("InternalSearch", "c_search", '[{"source_number": 0, "content": "chunk"}]'),
+            _tool_msg(
+                "InternalSearch",
+                "c_search",
+                '[{"source_number": 0, "content": "chunk"}]',
+            ),
             _assistant_msg_with_tool_calls([pdf_func]),
             _tool_msg("OpenPdf", "c_pdf", "Files included"),
         )
 
         assert len(messages.root) == 5
 
-        from unique_orchestrator.unique_ai import UniqueAI
+        from unique_orchestrator.open_pdf_feature import OpenPdfFeatureRuntime
 
-        messages = UniqueAI._strip_file_parts_from_messages(messages)
+        messages = OpenPdfFeatureRuntime.strip_file_parts_from_messages(messages)
         mock_unique_ai._strip_open_pdf_messages(messages)
         mock_unique_ai._cached_uploaded_documents = []
         mock_unique_ai._inject_uploaded_pdf_fallback_messages(messages)
@@ -507,10 +522,18 @@ class TestFullRetryMessageState:
     def test_upload_path__messages_before_and_after(self, mock_unique_ai):
         """Uploaded PDFs: file parts stripped, synthetic OpenPdf error injected."""
         messages = _make_messages(
-            _user_msg([
-                {"type": "text", "text": "Summarize"},
-                {"type": "file", "file": {"filename": "report.pdf", "file_data": "unique://content/cont_up1"}},
-            ]),
+            _user_msg(
+                [
+                    {"type": "text", "text": "Summarize"},
+                    {
+                        "type": "file",
+                        "file": {
+                            "filename": "report.pdf",
+                            "file_data": "unique://content/cont_up1",
+                        },
+                    },
+                ]
+            ),
         )
 
         assert len(messages.root) == 1
@@ -521,9 +544,9 @@ class TestFullRetryMessageState:
         mock_doc.expired_at = None
         mock_unique_ai._cached_uploaded_documents = [mock_doc]
 
-        from unique_orchestrator.unique_ai import UniqueAI
+        from unique_orchestrator.open_pdf_feature import OpenPdfFeatureRuntime
 
-        messages = UniqueAI._strip_file_parts_from_messages(messages)
+        messages = OpenPdfFeatureRuntime.strip_file_parts_from_messages(messages)
         mock_unique_ai._strip_open_pdf_messages(messages)
         mock_unique_ai._inject_uploaded_pdf_fallback_messages(messages)
 
@@ -531,7 +554,9 @@ class TestFullRetryMessageState:
 
         assistant = messages.root[1]
         assert assistant.tool_calls[0].function.name == "OpenPdf"
-        assert assistant.tool_calls[0].function.arguments == {"content_ids": ["cont_up1"]}
+        assert assistant.tool_calls[0].function.arguments == {
+            "content_ids": ["cont_up1"]
+        }
 
         tool_resp = messages.root[2]
         assert tool_resp.name == "OpenPdf"
@@ -545,11 +570,25 @@ class TestFullRetryMessageState:
         pdf_func = _function("OpenPdf", {"content_ids": ["cont_kb1"]}, id="c_pdf")
 
         messages = _make_messages(
-            _user_msg([
-                {"type": "text", "text": "Compare docs"},
-                {"type": "file", "file": {"filename": "upload.pdf", "file_data": "unique://content/cont_up1"}},
-                {"type": "file", "file": {"filename": "cont_kb1", "file_data": "unique://content/cont_kb1"}},
-            ]),
+            _user_msg(
+                [
+                    {"type": "text", "text": "Compare docs"},
+                    {
+                        "type": "file",
+                        "file": {
+                            "filename": "upload.pdf",
+                            "file_data": "unique://content/cont_up1",
+                        },
+                    },
+                    {
+                        "type": "file",
+                        "file": {
+                            "filename": "cont_kb1",
+                            "file_data": "unique://content/cont_kb1",
+                        },
+                    },
+                ]
+            ),
             _assistant_msg_with_tool_calls([pdf_func]),
             _tool_msg("OpenPdf", "c_pdf", "Files included"),
         )
@@ -562,9 +601,9 @@ class TestFullRetryMessageState:
         mock_doc.expired_at = None
         mock_unique_ai._cached_uploaded_documents = [mock_doc]
 
-        from unique_orchestrator.unique_ai import UniqueAI
+        from unique_orchestrator.open_pdf_feature import OpenPdfFeatureRuntime
 
-        messages = UniqueAI._strip_file_parts_from_messages(messages)
+        messages = OpenPdfFeatureRuntime.strip_file_parts_from_messages(messages)
         mock_unique_ai._strip_open_pdf_messages(messages)
         mock_unique_ai._inject_uploaded_pdf_fallback_messages(messages)
 
@@ -575,7 +614,9 @@ class TestFullRetryMessageState:
 
         upload_assistant = messages.root[2]
         assert upload_assistant.tool_calls[0].function.name == "OpenPdf"
-        assert upload_assistant.tool_calls[0].function.arguments == {"content_ids": ["cont_up1"]}
+        assert upload_assistant.tool_calls[0].function.arguments == {
+            "content_ids": ["cont_up1"]
+        }
 
         upload_tool = messages.root[3]
         assert "too large" in upload_tool.content.lower()
