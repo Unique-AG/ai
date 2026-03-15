@@ -283,7 +283,7 @@ async def _build_responses(
             config.space.tools.append(
                 ToolBuildConfig(
                     name=OpenAIBuiltInToolName.CODE_INTERPRETER,
-                    configuration=code_interpreter_config.tool_config,
+                    configuration=code_interpreter_config,
                 )
             )
             common_components.tool_manager_config.tools = config.space.tools
