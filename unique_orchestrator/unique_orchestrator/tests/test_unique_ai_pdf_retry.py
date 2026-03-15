@@ -12,6 +12,7 @@ Covers:
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -465,6 +466,36 @@ class TestCollectContentFileParts:
         parts = mock_unique_ai._collect_content_file_parts()
 
         assert parts == []
+
+    def test_orders_uploaded_pdfs_oldest_first(self, mock_unique_ai):
+        cfg = mock_unique_ai._config.agent.experimental.open_pdf_tool_config
+        cfg.send_uploaded_pdf_in_payload = True
+        cfg.send_pdf_files_in_payload = False
+
+        oldest = MagicMock()
+        oldest.id = "cont_oldest"
+        oldest.key = "first-uploaded.pdf"
+        oldest.expired_at = None
+        oldest.created_at = datetime(2026, 3, 15, 21, 50, tzinfo=timezone.utc)
+
+        newest = MagicMock()
+        newest.id = "cont_newest"
+        newest.key = "last-uploaded.pdf"
+        newest.expired_at = None
+        newest.created_at = datetime(2026, 3, 15, 21, 55, tzinfo=timezone.utc)
+
+        mock_unique_ai._cached_uploaded_documents = None
+        mock_unique_ai._content_service.get_documents_uploaded_to_chat.return_value = [
+            newest,
+            oldest,
+        ]
+
+        parts = mock_unique_ai._collect_content_file_parts()
+
+        assert [part["file"]["filename"] for part in parts] == [
+            "first-uploaded.pdf",
+            "last-uploaded.pdf",
+        ]
 
 
 # ---- Full message state: before and after retry ----

@@ -243,12 +243,21 @@ class OpenPdfFeatureRuntime:
         if self._cached_uploaded_documents is None:
             now = datetime.now(timezone.utc)
             all_documents = self._content_service.get_documents_uploaded_to_chat()
-            self._cached_uploaded_documents = [
+            uploaded_documents = [
                 document
                 for document in all_documents
                 if (document.expired_at is None or document.expired_at > now)
                 and document.key.lower().endswith(".pdf")
             ]
+            # Preserve upload order for payload file parts so the first uploaded
+            # document remains the first file the model sees.
+            self._cached_uploaded_documents = sorted(
+                uploaded_documents,
+                key=lambda document: (
+                    document.created_at is None,
+                    document.created_at or datetime.max.replace(tzinfo=timezone.utc),
+                ),
+            )
         return self._cached_uploaded_documents
 
     def _collect_content_file_parts(self) -> list[dict[str, dict[str, str] | str]]:
