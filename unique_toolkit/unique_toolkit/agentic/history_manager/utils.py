@@ -57,15 +57,27 @@ def _convert_tool_call_response_to_content(
     return assistant_message
 
 
+def _chunk_is_pdf(chunk: "ContentChunk") -> bool:
+    """Return True when the chunk originates from a PDF document."""
+    if chunk.metadata and chunk.metadata.mime_type == "application/pdf":
+        return True
+    if chunk.key:
+        return chunk.key.split(" : ")[0].lower().endswith(".pdf")
+    return False
+
+
 def transform_chunks_to_string(
     content_chunks: list[ContentChunk],
     max_source_number: int,
+    include_content_id_for_pdf_chunks: bool = False,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Transform content chunks into a string of sources.
 
     Args:
         content_chunks (list[ContentChunk]): The content chunks to transform
         max_source_number (int): The maximum source number to use
+        include_content_id_for_pdf_chunks (bool): When True, PDF chunks include
+            a content_id field so the LLM can reference the full document.
 
     Returns:
         str: String for the tool call response
@@ -75,11 +87,23 @@ def transform_chunks_to_string(
     sources: list[dict[str, Any]] = [
         {
             "source_number": max_source_number + i,
+            **(
+                {"content_id": chunk.id}
+                if include_content_id_for_pdf_chunks
+                and _chunk_is_pdf(chunk)
+                and chunk.id
+                else {}
+            ),  # experimental feature UN-17905
             "content": chunk.text,
         }
         for i, chunk in enumerate(content_chunks)
     ]
     return json.dumps(sources), sources
+
+
+def _chunk_is_from_pdf_document(chunk: "ContentChunk") -> bool:
+    """Backward-compatible alias for the older helper name."""
+    return _chunk_is_pdf(chunk)
 
 
 def load_sources_from_string(

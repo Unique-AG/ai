@@ -70,6 +70,11 @@ class HistoryManagerConfig(BaseModel):
             * self.percent_of_max_tokens_for_history,
         )
 
+    include_content_id_for_pdf_chunks: bool = Field(
+        default=False,
+        description="Include content_id in serialised sources for PDF chunks.",
+    ) # experimental feature UN-17905
+
     uploaded_content_config: (
         Annotated[
             UploadedContentConfig,

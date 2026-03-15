@@ -54,6 +54,7 @@ from unique_toolkit.agentic.tools.a2a import (
     SubAgentResponseWatcher,
 )
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
+from unique_toolkit.agentic.tools.experimental.open_pdf_tool import OpenPdfTool
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.tool_manager import (
@@ -82,7 +83,10 @@ async def build_unique_ai(
 ) -> UniqueAI:
     common_components = _build_common(event, logger, config)
 
-    if config.agent.experimental.responses_api_config.use_responses_api:
+    if (
+        config.agent.experimental.responses_api_config.use_responses_api
+        or config.agent.experimental.use_responses_api
+    ):
         return await _build_responses(
             event=event,
             logger=logger,
@@ -156,6 +160,7 @@ def _build_common(
         percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
         language_model=config.space.language_model,
         uploaded_content_config=config.agent.services.uploaded_content_config,
+        include_content_id_for_pdf_chunks=config.agent.experimental.open_pdf_tool_config.enabled,  # experimental feature UN-17905
     )
     history_manager = HistoryManager(
         logger,
@@ -237,6 +242,104 @@ def _build_common(
         response_watcher=response_watcher,
         message_step_logger=MessageStepLogger(chat_service),
     )
+
+
+# Experimental feature UN-17905
+def _handle_uploaded_pdf_tool_choices(
+    config: UniqueAIConfig,
+    event: ChatEvent,
+    common_components: _CommonComponents,
+    logger: Logger,
+) -> bool:
+    """When send_uploaded_pdf_in_payload is active, uploaded PDFs are attached
+    directly to the LLM context — no InternalSearch needed for them.
+    UploadedSearch is only added for non-PDF uploaded files (.docx, .txt, etc.).
+
+    Returns True if non-PDF uploads were detected.
+    """
+    if not config.agent.experimental.open_pdf_tool_config.send_uploaded_pdf_in_payload:
+        return False
+
+    now = datetime.now(timezone.utc)
+    valid_uploads = [
+        doc
+        for doc in common_components.uploaded_documents
+        if doc.expired_at is None or doc.expired_at > now
+    ]
+    uploaded_pdfs = [d for d in valid_uploads if d.key.lower().endswith(".pdf")]
+    uploaded_non_pdfs = [d for d in valid_uploads if not d.key.lower().endswith(".pdf")]
+
+    if uploaded_pdfs and "InternalSearch" in event.payload.tool_choices:
+        event.payload.tool_choices.remove("InternalSearch")
+        logger.info(
+            f"Uploaded PDFs detected ({[d.key for d in uploaded_pdfs]}) — "
+            "removed InternalSearch from forced tools; PDFs attached directly."
+        )
+
+    if uploaded_non_pdfs:
+        logger.info(
+            f"Non-PDF uploads detected ({[d.key for d in uploaded_non_pdfs]}) — "
+            "adding UploadedSearch for these files."
+        )
+        common_components.tool_manager_config.tools.append(
+            ToolBuildConfig(
+                name=UploadedSearchTool.name,
+                display_name=UploadedSearchTool.name,
+                configuration=UploadedSearchConfig(),
+            )
+        )
+        if event.payload.tool_choices:
+            event.payload.tool_choices.append(str(UploadedSearchTool.name))
+        return True
+
+    return False
+
+
+# Experimental feature UN-17905
+def _configure_pdf_payload_for_open_pdf_tool(
+    config: UniqueAIConfig,
+    event: ChatEvent,
+    logger: Logger,
+    common_components: _CommonComponents,
+    tool_manager: ResponsesApiToolManager,
+) -> tuple[_CommonComponents, list[str]]:
+    """Configure PDF-in-payload handling for the Responses API.
+
+    When sending uploaded PDFs as file parts, disables the UploadedContentConfig
+    mechanism so the HistoryManager doesn't also inject uploaded content as text
+    (which would duplicate what the input_file parts already provide).
+
+    Also registers the OpenPdfTool when send_pdf_files_in_payload is enabled,
+    backed by a shared registry for agent-requested KB file IDs.
+
+    Returns the (possibly updated) common_components and the agent file registry.
+    """
+    if config.agent.experimental.open_pdf_tool_config.send_uploaded_pdf_in_payload:
+        upload_free_config = HistoryManagerConfig(
+            experimental_features=history_manager_module.ExperimentalFeatures(),
+            percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
+            language_model=config.space.language_model,
+            uploaded_content_config=None,
+            include_content_id_for_pdf_chunks=config.agent.experimental.open_pdf_tool_config.enabled,
+        )
+        common_components = common_components._replace(
+            history_manager=HistoryManager(
+                logger,
+                event,
+                upload_free_config,
+                config.space.language_model,
+                common_components.reference_manager,
+            )
+        )
+
+    # Shared registry for agent-requested KB file IDs.
+    # Written to by OpenPdfTool, read by UniqueAI._collect_content_file_parts().
+    agent_file_registry: list[str] = []
+
+    if config.agent.experimental.open_pdf_tool_config.send_pdf_files_in_payload:
+        tool_manager.add_tool(OpenPdfTool(event=event, registry=agent_file_registry))
+
+    return common_components, agent_file_registry
 
 
 async def _build_responses(
@@ -327,6 +430,20 @@ async def _build_responses(
         builtin_tool_manager=builtin_tool_manager,
     )
 
+    agent_file_registry: list[str] = []
+    if config.agent.experimental.open_pdf_tool_config.enabled:
+        _has_non_pdf_uploads = _handle_uploaded_pdf_tool_choices(
+            config, event, common_components, logger
+        )
+        if _has_non_pdf_uploads and not event.payload.tool_choices:
+            tool_manager.add_forced_tool(UploadedSearchTool.name)
+
+        common_components, agent_file_registry = (
+            _configure_pdf_payload_for_open_pdf_tool(
+                config, event, logger, common_components, tool_manager
+            )
+        )
+
     postprocessor_manager = common_components.postprocessor_manager
     loop_iteration_runner = build_loop_iteration_runner(
         config=config,
@@ -380,6 +497,7 @@ async def _build_responses(
         message_step_logger=common_components.message_step_logger,
         mcp_servers=event.payload.mcp_servers,
         loop_iteration_runner=loop_iteration_runner,
+        agent_file_registry=agent_file_registry,
     )
 
 

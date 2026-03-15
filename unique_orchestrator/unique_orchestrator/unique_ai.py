@@ -41,6 +41,7 @@ from unique_toolkit.protocols.support import (
 )
 
 from unique_orchestrator.config import UniqueAIConfig
+from unique_orchestrator.open_pdf_feature import OpenPdfFeatureRuntime
 
 EMPTY_MESSAGE_WARNING = (
     "⚠️ **The language model was unable to produce an output.**\n"
@@ -117,6 +118,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner | ResponsesLoopIterationRunner,
+        agent_file_registry: list[str] | None = None,
     ) -> None:
         self._logger = logger
         self._event = event
@@ -138,7 +140,18 @@ class UniqueAI:
         self._streaming_handler = streaming_handler
 
         self._message_step_logger = message_step_logger
-        # Helper variable to support control loop
+        self._agent_file_registry: list[str] = (
+            agent_file_registry if agent_file_registry is not None else []
+        )
+        self._open_pdf_feature = OpenPdfFeatureRuntime(
+            logger=logger,
+            config=config,
+            content_service=content_service,
+            tool_manager=tool_manager,
+            message_step_logger=message_step_logger,
+            agent_file_registry=self._agent_file_registry,
+        )
+        self._pdf_fallback_occurred = False
         self._tool_took_control = False
         self._loop_iteration_runner = loop_iteration_runner
 
@@ -189,6 +202,7 @@ class UniqueAI:
                 self._logger.info("Done with adding references")
 
                 self._thinking_manager.update_tool_progress_reporter(loop_response)
+                await self._report_pdf_fallback_if_needed()
 
                 exit_loop = await self._process_plan(loop_response)
                 self._logger.info("Done with _process_plan")
@@ -227,6 +241,22 @@ class UniqueAI:
 
         self._logger.info("Done composing message plan execution.")
 
+        try:
+            return await self._run_loop_iteration(messages)
+        except Exception as exc:
+            if not self._open_pdf_feature.should_retry_without_pdf_files(exc):
+                raise
+            self._logger.warning(
+                "LLM call failed (likely payload too large). "
+                "Retrying without PDF files."
+            )
+            self._pdf_fallback_occurred = True
+            retry_messages = self._open_pdf_feature.prepare_retry_messages(messages)
+            return await self._run_loop_iteration(retry_messages)
+
+    async def _run_loop_iteration(
+        self, messages: LanguageModelMessages
+    ) -> LanguageModelStreamResponse:
         return await self._loop_iteration_runner(
             messages=messages,
             iteration_index=self.current_iteration_index,
@@ -240,6 +270,13 @@ class UniqueAI:
             tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
             other_options=self._config.agent.experimental.additional_llm_options,
         )
+
+    async def _report_pdf_fallback_if_needed(self) -> None:
+        if not self._pdf_fallback_occurred:
+            return
+
+        await self._open_pdf_feature.report_pdf_fallback_step()
+        self._pdf_fallback_occurred = False
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
         self._logger.info(
@@ -277,6 +314,12 @@ class UniqueAI:
             rendered_system_message_string,
             self._postprocessor_manager.remove_from_text,
         )
+
+        if self._open_pdf_feature.should_attach_content_files():
+            messages = self._open_pdf_feature.inject_content_files_into_user_message(
+                messages
+            )
+
         return messages
 
     async def _render_user_prompt(self) -> str:
@@ -401,7 +444,9 @@ class UniqueAI:
             logger=self._logger,
         )
 
-        selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
+        selected_evaluation_names = self._open_pdf_feature.filter_evaluation_names(
+            self._tool_manager.get_evaluation_check_list()
+        )
         evaluation_results = task_executor.execute_async(
             self._evaluation_manager.run_evaluations,
             selected_evaluation_names,
@@ -483,6 +528,8 @@ class UniqueAI:
         tool_call_responses = await self._tool_manager.execute_selected_tools(
             tool_calls
         )
+
+        self._open_pdf_feature.inject_open_pdf_reminder(tool_call_responses)
 
         # Process results with error handling
         # Add tool call results to history first to stabilize source numbering,
