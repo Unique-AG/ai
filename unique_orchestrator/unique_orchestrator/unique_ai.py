@@ -508,7 +508,8 @@ class UniqueAI:
         if not records:
             return
         records = HistoryManager.compact_message_tools(
-            records, self._last_assistant_text
+            records=records,
+            assistant_text=self._last_assistant_text,
         )
         try:
             await self._chat_service.create_message_tools_async(
