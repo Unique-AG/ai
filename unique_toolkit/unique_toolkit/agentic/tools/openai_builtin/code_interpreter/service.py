@@ -1,7 +1,8 @@
 import logging
-from typing import override
+from typing import Any, override
 
 from openai import AsyncOpenAI, BaseModel, NotFoundError
+from openai.types.responses import ResponseCodeInterpreterToolCall
 from openai.types.responses.tool_param import CodeInterpreter
 
 from unique_toolkit import ContentService, ShortTermMemoryService
@@ -273,3 +274,10 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
     @override
     def display_name(self) -> str:
         return self.DISPLAY_NAME
+
+    @classmethod
+    def get_debug_info(cls, call: ResponseCodeInterpreterToolCall) -> dict[str, Any]:
+        return {
+            "id": call.id,
+            "container_id": call.container_id,
+        }
