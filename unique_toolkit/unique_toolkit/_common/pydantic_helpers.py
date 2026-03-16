@@ -28,10 +28,10 @@ def _none_to_default(v: Any) -> Any:
     return v
 
 
-NoneToDefault = BeforeValidator(_none_to_default)
-"""Field-level ``Annotated`` metadata that replaces an incoming ``None``
-with the field's declared default.
 """
+BeforeValidator to replace an incoming None with the field's declared default.
+"""
+NoneToDefault = BeforeValidator(_none_to_default)
 
 
 def get_configuration_dict(**kwargs: Unpack[ConfigDict]) -> ConfigDict:
