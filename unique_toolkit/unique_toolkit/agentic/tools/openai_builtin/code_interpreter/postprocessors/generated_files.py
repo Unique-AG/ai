@@ -534,7 +534,9 @@ def _build_code_blocks(
     for idx, files in sorted(block_file_map.items()):
         code = calls[idx].code
         if code is not None:
-            result.append(CodeInterpreterBlock(code=code or "", files=list(files.values())))
+            result.append(
+                CodeInterpreterBlock(code=code or "", files=list(files.values()))
+            )
     return result
 
 
