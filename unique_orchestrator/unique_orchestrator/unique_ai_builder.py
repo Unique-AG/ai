@@ -333,7 +333,7 @@ async def _build_responses(
             config.space.tools.append(
                 ToolBuildConfig(
                     name=OpenAIBuiltInToolName.CODE_INTERPRETER,
-                    configuration=code_interpreter_config.tool_config,
+                    configuration=code_interpreter_config,
                 )
             )
             common_components.tool_manager_config.tools = config.space.tools
@@ -357,6 +357,12 @@ async def _build_responses(
             )
         )
 
+    has_valid_uploaded_documents, has_tool_choices = _configure_uploaded_search_tool(
+        event=event,
+        logger=logger,
+        common_components=common_components,
+    )
+
     builtin_tool_manager = await OpenAIBuiltInToolManager.build_manager(
         uploaded_files=common_components.uploaded_documents,
         content_service=common_components.content_service,
@@ -376,6 +382,8 @@ async def _build_responses(
         a2a_manager=common_components.a2a_manager,
         builtin_tool_manager=builtin_tool_manager,
     )
+    if not has_tool_choices and has_valid_uploaded_documents:
+        tool_manager.add_forced_tool(UploadedSearchTool.name)
 
     postprocessor_manager = common_components.postprocessor_manager
     loop_iteration_runner = build_loop_iteration_runner(
@@ -440,41 +448,11 @@ def _build_completions(
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
 ) -> UniqueAI:
-    # Uploaded content behavior is always to force uploaded search tool:
-    # 1. Add it to forced tools if there are tool choices.
-    # 2. Simply force it if there are no tool choices.
-    # 3. Not available if not uploaded documents.
-    now = datetime.now(timezone.utc)
-    UPLOADED_DOCUMENTS_VALID = [
-        doc
-        for doc in common_components.uploaded_documents
-        if doc.expired_at is None or doc.expired_at > now
-    ]
-    UPLOADED_DOCUMENTS_EXPIRED = [
-        doc
-        for doc in common_components.uploaded_documents
-        if doc.expired_at is not None and doc.expired_at <= now
-    ]
-    TOOL_CHOICES = len(event.payload.tool_choices) > 0
-
-    if UPLOADED_DOCUMENTS_EXPIRED:
-        logger.info(
-            f"Number of expired uploaded documents: {len(UPLOADED_DOCUMENTS_EXPIRED)}"
-        )
-
-    if UPLOADED_DOCUMENTS_VALID:
-        logger.info(
-            f"Number of valid uploaded documents: {len(UPLOADED_DOCUMENTS_VALID)}"
-        )
-        common_components.tool_manager_config.tools.append(
-            ToolBuildConfig(
-                name=UploadedSearchTool.name,
-                display_name=UploadedSearchTool.name,
-                configuration=UploadedSearchConfig(),
-            )
-        )
-    if TOOL_CHOICES and UPLOADED_DOCUMENTS_VALID:
-        event.payload.tool_choices.append(str(UploadedSearchTool.name))
+    has_valid_uploaded_documents, has_tool_choices = _configure_uploaded_search_tool(
+        event=event,
+        logger=logger,
+        common_components=common_components,
+    )
 
     tool_manager = ToolManager(
         logger=logger,
@@ -484,7 +462,7 @@ def _build_completions(
         mcp_manager=common_components.mcp_manager,
         a2a_manager=common_components.a2a_manager,
     )
-    if not TOOL_CHOICES and UPLOADED_DOCUMENTS_VALID:
+    if not has_tool_choices and has_valid_uploaded_documents:
         tool_manager.add_forced_tool(UploadedSearchTool.name)
 
     postprocessor_manager = common_components.postprocessor_manager
@@ -529,6 +507,48 @@ def _build_completions(
         message_step_logger=common_components.message_step_logger,
         loop_iteration_runner=loop_iteration_runner,
     )
+
+
+def _configure_uploaded_search_tool(
+    event: ChatEvent,
+    logger: Logger,
+    common_components: _CommonComponents,
+) -> tuple[bool, bool]:
+    """Mirror uploaded-file bootstrapping across completions and Responses API."""
+    now = datetime.now(timezone.utc)
+    valid_uploaded_documents = [
+        doc
+        for doc in common_components.uploaded_documents
+        if doc.expired_at is None or doc.expired_at > now
+    ]
+    expired_uploaded_documents = [
+        doc
+        for doc in common_components.uploaded_documents
+        if doc.expired_at is not None and doc.expired_at <= now
+    ]
+    has_tool_choices = len(event.payload.tool_choices) > 0
+
+    if expired_uploaded_documents:
+        logger.info(
+            f"Number of expired uploaded documents: {len(expired_uploaded_documents)}"
+        )
+
+    if valid_uploaded_documents:
+        logger.info(
+            f"Number of valid uploaded documents: {len(valid_uploaded_documents)}"
+        )
+        common_components.tool_manager_config.tools.append(
+            ToolBuildConfig(
+                name=UploadedSearchTool.name,
+                display_name=UploadedSearchTool.name,
+                configuration=UploadedSearchConfig(),
+            )
+        )
+
+    if has_tool_choices and valid_uploaded_documents:
+        event.payload.tool_choices.append(str(UploadedSearchTool.name))
+
+    return bool(valid_uploaded_documents), has_tool_choices
 
 
 def _add_sub_agents_postprocessor(
