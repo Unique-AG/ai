@@ -5,11 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.53.4] - 2026-03-12
-- Code interpreter: restore original inline rendering for non-image files when fence feature flag is off. PR #1163 had replaced sandbox links with `[filename](unique://content/id)` unconditionally; the frontend does not render `unique://` as clickable inline text. When the fence FF is disabled, sandbox links are now again replaced with `<sup>N</sup>` so files remain accessible via the references panel. When the FF is on, the content link is still produced for fence injection. (UN-17972)
+## [1.55.0] - 2026-03-16
+- Add option to include code interpreter in the tool analytics (debug info)
+
+## [1.54.0] - 2026-03-16
+- Code interpreter (UN-17972 review fix): `get_tool_prompts()` now respects operator-customised `tool_description_for_system_prompt` when the fence FF is on. Previously the fence-aware prompt was applied unconditionally when the FF was enabled, silently ignoring any custom prompt. Now `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` is only substituted when the operator is still using the unmodified default; a customised prompt is always used regardless of the FF.
+
+## [1.53.4] - 2026-03-13
+- Code interpreter (UN-17972 review fixes): `_warn_missing_content_ids` downgraded from WARNING to INFO. Dangling `sandbox:/mnt/data/` links are now replaced with the configured error message in addition to logging a warning. Fence prompt updated (example blank lines, component description, "files" not "images"). Consecutive fences normalised to exactly one newline between them (same-line, list-item, and blank-line cases).
 
 ## [1.53.3] - 2026-03-12
-- Hide `assistant_id` and `chat_id` in SubAgentToolConfig from Spaces 2.0 UI via RJSF `SpecialWidget.hidden()` (UN-18112)
+- Code interpreter (UN-17972 follow-up): prompt update — `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` variant removes the "Descriptive Title" instruction; selected automatically in `get_tool_prompts()` when `FEATURE_FLAG_ENABLE_CODE_EXECUTION_FENCE_UN_17972` is on; legacy prompt (with title) used when flag is off, preserving exact pre-fence behaviour. `company_id` stored on `OpenAICodeInterpreterTool` to enable per-company FF evaluation at prompt-render time.
+- Code interpreter: link/file validation — upgraded stage-1 replacement helpers (`_replace_container_*_citation`) from INFO to WARNING when no sandbox link is found for an uploaded file; added WARNING in `_inject_code_execution_fences` when a fence is discarded (no inline ref match); added `_warn_missing_content_ids` end-of-pipeline check that warns for any `content_id` absent from the final message text.
+- Code interpreter: fence rendering fix — added `_ensure_fences_are_standalone` (strips markdown list-item prefix before a fence) and `_CONSECUTIVE_FENCES_RE` separator pass (ensures `\n\n` between two fences that land on the same line), so `imgWithSource`/`fileWithSource` blocks are always standalone blocks parseable by the frontend. FF=on prompt updated to instruct the LLM to place a blank line before and after every file reference link.
+- Code interpreter: logging coverage — added `_warn_dangling_sandbox_links` (warns when a `sandbox:/mnt/data/` link survives into the final text, indicating a hallucinated or unmatched file) and `_warn_unmatched_code_blocks` (warns when an uploaded file could not be matched to any code block and will fall back to a plain download link without the artifact UI).
 
 ## [1.53.2] - 2026-03-11
 - Code interpreter: replace all inline file refs in `message.text` with structured fences — `imgWithSource` for images (PNG etc.) and `fileWithSource` for documents (CSV, Excel, PDF, Word, HTML, Markdown). Each fence carries `id` (message-scoped counter), `contentId`, `title` (derived from filename), `type` (for fileWithSource), and the generating `code`. `<details>` blocks and trailing `</br>` from `ShowExecutedCodePostprocessor` are stripped when at least one fence is injected. Feature-flagged via `FEATURE_FLAG_ENABLE_CODE_EXECUTION_FENCE_UN_17972` (default off, safe to merge). `debugInfo.code_blocks` and the `code_blocks` field on `LanguageModelStreamResponseMessage` are removed (superseded by the fences). (UN-17972)
