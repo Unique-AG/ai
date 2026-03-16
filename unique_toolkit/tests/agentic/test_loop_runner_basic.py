@@ -68,6 +68,7 @@ def create_stream_response(
     return LanguageModelStreamResponse(
         message=ChatMessage(
             id="msg_123",
+            chat_id="",
             previous_message_id="prev_msg_123",
             role=LanguageModelMessageRole.ASSISTANT,
             text=text,

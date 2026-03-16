@@ -106,7 +106,7 @@ class ChatMessage(BaseModel):
     model_config = model_config
 
     id: str | None = None
-    chat_id: str = ""
+    chat_id: str
     object: str | None = None
     # alias="text" applies only to construction (model_validate / __init__).
     # model_dump() uses the field name "content", not "text". Use model_dump(by_alias=True)

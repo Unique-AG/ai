@@ -582,6 +582,7 @@ def test_context_text_from_stream_response__extracts_context__using_from_ids_mod
     response: LanguageModelStreamResponse = LanguageModelStreamResponse(
         message=ChatMessage(
             id="msg_1",
+            chat_id="",
             previous_message_id=None,
             role=LanguageModelMessageRole.ASSISTANT,
             text="Test",
@@ -614,6 +615,7 @@ def test_context_text_from_stream_response__extracts_context__using_from_order_m
     response: LanguageModelStreamResponse = LanguageModelStreamResponse(
         message=ChatMessage(
             id="msg_1",
+            chat_id="",
             previous_message_id=None,
             role=LanguageModelMessageRole.ASSISTANT,
             text="Test",
@@ -655,6 +657,7 @@ def test_context_text_from_stream_response__extracts_context__using_from_origina
     response: LanguageModelStreamResponse = LanguageModelStreamResponse(
         message=ChatMessage(
             id="msg_1",
+            chat_id="",
             previous_message_id=None,
             role=LanguageModelMessageRole.ASSISTANT,
             text="Test",
@@ -692,6 +695,7 @@ def test_context_text_from_stream_response__falls_back_to_default__with_invalid_
     response: LanguageModelStreamResponse = LanguageModelStreamResponse(
         message=ChatMessage(
             id="msg_1",
+            chat_id="",
             previous_message_id=None,
             role=LanguageModelMessageRole.ASSISTANT,
             text="Test",
@@ -733,6 +737,7 @@ def test_context_text_from_stream_response__falls_back_to_default__on_extraction
     response: LanguageModelStreamResponse = LanguageModelStreamResponse(
         message=ChatMessage(
             id="msg_1",
+            chat_id="",
             previous_message_id=None,
             role=LanguageModelMessageRole.ASSISTANT,
             text="Test",
@@ -765,6 +770,7 @@ def test_context_text_from_stream_response__returns_text_strings__not_chunk_obje
     response: LanguageModelStreamResponse = LanguageModelStreamResponse(
         message=ChatMessage(
             id="msg_1",
+            chat_id="",
             previous_message_id=None,
             role=LanguageModelMessageRole.ASSISTANT,
             text="Test",
