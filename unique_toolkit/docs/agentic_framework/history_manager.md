@@ -169,10 +169,10 @@ The `HistoryManager` is a critical component responsible for managing the conver
      ```
      `round_index` increments for each sequential assistant message that carries tool calls; `sequence_index` is the position within a parallel batch. Tool calls with no matching response are included with `response=None`.
 
-   - **`compact_message_tools(records, assistant_text)`**  
+   - **`compact_message_tools(*, records, assistant_text)`**  
      Strips uncited source items from the tool response content before persistence. Tools that perform searches often return many result chunks, but the assistant only cites a few. Compaction keeps the replayed history lean without invalidating any existing citations (source numbers are not renumbered).  
      ```python
-     records = HistoryManager.compact_message_tools(records, assistant_text=final_answer)
+     records = HistoryManager.compact_message_tools(records=records, assistant_text=final_answer)
      ```
 
    See [Tool Call Persistence](tool_call_persistence.md) for the full workflow including how to replay tool call history on subsequent turns.

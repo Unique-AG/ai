@@ -296,6 +296,7 @@ class HistoryManager:
 
     @staticmethod
     def compact_message_tools(
+        *,
         records: list[ChatMessageTool],
         assistant_text: str | None,
     ) -> list[ChatMessageTool]:

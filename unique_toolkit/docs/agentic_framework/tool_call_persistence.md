@@ -44,7 +44,7 @@ At the end of a turn the orchestrator:
 
 ```python
 records = history_manager.extract_message_tools()
-records = HistoryManager.compact_message_tools(records, assistant_text=final_answer)
+records = HistoryManager.compact_message_tools(records=records, assistant_text=final_answer)
 chat_service.create_message_tools(
     message_id=assistant_message_id,
     tool_calls=records,
