@@ -31,7 +31,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolMessage,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 map_chat_llm_message_role = {
     ChatRole.USER: LLMRole.USER,
@@ -275,7 +275,7 @@ def get_full_history_with_contents_and_tool_calls(
                 if tc.message_id:
                     tool_calls_by_message.setdefault(tc.message_id, []).append(tc)
         except Exception:
-            logger.warning(
+            _LOGGER.warning(
                 "Failed to batch-load tool calls, falling back to empty", exc_info=True
             )
 

@@ -112,7 +112,7 @@ from unique_toolkit.short_term_memory.functions import (
 )
 from unique_toolkit.short_term_memory.schemas import ShortTermMemory
 
-logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
+_LOGGER = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
 
 class ChatService(ChatServiceDeprecated):
@@ -1666,7 +1666,7 @@ class ChatService(ChatServiceDeprecated):
                     order=order,
                 )
             except Exception:
-                logger.warning(
+                _LOGGER.warning(
                     "Failed to write rate-limit retry message log",
                     exc_info=True,
                 )

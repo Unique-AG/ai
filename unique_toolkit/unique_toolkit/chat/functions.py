@@ -50,7 +50,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolDescription,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 def modify_message(
@@ -111,7 +111,7 @@ def modify_message(
         message = unique_sdk.Message.modify(**params)
         return ChatMessage(**message)
     except Exception as e:
-        logger.error(f"Failed to modify user message: {e}")
+        _LOGGER.error(f"Failed to modify user message: {e}")
         raise e
 
 
@@ -173,7 +173,7 @@ async def modify_message_async(
         message = await unique_sdk.Message.modify_async(**params)
         return ChatMessage(**message)
     except Exception as e:
-        logger.error(f"Failed to modify user message: {e}")
+        _LOGGER.error(f"Failed to modify user message: {e}")
         raise e
 
 
@@ -308,7 +308,7 @@ def create_message(
         message = unique_sdk.Message.create(**params)
         return ChatMessage(**message)
     except Exception as e:
-        logger.error(f"Failed to create assistant message: {e}")
+        _LOGGER.error(f"Failed to create assistant message: {e}")
         raise e
 
 
@@ -365,7 +365,7 @@ async def create_message_async(
         message = await unique_sdk.Message.create_async(**params)
         return ChatMessage(**message)
     except Exception as e:
-        logger.error(f"Failed to create assistant message: {e}")
+        _LOGGER.error(f"Failed to create assistant message: {e}")
         raise e
 
 
@@ -442,7 +442,7 @@ def pick_messages_in_reverse_for_token_window(
     last_index = len(messages) - 1
     token_count = count_tokens(messages[last_index].content or "", model=model_info)
     while token_count > limit:
-        logger.debug(
+        _LOGGER.debug(
             f"Limit too low for the initial message. Last message TokenCount {token_count} available tokens {limit} - cutting message in half until it fits",
         )
         content = messages[last_index].content or ""
@@ -474,7 +474,7 @@ def list_messages(
         )
         return messages
     except Exception as e:
-        logger.error(f"Failed to list chat history: {e}")
+        _LOGGER.error(f"Failed to list chat history: {e}")
         raise e
 
 
@@ -491,7 +491,7 @@ async def list_messages_async(
         )
         return messages
     except Exception as e:
-        logger.error(f"Failed to list chat history: {e}")
+        _LOGGER.error(f"Failed to list chat history: {e}")
         raise e
 
 
@@ -589,7 +589,7 @@ def create_message_assessment(
         )
         return ChatMessageAssessment(**assessment)
     except Exception as e:
-        logger.error(f"Failed to create message assessment: {e}")
+        _LOGGER.error(f"Failed to create message assessment: {e}")
         raise e
 
 
@@ -638,7 +638,7 @@ async def create_message_assessment_async(
         )
         return ChatMessageAssessment(**assessment)
     except Exception as e:
-        logger.error(f"Failed to create message assessment: {e}")
+        _LOGGER.error(f"Failed to create message assessment: {e}")
         raise e
 
 
@@ -684,7 +684,7 @@ def modify_message_assessment(
         )
         return ChatMessageAssessment(**assessment)
     except Exception as e:
-        logger.error(f"Failed to modify message assessment: {e}")
+        _LOGGER.error(f"Failed to modify message assessment: {e}")
         raise e
 
 
@@ -730,7 +730,7 @@ async def modify_message_assessment_async(
         )
         return ChatMessageAssessment(**assessment)
     except Exception as e:
-        logger.error(f"Failed to modify message assessment: {e}")
+        _LOGGER.error(f"Failed to modify message assessment: {e}")
         raise e
 
 
@@ -842,7 +842,7 @@ def stream_complete_with_references(
         )
         return LanguageModelStreamResponse(**response)
     except Exception as e:
-        logger.error(f"Error streaming completion: {e}")
+        _LOGGER.error(f"Error streaming completion: {e}")
         raise e
 
 
@@ -939,7 +939,7 @@ async def stream_complete_with_references_async(
         )
         return LanguageModelStreamResponse(**response)
     except Exception as e:
-        logger.error(f"Error streaming completion: {e}")
+        _LOGGER.error(f"Error streaming completion: {e}")
         raise e
 
 
@@ -997,7 +997,7 @@ def create_message_log(
         )
         return MessageLog(**message_log)
     except Exception as e:
-        logger.error(f"Failed to create message log: {e}")
+        _LOGGER.error(f"Failed to create message log: {e}")
         raise e
 
 
@@ -1049,7 +1049,7 @@ async def create_message_log_async(
         )
         return MessageLog(**message_log)
     except Exception as e:
-        logger.error(f"Failed to create message log: {e}")
+        _LOGGER.error(f"Failed to create message log: {e}")
         raise e
 
 
@@ -1101,7 +1101,7 @@ def update_message_log(
         )
         return MessageLog(**message_log)
     except Exception as e:
-        logger.error(f"Failed to update message log: {e}")
+        _LOGGER.error(f"Failed to update message log: {e}")
         raise e
 
 
@@ -1153,7 +1153,7 @@ async def update_message_log_async(
         )
         return MessageLog(**message_log)
     except Exception as e:
-        logger.error(f"Failed to update message log: {e}")
+        _LOGGER.error(f"Failed to update message log: {e}")
         raise e
 
 
@@ -1205,7 +1205,7 @@ def create_message_execution(
         )
         return MessageExecution(**message_execution)
     except Exception as e:
-        logger.error(f"Failed to create message execution: {e}")
+        _LOGGER.error(f"Failed to create message execution: {e}")
         raise e
 
 
@@ -1257,7 +1257,7 @@ async def create_message_execution_async(
         )
         return MessageExecution(**message_execution)
     except Exception as e:
-        logger.error(f"Failed to create message execution: {e}")
+        _LOGGER.error(f"Failed to create message execution: {e}")
         raise e
 
 
@@ -1288,7 +1288,7 @@ def get_message_execution(
         )
         return MessageExecution(**message_execution)
     except Exception as e:
-        logger.error(f"Failed to get message execution: {e}")
+        _LOGGER.error(f"Failed to get message execution: {e}")
         raise e
 
 
@@ -1319,7 +1319,7 @@ async def get_message_execution_async(
         )
         return MessageExecution(**message_execution)
     except Exception as e:
-        logger.error(f"Failed to get message execution: {e}")
+        _LOGGER.error(f"Failed to get message execution: {e}")
         raise e
 
 
@@ -1363,7 +1363,7 @@ def update_message_execution(
         )
         return MessageExecution(**message_execution)
     except Exception as e:
-        logger.error(f"Failed to update message execution: {e}")
+        _LOGGER.error(f"Failed to update message execution: {e}")
         raise e
 
 
@@ -1407,7 +1407,7 @@ async def update_message_execution_async(
         )
         return MessageExecution(**message_execution)
     except Exception as e:
-        logger.error(f"Failed to update message execution: {e}")
+        _LOGGER.error(f"Failed to update message execution: {e}")
         raise e
 
 
@@ -1454,7 +1454,7 @@ def create_message_tools(
         )
         return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
     except Exception as e:
-        logger.error(f"Failed to create message tools: {e}")
+        _LOGGER.error(f"Failed to create message tools: {e}")
         raise e
 
 
@@ -1474,7 +1474,7 @@ async def create_message_tools_async(
         )
         return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
     except Exception as e:
-        logger.error(f"Failed to create message tools: {e}")
+        _LOGGER.error(f"Failed to create message tools: {e}")
         raise e
 
 
@@ -1496,7 +1496,7 @@ def get_message_tools(
         )
         return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
     except Exception as e:
-        logger.error(f"Failed to get message tools: {e}")
+        _LOGGER.error(f"Failed to get message tools: {e}")
         raise e
 
 
@@ -1518,5 +1518,5 @@ async def get_message_tools_async(
         )
         return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
     except Exception as e:
-        logger.error(f"Failed to get message tools: {e}")
+        _LOGGER.error(f"Failed to get message tools: {e}")
         raise e
