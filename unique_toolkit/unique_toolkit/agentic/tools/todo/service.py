@@ -23,8 +23,7 @@ from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 logger = getLogger(__name__)
 
 _TODO_SYSTEM_PROMPT = textwrap.dedent("""\
-    You have access to a task tracking system (todo_write, todo_read). \
-    Use it proactively for complex tasks with 3+ distinct steps.
+    You have access to a task tracking system (todo_write, todo_read). Use it proactively for complex tasks with 3+ distinct steps.
 
     When to use:
     - Multi-step analysis or research tasks
@@ -35,8 +34,7 @@ _TODO_SYSTEM_PROMPT = textwrap.dedent("""\
     - Simple single-step questions
     - Quick lookups or formatting tasks
 
-    Mark only ONE item as in_progress at a time. \
-    Update status immediately after completing each step.""")
+    Mark only ONE item as in_progress at a time. Update status immediately after completing each step.""")
 
 
 class TodoWriteTool(Tool[TodoConfig]):
