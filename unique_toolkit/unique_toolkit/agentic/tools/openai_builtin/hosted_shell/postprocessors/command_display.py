@@ -69,7 +69,8 @@ class ShowExecutedCommandPostprocessor(ResponsesApiPostprocessor):
     ) -> bool:
         prepended_text = ""
         for output in loop_response.shell_calls:
-            commands = "\n".join(output.action.commands)
+            cmds = output.commands  # property delegates to action.commands
+            commands = "\n".join(cmds)
             prepended_text += _TEMPLATE.format(commands=commands)
 
         loop_response.message.text = prepended_text + loop_response.message.text

@@ -141,7 +141,7 @@ def _prepare_responses_params_util(
         _to_search_context(content_chunks) if content_chunks is not None else None
     )
 
-    model = model_name.name if isinstance(model_name, LanguageModelName) else model_name
+    model = model_name.value if isinstance(model_name, LanguageModelName) else model_name
 
     tools_res = _convert_tools_to_openai(tools) if tools is not None else None
 

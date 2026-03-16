@@ -1,7 +1,7 @@
 import json
 import math
 from enum import StrEnum
-from typing import Any, Literal, Self, TypeVar
+from typing import Annotated, Any, Literal, Self, TypeVar, Union, get_args
 from uuid import uuid4
 
 from humps import camelize
@@ -57,6 +57,86 @@ model_config = ConfigDict(
     populate_by_name=True,
     arbitrary_types_allowed=True,
 )
+
+
+# ---------------------------------------------------------------------------
+# Local shell_call / shell_call_output models
+# The openai <2 library does not include these types in ResponseOutputItem.
+# We define lightweight stand-ins so Pydantic can validate responses that
+# contain hosted-shell output items.
+# ---------------------------------------------------------------------------
+
+
+class _ShellCallOutcome(BaseModel):
+    """Single command execution outcome inside a shell_call_output."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    exit_code: int = 0
+    stdout: str = ""
+    stderr: str = ""
+
+
+class _ShellCallOutputEntry(BaseModel):
+    """One entry in the shell_call_output.output list."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    outcome: _ShellCallOutcome | None = None
+    command: str = ""
+
+
+class _ShellCallAction(BaseModel):
+    """The action payload inside a shell_call item."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    commands: list[str] = []
+    timeout_ms: int = 120000
+    max_output_length: int = 4096
+
+
+class ShellCallItem(BaseModel):
+    """Hosted-shell call (type='shell_call').
+
+    The OpenAI API nests commands inside ``action.commands``.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = ""
+    type: Literal["shell_call"] = "shell_call"
+    call_id: str = ""
+    action: _ShellCallAction = Field(default_factory=_ShellCallAction)
+    container_id: str | None = None
+    status: str | None = None
+
+    @property
+    def commands(self) -> list[str]:
+        """Convenience accessor for ``action.commands``."""
+        return self.action.commands
+
+
+class ShellCallOutputItem(BaseModel):
+    """Hosted-shell call output (type='shell_call_output')."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = ""
+    type: Literal["shell_call_output"] = "shell_call_output"
+    call_id: str = ""
+    output: list[_ShellCallOutputEntry] = []
+    container_id: str | None = None
+    status: str | None = None
+
+
+# Build an extended discriminated union that includes the local shell types
+# alongside all the original types from openai's ResponseOutputItem.
+_original_output_types = get_args(get_args(ResponseOutputItem)[0])
+ExtendedResponseOutputItem = Annotated[
+    Union[ShellCallItem, ShellCallOutputItem, *_original_output_types],  # type: ignore[valid-type]
+    Field(discriminator="type"),
+]
 
 
 # Equivalent to
@@ -197,7 +277,7 @@ OutputItemType = TypeVar("OutputItemType", bound=ResponseOutputItem)
 
 
 class ResponsesLanguageModelStreamResponse(LanguageModelStreamResponse):
-    output: list[ResponseOutputItem]
+    output: list[ExtendedResponseOutputItem]
 
     def filter_output(self, type: type[OutputItemType]) -> list[OutputItemType]:
         return [item for item in self.output if isinstance(item, type)]
@@ -207,10 +287,12 @@ class ResponsesLanguageModelStreamResponse(LanguageModelStreamResponse):
         return self.filter_output(ResponseCodeInterpreterToolCall)
 
     @property
-    def shell_calls(self) -> list:
-        if ResponseFunctionShellToolCall is None:
-            return []
-        return self.filter_output(ResponseFunctionShellToolCall)
+    def shell_calls(self) -> list[ShellCallItem]:
+        return [item for item in self.output if isinstance(item, ShellCallItem)]
+
+    @property
+    def shell_call_outputs(self) -> list[ShellCallOutputItem]:
+        return [item for item in self.output if isinstance(item, ShellCallOutputItem)]
 
     @property
     def container_files(self) -> list[AnnotationContainerFileCitation]:

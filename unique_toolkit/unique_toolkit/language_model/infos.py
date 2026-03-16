@@ -100,6 +100,8 @@ class LanguageModelName(StrEnum):
     LITELLM_OPENAI_GPT_51_THINKING = "litellm:openai-gpt-5-1-thinking"
     LITELLM_OPENAI_GPT_52 = "litellm:openai-gpt-5-2"
     LITELLM_OPENAI_GPT_52_THINKING = "litellm:openai-gpt-5-2-thinking"
+    LITELLM_OPENAI_GPT_54 = "litellm:openai-gpt-5-4"
+    LITELLM_OPENAI_GPT_54_THINKING = "litellm:openai-gpt-5-4-thinking"
     LITELLM_OPENAI_O1 = "litellm:openai-o1"
     LITELLM_OPENAI_O3 = "litellm:openai-o3"
     LITELLM_OPENAI_O3_DEEP_RESEARCH = "litellm:openai-o3-deep-research"
@@ -180,6 +182,8 @@ def get_encoder_name(model_name: LanguageModelName) -> EncoderName:
             | LMN.LITELLM_OPENAI_GPT_51_THINKING
             | LMN.LITELLM_OPENAI_GPT_52
             | LMN.LITELLM_OPENAI_GPT_52_THINKING
+            | LMN.LITELLM_OPENAI_GPT_54
+            | LMN.LITELLM_OPENAI_GPT_54_THINKING
             | LMN.LITELLM_OPENAI_O1
             | LMN.LITELLM_OPENAI_O3
             | LMN.LITELLM_OPENAI_O3_DEEP_RESEARCH
@@ -1764,6 +1768,62 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 9, 30),
                     published_at=date(2025, 12, 11),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": "medium",
+                    },
+                )
+            case LanguageModelName.LITELLM_OPENAI_GPT_54:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="2026-02-14",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=400_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=date(2024, 9, 30),
+                    published_at=date(2026, 2, 14),
+                    temperature_bounds=TemperatureBounds(
+                        min_temperature=1.0, max_temperature=1.0
+                    ),
+                    default_options={
+                        "reasoning_effort": None,
+                    },
+                )
+            case LanguageModelName.LITELLM_OPENAI_GPT_54_THINKING:
+                return cls(
+                    name=model_name,
+                    provider=LanguageModelProvider.LITELLM,
+                    version="2026-02-14",
+                    encoder_name=EncoderName.O200K_BASE,
+                    capabilities=[
+                        ModelCapabilities.CHAT_COMPLETIONS_API,
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.PARALLEL_FUNCTION_CALLING,
+                        ModelCapabilities.REASONING,
+                        ModelCapabilities.RESPONSES_API,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.STRUCTURED_OUTPUT,
+                        ModelCapabilities.VISION,
+                    ],
+                    token_limits=LanguageModelTokenLimits(
+                        token_limit_input=400_000, token_limit_output=128_000
+                    ),
+                    info_cutoff_at=date(2024, 9, 30),
+                    published_at=date(2026, 2, 14),
                     temperature_bounds=TemperatureBounds(
                         min_temperature=1.0, max_temperature=1.0
                     ),

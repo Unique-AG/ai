@@ -131,6 +131,12 @@ class OpenAIHostedShellConfig(BaseToolConfig):
         default=[],
         description="List of inline skills (base64-encoded zip bundles) to attach to the shell environment.",
     )
+    skill_content_ids: list[str] = Field(
+        default=[],
+        description="List of content IDs referencing skill zip files uploaded to the knowledge base. "
+        "Each zip must contain a top-level directory with a SKILL.md file. "
+        "The name and description are automatically extracted from the SKILL.md front matter.",
+    )
     upload_files_in_chat_to_container: bool = Field(
         default=True,
         description="If set, the files uploaded to the chat will be made available in the shell environment. "
@@ -167,7 +173,7 @@ class OpenAIHostedShellConfig(BaseToolConfig):
         default=True,
         description="If set, use the `container_auto` environment. When False, a persistent container is created and reused. "
         "Note: Skills (both skill_references and inline_skills) require `container_auto` — they are not supported with persistent containers. "
-        "The shell tool currently requires the `gpt-5.4` model.",
+        "The shell tool with environment requires `gpt-5.2` or later.",
     )
 
 
