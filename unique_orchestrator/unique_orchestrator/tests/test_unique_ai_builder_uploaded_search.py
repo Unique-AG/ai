@@ -3,9 +3,13 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from unique_internal_search.uploaded_search.service import UploadedSearchTool
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+    CodeInterpreterExtendedConfig,
+)
+from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_manager import ToolManagerConfig
 
-from unique_orchestrator.config import CodeInterpreterExtendedConfig, UniqueAIConfig
+from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai_builder import (
     _build_responses,
     _CommonComponents,
@@ -171,8 +175,11 @@ async def test_build_responses_keeps_uploaded_search_when_code_interpreter_is_au
     uploaded_document = MagicMock(expired_at=None)
     common_components = _make_common_components([uploaded_document])
     config = UniqueAIConfig()
-    config.agent.experimental.responses_api_config.code_interpreter = (
-        CodeInterpreterExtendedConfig()
+    config.space.tools.append(
+        ToolBuildConfig(
+            name=OpenAIBuiltInToolName.CODE_INTERPRETER,
+            configuration=CodeInterpreterExtendedConfig(),
+        )
     )
     logger = MagicMock()
 
@@ -209,10 +216,13 @@ async def test_build_responses_keeps_uploaded_search_when_code_interpreter_is_au
         debug_info_manager=MagicMock(),
     )
 
-    tool_names = [tool.name for tool in common_components.tool_manager_config.tools]
+    tool_manager_tool_names = [
+        tool.name for tool in common_components.tool_manager_config.tools
+    ]
+    space_tool_names = [tool.name for tool in config.space.tools]
 
-    assert UploadedSearchTool.name in tool_names
-    assert OpenAIBuiltInToolName.CODE_INTERPRETER in tool_names
+    assert UploadedSearchTool.name in tool_manager_tool_names
+    assert OpenAIBuiltInToolName.CODE_INTERPRETER in space_tool_names
     assert _FakeResponsesApiToolManager.instances[0].forced_tools == [
         UploadedSearchTool.name
     ]
