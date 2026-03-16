@@ -72,8 +72,12 @@ class OpenPdfFeatureRuntime:
         self._message_step_logger = message_step_logger
         self._agent_file_registry = agent_file_registry
         self._cached_uploaded_documents: list[Content] | None = None
+        self._pdf_payload_attachments_disabled = False
 
     def should_attach_content_files(self) -> bool:
+        if self._pdf_payload_attachments_disabled:
+            return False
+
         return self._is_feature_enabled() and (
             self._kb_pdf_payload_enabled() or self._uploaded_pdf_payload_enabled()
         )
@@ -113,6 +117,8 @@ class OpenPdfFeatureRuntime:
         return messages
 
     def should_retry_without_pdf_files(self, exc: Exception) -> bool:
+        if self._pdf_payload_attachments_disabled:
+            return False
         if not self._is_feature_enabled():
             return False
         if (
@@ -135,6 +141,7 @@ class OpenPdfFeatureRuntime:
         self, messages: LanguageModelMessages
     ) -> LanguageModelMessages:
         self._tool_manager.remove_tool(self._OPEN_PDF_TOOL_NAME)
+        self._pdf_payload_attachments_disabled = True
 
         messages = self.strip_file_parts_from_messages(messages)
 
@@ -261,6 +268,9 @@ class OpenPdfFeatureRuntime:
         return self._cached_uploaded_documents
 
     def _collect_content_file_parts(self) -> list[dict[str, dict[str, str] | str]]:
+        if self._pdf_payload_attachments_disabled:
+            return []
+
         seen_ids: set[str] = set()
         file_parts: list[dict[str, dict[str, str] | str]] = []
 

@@ -654,3 +654,57 @@ class TestFullRetryMessageState:
         assert upload_tool.tool_call_id == upload_assistant.tool_calls[0].id
 
         assert len(messages.root) == 4
+
+    def test_prepare_retry_messages_disables_future_uploaded_pdf_attachment(
+        self, mock_unique_ai
+    ):
+        """After a payload-too-large fallback, later iterations must not reattach uploads."""
+        cfg = mock_unique_ai._config.agent.experimental.open_pdf_tool_config
+        cfg.send_uploaded_pdf_in_payload = True
+        cfg.send_pdf_files_in_payload = False
+
+        mock_doc = MagicMock()
+        mock_doc.id = "cont_up1"
+        mock_doc.key = "upload.pdf"
+        mock_doc.expired_at = None
+        mock_unique_ai._cached_uploaded_documents = [mock_doc]
+
+        messages = _make_messages(
+            _user_msg(
+                [
+                    {"type": "text", "text": "Summarize"},
+                    {
+                        "type": "file",
+                        "file": {
+                            "filename": "upload.pdf",
+                            "file_data": "unique://content/cont_up1",
+                        },
+                    },
+                ]
+            )
+        )
+
+        retry_messages = mock_unique_ai.prepare_retry_messages(messages)
+
+        assert mock_unique_ai.should_attach_content_files() is False
+        assert mock_unique_ai._collect_content_file_parts() == []
+        assert retry_messages.root[0].content == "Summarize"
+        assert retry_messages.root[1].tool_calls[0].function.name == "OpenPdf"
+        assert "too large" in retry_messages.root[2].content.lower()
+
+    def test_should_not_retry_again_after_pdf_payloads_were_disabled(
+        self, mock_unique_ai
+    ):
+        cfg = mock_unique_ai._config.agent.experimental.open_pdf_tool_config
+        cfg.send_uploaded_pdf_in_payload = True
+
+        mock_doc = MagicMock()
+        mock_doc.id = "cont_up1"
+        mock_doc.key = "upload.pdf"
+        mock_doc.expired_at = None
+        mock_unique_ai._cached_uploaded_documents = [mock_doc]
+
+        mock_unique_ai.prepare_retry_messages(_make_messages(_user_msg("Summarize")))
+
+        exc = Exception("413 Request Entity Too Large")
+        assert mock_unique_ai.should_retry_without_pdf_files(exc) is False
