@@ -1,6 +1,9 @@
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_stock_ticker.config import StockTickerConfig
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+    CodeInterpreterExtendedConfig,
+)
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
@@ -10,7 +13,6 @@ from unique_toolkit.language_model.infos import (
 from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
 
 from unique_orchestrator.config import (
-    CodeInterpreterExtendedConfig,
     EvaluationConfig,
     UniqueAIConfig,
     UniqueAIServices,
@@ -182,23 +184,17 @@ class TestUniqueAIConfigCodeInterpreterValidator:
         )
 
         assert config.agent.experimental.responses_api_config.use_responses_api is False
-        assert config.agent.experimental.responses_api_config.code_interpreter is None
 
     def test_does_not_change_config_when_code_interpreter_not_in_tools(self):
         """When Code Interpreter is not selected at all, the validator must be a no-op."""
         config = _make_config(tools=[], supports_responses_api=True)
 
         assert config.agent.experimental.responses_api_config.use_responses_api is False
-        assert config.agent.experimental.responses_api_config.code_interpreter is None
 
-    def test_preserves_explicit_code_interpreter_config_when_already_set(self):
-        """When an admin also provided a custom CodeInterpreterExtendedConfig via the advanced
-        settings, the validator must not overwrite it — the explicit config wins."""
+    def test_does_not_override_already_enabled_responses_api(self):
+        """When use_responses_api is already True, the validator must not change it."""
         from unique_orchestrator.config import ExperimentalConfig, ResponsesApiConfig
 
-        custom_ci_config = CodeInterpreterExtendedConfig(
-            executed_code_display_config=None,
-        )
         config = UniqueAIConfig(
             space=UniqueAISpaceConfig(
                 language_model=_make_model(supports_responses_api=True),
@@ -208,13 +204,9 @@ class TestUniqueAIConfigCodeInterpreterValidator:
                 "experimental": ExperimentalConfig(
                     responses_api_config=ResponsesApiConfig(
                         use_responses_api=True,
-                        code_interpreter=custom_ci_config,
                     )
                 )
             },
         )
 
-        assert (
-            config.agent.experimental.responses_api_config.code_interpreter
-            is custom_ci_config
-        )
+        assert config.agent.experimental.responses_api_config.use_responses_api is True
