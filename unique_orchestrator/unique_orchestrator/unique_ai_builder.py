@@ -15,6 +15,7 @@ from unique_stock_ticker.stock_ticker_postprocessor import (
     StockTickerPostprocessor,
 )
 from unique_toolkit import LanguageModelService, get_async_openai_client
+from unique_toolkit.framework_utilities.openai.client import get_direct_openai_files_client
 from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
@@ -337,6 +338,11 @@ async def _build_responses(
             )
         )
 
+    # Create a direct OpenAI client for file/container operations that
+    # bypasses the proxy (needed for LiteLLM models where the proxy
+    # doesn't support /v1/files or /v1/containers).
+    files_client = get_direct_openai_files_client()
+
     builtin_tool_manager = await OpenAIBuiltInToolManager.build_manager(
         uploaded_files=common_components.uploaded_documents,
         content_service=common_components.content_service,
@@ -345,6 +351,7 @@ async def _build_responses(
         chat_id=event.payload.chat_id,
         client=client,
         tool_configs=config.space.tools,
+        files_client=files_client,
     )
 
     tool_manager = ResponsesApiToolManager(

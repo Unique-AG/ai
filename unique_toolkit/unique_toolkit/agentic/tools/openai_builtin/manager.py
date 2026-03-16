@@ -38,6 +38,7 @@ class OpenAIBuiltInToolManager:
         chat_id: str,
         client: AsyncOpenAI,
         tool_config: ToolBuildConfig,
+        files_client: AsyncOpenAI | None = None,
     ) -> OpenAIBuiltInTool:
         if tool_config.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
             assert isinstance(tool_config.configuration, CodeInterpreterExtendedConfig)
@@ -50,6 +51,7 @@ class OpenAIBuiltInToolManager:
                 user_id=user_id,
                 chat_id=chat_id,
                 is_exclusive=tool_config.is_exclusive,
+                files_client=files_client,
             )
             return tool
         elif tool_config.name == OpenAIBuiltInToolName.HOSTED_SHELL:
@@ -63,6 +65,7 @@ class OpenAIBuiltInToolManager:
                 user_id=user_id,
                 chat_id=chat_id,
                 is_exclusive=tool_config.is_exclusive,
+                files_client=files_client,
             )
             return tool
         else:
@@ -78,6 +81,7 @@ class OpenAIBuiltInToolManager:
         chat_id: str,
         client: AsyncOpenAI,
         tool_configs: list[ToolBuildConfig],
+        files_client: AsyncOpenAI | None = None,
     ) -> "OpenAIBuiltInToolManager":
         builtin_tools = []
         for tool_config in tool_configs:
@@ -91,6 +95,7 @@ class OpenAIBuiltInToolManager:
                         chat_id,
                         client,
                         tool_config,
+                        files_client=files_client,
                     )
                 )
 

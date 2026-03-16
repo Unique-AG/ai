@@ -11,11 +11,16 @@ pre-configured *skills*.  Two environment modes are supported:
   turns.  Skills are **not** supported; files are uploaded directly to the
   container.
 
-The ``gpt-5.4`` model (or newer) is currently required by the OpenAI
-Responses API for the ``shell`` tool type.
+The ``gpt-5.2`` model (or newer) is required by the OpenAI Responses API
+for the ``shell`` tool type with ``environment``; bare ``shell`` works on
+``gpt-5.1``+.
 """
 
+import base64
+import io
 import logging
+import re
+import zipfile
 from typing import Any, override
 
 from openai import AsyncOpenAI
@@ -33,9 +38,11 @@ from unique_toolkit.agentic.tools.openai_builtin.container_utils import (
     upload_files_to_container,
 )
 from unique_toolkit.agentic.tools.openai_builtin.hosted_shell.config import (
+    InlineSkillConfig,
     OpenAIHostedShellConfig,
 )
 from unique_toolkit.agentic.tools.schemas import ToolPrompts
+from unique_toolkit.content.functions import download_content_to_bytes_async
 from unique_toolkit.content.schemas import Content
 
 logger = logging.getLogger(__name__)
@@ -50,8 +57,18 @@ async def _upload_files_for_auto_container(
     memory: ContainerShortTermMemorySchema,
     content_service: ContentService,
     chat_id: str,
+    files_client: AsyncOpenAI | None = None,
 ) -> ContainerShortTermMemorySchema:
-    """Upload files via client.files.create for use with container_auto's file_ids."""
+    """Upload files via client.files.create for use with container_auto's file_ids.
+
+    Args:
+        files_client: Optional direct OpenAI client for the Files API,
+            bypassing the proxy.  Falls back to *client* when ``None``.
+    """
+    # Use the direct client for the Files API when available (needed for
+    # LiteLLM models where the proxy doesn't support /v1/files).
+    upload_client = files_client or client
+
     memory = memory.model_copy(deep=True)
 
     for file in uploaded_files:
@@ -64,13 +81,99 @@ async def _upload_files_for_auto_container(
             content_id=file.id, chat_id=chat_id
         )
 
-        openai_file = await client.files.create(
+        openai_file = await upload_client.files.create(
             file=(file.key, file_content),
             purpose="assistants",
         )
         memory.file_ids[file.id] = openai_file.id
 
     return memory
+
+
+def _parse_skill_front_matter(skill_md_content: str) -> tuple[str, str]:
+    """Extract ``name`` and ``description`` from a SKILL.md's YAML front matter.
+
+    The front matter is delimited by ``---`` lines at the top of the file.
+    Uses simple regex parsing to avoid a hard dependency on PyYAML.
+
+    Returns:
+        A ``(name, description)`` tuple.
+
+    Raises:
+        ValueError: If the front matter or required fields are missing.
+    """
+    match = re.match(r"^---\s*\n(.*?)\n---", skill_md_content, re.DOTALL)
+    if not match:
+        raise ValueError("SKILL.md is missing YAML front matter (--- delimiters)")
+
+    front_matter = match.group(1)
+
+    name_match = re.search(r'^name:\s*["\']?([^"\'\n]+)["\']?\s*$', front_matter, re.MULTILINE)
+    desc_match = re.search(r'^description:\s*["\']?([^"\'\n]+)["\']?\s*$', front_matter, re.MULTILINE)
+
+    if not name_match:
+        raise ValueError("SKILL.md front matter is missing 'name' field")
+    if not desc_match:
+        raise ValueError("SKILL.md front matter is missing 'description' field")
+
+    return name_match.group(1).strip().strip("\"'"), desc_match.group(1).strip().strip("\"'")
+
+
+def _extract_skill_from_zip(zip_bytes: bytes) -> InlineSkillConfig:
+    """Read a skill zip, extract name/description from SKILL.md, return an InlineSkillConfig."""
+    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+        # Find SKILL.md (case-insensitive, may be nested one level)
+        skill_md_path = None
+        for name in zf.namelist():
+            if name.lower().endswith("skill.md"):
+                skill_md_path = name
+                break
+
+        if skill_md_path is None:
+            raise ValueError(
+                f"Skill zip does not contain a SKILL.md file. "
+                f"Found: {zf.namelist()[:10]}"
+            )
+
+        skill_md_content = zf.read(skill_md_path).decode("utf-8")
+
+    name, description = _parse_skill_front_matter(skill_md_content)
+    b64 = base64.b64encode(zip_bytes).decode("ascii")
+
+    return InlineSkillConfig(name=name, description=description, base64_zip=b64)
+
+
+async def _resolve_knowledge_base_skills(
+    content_ids: list[str],
+    user_id: str,
+    company_id: str,
+) -> list[InlineSkillConfig]:
+    """Download skill zips from the knowledge base and convert to inline skills.
+
+    For each content ID, downloads the zip file, reads the SKILL.md front
+    matter to extract the name and description (so they always match), and
+    returns a list of :class:`InlineSkillConfig` ready for the API.
+    """
+    skills: list[InlineSkillConfig] = []
+
+    for content_id in content_ids:
+        logger.info("Downloading skill zip from knowledge base: %s", content_id)
+        zip_bytes = await download_content_to_bytes_async(
+            user_id=user_id,
+            company_id=company_id,
+            content_id=content_id,
+            chat_id=None,
+        )
+
+        try:
+            skill = _extract_skill_from_zip(zip_bytes)
+            logger.info("Resolved KB skill: name=%s, zip_size=%d", skill.name, len(zip_bytes))
+            skills.append(skill)
+        except Exception:
+            logger.exception("Failed to parse skill zip for content_id=%s", content_id)
+            raise
+
+    return skills
 
 
 def _build_skills_list(config: OpenAIHostedShellConfig) -> list[dict[str, Any]]:
@@ -184,6 +287,7 @@ class OpenAIHostedShellTool(OpenAIBuiltInTool[FunctionShellToolParam]):
         user_id: str,
         chat_id: str,
         is_exclusive: bool = False,
+        files_client: AsyncOpenAI | None = None,
     ) -> "OpenAIHostedShellTool":
         """Async factory that creates the tool with file uploads and container management.
 
@@ -207,6 +311,18 @@ class OpenAIHostedShellTool(OpenAIBuiltInTool[FunctionShellToolParam]):
         Returns:
             A fully configured :class:`OpenAIHostedShellTool`.
         """
+        # Resolve knowledge-base skill zips into inline skills
+        if config.skill_content_ids:
+            kb_skills = await _resolve_knowledge_base_skills(
+                content_ids=config.skill_content_ids,
+                user_id=user_id,
+                company_id=company_id,
+            )
+            # Merge into the config's inline_skills (non-destructive copy)
+            config = config.model_copy(
+                update={"inline_skills": [*config.inline_skills, *kb_skills]}
+            )
+
         if config.use_auto_container:
             logger.info("Using `container_auto` environment setting for hosted shell")
 
@@ -228,6 +344,7 @@ class OpenAIHostedShellTool(OpenAIBuiltInTool[FunctionShellToolParam]):
                     memory=memory,
                     content_service=content_service,
                     chat_id=chat_id,
+                    files_client=files_client,
                 )
 
                 await memory_manager.save_async(memory)
@@ -257,6 +374,7 @@ class OpenAIHostedShellTool(OpenAIBuiltInTool[FunctionShellToolParam]):
             company_id=company_id,
             expires_after_minutes=config.expires_after_minutes,
             container_name_prefix=_CONTAINER_NAME_PREFIX,
+            files_client=files_client,
         )
 
         if config.upload_files_in_chat_to_container:
@@ -266,6 +384,7 @@ class OpenAIHostedShellTool(OpenAIBuiltInTool[FunctionShellToolParam]):
                 content_service=content_service,
                 chat_id=chat_id,
                 memory=memory,
+                files_client=files_client,
             )
 
         await memory_manager.save_async(memory)

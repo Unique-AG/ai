@@ -83,6 +83,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         user_id: str,
         chat_id: str,
         is_exclusive: bool = False,
+        files_client: AsyncOpenAI | None = None,
     ) -> "OpenAICodeInterpreterTool":
         if config.use_auto_container:
             logger.info("Using `auto` container setting")
@@ -105,6 +106,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
             company_id=company_id,
             expires_after_minutes=config.expires_after_minutes,
             container_name_prefix=_CONTAINER_NAME_PREFIX,
+            files_client=files_client,
         )
 
         if config.upload_files_in_chat_to_container:
@@ -114,6 +116,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
                 content_service=content_service,
                 chat_id=chat_id,
                 memory=memory,
+                files_client=files_client,
             )
 
         await memory_manager.save_async(memory)

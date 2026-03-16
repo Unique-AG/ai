@@ -1,5 +1,6 @@
 import importlib.util
 import logging
+import os
 
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.framework_utilities.utils import get_default_headers
@@ -82,3 +83,48 @@ def get_async_openai_client(
         base_url=unique_settings.api.openai_proxy_url(),
         default_headers=default_headers,
     )
+
+
+def get_direct_openai_files_client() -> "AsyncOpenAI | None":
+    """Get an AsyncOpenAI client for non-inference endpoints (files, containers).
+
+    Points directly to ``https://api.openai.com/v1``, bypassing the
+    platform proxy and LiteLLM.  This is necessary because LiteLLM does
+    not support ``/v1/files`` or ``/v1/containers`` endpoints.
+
+    Checks ``os.environ`` first, then falls back to reading ``.env``
+    files via ``python-dotenv`` (since pydantic-settings with
+    ``extra="ignore"`` does not populate ``os.environ`` for unknown keys).
+
+    Returns ``None`` when the ``OPENAI_API_KEY`` cannot be found,
+    allowing callers to fall back to the proxy client (which works fine
+    for Azure-backed models).
+    """
+    api_key = os.environ.get("OPENAI_API_KEY")
+
+    if not api_key:
+        # pydantic-settings may not have loaded this into os.environ
+        # (extra="ignore" skips unknown fields). Try dotenv directly.
+        try:
+            from dotenv import dotenv_values
+
+            for env_path in [".env", "../.env", "../../.local/.env"]:
+                values = dotenv_values(env_path)
+                if "OPENAI_API_KEY" in values:
+                    api_key = values["OPENAI_API_KEY"]
+                    logger.info(
+                        "Found OPENAI_API_KEY in %s (not in os.environ)", env_path
+                    )
+                    break
+        except ImportError:
+            pass
+
+    if not api_key:
+        logger.debug(
+            "OPENAI_API_KEY not found — direct OpenAI files client unavailable, "
+            "falling back to proxy client for file operations"
+        )
+        return None
+
+    logger.info("Creating direct OpenAI files client (bypassing proxy)")
+    return AsyncOpenAI(api_key=api_key)

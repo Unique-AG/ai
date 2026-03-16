@@ -69,6 +69,7 @@ async def create_container_if_not_exists(
     expires_after_minutes: int,
     container_name_prefix: str,
     memory: ContainerShortTermMemorySchema | None = None,
+    files_client: AsyncOpenAI | None = None,
 ) -> ContainerShortTermMemorySchema:
     """Ensure a persistent container exists, creating one if needed.
 
@@ -93,9 +94,13 @@ async def create_container_if_not_exists(
 
     container_id = memory.container_id
 
+    # Use the direct client for container operations when available (needed
+    # for LiteLLM models where the proxy doesn't support /v1/containers).
+    container_client = files_client or client
+
     if container_id is not None:
         try:
-            container = await client.containers.retrieve(container_id)
+            container = await container_client.containers.retrieve(container_id)
             if container.status not in ["active", "running"]:
                 logger.info(
                     "Container has status `%s`, recreating a new one", container.status
@@ -107,7 +112,7 @@ async def create_container_if_not_exists(
     if container_id is None:
         memory = ContainerShortTermMemorySchema()
 
-        container = await client.containers.create(
+        container = await container_client.containers.create(
             name=f"{container_name_prefix}_{company_id}_{user_id}_{chat_id}",
             expires_after={
                 "anchor": "last_active_at",
@@ -126,11 +131,21 @@ async def upload_files_to_container(
     memory: ContainerShortTermMemorySchema,
     content_service: ContentService,
     chat_id: str,
+    files_client: AsyncOpenAI | None = None,
 ) -> ContainerShortTermMemorySchema:
     """Upload chat files directly into a persistent container.
 
     Files already present (by Unique content ID) are skipped.
+
+    Args:
+        files_client: Optional direct OpenAI client for container/file
+            operations, bypassing the proxy.  Falls back to *client* when
+            ``None``.
     """
+    # Use the direct client for container file operations when available
+    # (needed for LiteLLM models where the proxy doesn't support /v1/containers).
+    container_client = files_client or client
+
     container_id = memory.container_id
 
     assert container_id is not None
@@ -141,7 +156,7 @@ async def upload_files_to_container(
         upload = True
         if file.id in memory.file_ids:
             try:
-                _ = await client.containers.files.retrieve(
+                _ = await container_client.containers.files.retrieve(
                     container_id=container_id, file_id=memory.file_ids[file.id]
                 )
                 logger.info("File with id %s already uploaded to container", file.id)
@@ -157,7 +172,7 @@ async def upload_files_to_container(
                 content_id=file.id, chat_id=chat_id
             )
 
-            openai_file = await client.containers.files.create(
+            openai_file = await container_client.containers.files.create(
                 container_id=container_id,
                 file=(file.key, file_content),
             )
