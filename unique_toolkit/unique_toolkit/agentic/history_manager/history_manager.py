@@ -64,6 +64,13 @@ class HistoryManagerConfig(BaseModel):
         description="The fraction of the max input tokens that will be reserved for the history.",
     )
 
+    percent_for_tool_call_history: float = Field(
+        default=0.0,
+        ge=0.0,
+        lt=1.0,
+        description="The fraction of the max input tokens reserved for tool call rounds. 0 disables.",
+    )
+
     language_model: LMI = LanguageModelInfo.from_name(DEFAULT_GPT_4o)
 
     @property
@@ -71,6 +78,13 @@ class HistoryManagerConfig(BaseModel):
         return int(
             self.language_model.token_limits.token_limit_input
             * self.percent_of_max_tokens_for_history,
+        )
+
+    @property
+    def max_tool_call_history_tokens(self) -> int:
+        return int(
+            self.language_model.token_limits.token_limit_input
+            * self.percent_for_tool_call_history,
         )
 
     uploaded_content_config: (
@@ -121,6 +135,7 @@ class HistoryManager:
             has_uploaded_content_config=bool(self._config.uploaded_content_config),
             language_model=self._language_model,
             reference_manager=reference_manager,
+            max_tokens_for_tool_call_history=self._config.max_tool_call_history_tokens,
         )
         self._tool_call_result_history: list[ToolCallResponse] = []
         self._tool_calls: list[LanguageModelFunction] = []

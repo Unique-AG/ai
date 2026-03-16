@@ -601,6 +601,7 @@ def test_create_reduced_standard_sources_message__formats_sources_correctly_AI(
     assert content_dict[1]["content"] == "Second chunk text"
 
 
+@pytest.mark.ai
 def test_create_reduced_table_search_message__preserves_sql_content_AI(
     loop_token_reducer: LoopTokenReducer,
 ) -> None:
@@ -1090,7 +1091,7 @@ def test_get_encoder__uses_model_get_encoder_AI(
 # Integration-style Tests (still unit tests but test larger flows)
 @pytest.mark.ai
 @patch(
-    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls"
 )
 @patch.object(LoopTokenReducer, "_count_message_tokens")
 async def test_get_history_for_model_call__returns_messages__when_under_limit_AI(
@@ -1127,7 +1128,7 @@ async def test_get_history_for_model_call__returns_messages__when_under_limit_AI
 
 @pytest.mark.ai
 @patch(
-    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls"
 )
 @patch.object(LoopTokenReducer, "_count_message_tokens")
 async def test_get_history_for_model_call__appends_image_urls_to_user_message__when_provided_AI(
@@ -1175,3 +1176,138 @@ async def test_get_history_for_model_call__appends_image_urls_to_user_message__w
         image_parts[0].get("imageUrl", {}).get("url")
         == "data:image/png;base64,iVBORw0KGgo="
     )
+
+
+def _make_tool_call_round(
+    round_id: str,
+    tool_content: str = "tool result",
+) -> list[LanguageModelMessage]:
+    """Create a tool call round: ASSISTANT(tool_calls) + TOOL message."""
+    fn = LanguageModelFunction(name=f"tool_{round_id}", arguments={})
+    fn_call = LanguageModelFunctionCall(id=f"tc_{round_id}", function=fn)
+    return [
+        LanguageModelAssistantMessage(content=None, tool_calls=[fn_call]),
+        LanguageModelToolMessage(
+            tool_call_id=f"tc_{round_id}",
+            content=tool_content,
+            name=f"tool_{round_id}",
+        ),
+    ]
+
+
+@pytest.mark.ai
+def test_limit_tool_call_tokens__keeps_all_rounds__when_budget_sufficient_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """All tool call rounds fit within budget -- nothing is dropped."""
+    round1 = _make_tool_call_round("1", "short")
+    round2 = _make_tool_call_round("2", "short")
+    user_msg = LanguageModelUserMessage(content="question")
+    messages: list[LanguageModelMessage] = [user_msg] + round1 + round2
+
+    result = loop_token_reducer._limit_tool_call_tokens(messages, budget=100_000)
+
+    assert result == messages
+
+
+@pytest.mark.ai
+def test_limit_tool_call_tokens__drops_oldest_round__when_budget_tight_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """When total tool tokens exceed budget, oldest rounds are dropped first."""
+    round1 = _make_tool_call_round("old", "old content " * 200)
+    round2 = _make_tool_call_round("new", "new content")
+    user_msg = LanguageModelUserMessage(content="question")
+    messages: list[LanguageModelMessage] = [user_msg] + round1 + round2
+
+    round2_tokens = sum(
+        loop_token_reducer._count_message_tokens(LanguageModelMessages(root=[m]))
+        for m in round2
+    )
+    budget = round2_tokens + 5
+
+    result = loop_token_reducer._limit_tool_call_tokens(messages, budget=budget)
+
+    assert user_msg in result
+    for m in round2:
+        assert m in result
+    for m in round1:
+        assert m not in result
+
+
+@pytest.mark.ai
+def test_limit_tool_call_tokens__preserves_non_tool_messages__when_dropping_rounds_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """Non-tool-call messages (USER, plain ASSISTANT) are never dropped."""
+    user1 = LanguageModelUserMessage(content="first question")
+    assistant1 = LanguageModelAssistantMessage(content="prose answer")
+    round1 = _make_tool_call_round("old", "big payload " * 200)
+    user2 = LanguageModelUserMessage(content="second question")
+    round2 = _make_tool_call_round("new", "small")
+
+    messages: list[LanguageModelMessage] = (
+        [user1, assistant1] + round1 + [user2] + round2
+    )
+
+    round2_tokens = sum(
+        loop_token_reducer._count_message_tokens(LanguageModelMessages(root=[m]))
+        for m in round2
+    )
+    budget = round2_tokens + 5
+
+    result = loop_token_reducer._limit_tool_call_tokens(messages, budget=budget)
+
+    assert user1 in result
+    assert assistant1 in result
+    assert user2 in result
+
+
+@pytest.mark.ai
+def test_limit_tool_call_tokens__keeps_at_least_one_round__when_single_exceeds_budget_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """Even if the most recent round alone exceeds the budget, it is kept."""
+    round1 = _make_tool_call_round("only", "huge content " * 500)
+    messages: list[LanguageModelMessage] = list(round1)
+
+    result = loop_token_reducer._limit_tool_call_tokens(messages, budget=10)
+
+    assert len(result) == len(round1)
+    for m in round1:
+        assert m in result
+
+
+@pytest.mark.ai
+def test_limit_tool_call_tokens__noop__when_no_tool_rounds_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """If there are no tool call rounds, messages are returned unchanged."""
+    messages: list[LanguageModelMessage] = [
+        LanguageModelUserMessage(content="question"),
+        LanguageModelAssistantMessage(content="answer"),
+    ]
+
+    result = loop_token_reducer._limit_tool_call_tokens(messages, budget=10)
+
+    assert result == messages
+
+
+@pytest.mark.ai
+def test_limit_tool_call_tokens__drops_all_rounds__when_budget_zero_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """Budget of 0 removes all tool-call rounds but preserves other messages."""
+    user_msg = LanguageModelUserMessage(content="question")
+    assistant_msg = LanguageModelAssistantMessage(content="thinking out loud")
+    round1 = _make_tool_call_round("first", "content one")
+    round2 = _make_tool_call_round("second", "content two")
+
+    messages: list[LanguageModelMessage] = [user_msg, assistant_msg] + round1 + round2
+
+    result = loop_token_reducer._limit_tool_call_tokens(messages, budget=0)
+
+    assert user_msg in result
+    assert assistant_msg in result
+    for m in round1 + round2:
+        assert m not in result
