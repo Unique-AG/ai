@@ -1,0 +1,3996 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the Unique Toolkit">
+      
+      
+        <meta name="author" content="Unique Team">
+      
+      
+        <link rel="canonical" href="https://unique-ag.github.io/ai/unique-toolkit/1.53.3/tutorials/code_execution/">
+      
+      
+        <link rel="prev" href="../agentic_table_app/">
+      
+      
+        <link rel="next" href="../file_creation_and_upload_to_chat/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
+    
+    
+      
+        <title>Code Execution - Unique Toolkit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#code-execution" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Unique Toolkit" class="md-header__button md-logo" aria-label="Unique Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Unique Toolkit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Code Execution
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue-grey" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Unique-AG/ai" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Unique-AG/ai
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Unique Toolkit" class="md-nav__button md-logo" aria-label="Unique Toolkit" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Unique Toolkit
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Unique-AG/ai" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Unique-AG/ai
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://unique-ag.github.io/ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unique AI Documentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architectural/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../setup/getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Authentication
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../authentication/#1-personal-api-key" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Personal API Key
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../authentication/#2-creating-an-app" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating an APP
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Application Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Application Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../application_types/standalone_application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Standalone Application
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../application_types/event_driven/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Driven Applications
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6_2" id="__nav_6_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Event Driven Applications
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../application_types/event_driven/event_driven_platform_setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../application_types/event_driven/event_driven_with_sse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SSE Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../application_types/event_driven/event_driven_as_app_with_ngrok/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web Hooks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Services
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Core Services
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../events/events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../chat/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chat
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7_2" id="__nav_7_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Chat
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../chat/cancellation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Task Cancellation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../chat/advanced_rendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Rendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../knowledge_base/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Knowledge Base
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7_3" id="__nav_7_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Knowledge Base
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../knowledge_base/smart_rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Smart Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../agentic_table/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agentic Table
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7_4" id="__nav_7_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Agentic Table
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agentic_table/column_styling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Column Styling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agentic_table/cell_rendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cell rendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../plattforms/openai/openai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenAI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chat
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Chat
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/examples/chat/chat_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Basic Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/examples/chat/chat_document_handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Document Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/examples/chat/advanced_rendering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Rendering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Knowledge Base
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Knowledge Base
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/examples/content/kb_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Base Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/examples/content/smart_rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Smart Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agentic_table_app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agentic Table App
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Execution
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-youll-learn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What You'll Learn
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-auto-managed-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Auto-managed container
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Auto-managed container">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#including-code-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Including code outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-custom-azure-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Custom Azure container
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Custom Azure container">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#uploading-and-downloading-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uploading and downloading files
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Uploading and downloading files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#list-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        List files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-if-a-file-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking if a file exists
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-if-a-container-exists-and-is-usable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking if a container exists (and is usable)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#downloading-model-generated-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Downloading model-generated files
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-calling-the-responses-api-via-chatservice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Calling the Responses API via ChatService
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Calling the Responses API via ChatService">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-responseslanguagemodelstreamresponse-output-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The ResponsesLanguageModelStreamResponse output object
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-persisting-state-with-shorttermmemoryservice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Persisting state with ShortTermMemoryService
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Persisting state with ShortTermMemoryService">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#define-a-memory-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Define a memory schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set-up-the-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set up the manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#per-turn-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-turn pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example scripts
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../file_creation_and_upload_to_chat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Creation with Upload to Chat
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agentic Framework
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Agentic Framework
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agentic_framework/framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agentic_framework/orchestrator/unqiue_ai_how-it-works/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orchestrator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agentic_framework/tool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tool
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agentic_framework/tool_call_response/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tool Call Response
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agentic_framework/tool_manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tool Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agentic_framework/debug_manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Debug Info Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agentic_framework/postprocessor_manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Postprocessor Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agentic_framework/evaluation_manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agentic_framework/reference_manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../agentic_framework/history_manager/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    History Manager
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_11_2" id="__nav_11_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Services
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_11_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Core Services
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/chat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chat Module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/knowledge_base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Knowledge Base Module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/short_term_memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Short Term Memory Module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    App Module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/content_smart_rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Smart Rules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/data_extraction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Extraction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/agentic_table/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agentic Table
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_11_3" id="__nav_11_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Framework Utilities
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_11_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Framework Utilities
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/openai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OpenAI Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/langchain/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Langchain Client
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_11_4" id="__nav_11_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deprecated Modules
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_11_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Deprecated Modules
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/content/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/embedding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedding Module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../modules/language_model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Language Model Module
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../readme/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Readme
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-youll-learn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What You'll Learn
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-auto-managed-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Auto-managed container
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Auto-managed container">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#including-code-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Including code outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-custom-azure-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Custom Azure container
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Custom Azure container">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#uploading-and-downloading-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Uploading and downloading files
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Uploading and downloading files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#upload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#download" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#list-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        List files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-if-a-file-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking if a file exists
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-if-a-container-exists-and-is-usable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking if a container exists (and is usable)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#downloading-model-generated-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Downloading model-generated files
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-calling-the-responses-api-via-chatservice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Calling the Responses API via ChatService
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Calling the Responses API via ChatService">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-responseslanguagemodelstreamresponse-output-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The ResponsesLanguageModelStreamResponse output object
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-persisting-state-with-shorttermmemoryservice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Persisting state with ShortTermMemoryService
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Persisting state with ShortTermMemoryService">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#define-a-memory-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Define a memory schema
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set-up-the-manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set up the manager
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#per-turn-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-turn pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example scripts
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/Unique-AG/ai/edit/main/unique_toolkit/docs/tutorials/code_execution.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="code-execution">Code Execution<a class="headerlink" href="#code-execution" title="Permanent link">&para;</a></h1>
+<p>Code execution lets the model run Python in a sandbox for tasks like data analysis, plotting, or file processing. It is available through the <strong>Responses API</strong> (<code>client.responses.create</code> or <code>ChatService.complete_responses_with_references</code>), not Chat Completions.</p>
+<h2 id="what-youll-learn">What You'll Learn<a class="headerlink" href="#what-youll-learn" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Using an auto-managed container for code execution (quick start)</li>
+<li>Including code outputs (stdout, stderr, results) in the response</li>
+<li>Creating and using a custom Azure container for per-chat isolation and lifecycle control</li>
+<li>Uploading and downloading files from containers</li>
+<li>Downloading files generated by the model during code execution</li>
+<li>Calling the Responses API through <code>ChatService</code> instead of the raw OpenAI client</li>
+<li>Working with the <code>ResponsesLanguageModelStreamResponse</code> output object and its convenience properties</li>
+<li>Persisting container and file state across stateless turns using <code>ShortTermMemoryService</code></li>
+</ul>
+<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>unique_toolkit</code> and the OpenAI SDK</li>
+<li>A model that supports code execution (e.g. <code>LanguageModelName.AZURE_GPT_5_2025_0807</code>)</li>
+</ul>
+<p>For general client setup, see <a href="../../plattforms/openai/openai/">OpenAI Client</a>.</p>
+<hr />
+<h2 id="1-auto-managed-container">1. Auto-managed container<a class="headerlink" href="#1-auto-managed-container" title="Permanent link">&para;</a></h2>
+<p>Get a client, define the code interpreter tool with <code>container={"type": "auto"}</code>, and call the Responses API. The API manages the container for you.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">openai.types.responses.tool_param</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeInterpreter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.framework_utilities.openai.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_openai_client</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.language_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">LanguageModelName</span>
+
+<span class="n">model_name</span> <span class="o">=</span> <span class="n">LanguageModelName</span><span class="o">.</span><span class="n">AZURE_GPT_5_2025_0807</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">get_openai_client</span><span class="p">()</span>
+
+<span class="n">code_interpreter_tool</span> <span class="o">=</span> <span class="n">CodeInterpreter</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;code_interpreter&quot;</span><span class="p">,</span> <span class="n">container</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;auto&quot;</span><span class="p">})</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">responses</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="n">model_name</span><span class="p">,</span>
+    <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="n">code_interpreter_tool</span><span class="p">],</span>
+    <span class="nb">input</span><span class="o">=</span><span class="s2">&quot;Use code to print hello world.&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="including-code-outputs">Including code outputs<a class="headerlink" href="#including-code-outputs" title="Permanent link">&para;</a></h3>
+<p>To get stdout, stderr, or generated images from the code, pass <code>include=["code_interpreter_call.outputs"]</code>. The <code>response.output</code> list will contain both the text block and the code interpreter call with <code>.outputs</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="n">response_with_output</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">responses</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="n">model_name</span><span class="p">,</span>
+    <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="n">code_interpreter_tool</span><span class="p">],</span>
+    <span class="nb">input</span><span class="o">=</span><span class="s2">&quot;Use code to print hello world.&quot;</span><span class="p">,</span>
+    <span class="n">include</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;code_interpreter_call.outputs&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response_with_output</span><span class="o">.</span><span class="n">output</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">outputs</span><span class="p">)</span>
+</code></pre></div>
+<blockquote>
+<p><strong>Note:</strong> <code>include=["code_interpreter_call.outputs"]</code> returns only <strong>images</strong> and <strong>console output</strong> (stdout/stderr). Other files written by the model (e.g. CSVs, Word files) are not included there. To get those, use the approach described in <a href="#downloading-model-generated-files">Downloading model-generated files</a>.</p>
+</blockquote>
+<hr />
+<h2 id="2-custom-azure-container">2. Custom Azure container<a class="headerlink" href="#2-custom-azure-container" title="Permanent link">&para;</a></h2>
+<p>Use a custom container when you need to re-use containers (typically for the same chat sessions), and when you want to upload files in order for the client to operate on. <br />
+The client <code>x-model</code> header must match the model used for code execution.</p>
+<p><strong>Client:</strong> Use <code>get_openai_client(additional_headers={"x-model": model_name})</code> and use the same <code>model</code> in <code>responses.create</code>.</p>
+<p><strong>Create container:</strong> Call <code>client.containers.create</code> with a name (include something like <code>chat_id</code> to separate chats) and <code>expires_after</code> (e.g. <code>{"anchor": "last_active_at", "minutes": 20}</code>).</p>
+<p><strong>Tool:</strong> Use <code>CodeInterpreter(type="code_interpreter", container=container.id)</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">openai.types.responses.tool_param</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeInterpreter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.framework_utilities.openai.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_openai_client</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.language_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">LanguageModelName</span>
+
+<span class="n">model_name</span> <span class="o">=</span> <span class="n">LanguageModelName</span><span class="o">.</span><span class="n">AZURE_GPT_5_2025_0807</span>
+<span class="c1"># Client header should match the model used for code execution</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">get_openai_client</span><span class="p">(</span><span class="n">additional_headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;x-model&quot;</span><span class="p">:</span> <span class="n">model_name</span><span class="p">})</span>
+
+<span class="n">container</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;code_execution_container&quot;</span><span class="p">,</span>
+    <span class="n">expires_after</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;anchor&quot;</span><span class="p">:</span> <span class="s2">&quot;last_active_at&quot;</span><span class="p">,</span> <span class="s2">&quot;minutes&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">},</span>
+<span class="p">)</span>
+
+<span class="n">code_interpreter_tool</span> <span class="o">=</span> <span class="n">CodeInterpreter</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;code_interpreter&quot;</span><span class="p">,</span> <span class="n">container</span><span class="o">=</span><span class="n">container</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">responses</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="n">model_name</span><span class="p">,</span>
+    <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="n">code_interpreter_tool</span><span class="p">],</span>
+    <span class="nb">input</span><span class="o">=</span><span class="s2">&quot;Use code to print hello world.&quot;</span><span class="p">,</span>
+    <span class="n">include</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;code_interpreter_call.outputs&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="uploading-and-downloading-files">Uploading and downloading files<a class="headerlink" href="#uploading-and-downloading-files" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p>File upload and download apply to <strong>custom containers</strong> (you need a <code>container_id</code>). With auto containers, the API manages storage differently.</p>
+</blockquote>
+<h4 id="upload">Upload<a class="headerlink" href="#upload" title="Permanent link">&para;</a></h4>
+<p>Use <code>client.containers.files.create(container.id, file=(filename, file_content))</code> where <code>file_content</code> is for example <strong>bytes</strong> (other formats supported, check OpenAI documentation). The call returns a file object with <code>.id</code>; store it for later (e.g. to avoid re-uploading or to download).</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Example: upload a small CSV as bytes</span>
+<span class="n">csv_content</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">&quot;name,value</span><span class="se">\n</span><span class="s2">a,1</span><span class="se">\n</span><span class="s2">b,2</span><span class="se">\n</span><span class="s2">&quot;</span>
+<span class="n">openai_file</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">container</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">file</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;data.csv&quot;</span><span class="p">,</span> <span class="n">csv_content</span><span class="p">),</span>
+<span class="p">)</span>
+<span class="n">file_id</span> <span class="o">=</span> <span class="n">openai_file</span><span class="o">.</span><span class="n">id</span>  <span class="c1"># store for later</span>
+</code></pre></div>
+<h4 id="download">Download<a class="headerlink" href="#download" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Metadata:</strong> <code>client.containers.files.retrieve(file_id, container_id=container.id)</code></li>
+<li><strong>Content (bytes):</strong> <code>client.containers.files.content.retrieve(file_id, container_id=container.id)</code></li>
+</ul>
+<p>Container lifecycle (e.g. <code>expires_after</code>) applies to these files as well.</p>
+<h4 id="list-files">List files<a class="headerlink" href="#list-files" title="Permanent link">&para;</a></h4>
+<p>Use <code>client.containers.files.list(container_id)</code> to iterate over all files currently in the container:</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">container</span><span class="o">.</span><span class="n">id</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">file</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">  </span><span class="si">{</span><span class="n">file</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h4 id="checking-if-a-file-exists">Checking if a file exists<a class="headerlink" href="#checking-if-a-file-exists" title="Permanent link">&para;</a></h4>
+<p>Call <code>client.containers.files.retrieve(file_id, container_id=...)</code>. It raises <code>openai.NotFoundError</code> if the file does not exist. Use try/except to decide whether to upload or skip.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">NotFoundError</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="n">file_id</span><span class="p">,</span> <span class="n">container_id</span><span class="o">=</span><span class="n">container</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+    <span class="c1"># file exists, skip upload</span>
+<span class="k">except</span> <span class="n">NotFoundError</span><span class="p">:</span>
+    <span class="c1"># upload the file</span>
+    <span class="n">openai_file</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+</code></pre></div>
+<h4 id="checking-if-a-container-exists-and-is-usable">Checking if a container exists (and is usable)<a class="headerlink" href="#checking-if-a-container-exists-and-is-usable" title="Permanent link">&para;</a></h4>
+<p>Call <code>client.containers.retrieve(container_id)</code>. It raises <code>openai.NotFoundError</code> if the container does not exist. If it exists, check <code>container.status</code> — only treat as usable when <code>status in ["active", "running"]</code>; otherwise create a new container.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">NotFoundError</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">container</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="n">container_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">container</span><span class="o">.</span><span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;active&quot;</span><span class="p">,</span> <span class="s2">&quot;running&quot;</span><span class="p">]:</span>
+        <span class="c1"># create a new container</span>
+        <span class="n">container</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="k">except</span> <span class="n">NotFoundError</span><span class="p">:</span>
+    <span class="n">container</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h4 id="downloading-model-generated-files">Downloading model-generated files<a class="headerlink" href="#downloading-model-generated-files" title="Permanent link">&para;</a></h4>
+<p>When the model writes a file during code execution (e.g. a CSV or plot), it references those files as <code>container_file_citation</code> annotations on <code>output_text</code> content items. This works with both auto and custom containers.</p>
+<p>Iterate over <code>response.output</code>, find <code>ResponseOutputMessage</code> items, and read the annotations to get the <code>file_id</code> and filename. Then download the content with <code>files.content.retrieve</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">openai.types.responses</span><span class="w"> </span><span class="kn">import</span> <span class="n">ResponseOutputMessage</span>
+
+<span class="n">generated_file_id</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">ResponseOutputMessage</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">content</span> <span class="ow">in</span> <span class="n">item</span><span class="o">.</span><span class="n">content</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">content</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;output_text&quot;</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">annotation</span> <span class="ow">in</span> <span class="n">content</span><span class="o">.</span><span class="n">annotations</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">annotation</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;container_file_citation&quot;</span><span class="p">:</span>
+                        <span class="n">generated_file_id</span> <span class="o">=</span> <span class="n">annotation</span><span class="o">.</span><span class="n">file_id</span>
+                        <span class="n">container_id</span> <span class="o">=</span> <span class="n">annotation</span><span class="o">.</span><span class="n">container_id</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generated file: </span><span class="si">{</span><span class="n">annotation</span><span class="o">.</span><span class="n">filename</span><span class="si">}</span><span class="s2">  (</span><span class="si">{</span><span class="n">generated_file_id</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">generated_file_id</span><span class="p">:</span>
+    <span class="n">file_content</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span>
+        <span class="n">generated_file_id</span><span class="p">,</span>
+        <span class="n">container_id</span><span class="o">=</span><span class="n">container_id</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">generated_bytes</span> <span class="o">=</span> <span class="n">file_content</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Downloaded </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">generated_bytes</span><span class="p">)</span><span class="si">}</span><span class="s2"> bytes&quot;</span><span class="p">)</span>
+</code></pre></div>
+<blockquote>
+<p>Note: <code>include=["code_interpreter_call.outputs"]</code> returns inline stdout/stderr/images in the response. Files saved to disk by the model (e.g. with <code>df.to_csv(...)</code>) are not included there — use the annotation pattern above to download them.</p>
+</blockquote>
+<hr />
+<h2 id="4-calling-the-responses-api-via-chatservice">4. Calling the Responses API via ChatService<a class="headerlink" href="#4-calling-the-responses-api-via-chatservice" title="Permanent link">&para;</a></h2>
+<p>Use <code>chat_service.complete_responses_with_references()</code> (sync) or <code>complete_responses_with_references_async()</code> (async) instead of calling <code>client.responses.create</code> directly. These methods handle authentication, streaming, and message writing (with references) to the chat automatically.</p>
+<p>The signature accepts the same <code>tools</code>, <code>include</code>, and <code>messages</code> arguments as the raw API:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">openai.types.responses.tool_param</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeInterpreter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.language_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">LanguageModelName</span>
+
+<span class="n">code_interpreter_tool</span> <span class="o">=</span> <span class="n">CodeInterpreter</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;code_interpreter&quot;</span><span class="p">,</span> <span class="n">container</span><span class="o">=</span><span class="n">container_id</span><span class="p">)</span>
+
+<span class="n">response</span> <span class="o">=</span> <span class="n">chat_service</span><span class="o">.</span><span class="n">complete_responses_with_references</span><span class="p">(</span>
+    <span class="n">model_name</span><span class="o">=</span><span class="n">LanguageModelName</span><span class="o">.</span><span class="n">AZURE_GPT_5_2025_0807</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="s2">&quot;Read data.csv and plot a histogram. Save the plot as histogram.png.&quot;</span><span class="p">,</span>
+    <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="n">code_interpreter_tool</span><span class="p">],</span>
+    <span class="n">include</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;code_interpreter_call.outputs&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>For the async variant:</p>
+<div class="highlight"><pre><span></span><code><span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">chat_service</span><span class="o">.</span><span class="n">complete_responses_with_references_async</span><span class="p">(</span>
+    <span class="n">model_name</span><span class="o">=</span><span class="n">LanguageModelName</span><span class="o">.</span><span class="n">AZURE_GPT_5_2025_0807</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="s2">&quot;Read data.csv and plot a histogram. Save the plot as histogram.png.&quot;</span><span class="p">,</span>
+    <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="n">code_interpreter_tool</span><span class="p">],</span>
+    <span class="n">include</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;code_interpreter_call.outputs&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="the-responseslanguagemodelstreamresponse-output-object">The ResponsesLanguageModelStreamResponse output object<a class="headerlink" href="#the-responseslanguagemodelstreamresponse-output-object" title="Permanent link">&para;</a></h3>
+<p><code>complete_responses_with_references</code> returns a <code>ResponsesLanguageModelStreamResponse</code>. Its <code>.output</code> field is the raw <code>list[ResponseOutputItem]</code> — identical in structure to what you get from <code>client.responses.create</code>. In addition, the object exposes convenience properties that save you from iterating manually:</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.output</code></td>
+<td><code>list[ResponseOutputItem]</code></td>
+<td>Raw output items (text, code calls, etc.)</td>
+</tr>
+<tr>
+<td><code>.container_files</code></td>
+<td><code>list[AnnotationContainerFileCitation]</code></td>
+<td>All <code>container_file_citation</code> annotations across all output messages</td>
+</tr>
+<tr>
+<td><code>.code_interpreter_calls</code></td>
+<td><code>list[ResponseCodeInterpreterToolCall]</code></td>
+<td>All code interpreter call items</td>
+</tr>
+</tbody>
+</table>
+<p>Instead of manually walking <code>.output</code> to find annotations (as shown in section 3), use <code>.container_files</code> directly:</p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span> <span class="n">citation</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">container_files</span><span class="p">:</span>
+    <span class="n">file_content</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span>
+        <span class="n">citation</span><span class="o">.</span><span class="n">file_id</span><span class="p">,</span>
+        <span class="n">container_id</span><span class="o">=</span><span class="n">citation</span><span class="o">.</span><span class="n">container_id</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">citation</span><span class="o">.</span><span class="n">filename</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">file_content</span><span class="o">.</span><span class="n">read</span><span class="p">())</span><span class="si">}</span><span class="s2"> bytes&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>Each <code>citation</code> has <code>.file_id</code>, <code>.filename</code>, and <code>.container_id</code>.</p>
+<hr />
+<h2 id="5-persisting-state-with-shorttermmemoryservice">5. Persisting state with ShortTermMemoryService<a class="headerlink" href="#5-persisting-state-with-shorttermmemoryservice" title="Permanent link">&para;</a></h2>
+<p>The assistant is stateless — a new handler instance is created for every incoming message. Without persistence, a new container would be created on every turn and previously uploaded files would be lost. Use <code>PersistentShortMemoryManager</code> to save the <code>container_id</code> and uploaded file IDs to chat-scoped short-term memory, so they can be reused on the next turn.</p>
+<h3 id="define-a-memory-schema">Define a memory schema<a class="headerlink" href="#define-a-memory-schema" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">CodeExecutionMemory</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="n">container_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">file_ids</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># Unique file id -&gt; OpenAI container file id</span>
+</code></pre></div>
+<h3 id="set-up-the-manager">Set up the manager<a class="headerlink" href="#set-up-the-manager" title="Permanent link">&para;</a></h3>
+<p>Instantiate at chat scope (using <code>chat_id</code>, not <code>message_id</code>) so memory persists across turns:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.short_term_memory.service</span><span class="w"> </span><span class="kn">import</span> <span class="n">ShortTermMemoryService</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">PersistentShortMemoryManager</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">stm_service</span> <span class="o">=</span> <span class="n">ShortTermMemoryService</span><span class="p">(</span>
+    <span class="n">company_id</span><span class="o">=</span><span class="n">event</span><span class="o">.</span><span class="n">company_id</span><span class="p">,</span>
+    <span class="n">user_id</span><span class="o">=</span><span class="n">event</span><span class="o">.</span><span class="n">user_id</span><span class="p">,</span>
+    <span class="n">chat_id</span><span class="o">=</span><span class="n">event</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">chat_id</span><span class="p">,</span>
+    <span class="n">message_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="c1"># chat-level scope, not message-level</span>
+<span class="p">)</span>
+<span class="n">memory_manager</span> <span class="o">=</span> <span class="n">PersistentShortMemoryManager</span><span class="p">(</span>
+    <span class="n">short_term_memory_service</span><span class="o">=</span><span class="n">stm_service</span><span class="p">,</span>
+    <span class="n">short_term_memory_schema</span><span class="o">=</span><span class="n">CodeExecutionMemory</span><span class="p">,</span>
+    <span class="n">short_term_memory_name</span><span class="o">=</span><span class="s2">&quot;code_execution&quot;</span><span class="p">,</span> <span class="c1"># Ideally include a chat_id in the name</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="per-turn-pattern">Per-turn pattern<a class="headerlink" href="#per-turn-pattern" title="Permanent link">&para;</a></h3>
+<p>Load at the start of each turn, update in place, save at the end:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">NotFoundError</span>
+
+<span class="c1"># 1. Load (returns None if no memory saved yet)</span>
+<span class="n">memory</span> <span class="o">=</span> <span class="k">await</span> <span class="n">memory_manager</span><span class="o">.</span><span class="n">load_async</span><span class="p">()</span> <span class="ow">or</span> <span class="n">CodeExecutionMemory</span><span class="p">()</span>
+
+<span class="c1"># 2. Create or reuse container</span>
+<span class="k">if</span> <span class="n">memory</span><span class="o">.</span><span class="n">container_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">container</span> <span class="o">=</span> <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="n">memory</span><span class="o">.</span><span class="n">container_id</span><span class="p">)</span>
+        <span class="c1"># This field is not well-typed in the openai sdk, this was found through trial and error</span>
+        <span class="k">if</span> <span class="n">container</span><span class="o">.</span><span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;active&quot;</span><span class="p">,</span> <span class="s2">&quot;running&quot;</span><span class="p">]:</span>
+            <span class="n">memory</span> <span class="o">=</span> <span class="n">CodeExecutionMemory</span><span class="p">()</span>  <span class="c1"># reset: stale container</span>
+    <span class="k">except</span> <span class="n">NotFoundError</span><span class="p">:</span>
+        <span class="n">memory</span> <span class="o">=</span> <span class="n">CodeExecutionMemory</span><span class="p">()</span>  <span class="c1"># reset: container gone</span>
+
+<span class="k">if</span> <span class="n">memory</span><span class="o">.</span><span class="n">container_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">container</span> <span class="o">=</span> <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;code_execution_</span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">chat_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+        <span class="n">expires_after</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;anchor&quot;</span><span class="p">:</span> <span class="s2">&quot;last_active_at&quot;</span><span class="p">,</span> <span class="s2">&quot;minutes&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">},</span>
+    <span class="p">)</span>
+    <span class="n">memory</span><span class="o">.</span><span class="n">container_id</span> <span class="o">=</span> <span class="n">container</span><span class="o">.</span><span class="n">id</span>
+
+<span class="c1"># 3. Upload files (skip if already uploaded)</span>
+<span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">files_to_upload</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="n">memory</span><span class="o">.</span><span class="n">file_ids</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span>
+                <span class="n">memory</span><span class="o">.</span><span class="n">file_ids</span><span class="p">[</span><span class="n">file</span><span class="o">.</span><span class="n">id</span><span class="p">],</span> <span class="n">container_id</span><span class="o">=</span><span class="n">memory</span><span class="o">.</span><span class="n">container_id</span>
+            <span class="p">)</span>
+            <span class="k">continue</span>  <span class="c1"># already there</span>
+        <span class="k">except</span> <span class="n">NotFoundError</span><span class="p">:</span>
+            <span class="k">pass</span>  <span class="c1"># fall through to re-upload</span>
+
+    <span class="n">openai_file</span> <span class="o">=</span> <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+        <span class="n">memory</span><span class="o">.</span><span class="n">container_id</span><span class="p">,</span>
+        <span class="n">file</span><span class="o">=</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">file</span><span class="o">.</span><span class="n">content_bytes</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="n">memory</span><span class="o">.</span><span class="n">file_ids</span><span class="p">[</span><span class="n">file</span><span class="o">.</span><span class="n">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">openai_file</span><span class="o">.</span><span class="n">id</span>
+
+<span class="c1"># 4. Run inference</span>
+<span class="n">code_interpreter_tool</span> <span class="o">=</span> <span class="n">CodeInterpreter</span><span class="p">(</span>
+    <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;code_interpreter&quot;</span><span class="p">,</span> <span class="n">container</span><span class="o">=</span><span class="n">memory</span><span class="o">.</span><span class="n">container_id</span>
+<span class="p">)</span>
+<span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="n">chat_service</span><span class="o">.</span><span class="n">complete_responses_with_references_async</span><span class="p">(</span>
+    <span class="n">model_name</span><span class="o">=</span><span class="n">LanguageModelName</span><span class="o">.</span><span class="n">AZURE_GPT_5_2025_0807</span><span class="p">,</span>
+    <span class="n">messages</span><span class="o">=</span><span class="n">user_message</span><span class="p">,</span>
+    <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="n">code_interpreter_tool</span><span class="p">],</span>
+    <span class="n">include</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;code_interpreter_call.outputs&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+
+<span class="c1"># 5. Save updated memory</span>
+<span class="k">await</span> <span class="n">memory_manager</span><span class="o">.</span><span class="n">save_async</span><span class="p">(</span><span class="n">memory</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="example-scripts">Example scripts<a class="headerlink" href="#example-scripts" title="Permanent link">&para;</a></h2>
+<details class="example">
+<summary>Full Example — Quick start with auto container (Click to expand)</summary>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:1"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Code Execution — Auto container</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="c1"># %%</span>
+<span class="c1"># Code execution with auto-managed container (Responses API)</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openai.types.responses.tool_param</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeInterpreter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.framework_utilities.openai.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_openai_client</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.language_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">LanguageModelName</span>
+
+<span class="n">model_name</span> <span class="o">=</span> <span class="n">LanguageModelName</span><span class="o">.</span><span class="n">AZURE_GPT_5_2025_0807</span>
+<span class="n">client</span> <span class="o">=</span> <span class="n">get_openai_client</span><span class="p">()</span>
+
+<span class="c1"># %%</span>
+<span class="c1"># Define tool and call Responses API</span>
+<span class="n">code_interpreter_tool</span> <span class="o">=</span> <span class="n">CodeInterpreter</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;code_interpreter&quot;</span><span class="p">,</span> <span class="n">container</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;auto&quot;</span><span class="p">})</span>
+<span class="n">messages</span> <span class="o">=</span> <span class="s2">&quot;Use code to print hello world.&quot;</span>
+
+<span class="n">response_with_output</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">responses</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="n">model_name</span><span class="p">,</span>
+    <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="n">code_interpreter_tool</span><span class="p">],</span>
+    <span class="nb">input</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span>
+    <span class="n">include</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;code_interpreter_call.outputs&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+
+<span class="c1"># %%</span>
+<span class="c1"># response.output is a list (e.g. text block, then code_interpreter_call)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response_with_output</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">response_with_output</span><span class="o">.</span><span class="n">output</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">outputs</span><span class="p">)</span>  <span class="c1"># type: ignore[union-attr]</span>
+</code></pre></div>
+</div>
+</div>
+</div>
+</details>
+<details class="example">
+<summary>Full Example — Custom Azure container (Click to expand)</summary>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:1"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Code Execution — Custom Azure container</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="c1"># %%</span>
+<span class="c1"># Code execution with custom Azure container (Responses API)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.framework_utilities.openai.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_openai_client</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.language_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">LanguageModelName</span>
+
+<span class="n">model_name</span> <span class="o">=</span> <span class="n">LanguageModelName</span><span class="o">.</span><span class="n">AZURE_GPT_5_2025_0807</span>
+
+<span class="n">client</span> <span class="o">=</span> <span class="n">get_openai_client</span><span class="p">(</span><span class="n">additional_headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;x-model&quot;</span><span class="p">:</span> <span class="n">model_name</span><span class="p">})</span>
+
+<span class="c1"># %%</span>
+<span class="c1"># Create a custom Azure container</span>
+<span class="c1"># Recommended to use chat_id in the name to differentiate containers across chats</span>
+
+<span class="n">container</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;code_execution_container&quot;</span><span class="p">,</span>
+    <span class="n">expires_after</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;anchor&quot;</span><span class="p">:</span> <span class="s2">&quot;last_active_at&quot;</span><span class="p">,</span> <span class="s2">&quot;minutes&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">},</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created container: </span><span class="si">{</span><span class="n">container</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># %%</span>
+<span class="c1"># Upload a file to the container</span>
+
+<span class="n">csv_bytes</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">&quot;name,value</span><span class="se">\n</span><span class="s2">foo,1</span><span class="se">\n</span><span class="s2">bar,2&quot;</span>
+<span class="n">uploaded_file</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">container</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">file</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;data.csv&quot;</span><span class="p">,</span> <span class="n">csv_bytes</span><span class="p">),</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Uploaded file: </span><span class="si">{</span><span class="n">uploaded_file</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># %%</span>
+<span class="c1"># Download a file from the container</span>
+<span class="c1"># Files produced by code execution are accessible the same way via file_id</span>
+
+<span class="n">file_id</span> <span class="o">=</span> <span class="n">uploaded_file</span><span class="o">.</span><span class="n">id</span>  <span class="c1"># or any file_id from a code interpreter output</span>
+<span class="n">file_content</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span>
+    <span class="n">file_id</span><span class="p">,</span>
+    <span class="n">container_id</span><span class="o">=</span><span class="n">container</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">downloaded_bytes</span> <span class="o">=</span> <span class="n">file_content</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+<span class="k">assert</span> <span class="n">downloaded_bytes</span> <span class="o">==</span> <span class="n">csv_bytes</span>
+
+<span class="c1"># %%</span>
+<span class="c1"># List all files in the container</span>
+
+<span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">list</span><span class="p">(</span><span class="n">container</span><span class="o">.</span><span class="n">id</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">file</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">  </span><span class="si">{</span><span class="n">file</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># %%</span>
+<span class="c1"># Define tools and call Responses API</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openai.types.responses.tool_param</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeInterpreter</span>
+
+<span class="n">code_interpreter_tool</span> <span class="o">=</span> <span class="n">CodeInterpreter</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;code_interpreter&quot;</span><span class="p">,</span> <span class="n">container</span><span class="o">=</span><span class="n">container</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+<span class="n">messages</span> <span class="o">=</span> <span class="s2">&quot;Read data.csv and add a random column. Save the result to a new file called data_with_random_column.csv.&quot;</span>
+
+<span class="n">response_with_output</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">responses</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="n">model_name</span><span class="p">,</span>
+    <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="n">code_interpreter_tool</span><span class="p">],</span>
+    <span class="nb">input</span><span class="o">=</span><span class="n">messages</span><span class="p">,</span>
+    <span class="n">include</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;code_interpreter_call.outputs&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+
+<span class="c1"># %%</span>
+<span class="c1"># Download a file generated by the model during code execution</span>
+<span class="c1"># File citations appear as annotations on output text items</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openai.types.responses</span><span class="w"> </span><span class="kn">import</span> <span class="n">ResponseOutputMessage</span>
+
+<span class="n">generated_file_id</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">response_with_output</span><span class="o">.</span><span class="n">output</span><span class="p">:</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">ResponseOutputMessage</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">content</span> <span class="ow">in</span> <span class="n">item</span><span class="o">.</span><span class="n">content</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">content</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;output_text&quot;</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">annotation</span> <span class="ow">in</span> <span class="n">content</span><span class="o">.</span><span class="n">annotations</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">annotation</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;container_file_citation&quot;</span><span class="p">:</span>
+                        <span class="n">generated_file_id</span> <span class="o">=</span> <span class="n">annotation</span><span class="o">.</span><span class="n">file_id</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generated file: </span><span class="si">{</span><span class="n">annotation</span><span class="o">.</span><span class="n">filename</span><span class="si">}</span><span class="s2">  (</span><span class="si">{</span><span class="n">generated_file_id</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+<span class="c1"># %%</span>
+<span class="k">if</span> <span class="n">generated_file_id</span><span class="p">:</span>
+    <span class="n">generated_content</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span>
+        <span class="n">generated_file_id</span><span class="p">,</span>
+        <span class="n">container_id</span><span class="o">=</span><span class="n">container</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">generated_bytes</span> <span class="o">=</span> <span class="n">generated_content</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Downloaded generated file: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">generated_bytes</span><span class="p">)</span><span class="si">}</span><span class="s2"> bytes&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">generated_bytes</span><span class="p">)</span>
+
+<span class="c1"># %%</span>
+<span class="c1"># Check if a container exists and is usable before reusing it</span>
+<span class="c1"># Useful when storing container.id across sessions (e.g. in chat state)</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">NotFoundError</span>
+
+<span class="n">stored_container_id</span> <span class="o">=</span> <span class="n">container</span><span class="o">.</span><span class="n">id</span>  <span class="c1"># e.g. loaded from persistent state</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">existing_container</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="n">stored_container_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">existing_container</span><span class="o">.</span><span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;active&quot;</span><span class="p">,</span> <span class="s2">&quot;running&quot;</span><span class="p">]:</span>
+        <span class="n">container</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;code_execution_container&quot;</span><span class="p">,</span>
+            <span class="n">expires_after</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;anchor&quot;</span><span class="p">:</span> <span class="s2">&quot;last_active_at&quot;</span><span class="p">,</span> <span class="s2">&quot;minutes&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">},</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">container</span> <span class="o">=</span> <span class="n">existing_container</span>
+<span class="k">except</span> <span class="n">NotFoundError</span><span class="p">:</span>
+    <span class="n">container</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;code_execution_container&quot;</span><span class="p">,</span>
+        <span class="n">expires_after</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;anchor&quot;</span><span class="p">:</span> <span class="s2">&quot;last_active_at&quot;</span><span class="p">,</span> <span class="s2">&quot;minutes&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">},</span>
+    <span class="p">)</span>
+
+<span class="c1"># %%</span>
+<span class="c1"># Check if a file already exists in the container before re-uploading</span>
+
+<span class="n">stored_file_id</span> <span class="o">=</span> <span class="n">uploaded_file</span><span class="o">.</span><span class="n">id</span>  <span class="c1"># e.g. loaded from persistent state</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="n">stored_file_id</span><span class="p">,</span> <span class="n">container_id</span><span class="o">=</span><span class="n">container</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;File already exists, skipping upload&quot;</span><span class="p">)</span>
+<span class="k">except</span> <span class="n">NotFoundError</span><span class="p">:</span>
+    <span class="n">uploaded_file</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+        <span class="n">container</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+        <span class="n">file</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;data.csv&quot;</span><span class="p">,</span> <span class="n">csv_bytes</span><span class="p">),</span>
+    <span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Re-uploaded file: </span><span class="si">{</span><span class="n">uploaded_file</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+</div>
+</div>
+</div>
+</details>
+<details class="example">
+<summary>Full Example — Unique platform patterns (Click to expand)</summary>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:1"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Code Execution — Unique platform patterns</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><span class="c1"># %%</span>
+<span class="c1"># Code execution — Unique platform patterns</span>
+<span class="c1"># Covers: ChatService responses API, ResponsesLanguageModelStreamResponse, ShortTermMemory</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">NotFoundError</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">openai.types.responses.tool_param</span><span class="w"> </span><span class="kn">import</span> <span class="n">CodeInterpreter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.dev_util</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_event_generator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatEvent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.app.unique_settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniqueSettings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">PersistentShortMemoryManager</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.chat.service</span><span class="w"> </span><span class="kn">import</span> <span class="n">Content</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.framework_utilities.openai.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_openai_client</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.language_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">LanguageModelName</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.short_term_memory.service</span><span class="w"> </span><span class="kn">import</span> <span class="n">ShortTermMemoryService</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatService</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unique_toolkit.services.knowledge_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">KnowledgeBaseService</span>
+
+<span class="n">settings</span> <span class="o">=</span> <span class="n">UniqueSettings</span><span class="o">.</span><span class="n">from_env_auto_with_sdk_init</span><span class="p">(</span><span class="s2">&quot;qa.env&quot;</span><span class="p">)</span>
+
+<span class="c1"># %%</span>
+<span class="c1"># Memory schema — persists container_id and uploaded file_ids across turns</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">CodeExecutionMemory</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="n">container_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">file_ids</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># internal_file_id -&gt; OpenAI container file id</span>
+
+
+<span class="c1"># %%</span>
+<span class="c1"># Per-turn handler</span>
+
+<span class="n">model_name</span> <span class="o">=</span> <span class="n">LanguageModelName</span><span class="o">.</span><span class="n">AZURE_GPT_5_2025_0807</span>
+
+<span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="n">get_event_generator</span><span class="p">(</span><span class="n">unique_settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">event_type</span><span class="o">=</span><span class="n">ChatEvent</span><span class="p">):</span>
+    <span class="n">chat_service</span> <span class="o">=</span> <span class="n">ChatService</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">kb_service</span> <span class="o">=</span> <span class="n">KnowledgeBaseService</span><span class="o">.</span><span class="n">from_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+    <span class="n">client</span> <span class="o">=</span> <span class="n">get_openai_client</span><span class="p">(</span>
+        <span class="n">additional_headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;x-model&quot;</span><span class="p">:</span> <span class="n">model_name</span><span class="p">}</span>
+    <span class="p">)</span>
+
+    <span class="c1"># %%</span>
+    <span class="c1"># Set up short-term memory manager at chat scope (message_id=None)</span>
+
+    <span class="n">stm_service</span> <span class="o">=</span> <span class="n">ShortTermMemoryService</span><span class="p">(</span>
+        <span class="n">company_id</span><span class="o">=</span><span class="n">event</span><span class="o">.</span><span class="n">company_id</span><span class="p">,</span>
+        <span class="n">user_id</span><span class="o">=</span><span class="n">event</span><span class="o">.</span><span class="n">user_id</span><span class="p">,</span>
+        <span class="n">chat_id</span><span class="o">=</span><span class="n">event</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">chat_id</span><span class="p">,</span>
+        <span class="n">message_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">memory_manager</span><span class="p">:</span> <span class="n">PersistentShortMemoryManager</span><span class="p">[</span><span class="n">CodeExecutionMemory</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">PersistentShortMemoryManager</span><span class="p">(</span>
+            <span class="n">short_term_memory_service</span><span class="o">=</span><span class="n">stm_service</span><span class="p">,</span>
+            <span class="n">short_term_memory_schema</span><span class="o">=</span><span class="n">CodeExecutionMemory</span><span class="p">,</span>
+            <span class="n">short_term_memory_name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;code_execution_</span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">chat_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> 
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="c1"># %%</span>
+    <span class="c1"># Load memory from previous turn (None if first turn)</span>
+
+    <span class="n">memory</span> <span class="o">=</span> <span class="n">memory_manager</span><span class="o">.</span><span class="n">load_sync</span><span class="p">()</span> <span class="ow">or</span> <span class="n">CodeExecutionMemory</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded memory: container_id=</span><span class="si">{</span><span class="n">memory</span><span class="o">.</span><span class="n">container_id</span><span class="si">}</span><span class="s2">, files=</span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">memory</span><span class="o">.</span><span class="n">file_ids</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># %%</span>
+    <span class="c1"># Create or reuse the container</span>
+
+    <span class="k">if</span> <span class="n">memory</span><span class="o">.</span><span class="n">container_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">container</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span><span class="n">memory</span><span class="o">.</span><span class="n">container_id</span><span class="p">)</span>
+            <span class="c1"># This field is not well-typed in the openai sdk, this was found through trial and error</span>
+            <span class="k">if</span> <span class="n">container</span><span class="o">.</span><span class="n">status</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;active&quot;</span><span class="p">,</span> <span class="s2">&quot;running&quot;</span><span class="p">]:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Container status is &#39;</span><span class="si">{</span><span class="n">container</span><span class="o">.</span><span class="n">status</span><span class="si">}</span><span class="s2">&#39;, recreating&quot;</span><span class="p">)</span>
+                <span class="n">memory</span> <span class="o">=</span> <span class="n">CodeExecutionMemory</span><span class="p">()</span>
+        <span class="k">except</span> <span class="n">NotFoundError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Container not found, recreating&quot;</span><span class="p">)</span>
+            <span class="n">memory</span> <span class="o">=</span> <span class="n">CodeExecutionMemory</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">memory</span><span class="o">.</span><span class="n">container_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">container</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;code_execution_</span><span class="si">{</span><span class="n">event</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">chat_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">expires_after</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;anchor&quot;</span><span class="p">:</span> <span class="s2">&quot;last_active_at&quot;</span><span class="p">,</span> <span class="s2">&quot;minutes&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">},</span>
+        <span class="p">)</span>
+        <span class="n">memory</span><span class="o">.</span><span class="n">container_id</span> <span class="o">=</span> <span class="n">container</span><span class="o">.</span><span class="n">id</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Created container: </span><span class="si">{</span><span class="n">memory</span><span class="o">.</span><span class="n">container_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Reusing container: </span><span class="si">{</span><span class="n">memory</span><span class="o">.</span><span class="n">container_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># %%</span>
+    <span class="c1"># Upload files to the container, skipping any already present</span>
+    <span class="c1"># Replace `files_to_upload` with actual file objects that have .id, .name, .content_bytes</span>
+
+    <span class="n">files_to_upload</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Content</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># e.g. fetched from KnowledgeBaseService</span>
+
+    <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">files_to_upload</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">id</span> <span class="ow">in</span> <span class="n">memory</span><span class="o">.</span><span class="n">file_ids</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span>
+                    <span class="n">memory</span><span class="o">.</span><span class="n">file_ids</span><span class="p">[</span><span class="n">file</span><span class="o">.</span><span class="n">id</span><span class="p">],</span>
+                    <span class="n">container_id</span><span class="o">=</span><span class="n">memory</span><span class="o">.</span><span class="n">container_id</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File </span><span class="si">{</span><span class="n">file</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2"> already in container, skipping&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="k">except</span> <span class="n">NotFoundError</span><span class="p">:</span>
+                <span class="k">pass</span>  <span class="c1"># file disappeared — re-upload below</span>
+
+        <span class="n">file_content</span> <span class="o">=</span> <span class="n">kb_service</span><span class="o">.</span><span class="n">download_content_to_bytes</span><span class="p">(</span>
+            <span class="n">content_id</span><span class="o">=</span><span class="n">file</span><span class="o">.</span><span class="n">id</span>
+        <span class="p">)</span>
+        <span class="n">openai_file</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+            <span class="n">memory</span><span class="o">.</span><span class="n">container_id</span><span class="p">,</span>
+            <span class="n">file</span><span class="o">=</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="n">file_content</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">memory</span><span class="o">.</span><span class="n">file_ids</span><span class="p">[</span><span class="n">file</span><span class="o">.</span><span class="n">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">openai_file</span><span class="o">.</span><span class="n">id</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Uploaded </span><span class="si">{</span><span class="n">file</span><span class="o">.</span><span class="n">key</span><span class="si">}</span><span class="s2"> -&gt; </span><span class="si">{</span><span class="n">openai_file</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># %%</span>
+    <span class="c1"># Call the Responses API via ChatService</span>
+    <span class="c1"># complete_responses_with_references handles auth, streaming, and message writing</span>
+
+    <span class="n">code_interpreter_tool</span> <span class="o">=</span> <span class="n">CodeInterpreter</span><span class="p">(</span>
+        <span class="nb">type</span><span class="o">=</span><span class="s2">&quot;code_interpreter&quot;</span><span class="p">,</span>
+        <span class="n">container</span><span class="o">=</span><span class="n">memory</span><span class="o">.</span><span class="n">container_id</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">response</span> <span class="o">=</span> <span class="n">chat_service</span><span class="o">.</span><span class="n">complete_responses_with_references</span><span class="p">(</span>
+        <span class="n">model_name</span><span class="o">=</span><span class="n">model_name</span><span class="p">,</span>
+        <span class="n">messages</span><span class="o">=</span><span class="n">event</span><span class="o">.</span><span class="n">payload</span><span class="o">.</span><span class="n">user_message</span><span class="o">.</span><span class="n">text</span><span class="p">,</span>
+        <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="n">code_interpreter_tool</span><span class="p">],</span>
+        <span class="n">include</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;code_interpreter_call.outputs&quot;</span><span class="p">],</span>
+    <span class="p">)</span>
+
+    <span class="c1"># %%</span>
+    <span class="c1"># Inspect code interpreter calls from the response</span>
+    <span class="c1"># response.code_interpreter_calls is a convenience property on ResponsesLanguageModelStreamResponse</span>
+
+    <span class="k">for</span> <span class="n">call</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">code_interpreter_calls</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Code interpreter call: </span><span class="si">{</span><span class="n">call</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># %%</span>
+    <span class="c1"># Download files generated by the model during code execution</span>
+    <span class="c1"># response.container_files parses all container_file_citation annotations automatically</span>
+
+    <span class="k">for</span> <span class="n">citation</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">container_files</span><span class="p">:</span>
+        <span class="n">file_content</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">containers</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">retrieve</span><span class="p">(</span>
+            <span class="n">citation</span><span class="o">.</span><span class="n">file_id</span><span class="p">,</span>
+            <span class="n">container_id</span><span class="o">=</span><span class="n">citation</span><span class="o">.</span><span class="n">container_id</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">generated_bytes</span> <span class="o">=</span> <span class="n">file_content</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generated file: </span><span class="si">{</span><span class="n">citation</span><span class="o">.</span><span class="n">filename</span><span class="si">}</span><span class="s2">  (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">generated_bytes</span><span class="p">)</span><span class="si">}</span><span class="s2"> bytes)&quot;</span><span class="p">)</span>
+
+    <span class="c1"># %%</span>
+    <span class="c1"># Save updated memory (new container_id and/or file_ids) for next turn</span>
+
+    <span class="n">memory_manager</span><span class="o">.</span><span class="n">save_sync</span><span class="p">(</span><span class="n">memory</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved memory: container_id=</span><span class="si">{</span><span class="n">memory</span><span class="o">.</span><span class="n">container_id</span><span class="si">}</span><span class="s2">, files=</span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">memory</span><span class="o">.</span><span class="n">file_ids</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+</div>
+</div>
+</div>
+</details>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://unique-ag.github.io/ai/" target="_blank" rel="noopener" title="Unique AI Documentation" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M277.8 8.6c-12.3-11.4-31.3-11.4-43.5 0l-224 208c-9.6 9-12.8 22.9-8 35.1S18.8 272 32 272h16v176c0 35.3 28.7 64 64 64h288c35.3 0 64-28.7 64-64V272h16c13.2 0 25-8.1 29.8-20.3s1.6-26.2-8-35.1zM240 320h32c26.5 0 48 21.5 48 48v96H192v-96c0-26.5 21.5-48 48-48"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.action.edit", "content.code.copy", "content.code.select", "navigation.indexes"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
