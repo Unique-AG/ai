@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import logging
 import mimetypes
@@ -168,7 +170,7 @@ def file_content_serialization(
 
 
 def _append_element_to_builder(
-    builder: "MessagesBuilder",
+    builder: MessagesBuilder,
     c: ChatMessageWithContents,
     text: str,
     include_images: ImageContentInclusion,
