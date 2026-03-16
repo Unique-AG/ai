@@ -206,13 +206,15 @@ def test_extract_tool_calls_from_stream_response__includes_loop_iteration__when_
 
 
 @pytest.mark.ai
-def test_extract_tool_calls_from_stream_response__sets_loop_iteration_to_none__when_not_provided() -> (
+def test_extract_tool_calls_from_stream_response__omits_loop_iteration_key__when_not_provided() -> (
     None
 ):
     """
-    Purpose: Verify loop_iteration defaults to None when loop_iteration_index is omitted.
-    Why this matters: Absence of an index should not raise errors and should be explicitly recorded.
-    Setup summary: One call, no loop_iteration_index; assert info contains loop_iteration=None.
+    Purpose: Verify loop_iteration key is absent from info when loop_iteration_index is None.
+    Why this matters: Matches the behaviour of extract_tool_debug_info, which only sets the key
+                      when a non-None index is given, so downstream consumers checking for key
+                      presence behave consistently across both regular and builtin tool entries.
+    Setup summary: One call, no loop_iteration_index; assert loop_iteration key is absent.
     """
     # Arrange
     call = _make_code_interpreter_call()
@@ -224,7 +226,7 @@ def test_extract_tool_calls_from_stream_response__sets_loop_iteration_to_none__w
     )
 
     # Assert
-    assert result[0]["info"]["loop_iteration"] is None
+    assert "loop_iteration" not in result[0]["info"]
 
 
 # ---------------------------------------------------------------------------

@@ -67,7 +67,8 @@ def _extract_tool_calls_from_stream_response(
         seen.add(code_interpreter_call.id)
 
         debug_info = OpenAICodeInterpreterTool.get_debug_info(code_interpreter_call)
-        debug_info["loop_iteration"] = loop_iteration_index
+        if loop_iteration_index is not None:
+            debug_info["loop_iteration"] = loop_iteration_index
 
         tool_infos.append(
             {
