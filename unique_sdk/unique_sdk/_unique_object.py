@@ -3,16 +3,9 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
-    Dict,
-    List,
     Literal,
     Mapping,
-    Optional,
     Self,
-    Set,
-    Tuple,
-    Type,
-    Union,
     cast,
 )
 
@@ -21,18 +14,18 @@ from unique_sdk import _util
 from unique_sdk._unique_response import UniqueResponse
 
 
-class UniqueObject(Dict[str, Any]):
-    _retrieve_params: Dict[str, Any]
+class UniqueObject(dict[str, Any]):
+    _retrieve_params: dict[str, Any]
 
-    user_id: Optional[str]
-    company_id: Optional[str]
+    user_id: str | None
+    company_id: str | None
 
     def __init__(
         self,
-        user_id: Optional[str],
-        company_id: Optional[str],
-        id: Optional[str] = None,
-        last_response: Optional[UniqueResponse] = None,
+        user_id: str | None,
+        company_id: str | None,
+        id: str | None = None,
+        last_response: UniqueResponse | None = None,
         **params: Any,
     ):
         super(UniqueObject, self).__init__()
@@ -40,8 +33,8 @@ class UniqueObject(Dict[str, Any]):
         self.user_id = user_id
         self.company_id = company_id
 
-        self._unsaved_values: Set[str] = set()
-        self._transient_values: Set[str] = set()
+        self._unsaved_values: set[str] = set()
+        self._transient_values: set[str] = set()
         self._last_response = last_response
         self._retrieve_params = params
         self._previous = None
@@ -50,7 +43,7 @@ class UniqueObject(Dict[str, Any]):
             self["id"] = id
 
     @property
-    def last_response(self) -> Optional[UniqueResponse]:
+    def last_response(self) -> UniqueResponse | None:
         return self._last_response
 
     # UniqueObject inherits from `dict` which has an update method, and this doesn't quite match
@@ -131,13 +124,13 @@ class UniqueObject(Dict[str, Any]):
     # Custom unpickling method that uses `update` to update the dictionary
     # without calling __setitem__, which would fail if any value is an empty
     # string
-    def __setstate__(self, state: Dict[str, Any]) -> None:
+    def __setstate__(self, state: dict[str, Any]) -> None:
         self.update(state)
 
     # Custom pickling method to ensure the instance is pickled as a custom
     # class and not as a dict, otherwise __setstate__ would not be called when
     # unpickling.
-    def __reduce__(self) -> Tuple[Any, ...]:
+    def __reduce__(self) -> tuple[Any, ...]:
         reduce_value = (
             type(self),  # callable
             (  # args
@@ -152,10 +145,10 @@ class UniqueObject(Dict[str, Any]):
     @classmethod
     def construct_from(
         cls,
-        values: Dict[str, Any],
-        user_id: Optional[str],
-        company_id: Optional[str],
-        last_response: Optional[UniqueResponse] = None,
+        values: dict[str, Any],
+        user_id: str | None,
+        company_id: str | None,
+        last_response: UniqueResponse | None = None,
     ) -> Self:
         instance = cls(
             user_id=user_id,
@@ -175,11 +168,11 @@ class UniqueObject(Dict[str, Any]):
 
     def refresh_from(
         self,
-        values: Dict[str, Any],
-        user_id: Optional[str],
-        company_id: Optional[str],
-        partial: Optional[bool] = False,
-        last_response: Optional[UniqueResponse] = None,
+        values: dict[str, Any],
+        user_id: str | None,
+        company_id: str | None,
+        partial: bool | None = False,
+        last_response: UniqueResponse | None = None,
     ) -> None:
         self._last_response = last_response or getattr(values, "_last_response", None)
 
@@ -214,7 +207,7 @@ class UniqueObject(Dict[str, Any]):
                 }
             else:
                 obj = cast(
-                    Union[UniqueObject, List[UniqueObject]],
+                    UniqueObject | list[UniqueObject],
                     _util.convert_to_unique_object(
                         v,
                         user_id,
@@ -231,10 +224,10 @@ class UniqueObject(Dict[str, Any]):
         self,
         method: Literal["get", "post", "patch", "delete"],
         url: str,
-        user_id: Optional[str],
-        company_id: Optional[str],
-        params: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
+        user_id: str | None,
+        company_id: str | None,
+        params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> "UniqueObject":
         return UniqueObject._request(
             self,
@@ -252,10 +245,10 @@ class UniqueObject(Dict[str, Any]):
         self,
         method_: Literal["get", "post", "patch", "delete"],
         url_: str,
-        user_id: Optional[str],
-        company_id: Optional[str],
-        headers: Optional[Dict[str, str]] = None,
-        params: Optional[Mapping[str, Any]] = None,
+        user_id: str | None,
+        company_id: str | None,
+        headers: dict[str, str] | None = None,
+        params: Mapping[str, Any] | None = None,
     ) -> "UniqueObject":
         params = None if params is None else dict(params)
 
@@ -276,10 +269,10 @@ class UniqueObject(Dict[str, Any]):
         self,
         method_: Literal["get", "post", "patch", "delete"],
         url_: str,
-        user_id: Optional[str],
-        company_id: Optional[str],
-        headers: Optional[Dict[str, str]] = None,
-        params: Optional[Mapping[str, Any]] = None,
+        user_id: str | None,
+        company_id: str | None,
+        headers: dict[str, str] | None = None,
+        params: Mapping[str, Any] | None = None,
     ) -> "UniqueObject":
         params = None if params is None else dict(params)
 
@@ -320,7 +313,7 @@ class UniqueObject(Dict[str, Any]):
     # wholesale because some data that's returned from the API may not be valid
     # if it was set to be set manually. Here we override the class' copy
     # arguments so that we can bypass these possible exceptions on __setitem__.
-    def __deepcopy__(self, memo: Dict[int, Any]) -> "UniqueObject":
+    def __deepcopy__(self, memo: dict[int, Any]) -> "UniqueObject":
         copied = self.__copy__()
         memo[id(self)] = copied
 
@@ -331,10 +324,10 @@ class UniqueObject(Dict[str, Any]):
 
         return copied
 
-    _inner_class_types: ClassVar[Dict[str, Type["UniqueObject"]]] = {}
-    _inner_class_dicts: ClassVar[List[str]] = []
+    _inner_class_types: ClassVar[dict[str, type["UniqueObject"]]] = {}
+    _inner_class_dicts: ClassVar[list[str]] = []
 
-    def _get_inner_class_type(self, field_name: str) -> Optional[Type["UniqueObject"]]:
+    def _get_inner_class_type(self, field_name: str) -> type["UniqueObject"] | None:
         return self._inner_class_types.get(field_name)
 
     def _get_inner_class_is_beneath_dict(self, field_name: str):

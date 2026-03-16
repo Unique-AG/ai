@@ -1,5 +1,5 @@
 from typing import (
-    ClassVar,
+    Any,
     List,
     Literal,
     NotRequired,
@@ -11,10 +11,14 @@ from typing import (
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 
 class Folder(APIResource["Folder"]):
-    OBJECT_NAME: ClassVar[Literal["folder"]] = "folder"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["folder"]:
+        return "folder"
+
     RESOURCE_URL = "/folder"
 
     class ScopeAccess(TypedDict):
@@ -440,12 +444,12 @@ class Folder(APIResource["Folder"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Folder.RemoveAccessParams"],
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Remove access from a folder.
         """
         return cast(
-            dict,
+            dict[str, Any],
             cls._static_request(
                 "patch",
                 "/folder/remove-access",
@@ -477,7 +481,7 @@ class Folder(APIResource["Folder"]):
         )
 
     @classmethod
-    def update(
+    def update(  # pyright: ignore[reportIncompatibleMethodOverride]
         cls,
         user_id: str,
         company_id: str,

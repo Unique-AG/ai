@@ -1,5 +1,6 @@
 from enum import StrEnum
 from typing import (
+    Any,
     Literal,
     NotRequired,
     TypedDict,
@@ -19,7 +20,7 @@ class AgenticTableSheetState(StrEnum):
 
 
 class LogDetail(TypedDict, total=False):
-    llmRequest: list[dict] | None
+    llmRequest: list[dict[str, Any]] | None
 
 
 class LogEntry(TypedDict):
@@ -30,12 +31,15 @@ class LogEntry(TypedDict):
     details: NotRequired[LogDetail]
 
 
-class AgenticTableCell(TypedDict, total=False):
-    sheetId: str
+class _AgenticTableCellRequired(TypedDict):
     rowOrder: int
     columnOrder: int
-    rowLocked: bool
     text: str
+
+
+class AgenticTableCell(_AgenticTableCellRequired, total=False):
+    sheetId: str
+    rowLocked: bool
     logEntries: list[LogEntry] | None
 
 
@@ -342,7 +346,8 @@ class AgenticTable(APIResource["AgenticTable"]):
         cells: list[AgenticTableCell],
     ) -> ColumnMetadataUpdateStatus:
         url = f"/magic-table/{tableId}/cells/bulk-upsert"
-        # Map AgenticTableCell to PublicAgenticTableCellDto
+        # Map AgenticTableCell to PublicAgenticTableCellDto; use direct access so
+        # missing required fields raise KeyError and we re-raise a clear ValueError.
         try:
             params_api = {
                 "cells": [

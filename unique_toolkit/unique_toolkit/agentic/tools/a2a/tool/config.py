@@ -98,11 +98,11 @@ This is the message that will be sent to the sub-agent.
 class SubAgentToolConfig(BaseToolConfig):
     model_config = get_configuration_dict()
 
-    assistant_id: str = Field(
+    assistant_id: Annotated[str, RJSFMetaTag.SpecialWidget.hidden()] = Field(
         default="",
         description="The unique identifier of the assistant to use for the sub-agent.",
     )
-    chat_id: str | None = Field(
+    chat_id: Annotated[str | None, RJSFMetaTag.SpecialWidget.hidden()] = Field(
         default=None,
         description="The chat ID to use for the sub-agent conversation. If None, a new chat will be created.",
     )

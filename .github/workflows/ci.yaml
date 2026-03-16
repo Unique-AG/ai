@@ -17,26 +17,13 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: ./.github/actions/detect-changes
         id: detect
+      - uses: ./.github/actions/get-packages-matrix
+        id: pkgs
       - name: Select packages
         id: set-matrix
         uses: ./.github/actions/select-packages
         with:
-          packages: |
-            [
-              {"id": "toolkit",            "dir": "unique_toolkit",                            "python": "3.12", "install_args": "--extra fastapi", "extras": "fastapi", "min_coverage": "60"},
-              {"id": "sdk",                "dir": "unique_sdk",                                "python": "3.11", "test_args": "-m \"not integration\"", "min_coverage": "60"},
-              {"id": "mcp",                "dir": "unique_mcp",                                "python": "3.12", "min_coverage": "60"},
-              {"id": "orchestrator",       "dir": "unique_orchestrator",                       "python": "3.12", "min_coverage": "60"},
-              {"id": "web_search",         "dir": "tool_packages/unique_web_search",           "python": "3.12", "min_coverage": "60"},
-              {"id": "swot",               "dir": "tool_packages/unique_swot",                 "python": "3.12", "min_coverage": "60"},
-              {"id": "follow_up_questions","dir": "postprocessors/unique_follow_up_questions", "python": "3.12", "min_coverage": "60"},
-              {"id": "stock_ticker",       "dir": "postprocessors/unique_stock_ticker",        "python": "3.12", "min_coverage": "60"},
-              {"id": "deep_research",      "dir": "tool_packages/unique_deep_research",        "python": "3.12", "min_coverage": "60"},
-              {"id": "internal_search",    "dir": "tool_packages/unique_internal_search",      "python": "3.12", "min_coverage": "60"},
-              {"id": "quartr",             "dir": "connectors/unique_quartr",                  "python": "3.12", "min_coverage": "60"},
-              {"id": "six",                "dir": "connectors/unique_six",                     "python": "3.12", "min_coverage": "60"},
-              {"id": "search_proxy",       "dir": "connectors/unique_search_proxy",            "python": "3.12", "min_coverage": "60"}
-            ]
+          packages: ${{ steps.pkgs.outputs.packages }}
           selected: ''
           changes: ${{ steps.detect.outputs.changes }}
 
@@ -136,8 +123,9 @@ jobs:
 
           failed=false
 
-          # Required checks (skipped is OK for when no packages changed or merge_group)
-          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "changelog:$CHANGELOG" "pr-title:$PR_TITLE"; do
+          # Required checks (skipped is OK for when no packages changed or merge_group).
+          # Types: failure means a package with typecheck_require_zero_errors failed, so we treat it as blocking.
+          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "types:$TYPES" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "changelog:$CHANGELOG" "pr-title:$PR_TITLE"; do
             name="${check%%:*}"
             result="${check##*:}"
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
@@ -145,11 +133,6 @@ jobs:
               failed=true
             fi
           done
-
-          # Types is continue-on-error, report but don't fail
-          if [[ "$TYPES" == "failure" ]]; then
-            echo "⚠️ types failed (non-blocking)"
-          fi
 
           if [[ "$failed" == "true" ]]; then
             echo "status=failure" >> $GITHUB_OUTPUT

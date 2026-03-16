@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LoopTokenReducer preserves ResponseOutputItem instances during reduction (no source reduction applied)
 - Add unit tests for HistoryManager and LoopTokenReducer with Responses API output items
 
+## [1.53.4] - 2026-03-12
+- Code interpreter: restore original inline rendering for non-image files when fence feature flag is off. PR #1163 had replaced sandbox links with `[filename](unique://content/id)` unconditionally; the frontend does not render `unique://` as clickable inline text. When the fence FF is disabled, sandbox links are now again replaced with `<sup>N</sup>` so files remain accessible via the references panel. When the FF is on, the content link is still produced for fence injection. (UN-17972)
+
+## [1.53.3] - 2026-03-12
+- Hide `assistant_id` and `chat_id` in SubAgentToolConfig from Spaces 2.0 UI via RJSF `SpecialWidget.hidden()` (UN-18112)
+
 ## [1.53.2] - 2026-03-11
 - Code interpreter: replace all inline file refs in `message.text` with structured fences — `imgWithSource` for images (PNG etc.) and `fileWithSource` for documents (CSV, Excel, PDF, Word, HTML, Markdown). Each fence carries `id` (message-scoped counter), `contentId`, `title` (derived from filename), `type` (for fileWithSource), and the generating `code`. `<details>` blocks and trailing `</br>` from `ShowExecutedCodePostprocessor` are stripped when at least one fence is injected. Feature-flagged via `FEATURE_FLAG_ENABLE_CODE_EXECUTION_FENCE_UN_17972` (default off, safe to merge). `debugInfo.code_blocks` and the `code_blocks` field on `LanguageModelStreamResponseMessage` are removed (superseded by the fences). (UN-17972)
 ## [1.53.1] - 2026-03-11

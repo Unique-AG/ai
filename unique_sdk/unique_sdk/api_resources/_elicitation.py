@@ -1,6 +1,5 @@
 from typing import (
     Any,
-    ClassVar,
     Dict,
     List,
     Literal,
@@ -13,6 +12,7 @@ from typing import (
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
+from unique_sdk._util import classproperty
 
 ACTION_TYPES = Literal["ACCEPT", "DECLINE", "CANCEL"]
 SOURCE_TYPES = Literal["INTERNAL_TOOL", "MCP_SERVER"]
@@ -20,7 +20,9 @@ MODE_TYPES = Literal["FORM", "URL"]
 
 
 class Elicitation(APIResource["Elicitation"]):
-    OBJECT_NAME: ClassVar[Literal["elicitation"]] = "elicitation"
+    @classproperty
+    def OBJECT_NAME(cls) -> Literal["elicitation"]:
+        return "elicitation"
 
     class CreateParams(RequestOptions):
         """
