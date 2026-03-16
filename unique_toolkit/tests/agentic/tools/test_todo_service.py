@@ -6,14 +6,12 @@ from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.todo.config import TodoConfig
 from unique_toolkit.agentic.tools.todo.schemas import (
     TodoItem,
-    TodoState,
+    TodoList,
     TodoWriteInput,
 )
 from unique_toolkit.agentic.tools.todo.service import (
     TodoReadTool,
     TodoWriteTool,
-    format_todo_state,
-    format_todo_system_reminder,
 )
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.schemas import LanguageModelFunction
@@ -62,8 +60,8 @@ def sample_todos() -> list[TodoItem]:
 
 
 @pytest.fixture
-def sample_state(sample_todos: list[TodoItem]) -> TodoState:
-    return TodoState(todos=sample_todos, last_updated_iteration=2)
+def sample_state(sample_todos: list[TodoItem]) -> TodoList:
+    return TodoList(todos=sample_todos, last_updated_iteration=2)
 
 
 def _make_tool_call(
@@ -73,48 +71,48 @@ def _make_tool_call(
     return LanguageModelFunction(id=call_id, name="todo_write", arguments=arguments)
 
 
-class TestTodoState:
-    """Tests for TodoState merge logic."""
+class TestTodoList:
+    """Tests for TodoList update logic."""
 
     @pytest.mark.ai
-    def test_merge__matching_ids__updates_status(self) -> None:
+    def test_update__matching_ids__updates_status(self) -> None:
         """
-        Purpose: Verify merge updates existing items when IDs match.
-        Why: Core merge semantics -- the model updates status of existing items.
-        Setup: State with one pending item, merge with same ID as completed.
+        Purpose: Verify update overwrites existing items when IDs match.
+        Why: Core update semantics -- the model updates status of existing items.
+        Setup: State with one pending item, update with same ID as completed.
         """
-        state = TodoState(todos=[TodoItem(id="a", content="Do X", status="pending")])
+        state = TodoList(todos=[TodoItem(id="a", content="Do X", status="pending")])
         incoming = [TodoItem(id="a", content="Do X", status="completed")]
 
-        result = state.merge(incoming)
+        result = state.update(incoming)
 
         assert len(result.todos) == 1
         assert result.todos[0].status == "completed"
 
     @pytest.mark.ai
-    def test_merge__new_ids__appends(self) -> None:
+    def test_update__new_ids__appends(self) -> None:
         """
-        Purpose: Verify merge adds new items that don't exist yet.
+        Purpose: Verify update adds new items that don't exist yet.
         Why: The model adds new tasks as it discovers more work.
-        Setup: State with one item, merge with a different ID.
+        Setup: State with one item, update with a different ID.
         """
-        state = TodoState(todos=[TodoItem(id="a", content="Do X", status="pending")])
+        state = TodoList(todos=[TodoItem(id="a", content="Do X", status="pending")])
         incoming = [TodoItem(id="b", content="Do Y", status="pending")]
 
-        result = state.merge(incoming)
+        result = state.update(incoming)
 
         assert len(result.todos) == 2
         ids = {t.id for t in result.todos}
         assert ids == {"a", "b"}
 
     @pytest.mark.ai
-    def test_merge__no_match__preserves_existing(self) -> None:
+    def test_update__no_match__preserves_existing(self) -> None:
         """
-        Purpose: Verify merge preserves items not mentioned in incoming.
+        Purpose: Verify update preserves items not mentioned in incoming.
         Why: Partial updates should not delete unrelated tasks.
-        Setup: State with two items, merge updates only one.
+        Setup: State with two items, update changes only one.
         """
-        state = TodoState(
+        state = TodoList(
             todos=[
                 TodoItem(id="a", content="Do X", status="pending"),
                 TodoItem(id="b", content="Do Y", status="pending"),
@@ -122,7 +120,7 @@ class TestTodoState:
         )
         incoming = [TodoItem(id="a", content="Do X", status="completed")]
 
-        result = state.merge(incoming)
+        result = state.update(incoming)
 
         assert len(result.todos) == 2
         by_id = {t.id: t for t in result.todos}
@@ -130,16 +128,16 @@ class TestTodoState:
         assert by_id["b"].status == "pending"
 
     @pytest.mark.ai
-    def test_merge__updates_content(self) -> None:
+    def test_update__updates_content(self) -> None:
         """
-        Purpose: Verify merge updates content text when ID matches.
+        Purpose: Verify update changes content text when ID matches.
         Why: The model may refine task descriptions.
-        Setup: State with one item, merge with same ID but different content.
+        Setup: State with one item, update with same ID but different content.
         """
-        state = TodoState(todos=[TodoItem(id="a", content="Do X", status="pending")])
+        state = TodoList(todos=[TodoItem(id="a", content="Do X", status="pending")])
         incoming = [TodoItem(id="a", content="Do X (revised)", status="pending")]
 
-        result = state.merge(incoming)
+        result = state.update(incoming)
 
         assert result.todos[0].content == "Do X (revised)"
 
@@ -173,7 +171,7 @@ class TestTodoWriteTool:
         assert response.successful
         assert "First task" in response.content
         tool._memory_manager.save_async.assert_called_once()
-        saved_state: TodoState = tool._memory_manager.save_async.call_args[0][0]
+        saved_state: TodoList = tool._memory_manager.save_async.call_args[0][0]
         assert len(saved_state.todos) == 1
         assert saved_state.todos[0].id == "t1"
 
@@ -183,7 +181,7 @@ class TestTodoWriteTool:
         self,
         mock_chat_event: ChatEvent,
         todo_config: TodoConfig,
-        sample_state: TodoState,
+        sample_state: TodoList,
     ) -> None:
         """
         Purpose: Verify merge mode updates existing items by ID.
@@ -205,7 +203,7 @@ class TestTodoWriteTool:
 
         await tool.run(call)
 
-        saved_state: TodoState = tool._memory_manager.save_async.call_args[0][0]
+        saved_state: TodoList = tool._memory_manager.save_async.call_args[0][0]
         by_id = {t.id: t for t in saved_state.todos}
         assert by_id["task-3"].status == "in_progress"
         assert by_id["task-1"].status == "completed"
@@ -217,7 +215,7 @@ class TestTodoWriteTool:
         self,
         mock_chat_event: ChatEvent,
         todo_config: TodoConfig,
-        sample_state: TodoState,
+        sample_state: TodoList,
     ) -> None:
         """
         Purpose: Verify replace mode discards existing state.
@@ -237,7 +235,7 @@ class TestTodoWriteTool:
 
         await tool.run(call)
 
-        saved_state: TodoState = tool._memory_manager.save_async.call_args[0][0]
+        saved_state: TodoList = tool._memory_manager.save_async.call_args[0][0]
         assert len(saved_state.todos) == 1
         assert saved_state.todos[0].id == "new-1"
 
@@ -266,7 +264,7 @@ class TestTodoWriteTool:
 
         await tool.run(call)
 
-        saved_state: TodoState = tool._memory_manager.save_async.call_args[0][0]
+        saved_state: TodoList = tool._memory_manager.save_async.call_args[0][0]
         assert len(saved_state.todos) == 3
 
     @pytest.mark.ai
@@ -325,7 +323,7 @@ class TestTodoWriteTool:
         Why: Tracks when state was last modified for debugging.
         Setup: Existing state at iteration 5, write should bump to 6.
         """
-        existing = TodoState(
+        existing = TodoList(
             todos=[TodoItem(id="a", content="X", status="pending")],
             last_updated_iteration=5,
         )
@@ -342,7 +340,7 @@ class TestTodoWriteTool:
 
         await tool.run(call)
 
-        saved_state: TodoState = tool._memory_manager.save_async.call_args[0][0]
+        saved_state: TodoList = tool._memory_manager.save_async.call_args[0][0]
         assert saved_state.last_updated_iteration == 6
 
 
@@ -375,7 +373,7 @@ class TestTodoReadTool:
         self,
         mock_chat_event: ChatEvent,
         todo_config: TodoConfig,
-        sample_state: TodoState,
+        sample_state: TodoList,
     ) -> None:
         """
         Purpose: Verify read returns correctly formatted existing state.
@@ -413,48 +411,72 @@ class TestTodoReadTool:
         )
 
 
-class TestFormatFunctions:
-    """Tests for the format helper functions."""
+class TestFormatMethods:
+    """Tests for the format methods on TodoList."""
 
     @pytest.mark.ai
-    def test_format_todo_state__empty__returns_no_tasks(self) -> None:
+    def test_format__empty__returns_no_tasks(self) -> None:
         """
         Purpose: Verify empty state produces a clear message.
         Why: Model should understand there are no tasks.
-        Setup: Empty TodoState.
+        Setup: Empty TodoList.
         """
-        result = format_todo_state(TodoState())
+        result = TodoList().format()
         assert result == "No tasks tracked."
 
     @pytest.mark.ai
-    def test_format_todo_system_reminder__contains_tags(
-        self, sample_state: TodoState
-    ) -> None:
+    def test_format_reminder__contains_tags(self, sample_state: TodoList) -> None:
         """
         Purpose: Verify system reminder is wrapped in <system-reminder> tags.
         Why: The orchestrator expects this format for injection.
         Setup: State with items.
         """
-        result = format_todo_system_reminder(sample_state)
+        result = sample_state.format_reminder()
 
         assert "<system-reminder>" in result
         assert "</system-reminder>" in result
         assert "Current task progress:" in result
 
     @pytest.mark.ai
-    def test_format_todo_system_reminder__contains_all_items(
-        self, sample_state: TodoState
-    ) -> None:
+    def test_format_reminder__contains_all_items(self, sample_state: TodoList) -> None:
         """
         Purpose: Verify all items appear in the reminder.
         Why: The model needs to see every task.
         Setup: State with 3 items.
         """
-        result = format_todo_system_reminder(sample_state)
+        result = sample_state.format_reminder()
 
         assert "Research API options" in result
         assert "Implement service layer" in result
         assert "Write tests" in result
+
+
+class TestHasActiveItems:
+    """Tests for TodoList.has_active_items()."""
+
+    @pytest.mark.ai
+    def test_has_active__pending_item__returns_true(self) -> None:
+        state = TodoList(todos=[TodoItem(id="a", content="X", status="pending")])
+        assert state.has_active_items() is True
+
+    @pytest.mark.ai
+    def test_has_active__all_completed__returns_false(self) -> None:
+        state = TodoList(todos=[TodoItem(id="a", content="X", status="completed")])
+        assert state.has_active_items() is False
+
+    @pytest.mark.ai
+    def test_has_active__completed_and_cancelled__returns_false(self) -> None:
+        state = TodoList(
+            todos=[
+                TodoItem(id="a", content="X", status="completed"),
+                TodoItem(id="b", content="Y", status="cancelled"),
+            ]
+        )
+        assert state.has_active_items() is False
+
+    @pytest.mark.ai
+    def test_has_active__empty__returns_false(self) -> None:
+        assert TodoList().has_active_items() is False
 
 
 class TestToolRegistration:

@@ -12,7 +12,7 @@ from unique_toolkit.language_model.schemas import (
 )
 
 try:
-    from unique_toolkit.agentic.tools.todo.schemas import TodoItem, TodoState
+    from unique_toolkit.agentic.tools.todo.schemas import TodoItem, TodoList
 
     HAS_TODO_MODULE = True
 except ImportError:
@@ -25,9 +25,26 @@ except ImportError:
         content: str
         status: TodoStatus
 
-    class TodoState(BaseModel):  # type: ignore[no-redef]
+    class TodoList(BaseModel):  # type: ignore[no-redef]
         todos: list[TodoItem] = Field(default_factory=list)
         last_updated_iteration: int = 0
+
+        def has_active_items(self) -> bool:
+            return any(t.status not in ("completed", "cancelled") for t in self.todos)
+
+        def format_reminder(self) -> str:
+            lines = [
+                f"  [{'x' if t.status == 'completed' else '>' if t.status == 'in_progress' else '-' if t.status == 'cancelled' else ' '}] {t.content} (id: {t.id})"
+                for t in self.todos
+            ]
+            return (
+                "\n<system-reminder>\n"
+                "Current task progress:\n"
+                + "\n".join(lines)
+                + "\n\nUpdate the task list as you make progress. "
+                "Mark items in_progress when starting, completed when done.\n"
+                "</system-reminder>"
+            )
 
 
 requires_todo = pytest.mark.skipif(
@@ -160,7 +177,7 @@ class TestTodoInjection:
         Why: Core feature -- the model needs to see current task progress.
         Setup: Mock memory manager returns state with pending items.
         """
-        state = TodoState(
+        state = TodoList(
             todos=[
                 TodoItem(id="t1", content="Research APIs", status="completed"),
                 TodoItem(id="t2", content="Build service", status="in_progress"),
@@ -192,7 +209,7 @@ class TestTodoInjection:
         Why: No active tasks means no progress reminder needed.
         Setup: Mock memory manager returns state with only completed items.
         """
-        state = TodoState(
+        state = TodoList(
             todos=[
                 TodoItem(id="t1", content="Done task", status="completed"),
                 TodoItem(id="t2", content="Also done", status="completed"),
@@ -222,7 +239,7 @@ class TestTodoInjection:
         Why: Cancelled tasks are not actionable; only pending/in_progress are.
         Setup: Mix of completed and cancelled items, no pending or in_progress.
         """
-        state = TodoState(
+        state = TodoList(
             todos=[
                 TodoItem(id="t1", content="Done task", status="completed"),
                 TodoItem(id="t2", content="Dropped task", status="cancelled"),
@@ -251,7 +268,7 @@ class TestTodoInjection:
         Why: Earlier user messages should not be modified; prompt caching depends on this.
         Setup: Two user messages, verify only the last one has the reminder.
         """
-        state = TodoState(todos=[TodoItem(id="t1", content="Task A", status="pending")])
+        state = TodoList(todos=[TodoItem(id="t1", content="Task A", status="pending")])
         mock_mm = MagicMock()
         mock_mm.load_async = AsyncMock(return_value=state)
         ua = _build_unique_ai(todo_memory_manager=mock_mm)
@@ -276,7 +293,7 @@ class TestTodoInjection:
         Why: Visual clarity for the model to parse task states.
         Setup: State with one item of each status type.
         """
-        state = TodoState(
+        state = TodoList(
             todos=[
                 TodoItem(id="a", content="Pending one", status="pending"),
                 TodoItem(id="b", content="Active one", status="in_progress"),
@@ -310,7 +327,7 @@ class TestTodoInjection:
         Why: The reminder is appended, not substituted.
         Setup: User message with specific text, verify it still starts with that text.
         """
-        state = TodoState(todos=[TodoItem(id="t1", content="Task A", status="pending")])
+        state = TodoList(todos=[TodoItem(id="t1", content="Task A", status="pending")])
         mock_mm = MagicMock()
         mock_mm.load_async = AsyncMock(return_value=state)
         ua = _build_unique_ai(todo_memory_manager=mock_mm)
@@ -331,23 +348,17 @@ class TestBuildTodoMemoryManager:
     """Tests for _build_todo_memory_manager in the builder."""
 
     @pytest.mark.ai
-    def test_returns_none_when_no_todo_tools(self) -> None:
+    def test_returns_none_when_todo_tracking_disabled(self) -> None:
         """
-        Purpose: Verify no memory manager when todo tools are absent.
-        Why: Default space config has no todo tools.
-        Setup: Config with standard tools only.
+        Purpose: Verify no memory manager when todo_tracking is None.
+        Why: Default config has no todo tracking.
+        Setup: Config with todo_tracking=None in experimental.
         """
-        from unique_toolkit.agentic.tools.config import ToolBuildConfig
-
         from unique_orchestrator.unique_ai_builder import _build_todo_memory_manager
 
         mock_event = MagicMock()
         mock_config = MagicMock()
-
-        other_tool = MagicMock(spec=ToolBuildConfig)
-        other_tool.name = "internal_search"
-        other_tool.is_enabled = True
-        mock_config.space.tools = [other_tool]
+        mock_config.agent.experimental.todo_tracking = None
 
         result = _build_todo_memory_manager(mock_event, mock_config)
 
@@ -355,25 +366,18 @@ class TestBuildTodoMemoryManager:
 
     @requires_todo
     @pytest.mark.ai
-    def test_returns_manager_when_todo_write_enabled(self) -> None:
+    def test_returns_manager_when_todo_tracking_enabled(self) -> None:
         """
-        Purpose: Verify memory manager is created when todo_write is in tools.
+        Purpose: Verify memory manager is created when todo_tracking is configured.
         Why: Enables system-reminder injection.
-        Setup: Config with todo_write tool enabled.
+        Setup: Config with todo_tracking set to defaults.
         """
-        from unique_toolkit.agentic.tools.config import ToolBuildConfig
-        from unique_toolkit.agentic.tools.todo.config import TodoConfig
-
+        from unique_orchestrator.config import TodoTrackingConfig
         from unique_orchestrator.unique_ai_builder import _build_todo_memory_manager
 
         mock_event = MagicMock()
         mock_config = MagicMock()
-
-        todo_tool = MagicMock(spec=ToolBuildConfig)
-        todo_tool.name = "todo_write"
-        todo_tool.is_enabled = True
-        todo_tool.configuration = TodoConfig()
-        mock_config.space.tools = [todo_tool]
+        mock_config.agent.experimental.todo_tracking = TodoTrackingConfig()
 
         result = _build_todo_memory_manager(mock_event, mock_config)
 
@@ -381,51 +385,20 @@ class TestBuildTodoMemoryManager:
 
     @requires_todo
     @pytest.mark.ai
-    def test_returns_none_when_todo_write_disabled(self) -> None:
-        """
-        Purpose: Verify no memory manager when todo_write exists but is disabled.
-        Why: Disabled tools should not activate injection.
-        Setup: Config with todo_write tool disabled.
-        """
-        from unique_toolkit.agentic.tools.config import ToolBuildConfig
-        from unique_toolkit.agentic.tools.todo.config import TodoConfig
-
-        from unique_orchestrator.unique_ai_builder import _build_todo_memory_manager
-
-        mock_event = MagicMock()
-        mock_config = MagicMock()
-
-        todo_tool = MagicMock(spec=ToolBuildConfig)
-        todo_tool.name = "todo_write"
-        todo_tool.is_enabled = False
-        todo_tool.configuration = TodoConfig()
-        mock_config.space.tools = [todo_tool]
-
-        result = _build_todo_memory_manager(mock_event, mock_config)
-
-        assert result is None
-
-    @requires_todo
-    @pytest.mark.ai
     def test_returns_none_when_inject_system_reminder_is_false(self) -> None:
         """
         Purpose: Verify no memory manager when config disables injection.
         Why: inject_system_reminder=False allows using the tool without injection.
-        Setup: Config with todo_write enabled but inject_system_reminder=False.
+        Setup: Config with todo_tracking enabled but inject_system_reminder=False.
         """
-        from unique_toolkit.agentic.tools.config import ToolBuildConfig
-        from unique_toolkit.agentic.tools.todo.config import TodoConfig
-
+        from unique_orchestrator.config import TodoTrackingConfig
         from unique_orchestrator.unique_ai_builder import _build_todo_memory_manager
 
         mock_event = MagicMock()
         mock_config = MagicMock()
-
-        todo_tool = MagicMock(spec=ToolBuildConfig)
-        todo_tool.name = "todo_write"
-        todo_tool.is_enabled = True
-        todo_tool.configuration = TodoConfig(inject_system_reminder=False)
-        mock_config.space.tools = [todo_tool]
+        mock_config.agent.experimental.todo_tracking = TodoTrackingConfig(
+            inject_system_reminder=False
+        )
 
         result = _build_todo_memory_manager(mock_event, mock_config)
 

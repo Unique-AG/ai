@@ -322,6 +322,29 @@ class ResponsesApiConfig(BaseToolConfig):
     )
 
 
+class TodoTrackingConfig(BaseToolConfig):
+    """Persistent task tracking across agent loop iterations.
+
+    Mirrors TodoConfig from unique_toolkit but lives in orchestrator to avoid
+    hard dependency on the todo subpackage at import time.
+    """
+
+    memory_key: str = Field(
+        default="agent_todo_state",
+        description="ShortTermMemory key under which TODO state is stored.",
+    )
+    max_todos: int = Field(
+        default=20,
+        ge=1,
+        le=50,
+        description="Maximum number of TODO items to store.",
+    )
+    inject_system_reminder: bool = Field(
+        default=True,
+        description="Whether to inject TODO state as a system-reminder into messages.",
+    )
+
+
 class ExperimentalConfig(BaseToolConfig):
     """Experimental features this part of the configuration might evolve in the future continuously"""
 
@@ -344,6 +367,10 @@ class ExperimentalConfig(BaseToolConfig):
     loop_configuration: LoopConfiguration = LoopConfiguration(
         max_tool_calls_per_iteration=10
     )
+
+    todo_tracking: (
+        Annotated[TodoTrackingConfig, Field(title="Active")] | DeactivatedNone
+    ) = Field(default=None, description="Persistent task tracking for the agent.")
 
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
 

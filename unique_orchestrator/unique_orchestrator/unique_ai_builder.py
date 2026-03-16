@@ -78,36 +78,48 @@ from unique_orchestrator.config import CodeInterpreterExtendedConfig, UniqueAICo
 from unique_orchestrator.unique_ai import UniqueAI
 
 if TYPE_CHECKING:
-    from unique_toolkit.agentic.tools.todo.schemas import TodoState
+    from unique_toolkit.agentic.tools.todo.schemas import TodoList
+
+
+def _inject_todo_tools(config: UniqueAIConfig) -> list[ToolBuildConfig]:
+    """Return space tools with todo_write/todo_read appended when todo tracking is active."""
+    todo_cfg = config.agent.experimental.todo_tracking
+    if todo_cfg is None:
+        return config.space.tools
+
+    import unique_toolkit.agentic.tools.todo  # noqa: F401 — registers with ToolFactory
+
+    tools = list(config.space.tools)
+    existing_names = {t.name for t in tools}
+    cfg_dict = todo_cfg.model_dump()
+    if "todo_write" not in existing_names:
+        tools.append(
+            ToolBuildConfig(name="todo_write", configuration=cfg_dict, is_enabled=True)
+        )
+    if "todo_read" not in existing_names:
+        tools.append(
+            ToolBuildConfig(name="todo_read", configuration=cfg_dict, is_enabled=True)
+        )
+    return tools
 
 
 def _build_todo_memory_manager(
     event: ChatEvent,
     config: UniqueAIConfig,
-) -> "PersistentShortMemoryManager[TodoState] | None":
-    """Build a PersistentShortMemoryManager for TODO state if TodoWriteTool is enabled."""
-    todo_tool_cfg = None
-    for tool in config.space.tools:
-        if tool.is_enabled and tool.name == "todo_write":
-            todo_tool_cfg = tool
-            break
-    if todo_tool_cfg is None:
+) -> "PersistentShortMemoryManager[TodoList] | None":
+    """Build a PersistentShortMemoryManager for TODO state if todo tracking is enabled."""
+    todo_tracking_cfg = config.agent.experimental.todo_tracking
+    if todo_tracking_cfg is None:
         return None
 
-    from unique_toolkit.agentic.tools.todo.config import TodoConfig
-    from unique_toolkit.agentic.tools.todo.schemas import TodoState
+    from unique_toolkit.agentic.tools.todo.schemas import TodoList
 
-    todo_config = (
-        todo_tool_cfg.configuration
-        if isinstance(todo_tool_cfg.configuration, TodoConfig)
-        else TodoConfig()
-    )
-    if not todo_config.inject_system_reminder:
+    if not todo_tracking_cfg.inject_system_reminder:
         return None
     return PersistentShortMemoryManager(
         short_term_memory_service=ShortTermMemoryService(event=event),
-        short_term_memory_schema=TodoState,
-        short_term_memory_name=todo_config.memory_key,
+        short_term_memory_schema=TodoList,
+        short_term_memory_name=todo_tracking_cfg.memory_key,
     )
 
 
@@ -227,7 +239,7 @@ def _build_common(
     )
 
     tool_manager_config = ToolManagerConfig(
-        tools=config.space.tools,
+        tools=_inject_todo_tools(config),
         max_tool_calls=config.agent.experimental.loop_configuration.max_tool_calls_per_iteration,
     )
 
@@ -285,7 +297,7 @@ async def _build_responses(
     config: UniqueAIConfig,
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
-    todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
+    todo_memory_manager: "PersistentShortMemoryManager[TodoList] | None" = None,
 ) -> UniqueAI:
     client = get_async_openai_client().copy(
         default_headers={
@@ -327,7 +339,7 @@ async def _build_responses(
                     configuration=code_interpreter_config.tool_config,
                 )
             )
-            common_components.tool_manager_config.tools = config.space.tools
+            common_components.tool_manager_config.tools = _inject_todo_tools(config)
 
         if code_interpreter_config.executed_code_display_config is not None:
             postprocessor_manager.add_postprocessor(
@@ -431,7 +443,7 @@ def _build_completions(
     config: UniqueAIConfig,
     common_components: _CommonComponents,
     debug_info_manager: DebugInfoManager,
-    todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
+    todo_memory_manager: "PersistentShortMemoryManager[TodoList] | None" = None,
 ) -> UniqueAI:
     # Uploaded content behavior is always to force uploaded search tool:
     # 1. Add it to forced tools if there are tool choices.

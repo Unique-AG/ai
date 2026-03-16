@@ -18,13 +18,12 @@ from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.todo.config import TodoConfig
 from unique_toolkit.agentic.tools.todo.schemas import (
     TodoItem,
-    TodoState,
+    TodoList,
     TodoWriteInput,
 )
 from unique_toolkit.agentic.tools.todo.service import (
     TodoReadTool,
     TodoWriteTool,
-    format_todo_system_reminder,
 )
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.schemas import LanguageModelFunction
@@ -56,14 +55,14 @@ def mock_event() -> ChatEvent:
 
 
 @pytest.fixture
-def shared_memory() -> dict[str, TodoState | None]:
+def shared_memory() -> dict[str, TodoList | None]:
     """Simulates ShortTermMemory as a simple dict so writes persist across iterations."""
     return {"agent_todo_state": None}
 
 
 def _build_tool(
     event: ChatEvent,
-    shared_memory: dict[str, TodoState | None],
+    shared_memory: dict[str, TodoList | None],
     config: TodoConfig | None = None,
 ) -> TodoWriteTool:
     """Build a TodoWriteTool wired to the shared in-memory store."""
@@ -80,7 +79,7 @@ def _build_tool(
 
 def _build_read_tool(
     event: ChatEvent,
-    shared_memory: dict[str, TodoState | None],
+    shared_memory: dict[str, TodoList | None],
     config: TodoConfig | None = None,
 ) -> TodoReadTool:
     cfg = config or TodoConfig()
@@ -224,7 +223,7 @@ class TestTodoMultiStepWorkflow:
 
         state = shared_memory["agent_todo_state"]
         assert state is not None
-        reminder = format_todo_system_reminder(state)
+        reminder = state.format_reminder()
         assert "[ ] First task" in reminder
         assert "<system-reminder>" in reminder
 
@@ -236,7 +235,7 @@ class TestTodoMultiStepWorkflow:
         )
 
         state = shared_memory["agent_todo_state"]
-        reminder = format_todo_system_reminder(state)
+        reminder = state.format_reminder()
         assert "[x] First task" in reminder
 
     @pytest.mark.ai
@@ -406,7 +405,7 @@ class TestTodoEdgeCases:
         self, mock_event: ChatEvent, shared_memory: dict
     ) -> None:
         """
-        Purpose: Verify the has_active check is false when all items are terminal.
+        Purpose: Verify has_active_items() is false when all items are terminal.
         Why: The orchestrator skips injection when no actionable work remains.
         Setup: Mix of completed and cancelled tasks -- both are terminal.
         """
@@ -425,10 +424,7 @@ class TestTodoEdgeCases:
         )
 
         state = shared_memory["agent_todo_state"]
-        has_active = any(
-            t.status not in ("completed", "cancelled") for t in state.todos
-        )
-        assert not has_active
+        assert not state.has_active_items()
 
     @pytest.mark.ai
     @pytest.mark.asyncio

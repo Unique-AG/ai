@@ -47,7 +47,7 @@ from unique_toolkit.protocols.support import (
 from unique_orchestrator.config import UniqueAIConfig
 
 if TYPE_CHECKING:
-    from unique_toolkit.agentic.tools.todo.schemas import TodoState
+    from unique_toolkit.agentic.tools.todo.schemas import TodoList
 
 EMPTY_MESSAGE_WARNING = (
     "⚠️ **The language model was unable to produce an output.**\n"
@@ -81,7 +81,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner,
-        todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
+        todo_memory_manager: "PersistentShortMemoryManager[TodoList] | None" = None,
     ) -> None: ...
 
     # Responses API Dependencies
@@ -104,7 +104,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: ResponsesLoopIterationRunner,
-        todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
+        todo_memory_manager: "PersistentShortMemoryManager[TodoList] | None" = None,
     ) -> None: ...
 
     def __init__(
@@ -126,7 +126,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner | ResponsesLoopIterationRunner,
-        todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
+        todo_memory_manager: "PersistentShortMemoryManager[TodoList] | None" = None,
     ) -> None:
         self._logger = logger
         self._event = event
@@ -306,17 +306,10 @@ class UniqueAI:
         if state is None or not state.todos:
             return messages
 
-        has_active = any(
-            t.status not in ("completed", "cancelled") for t in state.todos
-        )
-        if not has_active:
+        if not state.has_active_items():
             return messages
 
-        from unique_toolkit.agentic.tools.todo.service import (
-            format_todo_system_reminder,
-        )
-
-        reminder = format_todo_system_reminder(state)
+        reminder = state.format_reminder()
 
         for msg in reversed(messages.root):
             if msg.role == LanguageModelMessageRole.USER and isinstance(
@@ -647,7 +640,7 @@ class UniqueAIResponsesApi(UniqueAI):
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: ResponsesLoopIterationRunner,
-        todo_memory_manager: "PersistentShortMemoryManager[TodoState] | None" = None,
+        todo_memory_manager: "PersistentShortMemoryManager[TodoList] | None" = None,
     ) -> None:
         super().__init__(
             logger,
