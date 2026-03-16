@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.54.0] - 2026-03-16
+- Code interpreter (UN-17972 review fix): `get_tool_prompts()` now respects operator-customised `tool_description_for_system_prompt` when the fence FF is on. Previously the fence-aware prompt was applied unconditionally when the FF was enabled, silently ignoring any custom prompt. Now `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` is only substituted when the operator is still using the unmodified default; a customised prompt is always used regardless of the FF.
+
 ## [1.53.4] - 2026-03-13
 - Code interpreter (UN-17972 review fixes): `_warn_missing_content_ids` downgraded from WARNING to INFO. Dangling `sandbox:/mnt/data/` links are now replaced with the configured error message in addition to logging a warning. Fence prompt updated (example blank lines, component description, "files" not "images"). Consecutive fences normalised to exactly one newline between them (same-line, list-item, and blank-line cases).
 

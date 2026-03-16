@@ -14,6 +14,7 @@ from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInToolName,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
     DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
     OpenAICodeInterpreterConfig,
 )
@@ -243,11 +244,17 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
     def get_tool_prompts(self) -> ToolPrompts:
         # When the fence feature flag is on the frontend derives the artifact title
         # from the filename, so the LLM no longer needs to produce a markdown heading.
-        # When the flag is off we fall back to the operator-configured prompt (which
-        # includes the title instruction) to preserve existing rendering behaviour.
-        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+        # We only substitute the fence-aware default when the operator has NOT
+        # customised the prompt — a custom value is always respected regardless of FF.
+        # When FF is off we always use the operator-configured prompt as-is.
+        fence_ff_on = feature_flags.enable_code_execution_fence_un_17972.is_enabled(
             self._company_id
-        ):
+        )
+        operator_customised = (
+            self._config.tool_description_for_system_prompt
+            != DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT
+        )
+        if fence_ff_on and not operator_customised:
             system_prompt = DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
         else:
             system_prompt = self._config.tool_description_for_system_prompt
