@@ -804,7 +804,6 @@ class LanguageModelInfo(BaseModel):
                     version="2026-03-05",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
-                        ModelCapabilities.CHAT_COMPLETIONS_API,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
                         ModelCapabilities.REASONING,
@@ -819,10 +818,10 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2024, 9, 30),
                     published_at=date(2026, 3, 5),
                     temperature_bounds=TemperatureBounds(
-                        min_temperature=0.0, max_temperature=1.0
+                        min_temperature=1.0, max_temperature=1.0
                     ),
                     default_options={
-                        "reasoning_effort": "none",
+                        "reasoning_effort": "medium",
                     },
                 )
             case LanguageModelName.AZURE_GPT_4_TURBO_2024_0409:
