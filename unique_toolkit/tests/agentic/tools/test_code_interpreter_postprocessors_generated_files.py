@@ -216,6 +216,7 @@ def test_replace_container_file_citation__replaces_link__with_unique_content_lin
     assert "sandbox" not in new_text
 
 
+@pytest.mark.ai
 def test_replace_container_file_citation__replaces_link__with_superscript_when_fence_ff_off() -> (
     None
 ):
