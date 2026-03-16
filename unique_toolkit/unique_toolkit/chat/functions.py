@@ -1,4 +1,3 @@
-import json
 import logging
 import re
 from typing import Any, Sequence
@@ -1411,6 +1410,9 @@ async def update_message_execution_async(
         raise e
 
 
+_MAX_TOOL_RESPONSE_CONTENT_LEN = 10_000
+
+
 def _build_tool_call_items(
     tool_calls: list[ChatMessageTool],
 ) -> list[dict[str, object]]:
@@ -1418,10 +1420,18 @@ def _build_tool_call_items(
         {
             "externalToolCallId": tc.external_tool_call_id,
             "functionName": tc.function_name,
-            "arguments": json.dumps(tc.arguments) if tc.arguments is not None else None,
+            "arguments": tc.arguments,
             "roundIndex": tc.round_index,
             "sequenceIndex": tc.sequence_index,
-            **({"response": {"content": tc.response.content}} if tc.response else {}),
+            **(
+                {
+                    "response": {
+                        "content": tc.response.content[:_MAX_TOOL_RESPONSE_CONTENT_LEN]
+                    }
+                }
+                if tc.response
+                else {}
+            ),
         }
         for tc in tool_calls
     ]
