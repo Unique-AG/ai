@@ -895,7 +895,11 @@ def test_replace_container_file_citation__logs_warning__when_no_sandbox_link(
     """
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
         _, replaced = gen_mod._replace_container_file_citation(
-            text="No link here.", filename="data.csv", content_id="cont_y"
+            text="No link here.",
+            filename="data.csv",
+            content_id="cont_y",
+            ref_number=1,
+            use_content_link=False,
         )
 
     assert replaced is False
