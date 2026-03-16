@@ -212,7 +212,9 @@ class TestConfigPassthrough:
             chat_service=MagicMock(),
         )
 
-        postprocessor: ShowExecutedCodePostprocessor = mgr.add_postprocessor.call_args_list[0][0][0]
+        postprocessor: ShowExecutedCodePostprocessor = (
+            mgr.add_postprocessor.call_args_list[0][0][0]
+        )
         assert postprocessor._config is custom_code_display_config
 
     @pytest.mark.ai
@@ -234,7 +236,9 @@ class TestConfigPassthrough:
             chat_service=chat_service,
         )
 
-        pp: DisplayCodeInterpreterFilesPostProcessor = mgr.add_postprocessor.call_args_list[1][0][0]
+        pp: DisplayCodeInterpreterFilesPostProcessor = (
+            mgr.add_postprocessor.call_args_list[1][0][0]
+        )
         assert pp._client is client
         assert pp._company_id == "company-99"
         # All three IDs were passed, so short-term memory manager is initialised
@@ -280,7 +284,9 @@ class TestFirstMatchWins:
             chat_service=MagicMock(),
         )
 
-        postprocessor: ShowExecutedCodePostprocessor = mgr.add_postprocessor.call_args_list[0][0][0]
+        postprocessor: ShowExecutedCodePostprocessor = (
+            mgr.add_postprocessor.call_args_list[0][0][0]
+        )
         assert postprocessor._config.sleep_time_before_display == 0.1
 
     @pytest.mark.ai
@@ -316,5 +322,7 @@ class TestFirstMatchWins:
             chat_service=MagicMock(),
         )
 
-        postprocessor: ShowExecutedCodePostprocessor = mgr.add_postprocessor.call_args_list[0][0][0]
+        postprocessor: ShowExecutedCodePostprocessor = (
+            mgr.add_postprocessor.call_args_list[0][0][0]
+        )
         assert postprocessor._config.sleep_time_before_display == 0.5
