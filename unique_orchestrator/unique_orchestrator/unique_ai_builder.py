@@ -53,14 +53,12 @@ from unique_toolkit.agentic.tools.a2a import (
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
-    CodeInterpreterExtendedConfig,
-)
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter import (
+    DisplayCodeInterpreterFilesPostProcessor,
     ShowExecutedCodePostprocessor,
 )
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files import (
-    DisplayCodeInterpreterFilesPostProcessor,
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+    CodeInterpreterExtendedConfig,
 )
 from unique_toolkit.agentic.tools.tool_manager import (
     OpenAIBuiltInToolManager,
