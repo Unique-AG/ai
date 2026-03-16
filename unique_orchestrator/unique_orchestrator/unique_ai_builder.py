@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from logging import Logger
 from typing import NamedTuple, cast
 
+from openai import AsyncOpenAI
 from unique_follow_up_questions.follow_up_postprocessor import (
     FollowUpPostprocessor,
 )
@@ -34,10 +35,6 @@ from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     PostprocessorManager,
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
-from unique_toolkit.agentic.responses_api import (
-    DisplayCodeInterpreterFilesPostProcessor,
-    ShowExecutedCodePostprocessor,
-)
 from unique_toolkit.agentic.thinking_manager.thinking_manager import (
     ThinkingManager,
     ThinkingManagerConfig,
@@ -56,6 +53,15 @@ from unique_toolkit.agentic.tools.a2a import (
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.mcp.manager import MCPManager
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+    CodeInterpreterExtendedConfig,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
+    ShowExecutedCodePostprocessor,
+)
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files import (
+    DisplayCodeInterpreterFilesPostProcessor,
+)
 from unique_toolkit.agentic.tools.tool_manager import (
     OpenAIBuiltInToolManager,
     ResponsesApiToolManager,
@@ -70,7 +76,7 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
 from unique_orchestrator._builders import build_loop_iteration_runner
-from unique_orchestrator.config import CodeInterpreterExtendedConfig, UniqueAIConfig
+from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
 
 
@@ -239,6 +245,51 @@ def _build_common(
     )
 
 
+def _register_code_interpreter_postprocessors(
+    tools: list[ToolBuildConfig],
+    postprocessor_manager: PostprocessorManager,
+    client: AsyncOpenAI,
+    content_service: ContentService,
+    user_id: str,
+    company_id: str,
+    chat_id: str,
+    chat_service: ChatService,
+) -> None:
+    """Find the first enabled Code Interpreter tool and register its postprocessors.
+
+    When a CODE_INTERPRETER tool is present and enabled, both the executed-code
+    display postprocessor and the generated-files postprocessor are unconditionally
+    registered so that all Code Interpreter output is surfaced to the user.
+    """
+    code_interpreter_config = None
+    for tool in tools:
+        if tool.is_enabled and tool.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
+            code_interpreter_config = cast(
+                CodeInterpreterExtendedConfig, tool.configuration
+            )
+            break
+
+    if code_interpreter_config is None:
+        return
+
+    postprocessor_manager.add_postprocessor(
+        ShowExecutedCodePostprocessor(
+            config=code_interpreter_config.executed_code_display_config
+        )
+    )
+    postprocessor_manager.add_postprocessor(
+        DisplayCodeInterpreterFilesPostProcessor(
+            client=client,
+            content_service=content_service,
+            config=code_interpreter_config.generated_files_config,
+            user_id=user_id,
+            company_id=company_id,
+            chat_id=chat_id,
+            chat_service=chat_service,
+        )
+    )
+
+
 async def _build_responses(
     event: ChatEvent,
     logger: Logger,
@@ -258,32 +309,16 @@ async def _build_responses(
 
     postprocessor_manager = common_components.postprocessor_manager
 
-    code_interpreter_config = None
-    for tool in config.space.tools:
-        if tool.is_enabled and tool.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
-            code_interpreter_config = cast(
-                CodeInterpreterExtendedConfig, tool.configuration
-            )
-            break
-
-    if code_interpreter_config is not None:
-        postprocessor_manager.add_postprocessor(
-            ShowExecutedCodePostprocessor(
-                config=code_interpreter_config.executed_code_display_config
-            )
-        )
-
-        postprocessor_manager.add_postprocessor(
-            DisplayCodeInterpreterFilesPostProcessor(
-                client=client,
-                content_service=common_components.content_service,
-                config=code_interpreter_config.generated_files_config,
-                user_id=event.user_id,
-                company_id=event.company_id,
-                chat_id=event.payload.chat_id,
-                chat_service=common_components.chat_service,
-            )
-        )
+    _register_code_interpreter_postprocessors(
+        tools=config.space.tools,
+        postprocessor_manager=postprocessor_manager,
+        client=client,
+        content_service=common_components.content_service,
+        user_id=event.user_id,
+        company_id=event.company_id,
+        chat_id=event.payload.chat_id,
+        chat_service=common_components.chat_service,
+    )
 
     has_valid_uploaded_documents, has_tool_choices = _configure_uploaded_search_tool(
         event=event,
