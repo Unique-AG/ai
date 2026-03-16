@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.53.4] - 2026-03-12
+- Code interpreter: restore original inline rendering for non-image files when fence feature flag is off. PR #1163 had replaced sandbox links with `[filename](unique://content/id)` unconditionally; the frontend does not render `unique://` as clickable inline text. When the fence FF is disabled, sandbox links are now again replaced with `<sup>N</sup>` so files remain accessible via the references panel. When the FF is on, the content link is still produced for fence injection. (UN-17972)
+
 ## [1.53.3] - 2026-03-12
 - Hide `assistant_id` and `chat_id` in SubAgentToolConfig from Spaces 2.0 UI via RJSF `SpecialWidget.hidden()` (UN-18112)
 
