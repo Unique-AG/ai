@@ -89,6 +89,7 @@ nav:
       - Smart Rules: modules/examples/content/smart_rules.md
   - Tutorials:
     - Agentic Table App: tutorials/agentic_table_app.md
+    - Code Execution: tutorials/code_execution.md
     - File Creation with Upload to Chat: tutorials/file_creation_and_upload_to_chat.md
   - Agentic Framework:
     - Overview: agentic_framework/framework.md

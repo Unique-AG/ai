@@ -191,10 +191,11 @@ def test_replace_container_file_citation__replaces_link__with_unique_content_lin
     None
 ):
     """
-    Purpose: Verify file link markdown is replaced by a unique://content link with the filename as label.
-    Why this matters: Non-image files are shown as download links with a stable content_id in the URL,
-    allowing frontend to map the inline position back to the corresponding code_blocks entry.
-    Setup summary: Text with [label](sandbox:/mnt/data/data.csv); assert unique://content/{content_id} in result.
+    Purpose: Verify file link markdown is replaced by a unique://content link when fence FF is on.
+    Why this matters: When the fence feature flag is enabled, the content link is needed so the
+    subsequent fence injection step can locate and replace it with a fileWithSource fence.
+    Setup summary: Text with [label](sandbox:/mnt/data/data.csv); use_content_link=True;
+    assert unique://content/{content_id} in result.
     """
     # Arrange
     text = "Data in [file](sandbox:/mnt/data/data.csv)."
@@ -202,12 +203,48 @@ def test_replace_container_file_citation__replaces_link__with_unique_content_lin
 
     # Act
     new_text, replaced = gen_mod._replace_container_file_citation(
-        text, filename="data.csv", content_id=content_id
+        text,
+        filename="data.csv",
+        content_id=content_id,
+        ref_number=1,
+        use_content_link=True,
     )
 
     # Assert
     assert replaced is True
     assert f"[data.csv](unique://content/{content_id})" in new_text
+    assert "sandbox" not in new_text
+
+
+@pytest.mark.ai
+def test_replace_container_file_citation__replaces_link__with_superscript_when_fence_ff_off() -> (
+    None
+):
+    """
+    Purpose: Verify file link markdown is replaced by a superscript ref when fence FF is off.
+    Why this matters: When the fence feature flag is disabled, the original pre-fence behaviour
+    must be preserved — the sandbox link becomes <sup>N</sup> and the file remains accessible
+    via the references panel only. This restores the regression introduced in PR #1163.
+    Setup summary: Text with [label](sandbox:/mnt/data/data.csv); use_content_link=False;
+    assert <sup>1</sup> in result, no unique:// link in text.
+    """
+    # Arrange
+    text = "Data in [file](sandbox:/mnt/data/data.csv)."
+    content_id = "cont_abc123"
+
+    # Act
+    new_text, replaced = gen_mod._replace_container_file_citation(
+        text,
+        filename="data.csv",
+        content_id=content_id,
+        ref_number=1,
+        use_content_link=False,
+    )
+
+    # Assert
+    assert replaced is True
+    assert "<sup>1</sup>" in new_text
+    assert "unique://" not in new_text
     assert "sandbox" not in new_text
 
 

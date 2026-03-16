@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `get_content_info_async()` to `functions` for fetching content info asynchronously
 - Add `get_folder_info_async()` to `functions` for fetching folder info asynchronously
 
+## [1.53.4] - 2026-03-12
+- Code interpreter: restore original inline rendering for non-image files when fence feature flag is off. PR #1163 had replaced sandbox links with `[filename](unique://content/id)` unconditionally; the frontend does not render `unique://` as clickable inline text. When the fence FF is disabled, sandbox links are now again replaced with `<sup>N</sup>` so files remain accessible via the references panel. When the FF is on, the content link is still produced for fence injection. (UN-17972)
+
 ## [1.53.3] - 2026-03-12
 - Hide `assistant_id` and `chat_id` in SubAgentToolConfig from Spaces 2.0 UI via RJSF `SpecialWidget.hidden()` (UN-18112)
 
