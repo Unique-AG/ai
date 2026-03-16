@@ -346,7 +346,6 @@ async def _build_responses(
     if not has_tool_choices and has_valid_uploaded_documents:
         tool_manager.add_forced_tool(UploadedSearchTool.name)
 
-    postprocessor_manager = common_components.postprocessor_manager
     loop_iteration_runner = build_loop_iteration_runner(
         config=config,
         history_manager=common_components.history_manager,
