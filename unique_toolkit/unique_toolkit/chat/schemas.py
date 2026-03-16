@@ -71,8 +71,8 @@ class ChatMessageToolResponse(BaseModel):
 
     model_config = model_config
 
+    content: str
     id: str | None = None
-    content: str | None = None
     tool_call_id: str | None = None
     created_at: datetime | None = None
 
