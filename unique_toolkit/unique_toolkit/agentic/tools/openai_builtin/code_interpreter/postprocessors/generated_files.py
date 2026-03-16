@@ -194,10 +194,17 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
             # Files (including HTML when feature flag is disabled)
             else:
+                fence_ff_on = (
+                    feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+                        self._company_id
+                    )
+                )
                 loop_response.message.text, replaced = _replace_container_file_citation(
                     text=loop_response.message.text,
                     filename=filename,
                     content_id=content_id,
+                    ref_number=ref_number,
+                    use_content_link=fence_ff_on,
                 )
                 changed |= replaced
 
@@ -687,8 +694,20 @@ unique://content/{content_id}
 
 
 def _replace_container_file_citation(
-    text: str, filename: str, content_id: str
+    text: str,
+    filename: str,
+    content_id: str,
+    ref_number: int,
+    use_content_link: bool,
 ) -> tuple[str, bool]:
+    """Replace a sandbox file link with either an inline content link or a superscript ref.
+
+    When the fence feature flag is on (use_content_link=True), the sandbox link is
+    replaced with [filename](unique://content/{id}) so the subsequent fence injection
+    step can locate and wrap it. When the flag is off (use_content_link=False), the
+    original pre-fence behaviour is restored: the link is replaced with <sup>N</sup>
+    and the file remains accessible via the references panel.
+    """
     file_markdown = rf"\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
 
     if not re.search(file_markdown, text):
@@ -700,9 +719,10 @@ def _replace_container_file_citation(
         )
         return text, False
 
-    logger.info("Inserting file citation for '%s'", filename)
-    return re.sub(
-        file_markdown,
-        f"[{filename}](unique://content/{content_id})",
-        text,
-    ), True
+    logger.info("Displaying file %s", filename)
+    replacement = (
+        f"[{filename}](unique://content/{content_id})"
+        if use_content_link
+        else f"<sup>{ref_number}</sup>"
+    )
+    return re.sub(file_markdown, replacement, text), True
