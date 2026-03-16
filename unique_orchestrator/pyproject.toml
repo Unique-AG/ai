@@ -19,6 +19,7 @@ dependencies = [
     "unique-deep-research>=3.0.17,<4",
     "unique-web-search>=1.10.0,<2",
     "unique-swot>=1.0.0,<2",
+    "openai>=1.109.1,<2",
 ]
 
 [build-system]

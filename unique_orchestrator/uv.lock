@@ -3794,6 +3794,7 @@ version = "1.14.2"
 source = { editable = "." }
 dependencies = [
     { name = "jinja2" },
+    { name = "openai" },
     { name = "pydantic" },
     { name = "typing-extensions" },
     { name = "unique-deep-research" },
@@ -3822,6 +3823,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "jinja2", specifier = ">=3.1.0,<4" },
+    { name = "openai", specifier = ">=1.109.1,<2" },
     { name = "pydantic", specifier = ">=2.8.2,<3" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
     { name = "unique-deep-research", editable = "../tool_packages/unique_deep_research" },
