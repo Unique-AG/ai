@@ -259,6 +259,24 @@ In the current architecture, all tool calls within an iteration are determined b
 
 If the platform moves to sequential execution or the Responses API, the injection point should move closer to individual tool completions.
 
+## Known Issue: ShortTermMemory Persistence
+
+The `ShortTermMemory.create_async` API requires scoping by `chatId`, `messageId`, or `companyId`. During tool execution, the `messageId` available from the `ChatEvent` is the **user's** message ID — the assistant message ID for the current turn is not yet finalized. This can cause `InvalidRequestError: ShortTerm Memory must be scoped by chatId, messageId or companyId` when `TodoWriteTool` tries to persist state.
+
+### Current workaround
+
+Both `TodoWriteTool.run()` and `TodoReadTool.run()` wrap persistence calls in `try/except`. If the save fails, the tool still returns the formatted state to the LLM. The state is visible in the tool response (part of conversation history), so the model can track progress even without backend persistence.
+
+### Why this works
+
+The tool response containing the TODO state is part of the conversation history. On subsequent iterations, the LLM sees its own previous `todo_write` responses. This is effectively how Claude Code handles TODO state — it lives in the conversation context, not in an external database.
+
+### Long-term fix options
+
+1. **Fix ShortTermMemory scoping**: Investigate whether the backend accepts `chatId` + `companyId` without `messageId`, or whether the assistant message ID can be passed.
+2. **In-memory only**: Replace `PersistentShortMemoryManager` with a simple dict scoped to the chat session. Sufficient for within-session state.
+3. **Conversation-flow only**: Remove the persistence layer entirely and rely on the LLM reading its own tool responses from history. Simplest, but loses state if context is compacted.
+
 ## Design Doc
 
 For the full design rationale, alternatives considered, and future work (PubSub frontend rendering, PlanningMiddleware integration), see the design document in the finance agentic harness docs.
