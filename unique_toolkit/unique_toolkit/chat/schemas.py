@@ -108,6 +108,9 @@ class ChatMessage(BaseModel):
     id: str | None = None
     chat_id: str = ""
     object: str | None = None
+    # alias="text" applies only to construction (model_validate / __init__).
+    # model_dump() uses the field name "content", not "text". Use model_dump(by_alias=True)
+    # to get "text" as the key, or access via the .text property.
     content: str | None = Field(default=None, alias="text")
     original_text: str | None = None
     role: ChatMessageRole

@@ -58,6 +58,9 @@ model_config = ConfigDict(
 # LanguageModelStreamResponseMessage was a toolkit-only subclass with stricter types
 # (required id/content, non-null references). The backend DTOs (PublicMessageDto,
 # PublicStreamResultDto) use a single message type, so this distinction was unnecessary.
+# Note: id and content are now optional (str | None) instead of required (str). This is a
+# deliberate contract relaxation — the backend always returns non-null values in stream
+# responses, but callers that relied on the stricter types should add explicit null checks.
 LanguageModelStreamResponseMessage = ChatMessage
 
 
