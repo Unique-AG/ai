@@ -1,9 +1,9 @@
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from unique_internal_search.uploaded_search.service import UploadedSearchTool
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
+from unique_toolkit.agentic.tools.tool_manager import ToolManagerConfig
 
 from unique_orchestrator.config import CodeInterpreterExtendedConfig, UniqueAIConfig
 from unique_orchestrator.unique_ai_builder import (
@@ -13,7 +13,7 @@ from unique_orchestrator.unique_ai_builder import (
 
 
 def _make_common_components(uploaded_documents):
-    tool_manager_config = SimpleNamespace(tools=[])
+    tool_manager_config = ToolManagerConfig(tools=[])
     return _CommonComponents(
         chat_service=MagicMock(),
         content_service=MagicMock(),
