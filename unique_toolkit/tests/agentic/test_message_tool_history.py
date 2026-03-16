@@ -626,26 +626,33 @@ class TestCompactMessageTools:
     def test_no_assistant_text_returns_records_unchanged(self):
         content = self._make_sources([0, 1, 2])
         records = [self._make_record(content)]
-        result = HistoryManager.compact_message_tools(records, None)
+        result = HistoryManager.compact_message_tools(
+            records=records, assistant_text=None
+        )
         assert result[0].response.content == content
 
     def test_empty_assistant_text_returns_records_unchanged(self):
         content = self._make_sources([0, 1, 2])
         records = [self._make_record(content)]
-        result = HistoryManager.compact_message_tools(records, "")
+        result = HistoryManager.compact_message_tools(
+            records=records, assistant_text=""
+        )
         assert result[0].response.content == content
 
     def test_no_citations_returns_records_unchanged(self):
         content = self._make_sources([0, 1, 2])
         records = [self._make_record(content)]
-        result = HistoryManager.compact_message_tools(records, "No sources used here.")
+        result = HistoryManager.compact_message_tools(
+            records=records, assistant_text="No sources used here."
+        )
         assert result[0].response.content == content
 
     def test_strips_uncited_sources(self):
         content = self._make_sources([0, 1, 2, 3, 4])
         records = [self._make_record(content)]
         result = HistoryManager.compact_message_tools(
-            records, "The answer is sunny [source0] and warm [source3]."
+            records=records,
+            assistant_text="The answer is sunny [source0] and warm [source3].",
         )
         parsed = json.loads(result[0].response.content)
         assert len(parsed) == 2
@@ -655,20 +662,25 @@ class TestCompactMessageTools:
         content = self._make_sources([5, 6])
         records = [self._make_record(content)]
         result = HistoryManager.compact_message_tools(
-            records, "Info from [source5] and [source6]."
+            records=records,
+            assistant_text="Info from [source5] and [source6].",
         )
         parsed = json.loads(result[0].response.content)
         assert len(parsed) == 2
 
     def test_non_json_content_left_unchanged(self):
         records = [self._make_record("plain text result")]
-        result = HistoryManager.compact_message_tools(records, "Used [source0] here.")
+        result = HistoryManager.compact_message_tools(
+            records=records, assistant_text="Used [source0] here."
+        )
         assert result[0].response.content == "plain text result"
 
     def test_no_response_record_is_safe(self):
         records = [self._make_record(None)]
         records[0].response = None
-        result = HistoryManager.compact_message_tools(records, "Used [source0] here.")
+        result = HistoryManager.compact_message_tools(
+            records=records, assistant_text="Used [source0] here."
+        )
         assert result[0].response is None
 
     def test_multiple_records_compacted_independently(self):
@@ -682,7 +694,8 @@ class TestCompactMessageTools:
             response=ChatMessageToolResponse(content=self._make_sources([3, 4, 5])),
         )
         result = HistoryManager.compact_message_tools(
-            [r1, r2], "From [source1] and [source4] we know..."
+            records=[r1, r2],
+            assistant_text="From [source1] and [source4] we know...",
         )
         parsed_r1 = json.loads(result[0].response.content)
         parsed_r2 = json.loads(result[1].response.content)
@@ -695,7 +708,8 @@ class TestCompactMessageTools:
         content = self._make_sources([0, 1])
         records = [self._make_record(content)]
         result = HistoryManager.compact_message_tools(
-            records, "Per [Source0] this is correct."
+            records=records,
+            assistant_text="Per [Source0] this is correct.",
         )
         parsed = json.loads(result[0].response.content)
         assert len(parsed) == 1

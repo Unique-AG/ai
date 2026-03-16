@@ -254,6 +254,7 @@ def get_full_history_with_contents(
 
 
 def get_full_history_with_contents_and_tool_calls(
+    *,
     user_message: ChatEventUserMessage,
     chat_id: str,
     chat_service: ChatService,

@@ -687,7 +687,9 @@ class TestCreateMessageTools:
             sequence_index=0,
             response=ChatMessageToolResponse(content="result"),
         )
-        result = create_message_tools("u1", "c1", "msg1", [tool])
+        result = create_message_tools(
+            user_id="u1", company_id="c1", message_id="msg1", tool_calls=[tool]
+        )
 
         assert len(result) == 1
         assert result[0].external_tool_call_id == "tc1"
@@ -709,7 +711,9 @@ class TestCreateMessageTools:
             sequence_index=0,
             response=ChatMessageToolResponse(content="ok"),
         )
-        create_message_tools("u1", "c1", "msg1", [tool])
+        create_message_tools(
+            user_id="u1", company_id="c1", message_id="msg1", tool_calls=[tool]
+        )
 
         _, call_kwargs = mock_sdk.MessageTool.create_many.call_args
         payload = call_kwargs["tools"][0]
@@ -729,7 +733,9 @@ class TestCreateMessageTools:
             sequence_index=0,
             response=None,
         )
-        create_message_tools("u1", "c1", "msg1", [tool])
+        create_message_tools(
+            user_id="u1", company_id="c1", message_id="msg1", tool_calls=[tool]
+        )
 
         _, call_kwargs = mock_sdk.MessageTool.create_many.call_args
         assert "response" not in call_kwargs["tools"][0]
@@ -737,7 +743,9 @@ class TestCreateMessageTools:
     def test_propagates_exception(self, mock_sdk):
         mock_sdk.MessageTool.create_many.side_effect = RuntimeError("SDK error")
         with pytest.raises(RuntimeError, match="SDK error"):
-            create_message_tools("u1", "c1", "msg1", [])
+            create_message_tools(
+                user_id="u1", company_id="c1", message_id="msg1", tool_calls=[]
+            )
 
     @pytest.mark.asyncio
     async def test_async_variant(self, mock_sdk):
@@ -752,7 +760,9 @@ class TestCreateMessageTools:
             round_index=0,
             sequence_index=0,
         )
-        result = await create_message_tools_async("u1", "c1", "msg1", [tool])
+        result = await create_message_tools_async(
+            user_id="u1", company_id="c1", message_id="msg1", tool_calls=[tool]
+        )
 
         assert len(result) == 1
         assert result[0].external_tool_call_id == "tc1"
@@ -764,7 +774,7 @@ class TestGetMessageTools:
         mock_result.data = [_make_sdk_tool_item()]
         mock_sdk.MessageTool.get_message_tools.return_value = mock_result
 
-        result = get_message_tools("u1", "c1", message_id="msg1")
+        result = get_message_tools(user_id="u1", company_id="c1", message_id="msg1")
 
         assert len(result) == 1
         assert result[0].external_tool_call_id == "tc1"
@@ -776,18 +786,18 @@ class TestGetMessageTools:
         mock_result.data = []
         mock_sdk.MessageTool.get_message_tools.return_value = mock_result
 
-        get_message_tools("u1", "c1", message_ids=["m1", "m2", "m3"])
+        get_message_tools(user_id="u1", company_id="c1", message_ids=["m1", "m2", "m3"])
 
         _, call_kwargs = mock_sdk.MessageTool.get_message_tools.call_args
         assert call_kwargs["messageIds"] == "m1,m2,m3"
 
     def test_empty_message_ids_list_returns_early(self, mock_sdk):
-        result = get_message_tools("u1", "c1", message_ids=[])
+        result = get_message_tools(user_id="u1", company_id="c1", message_ids=[])
         mock_sdk.MessageTool.get_message_tools.assert_not_called()
         assert result == []
 
     def test_no_ids_provided_returns_early(self, mock_sdk):
-        result = get_message_tools("u1", "c1")
+        result = get_message_tools(user_id="u1", company_id="c1")
         mock_sdk.MessageTool.get_message_tools.assert_not_called()
         assert result == []
 
@@ -799,7 +809,7 @@ class TestGetMessageTools:
         ]
         mock_sdk.MessageTool.get_message_tools.return_value = mock_result
 
-        result = get_message_tools("u1", "c1", message_id="msg1")
+        result = get_message_tools(user_id="u1", company_id="c1", message_id="msg1")
 
         assert len(result) == 2
         assert result[0].external_tool_call_id == "tc1"
@@ -808,7 +818,7 @@ class TestGetMessageTools:
     def test_propagates_exception(self, mock_sdk):
         mock_sdk.MessageTool.get_message_tools.side_effect = RuntimeError("oops")
         with pytest.raises(RuntimeError, match="oops"):
-            get_message_tools("u1", "c1", message_id="msg1")
+            get_message_tools(user_id="u1", company_id="c1", message_id="msg1")
 
     @pytest.mark.asyncio
     async def test_async_variant(self, mock_sdk):
@@ -818,12 +828,16 @@ class TestGetMessageTools:
             return_value=mock_result
         )
 
-        result = await get_message_tools_async("u1", "c1", message_id="msg1")
+        result = await get_message_tools_async(
+            user_id="u1", company_id="c1", message_id="msg1"
+        )
 
         assert len(result) == 1
         assert result[0].external_tool_call_id == "tc1"
 
     @pytest.mark.asyncio
     async def test_async_empty_ids_returns_early(self, mock_sdk):
-        result = await get_message_tools_async("u1", "c1", message_ids=[])
+        result = await get_message_tools_async(
+            user_id="u1", company_id="c1", message_ids=[]
+        )
         assert result == []

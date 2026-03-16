@@ -1439,6 +1439,7 @@ def _resolve_message_ids(
 
 
 def create_message_tools(
+    *,
     user_id: str,
     company_id: str,
     message_id: str,
@@ -1459,6 +1460,7 @@ def create_message_tools(
 
 
 async def create_message_tools_async(
+    *,
     user_id: str,
     company_id: str,
     message_id: str,
@@ -1479,6 +1481,7 @@ async def create_message_tools_async(
 
 
 def get_message_tools(
+    *,
     user_id: str,
     company_id: str,
     message_id: str | None = None,
@@ -1501,6 +1504,7 @@ def get_message_tools(
 
 
 async def get_message_tools_async(
+    *,
     user_id: str,
     company_id: str,
     message_id: str | None = None,
