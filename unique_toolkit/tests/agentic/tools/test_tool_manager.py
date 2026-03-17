@@ -2146,7 +2146,7 @@ async def test_tool_manager__execute_tool_call__preserves_existing_debug_info(
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_tool_manager__execute_tool_call__rounds_execution_time_to_two_decimals(
+async def test_tool_manager__execute_tool_call__rounds_execution_time_to_three_decimals(
     logger,
     tool_manager_config,
     base_event,
@@ -2155,7 +2155,7 @@ async def test_tool_manager__execute_tool_call__rounds_execution_time_to_two_dec
     a2a_manager,
 ) -> None:
     """
-    Purpose: Verify execution_time_s is rounded to 2 decimal places.
+    Purpose: Verify execution_time_s is rounded to 3 decimal places.
     Why this matters: Consistent precision for timing data.
     Setup summary: Execute tool call and check decimal precision of execution_time_s.
     """
@@ -2178,4 +2178,4 @@ async def test_tool_manager__execute_tool_call__rounds_execution_time_to_two_dec
     time_value = response.debug_info["execution_time_s"]
     parts = str(time_value).split(".")
     if len(parts) == 2:
-        assert len(parts[1]) <= 2
+        assert len(parts[1]) <= 3

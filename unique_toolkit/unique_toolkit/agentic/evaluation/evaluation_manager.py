@@ -101,6 +101,8 @@ class EvaluationManager:
         loop_response: LanguageModelStreamResponse,
         assistant_message_id: str,
     ) -> list[EvaluationMetricResult]:
+        self._execution_times = {}
+
         task_executor = SafeTaskExecutor(
             logger=self._logger,
         )

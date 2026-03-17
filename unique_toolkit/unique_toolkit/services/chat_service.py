@@ -140,35 +140,49 @@ class ChatService(ChatServiceDeprecated):
 
         return self._elicitation_service
 
-    def get_debug_info(self) -> dict:
+    def get_debug_info(self) -> dict[str, Any]:
         """Retrieves the debug information from the current user message.
 
         Returns:
-            dict: The debug information stored on the user message.
+            dict[str, Any]: The debug information stored on the user message,
+                or an empty dict if retrieval fails or no debug info exists.
 
         """
-        raw_msg = unique_sdk.Message.retrieve(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            id=self._user_message_id,
-            chatId=self._chat_id,
-        )
-        return getattr(raw_msg, "debugInfo", {}) or {}
+        try:
+            raw_msg = unique_sdk.Message.retrieve(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                id=self._user_message_id,
+                chatId=self._chat_id,
+            )
+            return getattr(raw_msg, "debugInfo", {}) or {}
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "Failed to retrieve debug info from user message", exc_info=True
+            )
+            return {}
 
-    async def get_debug_info_async(self) -> dict:
+    async def get_debug_info_async(self) -> dict[str, Any]:
         """Retrieves the debug information from the current user message asynchronously.
 
         Returns:
-            dict: The debug information stored on the user message.
+            dict[str, Any]: The debug information stored on the user message,
+                or an empty dict if retrieval fails or no debug info exists.
 
         """
-        raw_msg = await unique_sdk.Message.retrieve_async(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            id=self._user_message_id,
-            chatId=self._chat_id,
-        )
-        return getattr(raw_msg, "debugInfo", {}) or {}
+        try:
+            raw_msg = await unique_sdk.Message.retrieve_async(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                id=self._user_message_id,
+                chatId=self._chat_id,
+            )
+            return getattr(raw_msg, "debugInfo", {}) or {}
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "Failed to retrieve debug info from user message", exc_info=True
+            )
+            return {}
 
     async def update_debug_info_async(self, debug_info: dict):
         """Updates the debug information for the chat session.

@@ -125,6 +125,8 @@ class PostprocessorManager:
         self,
         loop_response: LanguageModelStreamResponse,
     ) -> None:
+        self._execution_times = {}
+
         task_executor = SafeTaskExecutor(
             logger=self._logger,
         )
