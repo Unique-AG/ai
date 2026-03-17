@@ -284,7 +284,7 @@ router.post(
       res.setHeader("Cache-Control", "no-store");
       res.json({
         access_token: accessToken,
-        token_type: "bearer",
+        token_type: "Bearer",
         expires_in: TOKEN_LIFETIME,
       });
       return;
@@ -296,7 +296,7 @@ router.post(
       res.setHeader("Cache-Control", "no-store");
       res.json({
         access_token: accessToken,
-        token_type: "bearer",
+        token_type: "Bearer",
         expires_in: TOKEN_LIFETIME,
       });
       return;
