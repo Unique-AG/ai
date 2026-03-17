@@ -246,7 +246,7 @@ describe("middleware", () => {
         const body = await res.json();
         assert.ok(body.access_token);
         assert.strictEqual(body.token_type, "bearer");
-        assert.strictEqual(body.expires_in, 3600);
+        assert.strictEqual(body.expires_in, 259200);
         assert.strictEqual(res.headers.get("cache-control"), "no-store");
       });
 
@@ -313,7 +313,7 @@ describe("middleware", () => {
         const body = await res.json();
         assert.ok(body.access_token);
         assert.strictEqual(body.token_type, "bearer");
-        assert.strictEqual(body.expires_in, 3600);
+        assert.strictEqual(body.expires_in, 259200);
       });
 
       it("rejects token exchange without code_verifier", async () => {
