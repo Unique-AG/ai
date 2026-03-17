@@ -876,17 +876,17 @@ def get_content_info(
     skip: int | None = None,
     take: int | None = None,
     file_path: str | None = None,
-):
+) -> PaginatedContentInfos:
     """Gets the info of a content."""
 
     get_info_params = unique_sdk.Content.ContentInfoParams(
         metadataFilter=metadata_filter or None,  # Dict cannot be empty
     )
-    if skip:
+    if skip is not None:
         get_info_params["skip"] = skip
-    if take:
+    if take is not None:
         get_info_params["take"] = take
-    if file_path:
+    if file_path is not None:
         get_info_params["filePath"] = file_path
 
     content_info = unique_sdk.Content.get_infos(
