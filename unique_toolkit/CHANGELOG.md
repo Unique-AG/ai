@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.55.0] - 2026-03-16
+- Align `ChatMessage` to `PublicMessageDto`: rename `original_content` → `original_text` (⚠️ breaking), add `started_streaming_at`, `stopped_streaming_at`, `assessment`, `previous_message_id` fields, change `references` default from `None` to `[]`, add `text` property as getter/setter alias for `content` (UN-18040)
+- Remove `LanguageModelStreamResponseMessage` class — replaced with backward-compatible alias `= ChatMessage`; `id` and `content` are now `str | None` instead of required `str` (UN-18040)
+- Consolidate `LanguageModelMessageRole` as a re-export of `ChatMessageRole` (same values, no runtime change) (UN-18040)
+- Add `LanguageModelTokenUsage` model and `usage: LanguageModelTokenUsage | None` field to `LanguageModelStreamResponse`, matching `PublicStreamResultDto` (UN-18040)
+
 ## [1.54.1] - 2026-03-16
 - Add reusable `NoneToDefault` `BeforeValidator` that replaces incoming `None` values with the field's declared default via `PydanticUseDefault`, enabling backward-compatible migration from nullable fields to non-nullable fields with defaults
 - Apply `NoneToDefault` validator to `DocxGeneratorConfig.template_content_id`
