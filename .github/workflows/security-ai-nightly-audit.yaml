@@ -2,8 +2,9 @@ name: "[security] AI Nightly Security Audit"
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 3 * * *" # 3 AM UTC daily
+  # Disabled for now until tested
+  # schedule:
+  #   - cron: "0 3 * * *" # 3 AM UTC daily
 
 permissions:
   contents: read
