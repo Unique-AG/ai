@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from azure.core.pipeline.transport import AsyncioRequestsTransport
 
 from unique_web_search.services.search_engine.utils.bing.client import (
     credentials_are_valid,
@@ -149,13 +150,13 @@ class TestGetProjectClient:
 
     @pytest.mark.ai
     @patch(f"{_CLIENT_MODULE}.env_settings")
-    def test_get_client__private_transport__uses_requests_transport(
+    def test_get_client__private_transport__uses_asyncio_requests_transport(
         self, mock_env: MagicMock
     ) -> None:
         """
-        Purpose: Verify RequestsTransport is used when private endpoint transport is enabled.
+        Purpose: Verify AsyncioRequestsTransport is used when private endpoint transport is enabled.
         Why this matters: Private endpoint connectivity requires custom transport layer.
-        Setup summary: Enable private transport; assert AIProjectClient receives transport kwarg.
+        Setup summary: Enable private transport; assert AIProjectClient receives AsyncioRequestsTransport kwarg.
         """
         # Arrange
         mock_env.azure_ai_project_endpoint = "https://private.azure.com"
@@ -169,6 +170,7 @@ class TestGetProjectClient:
         # Assert
         call_kwargs = mock_client_cls.call_args[1]
         assert "transport" in call_kwargs
+        assert isinstance(call_kwargs["transport"], AsyncioRequestsTransport)
         assert call_kwargs["endpoint"] == "https://private.azure.com"
 
     @pytest.mark.ai
