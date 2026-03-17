@@ -3,6 +3,7 @@ import assert from "node:assert";
 import { createHash } from "node:crypto";
 import express from "express";
 import type { Server } from "node:http";
+import { TOKEN_LIFETIME } from "../middleware";
 
 const CLIENT_ID = "test-client-id";
 const CLIENT_SECRET = "test-client-secret";
@@ -246,7 +247,7 @@ describe("middleware", () => {
         const body = await res.json();
         assert.ok(body.access_token);
         assert.strictEqual(body.token_type, "bearer");
-        assert.strictEqual(body.expires_in, 3600);
+        assert.strictEqual(body.expires_in, TOKEN_LIFETIME);
         assert.strictEqual(res.headers.get("cache-control"), "no-store");
       });
 
@@ -313,7 +314,7 @@ describe("middleware", () => {
         const body = await res.json();
         assert.ok(body.access_token);
         assert.strictEqual(body.token_type, "bearer");
-        assert.strictEqual(body.expires_in, 3600);
+        assert.strictEqual(body.expires_in, TOKEN_LIFETIME);
       });
 
       it("rejects token exchange without code_verifier", async () => {

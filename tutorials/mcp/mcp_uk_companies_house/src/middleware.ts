@@ -35,7 +35,7 @@ const authCodes = new Map<
     expiresAt: number;
   }
 >();
-const TOKEN_LIFETIME = 259200; // 3 days in seconds
+export const TOKEN_LIFETIME = 259200; // 3 days in seconds
 const CODE_LIFETIME = 60; // 1 minute in seconds
 const CLEANUP_INTERVAL_MS = 60_000;
 
