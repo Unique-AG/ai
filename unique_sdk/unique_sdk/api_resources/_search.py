@@ -1,4 +1,4 @@
-from typing import Any, Literal, NotRequired, Unpack, cast
+from typing import Any, Literal, NotRequired, TypedDict, Unpack, cast
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
@@ -9,6 +9,17 @@ class Search(APIResource["Search"]):
     @classproperty
     def OBJECT_NAME(cls) -> Literal["search.search"]:
         return "search.search"
+
+    class QdrantQuantizationParams(TypedDict):
+        ignore: NotRequired[bool | None]
+        rescore: NotRequired[bool | None]
+        oversampling: NotRequired[float | None]
+
+    class QdrantSearchParams(TypedDict):
+        hnsw_ef: NotRequired[int | None]
+        exact: NotRequired[bool | None]
+        quantization: NotRequired["Search.QdrantQuantizationParams | None"]
+        consistency: NotRequired[Literal["majority", "quorum", "all"] | int | None]
 
     class CreateParams(RequestOptions):
         chatId: NotRequired[str | None]
@@ -23,6 +34,7 @@ class Search(APIResource["Search"]):
         metaDataFilter: NotRequired[dict[str, Any] | None]
         contentIds: NotRequired[list[str] | None]
         scoreThreshold: NotRequired[float | None]
+        qdrantParams: NotRequired["Search.QdrantSearchParams | None"]
 
     id: str
     chunkId: str

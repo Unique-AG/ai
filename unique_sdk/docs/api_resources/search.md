@@ -40,6 +40,7 @@ Perform semantic search with support for:
     - `reranker` (Dict[str, Any], optional) - Reranker configuration (e.g., `{"deploymentName": "my_deployment"}`)
     - `metaDataFilter` (Dict[str, Any], optional) - UniqueQL metadata filter
     - `contentIds` (List[str], optional) - Filter search to specific content IDs
+    - `qdrantParams` ([`QdrantSearchParams`](#qdrantsearchparams), optional) - Qdrant search parameters for fine-tuning vector search behavior
 
     **Returns:**
 
@@ -119,6 +120,21 @@ Perform semantic search with support for:
     )
     ```
 
+    **Example - Search with Qdrant Parameters:**
+
+    ```python
+    # Or tune HNSW for higher accuracy (when not using exact)
+    search = unique_sdk.Search.create(
+        user_id=user_id,
+        company_id=company_id,
+        searchString="quarterly report",
+        searchType="VECTOR",
+        qdrantParams={
+            "hnsw_ef": 128,
+        }
+    )
+    ```
+
 ## Return Types
 
 #### Search {#search}
@@ -142,6 +158,31 @@ Perform semantic search with support for:
     - `score` (float, optional) - Similarity score (may be present in API response)
 
     **Returned by:** `Search.create()`
+
+#### QdrantSearchParams {#qdrantsearchparams}
+
+??? note "Qdrant search parameters for fine-tuning vector search behavior"
+
+    **Fields:**
+
+    - `hnsw_ef` (int | None) - Custom HNSW ef parameter (minimum: 1). Higher values improve accuracy at the cost of speed
+    - `exact` (bool | None) - If true, performs exact (non-approximate) search for deterministic results
+    - `quantization` ([`QdrantQuantizationParams`](#qdrantquantizationparams) | None) - Quantization settings
+    - `consistency` (Literal["majority", "quorum", "all"] | int | None) - Read consistency level
+
+    **Used by:** `Search.create()` via `qdrantParams` parameter
+
+#### QdrantQuantizationParams {#qdrantquantizationparams}
+
+??? note "Quantization parameters for Qdrant search"
+
+    **Fields:**
+
+    - `ignore` (bool | None) - If true, quantization is ignored during search
+    - `rescore` (bool | None) - If true, original vectors are used for rescoring
+    - `oversampling` (float | None) - Oversampling factor (minimum: 1). Higher values improve accuracy at the cost of speed
+
+    **Used by:** `QdrantSearchParams.quantization`
 
 ## Best Practices
 
