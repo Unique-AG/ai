@@ -18,7 +18,7 @@ class Search(APIResource["Search"]):
     class QdrantSearchParams(TypedDict):
         hnsw_ef: NotRequired[int | None]
         exact: NotRequired[bool | None]
-        quantization: NotRequired["Search.QdrantQuantizationParams" | None]
+        quantization: NotRequired["Search.QdrantQuantizationParams | None"]
         consistency: NotRequired[Literal["majority", "quorum", "all"] | int | None]
 
     class CreateParams(RequestOptions):
@@ -34,7 +34,7 @@ class Search(APIResource["Search"]):
         metaDataFilter: NotRequired[dict[str, Any] | None]
         contentIds: NotRequired[list[str] | None]
         scoreThreshold: NotRequired[float | None]
-        qdrantParams: NotRequired["Search.QdrantSearchParams" | None]
+        qdrantParams: NotRequired["Search.QdrantSearchParams | None"]
 
     id: str
     chunkId: str
