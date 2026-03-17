@@ -704,6 +704,63 @@ class KnowledgeBaseService:
             file_path=file_path,
         )
 
+    async def get_content_infos_async(
+        self,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+        step_size: int = 100,
+        max_concurrent_requests: int = 25,
+    ) -> list[ContentInfo]:
+        """
+        Fetches all content infos from the knowledge base using parallel pagination.
+        The API limits responses to 100 items per request, so this method fetches
+        the total count first, then retrieves all pages concurrently (bounded by
+        ``max_concurrent_requests`` to avoid rate limiting or connection exhaustion).
+
+        Args:
+            metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
+            step_size (int): Number of items per page. Defaults to 100.
+            max_concurrent_requests (int): Maximum number of concurrent API calls.
+                Defaults to 25.
+
+        Returns:
+            list[ContentInfo]: All content infos visible to the user.
+        """
+
+        info_for_count_of_total_content = await self.get_paginated_content_infos_async(
+            metadata_filter=metadata_filter,
+            take=1,
+        )
+
+        total_count = info_for_count_of_total_content.total_count
+
+        semaphore = asyncio.Semaphore(max_concurrent_requests)
+
+        async def _fetch_page(skip: int) -> PaginatedContentInfos:
+            async with semaphore:
+                return await self.get_paginated_content_infos_async(
+                    metadata_filter=metadata_filter,
+                    skip=skip,
+                    take=step_size,
+                )
+
+        results: list[PaginatedContentInfos | BaseException] = await asyncio.gather(
+            *[_fetch_page(i) for i in range(0, total_count, step_size)],
+            return_exceptions=True,
+        )
+
+        # Log any exceptions that occurred during parallel fetching
+        for result in results:
+            if isinstance(result, BaseException):
+                _LOGGER.error("Error fetching paginated content infos", exc_info=result)
+
+        return [
+            content_info
+            for result in results
+            if not isinstance(result, BaseException)
+            for content_info in result.content_infos
+        ]
+
     def get_file_names_in_folder(self, *, scope_id: str) -> list[str]:
         """
         Get the list of file names in a knowledge base folder
