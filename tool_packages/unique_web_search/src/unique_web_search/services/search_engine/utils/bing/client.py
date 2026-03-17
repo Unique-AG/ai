@@ -3,7 +3,7 @@ import logging
 import certifi
 from azure.ai.projects.aio import AIProjectClient
 from azure.core.credentials_async import AsyncTokenCredential
-from azure.core.pipeline.transport._requests_basic import RequestsTransport
+from azure.core.pipeline.transport import AsyncioRequestsTransport
 from azure.identity.aio import DefaultAzureCredential, WorkloadIdentityCredential
 
 from unique_web_search.settings import env_settings
@@ -15,7 +15,7 @@ def _get_workload_identity_credentials(
     with_request_transport: bool = False,
 ) -> WorkloadIdentityCredential:
     if with_request_transport:
-        transport = RequestsTransport(connection_verify=certifi.where())
+        transport = AsyncioRequestsTransport(connection_verify=certifi.where())
         credentials = WorkloadIdentityCredential(transport=transport)
     else:
         credentials = WorkloadIdentityCredential()
@@ -61,7 +61,7 @@ def get_project_client(
         )
 
     if env_settings.use_unique_private_endpoint_transport:
-        transport = RequestsTransport(connection_verify=certifi.where())
+        transport = AsyncioRequestsTransport(connection_verify=certifi.where())
         return AIProjectClient(
             credential=credentials,
             endpoint=endpoint,
