@@ -73,6 +73,7 @@ class TestLanguageModelInfos:
             LanguageModelName.AZURE_GPT_52_2025_1211,
             LanguageModelName.AZURE_GPT_52_CHAT_2025_1211,
             LanguageModelName.AZURE_GPT_54_2026_0305,
+            LanguageModelName.AZURE_GPT_54_PRO_2026_0305,
             LanguageModelName.LITELLM_OPENAI_GPT_5,
             LanguageModelName.LITELLM_OPENAI_GPT_5_MINI,
             LanguageModelName.LITELLM_OPENAI_GPT_5_NANO,
