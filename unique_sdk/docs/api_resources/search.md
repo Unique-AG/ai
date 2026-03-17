@@ -123,14 +123,13 @@ Perform semantic search with support for:
     **Example - Search with Qdrant Parameters:**
 
     ```python
-    # Use exact search for deterministic results
+    # Or tune HNSW for higher accuracy (when not using exact)
     search = unique_sdk.Search.create(
         user_id=user_id,
         company_id=company_id,
         searchString="quarterly report",
         searchType="VECTOR",
         qdrantParams={
-            "exact": True,
             "hnsw_ef": 128,
         }
     )
