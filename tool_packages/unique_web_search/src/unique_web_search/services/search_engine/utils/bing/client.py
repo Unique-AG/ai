@@ -3,7 +3,7 @@ import logging
 import certifi
 from azure.ai.projects.aio import AIProjectClient
 from azure.core.credentials_async import AsyncTokenCredential
-from azure.core.pipeline.transport._requests_asyncio import AsyncioRequestsTransport
+from azure.core.pipeline.transport import AsyncioRequestsTransport
 from azure.identity.aio import DefaultAzureCredential, WorkloadIdentityCredential
 
 from unique_web_search.settings import env_settings
