@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LoopTokenReducer preserves ResponseOutputItem instances during reduction (no source reduction applied)
 - Add unit tests for HistoryManager and LoopTokenReducer with Responses API output items
 
+## [1.55.0] - 2026-03-16
+- Align `ChatMessage` to `PublicMessageDto`: rename `original_content` → `original_text` (⚠️ breaking), add `started_streaming_at`, `stopped_streaming_at`, `assessment`, `previous_message_id` fields, change `references` default from `None` to `[]`, add `text` property as getter/setter alias for `content` (UN-18040)
+- Remove `LanguageModelStreamResponseMessage` class — replaced with backward-compatible alias `= ChatMessage`; `id` and `content` are now `str | None` instead of required `str` (UN-18040)
+- Consolidate `LanguageModelMessageRole` as a re-export of `ChatMessageRole` (same values, no runtime change) (UN-18040)
+- Add `LanguageModelTokenUsage` model and `usage: LanguageModelTokenUsage | None` field to `LanguageModelStreamResponse`, matching `PublicStreamResultDto` (UN-18040)
+
+## [1.54.1] - 2026-03-16
+- Add reusable `NoneToDefault` `BeforeValidator` that replaces incoming `None` values with the field's declared default via `PydanticUseDefault`, enabling backward-compatible migration from nullable fields to non-nullable fields with defaults
+- Apply `NoneToDefault` validator to `DocxGeneratorConfig.template_content_id`
+
 ## [1.54.0] - 2026-03-16
 - Code interpreter (UN-17972 review fix): `get_tool_prompts()` now respects operator-customised `tool_description_for_system_prompt` when the fence FF is on. Previously the fence-aware prompt was applied unconditionally when the FF was enabled, silently ignoring any custom prompt. Now `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` is only substituted when the operator is still using the unmodified default; a customised prompt is always used regardless of the FF.
 
