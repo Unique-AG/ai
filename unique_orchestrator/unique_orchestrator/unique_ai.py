@@ -554,11 +554,12 @@ class UniqueAI:
         for response in tool_call_responses:
             if response.debug_info and "execution_time_s" in response.debug_info:
                 name = response.name
-                if name in tool_times:
+                if name == "total" or name in tool_times:
                     counter = 2
-                    while f"{name}_{counter}" in tool_times:
+                    base = name
+                    while f"{base}_{counter}" in tool_times:
                         counter += 1
-                    name = f"{name}_{counter}"
+                    name = f"{base}_{counter}"
                 tool_times[name] = response.debug_info["execution_time_s"]
 
         self._current_loop_timing["tool_execution"] = {
