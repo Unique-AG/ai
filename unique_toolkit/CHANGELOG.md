@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `AZURE_GPT_54_PRO_2026_0305` (`gpt-5.4-pro-2026-03-05`): 922k input / 128k output, Responses API only (no Chat Completions), function calling, parallel function calling, reasoning, streaming, structured output, vision; temperature fixed at 1.0, default `reasoning_effort: "medium"`
 - Add `LITELLM_OPENAI_GPT_54` (`litellm:openai-gpt-5-4`): same capabilities as `AZURE_GPT_54_2026_0305`
 - Add `LITELLM_OPENAI_GPT_54_THINKING` (`litellm:openai-gpt-5-4-thinking`): Chat Completions + Responses API, temperature fixed at 1.0, default `reasoning_effort: "medium"`
-- Fix `AZURE_GPT_51_CODEX_MINI_2025_1113`: correct temperature bounds from 1.0–1.0 to 0.0–1.0 and `reasoning_effort` from `None` to `"none"`
+- Fix `AZURE_GPT_51_2025_1113`: correct temperature bounds from 1.0–1.0 to 0.0–1.0 and `reasoning_effort` from `None` to `"none"`
 - Fix `AZURE_GPT_52_2025_1211` and `LITELLM_OPENAI_GPT_52`: correct `token_limit_input` from 400k to 272k, temperature bounds from 1.0–1.0 to 0.0–1.0, and `reasoning_effort` from `None` to `"none"`
 - Fix `LITELLM_OPENAI_GPT_52_THINKING`: correct `token_limit_input` from 400k to 272k
 
