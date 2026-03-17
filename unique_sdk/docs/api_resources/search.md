@@ -123,14 +123,26 @@ Perform semantic search with support for:
     **Example - Search with Qdrant Parameters:**
 
     ```python
-    # Or tune HNSW for higher accuracy (when not using exact)
+    # Use exact search for deterministic results (brute-force, no HNSW)
     search = unique_sdk.Search.create(
         user_id=user_id,
         company_id=company_id,
         searchString="quarterly report",
         searchType="VECTOR",
         qdrantParams={
-            "hnsw_ef": 128,
+            "exact": True,
+        }
+    )
+
+    # Or tune HNSW for higher accuracy (hnsw_ef must be >= limit to take effect)
+    search = unique_sdk.Search.create(
+        user_id=user_id,
+        company_id=company_id,
+        searchString="quarterly report",
+        searchType="VECTOR",
+        limit=50,
+        qdrantParams={
+            "hnsw_ef": 128,  # effective because 128 >= 50
         }
     )
     ```
@@ -165,8 +177,8 @@ Perform semantic search with support for:
 
     **Fields:**
 
-    - `hnsw_ef` (int | None) - Custom HNSW ef parameter (minimum: 1). Higher values improve accuracy at the cost of speed
-    - `exact` (bool | None) - If true, performs exact (non-approximate) search for deterministic results
+    - `hnsw_ef` (int | None) - Custom HNSW ef parameter (minimum: 1). Higher values improve accuracy at the cost of speed. **Note:** If `limit` exceeds `hnsw_ef`, Qdrant uses `limit` as the effective ef value, making your `hnsw_ef` setting irrelevant. For example, `hnsw_ef=128` with `limit=200` behaves as if `ef=200`.
+    - `exact` (bool | None) - If true, performs exact brute-force search (no HNSW). Note that `hnsw_ef` is ignored when `exact=True`.
     - `quantization` ([`QdrantQuantizationParams`](#qdrantquantizationparams) | None) - Quantization settings
     - `consistency` (Literal["majority", "quorum", "all"] | int | None) - Read consistency level
 
