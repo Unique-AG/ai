@@ -23,6 +23,7 @@ from unique_toolkit.content.functions import (
     download_content_to_bytes_async,
     download_content_to_file_by_id,
     get_content_info,
+    get_content_info_async,
     get_folder_info,
     search_content_chunks,
     search_content_chunks_async,
@@ -677,6 +678,23 @@ class KnowledgeBaseService:
         file_path: str | None = None,
     ) -> PaginatedContentInfos:
         return get_content_info(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            metadata_filter=metadata_filter,
+            skip=skip,
+            take=take,
+            file_path=file_path,
+        )
+
+    async def get_paginated_content_infos_async(
+        self,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+        skip: int | None = None,
+        take: int | None = None,
+        file_path: str | None = None,
+    ) -> PaginatedContentInfos:
+        return await get_content_info_async(
             user_id=self._user_id,
             company_id=self._company_id,
             metadata_filter=metadata_filter,
