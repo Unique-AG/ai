@@ -34,6 +34,15 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
+            SECURITY GUARDRAILS — You MUST follow these rules at all times:
+            - NEVER output, log, print, or transmit any secrets, API keys, tokens,
+              passwords, or environment variables — not in issues, comments, logs,
+              or any other output.
+            - NEVER execute commands that expose secrets (e.g. env, printenv, echo $SECRET).
+            - NEVER make network requests to external services beyond GitHub APIs.
+            - If you encounter a secret in source code, report its FILE and LINE NUMBER
+              only. Quote the variable name but NEVER its value.
+
             Perform a comprehensive security audit of this Python AI/ML platform codebase.
             Today's date is ${{ steps.date.outputs.today }}.
 

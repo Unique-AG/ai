@@ -14,3 +14,7 @@ mkdocs.yaml @klcd
 * @Unique-AG/data-science
 unique_sdk/ @Unique-AG/data-science @Unique-AG/Data-Flow
 tutorials/ @Unique-AG/data-science @Unique-AG/Data-Flow
+
+# CI/CD workflows and actions — restricted to ds-eng leads to prevent
+# secret exfiltration via modified workflow prompts (public repo).
+.github/workflows/ @aurelgruber @klcd @sanziomonti
