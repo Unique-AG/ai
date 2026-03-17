@@ -25,6 +25,7 @@ from unique_toolkit.content.functions import (
     get_content_info,
     get_content_info_async,
     get_folder_info,
+    get_folder_info_async,
     search_content_chunks,
     search_content_chunks_async,
     search_contents,
@@ -730,6 +731,17 @@ class KnowledgeBaseService:
         scope_id: str,
     ) -> FolderInfo:
         return get_folder_info(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            scope_id=scope_id,
+        )
+
+    async def get_folder_info_async(
+        self,
+        *,
+        scope_id: str,
+    ) -> FolderInfo:
+        return await get_folder_info_async(
             user_id=self._user_id,
             company_id=self._company_id,
             scope_id=scope_id,
