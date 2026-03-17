@@ -1,4 +1,5 @@
 import asyncio
+import time
 from abc import ABC
 from logging import Logger
 
@@ -86,6 +87,7 @@ class EvaluationManager:
         self._chat_service = chat_service
         self._evaluations: dict[EvaluationMetricName, Evaluation] = {}
         self._evaluation_passed: bool = True
+        self._execution_times: dict[str, float] = {}
 
     def add_evaluation(self, evaluation: Evaluation):
         self._evaluations[evaluation.get_name()] = evaluation
@@ -99,6 +101,8 @@ class EvaluationManager:
         loop_response: LanguageModelStreamResponse,
         assistant_message_id: str,
     ) -> list[EvaluationMetricResult]:
+        self._execution_times = {}
+
         task_executor = SafeTaskExecutor(
             logger=self._logger,
         )
@@ -134,6 +138,9 @@ class EvaluationManager:
 
         return evaluation_results_unpacked
 
+    def get_execution_times(self) -> dict[str, float]:
+        return self._execution_times.copy()
+
     async def execute_evaluation_call(
         self,
         evaluation_name: EvaluationMetricName,
@@ -145,12 +152,15 @@ class EvaluationManager:
         evaluation_instance = self.get_evaluation_by_name(evaluation_name)
 
         if evaluation_instance:
-            # Execute the evaluation
+            start = time.perf_counter()
             await self._create_assistant_message(
                 evaluation_instance, assistant_message_id
             )
             evaluation_metric_result: EvaluationMetricResult = (
                 await evaluation_instance.run(loop_response)
+            )
+            self._execution_times[str(evaluation_name)] = round(
+                time.perf_counter() - start, 3
             )
             return evaluation_metric_result
 
