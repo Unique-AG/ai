@@ -6,11 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.55.1] - 2026-03-17
-- Add GPT-5.4 (`gpt-5.4-2026-03-05`) and GPT-5.4 Pro (`gpt-5.4-pro-2026-03-05`) to `LanguageModelName` enum and `LanguageModelInfo` definitions (Azure and LiteLLM variants)
-- GPT-5.4: 200k input / 100k output tokens, supports Chat Completions API, Responses API, streaming, function calling, vision, structured output
-- GPT-5.4 Pro: 200k input / 100k output tokens, supports Responses API only (no Chat Completions API), reasoning model with temperature fixed at 1.0 and default reasoning effort "medium"
-- Fix GPT-5.1 Codex Mini: set `reasoning_effort` to `"none"` and temperature bounds to 0.0–1.0 (was incorrectly locked at 1.0 with no reasoning effort)
-- Fix GPT-5.2: correct `token_limit_input` from 400k to 272k and set `reasoning_effort` to `"none"` with temperature bounds 0.0–1.0
+- Add `AZURE_GPT_54_2026_0305` (`gpt-5.4-2026-03-05`): 922k input / 128k output, Chat Completions + Responses API, function calling, parallel function calling, reasoning, streaming, structured output, vision; temperature 0.0–1.0, default `reasoning_effort: "none"`
+- Add `AZURE_GPT_54_PRO_2026_0305` (`gpt-5.4-pro-2026-03-05`): 922k input / 128k output, Responses API only (no Chat Completions), function calling, parallel function calling, reasoning, streaming, structured output, vision; temperature fixed at 1.0, default `reasoning_effort: "medium"`
+- Add `LITELLM_OPENAI_GPT_54` (`litellm:openai-gpt-5-4`): same capabilities as `AZURE_GPT_54_2026_0305`
+- Add `LITELLM_OPENAI_GPT_54_THINKING` (`litellm:openai-gpt-5-4-thinking`): Chat Completions + Responses API, temperature fixed at 1.0, default `reasoning_effort: "medium"`
+- Fix `AZURE_GPT_51_CODEX_MINI_2025_1113`: correct temperature bounds from 1.0–1.0 to 0.0–1.0 and `reasoning_effort` from `None` to `"none"`
+- Fix `AZURE_GPT_52_2025_1211` and `LITELLM_OPENAI_GPT_52`: correct `token_limit_input` from 400k to 272k, temperature bounds from 1.0–1.0 to 0.0–1.0, and `reasoning_effort` from `None` to `"none"`
+- Fix `LITELLM_OPENAI_GPT_52_THINKING`: correct `token_limit_input` from 400k to 272k
 
 ## [1.55.0] - 2026-03-16
 - Align `ChatMessage` to `PublicMessageDto`: rename `original_content` → `original_text` (⚠️ breaking), add `started_streaming_at`, `stopped_streaming_at`, `assessment`, `previous_message_id` fields, change `references` default from `None` to `[]`, add `text` property as getter/setter alias for `content` (UN-18040)
