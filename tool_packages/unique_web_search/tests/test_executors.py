@@ -1,7 +1,7 @@
-"""Tests for WebSearchV1Executor and WebSearchV2Executor."""
+"""Tests for WebSearchV1Executor, WebSearchV2Executor, and WebSearchV3Executor."""
 
 from typing import Any
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -21,7 +21,11 @@ from unique_web_search.services.executors.web_search_v1_executor import (
 from unique_web_search.services.executors.web_search_v2_executor import (
     WebSearchV2Executor,
 )
+from unique_web_search.services.executors.web_search_v3_executor import (
+    WebSearchV3Executor,
+)
 from unique_web_search.services.search_engine.schema import WebSearchResult
+from unique_web_search.services.snippet_judge import SnippetJudgeConfig
 
 
 class TestQueryGenerationAgent:
@@ -712,6 +716,68 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
         mock_executor_dependencies[
             "message_log_callback"
         ].log_web_search_results.assert_called()
+
+
+class TestWebSearchV3ExecutorExecuteSearchStep:
+    """Tests for WebSearchV3Executor._execute_search_step() with snippet judge."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_execute_search_step__crawls_only_judge_selected_urls__when_scraping_required(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+        sample_web_search_plan: WebSearchPlan,
+        sample_web_search_results: list[WebSearchResult],
+    ) -> None:
+        """
+        Purpose: Verify V3 runs snippet judge and crawls only the selected URLs.
+        Why this matters: V3 should narrow results before fetching full pages.
+        Setup summary: Mock search to return 2 results; patch select_relevant to return 1.
+        """
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=sample_web_search_results
+        )
+        mock_executor_dependencies["search_service"].requires_scraping = True
+        mock_executor_dependencies[
+            "search_service"
+        ].config.search_engine_name.name = "TEST"
+        # Judge returns only the first result
+        selected_by_judge = [sample_web_search_results[0]]
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            return_value=["content1"]
+        )
+        mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
+
+        judge_config = SnippetJudgeConfig(max_urls_to_select=2)
+
+        with patch(
+            "unique_web_search.services.executors.web_search_v3_executor.select_relevant",
+            new_callable=AsyncMock,
+            return_value=selected_by_judge,
+        ):
+            executor = WebSearchV3Executor(
+                services=executor_context_objects["services"],
+                config=executor_context_objects["config"],
+                callbacks=executor_context_objects["callbacks"],
+                tool_call=mock_executor_dependencies["tool_call"],
+                tool_parameters=sample_web_search_plan,
+                snippet_judge_config=judge_config,
+            )
+
+            step = Step(
+                step_type=StepType.SEARCH,
+                objective="Test search",
+                query_or_url="test query",
+            )
+
+            result = await executor._execute_search_step(step)
+
+        assert len(result) == 1
+        assert result[0].url == "https://example.com/page1"
+        mock_executor_dependencies["crawler_service"].crawl.assert_called_once_with(
+            ["https://example.com/page1"]
+        )
 
 
 class TestWebSearchV2ExecutorExecuteReadUrlStep:

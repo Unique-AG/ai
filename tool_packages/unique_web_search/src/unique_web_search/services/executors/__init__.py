@@ -9,10 +9,14 @@ from unique_web_search.services.executors.web_search_v1_executor import (
 from unique_web_search.services.executors.web_search_v2_executor import (
     WebSearchV2Executor,
 )
+from unique_web_search.services.executors.web_search_v3_executor import (
+    WebSearchV3Executor,
+)
 
 __all__ = [
     "WebSearchV1Executor",
     "WebSearchV2Executor",
+    "WebSearchV3Executor",
     "ExecutorServiceContext",
     "ExecutorConfiguration",
     "ExecutorCallbacks",

@@ -28,8 +28,12 @@ from unique_web_search.services.crawlers import get_crawler_service
 from unique_web_search.services.executors import (
     WebSearchV1Executor,
     WebSearchV2Executor,
+    WebSearchV3Executor,
 )
-from unique_web_search.services.executors.configs import WebSearchMode
+from unique_web_search.services.executors.configs import (
+    WebSearchMode,
+    WebSearchV3Config,
+)
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
     ExecutorConfiguration,
@@ -116,7 +120,10 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
     def tool_description_for_system_prompt(self) -> str:
-        if self.config.web_search_mode_config.mode == WebSearchMode.V2:
+        if self.config.web_search_mode_config.mode in (
+            WebSearchMode.V2,
+            WebSearchMode.V3,
+        ):
             return self.config.web_search_mode_config.tool_description_for_system_prompt.replace(
                 "$max_steps", str(self.config.web_search_mode_config.max_steps)
             )
@@ -193,7 +200,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         parameters: WebSearchPlan | WebSearchToolParameters,
         debug_info: WebSearchDebugInfo,
         web_search_message_logger: WebSearchMessageLogger,
-    ) -> WebSearchV1Executor | WebSearchV2Executor:
+    ) -> WebSearchV1Executor | WebSearchV2Executor | WebSearchV3Executor:
         # Initialize query elicitation service and get callbacks
         elicitation_service = QueryElicitationService(
             chat_service=self._chat_service,
@@ -225,7 +232,21 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
         if isinstance(parameters, WebSearchPlan):
-            assert self.config.web_search_mode_config.mode == WebSearchMode.V2
+            mode = self.config.web_search_mode_config.mode
+            if mode == WebSearchMode.V3:
+                v3_config = self.config.web_search_mode_config
+                assert isinstance(v3_config, WebSearchV3Config)
+
+                return WebSearchV3Executor(
+                    services=services,
+                    config=config,
+                    callbacks=callbacks,
+                    tool_call=tool_call,
+                    tool_parameters=parameters,
+                    max_steps=v3_config.max_steps,
+                    snippet_judge_config=v3_config.snippet_judge_config,
+                )
+            assert mode == WebSearchMode.V2
             return WebSearchV2Executor(
                 services=services,
                 config=config,

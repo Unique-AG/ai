@@ -43,10 +43,25 @@ class TestWebSearchModeEnum:
         mode = WebSearchMode("v2")
         assert mode == WebSearchMode.V2
 
+    def test_web_search_mode_v3_value(self):
+        """Test WebSearchMode.V3 has correct value."""
+        assert WebSearchMode.V3 == "v3"
+        assert WebSearchMode.V3.value == "v3"
+
+    def test_web_search_mode_from_string_v3(self):
+        """Test creating WebSearchMode from string 'v3'."""
+        mode = WebSearchMode("v3")
+        assert mode == WebSearchMode.V3
+
     def test_web_search_mode_missing_alias_v2_beta_lowercase(self):
         """Test WebSearchMode._missing_ handles 'v2 (beta)' alias correctly."""
         mode = WebSearchMode("v2 (beta)")
         assert mode == WebSearchMode.V2
+
+    def test_web_search_mode_missing_alias_v3_beta(self):
+        """Test WebSearchMode._missing_ handles 'v3 (beta)' alias correctly."""
+        mode = WebSearchMode("v3 (beta)")
+        assert mode == WebSearchMode.V3
 
     def test_web_search_mode_missing_handles_invalid_value(self):
         """Test WebSearchMode raises ValueError for invalid values."""
@@ -59,9 +74,9 @@ class TestWebSearchModeEnum:
             WebSearchMode(None)  # type: ignore
 
     def test_web_search_mode_missing_handles_non_aliased_string(self):
-        """Test WebSearchMode._missing_ returns None for non-aliased strings."""
-        with pytest.raises(ValueError, match="'v3' is not a valid WebSearchMode"):
-            WebSearchMode("v3")
+        """Test WebSearchMode raises for invalid non-aliased strings."""
+        with pytest.raises(ValueError, match="'v4' is not a valid WebSearchMode"):
+            WebSearchMode("v4")
 
     def test_web_search_mode_comparison(self):
         """Test WebSearchMode comparison operations."""
@@ -90,6 +105,15 @@ class TestGetDefaultWebSearchModeConfig:
             mock_settings.web_search_mode = "v2"
             result = get_default_web_search_mode_config()
             assert result == WebSearchMode.V2
+
+    def test_get_default_returns_v3_when_env_is_v3(self):
+        """Test get_default_web_search_mode_config returns V3 when env is 'v3'."""
+        with patch(
+            "unique_web_search.services.executors.configs.env_settings"
+        ) as mock_settings:
+            mock_settings.web_search_mode = "v3"
+            result = get_default_web_search_mode_config()
+            assert result == WebSearchMode.V3
 
     def test_get_default_raises_error_for_invalid_mode(self):
         """Test get_default_web_search_mode_config raises ValueError for invalid mode."""
@@ -215,6 +239,16 @@ class TestWebSearchConfigDefaultMode:
         )
         assert config.web_search_mode_config.mode == WebSearchMode.V2
 
+    def test_web_search_config_mode_selects_correct_config_v3(
+        self, mock_language_model_info
+    ):
+        """Test WebSearchConfig.web_search_mode_config returns V3 config when mode is V3."""
+        config = WebSearchConfig(
+            language_model=mock_language_model_info,
+            web_search_active_mode=WebSearchMode.V3,
+        )
+        assert config.web_search_mode_config.mode == WebSearchMode.V3
+
     def test_web_search_config_accepts_string_mode(self, mock_language_model_info):
         """Test WebSearchConfig accepts string values for web_search_active_mode."""
         config = WebSearchConfig(
@@ -230,6 +264,22 @@ class TestWebSearchConfigDefaultMode:
             web_search_active_mode="v2 (beta)",  # type: ignore
         )
         assert config.web_search_active_mode == WebSearchMode.V2
+
+    def test_web_search_config_accepts_v3_string(self, mock_language_model_info):
+        """Test WebSearchConfig accepts 'v3' for web_search_active_mode."""
+        config = WebSearchConfig(
+            language_model=mock_language_model_info,
+            web_search_active_mode="v3",  # type: ignore
+        )
+        assert config.web_search_active_mode == WebSearchMode.V3
+
+    def test_web_search_config_accepts_v3_beta_alias(self, mock_language_model_info):
+        """Test WebSearchConfig accepts 'v3 (beta)' alias for web_search_active_mode."""
+        config = WebSearchConfig(
+            language_model=mock_language_model_info,
+            web_search_active_mode="v3 (beta)",  # type: ignore
+        )
+        assert config.web_search_active_mode == WebSearchMode.V3
 
     def test_web_search_config_rejects_invalid_mode(self, mock_language_model_info):
         """Test WebSearchConfig defaults to v1 for invalid web_search_active_mode values."""
@@ -316,6 +366,12 @@ class TestWebSearchModeIntegration:
             web_search_active_mode=WebSearchMode.V2,
         )
         assert config_v2.web_search_mode_config == config_v2.web_search_mode_config_v2
+
+        config_v3 = WebSearchConfig(
+            language_model=mock_language_model_info,
+            web_search_active_mode=WebSearchMode.V3,
+        )
+        assert config_v3.web_search_mode_config == config_v3.web_search_mode_config_v3
 
 
 class TestWebSearchModeEdgeCases:

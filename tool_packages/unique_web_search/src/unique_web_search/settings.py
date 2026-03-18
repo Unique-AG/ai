@@ -14,7 +14,7 @@ _LOGGER = logging.getLogger(__name__)
 ProxyAuthMode = Literal["none", "username_password", "ssl_tls"]
 ProxyProtocol = Literal["http", "https"]
 
-WebSearchMode = Literal["v1", "v2"]
+WebSearchMode = Literal["v1", "v2", "v3"]
 AZURE_IDENTITY_CREDENTIAL_TYPE = Literal["workload", "default"]
 
 

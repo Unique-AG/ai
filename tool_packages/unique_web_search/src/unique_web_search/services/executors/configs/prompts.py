@@ -144,9 +144,15 @@ The WebSearch tool uses a structured planning approach with the following schema
 ```
 """.strip()
 
+_DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_V3 = (
+    _DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_V2
+    + "\n\nV3 mode pre-filters search results by relevance (using title and snippet) before fetching full pages, so only the most relevant URLs are read."
+)
+
 DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = {
     "v1": _DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_V1,
     "v2": _DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_V2,
+    "v3": _DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_V3,
 }
 
 
@@ -165,9 +171,21 @@ Use WebSearch when you need:
 - Verification of time-sensitive information"""
 
 
+_DEFAULT_TOOL_DESCRIPTION_V3 = """The WebSearch tool conducts structured web research using a planning-based approach. It searches the internet and reads specific URLs to gather current, accurate information on any topic.
+
+## When to Use
+
+Use WebSearch when you need:
+- Current events, news, or real-time data
+- Recent information that may have changed since your training
+- Specific facts, statistics, or details not in your knowledge base
+- Local or location-specific information
+- Verification of time-sensitive information"""
+
 DEFAULT_TOOL_DESCRIPTION = {
     "v1": _DEFAULT_TOOL_DESCRIPTION_V1,
     "v2": _DEFAULT_TOOL_DESCRIPTION_V2,
+    "v3": _DEFAULT_TOOL_DESCRIPTION_V3,
 }
 
 
