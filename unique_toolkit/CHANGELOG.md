@@ -5,8 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.57] - 2026-03-18
-- Revert 1.55.0 (ChatMessage/LanguageModelStreamResponseMessage breaking changes) and 1.56.0 (execution time tracking) — safe baseline for release/2026.12 deployments
+## [1.58] - 2026-03-18
+- Re-apply 1.55.0 (ChatMessage/LanguageModelStreamResponseMessage breaking changes) and 1.56.0 (execution time tracking)
+
+## [1.56.0] - 2026-03-17
+- Add execution time tracking to `EvaluationManager`, `PostprocessorManager`, and `ToolManager` with `get_execution_times()` accessors
+- Add `get_debug_info()` / `get_debug_info_async()` to `ChatService` for retrieving debug info from the current user message
 
 ## [1.56.0] - 2026-03-17
 - Add execution time tracking to `EvaluationManager`, `PostprocessorManager`, and `ToolManager` with `get_execution_times()` accessors
