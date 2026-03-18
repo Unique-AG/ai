@@ -1,6 +1,5 @@
 import json
 import math
-from enum import StrEnum
 from typing import Any, Literal, Self, TypeVar
 from uuid import uuid4
 
@@ -54,7 +53,8 @@ from pydantic import (
 )
 from typing_extensions import deprecated, overload
 
-from unique_toolkit.content.schemas import ContentReference
+from unique_toolkit.chat.schemas import ChatMessage
+from unique_toolkit.chat.schemas import ChatMessageRole as LanguageModelMessageRole
 from unique_toolkit.language_model._responses_api_utils import (
     convert_user_message_content_to_responses_api,
 )
@@ -68,33 +68,14 @@ model_config = ConfigDict(
 )
 
 
-# Equivalent to
-# from openai.types.chat.chat_completion_role import ChatCompletionRole
-class LanguageModelMessageRole(StrEnum):
-    USER = "user"
-    SYSTEM = "system"
-    ASSISTANT = "assistant"
-    TOOL = "tool"
-
-
-# This is tailored to the unique backend
-class LanguageModelStreamResponseMessage(BaseModel):
-    model_config = model_config
-
-    id: str
-    previous_message_id: (
-        str | None
-    )  # Stream response can return a null previous_message_id if an assisstant message is manually added
-    role: LanguageModelMessageRole
-    text: str
-    original_text: str | None = None
-    references: list[ContentReference] = []
-
-    # TODO make sdk return role in lowercase
-    # Currently needed as sdk returns role in uppercase
-    @field_validator("role", mode="before")
-    def set_role(cls, value: str):
-        return value.lower()
+# Backward compatibility alias — use ChatMessage directly.
+# LanguageModelStreamResponseMessage was a toolkit-only subclass with stricter types
+# (required id/content, non-null references). The backend DTOs (PublicMessageDto,
+# PublicStreamResultDto) use a single message type, so this distinction was unnecessary.
+# Note: id and content are now optional (str | None) instead of required (str). This is a
+# deliberate contract relaxation — the backend always returns non-null values in stream
+# responses, but callers that relied on the stricter types should add explicit null checks.
+LanguageModelStreamResponseMessage = ChatMessage
 
 
 class LanguageModelFunction(BaseModel):
@@ -177,12 +158,21 @@ class LanguageModelFunction(BaseModel):
             )
 
 
+class LanguageModelTokenUsage(BaseModel):
+    model_config = model_config
+
+    completion_tokens: int | None = None
+    prompt_tokens: int | None = None
+    total_tokens: int | None = None
+
+
 class LanguageModelStreamResponse(BaseModel):
     model_config = model_config
 
-    message: LanguageModelStreamResponseMessage
+    message: ChatMessage
     tool_calls: list[LanguageModelFunction] | None = None
     stopped_by_user: bool = False
+    usage: LanguageModelTokenUsage | None = None
 
     def is_empty(self) -> bool:
         """
