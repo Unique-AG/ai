@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+from jinja2 import Template
 from unique_toolkit._common.execution import SafeTaskExecutor
 from unique_toolkit.language_model import LanguageModelService, TypeDecoder, TypeEncoder
 
@@ -27,6 +28,16 @@ from unique_web_search.services.search_engine.schema import (
 from unique_web_search.utils import WebPageChunk
 
 _LOGGER = logging.getLogger(__name__)
+
+_PLACEHOLDER_CONTENT_TEMPLATE = Template("""\
+<WebPageChunk>
+    <Domain>{{ domain }}</Domain>
+    <Snippet>{{ snippet }}</Snippet>
+    {% if content %}
+    <Chunk>{{ content }}</Chunk>
+    {% endif %}
+</WebPageChunk>
+""")
 
 
 class ContentProcessor:
@@ -65,10 +76,15 @@ class ContentProcessor:
             ),
         ]
 
-    async def run(self, query: str, pages: list[WebSearchResult]) -> list[WebPageChunk]:
+    async def run(
+        self,
+        query: str,
+        pages: list[WebSearchResult],
+    ) -> list[WebPageChunk]:
         """
         Preprocess the pages content.
         Args:
+            query: The search query.
             pages: list of pages.
         Returns:
             list[WebPageChunk]: List of processed webpage chunks.
@@ -100,7 +116,9 @@ class ContentProcessor:
         return page
 
     async def _process_pages(
-        self, query: str, pages: list[WebSearchResult]
+        self,
+        query: str,
+        pages: list[WebSearchResult],
     ) -> list[WebSearchResult]:
         # Apply processing strategy with regex preprocessing as baseline
         active_strategies = [
@@ -130,17 +148,18 @@ class ContentProcessor:
         )
 
         processed_pages = []
+
         for result, page in zip(results, pages):
             if result.success:
-                processed_page = result.unpack()
+                processed_pages.append(result.unpack())
             else:
-                # Empty content to avoid overfilling the context in case processing strategy fails
+                # Clear content to avoid overfilling the context; the chunker will
+                # render the compliance placeholder via the empty-content branch.
                 _LOGGER.error(
                     f"Processing strategy failed for page {page.url}: {result.exception}",
                     exc_info=result.exception,
                 )
-                processed_page.content = ""
-            processed_pages.append(page)
+                processed_pages.append(page.model_copy(update={"content": ""}))
 
         return processed_pages
 
@@ -179,32 +198,25 @@ class ContentProcessor:
         chunks = even_split(page.content, self.config.chunk_size)
 
         if len(chunks) == 0:
-            return [
-                WebPageChunk(
-                    url=page.url,
-                    display_link=page.display_link,
-                    title=page.title,
-                    snippet=page.snippet,
-                    content=self._wrap_with_snippet(page.snippet, page.content),
-                    order="0",
-                )
-            ]
+            return [_build_web_page_chunk(page, "", 0)]
 
         records = [
-            WebPageChunk(
-                url=page.url,
-                display_link=page.display_link,
-                title=page.title,
-                snippet=page.snippet,
-                content=self._wrap_with_snippet(page.snippet, chunk),
-                order=str(order),
-            )
+            _build_web_page_chunk(page, chunk, order)
             for order, chunk in enumerate(chunks)
         ]
         return records
 
-    @staticmethod
-    def _wrap_with_snippet(snippet: str, content: str) -> str:
-        if len(content) > 0:
-            return f"<SearchEngineSnippet>{snippet}</SearchEngineSnippet>\n\n<FetchContent>{content}</FetchContent>"
-        return f"<SearchEngineSnippet>{snippet}</SearchEngineSnippet>"
+
+def _build_web_page_chunk(
+    page: WebSearchResult, chunk: str, order: int
+) -> WebPageChunk:
+    return WebPageChunk(
+        url=page.url,
+        display_link=page.display_link,
+        title=page.title,
+        snippet=page.snippet,
+        content=_PLACEHOLDER_CONTENT_TEMPLATE.render(
+            domain=page.display_link, snippet=page.snippet, content=chunk
+        ),
+        order=str(order),
+    )

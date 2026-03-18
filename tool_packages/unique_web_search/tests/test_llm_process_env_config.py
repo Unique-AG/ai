@@ -233,17 +233,20 @@ class TestMergeConfigWithEnv:
         """
         Purpose: Verify only keys present in env are overridden, others keep config values.
         Why this matters: IT may only want to lock a subset of fields (e.g. sanitize only).
-        Setup summary: Config has custom min_tokens; env only sets sanitize; assert min_tokens unchanged.
+        Setup summary: Config has custom min_tokens; env only sets nested sanitize; assert min_tokens unchanged.
         """
         # Arrange
-        original = LLMProcessorConfig(min_tokens=7777, sanitize=False)
+        original = LLMProcessorConfig(min_tokens=7777)
 
-        with patch(f"{_MODULE}._LLM_PROCESS_CONFIG", {"sanitize": True}):
+        with patch(
+            f"{_MODULE}._LLM_PROCESS_CONFIG",
+            {"privacy_filter": {"sanitize": True}},
+        ):
             # Act
             merged = _merge_config_with_env(original)
 
         # Assert
-        assert merged.sanitize is True
+        assert merged.privacy_filter.sanitize is True
         assert merged.min_tokens == 7777
 
 
@@ -286,52 +289,55 @@ class TestLLMProcessorConfigDefaults:
         """
         Purpose: Verify LLMProcessorConfig default sanitize comes from _DEFAULTS.
         Why this matters: Ensures env-override mechanism is wired into the field defaults.
-        Setup summary: Create default config; compare sanitize to _DEFAULTS["sanitize"].
+        Setup summary: Create default config; compare sanitize to _DEFAULTS privacy_filter entry.
         """
         # Act
         config = LLMProcessorConfig()
 
         # Assert
-        assert config.sanitize == _DEFAULTS["sanitize"]
+        assert config.privacy_filter.sanitize == _DEFAULTS["privacy_filter"]["sanitize"]
 
     @pytest.mark.ai
     def test_config__default_sanitize_rules__matches_defaults_dict(self) -> None:
         """
         Purpose: Verify LLMProcessorConfig default sanitize_rules comes from _DEFAULTS.
         Why this matters: Ensures env-override mechanism is wired into the field defaults.
-        Setup summary: Create default config; compare sanitize_rules to _DEFAULTS["sanitize_rules"].
+        Setup summary: Create default config; compare sanitize_rules to _DEFAULTS privacy_filter entry.
         """
         # Act
         config = LLMProcessorConfig()
 
         # Assert
-        assert config.sanitize_rules == _DEFAULTS["sanitize_rules"]
+        assert (
+            config.privacy_filter.sanitize_rules
+            == _DEFAULTS["privacy_filter"]["sanitize_rules"]
+        )
 
     @pytest.mark.ai
     def test_config__default_system_prompt__matches_defaults_dict(self) -> None:
         """
         Purpose: Verify LLMProcessorConfig default system_prompt comes from _DEFAULTS.
         Why this matters: Ensures env-override mechanism is wired into the field defaults.
-        Setup summary: Create default config; compare system_prompt to _DEFAULTS["system_prompt"].
+        Setup summary: Create default config; compare system_prompt to _DEFAULTS prompts entry.
         """
         # Act
         config = LLMProcessorConfig()
 
         # Assert
-        assert config.system_prompt == _DEFAULTS["system_prompt"]
+        assert config.prompts.system_prompt == _DEFAULTS["prompts"]["system_prompt"]
 
     @pytest.mark.ai
     def test_config__default_user_prompt__matches_defaults_dict(self) -> None:
         """
         Purpose: Verify LLMProcessorConfig default user_prompt comes from _DEFAULTS.
         Why this matters: Ensures env-override mechanism is wired into the field defaults.
-        Setup summary: Create default config; compare user_prompt to _DEFAULTS["user_prompt"].
+        Setup summary: Create default config; compare user_prompt to _DEFAULTS prompts entry.
         """
         # Act
         config = LLMProcessorConfig()
 
         # Assert
-        assert config.user_prompt == _DEFAULTS["user_prompt"]
+        assert config.prompts.user_prompt == _DEFAULTS["prompts"]["user_prompt"]
 
 
 # ---------------------------------------------------------------------------
