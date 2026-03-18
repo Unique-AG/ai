@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.48.1] - 2026-02-16
+### Added
+- Add support for Responses API output items in loop history (UN-16164 Stage 1)
+- Add `HistoryManager.append_responses_output_to_history()` to store ResponseOutputItem objects from Responses API streams
+- Extend token counting to handle ResponseOutputItem via JSON serialization in `num_token_for_language_model_messages()`
+- Widen type system: loop history accepts `Union[LanguageModelMessage, ResponseOutputItem]`; all concrete ResponseOutputItem types added to `LanguageModelMessageOptions`
+- LoopTokenReducer preserves ResponseOutputItem instances during reduction (no source reduction applied)
+- Add unit tests for HistoryManager and LoopTokenReducer with Responses API output items
 
 ## [1.58] - 2026-03-18
 - Re-apply 1.55.0 (ChatMessage/LanguageModelStreamResponseMessage breaking changes) and 1.56.0 (execution time tracking)
