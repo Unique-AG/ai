@@ -54,7 +54,7 @@ All tools are read-only (`readOnlyHint: true`, `destructiveHint: false`, `idempo
 
 ## Authentication
 
-**MCP server**: OAuth 2.0 `client_credentials` flow. The middleware at `src/middleware.ts` (auto-discovered by xmcp) exports a `{ router, middleware }` pair. The router serves OAuth discovery endpoints (`/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`) and a `POST /token` endpoint. Clients authenticate with `client_secret_basic` (HTTP Basic Auth on the token endpoint) using `MCP_CLIENT_ID` and `MCP_CLIENT_SECRET` env vars, receive a Bearer token, and use it for MCP requests. When these env vars are not set, auth is skipped (open access for local dev). Tokens are stored in-memory with 1-hour expiry.
+**MCP server**: OAuth 2.0 `client_credentials` flow. The middleware at `src/middleware.ts` (auto-discovered by xmcp) exports a `{ router, middleware }` pair. The router serves OAuth discovery endpoints (`/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server`) and a `POST /token` endpoint. Clients authenticate with `client_secret_basic` (HTTP Basic Auth on the token endpoint) using `MCP_CLIENT_ID` and `MCP_CLIENT_SECRET` env vars, receive a Bearer token, and use it for MCP requests. When these env vars are not set, auth is skipped (open access for local dev). Tokens are stored in-memory with 3-day expiry (`TOKEN_LIFETIME = 259200` seconds).
 
 **Companies House API**: HTTP Basic Auth with the API key as username and empty password (`Authorization: Basic <base64(key:)>`). The key is stored in `COMPANIES_HOUSE_API_KEY` env var — never hardcode it. Public data only — all requests are read-only GET requests.
 

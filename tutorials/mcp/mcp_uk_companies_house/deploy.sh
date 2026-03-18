@@ -47,6 +47,9 @@ az webapp config appsettings set -n "$APP" -g "$RG" --settings $SETTINGS
 # === ENABLE ALWAYS ON ===
 az webapp config set -n "$APP" -g "$RG" --always-on true
 
+# === RESTART TO PULL LATEST IMAGE ===
+az webapp restart -n "$APP" -g "$RG"
+
 echo ""
 echo "Done! App: https://${APP}.azurewebsites.net"
 echo "MCP endpoint: https://${APP}.azurewebsites.net/mcp"

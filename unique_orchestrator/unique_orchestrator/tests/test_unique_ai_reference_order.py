@@ -84,6 +84,8 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
     mock_chat_service.create_assistant_message_async = AsyncMock(
         return_value=MagicMock(id="assist_new")
     )
+    mock_chat_service.get_debug_info_async = AsyncMock(return_value={})
+    mock_chat_service.update_debug_info_async = AsyncMock(return_value=None)
     mock_content_service = MagicMock()
     mock_history_manager.get_history_for_model_call = AsyncMock(
         return_value=MagicMock()

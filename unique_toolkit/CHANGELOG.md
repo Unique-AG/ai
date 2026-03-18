@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `get_content_info_async()` to `functions` for fetching content info asynchronously
 - Add `get_folder_info_async()` to `functions` for fetching folder info asynchronously
 
+## [1.57] - 2026-03-18
+- Revert 1.55.0 (ChatMessage/LanguageModelStreamResponseMessage breaking changes) and 1.56.0 (execution time tracking) — safe baseline for release/2026.12 deployments
+
+## [1.56.0] - 2026-03-17
+- Add execution time tracking to `EvaluationManager`, `PostprocessorManager`, and `ToolManager` with `get_execution_times()` accessors
+- Add `get_debug_info()` / `get_debug_info_async()` to `ChatService` for retrieving debug info from the current user message
+
 ## [1.55.1] - 2026-03-17
 - Add `AZURE_GPT_54_2026_0305` (`gpt-5.4-2026-03-05`): 922k input / 128k output, Chat Completions + Responses API, function calling, parallel function calling, reasoning, streaming, structured output, vision; temperature 0.0–1.0, default `reasoning_effort: "none"`
 - Add `AZURE_GPT_54_PRO_2026_0305` (`gpt-5.4-pro-2026-03-05`): 922k input / 128k output, Responses API only (no Chat Completions), function calling, parallel function calling, reasoning, streaming, structured output, vision; temperature fixed at 1.0, default `reasoning_effort: "medium"`

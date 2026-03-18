@@ -40,6 +40,7 @@ Perform semantic search with support for:
     - `reranker` (Dict[str, Any], optional) - Reranker configuration (e.g., `{"deploymentName": "my_deployment"}`)
     - `metaDataFilter` (Dict[str, Any], optional) - UniqueQL metadata filter
     - `contentIds` (List[str], optional) - Filter search to specific content IDs
+    - `qdrantParams` ([`QdrantSearchParams`](#qdrantsearchparams), optional) - Qdrant search parameters for fine-tuning vector search behavior
 
     **Returns:**
 
@@ -119,6 +120,33 @@ Perform semantic search with support for:
     )
     ```
 
+    **Example - Search with Qdrant Parameters:**
+
+    ```python
+    # Use exact search for deterministic results (brute-force, no HNSW)
+    search = unique_sdk.Search.create(
+        user_id=user_id,
+        company_id=company_id,
+        searchString="quarterly report",
+        searchType="VECTOR",
+        qdrantParams={
+            "exact": True,
+        }
+    )
+
+    # Or tune HNSW for higher accuracy (hnsw_ef must be >= limit to take effect)
+    search = unique_sdk.Search.create(
+        user_id=user_id,
+        company_id=company_id,
+        searchString="quarterly report",
+        searchType="VECTOR",
+        limit=50,
+        qdrantParams={
+            "hnsw_ef": 128,  # effective because 128 >= 50
+        }
+    )
+    ```
+
 ## Return Types
 
 #### Search {#search}
@@ -142,6 +170,31 @@ Perform semantic search with support for:
     - `score` (float, optional) - Similarity score (may be present in API response)
 
     **Returned by:** `Search.create()`
+
+#### QdrantSearchParams {#qdrantsearchparams}
+
+??? note "Qdrant search parameters for fine-tuning vector search behavior"
+
+    **Fields:**
+
+    - `hnsw_ef` (int | None) - Custom HNSW ef parameter (minimum: 1). Higher values improve accuracy at the cost of speed. **Note:** If `limit` exceeds `hnsw_ef`, Qdrant uses `limit` as the effective ef value, making your `hnsw_ef` setting irrelevant. For example, `hnsw_ef=128` with `limit=200` behaves as if `ef=200`.
+    - `exact` (bool | None) - If true, performs exact brute-force search (no HNSW). Note that `hnsw_ef` is ignored when `exact=True`.
+    - `quantization` ([`QdrantQuantizationParams`](#qdrantquantizationparams) | None) - Quantization settings
+    - `consistency` (Literal["majority", "quorum", "all"] | int | None) - Read consistency level
+
+    **Used by:** `Search.create()` via `qdrantParams` parameter
+
+#### QdrantQuantizationParams {#qdrantquantizationparams}
+
+??? note "Quantization parameters for Qdrant search"
+
+    **Fields:**
+
+    - `ignore` (bool | None) - If true, quantization is ignored during search
+    - `rescore` (bool | None) - If true, original vectors are used for rescoring
+    - `oversampling` (float | None) - Oversampling factor (minimum: 1). Higher values improve accuracy at the cost of speed
+
+    **Used by:** `QdrantSearchParams.quantization`
 
 ## Best Practices
 

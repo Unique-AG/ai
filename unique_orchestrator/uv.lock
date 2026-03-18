@@ -3790,7 +3790,7 @@ dev = [
 
 [[package]]
 name = "unique-orchestrator"
-version = "1.14.2"
+version = "1.14.3"
 source = { editable = "." }
 dependencies = [
     { name = "jinja2" },
@@ -3885,7 +3885,7 @@ dev = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.88"
+version = "0.10.90"
 source = { editable = "../unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
@@ -4039,7 +4039,7 @@ dev = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.53.3"
+version = "1.55.1"
 source = { editable = "../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -4056,6 +4056,7 @@ dependencies = [
     { name = "pillow" },
     { name = "platformdirs" },
     { name = "pydantic" },
+    { name = "pydantic-core" },
     { name = "pydantic-settings" },
     { name = "pyhumps" },
     { name = "pypandoc" },
@@ -4090,6 +4091,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=12.1.1" },
     { name = "platformdirs", specifier = ">=4.0.0,<5" },
     { name = "pydantic", specifier = ">=2.11.0,<3" },
+    { name = "pydantic-core", specifier = ">=2.41.5" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
     { name = "pyhumps", specifier = ">=3.8.0,<4" },
     { name = "pypandoc", specifier = ">=1.16.2,<2" },
@@ -4126,7 +4128,7 @@ dev = [
 
 [[package]]
 name = "unique-web-search"
-version = "1.13.0"
+version = "1.13.1"
 source = { editable = "../tool_packages/unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },
