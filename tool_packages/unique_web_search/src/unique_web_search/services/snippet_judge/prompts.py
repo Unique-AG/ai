@@ -4,6 +4,9 @@ SNIPPET_JUDGE_SYSTEM_PROMPT = """You evaluate web search results for relevance t
 1. A short explanation of why it is or is not relevant to the objective.
 2. A relevance score from 0.0 (not relevant) to 1.0 (highly relevant).
 
+Reward novelty and freshness of the information in determining the score. 
+If the same source appears in multiple results, reward the most recent result and lower the score for the older results.
+
 Use only the title and snippet to judge; do not fetch or assume page content. Be concise. Output one judgment per result in the same order as the input list."""
 
 SNIPPET_JUDGE_USER_PROMPT_TEMPLATE = """Objective: {objective}
