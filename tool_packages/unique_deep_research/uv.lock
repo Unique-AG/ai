@@ -3827,7 +3827,7 @@ dev = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.84"
+version = "0.10.90"
 source = { editable = "../../unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
@@ -3857,10 +3857,12 @@ dev = [
     { name = "basedpyright", specifier = ">=1.35.0,<2" },
     { name = "deptry", specifier = ">=0.24.0,<0.25" },
     { name = "ipykernel", specifier = ">=7.1.0,<8" },
+    { name = "openai", specifier = ">=1.105.0,<2" },
     { name = "poethepoet", specifier = ">=0.32.0,<0.33" },
     { name = "pytest", specifier = ">=8.0,<9" },
     { name = "pytest-asyncio", specifier = ">=0.24.0,<0.25" },
     { name = "pytest-cov", specifier = ">=4.1.0,<5" },
+    { name = "pytest-mock", specifier = ">=3.14.0,<4" },
     { name = "python-dotenv", specifier = ">=1.1.0,<2" },
     { name = "ruff", specifier = "==0.11.7" },
     { name = "tox", specifier = ">=4.11.4,<5" },
@@ -3868,7 +3870,7 @@ dev = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.50.4"
+version = "1.58"
 source = { editable = "../../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -3885,12 +3887,14 @@ dependencies = [
     { name = "pillow" },
     { name = "platformdirs" },
     { name = "pydantic" },
+    { name = "pydantic-core" },
     { name = "pydantic-settings" },
     { name = "pyhumps" },
     { name = "pypandoc" },
     { name = "python-docx" },
     { name = "requests" },
     { name = "sseclient" },
+    { name = "tenacity" },
     { name = "tiktoken" },
     { name = "tokenizers" },
     { name = "typing-extensions" },
@@ -3918,6 +3922,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=12.1.1" },
     { name = "platformdirs", specifier = ">=4.0.0,<5" },
     { name = "pydantic", specifier = ">=2.11.0,<3" },
+    { name = "pydantic-core", specifier = ">=2.41.5" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
     { name = "pyhumps", specifier = ">=3.8.0,<4" },
     { name = "pypandoc", specifier = ">=1.16.2,<2" },
@@ -3925,6 +3930,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.32.0,<3" },
     { name = "sseclient", specifier = ">=0.0.27,<0.0.28" },
     { name = "starlette", marker = "extra == 'fastapi'", specifier = ">=0.49.1" },
+    { name = "tenacity", specifier = ">=9.1.4" },
     { name = "tiktoken", specifier = ">=0.12.0,<0.13" },
     { name = "tokenizers", specifier = ">=0.21.0,<0.22" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
@@ -3953,7 +3959,7 @@ dev = [
 
 [[package]]
 name = "unique-web-search"
-version = "1.13.0"
+version = "1.13.1"
 source = { editable = "../unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },
