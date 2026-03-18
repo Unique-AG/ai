@@ -132,7 +132,7 @@ class TestSubAgentToolInitialization:
         )
 
         # Assert
-        assert tool.tool_progress_reporter == mock_progress_reporter
+        assert tool._tool_progress_reporter == mock_progress_reporter
 
 
 class TestSubAgentToolDescription:
