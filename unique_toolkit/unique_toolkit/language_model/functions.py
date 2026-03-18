@@ -30,6 +30,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelStreamResponse,
+    LanguageModelStreamResponseMessage,
     LanguageModelTool,
     LanguageModelToolDescription,
 )
@@ -527,13 +528,12 @@ def _create_language_model_stream_response_with_references(
         search_context=content_chunks,
     )
 
-    stream_response_message = ChatMessage(
+    stream_response_message = LanguageModelStreamResponseMessage(
         id="stream_unknown",
         previous_message_id=None,
         role=LanguageModelMessageRole.ASSISTANT,
         text=message.content or "",
         original_text=content,
-        chat_id="stream_unknown",
         references=[
             ContentReference(**u.model_dump()) for u in message.references or []
         ],
@@ -657,9 +657,8 @@ async def stream_complete_with_references_openai(
             ]
 
         return LanguageModelStreamResponse(
-            message=ChatMessage(
+            message=LanguageModelStreamResponseMessage(
                 id=message_id or uuid4().hex,
-                chat_id="",
                 previous_message_id=None,
                 role=LanguageModelMessageRole.ASSISTANT,
                 text=text_,

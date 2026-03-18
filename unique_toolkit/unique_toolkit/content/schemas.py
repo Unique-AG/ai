@@ -117,7 +117,7 @@ class ContentReference(BaseModel):
     url: str
     original_index: list[int] = Field(
         default=[],
-        description="List of indices in the ChatMessage original_text this reference refers to. This is usually the id in the functionCallResponse. List type due to implementation in node-chat",
+        description="List of indices in the ChatMessage original_content this reference refers to. This is usually the id in the functionCallResponse. List type due to implementation in node-chat",
     )
 
     @classmethod

@@ -5,9 +5,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.56.0] - 2026-03-17
-- Add execution time tracking to `EvaluationManager`, `PostprocessorManager`, and `ToolManager` with `get_execution_times()` accessors
-- Add `get_debug_info()` / `get_debug_info_async()` to `ChatService` for retrieving debug info from the current user message
+## [1.57] - 2026-03-18
+- Revert 1.55.0 (ChatMessage/LanguageModelStreamResponseMessage breaking changes) and 1.56.0 (execution time tracking) — safe baseline for release/2026.12 deployments
 
 ## [1.55.1] - 2026-03-17
 - Add `AZURE_GPT_54_2026_0305` (`gpt-5.4-2026-03-05`): 922k input / 128k output, Chat Completions + Responses API, function calling, parallel function calling, reasoning, streaming, structured output, vision; temperature 0.0–1.0, default `reasoning_effort: "none"`
@@ -18,11 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `AZURE_GPT_52_2025_1211` and `LITELLM_OPENAI_GPT_52`: correct `token_limit_input` from 400k to 272k, temperature bounds from 1.0–1.0 to 0.0–1.0, and `reasoning_effort` from `None` to `"none"`
 - Fix `LITELLM_OPENAI_GPT_52_THINKING`: correct `token_limit_input` from 400k to 272k
 
-## [1.55.0] - 2026-03-16
-- Align `ChatMessage` to `PublicMessageDto`: rename `original_content` → `original_text` (⚠️ breaking), add `started_streaming_at`, `stopped_streaming_at`, `assessment`, `previous_message_id` fields, change `references` default from `None` to `[]`, add `text` property as getter/setter alias for `content` (UN-18040)
-- Remove `LanguageModelStreamResponseMessage` class — replaced with backward-compatible alias `= ChatMessage`; `id` and `content` are now `str | None` instead of required `str` (UN-18040)
-- Consolidate `LanguageModelMessageRole` as a re-export of `ChatMessageRole` (same values, no runtime change) (UN-18040)
-- Add `LanguageModelTokenUsage` model and `usage: LanguageModelTokenUsage | None` field to `LanguageModelStreamResponse`, matching `PublicStreamResultDto` (UN-18040)
 
 ## [1.54.1] - 2026-03-16
 - Add reusable `NoneToDefault` `BeforeValidator` that replaces incoming `None` values with the field's declared default via `PydanticUseDefault`, enabling backward-compatible migration from nullable fields to non-nullable fields with defaults

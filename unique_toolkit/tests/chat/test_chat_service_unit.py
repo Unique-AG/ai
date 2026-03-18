@@ -31,6 +31,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelStreamResponse,
+    LanguageModelStreamResponseMessage,
     LanguageModelTool,
     LanguageModelToolParameterProperty,
     LanguageModelToolParameters,
@@ -903,9 +904,8 @@ class TestChatServiceUnit:
     def test_stream_complete_to_chat(self, mock_stream_complete):
         """Test stream_complete method delegates correctly to function"""
         mock_stream_complete.return_value = LanguageModelStreamResponse(
-            message=ChatMessage(
+            message=LanguageModelStreamResponseMessage(
                 id="id",
-                chat_id="",
                 previous_message_id="previous_message_id",
                 role=LanguageModelMessageRole.ASSISTANT,
                 text="test",
@@ -945,9 +945,8 @@ class TestChatServiceUnit:
     async def test_stream_complete_to_chat_async(self, mock_stream_complete_async):
         """Test stream_complete_async method delegates correctly to function"""
         mock_stream_complete_async.return_value = LanguageModelStreamResponse(
-            message=ChatMessage(
+            message=LanguageModelStreamResponseMessage(
                 id="id",
-                chat_id="",
                 previous_message_id="previous_message_id",
                 role=LanguageModelMessageRole.ASSISTANT,
                 text="test",
@@ -987,7 +986,6 @@ class TestChatServiceUnit:
         mock_stream_complete.return_value = {
             "message": {
                 "id": "test_message",
-                "chatId": "test_chat",
                 "previousMessageId": "test_previous_message",
                 "role": "ASSISTANT",
                 "text": "Streamed response",
@@ -1012,7 +1010,6 @@ class TestChatServiceUnit:
         mock_stream_complete.return_value = {
             "message": {
                 "id": "test_message",
-                "chatId": "test_chat",
                 "previousMessageId": "test_previous_message",
                 "role": "ASSISTANT",
                 "text": "Streamed response",
@@ -1055,7 +1052,6 @@ class TestChatServiceUnit:
         mock_stream_complete.return_value = {
             "message": {
                 "id": "test_message",
-                "chatId": "test_chat",
                 "previousMessageId": "test_previous_message",
                 "role": "ASSISTANT",
                 "text": "Streamed response",
@@ -1097,7 +1093,6 @@ class TestChatServiceUnit:
         mock_stream_complete.return_value = {
             "message": {
                 "id": "test_message",
-                "chatId": "test_chat",
                 "previousMessageId": "test_previous_message",
                 "role": "ASSISTANT",
                 "text": "Streamed response",
@@ -1141,7 +1136,6 @@ class TestChatServiceUnit:
         mock_stream.return_value = {
             "message": {
                 "id": "test_stream_id",
-                "chatId": "test_chat",
                 "previousMessageId": "test_previous_message_id",
                 "role": "ASSISTANT",
                 "text": "Streamed response",
@@ -1176,7 +1170,6 @@ class TestChatServiceUnit:
         mock_stream_complete.return_value = {
             "message": {
                 "id": "test_message",
-                "chatId": "test_chat",
                 "previousMessageId": "test_previous_message",
                 "role": "ASSISTANT",
                 "text": "Streamed response",
@@ -1203,7 +1196,6 @@ class TestChatServiceUnit:
         mock_stream_complete.return_value = {
             "message": {
                 "id": "test_message",
-                "chatId": "test_chat",
                 "previousMessageId": "test_previous_message",
                 "role": "ASSISTANT",
                 "text": "Streamed response",
@@ -1257,7 +1249,6 @@ class TestChatServiceUnit:
         mock_stream.return_value = {
             "message": {
                 "id": "test_stream_id",
-                "chatId": "test_chat",
                 "previousMessageId": "test_previous_message_id",
                 "role": "ASSISTANT",
                 "text": "Streamed response",
@@ -1285,135 +1276,3 @@ class TestChatServiceUnit:
         if isinstance(arguments, str):
             arguments = json.loads(arguments)
         assert "London, UK" in arguments.values()
-
-
-class TestChatServiceDebugInfo:
-    @pytest.fixture(autouse=True)
-    def setup(self):
-        self.event = get_event_obj(
-            user_id="test_user",
-            company_id="test_company",
-            chat_id="test_chat",
-            assistant_id="test_assistant",
-        )
-        self.service = ChatService(self.event)
-
-    @pytest.mark.ai
-    @patch.object(unique_sdk.Message, "retrieve", autospec=True)
-    def test_get_debug_info_returns_debug_info_dict(self, mock_retrieve):
-        mock_msg = mock.MagicMock()
-        mock_msg.debugInfo = {"execution_time": {"total_time": 1.5}}
-        mock_retrieve.return_value = mock_msg
-
-        result = self.service.get_debug_info()
-
-        assert result == {"execution_time": {"total_time": 1.5}}
-        mock_retrieve.assert_called_once_with(
-            user_id="test_user",
-            company_id="test_company",
-            id=self.event.payload.user_message.id,
-            chatId="test_chat",
-        )
-
-    @pytest.mark.ai
-    @patch.object(unique_sdk.Message, "retrieve", autospec=True)
-    def test_get_debug_info_returns_empty_dict_when_no_attribute(self, mock_retrieve):
-        mock_msg = mock.MagicMock(spec=[])
-        mock_retrieve.return_value = mock_msg
-
-        result = self.service.get_debug_info()
-
-        assert result == {}
-
-    @pytest.mark.ai
-    @patch.object(unique_sdk.Message, "retrieve", autospec=True)
-    def test_get_debug_info_returns_empty_dict_when_none(self, mock_retrieve):
-        mock_msg = mock.MagicMock()
-        mock_msg.debugInfo = None
-        mock_retrieve.return_value = mock_msg
-
-        result = self.service.get_debug_info()
-
-        assert result == {}
-
-    @pytest.mark.ai
-    @patch.object(unique_sdk.Message, "retrieve", autospec=True)
-    def test_get_debug_info_returns_complex_nested_dict(self, mock_retrieve):
-        debug_data = {
-            "execution_time": {
-                "loop_iterations": [
-                    {"iteration": 1, "total_loop_time": 2.5},
-                    {"iteration": 2, "total_loop_time": 1.3},
-                ],
-                "total_time": 3.8,
-            },
-            "tools": [{"name": "SearchTool"}],
-        }
-        mock_msg = mock.MagicMock()
-        mock_msg.debugInfo = debug_data
-        mock_retrieve.return_value = mock_msg
-
-        result = self.service.get_debug_info()
-
-        assert result == debug_data
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    @patch.object(unique_sdk.Message, "retrieve_async", autospec=True)
-    async def test_get_debug_info_async_returns_debug_info_dict(
-        self, mock_retrieve_async
-    ):
-        mock_msg = mock.MagicMock()
-        mock_msg.debugInfo = {"execution_time": {"total_time": 2.0}}
-        mock_retrieve_async.return_value = mock_msg
-
-        result = await self.service.get_debug_info_async()
-
-        assert result == {"execution_time": {"total_time": 2.0}}
-        mock_retrieve_async.assert_called_once_with(
-            user_id="test_user",
-            company_id="test_company",
-            id=self.event.payload.user_message.id,
-            chatId="test_chat",
-        )
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    @patch.object(unique_sdk.Message, "retrieve_async", autospec=True)
-    async def test_get_debug_info_async_returns_empty_dict_when_no_attribute(
-        self, mock_retrieve_async
-    ):
-        mock_msg = mock.MagicMock(spec=[])
-        mock_retrieve_async.return_value = mock_msg
-
-        result = await self.service.get_debug_info_async()
-
-        assert result == {}
-
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    @patch.object(unique_sdk.Message, "retrieve_async", autospec=True)
-    async def test_get_debug_info_async_returns_empty_dict_when_none(
-        self, mock_retrieve_async
-    ):
-        mock_msg = mock.MagicMock()
-        mock_msg.debugInfo = None
-        mock_retrieve_async.return_value = mock_msg
-
-        result = await self.service.get_debug_info_async()
-
-        assert result == {}
-
-    @pytest.mark.ai
-    @patch.object(unique_sdk.Message, "retrieve", autospec=True)
-    def test_get_debug_info_returns_empty_dict_for_empty_debug_info(
-        self, mock_retrieve
-    ):
-        mock_msg = mock.MagicMock()
-        mock_msg.debugInfo = {}
-        mock_retrieve.return_value = mock_msg
-
-        result = self.service.get_debug_info()
-
-        assert result == {}
-        assert isinstance(result, dict)

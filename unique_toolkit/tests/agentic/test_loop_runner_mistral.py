@@ -17,13 +17,13 @@ from unique_toolkit.agentic.loop_runner.runners.basic import (
 from unique_toolkit.agentic.loop_runner.runners.mistral import (
     MistralLoopIterationRunner,
 )
-from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelStreamResponse,
+    LanguageModelStreamResponseMessage,
     LanguageModelUserMessage,
 )
 
@@ -34,9 +34,8 @@ def create_stream_response(
     references: list[ContentReference] | None = None,
 ) -> LanguageModelStreamResponse:
     return LanguageModelStreamResponse(
-        message=ChatMessage(
+        message=LanguageModelStreamResponseMessage(
             id="msg_123",
-            chat_id="",
             previous_message_id="prev_msg_123",
             role=LanguageModelMessageRole.ASSISTANT,
             text=text,
