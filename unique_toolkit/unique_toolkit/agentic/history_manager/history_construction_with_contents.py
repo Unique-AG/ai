@@ -173,12 +173,12 @@ def get_full_history_with_contents(
 
     builder = LanguageModelMessages([]).builder()
     for c in grouped_elements:
-        # LanguageModelUserMessage has not field original_text
-        text = c.original_text if c.original_text else c.content
+        # LanguageModelUserMessage has not field original content
+        text = c.original_content if c.original_content else c.content
         if text is None:
             if c.role == ChatRole.USER:
                 raise ValueError(
-                    "Content or original_text of LanguageModelMessages should exist.",
+                    "Content or original_content of LanguageModelMessages should exist.",
                 )
             text = ""
 
