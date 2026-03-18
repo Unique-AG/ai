@@ -66,32 +66,81 @@ class ToolCall(BaseModel):
         )
 
 
+class ChatMessageAssessmentStatus(StrEnum):
+    PENDING = "PENDING"
+    DONE = "DONE"
+    ERROR = "ERROR"
+
+
+class ChatMessageAssessmentLabel(StrEnum):
+    RED = "RED"
+    YELLOW = "YELLOW"
+    GREEN = "GREEN"
+
+
+class ChatMessageAssessmentType(StrEnum):
+    HALLUCINATION = "HALLUCINATION"
+    COMPLIANCE = "COMPLIANCE"
+
+
+class ChatMessageAssessment(BaseModel):
+    model_config = model_config
+
+    id: str
+    object: str
+    message_id: str
+    status: ChatMessageAssessmentStatus
+    type: ChatMessageAssessmentType
+    title: str | None = None
+    explanation: str | None = None
+    label: ChatMessageAssessmentLabel | None = None
+    is_visible: bool
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
 class ChatMessage(BaseModel):
-    # TODO: The below seems not to be True anymore @irina-unique. To be checked in separate PR
-    # This model should strictly meets https://github.com/Unique-AG/monorepo/blob/master/node/apps/node-chat/src/public-api/2023-12-06/dtos/message/public-message.dto.ts
+    # This model maps to PublicMessageDto from the backend public API:
+    # next/services/node-chat/src/public-api/2023-12-06/dtos/message/public-message.dto.ts
+    # Fields previous_message_id, tool_calls, tool_call_id are internal extensions not in the DTO.
     model_config = model_config
 
     id: str | None = None
     chat_id: str
     object: str | None = None
+    # alias="text" applies only to construction (model_validate / __init__).
+    # model_dump() uses the field name "content", not "text". Use model_dump(by_alias=True)
+    # to get "text" as the key, or access via the .text property.
     content: str | None = Field(default=None, alias="text")
-    original_content: str | None = Field(default=None, alias="originalText")
+    original_text: str | None = None
     role: ChatMessageRole
+    previous_message_id: str | None = None
     gpt_request: list[dict] | None = None
     tool_calls: list[ToolCall] | None = None
     tool_call_id: str | None = None
     debug_info: dict | None = {}
     created_at: datetime | None = None
     completed_at: datetime | None = None
+    started_streaming_at: datetime | None = None
+    stopped_streaming_at: datetime | None = None
     user_aborted_at: datetime | None = None
     updated_at: datetime | None = None
-    references: list[ContentReference] | None = None
+    references: list[ContentReference] | None = []
+    assessment: list[ChatMessageAssessment] | None = None
 
     # TODO make sdk return role consistently in lowercase
     # Currently needed as sdk returns role in uppercase
     @field_validator("role", mode="before")
     def set_role(cls, value: str):
         return value.lower()
+
+    @property
+    def text(self) -> str | None:
+        return self.content
+
+    @text.setter
+    def text(self, value: str | None) -> None:
+        self.content = value
 
     # Ensure tool_call_ids is required if role is 'tool'
     @model_validator(mode="after")
@@ -131,39 +180,6 @@ class ChatMessage(BaseModel):
 
             case ChatMessageRole.TOOL:
                 raise NotImplementedError
-
-
-class ChatMessageAssessmentStatus(StrEnum):
-    PENDING = "PENDING"
-    DONE = "DONE"
-    ERROR = "ERROR"
-
-
-class ChatMessageAssessmentLabel(StrEnum):
-    RED = "RED"
-    YELLOW = "YELLOW"
-    GREEN = "GREEN"
-
-
-class ChatMessageAssessmentType(StrEnum):
-    HALLUCINATION = "HALLUCINATION"
-    COMPLIANCE = "COMPLIANCE"
-
-
-class ChatMessageAssessment(BaseModel):
-    model_config = model_config
-
-    id: str
-    object: str
-    message_id: str
-    status: ChatMessageAssessmentStatus
-    type: ChatMessageAssessmentType
-    title: str | None = None
-    explanation: str | None = None
-    label: ChatMessageAssessmentLabel | None = None
-    is_visible: bool
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
 
 
 class MessageLogStatus(StrEnum):

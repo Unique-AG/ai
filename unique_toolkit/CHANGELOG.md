@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `get_content_info_async()` to `functions` for fetching content info asynchronously
 - Add `get_folder_info_async()` to `functions` for fetching folder info asynchronously
 
+## [1.58] - 2026-03-18
+- Re-apply 1.55.0 (ChatMessage/LanguageModelStreamResponseMessage breaking changes) and 1.56.0 (execution time tracking)
+
 ## [1.57] - 2026-03-18
 - Revert 1.55.0 (ChatMessage/LanguageModelStreamResponseMessage breaking changes) and 1.56.0 (execution time tracking) — safe baseline for release/2026.12 deployments
 
