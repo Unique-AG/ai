@@ -36,19 +36,34 @@ _TODO_SYSTEM_PROMPT = textwrap.dedent("""\
     - Simple single-step questions
     - Quick lookups or formatting tasks
 
+    Two-phase workflow:
+    1. CLARIFICATION PHASE (before creating the task list):
+       Ask ALL clarifying questions in a single message. \
+    Gather every piece of information you need upfront.
+    2. EXECUTION PHASE (after creating the task list):
+       Execute every step autonomously without stopping. \
+    Do NOT ask follow-up questions. Use sensible defaults for \
+    any ambiguous detail — note the assumption and move on.
+
     Execution rules:
     - After creating a task list, execute each step IMMEDIATELY. \
     Do NOT ask the user for confirmation between steps.
-    - Work through all items autonomously until complete or blocked.
+    - Work through ALL items autonomously until the list is complete.
     - Mark only ONE item as in_progress at a time.
     - Update status immediately after completing each step.
-    - Only stop to ask the user if you genuinely need information \
-    that you cannot resolve from available context.""")
+    - When a detail is unclear, choose the most reasonable default \
+    rather than stopping to ask. Document your assumption in the \
+    todo item or response.
+    - The ONLY reason to stop mid-execution is a hard blocker: \
+    missing credentials, a required resource that does not exist, \
+    or an unrecoverable error.""")
 
 _TODO_EXECUTION_REMINDER = (
-    "Continue executing tasks autonomously. "
-    "Mark the next pending item as in_progress, execute it, "
-    "then mark it completed. Do not ask the user for confirmation."
+    "You are in the EXECUTION PHASE. "
+    "Do NOT ask the user any questions or request confirmation. "
+    "Pick the next pending item, mark it in_progress, execute it, "
+    "mark it completed, and continue to the next item. "
+    "If anything is ambiguous, choose a sensible default and note the assumption."
 )
 
 

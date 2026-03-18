@@ -222,7 +222,7 @@ class TestTodoMultiStepWorkflow:
         )
 
         assert response.system_reminder != ""
-        assert "autonomously" in response.system_reminder
+        assert "EXECUTION PHASE" in response.system_reminder
 
         response = await tool.run(
             _make_write_call(

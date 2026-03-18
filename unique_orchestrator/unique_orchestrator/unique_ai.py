@@ -42,6 +42,7 @@ from unique_toolkit.protocols.support import (
 )
 
 from unique_orchestrator.config import UniqueAIConfig
+from unique_orchestrator.trace_logger import TraceLogger
 
 EMPTY_MESSAGE_WARNING = (
     "⚠️ **The language model was unable to produce an output.**\n"
@@ -146,6 +147,9 @@ class UniqueAI:
 
         self._execution_times: list[dict[str, Any]] = []
         self._current_loop_timing: dict[str, Any] = {}
+        self._trace_logger = TraceLogger(
+            chat_id=getattr(event.payload, "chat_id", None)
+        )
 
     async def _on_cancellation(self, _event: CancellationEvent) -> None:
         """Subscriber called by the cancellation event bus."""
@@ -298,7 +302,16 @@ class UniqueAI:
             tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
             other_options=self._config.agent.experimental.additional_llm_options,
         )
-        return await self._loop_iteration_runner(**kwargs)
+        response  await self._loop_iteration_runner(**kwargs)
+
+        self._trace_logger.log_llm_call(
+            self.current_iteration_index,
+            messages=messages,
+            response=response,
+            model=str(self._config.space.language_model),
+        )
+
+        return response
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
         self._logger.info(
@@ -654,6 +667,12 @@ class UniqueAI:
 
         self._log_tool_results(tool_call_responses)
 
+        self._trace_logger.log_tool_execution(
+            self.current_iteration_index,
+            tool_calls=tool_calls,
+            tool_responses=tool_call_responses,
+        )
+
         self._tool_took_control = self._tool_manager.does_a_tool_take_control(
             tool_calls
         )
@@ -734,7 +753,9 @@ class UniqueAI:
         todo_write) is visible in the UI debug panel. DeepResearch is excluded
         because it manages its own debug info across multiple orchestrator calls.
         """
-        tool_names = [tool["name"] for tool in self._debug_info_manager.get()["tools"]]
+        tool_names = [
+            tool["name"] for tool in self._debug_info_manager.get().get("tools", [])
+        ]
         if "DeepResearch" in tool_names:
             return
 
@@ -748,6 +769,7 @@ class UniqueAI:
             await self._persist_debug_info()
         except Exception:
             self._logger.debug("Best-effort debug info persist failed", exc_info=True)
+
 
 @deprecated("Use UniqueAI directly instead")
 class UniqueAIResponsesApi(UniqueAI):

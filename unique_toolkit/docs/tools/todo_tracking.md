@@ -230,6 +230,20 @@ The codebase has an existing `PlanningMiddleware` (in `unique_toolkit/agentic/lo
 
 **Either feature works independently.** Together, the planning step sees the TODO state in the conversation history and can make better decisions about what to do next.
 
+## Debugging
+
+### Trace Logging
+
+Set `UNIQUE_AI_TRACE_DIR=/tmp/unique-ai-traces` to write per-iteration JSON files capturing the messages sent to the LLM and its responses (excluding content chunks). Each agent run creates a timestamped session directory. Files are named `iter-000-llm.json` (messages + model response) and `iter-000-tools.json` (tool calls + tool responses).
+
+### Recommended Model
+
+GPT-5.4 (`AZURE_GPT_54_2026_0305`) is recommended for agentic use with todo tracking — it follows multi-step plans more reliably than earlier models. Set via the admin UI or the `DEFAULT_LANGUAGE_MODEL` environment variable:
+
+```
+DEFAULT_LANGUAGE_MODEL=AZURE_GPT_54_2026_0305
+```
+
 ## Known Issue: ShortTermMemory Persistence
 
 The `ShortTermMemory.create_async` API requires scoping by `chatId`, `messageId`, or `companyId`. During tool execution, the `messageId` available from the `ChatEvent` is the **user's** message ID. This can cause `InvalidRequestError` when `TodoWriteTool` tries to persist state.

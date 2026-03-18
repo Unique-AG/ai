@@ -34,7 +34,7 @@ def _build_unique_ai(**overrides):
     mock_config.agent.prompt_config.user_metadata = []
 
     mock_debug_info_manager = MagicMock()
-    mock_debug_info_manager.get.return_value = {}
+    mock_debug_info_manager.get.return_value = {"tools": []}
 
     defaults = dict(
         logger=MagicMock(),

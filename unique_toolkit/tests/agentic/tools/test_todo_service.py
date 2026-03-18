@@ -486,7 +486,7 @@ class TestDebugInfoAndSystemReminder:
         response = await tool.run(call)
 
         assert response.system_reminder != ""
-        assert "autonomously" in response.system_reminder
+        assert "EXECUTION PHASE" in response.system_reminder
 
     @pytest.mark.ai
     @pytest.mark.asyncio
