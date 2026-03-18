@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.58.1] - 2026-03-18
+- Code interpreter fence injection (UN-17972): extend `_build_code_blocks` matching so generated images reliably map to their producing code block — secondary match on quoted filename or stem, plus last-resort assignment to the last code block when paths are fully dynamic (e.g. `f"/mnt/data/chart_{type}_{i}.png"`). Fixes bare `![image](unique://content/...)` instead of `imgWithSource` fences.
+
 ## [1.58] - 2026-03-18
 - Re-apply 1.55.0 (ChatMessage/LanguageModelStreamResponseMessage breaking changes) and 1.56.0 (execution time tracking)
 

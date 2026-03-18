@@ -467,6 +467,144 @@ def test_build_code_blocks__deduplicates_file__when_two_annotations_for_same_fil
     assert result[0].files[0].content_id == "cont_shared1"
 
 
+@pytest.mark.ai
+def test_build_code_blocks__assigns_images_via_stem__when_helper_function_constructs_path() -> (
+    None
+):
+    """
+    Purpose: Verify secondary (stem) matching assigns images saved via a helper function.
+    Why this matters: A common LLM pattern is to define a save_fig(fig, name) helper that
+    builds the path as f"/mnt/data/{name}.png" at runtime. The literal path
+    "/mnt/data/nvda_price_sma.png" is never in the code — only the stem "nvda_price_sma"
+    appears as a quoted string. Without secondary matching these images are silently dropped
+    from code_blocks and never get an imgWithSource fence (the UN-17972 edge case).
+    Setup summary: Code has save_fig(fig, "nvda_price_sma") with no literal /mnt/data/ path;
+    assert the file is assigned to that block.
+    """
+    code = (
+        "def save_fig(fig, name):\n"
+        '    out = f"/mnt/data/{name}.png"\n'
+        "    fig.savefig(out, dpi=160)\n\n"
+        'save_fig(fig, "nvda_price_sma")\n'
+        'save_fig(fig, "nvda_volume")\n'
+    )
+    call = _make_ci_call(code)
+    ann1 = _make_annotation("nvda_price_sma.png", file_id="cfile_1")
+    ann2 = _make_annotation("nvda_volume.png", file_id="cfile_2")
+    content_map = {
+        "nvda_price_sma.png": "cont_img1",
+        "nvda_volume.png": "cont_img2",
+    }
+    response = _make_response([call], [ann1, ann2])
+
+    result = _build_code_blocks(response, content_map)
+
+    assert len(result) == 1
+    filenames = {f.filename for f in result[0].files}
+    assert filenames == {"nvda_price_sma.png", "nvda_volume.png"}
+    assert all(f.type == "image" for f in result[0].files)
+
+
+@pytest.mark.ai
+def test_build_code_blocks__assigns_images_via_full_filename__when_helper_passes_filename_with_extension() -> (
+    None
+):
+    """
+    Purpose: Verify secondary matching via full filename (Pattern B).
+    Why this matters: A second common LLM pattern passes the full filename (with extension)
+    to a helper that builds the path with os.path.join, e.g.:
+        make_chart(kind, "random_line_chart.png", 42)
+        fig.savefig(os.path.join(output_dir, filename), ...)
+    The literal "/mnt/data/random_line_chart.png" is never in the code, but
+    "random_line_chart.png" IS quoted. Without full-filename matching these images
+    are silently dropped (the edge case confirmed in UI testing on 2026-03-18).
+    Setup summary: Code has "random_line_chart.png" as a quoted argument; no literal
+    /mnt/data/ path; assert the file is assigned to that block.
+    """
+    code = (
+        "charts = [\n"
+        '    ("line", "random_line_chart.png", 42),\n'
+        '    ("bar", "random_bar_chart.png", 123),\n'
+        "]\n"
+        "for kind, fname, seed in charts:\n"
+        "    make_chart(kind, fname, seed=seed)\n\n"
+        "def make_chart(kind, filename, seed=None):\n"
+        '    fig.savefig(os.path.join(output_dir, filename), bbox_inches="tight")\n'
+    )
+    call = _make_ci_call(code)
+    ann1 = _make_annotation("random_line_chart.png", file_id="cfile_1")
+    ann2 = _make_annotation("random_bar_chart.png", file_id="cfile_2")
+    content_map = {
+        "random_line_chart.png": "cont_img1",
+        "random_bar_chart.png": "cont_img2",
+    }
+    response = _make_response([call], [ann1, ann2])
+
+    result = _build_code_blocks(response, content_map)
+
+    assert len(result) == 1
+    filenames = {f.filename for f in result[0].files}
+    assert filenames == {"random_line_chart.png", "random_bar_chart.png"}
+    assert all(f.type == "image" for f in result[0].files)
+
+
+@pytest.mark.ai
+def test_build_code_blocks__assigns_images_via_last_block_fallback__when_name_fully_dynamic() -> (
+    None
+):
+    """
+    Purpose: Verify last-resort fallback (Step 1c) assigns images whose names are
+    assembled entirely at runtime via f-strings or variable concatenation.
+    Why this matters: Pattern C — e.g. f"/mnt/data/chart_{chart_type}_{i}.png" —
+    produces filenames like "chart_line_0.png" where neither the full path, the full
+    filename, nor the stem appears as a quoted string literal anywhere in the code.
+    Neither primary nor secondary matching succeeds; the fallback must kick in.
+    Setup summary: Code constructs filenames with an f-string loop; no quoted static
+    token matches; assert all files are assigned to the single (last) code block.
+    """
+    code = (
+        'chart_types = ["line", "bar"]\n'
+        "for i, chart_type in enumerate(chart_types):\n"
+        '    filename = f"/mnt/data/chart_{chart_type}_{i}.png"\n'
+        "    create_and_save_chart(chart_type, filename)\n"
+    )
+    call = _make_ci_call(code)
+    ann1 = _make_annotation("chart_line_0.png", file_id="cfile_1")
+    ann2 = _make_annotation("chart_bar_1.png", file_id="cfile_2")
+    content_map = {
+        "chart_line_0.png": "cont_img1",
+        "chart_bar_1.png": "cont_img2",
+    }
+    response = _make_response([call], [ann1, ann2])
+
+    result = _build_code_blocks(response, content_map)
+
+    assert len(result) == 1
+    filenames = {f.filename for f in result[0].files}
+    assert filenames == {"chart_line_0.png", "chart_bar_1.png"}
+    assert all(f.type == "image" for f in result[0].files)
+
+
+@pytest.mark.ai
+def test_build_code_blocks__primary_match_beats_stem__when_both_present() -> None:
+    """
+    Purpose: Verify primary (literal path) match takes precedence over secondary (stem) match.
+    Why this matters: If a later block has the stem but an earlier block has the full literal
+    path, the earlier block should own the file (primary wins regardless of order).
+    Setup summary: Block 0 has literal path; block 1 has stem only; file should go to block 0.
+    """
+    call0 = _make_ci_call('plt.savefig("/mnt/data/chart.png")', container_id="cntr_1")
+    call1 = _make_ci_call('save_fig(fig, "chart")', container_id="cntr_1")
+    annotation = _make_annotation("chart.png", file_id="cfile_1")
+    content_map = {"chart.png": "cont_img1"}
+    response = _make_response([call0, call1], [annotation])
+
+    result = _build_code_blocks(response, content_map)
+
+    assert len(result) == 1
+    assert result[0].code == call0.code
+
+
 # ============================================================================
 # Tests for _file_title
 # ============================================================================
