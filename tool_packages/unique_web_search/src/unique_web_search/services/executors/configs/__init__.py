@@ -6,10 +6,11 @@ from unique_web_search.services.executors.configs.v1_config import (
     WebSearchV1Config,
 )
 from unique_web_search.services.executors.configs.v2_config import WebSearchV2Config
+from unique_web_search.services.executors.configs.v3_config import WebSearchV3Config
 from unique_web_search.settings import env_settings
 
 _LOGGER = getLogger(__name__)
-WebSearchModeConfig = WebSearchV1Config | WebSearchV2Config
+WebSearchModeConfig = WebSearchV1Config | WebSearchV2Config | WebSearchV3Config
 
 
 def get_default_web_search_mode_config() -> WebSearchMode:
@@ -18,12 +19,15 @@ def get_default_web_search_mode_config() -> WebSearchMode:
             return WebSearchMode.V1
         case "v2":
             return WebSearchMode.V2
+        case "v3":
+            return WebSearchMode.V3
         case _:
             raise ValueError(f"Invalid web search mode: {env_settings.web_search_mode}")
 
 
 __all__ = [
     "WebSearchModeConfig",
+    "WebSearchV3Config",
     "get_default_web_search_mode_config",
     "WebSearchMode",
     "RefineQueryMode",

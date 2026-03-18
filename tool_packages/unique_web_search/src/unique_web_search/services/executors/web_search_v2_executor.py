@@ -25,11 +25,6 @@ from unique_web_search.services.search_engine.schema import (
 
 _LOGGER = logging.getLogger(__name__)
 
-step_type_to_name = {
-    StepType.SEARCH: "**Searching Web**",
-    StepType.READ_URL: "**Reading URL**",
-}
-
 
 class WebSearchV2Executor(BaseWebSearchExecutor):
     """Executes research plans step by step."""
@@ -53,22 +48,6 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
 
         self.tool_parameters = tool_parameters
         self.max_steps = max_steps
-
-    @property
-    def notify_name(self):
-        return self._notify_name
-
-    @notify_name.setter
-    def notify_name(self, value):
-        self._notify_name = value
-
-    @property
-    def notify_message(self):
-        return self._notify_message
-
-    @notify_message.setter
-    def notify_message(self, value):
-        self._notify_message = value
 
     async def run(self) -> list[ContentChunk]:
         await self._enforce_max_steps()
@@ -159,32 +138,46 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             f"Searched with {self.search_service} completed in {delta_time} seconds"
         )
 
-        if self.search_service.requires_scraping:
-            time_start = time()
-            _LOGGER.info(
-                f"Company {self.company_id} Crawling with {self.crawler_service}"
-            )
-            crawl_results = await self.crawler_service.crawl(
-                [result.url for result in results]
-            )
-            delta_time = time() - time_start
-            for result, content in zip(results, crawl_results):
-                result.content = content
+        results = await self._after_search_before_crawl(step, results)
 
-            self.debug_info.steps.append(
-                StepDebugInfo(
-                    step_name=f"{step_name}.crawl",
-                    execution_time=delta_time,
-                    config=self.crawler_service.config.crawler_type.name,
-                    extra={
-                        "number_of_results": len(results),
-                        "contents": [result.model_dump() for result in results],
-                    },
-                )
+        if self.search_service.requires_scraping and results:
+            results = await self._crawl_search_results(step_name, results)
+
+        return results
+
+    async def _after_search_before_crawl(
+        self, step: Step, results: list[WebSearchResult]
+    ) -> list[WebSearchResult]:
+        """Hook run after search and before crawl. Subclasses may narrow results."""
+        return results
+
+    async def _crawl_search_results(
+        self, step_name: str, results: list[WebSearchResult]
+    ) -> list[WebSearchResult]:
+        """Crawl URLs for the given search results and fill content. Call when results non-empty."""
+        time_start = time()
+        _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
+        crawl_results = await self.crawler_service.crawl(
+            [result.url for result in results]
+        )
+        delta_time = time() - time_start
+        for result, content in zip(results, crawl_results):
+            result.content = content
+
+        self.debug_info.steps.append(
+            StepDebugInfo(
+                step_name=f"{step_name}.crawl",
+                execution_time=delta_time,
+                config=self.crawler_service.config.crawler_type.name,
+                extra={
+                    "number_of_results": len(results),
+                    "contents": [result.model_dump() for result in results],
+                },
             )
-            _LOGGER.info(
-                f"Crawled {len(results)} pages with {self.crawler_service} completed in {delta_time} seconds"
-            )
+        )
+        _LOGGER.info(
+            f"Crawled {len(results)} pages with {self.crawler_service} completed in {delta_time} seconds"
+        )
         return results
 
     async def _execute_read_url_step(self, step: Step) -> list[WebSearchResult]:

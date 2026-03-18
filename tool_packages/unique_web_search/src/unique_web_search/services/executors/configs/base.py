@@ -12,12 +12,14 @@ from unique_web_search.services.helpers import (
 class WebSearchMode(StrEnum):
     V1 = "v1"
     V2 = "v2"
+    V3 = "v3"
 
     @classmethod
     def _missing_(cls, value):
         if isinstance(value, str):
             aliases = {
                 "v2 (beta)": cls.V2,
+                "v3 (beta)": cls.V3,
             }
             return aliases.get(value)
         return super()._missing_(value)
