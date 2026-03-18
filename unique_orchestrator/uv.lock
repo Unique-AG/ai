@@ -3825,7 +3825,7 @@ dev = [
 
 [[package]]
 name = "unique-internal-search"
-version = "1.2.30"
+version = "1.2.33"
 source = { editable = "../tool_packages/unique_internal_search" }
 dependencies = [
     { name = "pydantic" },
@@ -4193,7 +4193,7 @@ dev = [
 
 [[package]]
 name = "unique-web-search"
-version = "1.14.1"
+version = "1.14.3"
 source = { editable = "../tool_packages/unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },

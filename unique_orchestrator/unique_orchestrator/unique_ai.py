@@ -268,9 +268,13 @@ class UniqueAI:
                     self._event.company_id
                 ):
                     await self._persist_tool_calls()
+                await self._persist_debug_info()
                 await self._chat_service.modify_assistant_message_async(
                     set_completed_at=not self._tool_took_control,
                 )
+        except Exception:
+            await self._persist_debug_info_best_effort()
+            raise
         finally:
             sub.cancel()
 
@@ -332,6 +336,7 @@ class UniqueAI:
             rendered_system_message_string,
             self._postprocessor_manager.remove_from_text,
         )
+
         return messages
 
     async def _render_user_prompt(self) -> str:
@@ -554,6 +559,47 @@ class UniqueAI:
                 references=[],
             )
 
+    def _log_tool_results(self, tool_call_responses: list) -> None:
+        """Create message log entries for tools that returned debug_info."""
+        tool_names_not_to_log = ["DeepResearch"]
+
+        for response in tool_call_responses:
+            if response.name in tool_names_not_to_log:
+                continue
+            if not response.debug_info:
+                continue
+
+            summary = self._format_tool_result_summary(
+                response.name, response.debug_info
+            )
+            if summary:
+                self._message_step_logger.create_message_log_entry(
+                    text=summary,
+                    references=[],
+                )
+
+    @staticmethod
+    def _format_tool_result_summary(tool_name: str, debug_info: dict) -> str | None:
+        """Format a human-readable summary from a tool's debug_info.
+
+        Returns None if no meaningful summary can be produced.
+        """
+        state = debug_info.get("state")
+        if state and "total" in state:
+            parts = []
+            for key in ("completed", "in_progress", "pending"):
+                count = state.get(key, 0)
+                if count:
+                    parts.append(f"{count} {key}")
+            status_line = ", ".join(parts) if parts else "empty"
+            return f"**{tool_name}** — {state['total']} items ({status_line})"
+
+        info_keys = [k for k in debug_info if k not in ("mcp_server", "mcp_tool")]
+        if info_keys:
+            return f"**{tool_name}** — {', '.join(f'{k}: {debug_info[k]}' for k in info_keys[:3])}"
+
+        return None
+
     async def _handle_tool_calls(
         self, loop_response: LanguageModelStreamResponse
     ) -> bool:
@@ -605,6 +651,8 @@ class UniqueAI:
         self._debug_info_manager.extract_tool_debug_info(
             tool_call_responses, self.current_iteration_index
         )
+
+        self._log_tool_results(tool_call_responses)
 
         self._tool_took_control = self._tool_manager.does_a_tool_take_control(
             tool_calls
@@ -665,6 +713,41 @@ class UniqueAI:
             }
         return user_metadata
 
+    def _build_debug_info_event(self) -> dict:
+        """Build the debug info payload with assistant metadata and tool info."""
+        return {
+            "assistant": {
+                "id": self._event.payload.assistant_id,
+                "name": self._event.payload.name,
+            },
+            "chosenModule": self._event.payload.name,
+            "userMetadata": self._event.payload.user_metadata,
+            "toolParameters": self._event.payload.tool_parameters,
+            **self._debug_info_manager.get(),
+        }
+
+    async def _persist_debug_info(self) -> None:
+        """
+        Persist accumulated debug info to the message.
+
+        Always runs after the loop exits so that tool debug_info (e.g. from
+        todo_write) is visible in the UI debug panel. DeepResearch is excluded
+        because it manages its own debug info across multiple orchestrator calls.
+        """
+        tool_names = [tool["name"] for tool in self._debug_info_manager.get()["tools"]]
+        if "DeepResearch" in tool_names:
+            return
+
+        await self._chat_service.update_debug_info_async(
+            debug_info=self._build_debug_info_event()
+        )
+
+    async def _persist_debug_info_best_effort(self) -> None:
+        """Save whatever debug info has accumulated so far, swallowing errors."""
+        try:
+            await self._persist_debug_info()
+        except Exception:
+            self._logger.debug("Best-effort debug info persist failed", exc_info=True)
 
 @deprecated("Use UniqueAI directly instead")
 class UniqueAIResponsesApi(UniqueAI):

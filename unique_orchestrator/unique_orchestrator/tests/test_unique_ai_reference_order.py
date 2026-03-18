@@ -27,6 +27,10 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
             assistant_message = AssistantMessage()
             user_message = MagicMock()
             user_message.text = "query"
+            assistant_id = "assistant_123"
+            name = "TestAssistant"
+            user_metadata = {}
+            tool_parameters = {}
 
         payload = Payload()
 
@@ -58,7 +62,11 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
     mock_tool_manager = MagicMock()
     mock_tool_manager.get_forced_tools.return_value = []
     mock_tool_manager.get_tool_definitions.return_value = []
-    mock_tool_manager.execute_selected_tools = AsyncMock(return_value=[MagicMock()])
+    mock_tool_response = MagicMock()
+    mock_tool_response.debug_info = None
+    mock_tool_manager.execute_selected_tools = AsyncMock(
+        return_value=[mock_tool_response]
+    )
     mock_tool_manager.does_a_tool_take_control.return_value = False
 
     class DummyStreamResponse:
@@ -82,6 +90,7 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
         return_value=DummyStreamResponse()
     )
     mock_chat_service.modify_assistant_message_async = AsyncMock(return_value=None)
+    mock_chat_service.update_debug_info_async = AsyncMock(return_value=None)
     mock_chat_service.create_assistant_message_async = AsyncMock(
         return_value=MagicMock(id="assist_new")
     )
