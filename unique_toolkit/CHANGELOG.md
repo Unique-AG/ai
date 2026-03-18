@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LoopTokenReducer preserves ResponseOutputItem instances during reduction (no source reduction applied)
 - Add unit tests for HistoryManager and LoopTokenReducer with Responses API output items
 
+## [1.57] - 2026-03-18
+- Revert 1.55.0 (ChatMessage/LanguageModelStreamResponseMessage breaking changes) and 1.56.0 (execution time tracking) — safe baseline for release/2026.12 deployments
+
 ## [1.56.0] - 2026-03-17
 - Add execution time tracking to `EvaluationManager`, `PostprocessorManager`, and `ToolManager` with `get_execution_times()` accessors
 - Add `get_debug_info()` / `get_debug_info_async()` to `ChatService` for retrieving debug info from the current user message

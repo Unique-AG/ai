@@ -1,5 +1,4 @@
 import asyncio
-import time
 from logging import Logger, getLogger
 from typing import Generic, Literal, TypeVar, overload
 
@@ -289,16 +288,10 @@ class _ToolManager(Generic[_ApiMode]):
             raise ValueError(f"Tool {tool_call.name} cannot be run")
 
         if tool_instance:
-            tool_start = time.perf_counter()
+            # Execute the tool
             tool_response: ToolCallResponse = await tool_instance.run(
                 tool_call=tool_call
             )
-            tool_execution_time = round(time.perf_counter() - tool_start, 3)
-
-            if tool_response.debug_info is None:
-                tool_response.debug_info = {}
-            tool_response.debug_info["execution_time_s"] = tool_execution_time
-
             evaluation_checks = tool_instance.evaluation_check_list()
             self._tool_evaluation_check_list.update(evaluation_checks)
 

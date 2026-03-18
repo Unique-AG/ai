@@ -3,6 +3,7 @@ import assert from "node:assert";
 import { createHash } from "node:crypto";
 import express from "express";
 import type { Server } from "node:http";
+import { TOKEN_LIFETIME } from "../middleware";
 
 const CLIENT_ID = "test-client-id";
 const CLIENT_SECRET = "test-client-secret";
@@ -18,7 +19,7 @@ async function startApp() {
   const mod = await import("../middleware");
   const app = express();
   app.use(mod.default.router);
-  // Protected route to test bearer middleware
+  // Protected route to test Bearer middleware
   app.get("/mcp", mod.default.middleware, (_req, res) => {
     res.json({ ok: true });
   });
@@ -245,8 +246,8 @@ describe("middleware", () => {
         assert.strictEqual(res.status, 200);
         const body = await res.json();
         assert.ok(body.access_token);
-        assert.strictEqual(body.token_type, "bearer");
-        assert.strictEqual(body.expires_in, 3600);
+        assert.strictEqual(body.token_type, "Bearer");
+        assert.strictEqual(body.expires_in, TOKEN_LIFETIME);
         assert.strictEqual(res.headers.get("cache-control"), "no-store");
       });
 
@@ -259,7 +260,7 @@ describe("middleware", () => {
         assert.strictEqual(res.status, 200);
         const body = await res.json();
         assert.ok(body.access_token);
-        assert.strictEqual(body.token_type, "bearer");
+        assert.strictEqual(body.token_type, "Bearer");
       });
 
       it("returns 401 with wrong Basic auth", async () => {
@@ -312,8 +313,8 @@ describe("middleware", () => {
         assert.strictEqual(res.status, 200);
         const body = await res.json();
         assert.ok(body.access_token);
-        assert.strictEqual(body.token_type, "bearer");
-        assert.strictEqual(body.expires_in, 3600);
+        assert.strictEqual(body.token_type, "Bearer");
+        assert.strictEqual(body.expires_in, TOKEN_LIFETIME);
       });
 
       it("rejects token exchange without code_verifier", async () => {
@@ -418,7 +419,7 @@ describe("middleware", () => {
 
   // ── Bearer middleware ─────────────────────────────────────────────
 
-  describe("bearer token validation", () => {
+  describe("Bearer token validation", () => {
     async function getToken(): Promise<string> {
       const res = await fetch(`${baseUrl}/token`, {
         method: "POST",
