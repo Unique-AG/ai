@@ -586,6 +586,35 @@ def test_build_code_blocks__assigns_images_via_last_block_fallback__when_name_fu
 
 
 @pytest.mark.ai
+def test_build_code_blocks__secondary_last_writer_wins__when_two_blocks_match_stem() -> (
+    None
+):
+    """
+    Purpose: Verify secondary matching uses last-writer-wins across blocks, like primary.
+    Why this matters: If block 0 and block 1 both reference the same stem (no literal
+    /mnt/data/{filename} in either), the file must be owned by the last block — not the first.
+    Setup summary: Two calls each with save(fig, "plot") pattern; assert plot.png maps to block 1.
+    """
+    code0 = 'def save(f, n):\n    f.savefig(f"/mnt/data/{n}.png")\nsave(fig, "plot")\n'
+    code1 = (
+        "def save(f, n):\n"
+        '    f.savefig(f"/mnt/data/{n}.png")\n'
+        'save(fig, "plot")  # final write\n'
+    )
+    call0 = _make_ci_call(code0, container_id="cntr_1")
+    call1 = _make_ci_call(code1, container_id="cntr_1")
+    annotation = _make_annotation("plot.png", file_id="cfile_1")
+    content_map = {"plot.png": "cont_img1"}
+    response = _make_response([call0, call1], [annotation])
+
+    result = _build_code_blocks(response, content_map)
+
+    assert len(result) == 1
+    assert result[0].code == call1.code
+    assert result[0].files[0].filename == "plot.png"
+
+
+@pytest.mark.ai
 def test_build_code_blocks__primary_match_beats_stem__when_both_present() -> None:
     """
     Purpose: Verify primary (literal path) match takes precedence over secondary (stem) match.

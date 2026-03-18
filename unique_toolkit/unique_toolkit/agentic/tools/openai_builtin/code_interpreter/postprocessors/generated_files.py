@@ -499,8 +499,8 @@ def _build_code_blocks(
     Three matching tiers are used in priority order:
       1. Primary: literal path ``/mnt/data/{filename}`` appears in the code.
       2. Secondary: the filename (with or without extension) appears as a quoted
-         string literal — catches two common helper-function patterns where the
-         full path is built at runtime:
+         string literal — last-writer-wins among blocks (same as primary), but
+         never overrides a primary match. Covers helper patterns such as:
            - stem only: ``save_fig(fig, "nvda_price_sma")``
            - full name: ``make_chart(kind, "random_line_chart.png", 42)``
       3. Last-resort: assign remaining unmatched files to the last code block —
@@ -525,6 +525,10 @@ def _build_code_blocks(
             ):
                 file_to_block_idx[annotation.filename] = idx
 
+    # Snapshot primary matches only — secondary must not override these, but within
+    # secondary we use last-writer-wins (later blocks overwrite earlier), same as 1a.
+    primary_matched_filenames = set(file_to_block_idx.keys())
+
     # Step 1b: secondary matching for files not matched by primary.
     # Handles two common helper-function patterns where the full /mnt/data/ path
     # is never a literal string in the code:
@@ -538,13 +542,14 @@ def _build_code_blocks(
     #     fig.savefig(os.path.join(output_dir, filename), ...)
     #     → matches quoted full filename "random_line_chart.png"
     #
-    # Only runs for files with no primary match, so primary always takes precedence.
+    # Last-writer-wins within secondary: do not skip when a prior block already matched
+    # via secondary — only skip filenames that matched in Step 1a (primary).
     for idx, call in enumerate(calls):
         if not call.code:
             continue
         for annotation in loop_response.container_files:
-            if annotation.filename in file_to_block_idx:
-                continue  # already assigned by primary match
+            if annotation.filename in primary_matched_filenames:
+                continue
             if content_map.get(annotation.filename) is None:
                 continue
             fname = annotation.filename
