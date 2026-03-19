@@ -974,7 +974,7 @@ def ui_schema_for_model(
 
         # Dict -> additionalProperties (value side)
         elif origin is dict:
-            key_t, val_t = get_args(base) or (Any, Any)
+            _key_t, val_t = get_args(base) or (Any, Any)
             val_base, val_meta = _walk_annotated_chain(val_t)
             val_base = _unwrap_optional(val_base)
 

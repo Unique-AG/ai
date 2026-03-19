@@ -82,7 +82,7 @@ def build_fake_requestor(
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
             try:
-                path_params, payload_model, query_params = (
+                _path_params, _payload_model, _query_params = (
                     cls._operation.models_from_combined(combined=kwargs)
                 )
             except Exception as e:
@@ -267,7 +267,7 @@ def build_httpx_requestor(
         ) -> ResponseType:
             headers = context.headers or {}
 
-            path_params, payload_model, query_model = (
+            path_params, payload_model, _query_model = (
                 cls._operation.models_from_combined(combined=kwargs)
             )
 

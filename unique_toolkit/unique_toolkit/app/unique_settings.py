@@ -383,43 +383,6 @@ class UniqueApi(BaseSettings):
         return urlunparse(parsed._replace(path=path, query=None, fragment=None))
 
 
-@register_config()
-class UniqueAuth(BaseSettings):
-    company_id: SecretStr = Field(
-        default=SecretStr("dummy_company_id"),
-        validation_alias=AliasChoices(
-            "unique_auth_company_id",
-            "company_id",
-            "UNIQUE_AUTH_COMPANY_ID",
-            "COMPANY_ID",
-        ),
-    )
-    user_id: SecretStr = Field(
-        default=SecretStr("dummy_user_id"),
-        validation_alias=AliasChoices(
-            "unique_auth_user_id", "user_id", "UNIQUE_AUTH_USER_ID", "USER_ID"
-        ),
-    )
-
-    model_config = SettingsConfigDict(
-        env_prefix="unique_auth_",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
-
-    @model_validator(mode="after")
-    def _warn_about_defaults(self) -> Self:
-        return warn_about_defaults(self)
-
-    @classmethod
-    def from_event(cls, event: "BaseEvent[Any]") -> Self:
-        return cls(
-            company_id=SecretStr(event.company_id),
-            user_id=SecretStr(event.user_id),
-        )
-
-
 # EventFilterOptions
 # Settings only as only obtained from the environment.
 class UniqueChatEventFilterOptions(BaseSettings):

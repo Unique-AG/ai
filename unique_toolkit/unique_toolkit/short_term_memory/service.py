@@ -65,10 +65,10 @@ class ShortTermMemoryService:
             if not (chat_id or message_id):
                 raise ValueError("Chat_id or message_id must be provided")
 
-            self._company_id: str = company_id
-            self._user_id: str = user_id
-            self._chat_id: str | None = chat_id
-            self._message_id: str | None = message_id
+            self._company_id = company_id
+            self._user_id = user_id
+            self._chat_id = chat_id
+            self._message_id = message_id
 
     @classmethod
     def from_event(cls, event: ChatEvent):

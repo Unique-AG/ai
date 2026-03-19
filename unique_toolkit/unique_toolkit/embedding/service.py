@@ -45,8 +45,8 @@ class EmbeddingService(BaseService):
             self._user_id: str = event.user_id
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])
-            self._company_id: str = company_id
-            self._user_id: str = user_id
+            self._company_id = company_id
+            self._user_id = user_id
 
     @classmethod
     def from_event(cls, event: Event | BaseEvent[Any]):
