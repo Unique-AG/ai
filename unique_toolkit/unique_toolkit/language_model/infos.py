@@ -317,6 +317,66 @@ class LanguageModelInfo(BaseModel):
         return _load_custom_decoder(self.encoder_name)
 
     @classmethod
+    def resolve_temp_and_reasoning(
+        cls,
+        model_name: "LanguageModelName | str",
+        temperature: float,
+        reasoning_effort: str | None,
+    ) -> tuple[float, str | None]:
+        """Resolve temperature and reasoning_effort together for a model.
+
+        Rules applied in order:
+        1. Thinking-only models (temperature_bounds.min == 1.0): reasoning_effort
+           of None or 'none' is invalid — it is replaced with the model's declared
+           default effort (or 'medium' as a safe fallback). Temperature is 1.0.
+        2. Active reasoning (effort not None and not 'none'): temperature is forced
+           to 1.0 regardless of caller input.
+        3. No reasoning: temperature is clamped to the model's declared bounds.
+
+        For unknown/custom models (str names not in LanguageModelName), bounds are
+        not known but the reasoning constraint still applies:
+        active reasoning → (1.0, effort), no reasoning → (0.0, effort).
+
+        Returns (resolved_temperature, resolved_reasoning_effort).
+        """
+        if not isinstance(model_name, LanguageModelName):
+            resolved_temp = (
+                1.0
+                if (reasoning_effort is not None and reasoning_effort != "none")
+                else 0.0
+            )
+            return resolved_temp, reasoning_effort
+
+        model_info = cls.from_name(model_name)
+
+        # Thinking-only models must have active reasoning
+        if (
+            model_info.temperature_bounds is not None
+            and model_info.temperature_bounds.min_temperature == 1.0
+            and (reasoning_effort is None or reasoning_effort == "none")
+        ):
+            fallback_effort = model_info.default_options.get(
+                "reasoning_effort", "medium"
+            )
+            return 1.0, fallback_effort
+
+        # Active reasoning → temperature must be 1.0
+        if reasoning_effort is not None and reasoning_effort != "none":
+            return 1.0, reasoning_effort
+
+        # No reasoning → clamp temperature to model bounds
+        if model_info.temperature_bounds is not None:
+            temperature = max(
+                model_info.temperature_bounds.min_temperature, temperature
+            )
+            temperature = min(
+                model_info.temperature_bounds.max_temperature, temperature
+            )
+            return round(temperature, 2), reasoning_effort
+
+        return temperature, reasoning_effort
+
+    @classmethod
     @lru_cache(maxsize=1)
     def _load_from_env(cls) -> dict[str, dict]:
         """

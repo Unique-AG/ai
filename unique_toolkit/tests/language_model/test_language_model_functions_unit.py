@@ -6,13 +6,12 @@ import unique_sdk
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.functions import (
     _add_tools_to_options,
-    _clamp_temperature,
     _prepare_completion_params_util,
     _to_search_context,
     complete,
     complete_async,
 )
-from unique_toolkit.language_model.infos import LanguageModelName, TemperatureBounds
+from unique_toolkit.language_model.infos import LanguageModelInfo, LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelTool,
@@ -167,30 +166,87 @@ async def test_complete_async_basic(mock_create):
     mock_create.assert_called_once()
 
 
-def test_clamp_temperature_bounds_clamping():
-    """Test temperature clamping when bounds enforce limits."""
-    # Test with both min and max bounds
-    bounds = TemperatureBounds(min_temperature=0.1, max_temperature=0.8)
+def test_resolve_temp_and_reasoning_clamps_temperature():
+    """Test that temperature is clamped to the model's declared bounds when no reasoning."""
+    # AZURE_GPT_4o has min=0.0, max=1.0
+    model = LanguageModelName.AZURE_GPT_4o_2024_1120
 
-    # Test clamping below minimum
-    assert _clamp_temperature(0.05, bounds) == 0.1
-    assert _clamp_temperature(-0.5, bounds) == 0.1
+    assert LanguageModelInfo.resolve_temp_and_reasoning(model, 0.12345, None) == (
+        0.12,
+        None,
+    )
+    assert LanguageModelInfo.resolve_temp_and_reasoning(model, 0.996, None) == (
+        1.0,
+        None,
+    )
+    assert LanguageModelInfo.resolve_temp_and_reasoning(model, 2.0, None) == (1.0, None)
+    assert LanguageModelInfo.resolve_temp_and_reasoning(model, -0.5, None) == (
+        0.0,
+        None,
+    )
 
-    # Test clamping above maximum
-    assert _clamp_temperature(0.9, bounds) == 0.8
-    assert _clamp_temperature(2.0, bounds) == 0.8
 
-    # Test values within bounds (should be unchanged, just rounded)
-    assert _clamp_temperature(0.5, bounds) == 0.5
-    assert _clamp_temperature(0.555, bounds) == 0.56
+def test_resolve_temp_and_reasoning_unknown_model_fallback():
+    """Test that unknown (custom) model names use safe defaults."""
+    assert LanguageModelInfo.resolve_temp_and_reasoning(
+        "some-custom-model", 0.7, None
+    ) == (
+        0.0,
+        None,
+    )
+    assert LanguageModelInfo.resolve_temp_and_reasoning(
+        "some-custom-model", 0.7, "none"
+    ) == (0.0, "none")
+    assert LanguageModelInfo.resolve_temp_and_reasoning(
+        "some-custom-model", 0.0, "medium"
+    ) == (1.0, "medium")
 
-    # Test exact boundary values
-    assert _clamp_temperature(0.1, bounds) == 0.1
-    assert _clamp_temperature(0.8, bounds) == 0.8
 
-    bounds = TemperatureBounds(min_temperature=0.0, max_temperature=1.0)
-    assert _clamp_temperature(0.12345, bounds) == 0.12
-    assert _clamp_temperature(0.996, bounds) == 1.0
-    assert _clamp_temperature(0.999, bounds) == 1.0
-    assert _clamp_temperature(0.9999999999999999, bounds) == 1.0
-    assert _clamp_temperature(0.0000000000000001, bounds) == 0.0
+def test_resolve_temp_and_reasoning_forces_1_when_reasoning_active():
+    """Test that active reasoning forces temperature to 1.0."""
+    thinking_model = LanguageModelName.AZURE_GPT_54_PRO_2026_0305
+    assert LanguageModelInfo.resolve_temp_and_reasoning(
+        thinking_model, 0.0, "medium"
+    ) == (
+        1.0,
+        "medium",
+    )
+    assert LanguageModelInfo.resolve_temp_and_reasoning(
+        thinking_model, 0.5, "high"
+    ) == (
+        1.0,
+        "high",
+    )
+
+    # Non-thinking model with active reasoning also gets temperature=1.0
+    regular_model = LanguageModelName.AZURE_GPT_4o_2024_1120
+    assert LanguageModelInfo.resolve_temp_and_reasoning(regular_model, 0.0, "low") == (
+        1.0,
+        "low",
+    )
+
+    # reasoning_effort='none' → clamping applies
+    assert LanguageModelInfo.resolve_temp_and_reasoning(regular_model, 0.5, "none") == (
+        0.5,
+        "none",
+    )
+
+
+def test_resolve_temp_and_reasoning_fixes_thinking_only_model_with_none_effort():
+    """Test that thinking-only models have reasoning_effort='none' corrected to their default."""
+    # AZURE_GPT_54_PRO has temperature_bounds=(1.0, 1.0) and default reasoning_effort="medium"
+    thinking_model = LanguageModelName.AZURE_GPT_54_PRO_2026_0305
+
+    # Passing "none" → should be corrected to the model's default ("medium")
+    temp, effort = LanguageModelInfo.resolve_temp_and_reasoning(
+        thinking_model, 0.0, "none"
+    )
+    assert temp == 1.0
+    assert effort == "medium"
+
+    # Passing None → same correction
+    temp, effort = LanguageModelInfo.resolve_temp_and_reasoning(
+        thinking_model, 0.5, None
+    )
+    assert temp == 1.0
+    assert effort == "medium"

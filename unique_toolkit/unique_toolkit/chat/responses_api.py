@@ -33,7 +33,6 @@ from unique_toolkit.language_model.constants import (
 )
 from unique_toolkit.language_model.functions import (
     SearchContext,
-    _clamp_temperature,
     _to_search_context,
 )
 from unique_toolkit.language_model.infos import (
@@ -160,17 +159,20 @@ def _prepare_responses_params_util(
         text = text or _attempt_extract_verbosity_from_options(other_options)
 
     if isinstance(model_name, LanguageModelName):
-        model_info = LanguageModelInfo.from_name(model_name)
-
-        if model_info.temperature_bounds is not None and temperature is not None:
-            temperature = _clamp_temperature(temperature, model_info.temperature_bounds)
-
-        if (
-            reasoning is None
-            and model_info.default_options is not None
-            and "reasoning_effort" in model_info.default_options
-        ):
-            reasoning = Reasoning(effort=model_info.default_options["reasoning_effort"])
+        requested_effort = reasoning.get("effort") if reasoning is not None else None
+        temperature, resolved_effort = LanguageModelInfo.resolve_temp_and_reasoning(
+            model_name,
+            temperature,
+            requested_effort,
+        )
+        if resolved_effort is not None:
+            reasoning = Reasoning(effort=resolved_effort)
+        elif reasoning is None:
+            model_info = LanguageModelInfo.from_name(model_name)
+            if "reasoning_effort" in model_info.default_options:
+                reasoning = Reasoning(
+                    effort=model_info.default_options["reasoning_effort"]
+                )
 
         if (
             reasoning is not None
