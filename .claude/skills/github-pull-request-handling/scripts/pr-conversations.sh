@@ -72,7 +72,7 @@ while true; do
     -F owner="$OWNER" \
     -F repo="$REPO" \
     -F pr="$PR" \
-    "${CURSOR_ARGS[@]}" \
+    "${CURSOR_ARGS[@]+"${CURSOR_ARGS[@]}"}" \
     -f query="$QUERY")
 
   THREADS=$(echo "$THREADS" "$PAGE" | jq -s '
