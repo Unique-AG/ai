@@ -1,4 +1,4 @@
-from typing import List, Literal, TypedDict, cast
+from typing import Literal, TypedDict, cast
 
 from typing_extensions import NotRequired, Unpack
 
@@ -20,7 +20,7 @@ class SearchString(APIResource["SearchString"]):
     class CreateParams(RequestOptions):
         prompt: str
         chatId: NotRequired["str"]
-        messages: NotRequired[List[HistoryMessage]]
+        messages: NotRequired[list[HistoryMessage]]
         languageModel: NotRequired[
             Literal[
                 "AZURE_GPT_4_0613",

@@ -229,8 +229,7 @@ class HTTPXClient(HTTPClient):
         return content, status_code, response_headers
 
     def close(self):
-        if self._client is not None:
-            self._client.close()
+        self._client.close()
 
     async def close_async(self):
         await self._client_async.aclose()

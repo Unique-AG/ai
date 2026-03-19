@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal
+from typing import Any, Literal
 
 from unique_sdk._api_resource import APIResource
 from unique_sdk._util import classproperty
@@ -14,4 +14,4 @@ class Event(APIResource["Event"]):
     ]
     version: Literal["1.0.0"]
     createdAt: int
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
