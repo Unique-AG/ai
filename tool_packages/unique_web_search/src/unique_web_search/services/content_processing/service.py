@@ -1,8 +1,8 @@
 import asyncio
 import logging
 
-from jinja2 import Template
 from unique_toolkit._common.execution import SafeTaskExecutor
+from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.language_model import LanguageModelService, TypeDecoder, TypeEncoder
 
 from unique_web_search.services.content_processing.cleaning import (
@@ -30,7 +30,7 @@ from unique_web_search.utils import WebPageChunk
 
 _LOGGER = logging.getLogger(__name__)
 
-_PLACEHOLDER_CONTENT_TEMPLATE = Template("""\
+_PLACEHOLDER_CONTENT_TEMPLATE = """\
 <WebPageChunk>
     <Domain>{{ domain }}</Domain>
     <Snippet>{{ snippet }}</Snippet>
@@ -38,7 +38,7 @@ _PLACEHOLDER_CONTENT_TEMPLATE = Template("""\
     <Chunk>{{ content }}</Chunk>
     {% endif %}
 </WebPageChunk>
-""")
+"""
 
 
 class ContentProcessor:
@@ -220,8 +220,9 @@ def _build_web_page_chunk(
         display_link=page.display_link,
         title=page.title,
         snippet=page.snippet,
-        content=_PLACEHOLDER_CONTENT_TEMPLATE.render(
-            domain=page.display_link, snippet=page.snippet, content=chunk
+        content=render_template(
+            _PLACEHOLDER_CONTENT_TEMPLATE,
+            domain=page.display_link, snippet=page.snippet, content=chunk,
         ),
         order=str(order),
     )
