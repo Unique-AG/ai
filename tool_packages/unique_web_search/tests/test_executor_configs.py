@@ -41,8 +41,8 @@ class TestGetDefaultWebSearchModeConfig:
         """Test get_default_web_search_mode_config raises ValueError for invalid mode."""
         from unique_web_search import settings
 
-        # Mock the env_settings to return an invalid mode
-        monkeypatch.setattr(settings.env_settings, "web_search_mode", "v3")
+        # Mock the env_settings to return an invalid mode (v3 is valid)
+        monkeypatch.setattr(settings.env_settings, "web_search_mode", "v4")
 
         with pytest.raises(ValueError) as exc_info:
             get_default_web_search_mode_config()

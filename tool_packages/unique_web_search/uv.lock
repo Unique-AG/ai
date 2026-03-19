@@ -3406,7 +3406,7 @@ wheels = [
 
 [[package]]
 name = "unique-web-search"
-version = "1.14.0"
+version = "1.14.1"
 source = { editable = "." }
 dependencies = [
     { name = "azure-ai-projects" },
@@ -3420,6 +3420,7 @@ dependencies = [
     { name = "google-cloud-aiplatform" },
     { name = "google-generativeai" },
     { name = "httpx" },
+    { name = "jinja2" },
     { name = "markdownify" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -3456,6 +3457,7 @@ requires-dist = [
     { name = "google-cloud-aiplatform", specifier = ">=1.128.0,<2" },
     { name = "google-generativeai", specifier = ">=0.8.5,<0.9" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "jinja2", specifier = ">=3.1.6" },
     { name = "markdownify", specifier = ">=0.14.1,<1" },
     { name = "pydantic", specifier = ">=2.12.3,<3" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3" },

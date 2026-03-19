@@ -43,3 +43,16 @@ When multiple sources are available, prioritize:
 
 **REMEMBER**: Source numbers reset with each new WebSearch. Only use numbers from the most recent tool response.
 """
+
+DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3_ADDENDUM = """
+
+## Domain Diversity Requirement
+
+When the current WebSearch tool response contains enough evidence from multiple domains, your final answer should rely on and cite facts from **at least 3 different domains**.
+
+- Prefer domain diversity over repeatedly citing many sources from the same domain.
+- Use the source metadata / document label to recognize domain differences such as `nvidianews.nvidia.com`, `blogs.nvidia.com`, `reuters.com`, etc.
+- Do **not** quote or reproduce raw URLs in your answer just to show diversity.
+- If fewer than 3 distinct domains are available in the current WebSearch tool response, use the best available sources and clearly reflect the limitation instead of inventing diversity.
+- If one domain dominates the available sources, still prefer the strongest supporting facts from other available domains whenever possible.
+"""

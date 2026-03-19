@@ -1,6 +1,8 @@
 import logging
+from datetime import datetime
 from time import time
 
+import jinja2
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -18,6 +20,9 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_web_search.config import WebSearchConfig
+from unique_web_search.prompts import (
+    DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3_ADDENDUM,
+)
 from unique_web_search.schema import (
     WebSearchDebugInfo,
     WebSearchPlan,
@@ -28,8 +33,12 @@ from unique_web_search.services.crawlers import get_crawler_service
 from unique_web_search.services.executors import (
     WebSearchV1Executor,
     WebSearchV2Executor,
+    WebSearchV3Executor,
 )
-from unique_web_search.services.executors.configs import WebSearchMode
+from unique_web_search.services.executors.configs import (
+    WebSearchMode,
+    WebSearchV3Config,
+)
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
     ExecutorConfiguration,
@@ -116,14 +125,29 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
     def tool_description_for_system_prompt(self) -> str:
+        if self.config.web_search_mode_config.mode == WebSearchMode.V3:
+            return jinja2.Template(
+                self.config.web_search_mode_config.tool_description_for_system_prompt
+            ).render(
+                max_steps=self.config.web_search_mode_config.max_steps,
+                date_string=datetime.now().strftime("%A %B %d, %Y"),
+            )
         if self.config.web_search_mode_config.mode == WebSearchMode.V2:
             return self.config.web_search_mode_config.tool_description_for_system_prompt.replace(
-                "$max_steps", str(self.config.web_search_mode_config.max_steps)
+                "$max_steps",
+                str(self.config.web_search_mode_config.max_steps),
             )
         return self.config.web_search_mode_config.tool_description_for_system_prompt
 
     def tool_format_information_for_system_prompt(self) -> str:
-        return self.config.tool_format_information_for_system_prompt
+        prompt = self.config.tool_format_information_for_system_prompt
+        if self.config.web_search_mode_config.mode == WebSearchMode.V3:
+            return (
+                prompt.rstrip()
+                + "\n"
+                + DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3_ADDENDUM
+            )
+        return prompt
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return self.config.evaluation_check_list
@@ -193,7 +217,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         parameters: WebSearchPlan | WebSearchToolParameters,
         debug_info: WebSearchDebugInfo,
         web_search_message_logger: WebSearchMessageLogger,
-    ) -> WebSearchV1Executor | WebSearchV2Executor:
+    ) -> WebSearchV1Executor | WebSearchV2Executor | WebSearchV3Executor:
         # Initialize query elicitation service and get callbacks
         elicitation_service = QueryElicitationService(
             chat_service=self._chat_service,
@@ -225,7 +249,21 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
         if isinstance(parameters, WebSearchPlan):
-            assert self.config.web_search_mode_config.mode == WebSearchMode.V2
+            mode = self.config.web_search_mode_config.mode
+            if mode == WebSearchMode.V3:
+                v3_config = self.config.web_search_mode_config
+                assert isinstance(v3_config, WebSearchV3Config)
+
+                return WebSearchV3Executor(
+                    services=services,
+                    config=config,
+                    callbacks=callbacks,
+                    tool_call=tool_call,
+                    tool_parameters=parameters,
+                    max_steps=v3_config.max_steps,
+                    snippet_judge_config=v3_config.snippet_judge_config,
+                )
+            assert mode == WebSearchMode.V2
             return WebSearchV2Executor(
                 services=services,
                 config=config,

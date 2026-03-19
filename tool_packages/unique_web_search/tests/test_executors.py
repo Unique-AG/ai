@@ -1,13 +1,14 @@
-"""Tests for WebSearchV1Executor and WebSearchV2Executor."""
+"""Tests for WebSearchV1Executor, WebSearchV2Executor, and WebSearchV3Executor."""
 
 from typing import Any
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
 from unique_web_search.schema import (
     Step,
     StepType,
+    WebPageChunk,
     WebSearchPlan,
     WebSearchToolParameters,
 )
@@ -21,7 +22,11 @@ from unique_web_search.services.executors.web_search_v1_executor import (
 from unique_web_search.services.executors.web_search_v2_executor import (
     WebSearchV2Executor,
 )
+from unique_web_search.services.executors.web_search_v3_executor import (
+    WebSearchV3Executor,
+)
 from unique_web_search.services.search_engine.schema import WebSearchResult
+from unique_web_search.services.snippet_judge import SnippetJudgeConfig
 
 
 class TestQueryGenerationAgent:
@@ -712,6 +717,128 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
         mock_executor_dependencies[
             "message_log_callback"
         ].log_web_search_results.assert_called()
+
+
+class TestWebSearchV3ExecutorExecuteSearchStep:
+    """Tests for WebSearchV3Executor global snippet judging."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__judges_all_search_results_together_before_crawling(
+        self,
+        executor_context_objects: dict,
+        mock_executor_dependencies: dict,
+    ) -> None:
+        """
+        Purpose: Verify V3 waits for all search-step snippets and judges them in one batch.
+        Why this matters: Global ranking should compare snippets across queries before crawling.
+        Setup summary: Use two search steps with two results each; judge returns a cross-query subset.
+        """
+        plan = WebSearchPlan(
+            objective="Find the most relevant recent NVIDIA coverage",
+            query_analysis="Need to compare results across multiple search queries",
+            steps=[
+                Step(step_type=StepType.SEARCH, objective="q1", query_or_url="query 1"),
+                Step(step_type=StepType.SEARCH, objective="q2", query_or_url="query 2"),
+            ],
+            expected_outcome="Best globally ranked URLs are crawled",
+        )
+
+        query_1_results = [
+            WebSearchResult(
+                url="https://example.com/page1",
+                title="Page 1",
+                snippet="Snippet 1",
+                content="",
+            ),
+            WebSearchResult(
+                url="https://example.com/page2",
+                title="Page 2",
+                snippet="Snippet 2",
+                content="",
+            ),
+        ]
+        query_2_results = [
+            WebSearchResult(
+                url="https://example.com/page3",
+                title="Page 3",
+                snippet="Snippet 3",
+                content="",
+            ),
+            WebSearchResult(
+                url="https://example.com/page4",
+                title="Page 4",
+                snippet="Snippet 4",
+                content="",
+            ),
+        ]
+
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            side_effect=[query_1_results, query_2_results]
+        )
+        mock_executor_dependencies["search_service"].requires_scraping = True
+        mock_executor_dependencies[
+            "search_service"
+        ].config.search_engine_name.name = "TEST"
+        selected_by_judge = [query_2_results[0], query_1_results[1]]
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+            return_value=["content3", "content2"]
+        )
+        mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
+        mock_executor_dependencies["content_processor"].run = AsyncMock(
+            return_value=[
+                WebPageChunk(
+                    url="https://example.com/page3",
+                    display_link="example.com",
+                    title="Page 3",
+                    snippet="Snippet 3",
+                    content="content3",
+                    order="0",
+                ),
+                WebPageChunk(
+                    url="https://example.com/page2",
+                    display_link="example.com",
+                    title="Page 2",
+                    snippet="Snippet 2",
+                    content="content2",
+                    order="1",
+                ),
+            ]
+        )
+        mock_executor_dependencies["chunk_relevancy_sort_config"].enabled = False
+        mock_executor_dependencies["content_reducer"].side_effect = (
+            lambda chunks: chunks
+        )
+        # Base executor always calls chunk_relevancy_sorter when present; pass chunks through.
+        mock_executor_dependencies["chunk_relevancy_sorter"].run = AsyncMock(
+            side_effect=lambda **kwargs: Mock(content_chunks=kwargs["chunks"])
+        )
+
+        judge_config = SnippetJudgeConfig(max_urls_to_select=2)
+
+        with patch(
+            "unique_web_search.services.executors.web_search_v3_executor.select_relevant",
+            new_callable=AsyncMock,
+            return_value=selected_by_judge,
+        ) as mocked_select_relevant:
+            executor = WebSearchV3Executor(
+                services=executor_context_objects["services"],
+                config=executor_context_objects["config"],
+                callbacks=executor_context_objects["callbacks"],
+                tool_call=mock_executor_dependencies["tool_call"],
+                tool_parameters=plan,
+                snippet_judge_config=judge_config,
+            )
+            result = await executor.run()
+
+        assert isinstance(result, list)
+        assert result[0].metadata is not None
+        assert result[0].metadata.document == 'example.com: "Page 3"'
+        mocked_select_relevant.assert_awaited_once()
+        assert len(mocked_select_relevant.await_args.kwargs["results"]) == 4
+        mock_executor_dependencies["crawler_service"].crawl.assert_called_once_with(
+            ["https://example.com/page3", "https://example.com/page2"]
+        )
 
 
 class TestWebSearchV2ExecutorExecuteReadUrlStep:

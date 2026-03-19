@@ -33,6 +33,7 @@ from unique_web_search.services.executors.configs import (
     WebSearchModeConfig,
     WebSearchV1Config,
     WebSearchV2Config,
+    WebSearchV3Config,
     get_default_web_search_mode_config,
 )
 from unique_web_search.services.query_elicitation import QueryElicitationConfig
@@ -109,10 +110,17 @@ class WebSearchConfig(BaseToolConfig):
         description="Language model maximum input tokens",
     )
 
-    web_search_active_mode: WebSearchMode = Field(
+    web_search_active_mode: Annotated[
+        WebSearchMode,
+        RJSFMetaTag(
+            {
+                "ui:enumNames": WebSearchMode.get_enum_names(),
+            }
+        ),
+    ] = Field(
         default=DEFAULT_WEB_SEARCH_MODE_CONFIG,
         title="Search Mode",
-        description="Choose which search strategy to use. V1 performs simple keyword searches; V2 uses an AI-planned multi-step research approach.",
+        description="Choose which search strategy to use. Each option is described in the selector.",
     )
 
     web_search_mode_config_v1: WebSearchV1Config = Field(
@@ -124,6 +132,11 @@ class WebSearchConfig(BaseToolConfig):
         default_factory=WebSearchV2Config,
         title="Search Mode V2 Settings",
         description="Settings for the advanced AI-planned search mode (V2), including step limits and tool behavior.",
+    )
+    web_search_mode_config_v3: WebSearchV3Config = Field(
+        default_factory=WebSearchV3Config,
+        title="Search Mode V3 Settings",
+        description="Settings for V3: pre-filter search results by relevance (snippet judge) before fetching full pages.",
     )
 
     # Todo [UN-17655] RJSF Tags don't function properly when using union + dscriminator
@@ -204,15 +217,17 @@ class WebSearchConfig(BaseToolConfig):
 
     @property
     def web_search_mode_config(self) -> WebSearchModeConfig:
-        return (
-            self.web_search_mode_config_v1
-            if self.web_search_active_mode == WebSearchMode.V1
-            else self.web_search_mode_config_v2
-        )
+        if self.web_search_active_mode == WebSearchMode.V1:
+            return self.web_search_mode_config_v1
+        if self.web_search_active_mode == WebSearchMode.V3:
+            return self.web_search_mode_config_v3
+        return self.web_search_mode_config_v2
 
     @field_validator("web_search_active_mode", mode="before")
     @classmethod
-    def validate_web_search_active_mode(cls, v: str) -> Literal["v1", "v2"]:
-        if "v2" in v.lower():  # Make sure to handle "v2 (beta)" as well
+    def validate_web_search_active_mode(cls, v: str) -> Literal["v1", "v2", "v3"]:
+        if "v3" in v.lower():
+            return "v3"
+        if "v2" in v.lower():
             return "v2"
         return "v1"

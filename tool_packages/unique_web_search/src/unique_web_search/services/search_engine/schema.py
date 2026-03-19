@@ -1,14 +1,7 @@
-from urllib.parse import urlparse
-
 from pydantic import BaseModel, Field
 from unique_toolkit.content import ContentReference
 
-
-def extract_root_domain(url: str) -> str:
-    parsed_url = urlparse(url)
-    domain = parsed_url.netloc
-    domain = domain.replace("www.", "")
-    return domain
+from unique_web_search.services.helpers import extract_root_domain
 
 
 class WebSearchResult(BaseModel):

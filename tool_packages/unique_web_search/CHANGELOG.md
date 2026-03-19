@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.1] - 2026-03-19
+### Added
+- `WebSearchV3Executor` for snippet-based relevance filtering before crawling.
+
+
 ## [1.14.0] - 2026-03-19
 ### Added
 - **LLM Guard Judge** (`LLMGuardJudge`): dedicated GDPR Art. 9 compliance judge with four sanitization pipeline modes — Always Sanitize, Judge Only, Judge and Sanitize, and Judge then Sanitize — each with its own structured-output response model and Jinja2 prompt template
@@ -27,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Web page chunk rendering switched from inline XML tags to a Jinja2 `_PLACEHOLDER_CONTENT_TEMPLATE` for structured `<WebPageChunk>` output
 - Simplified `system_prompt.j2` and `user_prompt.j2`: removed `redaction_map` section, replaced `snippet`/`summary` output fields with `sanitized_content`, moved sanitize reminder to top of user prompt
 - Updated `test_llm_process_env_config.py` to cover new typed config models, nested merge semantics, and structure-matching assertions
+
 
 ## [1.13.1] - 2026-03-17
 ### Fixed
