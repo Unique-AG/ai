@@ -158,9 +158,10 @@ def cmd_download(
     try:
         content_id, display_name = _resolve_content_id(state, name_or_id)
 
-        filename = (
+        raw_name = (
             display_name if not display_name.startswith("cont_") else f"{content_id}"
         )
+        filename = Path(raw_name).name
         downloaded_path = download_content(
             companyId=state.config.company_id,
             userId=state.config.user_id,

@@ -85,7 +85,10 @@ def cmd_search(
         if folder_scope_id:
             scope_ids = [folder_scope_id]
 
-        metadata_filter = _build_metadata_filter(folder_scope_id, metadata)
+        metadata_filter = _build_metadata_filter(
+            folder_scope_id if metadata else None,
+            metadata,
+        )
 
         search_params: dict[str, Any] = {
             "searchString": query,

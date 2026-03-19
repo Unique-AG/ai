@@ -400,6 +400,23 @@ class TestFiles:
         )
         assert "Downloaded" in result
 
+    @patch("unique_sdk.cli.commands.files.shutil.move")
+    @patch("unique_sdk.cli.commands.files.download_content")
+    @patch("unique_sdk.Content.get_infos")
+    def test_download_sanitizes_path_traversal(
+        self,
+        mock_infos: MagicMock,
+        mock_dl: MagicMock,
+        mock_move: MagicMock,
+        tmp_path,  # type: ignore[no-untyped-def]
+    ) -> None:
+        malicious = _content_info(title="../../.bashrc")
+        mock_infos.return_value = {"contentInfos": [malicious]}
+        mock_dl.return_value = tmp_path / "downloaded"
+        cmd_download(_state("/R", "scope_r"), "../../.bashrc", str(tmp_path))
+        move_dest = mock_move.call_args[0][1]
+        assert ".." not in move_dest
+
     @patch("unique_sdk.cli.commands.files.download_content")
     def test_download_error(self, mock_dl: MagicMock) -> None:
         mock_dl.side_effect = ValueError("fail")
