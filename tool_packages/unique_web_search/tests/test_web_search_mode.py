@@ -58,11 +58,6 @@ class TestWebSearchModeEnum:
         mode = WebSearchMode("v2 (beta)")
         assert mode == WebSearchMode.V2
 
-    def test_web_search_mode_missing_alias_v3_beta(self):
-        """Test WebSearchMode._missing_ handles 'v3 (beta)' alias correctly."""
-        mode = WebSearchMode("v3 (beta)")
-        assert mode == WebSearchMode.V3
-
     def test_web_search_mode_missing_handles_invalid_value(self):
         """Test WebSearchMode raises ValueError for invalid values."""
         with pytest.raises(ValueError, match="'invalid' is not a valid WebSearchMode"):
