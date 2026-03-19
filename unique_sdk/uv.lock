@@ -2050,6 +2050,7 @@ source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "anyio" },
+    { name = "click" },
     { name = "httpx" },
     { name = "regex" },
     { name = "requests" },
@@ -2082,6 +2083,7 @@ dev = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9.0,<4" },
     { name = "anyio", specifier = ">=4.0.0,<5" },
+    { name = "click", specifier = ">=8.1.0,<9" },
     { name = "httpx", specifier = ">=0.28.0,<0.29" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=1.105.0,<2" },
     { name = "regex", specifier = ">=2024.5.15" },
