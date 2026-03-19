@@ -1,9 +1,7 @@
 """Web Search V3 executor: globally judge snippets before crawling."""
 
 import asyncio
-import json
 import logging
-from pathlib import Path
 from time import time
 
 from unique_toolkit.content import ContentChunk
@@ -64,34 +62,6 @@ class WebSearchV3Executor(WebSearchV2Executor):
             f"Snippet judge config: {self.snippet_judge_config.model_dump_json()}"
         )
 
-    def _write_selected_domains_debug_file(
-        self,
-        results: list[WebSearchResult],
-        search_steps: list[Step],
-    ) -> None:
-        dumps_dir = Path("payload_dumps")
-        dumps_dir.mkdir(parents=True, exist_ok=True)
-
-        selected_domains = [result.display_link for result in results]
-        selected_registered_domains = [
-            extract_registered_domain(result.url) for result in results
-        ]
-        payload = {
-            "objective": self.tool_parameters.objective,
-            "generated_search_queries": [step.query_or_url for step in search_steps],
-            "number_of_results_selected": len(results),
-            "selected_domains": selected_domains,
-            "unique_selected_domains": sorted(set(selected_domains)),
-            "selected_registered_domains": selected_registered_domains,
-            "unique_selected_registered_domains": sorted(
-                set(selected_registered_domains)
-            ),
-            "selected_urls": [result.url for result in results],
-        }
-
-        with (dumps_dir / "snippet-judge-selected-domains.json").open("w") as f:
-            json.dump(payload, f, indent=2, ensure_ascii=False)
-
     async def run(self) -> list[ContentChunk]:
         await self._enforce_max_steps()
 
@@ -118,9 +88,7 @@ class WebSearchV3Executor(WebSearchV2Executor):
         read_url_results = self._flatten_results(read_url_results_nested)
 
         if self.search_service.requires_scraping and search_results:
-            search_results = await self._judge_all_search_results(
-                search_results, search_steps
-            )
+            search_results = await self._judge_all_search_results(search_results)
             if search_results:
                 search_results = await self._crawl_search_results(
                     "SEARCH.global", search_results
@@ -232,7 +200,6 @@ class WebSearchV3Executor(WebSearchV2Executor):
     async def _judge_all_search_results(
         self,
         results: list[WebSearchResult],
-        search_steps: list[Step],
     ) -> list[WebSearchResult]:
         """Run one global snippet judge pass across all collected search results."""
         if not results or not self.search_service.requires_scraping:
@@ -277,5 +244,4 @@ class WebSearchV3Executor(WebSearchV2Executor):
                 },
             )
         )
-        self._write_selected_domains_debug_file(results, search_steps)
         return results
