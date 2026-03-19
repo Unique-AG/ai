@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Sequence, overload
+from typing import TYPE_CHECKING, Any, Sequence, overload
 
 import unique_sdk
 from openai.types.chat import ChatCompletionToolChoiceOptionParam
@@ -14,10 +14,11 @@ from openai.types.responses import (
 )
 from openai.types.shared_params import Metadata, Reasoning
 from pydantic import BaseModel
-from typing_extensions import deprecated
+from typing_extensions import Self, deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.chat.cancellation import CancellationWatcher
 from unique_toolkit.chat.constants import (
     DEFAULT_MAX_MESSAGES,
@@ -107,23 +108,76 @@ from unique_toolkit.short_term_memory.functions import (
 )
 from unique_toolkit.short_term_memory.schemas import ShortTermMemory
 
+if TYPE_CHECKING:
+    from unique_toolkit.app.schemas import ChatEvent
+
 logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
 
 class ChatService(ChatServiceDeprecated):
     """Provides all functionalities to manage the chat session."""
 
-    def __init__(self, *args, **kwargs):
-        """Initialize ChatService with lazy-loaded service properties."""
-        super().__init__(*args, **kwargs)
+    @deprecated(
+        "Use UniqueContext.from_chat_event(event) with UniqueServiceFactory instead."
+    )
+    def __init__(
+        self,
+        event: "ChatEvent",
+        content_scope_chat_id: str | None = None,
+    ) -> None:
+        """Initialize ChatService from an event (deprecated). Use :meth:`from_context` instead."""
+        super().__init__(event, content_scope_chat_id)
         self._elicitation_service: ElicitationService | None = None
-
-        self._cancellation_watcher = CancellationWatcher(
+        self._elicitation_message_id: str | None = None
+        self._cancellation_watcher: CancellationWatcher = CancellationWatcher(
             user_id=self._user_id,
             company_id=self._company_id,
             chat_id=self._chat_id,
             assistant_message_id=self._assistant_message_id,
         )
+
+    @classmethod
+    def from_settings(cls, settings: UniqueSettings, **kwargs: Any) -> Self:
+        """Create a ChatService from a :class:`UniqueSettings` or :class:`UniqueContext`.
+
+        This is the preferred constructor when using the service factory pattern.
+
+        Args:
+            settings: Either a :class:`UniqueSettings` (whose ``context`` is used)
+                or a :class:`UniqueContext` carrying auth and chat information directly.
+
+        Raises:
+            ValueError: If the resolved context has no chat or ``last_user_message_id`` is missing.
+        """
+        return cls.from_context(context=settings.context)
+
+    @classmethod
+    def from_context(cls, context: UniqueContext) -> Self:
+        if context.chat is None:
+            raise ValueError(
+                "ChatService requires a chat context (context.chat is None)"
+            )
+        chat = context.chat
+        user_message_id = chat.last_user_message_id
+        instance: ChatService = cls.__new__(cls)
+        instance._event = None
+        instance._company_id = context.auth.get_confidential_company_id()
+        instance._user_id = context.auth.get_confidential_user_id()
+        instance._chat_id = chat.chat_id
+        instance._assistant_id = chat.assistant_id
+        instance._assistant_message_id = chat.last_assistant_message_id
+        instance._user_message_id = user_message_id
+        instance._user_message_text = chat.last_user_message_text
+        instance._content_scope_chat_id = chat.parent_chat_id or chat.chat_id
+        instance._elicitation_service = None
+        instance._elicitation_message_id = chat.last_assistant_message_id
+        instance._cancellation_watcher = CancellationWatcher(
+            user_id=instance._user_id,
+            company_id=instance._company_id,
+            chat_id=instance._chat_id,
+            assistant_message_id=instance._assistant_message_id,
+        )
+        return instance
 
     @property
     def cancellation(self) -> CancellationWatcher:
@@ -136,7 +190,15 @@ class ChatService(ChatServiceDeprecated):
         if self._elicitation_service is not None:
             return self._elicitation_service
 
-        self._elicitation_service = ElicitationService.from_chat_event(self._event)
+        if self._event is not None:
+            self._elicitation_service = ElicitationService.from_chat_event(self._event)
+        else:
+            self._elicitation_service = ElicitationService(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                chat_id=self._content_scope_chat_id,
+                message_id=self._elicitation_message_id,
+            )
 
         return self._elicitation_service
 

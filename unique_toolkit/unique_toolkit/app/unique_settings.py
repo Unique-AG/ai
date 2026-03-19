@@ -3,19 +3,26 @@ from __future__ import annotations
 import os
 from logging import getLogger
 from pathlib import Path
-from typing import TYPE_CHECKING, Self, TypeVar
+from typing import TYPE_CHECKING, Any, Self, TypeVar
 from urllib.parse import ParseResult, urlparse, urlunparse
 
 import unique_sdk
 from platformdirs import user_config_dir
-from pydantic import AliasChoices, BaseModel, Field, SecretStr, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    Field,
+    PrivateAttr,
+    SecretStr,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Protocol, deprecated
 
 from unique_toolkit._common.config_checker import register_config
 
 if TYPE_CHECKING:
-    from unique_toolkit.app.schemas import BaseEvent
+    from unique_toolkit.app.schemas import BaseEvent, ChatEvent
 
 
 logger = getLogger(__name__)
@@ -106,12 +113,6 @@ class UniqueAuth(BaseSettings):
             user_id=SecretStr(event.user_id),
         )
 
-    def get_company_id(self) -> str:
-        return self.company_id.get_secret_value()
-
-    def get_user_id(self) -> str:
-        return self.user_id.get_secret_value()
-
     def to_auth_context(self) -> AuthContext:
         return AuthContext(
             company_id=self.company_id,
@@ -120,19 +121,90 @@ class UniqueAuth(BaseSettings):
 
 
 # Chat
-# BaseModel only as only obtained from a request.
 class ChatContextProtocol(Protocol):
     chat_id: str
     assistant_id: str
-    last_assistant_message_id: str
+
+    @property
+    def last_assistant_message_id(self) -> str: ...
+    @property
+    def last_user_message_id(self) -> str: ...
+    @property
+    def last_user_message_text(self) -> str: ...
+
+    @property
+    def metadata_filter(self) -> dict[str, Any] | None: ...
+    @property
+    def parent_chat_id(self) -> str | None: ...
 
 
 class ChatContext(BaseModel):
     chat_id: str = Field(..., description="The chat ID.")
     assistant_id: str = Field(..., description="The assistant ID.")
-    last_assistant_message_id: str = Field(
-        ..., description="The last assistant message ID."
-    )
+
+    _last_assistant_message_id: str | None = PrivateAttr(default=None)
+    _last_user_message_id: str | None = PrivateAttr(default=None)
+    _last_user_message_text: str | None = PrivateAttr(default=None)
+    _metadata_filter: dict[str, Any] | None = PrivateAttr(default=None)
+    _parent_chat_id: str | None = PrivateAttr(default=None)
+
+    def __init__(
+        self,
+        *,
+        chat_id: str,
+        assistant_id: str,
+        last_assistant_message_id: str | None = None,
+        last_user_message_id: str | None = None,
+        last_user_message_text: str | None = None,
+        metadata_filter: dict[str, Any] | None = None,
+        parent_chat_id: str | None = None,
+        **data: Any,
+    ) -> None:
+        super().__init__(chat_id=chat_id, assistant_id=assistant_id, **data)
+        if last_assistant_message_id is not None:
+            self._last_assistant_message_id = last_assistant_message_id
+        if last_user_message_id is not None:
+            self._last_user_message_id = last_user_message_id
+        if last_user_message_text is not None:
+            self._last_user_message_text = last_user_message_text
+        if metadata_filter is not None:
+            self._metadata_filter = metadata_filter
+        if parent_chat_id is not None:
+            self._parent_chat_id = parent_chat_id
+
+    @property
+    def last_assistant_message_id(self) -> str:
+        if self._last_assistant_message_id is None:
+            raise ValueError("Last assistant message id is not set")
+        return self._last_assistant_message_id
+
+    @property
+    def last_user_message_id(self) -> str:
+        if self._last_user_message_id is None:
+            raise ValueError("User message id is not set")
+        return self._last_user_message_id
+
+    @property
+    def last_user_message_text(self) -> str:
+        if self._last_user_message_text is None:
+            raise ValueError("User message text is not set")
+        return self._last_user_message_text
+
+    @property
+    def metadata_filter(self) -> dict[str, Any] | None:
+        return self._metadata_filter
+
+    @metadata_filter.setter
+    def metadata_filter(self, value: dict[str, Any]) -> None:
+        self._metadata_filter = value
+
+    @property
+    def parent_chat_id(self) -> str | None:
+        return self._parent_chat_id
+
+    @parent_chat_id.setter
+    def parent_chat_id(self, value: str) -> None:
+        self._parent_chat_id = value
 
 
 # App
@@ -299,7 +371,7 @@ class UniqueEnvironment:
         return self._api
 
 
-class UniqueRequestContext:
+class UniqueContext:
     """
     Contains all settings/configuration that come from a request or an environment.
     """
@@ -326,10 +398,53 @@ class UniqueRequestContext:
         self._auth = value
 
     @property
-    def chat(self) -> ChatContextProtocol:
-        if self._chat is None:
-            raise ValueError("Chat context not set")
+    def chat(self) -> ChatContextProtocol | None:
         return self._chat
+
+    @classmethod
+    def from_chat_event(cls, event: ChatEvent) -> UniqueContext:
+        """Build a full (auth + chat) context from a ChatEvent."""
+        auth = AuthContext(
+            user_id=SecretStr(event.user_id),
+            company_id=SecretStr(event.company_id),
+        )
+        chat = ChatContext(
+            chat_id=event.payload.chat_id,
+            assistant_id=event.payload.assistant_id,
+            last_assistant_message_id=event.payload.assistant_message.id,
+            last_user_message_id=event.payload.user_message.id
+            if event.payload.user_message
+            else None,
+            last_user_message_text=event.payload.user_message.text,
+            metadata_filter=event.payload.metadata_filter
+            if event.payload.metadata_filter
+            else None,
+            parent_chat_id=event.payload.correlation.parent_chat_id
+            if event.payload.correlation
+            else None,
+        )
+
+        return cls(
+            auth=auth,
+            chat=chat,
+        )
+
+    @classmethod
+    def from_base_event(cls, event: BaseEvent) -> Self:
+        """Build an auth-only context from any BaseEvent."""
+        return cls(
+            auth=AuthContext(
+                user_id=SecretStr(event.user_id),
+                company_id=SecretStr(event.company_id),
+            ),
+        )
+
+    @classmethod
+    def from_settings(cls, settings: UniqueSettings | None = None) -> UniqueContext:
+        """Build an auth-only context from UniqueSettings (auto-loads from env if None)."""
+        if settings is None:
+            settings = UniqueSettings.from_env_auto_with_sdk_init()
+        return cls(auth=settings.authcontext)
 
 
 # Bundling: Build this object for every request.
@@ -341,10 +456,11 @@ class UniqueSettings:
         api: UniqueApi,
         *,
         chat_event_filter_options: UniqueChatEventFilterOptions | None = None,
+        chat: ChatContextProtocol | None = None,
         env_file: Path | None = None,
     ):
         self._env = UniqueEnvironment(app=app, api=api)
-        self._request_context = UniqueRequestContext(auth=auth, chat=None)
+        self._context = UniqueContext(auth=auth, chat=chat)
         self._chat_event_filter_options = chat_event_filter_options
         self._env_file: Path | None = (
             env_file if (env_file and env_file.exists()) else None
@@ -477,8 +593,54 @@ class UniqueSettings:
         settings.init_sdk()
         return settings
 
+    @classmethod
+    def from_chat_event(cls, event: ChatEvent) -> UniqueSettings:
+        """Build a :class:`UniqueSettings` from a :class:`ChatEvent`.
+
+        Auth and chat context are extracted from the event.  App and API
+        settings are left at their default values; override them via the
+        returned instance's properties if needed.
+
+        Args:
+            event: The incoming chat event.
+
+        Returns:
+            UniqueSettings with auth + chat context populated from the event.
+        """
+        auth = AuthContext(
+            user_id=SecretStr(event.user_id),
+            company_id=SecretStr(event.company_id),
+        )
+        chat = ChatContext(
+            chat_id=event.payload.chat_id,
+            assistant_id=event.payload.assistant_id,
+            last_assistant_message_id=event.payload.assistant_message.id,
+            last_user_message_id=event.payload.user_message.id
+            if event.payload.user_message
+            else None,
+            last_user_message_text=event.payload.user_message.text
+            if event.payload.user_message
+            else None,
+            metadata_filter=event.payload.metadata_filter
+            if event.payload.metadata_filter
+            else None,
+            parent_chat_id=event.payload.correlation.parent_chat_id
+            if event.payload.correlation
+            else None,
+        )
+
+        instance = cls(auth=auth, app=UniqueApp(), api=UniqueApi(), chat=chat)
+        return instance
+
+    @property
+    def context(self) -> UniqueContext:
+        """The request-level context (auth + optional chat) for this settings object."""
+        return self._context
+
     def update_from_event(self, event: BaseEvent) -> None:
-        self._request_context.auth = UniqueAuth.from_event(event)
+        # Use UniqueAuth.from_event so the deprecated settings.auth property
+        # keeps working for callers that haven't migrated yet.
+        self._context = UniqueContext(auth=UniqueAuth.from_event(event))
 
     @property
     def api(self) -> UniqueApi:
@@ -491,18 +653,18 @@ class UniqueSettings:
     @property
     @deprecated("Use authcontext instead")
     def auth(self) -> UniqueAuth:
-        if not isinstance(self._request_context.auth, UniqueAuth):
+        if not isinstance(self._context.auth, UniqueAuth):
             raise ValueError("Auth context is not a UniqueAuth instance")
-        return self._request_context.auth
+        return self._context.auth
 
     @auth.setter
     @deprecated("Use authcontext instead")
     def auth(self, value: UniqueAuth) -> None:
-        self._request_context.auth = value
+        self._context.auth = value
 
     @property
     def authcontext(self) -> AuthContextProtocol:
-        return self._request_context.auth
+        return self._context.auth
 
     @property
     def chat_event_filter_options(self) -> UniqueChatEventFilterOptions | None:

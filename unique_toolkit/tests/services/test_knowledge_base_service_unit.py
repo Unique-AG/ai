@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 import unique_sdk
+from pydantic import SecretStr
 
 from unique_toolkit.app.schemas import (
     BaseEvent,
@@ -16,7 +17,12 @@ from unique_toolkit.app.schemas import (
     EventName,
     EventPayload,
 )
-from unique_toolkit.app.unique_settings import UniqueSettings
+from unique_toolkit.app.unique_settings import (
+    AuthContext,
+    ChatContext,
+    UniqueContext,
+    UniqueSettings,
+)
 from unique_toolkit.content.schemas import (
     BaseFolderInfo,
     Content,
@@ -290,8 +296,11 @@ class TestKnowledgeBaseServiceInitialization:
         """
         # Arrange
         mock_settings = Mock(spec=UniqueSettings)
-        mock_settings.auth.company_id.get_secret_value.return_value = "env_company"
-        mock_settings.auth.user_id.get_secret_value.return_value = "env_user"
+        mock_settings.authcontext.get_confidential_company_id.return_value = (
+            "env_company"
+        )
+        mock_settings.authcontext.get_confidential_user_id.return_value = "env_user"
+        mock_settings.context.chat = None
         mock_settings_class.from_env_auto_with_sdk_init.return_value = mock_settings
 
         # Act
@@ -315,8 +324,11 @@ class TestKnowledgeBaseServiceInitialization:
         """
         # Arrange
         mock_settings = Mock(spec=UniqueSettings)
-        mock_settings.auth.company_id.get_secret_value.return_value = "file_company"
-        mock_settings.auth.user_id.get_secret_value.return_value = "file_user"
+        mock_settings.authcontext.get_confidential_company_id.return_value = (
+            "file_company"
+        )
+        mock_settings.authcontext.get_confidential_user_id.return_value = "file_user"
+        mock_settings.context.chat = None
         mock_settings_class.from_env_auto_with_sdk_init.return_value = mock_settings
 
         # Act
@@ -2248,3 +2260,106 @@ class TestKnowledgeBaseServiceEdgeCases:
         # Assert
         assert len(result) == 2
         assert mock_update.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# Tests: KnowledgeBaseService.from_context
+# ---------------------------------------------------------------------------
+
+
+class TestKnowledgeBaseServiceFromContext:
+    @pytest.fixture
+    def auth(self) -> AuthContext:
+        return AuthContext(
+            user_id=SecretStr("user-1"), company_id=SecretStr("company-1")
+        )
+
+    @pytest.fixture
+    def chat(self) -> ChatContext:
+        return ChatContext(
+            chat_id="chat-1",
+            assistant_id="assistant-1",
+            last_assistant_message_id="amsg-1",
+            last_user_message_id="umsg-1",
+            metadata_filter={"env": "test"},
+        )
+
+    @pytest.fixture
+    def context_with_chat(self, auth: AuthContext, chat: ChatContext) -> UniqueContext:
+        return UniqueContext(auth=auth, chat=chat)
+
+    @pytest.fixture
+    def auth_only_context(self, auth: AuthContext) -> UniqueContext:
+        return UniqueContext(auth=auth)
+
+    @pytest.mark.ai
+    def test_from_context__returns_knowledge_base_service_instance(
+        self, context_with_chat: UniqueContext
+    ) -> None:
+        """
+        Purpose: Verify from_context returns a KnowledgeBaseService instance.
+        Why this matters: Callers rely on the correct type to access search and upload methods.
+        Setup summary: Full context with chat; assert isinstance check.
+        """
+        svc = KnowledgeBaseService.from_context(context_with_chat)
+        assert isinstance(svc, KnowledgeBaseService)
+
+    @pytest.mark.ai
+    def test_from_context__sets_company_id__from_auth(
+        self, context_with_chat: UniqueContext
+    ) -> None:
+        """
+        Purpose: Verify _company_id is extracted from the auth context.
+        Why this matters: Wrong company_id would route content operations to the wrong tenant.
+        Setup summary: Auth with company-1; assert _company_id matches.
+        """
+        svc = KnowledgeBaseService.from_context(context_with_chat)
+        assert svc._company_id == "company-1"
+
+    @pytest.mark.ai
+    def test_from_context__sets_user_id__from_auth(
+        self, context_with_chat: UniqueContext
+    ) -> None:
+        """
+        Purpose: Verify _user_id is extracted from the auth context.
+        Why this matters: Content access is user-scoped; wrong user_id leaks data across users.
+        Setup summary: Auth with user-1; assert _user_id matches.
+        """
+        svc = KnowledgeBaseService.from_context(context_with_chat)
+        assert svc._user_id == "user-1"
+
+    @pytest.mark.ai
+    def test_from_context__sets_metadata_filter__from_chat_context(
+        self, context_with_chat: UniqueContext
+    ) -> None:
+        """
+        Purpose: Verify metadata_filter is taken from the chat context when present.
+        Why this matters: Filters restrict search scope; a missing filter returns unscoped results.
+        Setup summary: Chat with metadata_filter={"env": "test"}; assert _metadata_filter matches.
+        """
+        svc = KnowledgeBaseService.from_context(context_with_chat)
+        assert svc._metadata_filter == {"env": "test"}
+
+    @pytest.mark.ai
+    def test_from_context__metadata_filter_is_none__when_no_chat_context(
+        self, auth_only_context: UniqueContext
+    ) -> None:
+        """
+        Purpose: Verify metadata_filter is None when there is no chat context.
+        Why this matters: Auth-only contexts (e.g. background jobs) should not apply chat filters.
+        Setup summary: Auth-only context; assert _metadata_filter is None.
+        """
+        svc = KnowledgeBaseService.from_context(auth_only_context)
+        assert svc._metadata_filter is None
+
+    @pytest.mark.ai
+    def test_from_context__returns_instance__without_chat_context(
+        self, auth_only_context: UniqueContext
+    ) -> None:
+        """
+        Purpose: Verify from_context works with an auth-only context (no chat).
+        Why this matters: KB service is valid outside a chat session (e.g. ingestion pipelines).
+        Setup summary: Auth-only context; assert isinstance check.
+        """
+        svc = KnowledgeBaseService.from_context(auth_only_context)
+        assert isinstance(svc, KnowledgeBaseService)

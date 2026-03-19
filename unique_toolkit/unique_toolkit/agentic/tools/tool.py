@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from logging import getLogger
-from typing import Any, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 from typing_extensions import deprecated
 
@@ -14,10 +16,12 @@ from unique_toolkit.agentic.tools.schemas import (
 )
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.chat.service import (
-    ChatService,
-)
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.language_model import LanguageModelToolDescription
+from unique_toolkit.services.factory import UniqueServiceFactory
+
+if TYPE_CHECKING:
+    from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
 )
@@ -180,7 +184,9 @@ class Tool(ABC, Generic[ConfigType]):
             tool_progress_reporter
         )
 
-        self._chat_service = ChatService(event)
+        self._chat_service = UniqueServiceFactory(
+            settings=UniqueSettings.from_chat_event(event)
+        ).chat_service()
         self._language_model_service = LanguageModelService(event)
         self._message_step_logger = MessageStepLogger(
             chat_service=self._chat_service,

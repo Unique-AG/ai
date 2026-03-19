@@ -4,13 +4,23 @@ from pathlib import Path
 import pytest
 from pydantic import SecretStr
 
-from unique_toolkit.app.schemas import BaseEvent
+from unique_toolkit.app.schemas import (
+    BaseEvent,
+    ChatEvent,
+    ChatEventAssistantMessage,
+    ChatEventPayload,
+    ChatEventUserMessage,
+    Correlation,
+    EventName,
+)
 from unique_toolkit.app.unique_settings import (
+    AuthContext,
     EnvFileNotFoundError,
     UniqueApi,
     UniqueApp,
     UniqueAuth,
     UniqueChatEventFilterOptions,
+    UniqueContext,
     UniqueSettings,
     warn_about_defaults,
 )
@@ -898,7 +908,7 @@ def test_unique_settings__update_from_event__updates_auth__with_event_data(
     )
     # Act
     settings.update_from_event(event)
-    # Assert
+    # Assert (deprecated settings.auth must still work after update_from_event)
     assert settings.auth.user_id.get_secret_value() == "new-user"
     assert settings.auth.company_id.get_secret_value() == "new-company"
 
@@ -978,6 +988,7 @@ def test_unique_settings__chat_event_filter_options__returns_options__when_provi
         chat_event_filter_options=filter_options,
     )
     # Act & Assert
+    assert settings.chat_event_filter_options is not None
     assert settings.chat_event_filter_options is filter_options
     assert settings.chat_event_filter_options.assistant_ids == ["assistant1"]
 
@@ -1030,3 +1041,239 @@ def test_env_file_not_found_error__is_file_not_found_error() -> None:
     """
     # Assert
     assert issubclass(EnvFileNotFoundError, FileNotFoundError)
+
+
+# ---------------------------------------------------------------------------
+# Tests: AuthContext, ChatContext, UniqueContext
+# ---------------------------------------------------------------------------
+
+
+def _make_chat_event(
+    *,
+    user_id: str = "user-1",
+    company_id: str = "company-1",
+    chat_id: str = "chat-1",
+    assistant_id: str = "asst-1",
+    user_message_id: str = "umsg-1",
+    assistant_message_id: str = "amsg-1",
+    metadata_filter: dict | None = None,
+    correlation: Correlation | None = None,
+) -> ChatEvent:
+    return ChatEvent(
+        id="evt-1",
+        event=EventName.EXTERNAL_MODULE_CHOSEN,
+        user_id=user_id,
+        company_id=company_id,
+        payload=ChatEventPayload(
+            assistant_id=assistant_id,
+            chat_id=chat_id,
+            name="module",
+            description="desc",
+            configuration={},
+            user_message=ChatEventUserMessage(
+                id=user_message_id,
+                text="hi",
+                created_at="2021-01-01T00:00:00Z",
+                language="EN",
+                original_text="hi",
+            ),
+            assistant_message=ChatEventAssistantMessage(
+                id=assistant_message_id,
+                created_at="2021-01-01T00:00:00Z",
+            ),
+            metadata_filter=metadata_filter,
+            correlation=correlation,
+        ),
+    )
+
+
+class TestAuthContext:
+    @pytest.mark.ai
+    def test_get_confidential_company_id__returns_plain_string(self) -> None:
+        """
+        Purpose: Verify get_confidential_company_id unwraps the SecretStr value.
+        Why this matters: API calls need the raw string; a SecretStr repr would break requests.
+        Setup summary: AuthContext with company-abc; assert plain string returned.
+        """
+        auth = AuthContext(
+            company_id=SecretStr("company-abc"), user_id=SecretStr("user-xyz")
+        )
+        assert auth.get_confidential_company_id() == "company-abc"
+
+    @pytest.mark.ai
+    def test_get_confidential_user_id__returns_plain_string(self) -> None:
+        """
+        Purpose: Verify get_confidential_user_id unwraps the SecretStr value.
+        Why this matters: API calls need the raw string; a SecretStr repr would break requests.
+        Setup summary: AuthContext with user-xyz; assert plain string returned.
+        """
+        auth = AuthContext(
+            company_id=SecretStr("company-abc"), user_id=SecretStr("user-xyz")
+        )
+        assert auth.get_confidential_user_id() == "user-xyz"
+
+
+class TestUniqueContext:
+    @pytest.mark.ai
+    def test_auth__raises_value_error__when_not_set(self) -> None:
+        """
+        Purpose: Verify accessing .auth raises ValueError when auth was not provided.
+        Why this matters: Unguarded access to a None auth would cause AttributeError deep in service code.
+        Setup summary: UniqueContext(auth=None); assert ValueError on .auth access.
+        """
+        ctx = UniqueContext(auth=None)
+        with pytest.raises(ValueError, match="Auth context not set"):
+            ctx.auth  # noqa: B018
+
+    @pytest.mark.ai
+    def test_chat__is_none__when_not_provided(self) -> None:
+        """
+        Purpose: Verify .chat returns None when constructed without a chat context.
+        Why this matters: Auth-only contexts are valid (e.g. background jobs); code must handle None chat.
+        Setup summary: UniqueContext with auth only; assert ctx.chat is None.
+        """
+        ctx = UniqueContext(
+            auth=AuthContext(company_id=SecretStr("c"), user_id=SecretStr("u"))
+        )
+        assert ctx.chat is None
+
+    @pytest.mark.ai
+    def test_from_chat_event__maps_company_id(self) -> None:
+        """
+        Purpose: Verify company_id is extracted from the event and stored in auth.
+        Why this matters: Wrong company_id silently routes requests to another tenant.
+        Setup summary: Event with company-42; assert auth.company_id matches.
+        """
+        ctx = UniqueContext.from_chat_event(_make_chat_event(company_id="company-42"))
+        assert ctx.auth.get_confidential_company_id() == "company-42"
+
+    @pytest.mark.ai
+    def test_from_chat_event__maps_user_id(self) -> None:
+        """
+        Purpose: Verify user_id is extracted from the event and stored in auth.
+        Why this matters: Wrong user_id attributes actions to the wrong user.
+        Setup summary: Event with user-42; assert auth.user_id matches.
+        """
+        ctx = UniqueContext.from_chat_event(_make_chat_event(user_id="user-42"))
+        assert ctx.auth.get_confidential_user_id() == "user-42"
+
+    @pytest.mark.ai
+    def test_from_chat_event__maps_chat_id(self) -> None:
+        """
+        Purpose: Verify chat_id is mapped from the event payload into the chat context.
+        Why this matters: chat_id scopes all message operations; a mismatch corrupts the session.
+        Setup summary: Event with chat_id="chat-99"; assert ctx.chat.chat_id matches.
+        """
+        ctx = UniqueContext.from_chat_event(_make_chat_event(chat_id="chat-99"))
+        assert ctx.chat is not None
+        assert ctx.chat.chat_id == "chat-99"
+
+    @pytest.mark.ai
+    def test_from_chat_event__maps_assistant_id(self) -> None:
+        """
+        Purpose: Verify assistant_id is mapped into the chat context.
+        Why this matters: Replies are routed by assistant_id; a wrong value sends them to the wrong assistant.
+        Setup summary: Event with assistant_id="asst-99"; assert ctx.chat.assistant_id matches.
+        """
+        ctx = UniqueContext.from_chat_event(_make_chat_event(assistant_id="asst-99"))
+        assert ctx.chat is not None
+        assert ctx.chat.assistant_id == "asst-99"
+
+    @pytest.mark.ai
+    def test_from_chat_event__maps_last_assistant_message_id(self) -> None:
+        """
+        Purpose: Verify last_assistant_message_id is mapped from the event's assistant message.
+        Why this matters: Services use this to edit the in-progress assistant message; wrong id corrupts the reply.
+        Setup summary: Event with assistant_message_id="amsg-99"; assert ctx.chat.last_assistant_message_id matches.
+        """
+        ctx = UniqueContext.from_chat_event(
+            _make_chat_event(assistant_message_id="amsg-99")
+        )
+        assert ctx.chat is not None
+        assert ctx.chat.last_assistant_message_id == "amsg-99"
+
+    @pytest.mark.ai
+    def test_from_chat_event__maps_user_message_id(self) -> None:
+        """
+        Purpose: Verify last_user_message_id is mapped from the event's user message.
+        Why this matters: Services reference the user message for debug info and elicitation; wrong id causes silent failures.
+        Setup summary: Event with user_message_id="umsg-99"; assert ctx.chat.last_user_message_id matches.
+        """
+        ctx = UniqueContext.from_chat_event(_make_chat_event(user_message_id="umsg-99"))
+        assert ctx.chat is not None
+        assert ctx.chat.last_user_message_id == "umsg-99"
+
+    @pytest.mark.ai
+    def test_from_chat_event__maps_metadata_filter(self) -> None:
+        """
+        Purpose: Verify metadata_filter is carried from the event payload into the chat context.
+        Why this matters: Content search scope depends on this filter; a missing filter returns unscoped results.
+        Setup summary: Event with metadata_filter={"tier": "gold"}; assert ctx.chat.metadata_filter matches.
+        """
+        ctx = UniqueContext.from_chat_event(
+            _make_chat_event(metadata_filter={"tier": "gold"})
+        )
+        assert ctx.chat is not None
+        assert ctx.chat.metadata_filter == {"tier": "gold"}
+
+    @pytest.mark.ai
+    def test_from_chat_event__sets_parent_chat_id__from_correlation(self) -> None:
+        """
+        Purpose: Verify parent_chat_id is set from correlation when the event is a subagent event.
+        Why this matters: Subagent content search must be scoped to the parent session's uploads.
+        Setup summary: Event with correlation.parent_chat_id="parent-chat-1"; assert ctx.chat.parent_chat_id matches.
+        """
+        correlation = Correlation(
+            parent_chat_id="parent-chat-1",
+            parent_message_id="parent-msg-1",
+            parent_assistant_id="parent-asst-1",
+        )
+        ctx = UniqueContext.from_chat_event(_make_chat_event(correlation=correlation))
+        assert ctx.chat is not None
+        assert ctx.chat.parent_chat_id == "parent-chat-1"
+
+    @pytest.mark.ai
+    def test_from_chat_event__sets_parent_chat_id_none__when_no_correlation(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify parent_chat_id is None when no correlation is present.
+        Why this matters: Non-subagent sessions should not inherit a parent scope.
+        Setup summary: Event with correlation=None; assert ctx.chat.parent_chat_id is None.
+        """
+        ctx = UniqueContext.from_chat_event(_make_chat_event(correlation=None))
+        assert ctx.chat is not None
+        assert ctx.chat.parent_chat_id is None
+
+    @pytest.mark.ai
+    def test_from_base_event__sets_auth_fields(self) -> None:
+        """
+        Purpose: Verify from_base_event maps company_id and user_id into auth.
+        Why this matters: Non-chat events still need a valid auth context for API calls.
+        Setup summary: BaseEvent with company-base/user-base; assert both auth fields match.
+        """
+        event = BaseEvent(
+            id="evt-1",
+            event=EventName.EXTERNAL_MODULE_CHOSEN,
+            user_id="user-base",
+            company_id="company-base",
+        )
+        ctx = UniqueContext.from_base_event(event)
+        assert ctx.auth.get_confidential_company_id() == "company-base"
+        assert ctx.auth.get_confidential_user_id() == "user-base"
+
+    @pytest.mark.ai
+    def test_from_base_event__chat_is_none(self) -> None:
+        """
+        Purpose: Verify from_base_event produces an auth-only context with no chat.
+        Why this matters: BaseEvents have no chat payload; code must handle ctx.chat being None.
+        Setup summary: BaseEvent; assert ctx.chat is None.
+        """
+        event = BaseEvent(
+            id="evt-1",
+            event=EventName.EXTERNAL_MODULE_CHOSEN,
+            user_id="user-1",
+            company_id="company-1",
+        )
+        ctx = UniqueContext.from_base_event(event)
+        assert ctx.chat is None

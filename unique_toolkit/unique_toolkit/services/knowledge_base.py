@@ -1,11 +1,14 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import mimetypes
 from pathlib import Path, PurePath
-from typing import Any, Callable, overload
+from typing import TYPE_CHECKING, Any, Callable, Self, overload
 
 import humps
 import unique_sdk
+from typing_extensions import deprecated
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
@@ -43,6 +46,9 @@ from unique_toolkit.content.schemas import (
 )
 from unique_toolkit.content.smart_rules import Operator, Statement
 
+if TYPE_CHECKING:
+    from unique_toolkit.app.unique_settings import UniqueContext
+
 _LOGGER = logging.getLogger(f"toolkit.knowledge_base.{__name__}")
 
 _DEFAULT_SCORE_THRESHOLD: float = 0.5
@@ -60,7 +66,7 @@ class KnowledgeBaseService:
         metadata_filter: dict | None = None,
     ):
         """
-        Initialize the ContentService with a company_id, user_id and chat_id.
+        Initialize the KnowledgeBaseService with a company_id, user_id and chat_id.
         """
 
         self._metadata_filter = None
@@ -70,6 +76,10 @@ class KnowledgeBaseService:
         self._metadata_filter = metadata_filter
 
     @classmethod
+    @deprecated(
+        "Use UniqueContext.from_chat_event(event) (if you have a ChatEvent) or "
+        "UniqueContext.from_base_event(event) (for any BaseEvent) with UniqueServiceFactory instead."
+    )
     def from_event(cls, event: BaseEvent):
         """
         Initialize the ContentService with an event.
@@ -86,10 +96,29 @@ class KnowledgeBaseService:
         )
 
     @classmethod
+    def from_context(cls, context: UniqueContext) -> Self:
+        """Create a KnowledgeBaseService from a :class:`UniqueContext`.
+
+        This is the preferred constructor when using the service factory pattern.
+
+        Args:
+            context: The request context carrying auth and chat information.
+        """
+        metadata_filter = (
+            context.chat.metadata_filter if context.chat is not None else None
+        )
+        return cls(
+            company_id=context.auth.get_confidential_company_id(),
+            user_id=context.auth.get_confidential_user_id(),
+            metadata_filter=metadata_filter,
+        )
+
+    @classmethod
     def from_settings(
         cls,
         settings: UniqueSettings | str | None = None,
         metadata_filter: dict | None = None,
+        **kwargs: Any,
     ):
         """
         Initialize the ContentService with a settings object and metadata filter.
@@ -100,9 +129,12 @@ class KnowledgeBaseService:
         elif isinstance(settings, str):
             settings = UniqueSettings.from_env_auto_with_sdk_init(filename=settings)
 
+        if metadata_filter is None and settings.context.chat is not None:
+            metadata_filter = settings.context.chat.metadata_filter
+
         return cls(
-            company_id=settings.auth.company_id.get_secret_value(),
-            user_id=settings.auth.user_id.get_secret_value(),
+            company_id=settings.authcontext.get_confidential_company_id(),
+            user_id=settings.authcontext.get_confidential_user_id(),
             metadata_filter=metadata_filter,
         )
 
