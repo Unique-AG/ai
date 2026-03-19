@@ -138,17 +138,9 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             f"Searched with {self.search_service} completed in {delta_time} seconds"
         )
 
-        results = await self._after_search_before_crawl(step, results)
-
         if self.search_service.requires_scraping and results:
             results = await self._crawl_search_results(step_name, results)
 
-        return results
-
-    async def _after_search_before_crawl(
-        self, step: Step, results: list[WebSearchResult]
-    ) -> list[WebSearchResult]:
-        """Hook run after search and before crawl. Subclasses may narrow results."""
         return results
 
     async def _crawl_search_results(
