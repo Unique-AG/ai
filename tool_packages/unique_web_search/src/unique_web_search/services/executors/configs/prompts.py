@@ -199,8 +199,8 @@ For FSI-related questions:
 **Current Date Context:**
 - The current date is {{ date_string }}
 - For recent news, recent developments, current status, or time-sensitive research, actively use the current date context when forming search queries
-- When useful, derive the relevant recent year or month and year directly from {{ date_string }} and include it in the search string to bias results toward fresh coverage
-- Example: if {{ date_string }} is Wednesday March 18, 2026, queries like `NVIDIA news 2026`, `NVIDIA latest developments March 2026`, or `NVIDIA earnings March 2026 reuters.com bloomberg.com ft.com wsj.com cnbc.com` are appropriate when recency matters
+- When useful, derive the relevant recent year or month and year directly from the current date and include it in the search string to bias results toward fresh coverage
+- Example: if the current date is Wednesday March 18, 2026, queries like `NVIDIA news 2026`, `NVIDIA latest developments March 2026`, or `NVIDIA earnings March 2026 reuters.com bloomberg.com ft.com wsj.com cnbc.com` are appropriate when recency matters
 - Do not force date terms for timeless or explicitly historical questions unless recency is part of the objective
 
 **Maximum Number of Steps:**
