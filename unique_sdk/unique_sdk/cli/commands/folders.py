@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import unique_sdk
-
 from unique_sdk.cli.formatting import format_folder_info
 from unique_sdk.cli.state import ShellState
 

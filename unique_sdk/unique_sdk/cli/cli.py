@@ -163,7 +163,12 @@ def mkdir(ctx: click.Context, name: str) -> None:
 
 @main.command()
 @click.argument("target")
-@click.option("--recursive", "-r", is_flag=True, help="Delete folder and all its contents recursively.")
+@click.option(
+    "--recursive",
+    "-r",
+    is_flag=True,
+    help="Delete folder and all its contents recursively.",
+)
 @click.pass_context
 def rmdir(ctx: click.Context, target: str, recursive: bool) -> None:
     """Delete a folder by name, path, or scope ID.
@@ -296,15 +301,22 @@ def mv(ctx: click.Context, old_name: str, new_name: str) -> None:
 @main.command()
 @click.argument("query")
 @click.option(
-    "--folder", "-f", default=None,
+    "--folder",
+    "-f",
+    default=None,
     help="Restrict search to a folder (path, name, or scope ID). Defaults to current directory.",
 )
 @click.option(
-    "--metadata", "-m", multiple=True,
+    "--metadata",
+    "-m",
+    multiple=True,
     help="Metadata filter as key=value. Can be repeated for AND logic.",
 )
 @click.option(
-    "--limit", "-l", default=200, show_default=True,
+    "--limit",
+    "-l",
+    default=200,
+    show_default=True,
     help="Maximum number of results to return.",
 )
 @click.pass_context
@@ -344,4 +356,6 @@ def search(
             k, v = kv.split("=", 1)
             parsed_metadata.append((k, v))
 
-    click.echo(cmd_search(state, query, folder=folder, metadata=parsed_metadata, limit=limit))
+    click.echo(
+        cmd_search(state, query, folder=folder, metadata=parsed_metadata, limit=limit)
+    )

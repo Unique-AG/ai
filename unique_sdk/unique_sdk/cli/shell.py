@@ -78,38 +78,38 @@ class UniqueShell(cmd.Cmd):
     def do_pwd(self, _arg: str) -> None:
         """Print the current working directory.
 
-    Usage: pwd
+        Usage: pwd
 
-    Shows the full path of your current location in the Unique
-    folder hierarchy.
+        Shows the full path of your current location in the Unique
+        folder hierarchy.
 
-    Example:
-      /Reports> pwd
-      /Reports
+        Example:
+          /Reports> pwd
+          /Reports
         """
         self._print(cmd_pwd(self.state))
 
     def do_cd(self, arg: str) -> None:
         """Change the current working directory.
 
-    Usage: cd <target>
+        Usage: cd <target>
 
-    Accepts a folder name, absolute path, scope ID, ".." or "/".
+        Accepts a folder name, absolute path, scope ID, ".." or "/".
 
-    Path resolution:
-      cd Reports          Relative -- child of current directory
-      cd /Company/Reports Absolute -- from root
-      cd scope_abc123     Scope ID -- resolved directly
-      cd ..               Parent directory
-      cd /                Root directory
+        Path resolution:
+          cd Reports          Relative -- child of current directory
+          cd /Company/Reports Absolute -- from root
+          cd scope_abc123     Scope ID -- resolved directly
+          cd ..               Parent directory
+          cd /                Root directory
 
-    Examples:
-      /> cd Reports
-      /Reports> cd Q1
-      /Reports/Q1> cd ..
-      /Reports> cd /
-      /> cd scope_abc123
-      /Company/Reports>
+        Examples:
+          /> cd Reports
+          /Reports> cd Q1
+          /Reports/Q1> cd ..
+          /Reports> cd /
+          /> cd scope_abc123
+          /Company/Reports>
         """
         target = arg.strip()
         if not target:
@@ -120,21 +120,21 @@ class UniqueShell(cmd.Cmd):
     def do_ls(self, arg: str) -> None:
         """List folders and files in a directory.
 
-    Usage: ls [target]
+        Usage: ls [target]
 
-    Without arguments, lists the current directory. With an argument,
-    lists the specified folder (by name, path, or scope ID).
+        Without arguments, lists the current directory. With an argument,
+        lists the specified folder (by name, path, or scope ID).
 
-    Output columns: TYPE  NAME  ID  SIZE  UPDATED
+        Output columns: TYPE  NAME  ID  SIZE  UPDATED
 
-    Examples:
-      /Reports> ls
-      DIR   Q1/           scope_jkl012              2025-01-15 08:00
-      FILE  annual.pdf    cont_mno345     5.4 MB    2025-03-01 12:00
-      1 folder(s), 1 file(s)
+        Examples:
+          /Reports> ls
+          DIR   Q1/           scope_jkl012              2025-01-15 08:00
+          FILE  annual.pdf    cont_mno345     5.4 MB    2025-03-01 12:00
+          1 folder(s), 1 file(s)
 
-      /> ls /Reports/Q1
-      /> ls scope_abc123
+          /> ls /Reports/Q1
+          /> ls scope_abc123
         """
         target = arg.strip() or None
         self._print(cmd_ls(self.state, target))
@@ -144,17 +144,17 @@ class UniqueShell(cmd.Cmd):
     def do_mkdir(self, arg: str) -> None:
         """Create a new folder under the current directory.
 
-    Usage: mkdir <name>
+        Usage: mkdir <name>
 
-    Creates a child folder with the given name. Nested paths are
-    supported (e.g., "A/B/C" creates the full hierarchy).
+        Creates a child folder with the given name. Nested paths are
+        supported (e.g., "A/B/C" creates the full hierarchy).
 
-    Examples:
-      /Reports> mkdir Q2
-      Created: /Reports/Q2 (scope_pqr678)
+        Examples:
+          /Reports> mkdir Q2
+          Created: /Reports/Q2 (scope_pqr678)
 
-      /Reports> mkdir "2025/Q1"
-      Created: /Reports/2025/Q1 (scope_xyz999)
+          /Reports> mkdir "2025/Q1"
+          Created: /Reports/2025/Q1 (scope_xyz999)
         """
         name = arg.strip()
         if not name:
@@ -165,20 +165,20 @@ class UniqueShell(cmd.Cmd):
     def do_rmdir(self, arg: str) -> None:
         """Delete a folder.
 
-    Usage: rmdir <target> [--recursive|-r]
+        Usage: rmdir <target> [--recursive|-r]
 
-    Deletes a folder by name, path, or scope ID. Without --recursive,
-    the folder must be empty. Use -r to delete everything inside.
+        Deletes a folder by name, path, or scope ID. Without --recursive,
+        the folder must be empty. Use -r to delete everything inside.
 
-    Examples:
-      /Reports> rmdir Q2
-      Deleted folder: /Reports/Q2
+        Examples:
+          /Reports> rmdir Q2
+          Deleted folder: /Reports/Q2
 
-      /Reports> rmdir Q1 --recursive
-      Deleted folder: /Reports/Q1
+          /Reports> rmdir Q1 --recursive
+          Deleted folder: /Reports/Q1
 
-      /Reports> rmdir scope_abc123 -r
-      Deleted folder: scope_abc123
+          /Reports> rmdir scope_abc123 -r
+          Deleted folder: scope_abc123
         """
         parts = shlex.split(arg)
         if not parts:
@@ -191,17 +191,17 @@ class UniqueShell(cmd.Cmd):
     def do_mvdir(self, arg: str) -> None:
         """Rename a folder.
 
-    Usage: mvdir <old_name|scope_id> <new_name>
+        Usage: mvdir <old_name|scope_id> <new_name>
 
-    Changes the folder's display name. The folder stays in the same
-    parent directory.
+        Changes the folder's display name. The folder stays in the same
+        parent directory.
 
-    Examples:
-      /Reports> mvdir Q1 "Q1-2025"
-      Renamed folder -> Q1-2025
+        Examples:
+          /Reports> mvdir Q1 "Q1-2025"
+          Renamed folder -> Q1-2025
 
-      /Reports> mvdir scope_abc123 "New Name"
-      Renamed folder -> New Name
+          /Reports> mvdir scope_abc123 "New Name"
+          Renamed folder -> New Name
         """
         parts = shlex.split(arg)
         if len(parts) != 2:
@@ -214,33 +214,33 @@ class UniqueShell(cmd.Cmd):
     def do_upload(self, arg: str) -> None:
         """Upload a local file (works like Linux cp).
 
-    Usage: upload <local_path> [destination]
+        Usage: upload <local_path> [destination]
 
-    Uploads a file from your local machine. The destination argument
-    works like cp -- it can be a folder, a new filename, or both.
-    MIME type is auto-detected from the file extension.
+        Uploads a file from your local machine. The destination argument
+        works like cp -- it can be a folder, a new filename, or both.
+        MIME type is auto-detected from the file extension.
 
-    Destination formats:
-      (omitted)       Upload to current dir, keep original name
-      .               Upload to current dir, keep original name
-      newname.pdf     Upload to current dir, rename to newname.pdf
-      subfolder/      Upload into subfolder, keep original name
-      ./sub/new.pdf   Upload into sub, rename to new.pdf
-      /abs/path/      Upload into absolute folder path
-      scope_abc123    Upload into that scope ID
+        Destination formats:
+          (omitted)       Upload to current dir, keep original name
+          .               Upload to current dir, keep original name
+          newname.pdf     Upload to current dir, rename to newname.pdf
+          subfolder/      Upload into subfolder, keep original name
+          ./sub/new.pdf   Upload into sub, rename to new.pdf
+          /abs/path/      Upload into absolute folder path
+          scope_abc123    Upload into that scope ID
 
-    Examples:
-      /Reports> upload ./report.pdf
-      Uploaded: report.pdf (cont_abc) to /Reports
+        Examples:
+          /Reports> upload ./report.pdf
+          Uploaded: report.pdf (cont_abc) to /Reports
 
-      /Reports> upload ./report.pdf "Q1 Report.pdf"
-      Uploaded: Q1 Report.pdf (cont_def) to /Reports
+          /Reports> upload ./report.pdf "Q1 Report.pdf"
+          Uploaded: Q1 Report.pdf (cont_def) to /Reports
 
-      /Reports> upload ./report.pdf Q1/
-      Uploaded: report.pdf (cont_ghi) to /Reports/Q1
+          /Reports> upload ./report.pdf Q1/
+          Uploaded: report.pdf (cont_ghi) to /Reports/Q1
 
-      /Reports> upload ./report.pdf /Archive/2025/
-      Uploaded: report.pdf (cont_jkl) to /Archive/2025
+          /Reports> upload ./report.pdf /Archive/2025/
+          Uploaded: report.pdf (cont_jkl) to /Archive/2025
         """
         parts = shlex.split(arg)
         if not parts:
@@ -253,25 +253,25 @@ class UniqueShell(cmd.Cmd):
     def do_download(self, arg: str) -> None:
         """Download a file from the platform to your local machine.
 
-    Usage: download <name|content_id> [local_path]
+        Usage: download <name|content_id> [local_path]
 
-    Downloads a file identified by its name (matched in the current
-    directory) or content ID (cont_...). Saves to the specified local
-    path, or the current working directory if omitted.
+        Downloads a file identified by its name (matched in the current
+        directory) or content ID (cont_...). Saves to the specified local
+        path, or the current working directory if omitted.
 
-    Arguments:
-      name_or_id    File name or content ID (cont_...)
-      local_path    Optional local directory or file path
+        Arguments:
+          name_or_id    File name or content ID (cont_...)
+          local_path    Optional local directory or file path
 
-    Examples:
-      /Reports> download annual.pdf
-      Downloaded: annual.pdf -> /Users/me/annual.pdf
+        Examples:
+          /Reports> download annual.pdf
+          Downloaded: annual.pdf -> /Users/me/annual.pdf
 
-      /Reports> download annual.pdf ./downloads/
-      Downloaded: annual.pdf -> ./downloads/annual.pdf
+          /Reports> download annual.pdf ./downloads/
+          Downloaded: annual.pdf -> ./downloads/annual.pdf
 
-      /Reports> download cont_mno345 ~/Desktop/
-      Downloaded: cont_mno345 -> ~/Desktop/cont_mno345
+          /Reports> download cont_mno345 ~/Desktop/
+          Downloaded: cont_mno345 -> ~/Desktop/cont_mno345
         """
         parts = shlex.split(arg)
         if not parts:
@@ -284,17 +284,17 @@ class UniqueShell(cmd.Cmd):
     def do_rm(self, arg: str) -> None:
         """Delete a file.
 
-    Usage: rm <name|content_id>
+        Usage: rm <name|content_id>
 
-    Permanently deletes a file by its name (matched in the current
-    directory) or content ID.
+        Permanently deletes a file by its name (matched in the current
+        directory) or content ID.
 
-    Examples:
-      /Reports> rm annual.pdf
-      Deleted: annual.pdf (cont_mno345)
+        Examples:
+          /Reports> rm annual.pdf
+          Deleted: annual.pdf (cont_mno345)
 
-      /Reports> rm cont_xyz789
-      Deleted: cont_xyz789 (cont_xyz789)
+          /Reports> rm cont_xyz789
+          Deleted: cont_xyz789 (cont_xyz789)
         """
         name_or_id = arg.strip()
         if not name_or_id:
@@ -305,17 +305,17 @@ class UniqueShell(cmd.Cmd):
     def do_mv(self, arg: str) -> None:
         """Rename a file.
 
-    Usage: mv <old_name|content_id> <new_name>
+        Usage: mv <old_name|content_id> <new_name>
 
-    Changes the file's display title. The content ID and location
-    remain the same.
+        Changes the file's display title. The content ID and location
+        remain the same.
 
-    Examples:
-      /Reports> mv annual.pdf annual-2025.pdf
-      Renamed: annual.pdf -> annual-2025.pdf
+        Examples:
+          /Reports> mv annual.pdf annual-2025.pdf
+          Renamed: annual.pdf -> annual-2025.pdf
 
-      /Reports> mv cont_abc123 "New Title.pdf"
-      Renamed: cont_abc123 -> New Title.pdf
+          /Reports> mv cont_abc123 "New Title.pdf"
+          Renamed: cont_abc123 -> New Title.pdf
         """
         parts = shlex.split(arg)
         if len(parts) != 2:
@@ -328,22 +328,22 @@ class UniqueShell(cmd.Cmd):
     def do_search(self, arg: str) -> None:
         """Search the knowledge base using combined search.
 
-    Usage: search <query> [--folder <path|id>] [--metadata key=value ...] [--limit N]
+        Usage: search <query> [--folder <path|id>] [--metadata key=value ...] [--limit N]
 
-    Performs a combined (vector + full-text) search across the knowledge
-    base. By default searches within the current directory scope with a
-    limit of 200 results.
+        Performs a combined (vector + full-text) search across the knowledge
+        base. By default searches within the current directory scope with a
+        limit of 200 results.
 
-    Options:
-      --folder <path|id>     Restrict search to a specific folder
-      --metadata <key=value> Filter by metadata field (can be repeated)
-      --limit <N>            Maximum number of results (default: 200)
+        Options:
+          --folder <path|id>     Restrict search to a specific folder
+          --metadata <key=value> Filter by metadata field (can be repeated)
+          --limit <N>            Maximum number of results (default: 200)
 
-    Examples:
-      /Reports> search "revenue growth"
-      /Reports> search "quarterly earnings" --folder /Reports/Q1 --limit 10
-      /> search "AI strategy" --folder scope_abc123
-      /> search "compliance" --metadata department=Legal --metadata year=2025
+        Examples:
+          /Reports> search "revenue growth"
+          /Reports> search "quarterly earnings" --folder /Reports/Q1 --limit 10
+          /> search "AI strategy" --folder scope_abc123
+          /> search "compliance" --metadata department=Legal --metadata year=2025
         """
         parts = shlex.split(arg)
         if not parts:
@@ -360,10 +360,10 @@ class UniqueShell(cmd.Cmd):
 
         i = 0
         while i < len(parts):
-            if parts[i] == "--folder" and i + 1 < len(parts):
+            if parts[i] in ("--folder", "-f") and i + 1 < len(parts):
                 folder = parts[i + 1]
                 i += 2
-            elif parts[i] == "--metadata" and i + 1 < len(parts):
+            elif parts[i] in ("--metadata", "-m") and i + 1 < len(parts):
                 kv = parts[i + 1]
                 if "=" in kv:
                     k, v = kv.split("=", 1)
@@ -372,7 +372,7 @@ class UniqueShell(cmd.Cmd):
                     self._print(f"Invalid metadata format: {kv} (expected key=value)")
                     return
                 i += 2
-            elif parts[i] == "--limit" and i + 1 < len(parts):
+            elif parts[i] in ("--limit", "-l") and i + 1 < len(parts):
                 try:
                     limit = int(parts[i + 1])
                 except ValueError:
@@ -391,13 +391,15 @@ class UniqueShell(cmd.Cmd):
             )
             return
 
-        self._print(cmd_search(
-            self.state,
-            query,
-            folder=folder,
-            metadata=metadata if metadata else None,
-            limit=limit,
-        ))
+        self._print(
+            cmd_search(
+                self.state,
+                query,
+                folder=folder,
+                metadata=metadata if metadata else None,
+                limit=limit,
+            )
+        )
 
     # -- Shell control --
 
@@ -411,8 +413,10 @@ class UniqueShell(cmd.Cmd):
 
     do_EOF = do_exit
 
-    def emptyline(self) -> None:
-        pass
+    def emptyline(self) -> bool:
+        return False
 
     def default(self, line: str) -> None:
-        self._print(f"Unknown command: {line.split()[0]}. Type 'help' for available commands.")
+        self._print(
+            f"Unknown command: {line.split()[0]}. Type 'help' for available commands."
+        )

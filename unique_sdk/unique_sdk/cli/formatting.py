@@ -5,6 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from unique_sdk.api_resources._content import Content
+from unique_sdk.api_resources._folder import Folder
+
 
 def _format_size(byte_size: int | None) -> str:
     if byte_size is None:
@@ -50,8 +53,8 @@ def _pad_columns(rows: list[list[str]]) -> list[str]:
 
 
 def format_ls(
-    folders: list[dict[str, Any]],
-    files: list[dict[str, Any]],
+    folders: list[Folder.FolderInfo],
+    files: list[Content.ContentInfo],
 ) -> str:
     """Format ls output: folders first, then files, with type/name/id/size/date columns."""
     rows: list[list[str]] = []
@@ -105,7 +108,7 @@ def format_search_results(results: list[Any]) -> str:
     return "\n".join(lines)
 
 
-def format_content_info(info: dict[str, Any]) -> str:
+def format_content_info(info: Content.ContentInfo) -> str:
     """Format a single content info record."""
     rows = [
         ["ID:", info.get("id", "?")],
@@ -119,7 +122,7 @@ def format_content_info(info: dict[str, Any]) -> str:
     return "\n".join(_pad_columns(rows))
 
 
-def format_folder_info(info: dict[str, Any]) -> str:
+def format_folder_info(info: Folder.FolderInfo) -> str:
     """Format a single folder info record."""
     rows = [
         ["ID:", info.get("id", "?")],

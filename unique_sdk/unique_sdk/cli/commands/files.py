@@ -5,12 +5,12 @@ from __future__ import annotations
 import mimetypes
 import shutil
 from pathlib import Path
+from typing import Any
 
 import unique_sdk
-from unique_sdk.utils.file_io import download_content, upload_file
-
 from unique_sdk.cli.formatting import format_content_info
 from unique_sdk.cli.state import ShellState
+from unique_sdk.utils.file_io import download_content, upload_file
 
 
 def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
@@ -22,7 +22,7 @@ def _resolve_content_id(state: ShellState, name_or_id: str) -> tuple[str, str]:
         return name_or_id, name_or_id
 
     scope_id = state.scope_id
-    params: dict = {}
+    params: dict[str, Any] = {}
     if scope_id:
         params["parentId"] = scope_id
 
@@ -119,7 +119,9 @@ def cmd_upload(
             return f"upload: local file not found: {local_path}"
 
         scope_id, display_name = _resolve_upload_destination(
-            state, path.name, destination,
+            state,
+            path.name,
+            destination,
         )
 
         mime_type, _ = mimetypes.guess_type(str(path))
@@ -156,7 +158,9 @@ def cmd_download(
     try:
         content_id, display_name = _resolve_content_id(state, name_or_id)
 
-        filename = display_name if not display_name.startswith("cont_") else f"{content_id}"
+        filename = (
+            display_name if not display_name.startswith("cont_") else f"{content_id}"
+        )
         downloaded_path = download_content(
             companyId=state.config.company_id,
             userId=state.config.user_id,

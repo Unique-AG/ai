@@ -40,12 +40,20 @@ def load_config() -> Config:
     Optional: UNIQUE_API_BASE (defaults to the SDK default).
     """
     missing: list[str] = []
-    for var in ("UNIQUE_API_KEY", "UNIQUE_APP_ID", "UNIQUE_USER_ID", "UNIQUE_COMPANY_ID"):
+    for var in (
+        "UNIQUE_API_KEY",
+        "UNIQUE_APP_ID",
+        "UNIQUE_USER_ID",
+        "UNIQUE_COMPANY_ID",
+    ):
         if not os.environ.get(var):
             missing.append(var)
 
     if missing:
-        print(f"Error: missing required environment variables: {', '.join(missing)}", file=sys.stderr)
+        print(
+            f"Error: missing required environment variables: {', '.join(missing)}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     api_key = os.environ["UNIQUE_API_KEY"]

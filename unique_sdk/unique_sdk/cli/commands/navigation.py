@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import unique_sdk
+from typing import Any
 
+import unique_sdk
 from unique_sdk.cli.formatting import format_ls
 from unique_sdk.cli.state import ShellState
 
@@ -29,8 +30,8 @@ def cmd_ls(state: ShellState, target: str | None = None) -> str:
         else:
             scope_id = state.scope_id
 
-        folder_params: dict = {}
-        content_params: dict = {}
+        folder_params: dict[str, Any] = {}
+        content_params: dict[str, Any] = {}
         if scope_id:
             folder_params["parentId"] = scope_id
             content_params["parentId"] = scope_id

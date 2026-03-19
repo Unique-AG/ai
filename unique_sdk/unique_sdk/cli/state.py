@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import unique_sdk
-
 from unique_sdk.cli.config import Config
 
 

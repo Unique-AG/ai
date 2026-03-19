@@ -6,7 +6,6 @@ from typing import Any
 
 import unique_sdk
 from unique_sdk import UQLCombinator, UQLOperator
-
 from unique_sdk.cli.formatting import format_search_results
 from unique_sdk.cli.state import ShellState
 
@@ -21,19 +20,23 @@ def _build_metadata_filter(
     conditions: list[dict[str, Any]] = []
 
     if folder_scope_id:
-        conditions.append({
-            "path": ["folderIdPath"],
-            "operator": UQLOperator.CONTAINS,
-            "value": f"uniquepathid://{folder_scope_id}",
-        })
+        conditions.append(
+            {
+                "path": ["folderIdPath"],
+                "operator": UQLOperator.CONTAINS,
+                "value": f"uniquepathid://{folder_scope_id}",
+            }
+        )
 
     if extra_metadata:
         for key, value in extra_metadata:
-            conditions.append({
-                "path": [key],
-                "operator": UQLOperator.EQUALS,
-                "value": value,
-            })
+            conditions.append(
+                {
+                    "path": [key],
+                    "operator": UQLOperator.EQUALS,
+                    "value": value,
+                }
+            )
 
     if not conditions:
         return None
