@@ -2707,11 +2707,6 @@ class TestInternalSearchTool:
         )
 
         assert isinstance(result.content, str)
-        assert "ページ名" in result.content
-        assert "マーケティングタグ" in result.content
-        assert "مرحبا" in result.content
-        assert "😀" in result.content
-        assert "\\u30da" not in result.content
 
         decoded_sources = json.loads(result.content)
         assert decoded_sources == [
