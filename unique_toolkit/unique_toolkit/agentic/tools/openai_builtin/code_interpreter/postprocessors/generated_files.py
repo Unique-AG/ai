@@ -495,10 +495,25 @@ def _build_code_blocks(
     For each file, the LAST code block that references its path is treated as the
     producer — this handles the case where a file is overwritten across blocks, where
     the final content belongs to the last writer.
+
+    Three matching tiers are used in priority order:
+      1. Primary: literal path ``/mnt/data/{filename}`` appears in the code.
+      2. Secondary: the filename (with or without extension) appears as a quoted
+         string literal — last-writer-wins among blocks (same as primary), but
+         never overrides a primary match. Covers helper patterns such as:
+           - stem only: ``save_fig(fig, "nvda_price_sma")``
+           - full name: ``make_chart(kind, "random_line_chart.png", 42)``
+      3. Last-resort: assign remaining unmatched files to the last code block —
+         covers fully dynamic names built via f-strings or variable concatenation,
+         e.g. ``f"/mnt/data/chart_{chart_type}_{i}.png"``, where no static token
+         in the source matches the actual filename.
+    Primary matches always take precedence over secondary ones; secondary always
+    takes precedence over the last-resort fallback.
     """
     calls = loop_response.code_interpreter_calls
 
-    # Step 1: for each file, find the index of the last block that references it.
+    # Step 1a: primary matching — full literal path /mnt/data/{filename} in code.
+    # Last-writer-wins: later blocks overwrite earlier ones for the same file.
     file_to_block_idx: dict[str, int] = {}
     for idx, call in enumerate(calls):
         if not call.code:
@@ -509,6 +524,62 @@ def _build_code_blocks(
                 and f"/mnt/data/{annotation.filename}" in call.code
             ):
                 file_to_block_idx[annotation.filename] = idx
+
+    # Snapshot primary matches only — secondary must not override these, but within
+    # secondary we use last-writer-wins (later blocks overwrite earlier), same as 1a.
+    primary_matched_filenames = set(file_to_block_idx.keys())
+
+    # Step 1b: secondary matching for files not matched by primary.
+    # Handles two common helper-function patterns where the full /mnt/data/ path
+    # is never a literal string in the code:
+    #
+    #   Pattern A — stem only (no extension at the call site):
+    #     save_fig(fig, "nvda_price_sma")  →  f"/mnt/data/{name}.png" at runtime
+    #     → matches quoted stem "nvda_price_sma"
+    #
+    #   Pattern B — full filename at the call site:
+    #     make_chart(kind, "random_line_chart.png", 42)
+    #     fig.savefig(os.path.join(output_dir, filename), ...)
+    #     → matches quoted full filename "random_line_chart.png"
+    #
+    # Last-writer-wins within secondary: do not skip when a prior block already matched
+    # via secondary — only skip filenames that matched in Step 1a (primary).
+    for idx, call in enumerate(calls):
+        if not call.code:
+            continue
+        for annotation in loop_response.container_files:
+            if annotation.filename in primary_matched_filenames:
+                continue
+            if content_map.get(annotation.filename) is None:
+                continue
+            fname = annotation.filename
+            stem = fname.rsplit(".", 1)[0]
+            quoted_fname = f'"{fname}"' in call.code or f"'{fname}'" in call.code
+            quoted_stem = bool(stem) and (
+                f'"{stem}"' in call.code or f"'{stem}'" in call.code
+            )
+            if quoted_fname or quoted_stem:
+                file_to_block_idx[annotation.filename] = idx
+
+    # Step 1c: last-resort fallback for files still unmatched after primary and secondary.
+    # Covers Pattern C: filenames assembled entirely at runtime via f-strings or
+    # variable concatenation, e.g. f"/mnt/data/chart_{chart_type}_{i}.png", where
+    # no static string token in the code corresponds to the actual filename.
+    # The last code block is used as the owner; when there is only one block this is
+    # always correct. For multi-block responses it is a best-effort heuristic: the
+    # worst outcome is the fence shows code from the wrong block, which is still
+    # better than leaving the file as a bare inline image with no fence at all.
+    last_block_idx: int | None = None
+    for idx, call in enumerate(calls):
+        if call.code:
+            last_block_idx = idx
+    if last_block_idx is not None:
+        for annotation in loop_response.container_files:
+            if annotation.filename in file_to_block_idx:
+                continue
+            if content_map.get(annotation.filename) is None:
+                continue
+            file_to_block_idx[annotation.filename] = last_block_idx
 
     # Step 2: group files by their owning block index, deduplicating by filename.
     # OpenAI may emit multiple annotations for the same filename when a file is
