@@ -34,7 +34,7 @@ try:
         register_config,  # noqa: F401, I001
     )
 
-    _CONFIG_CHECKER_AVAILABLE = True  # pyright: ignore[reportConstantRedefinition]
+    _CONFIG_CHECKER_AVAILABLE = True
 except ImportError:
     pass
 
@@ -43,7 +43,7 @@ _LANGCHAIN_AVAILABLE: bool = False
 try:
     from unique_toolkit.framework_utilities.langchain.client import get_langchain_client  # noqa: F401, I001
 
-    _LANGCHAIN_AVAILABLE = True  # pyright: ignore[reportConstantRedefinition]
+    _LANGCHAIN_AVAILABLE = True
 except ImportError:
     pass
 
