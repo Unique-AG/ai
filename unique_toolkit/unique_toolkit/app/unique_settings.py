@@ -106,12 +106,6 @@ class UniqueAuth(BaseSettings):
             user_id=SecretStr(event.user_id),
         )
 
-    def get_company_id(self) -> str:
-        return self.company_id.get_secret_value()
-
-    def get_user_id(self) -> str:
-        return self.user_id.get_secret_value()
-
     def to_auth_context(self) -> AuthContext:
         return AuthContext(
             company_id=self.company_id,
