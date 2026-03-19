@@ -222,7 +222,9 @@ def _build_web_page_chunk(
         snippet=page.snippet,
         content=render_template(
             _PLACEHOLDER_CONTENT_TEMPLATE,
-            domain=page.display_link, snippet=page.snippet, content=chunk,
+            domain=page.display_link,
+            snippet=page.snippet,
+            content=chunk,
         ),
         order=str(order),
     )
