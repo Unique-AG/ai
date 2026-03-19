@@ -35,15 +35,12 @@ Stage: **Post-review conversation handling** (after review comments exist).
 
 ### 1. Fetch unresolved conversations
 
-```bash
-# From repository root (recommended):
-./.claude/skills/github-pull-request-handling/scripts/pr-conversations.sh [PR_NUMBER]        # unresolved only (default)
-./.claude/skills/github-pull-request-handling/scripts/pr-conversations.sh --all [PR_NUMBER]  # all threads
-```
+The skill base directory is shown at the top of the loaded skill content. Use it to construct the script path:
 
-If your current working directory is different, use a repo-root-safe path:
 ```bash
-"$(git rev-parse --show-toplevel)/.claude/skills/github-pull-request-handling/scripts/pr-conversations.sh" [PR_NUMBER]
+# Replace SKILL_BASE_DIR with the base directory shown in the skill header:
+SKILL_BASE_DIR/scripts/pr-conversations.sh [PR_NUMBER]        # unresolved only (default)
+SKILL_BASE_DIR/scripts/pr-conversations.sh --all [PR_NUMBER]  # all threads
 ```
 
 Uses the GitHub **GraphQL API** to fetch review threads with resolution status. Output:
@@ -91,8 +88,8 @@ gh pr comment PR_NUMBER --body "Addressed all unresolved conversations:
 
 | Task | Command |
 |------|---------|
-| Unresolved conversations | `./.claude/skills/github-pull-request-handling/scripts/pr-conversations.sh [PR]` |
-| All conversations | `./.claude/skills/github-pull-request-handling/scripts/pr-conversations.sh --all [PR]` |
+| Unresolved conversations | `SKILL_BASE_DIR/scripts/pr-conversations.sh [PR]` |
+| All conversations | `SKILL_BASE_DIR/scripts/pr-conversations.sh --all [PR]` |
 | View PR | `gh pr view` |
 | Add PR comment | `gh pr comment PR_NUMBER --body "..."` |
 | Reply to comment | `gh api repos/.../pulls/PR_NUMBER/comments -X POST` with `in_reply_to` |
