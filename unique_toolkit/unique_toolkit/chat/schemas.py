@@ -35,6 +35,7 @@ model_config = ConfigDict(
 class ChatMessageRole(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
+    TOOL = "tool"
     SYSTEM = "system"  # Note: These messages are appended by the backend and should not be confused with the LLM's system message.
 
 
