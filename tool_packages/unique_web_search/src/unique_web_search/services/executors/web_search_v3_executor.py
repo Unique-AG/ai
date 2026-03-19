@@ -17,9 +17,9 @@ from unique_web_search.services.executors.context import (
 from unique_web_search.services.executors.web_search_v2_executor import (
     WebSearchV2Executor,
 )
+from unique_web_search.services.helpers import extract_registered_domain
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
-    extract_registered_domain,
 )
 from unique_web_search.services.snippet_judge import (
     SnippetJudgeConfig,

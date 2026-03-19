@@ -8,9 +8,9 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.builder import MessagesBuilder
 
+from unique_web_search.services.helpers import extract_registered_domain
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
-    extract_registered_domain,
 )
 from unique_web_search.services.snippet_judge.prompts import (
     SNIPPET_JUDGE_SYSTEM_PROMPT,
