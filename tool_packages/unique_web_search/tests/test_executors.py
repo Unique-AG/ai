@@ -4,11 +4,11 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from unique_toolkit.content.schemas import ContentChunk
 
 from unique_web_search.schema import (
     Step,
     StepType,
+    WebPageChunk,
     WebSearchPlan,
     WebSearchToolParameters,
 )
@@ -787,28 +787,32 @@ class TestWebSearchV3ExecutorExecuteSearchStep:
         mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
         mock_executor_dependencies["content_processor"].run = AsyncMock(
             return_value=[
-                ContentChunk(
-                    id='example.com: "Page 3"',
-                    chunk_id="0",
-                    text="content3",
-                    order=0,
-                    key='example.com: "Page 3"',
+                WebPageChunk(
                     url="https://example.com/page3",
-                    title='example.com: "Page 3"',
+                    display_link="example.com",
+                    title="Page 3",
+                    snippet="Snippet 3",
+                    content="content3",
+                    order="0",
                 ),
-                ContentChunk(
-                    id='example.com: "Page 2"',
-                    chunk_id="1",
-                    text="content2",
-                    order=1,
-                    key='example.com: "Page 2"',
+                WebPageChunk(
                     url="https://example.com/page2",
-                    title='example.com: "Page 2"',
+                    display_link="example.com",
+                    title="Page 2",
+                    snippet="Snippet 2",
+                    content="content2",
+                    order="1",
                 ),
             ]
         )
         mock_executor_dependencies["chunk_relevancy_sort_config"].enabled = False
-        mock_executor_dependencies["content_reducer"].return_value = []
+        mock_executor_dependencies["content_reducer"].side_effect = (
+            lambda chunks: chunks
+        )
+        # Base executor always calls chunk_relevancy_sorter when present; pass chunks through.
+        mock_executor_dependencies["chunk_relevancy_sorter"].run = AsyncMock(
+            side_effect=lambda **kwargs: Mock(content_chunks=kwargs["chunks"])
+        )
 
         judge_config = SnippetJudgeConfig(max_urls_to_select=2)
 
