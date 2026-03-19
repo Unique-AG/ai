@@ -14,6 +14,9 @@
     },
   ],
   "settings": {
+    "files.exclude": {
+      "**/.claude": true, // exclude .claude folder from search
+    },
     "python.analysis.extraPaths": [
       "${workspaceFolder}/unique_toolkit",
       "${workspaceFolder}/unique_sdk",
