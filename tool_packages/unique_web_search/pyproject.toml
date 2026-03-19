@@ -30,8 +30,7 @@ dependencies = [
     "google-generativeai>=0.8.5,<0.9",
     "rapidfuzz>=3.0.0,<4",
     "httpx>=0.28.1",
-    "certifi>=2025.11.12",
-    "pyhumps>=3.8.0,<4",
+    "certifi>=2025.11.12"
 ]
 
 [build-system]

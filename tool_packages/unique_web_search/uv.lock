@@ -3406,7 +3406,7 @@ wheels = [
 
 [[package]]
 name = "unique-web-search"
-version = "1.15.0"
+version = "1.14.0"
 source = { editable = "." }
 dependencies = [
     { name = "azure-ai-projects" },
@@ -3423,7 +3423,6 @@ dependencies = [
     { name = "markdownify" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "pyhumps" },
     { name = "rapidfuzz" },
     { name = "tavily-python" },
     { name = "timeout-decorator" },
@@ -3460,7 +3459,6 @@ requires-dist = [
     { name = "markdownify", specifier = ">=0.14.1,<1" },
     { name = "pydantic", specifier = ">=2.12.3,<3" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
-    { name = "pyhumps", specifier = ">=3.8.0,<4" },
     { name = "rapidfuzz", specifier = ">=3.0.0,<4" },
     { name = "tavily-python", specifier = ">=0.7.11,<1" },
     { name = "timeout-decorator", specifier = ">=0.5.0,<1" },
