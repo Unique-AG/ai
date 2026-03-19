@@ -186,6 +186,7 @@ async def test_health_check_endpoint__returns_healthy_status__with_service_name(
     Why this matters: Enables health monitoring and service identification.
     Setup summary: Create app, call health check endpoint, assert correct JSON response.
     """
+    pytest.importorskip("fastapi")
     # Arrange
     app = build_unique_custom_app(title="Test Service", settings=base_settings)
     # Act
@@ -248,6 +249,7 @@ async def test_webhook_handler__returns_401__when_signature_invalid(
     Why this matters: Prevents unauthorized access to webhook endpoint.
     Setup summary: Create app, mock invalid signature, send webhook request, assert 401 response.
     """
+    pytest.importorskip("fastapi")
     # Arrange
     mocker.patch(
         "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
@@ -286,6 +288,7 @@ async def test_webhook_handler__returns_400__when_json_invalid(
     Why this matters: Provides clear error message for malformed requests.
     Setup summary: Create app, mock valid signature, send invalid JSON, assert 400 response.
     """
+    pytest.importorskip("fastapi")
     # Arrange
     mocker.patch(
         "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
@@ -324,6 +327,7 @@ async def test_webhook_handler__returns_400__when_event_name_invalid(
     Why this matters: Prevents processing of unsupported event types.
     Setup summary: Create app, mock valid signature, send event with invalid name, assert 400 response.
     """
+    pytest.importorskip("fastapi")
     # Arrange
     mocker.patch(
         "unique_toolkit.app.fast_api_factory.UniqueSettings.from_env",
@@ -362,6 +366,7 @@ async def test_webhook_handler__returns_200__when_event_filtered(
     Why this matters: Ensures filtered events are handled gracefully without processing.
     Setup summary: Create app with filter options, mock valid signature and filtered event, assert 200 with filter message.
     """
+    pytest.importorskip("fastapi")
     # Arrange
     filter_options = UniqueChatEventFilterOptions(
         assistant_ids=["other-assistant"], references_in_code=[]

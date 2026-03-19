@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [1.59.0] - 2026-03-19
+- Introduce `AuthContextProtocol` and `AuthContext` (Pydantic `BaseModel`) for unified auth typing across MCP services and apps (UN-18234)
+- Add `ChatContextProtocol` and `ChatContext` (Pydantic `BaseModel`) for chat context (UN-18234)
+- Add `UniqueEnvironment` class grouping env-only settings (`app` + `api`) (UN-18234)
+- Add `UniqueRequestContext` class grouping request/env context (`auth` + `chat`) (UN-18234)
+- Enhance `UniqueAuth` with `get_confidential_company_id()`, `get_confidential_user_id()`, and `to_auth_context()` methods (UN-18234)
+- Add `authcontext: AuthContextProtocol` property to `UniqueSettings`; deprecate `auth` (still returns `UniqueAuth`) (UN-18234)
+
 ## [1.58.1] - 2026-03-18
 - Code interpreter fence injection (UN-17972): extend `_build_code_blocks` matching so generated images reliably map to their producing code block — secondary match on quoted filename or stem, plus last-resort assignment to the last code block when paths are fully dynamic (e.g. `f"/mnt/data/chart_{type}_{i}.png"`). Fixes bare `![image](unique://content/...)` instead of `imgWithSource` fences.
 - Secondary matching now uses last-writer-wins across code blocks (aligned with primary); only Step 1a primary matches are frozen — earlier secondary logic incorrectly used first-writer-wins.
