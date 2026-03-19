@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.0] - 2026-03-19
+### Added
+- **LLM Guard Judge** (`LLMGuardJudge`): dedicated GDPR Art. 9 compliance judge with four sanitization pipeline modes — Always Sanitize, Judge Only, Judge and Sanitize, and Judge then Sanitize — each with its own structured-output response model and Jinja2 prompt template
+- **Keyword Redact mode** (`LLMKeywordRedact`): new sanitization strategy that extracts sensitive phrases via LLM and applies local two-pass redaction (exact regex + fuzzy sliding-window via `rapidfuzz`) without summarization, preserving original page structure
+- **`SanitizeMode` enum**: configurable pipeline mode selector (`always_sanitize`, `judge_only`, `judge_and_sanitize`, `judge_then_sanitize`, `keyword_redact`) with human-readable UI labels
+- **Character sanitization** (`CharacterSanitize`): new cleaning strategy that strips null bytes, control characters, and Unicode non-characters from web page content and snippets before downstream processing
+- New Jinja2 prompt templates: `judge_prompt.j2`, `judge_and_sanitize_prompt.j2`, `keyword_extract_prompt.j2`, `page_context.j2`
+- `PrivacyFilterConfig` and `PromptConfig` sub-models on `LLMProcessorConfig` for structured, granular configuration of privacy filtering and prompt templates
+- `ProcessingStrategiesSettings` (`settings.py`): typed Pydantic-settings model replacing raw JSON dict parsing for the `LLM_PROCESS_CONFIG` env var, with nested `PrivacyFilterEnvConfig` and `PromptEnvConfig` sub-models
+- Comprehensive test suites: `test_character_sanitize.py` (character sanitizer), `test_prompt_rendering.py` (765-line Jinja2 template rendering and response model field ordering tests)
+- `rapidfuzz` dependency for fuzzy keyword redaction matching
+
+### Changed
+- Refactored `LLMProcessorConfig`: flat `sanitize`, `sanitize_rules`, `system_prompt`, `user_prompt` fields replaced with nested `PrivacyFilterConfig` and `PromptConfig` sub-models
+- Replaced `_DEFAULTS` dict / `_get_from_env` helper with typed `LLMProcessorEnvConfig` Pydantic model; `_merge_config_with_env` now uses recursive deep-merge (`_deep_merge`) for correct nested override semantics
+- `LLMProcessorResponse` and `LLMGuardResponse` extracted to dedicated `schema.py` and `llm_guard_judge.py` modules; `LLMGuardResponse` no longer inherits from `LLMProcessorResponse`
+- `LLMProcess.__call__` now dispatches to `_run_summarize`, `_run_guard_judge`, or `_run_keyword_redact` based on `sanitize_mode`
+- `ProcessingStrategyKwargs.query` changed from `NotRequired` to required
+- Cleaning strategies now run on both `page.content` and `page.snippet`
+- Web page chunk rendering switched from inline XML tags to a Jinja2 `_PLACEHOLDER_CONTENT_TEMPLATE` for structured `<WebPageChunk>` output
+- Simplified `system_prompt.j2` and `user_prompt.j2`: removed `redaction_map` section, replaced `snippet`/`summary` output fields with `sanitized_content`, moved sanitize reminder to top of user prompt
+- Updated `test_llm_process_env_config.py` to cover new typed config models, nested merge semantics, and structure-matching assertions
+
 ## [1.13.1] - 2026-03-17
 ### Fixed
 - Use `AsyncioRequestsTransport` with `certifi` SSL verification for both `WorkloadIdentityCredential` and `AIProjectClient` when `use_unique_private_endpoint_transport` is enabled, fixing certificate validation failures in private endpoint environments
