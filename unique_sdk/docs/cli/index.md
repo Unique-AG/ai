@@ -64,16 +64,16 @@ unique-cli download cont_abc123 ./downloads/
 
 ### 1. Install
 
-The CLI ships with the SDK. Install it via pip:
+The CLI ships with the SDK. Install from [PyPI](https://pypi.org/project/unique-sdk/):
 
 ```bash
-pip install unique_sdk
+pip install unique-sdk
 ```
 
-Or with `uv`:
+Or with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv pip install unique_sdk
+uv pip install unique-sdk
 ```
 
 ### 2. Configure
