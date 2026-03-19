@@ -89,13 +89,10 @@ def complete(
         response = unique_sdk.ChatCompletion.create(
             company_id=company_id,
             user_id=user_id,
-            model=model,
-            messages=cast(
-                "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
-                messages_dict,
-            ),
+            model=model,  # pyright: ignore[reportArgumentType]
+            messages=messages_dict,  # pyright: ignore[reportArgumentType]
             timeout=timeout,
-            options=options,  # type: ignore
+            options=options,  # type: ignore[arg-type]
         )
         return LanguageModelResponse(**response)
     except Exception as e:
@@ -161,13 +158,10 @@ async def complete_async(
         response = await unique_sdk.ChatCompletion.create_async(
             company_id=company_id,
             user_id=user_id,
-            model=model,
-            messages=cast(
-                "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
-                messages_dict,
-            ),
+            model=model,  # pyright: ignore[reportArgumentType]
+            messages=messages_dict,  # pyright: ignore[reportArgumentType]
             timeout=timeout,
-            options=options,  # type: ignore
+            options=options,  # type: ignore[arg-type]
         )
         return LanguageModelResponse(**response)
     except Exception as e:
@@ -199,7 +193,7 @@ def _to_search_context(
     if not chunks:
         return None
     return [
-        unique_sdk.Integrated.SearchResult(
+        unique_sdk.Integrated.SearchResult(  # pyright: ignore[reportCallIssue]
             id=chunk.id,
             chunkId=chunk.chunk_id,
             key=chunk.key,

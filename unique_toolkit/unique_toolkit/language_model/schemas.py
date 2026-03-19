@@ -336,7 +336,7 @@ class LanguageModelUserMessage(LanguageModelMessage):
             content = self.content
 
         if mode == "completions":
-            return ChatCompletionUserMessageParam(role="user", content=content)  # type: ignore
+            return ChatCompletionUserMessageParam(role="user", content=content)  # pyright: ignore[reportArgumentType]
         elif mode == "responses":
             return EasyInputMessageParam(
                 role="user",
@@ -561,7 +561,7 @@ class LanguageModelMessages(RootModel[list[LanguageModelMessageOptions]]):
     def __str__(self):
         return "\n\n".join([str(message) for message in self.root])
 
-    def __iter__(self):
+    def __iter__(self):  # pyright: ignore[reportIncompatibleMethodOverride]
         return iter(self.root)
 
     def __getitem__(self, item):
