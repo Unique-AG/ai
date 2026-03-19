@@ -31,13 +31,11 @@ def embed_texts(
     """
 
     try:
-        data = {
-            "user_id": user_id,
-            "company_id": company_id,
-            "texts": texts,
-            "timeout": timeout,
-        }
-        response = unique_sdk.Embeddings.create(**data)
+        response = unique_sdk.Embeddings.create(
+            user_id=user_id,
+            company_id=company_id,
+            texts=texts,
+        )
         return Embeddings(**response)
     except Exception as e:
         logger.error(f"Error embedding texts: {e}")
@@ -66,13 +64,11 @@ async def embed_texts_async(
         Exception: If an error occurs.
     """
     try:
-        data = {
-            "user_id": user_id,
-            "company_id": company_id,
-            "texts": texts,
-            "timeout": timeout,
-        }
-        response = await unique_sdk.Embeddings.create_async(**data)
+        response = await unique_sdk.Embeddings.create_async(
+            user_id=user_id,
+            company_id=company_id,
+            texts=texts,
+        )
         return Embeddings(**response)
     except Exception as e:
         logger.error(f"Error embedding texts: {e}")

@@ -2,7 +2,6 @@ from typing import Any, overload
 
 from typing_extensions import deprecated
 
-from unique_toolkit._common._base_service import BaseService
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, Event
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -11,7 +10,7 @@ from unique_toolkit.embedding.functions import embed_texts, embed_texts_async
 from unique_toolkit.embedding.schemas import Embeddings
 
 
-class EmbeddingService(BaseService):
+class EmbeddingService:
     """
     Provides methods to interact with the Embedding service.
     """
