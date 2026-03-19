@@ -130,6 +130,34 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         assert isinstance(result, str)
         assert result == "V2 system prompt with 5"
 
+    @pytest.mark.ai
+    def test_tool_description_for_system_prompt__renders_jinja__when_mode_is_v3(
+        self,
+        mock_web_search_config_v3: Mock,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify tool_description_for_system_prompt renders Jinja placeholders for V3.
+        Why this matters: V3 uses dynamic date and max_steps injection, while V2 should not.
+        Setup summary: Mock WebSearchTool with V3 config containing Jinja placeholders.
+        """
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+        mocker.patch.object(
+            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
+        )
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v3
+
+        result: str = tool.tool_description_for_system_prompt()
+
+        assert isinstance(result, str)
+        assert "V3 system prompt with 7 and " in result
+        assert "{{ date_string }}" not in result
+
 
 class TestWebSearchToolFormatInformation:
     """Test WebSearchTool.tool_format_information_for_system_prompt() method."""

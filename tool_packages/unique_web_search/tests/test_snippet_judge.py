@@ -54,7 +54,16 @@ class TestRankAndSelect:
             SnippetJudgment(index=1, explanation="", relevance_score=0.9),
             SnippetJudgment(index=2, explanation="", relevance_score=0.5),
         ]
-        result = rank_and_select(judgments, max_urls_to_select=3)
+        results = [
+            WebSearchResult(url=f"https://d{i}.com", title="", snippet="", content="")
+            for i in range(3)
+        ]
+        result = rank_and_select(
+            judgments,
+            results,
+            max_urls_to_select=3,
+            max_results_per_domain=2,
+        )
         assert result == [1, 2, 0]
 
     def test_rank_and_select_respects_max_urls(self):
@@ -63,12 +72,29 @@ class TestRankAndSelect:
             SnippetJudgment(index=i, explanation="", relevance_score=1.0 - i * 0.2)
             for i in range(5)
         ]
-        result = rank_and_select(judgments, max_urls_to_select=2)
+        results = [
+            WebSearchResult(url=f"https://d{i}.com", title="", snippet="", content="")
+            for i in range(5)
+        ]
+        result = rank_and_select(
+            judgments,
+            results,
+            max_urls_to_select=2,
+            max_results_per_domain=2,
+        )
         assert result == [0, 1]
 
     def test_rank_and_select_empty_returns_empty(self):
         """Empty judgments returns empty list."""
-        assert rank_and_select([], max_urls_to_select=5) == []
+        assert (
+            rank_and_select(
+                [],
+                [],
+                max_urls_to_select=5,
+                max_results_per_domain=2,
+            )
+            == []
+        )
 
     def test_rank_and_select_deduplicates_by_index(self):
         """Duplicate indices are only included once (first by score order)."""
@@ -77,8 +103,61 @@ class TestRankAndSelect:
             SnippetJudgment(index=1, explanation="", relevance_score=0.8),
             SnippetJudgment(index=0, explanation="", relevance_score=0.7),
         ]
-        result = rank_and_select(judgments, max_urls_to_select=3)
+        results = [
+            WebSearchResult(url="https://a.com", title="", snippet="", content=""),
+            WebSearchResult(url="https://b.com", title="", snippet="", content=""),
+        ]
+        result = rank_and_select(
+            judgments,
+            results,
+            max_urls_to_select=3,
+            max_results_per_domain=2,
+        )
         assert result == [1, 0]
+
+    def test_rank_and_select_enforces_hard_cap_per_registered_domain(self):
+        """Subdomains of the same site are capped deterministically."""
+        judgments = [
+            SnippetJudgment(index=0, explanation="", relevance_score=0.95),
+            SnippetJudgment(index=1, explanation="", relevance_score=0.9),
+            SnippetJudgment(index=2, explanation="", relevance_score=0.85),
+            SnippetJudgment(index=3, explanation="", relevance_score=0.8),
+        ]
+        results = [
+            WebSearchResult(
+                url="https://nvidianews.nvidia.com/a",
+                title="",
+                snippet="",
+                content="",
+            ),
+            WebSearchResult(
+                url="https://investor.nvidia.com/b",
+                title="",
+                snippet="",
+                content="",
+            ),
+            WebSearchResult(
+                url="https://blogs.nvidia.com/c",
+                title="",
+                snippet="",
+                content="",
+            ),
+            WebSearchResult(
+                url="https://example.com/d",
+                title="",
+                snippet="",
+                content="",
+            ),
+        ]
+
+        result = rank_and_select(
+            judgments,
+            results,
+            max_urls_to_select=4,
+            max_results_per_domain=2,
+        )
+
+        assert result == [0, 1, 3]
 
 
 class TestScoreAndExplain:

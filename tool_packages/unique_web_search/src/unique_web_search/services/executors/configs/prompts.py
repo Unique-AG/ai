@@ -144,10 +144,205 @@ The WebSearch tool uses a structured planning approach with the following schema
 ```
 """.strip()
 
-_DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_V3 = (
-    _DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_V2
-    + "\n\nV3 mode pre-filters search results by relevance (using title and snippet) before fetching full pages, so only the most relevant URLs are read."
-)
+_DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_V3 = """Use the `WebSearch` tool to access up-to-date information from the web when your knowledge might be insufficient, outdated, or when the user's query requires current information. This mode uses a structured planning approach and pre-filters search results by relevance before fetching full pages, so only the most relevant URLs are read.
+
+### FSI-Specific Planning Rule
+
+When the user's question is related to the Financial Services Industry (FSI), infer the most relevant FSI domain directly from the user's question and use it to shape the search plan.
+
+Examples of FSI domains include:
+- banking
+- commercial banking
+- investment banking
+- private banking
+- asset management
+- wealth management
+- payments
+- insurance
+- capital markets
+- lending
+- fintech
+- compliance
+- risk
+
+### Mandatory Query Generation Rules
+
+For FSI-related questions:
+- ALWAYS generate at least 5 search queries
+- Query 1 must be a broad base query without any FSI domain attached
+- Queries 2, 3, 4, and 5 must reuse the exact full query text from query 1 and only append explicit website domains directly inside `query_or_url`
+- Do not rewrite, shorten, expand, reorder, or substitute any non-domain terms from query 1 when forming queries 2-5
+- Each of queries 2-5 must include exactly 5 website domains in the query string itself
+- The 5 website domains used in one follow-up query should be different from the 5 website domains used in the other follow-up queries
+- Place multiple website domains as plain space-separated terms in the query string
+- The FSI domain must be inferred from the user's question
+- If multiple FSI domains are plausible, use the strongest candidates across queries 2-5
+- The generated queries must be shown explicitly in the `steps` list inside `query_or_url`
+- Do not only describe domains in prose; write the website domains directly into the query string itself
+
+### When to Use WebSearch
+
+**Required Usage Scenarios:**
+- **Current Events & News**: Any topic that changes frequently or requires the latest information
+- **Real-time Data**: Stock prices, sports scores, breaking news, or live updates
+- **Recent Developments**: Software updates, policy changes, or recent announcements
+- **Niche/Specialized Information**: Details about specific companies, products, vendors, or regulations not widely known
+- **Fact Verification**: When accuracy is critical and outdated information could be harmful
+- **FSI Research**: Any company, vendor, trend, regulation, product, workflow, or market topic connected to financial institutions
+
+**Quality Indicators for Usage:**
+- **Freshness**: If up-to-date information could potentially change or enhance the answer
+- **Accuracy**: When the cost of outdated information is high
+- **Completeness**: When detailed information not in your training data would improve the response
+- **Domain Precision**: When the user's question should be narrowed using an inferred FSI domain
+
+**Current Date Context:**
+- The current date is {{ date_string }}
+- For recent news, recent developments, current status, or time-sensitive research, actively use the current date context when forming search queries
+- When useful, derive the relevant recent year or month and year directly from {{ date_string }} and include it in the search string to bias results toward fresh coverage
+- Example: if {{ date_string }} is Wednesday March 18, 2026, queries like `NVIDIA news 2026`, `NVIDIA latest developments March 2026`, or `NVIDIA earnings March 2026 reuters.com bloomberg.com ft.com wsj.com cnbc.com` are appropriate when recency matters
+- Do not force date terms for timeless or explicitly historical questions unless recency is part of the objective
+
+**Maximum Number of Steps:**
+The web search should not exceed {{ max_steps }} steps.
+
+### Tool Parameters
+
+The WebSearch tool uses a structured planning approach with the following schema:
+
+```json
+{
+  "objective": "Clear statement of what you're trying to accomplish",
+  "query_analysis": "Analysis of what information is needed and why, including the inferred FSI domain or candidate FSI domains",
+  "steps": [
+    {
+      "step_type": "search",
+      "objective": "Broad discovery goal",
+      "query_or_url": "broad query without FSI domain"
+    },
+    {
+      "step_type": "search",
+      "objective": "FSI domain query 1",
+      "query_or_url": "same base query plus 5 website domains"
+    },
+    {
+      "step_type": "search",
+      "objective": "FSI domain query 2",
+      "query_or_url": "same base query plus 5 different website domains"
+    },
+    {
+      "step_type": "search",
+      "objective": "FSI domain query 3",
+      "query_or_url": "same base query plus 5 different website domains"
+    },
+    {
+      "step_type": "search",
+      "objective": "FSI domain query 4",
+      "query_or_url": "same base query plus 5 different website domains"
+    }
+  ],
+  "expected_outcome": "What you expect to find and how it will help"
+}
+```
+
+### Research Planning Strategy
+
+**1. Define Clear Objective:**
+- State exactly what information you need to accomplish
+- Be specific about the scope and purpose of your research
+- If the user question is in an FSI context, define the objective in that business context
+
+**2. Infer the FSI Domain From the User Question:**
+- Infer the most relevant FSI domain directly from the user's wording and intent
+- State that inferred domain explicitly in `query_analysis`
+- If the user question is broad, infer the most likely FSI interpretation rather than staying generic
+
+**3. Generate the Query Plan:**
+- ALWAYS generate at least 5 search queries
+- Query 1 must be broad and must not include an FSI domain
+- Queries 2-5 must reuse the same base query as query 1 and append explicit website domains
+- Each of queries 2-5 must include exactly 5 website domains in the query string
+- Write those website domains directly into `query_or_url`, for example `reuters.com`, `ft.com`, `bloomberg.com`, `wsj.com`, and `cnbc.com`
+- Keep the inferred FSI interpretation attached together with the website domains in the query string
+- Use the later queries to test the most relevant FSI interpretations of the user's question
+- Keep the wording as close as possible to query 1 so that the base query stays stable while the website domains are made explicit
+- For recent or time-sensitive questions, use the current date context `{{ date_string }}` and derive the relevant recent year or month and year directly from it when adding temporal cues to the generated query strings
+
+**4. Set Expected Outcomes:**
+- Specify what each step should accomplish
+- Define success criteria for the research plan
+- Anticipate how the information will be used
+
+### Step Types and Optimization
+
+**Search Steps (`"step_type": "search"`):**
+- Use for discovering information through search engines
+- Optimize queries with 3-8 key words maximum
+- Remove unnecessary context but preserve essential specifics
+- Keep the base query stable across the 5 planned searches
+- Queries 2-5 must explicitly include website domains in the query string itself
+- Queries 2-5 must repeat the exact full query from query 1 and only differ by the added website domains
+- Each of queries 2-5 must contain exactly 5 website domains
+- The 5 website domains in one query should differ from the 5 website domains in the other follow-up queries
+- For FSI requests, the attached website domains are the most important variables after the first broad query
+- Prefer patterns like:
+  - `reuters.com ft.com bloomberg.com wsj.com cnbc.com Nvidia latest developments asset management`
+  - `marketwatch.com forbes.com barrons.com morningstar.com fool.com Nvidia latest developments asset management`
+  - `businessinsider.com yahoo.com investing.com seekingalpha.com nasdaq.com Nvidia latest developments asset management`
+  - `theinformation.com techcrunch.com venturebeat.com wired.com economist.com Nvidia latest developments asset management`
+
+**URL Reading Steps (`"step_type": "read_url"`):**
+- Use for reading specific documents or pages found in previous searches
+- Use when a highly relevant URL should be read directly after the search phase
+
+**Query Optimization Techniques:**
+- `"exact phrase"` for precise matches
+- `site:domain.com` to search specific websites
+- `-word` to exclude terms
+- `intitle:` or `inurl:` for title/URL targeting
+- `OR` for alternatives
+- For FSI questions, append domain terms such as `asset management`, `wealth management`, `investment banking`, `payments`, `insurance`, `capital markets`, `banking`, `compliance`, or `risk`
+- For FSI questions, append 5 explicit website domains directly in each of queries 2-5
+- For FSI questions, make sure the inferred FSI wording already appears in query 1 if it should also appear in queries 2-5
+- When you need to include multiple website domains in one query, write them as plain space-separated terms
+
+### FSI Example With Nvidia
+
+```json
+{
+  "objective": "Understand Nvidia's relevance in Financial Services",
+  "query_analysis": "The user is asking about Nvidia in an FSI context. The strongest inferred FSI interpretation is asset management, so query 1 already includes that wording. Queries 2-5 must repeat the exact same full query text from query 1 and only append website domains directly in the search string. Each follow-up query contains 5 different website domains.",
+  "steps": [
+    {
+      "step_type": "search",
+      "objective": "Get broad FSI context on Nvidia",
+      "query_or_url": "Nvidia latest developments asset management"
+    },
+    {
+      "step_type": "search",
+      "objective": "Run the exact same Nvidia query against a first set of financial and news domains",
+      "query_or_url": "Nvidia latest developments asset management reuters.com ft.com bloomberg.com wsj.com cnbc.com"
+    },
+    {
+      "step_type": "search",
+      "objective": "Run the exact same Nvidia query against a second set of financial and analysis domains",
+      "query_or_url": "Nvidia latest developments asset management marketwatch.com forbes.com barrons.com morningstar.com fool.com"
+    },
+    {
+      "step_type": "search",
+      "objective": "Run the exact same Nvidia query against a third set of market and investing domains",
+      "query_or_url": "Nvidia latest developments asset management businessinsider.com yahoo.com investing.com seekingalpha.com nasdaq.com"
+    },
+    {
+      "step_type": "search",
+      "objective": "Run the exact same Nvidia query against a fourth set of technology and business domains",
+      "query_or_url": "Nvidia latest developments asset management theinformation.com techcrunch.com venturebeat.com wired.com economist.com"
+    }
+  ],
+  "expected_outcome": "A broad overview first, followed by four searches that repeat the exact same query text with different sets of attached website domains"
+}
+```
+""".strip()
 
 DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = {
     "v1": _DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_V1,

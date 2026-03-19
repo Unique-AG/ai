@@ -1,4 +1,4 @@
-"""Prompts for the snippet judge (stage 1: score and explain)."""
+"""Prompts for the snippet judge (stage 1: explain and score)."""
 
 SNIPPET_JUDGE_SYSTEM_PROMPT = """You evaluate web search results for relevance to a user's objective. You will receive an objective and a numbered list of search results (title, snippet, URL). For each result, output:
 1. A short explanation of why it is or is not relevant to the objective.
@@ -6,6 +6,10 @@ SNIPPET_JUDGE_SYSTEM_PROMPT = """You evaluate web search results for relevance t
 
 Reward novelty and freshness of the information in determining the score. 
 If the same source appears in multiple results, reward the most recent result and lower the score for the older results.
+Value diversity across pages and favor different URLs that add distinct information.
+When several results are very similar, duplicative, or come from the same source with overlapping coverage, score the most useful one higher and lower the others.
+Be explicit about domain diversity: in the final effective ranking, no more than 2 results from the same domain should receive strong enough scores to be selected.
+If a domain appears more than twice, keep the 1 or 2 best results from that domain and lower the scores of the remaining results from the same domain unless they add clearly distinct, unusually valuable information.
 
 Use only the title and snippet to judge; do not fetch or assume page content. Be concise. Output one judgment per result in the same order as the input list."""
 

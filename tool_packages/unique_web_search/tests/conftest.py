@@ -120,6 +120,30 @@ def mock_web_search_config_v2():
 
 
 @pytest.fixture
+def mock_web_search_config_v3():
+    """Mock WebSearchConfig for V3 mode testing."""
+    config = Mock()
+    config.language_model = Mock()
+    config.search_engine_config = Mock()
+    config.crawler_config = Mock()
+    config.content_processor_config = Mock()
+    config.chunk_relevancy_sort_config = Mock()
+    config.language_model_max_input_tokens = None
+    config.percentage_of_input_tokens_for_sources = 0.4
+    config.limit_token_sources = 60000
+    config.debug = False
+    config.tool_format_information_for_system_prompt = "Test format info"
+    config.evaluation_check_list = []
+    config.web_search_mode_config.mode = WebSearchMode.V3
+    config.web_search_mode_config.tool_description = "V3 tool description"
+    config.web_search_mode_config.tool_description_for_system_prompt = (
+        "V3 system prompt with {{ max_steps }} and {{ date_string }}"
+    )
+    config.web_search_mode_config.max_steps = 7
+    return config
+
+
+@pytest.fixture
 def mock_event():
     """Mock event object for WebSearchTool initialization."""
     event = Mock()
