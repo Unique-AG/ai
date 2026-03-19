@@ -84,6 +84,19 @@ class TestWebSearchModeEnum:
         assert WebSearchMode.V1 == "v1"
         assert WebSearchMode.V2 == "v2"
 
+    def test_get_enum_names_length_matches_enum(self):
+        """ui:enumNames must have one label per WebSearchMode member."""
+        assert len(WebSearchMode.get_enum_names()) == len(WebSearchMode)
+
+    def test_get_enum_names_order_matches_enum_definition(self):
+        """Labels must align with JSON schema enum order (V1, V2, V3)."""
+        names = WebSearchMode.get_enum_names()
+        members = list(WebSearchMode)
+        assert members == [WebSearchMode.V1, WebSearchMode.V2, WebSearchMode.V3]
+        assert names[0].startswith("V1")
+        assert names[1].startswith("V2")
+        assert names[2].startswith("V3")
+
 
 class TestGetDefaultWebSearchModeConfig:
     """Test cases for get_default_web_search_mode_config function."""

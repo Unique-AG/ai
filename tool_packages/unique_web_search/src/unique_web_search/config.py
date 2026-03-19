@@ -110,10 +110,17 @@ class WebSearchConfig(BaseToolConfig):
         description="Language model maximum input tokens",
     )
 
-    web_search_active_mode: WebSearchMode = Field(
+    web_search_active_mode: Annotated[
+        WebSearchMode,
+        RJSFMetaTag(
+            {
+                "ui:enumNames": WebSearchMode.get_enum_names(),
+            }
+        ),
+    ] = Field(
         default=DEFAULT_WEB_SEARCH_MODE_CONFIG,
         title="Search Mode",
-        description="Choose which search strategy to use. V1: simple keyword searches; V2: AI-planned multi-step research; V3: like V2 but pre-filters results by relevance before fetching pages.",
+        description="Choose which search strategy to use. Each option is described in the selector.",
     )
 
     web_search_mode_config_v1: WebSearchV1Config = Field(

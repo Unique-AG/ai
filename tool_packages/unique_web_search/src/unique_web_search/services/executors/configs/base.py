@@ -14,12 +14,23 @@ class WebSearchMode(StrEnum):
     V2 = "v2"
     V3 = "v3"
 
+    @staticmethod
+    def get_enum_names() -> list[str]:
+        """Human-readable labels for RJSF ui:enumNames.
+
+        Order must match the enum member definition order (V1, V2, V3).
+        """
+        return [
+            "V1 — Simple keyword searches with optional query refinement",
+            "V2 — AI-planned multi-step research (search and read pages in sequence)",
+            "V3 (beta) — Like V2, but pre-filters results by relevance (snippet judge) before fetching full pages",
+        ]
+
     @classmethod
     def _missing_(cls, value):
         if isinstance(value, str):
             aliases = {
                 "v2 (beta)": cls.V2,
-                "v3 (beta)": cls.V3,
             }
             return aliases.get(value)
         return super()._missing_(value)
