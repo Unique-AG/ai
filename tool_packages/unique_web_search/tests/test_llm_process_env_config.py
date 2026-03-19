@@ -5,164 +5,183 @@ from unittest.mock import Mock, patch
 import pytest
 
 from unique_web_search.services.content_processing.processing_strategies.llm_process import (
-    _DEFAULTS,
     LLMProcess,
     LLMProcessorConfig,
-    _get_from_env,
+    PrivacyFilterConfig,
+    PromptConfig,
     _merge_config_with_env,
-    _should_disable_ui_config,
+)
+from unique_web_search.services.content_processing.processing_strategies.settings import (
+    DEFAULT_FLAG_MESSAGE,
+    LLMProcessorEnvConfig,
+    PrivacyFilterEnvConfig,
+    ProcessingStrategiesSettings,
+    PromptEnvConfig,
+    SanitizeMode,
+    processing_strategies_settings,
 )
 
-_MODULE = (
+_PROCESS_MODULE = (
     "unique_web_search.services.content_processing.processing_strategies.llm_process"
 )
 
 
 # ---------------------------------------------------------------------------
-# _should_disable_ui_config tests
+# Structure-matching tests — env config mirrors UI config
 # ---------------------------------------------------------------------------
 
 
-class TestShouldDisableUiConfig:
-    """Tests for the UI-disable flag driven by env config presence."""
+class TestEnvConfigStructureMatchesUIConfig:
+    """Verify that *EnvConfig field names exactly mirror the corresponding
+    UI *Config models.  A mismatch would mean env overrides silently fail to
+    reach the UI model or _merge_config_with_env produces KeyErrors.
+    """
 
     @pytest.mark.ai
-    def test_should_disable_ui_config__returns_false__when_env_config_empty(
+    def test_llm_processor_env_config__fields_match__llm_processor_config(
         self,
     ) -> None:
         """
-        Purpose: Verify UI config is not disabled when no env override is set.
-        Why this matters: Spaces admins must retain control when IT hasn't locked config.
-        Setup summary: Patch _LLM_PROCESS_CONFIG to empty dict; assert False.
+        Purpose: Every field on LLMProcessorEnvConfig must exist on LLMProcessorConfig.
+        Why this matters: _merge_config_with_env walks env_config.model_fields_set and
+        writes into a LLMProcessorConfig dict — missing keys would raise or be ignored.
         """
-        # Arrange
-        with patch(f"{_MODULE}._LLM_PROCESS_CONFIG", {}):
-            # Act
-            result = _should_disable_ui_config()
-
-        # Assert
-        assert result is False
-
-    @pytest.mark.ai
-    def test_should_disable_ui_config__returns_true__when_env_config_has_keys(
-        self,
-    ) -> None:
-        """
-        Purpose: Verify UI config is disabled when env override contains keys.
-        Why this matters: IT admins expect UI fields to be frozen once env is set.
-        Setup summary: Patch _LLM_PROCESS_CONFIG with one key; assert True.
-        """
-        # Arrange
-        with patch(f"{_MODULE}._LLM_PROCESS_CONFIG", {"enabled": True}):
-            # Act
-            result = _should_disable_ui_config()
-
-        # Assert
-        assert result is True
-
-
-# ---------------------------------------------------------------------------
-# _get_from_env tests
-# ---------------------------------------------------------------------------
-
-
-class TestGetFromEnv:
-    """Tests for the env-config key lookup with snake_case/camelCase fallback."""
-
-    @pytest.mark.ai
-    def test_get_from_env__returns_default__when_config_empty(self) -> None:
-        """
-        Purpose: Verify default is returned when _LLM_PROCESS_CONFIG is empty.
-        Why this matters: Ensures no-env-override path works correctly.
-        Setup summary: Patch config to empty dict; call with default; assert default returned.
-        """
-        # Arrange
-        with patch(f"{_MODULE}._LLM_PROCESS_CONFIG", {}):
-            # Act
-            result = _get_from_env("enabled", False)
-
-        # Assert
-        assert result is False
-
-    @pytest.mark.ai
-    def test_get_from_env__returns_value__when_snake_case_key_exists(self) -> None:
-        """
-        Purpose: Verify value is returned for an exact snake_case key match.
-        Why this matters: Python-style keys in env JSON must be respected.
-        Setup summary: Patch config with snake_case key; assert env value returned.
-        """
-        # Arrange
-        with patch(f"{_MODULE}._LLM_PROCESS_CONFIG", {"min_tokens": 999}):
-            # Act
-            result = _get_from_env("min_tokens", 5000)
-
-        # Assert
-        assert result == 999
-
-    @pytest.mark.ai
-    def test_get_from_env__returns_value__when_camel_case_key_exists(self) -> None:
-        """
-        Purpose: Verify value is returned when only camelCase version of key exists.
-        Why this matters: JSON from frontend/config may use camelCase naming.
-        Setup summary: Patch config with camelCase key; assert env value returned.
-        """
-        # Arrange
-        with patch(f"{_MODULE}._LLM_PROCESS_CONFIG", {"minTokens": 1234}):
-            # Act
-            result = _get_from_env("min_tokens", 5000)
-
-        # Assert
-        assert result == 1234
-
-    @pytest.mark.ai
-    def test_get_from_env__prefers_snake_case__over_camel_case(self) -> None:
-        """
-        Purpose: Verify snake_case key takes precedence when both forms exist.
-        Why this matters: Predictable resolution order prevents config surprises.
-        Setup summary: Patch config with both key forms; assert snake_case value used.
-        """
-        # Arrange
-        with patch(
-            f"{_MODULE}._LLM_PROCESS_CONFIG",
-            {"min_tokens": 111, "minTokens": 222},
-        ):
-            # Act
-            result = _get_from_env("min_tokens", 5000)
-
-        # Assert
-        assert result == 111
-
-
-# ---------------------------------------------------------------------------
-# _DEFAULTS completeness test
-# ---------------------------------------------------------------------------
-
-
-class TestDefaultsCompleteness:
-    """Tests verifying _DEFAULTS covers all LLMProcessorConfig fields."""
-
-    @pytest.mark.ai
-    def test_defaults__contains_all_config_fields__from_llm_processor_config(
-        self,
-    ) -> None:
-        """
-        Purpose: Verify every field in LLMProcessorConfig has a corresponding key in _DEFAULTS.
-        Why this matters: Missing defaults would cause KeyError or fall through to Pydantic
-            defaults, bypassing the env-override mechanism entirely.
-        Setup summary: Compare LLMProcessorConfig.model_fields keys against _DEFAULTS keys.
-        """
-        # Arrange
+        env_fields = set(LLMProcessorEnvConfig.model_fields.keys())
         config_fields = set(LLMProcessorConfig.model_fields.keys())
 
-        # Act
-        defaults_keys = set(_DEFAULTS.keys())
-
-        # Assert
-        assert config_fields == defaults_keys, (
-            f"Mismatch between LLMProcessorConfig fields and _DEFAULTS keys.\n"
-            f"  In config but not in _DEFAULTS: {config_fields - defaults_keys}\n"
-            f"  In _DEFAULTS but not in config: {defaults_keys - config_fields}"
+        assert env_fields == config_fields, (
+            f"Field mismatch between LLMProcessorEnvConfig and LLMProcessorConfig.\n"
+            f"  In env but not config: {env_fields - config_fields}\n"
+            f"  In config but not env: {config_fields - env_fields}"
         )
+
+    @pytest.mark.ai
+    def test_privacy_filter_env_config__fields_match__privacy_filter_config(
+        self,
+    ) -> None:
+        """
+        Purpose: Every field on PrivacyFilterEnvConfig must exist on PrivacyFilterConfig.
+        Why this matters: Nested merge iterates sub_model.model_fields_set — any drift
+        means env overrides silently don't apply.
+        """
+        env_fields = set(PrivacyFilterEnvConfig.model_fields.keys())
+        config_fields = set(PrivacyFilterConfig.model_fields.keys())
+
+        assert env_fields == config_fields, (
+            f"Field mismatch between PrivacyFilterEnvConfig and PrivacyFilterConfig.\n"
+            f"  In env but not config: {env_fields - config_fields}\n"
+            f"  In config but not env: {config_fields - env_fields}"
+        )
+
+    @pytest.mark.ai
+    def test_prompt_env_config__fields_match__prompt_config(self) -> None:
+        """
+        Purpose: Every field on PromptEnvConfig must exist on PromptConfig.
+        Why this matters: Same as above — nested merge requires 1:1 mapping.
+        """
+        env_fields = set(PromptEnvConfig.model_fields.keys())
+        config_fields = set(PromptConfig.model_fields.keys())
+
+        assert env_fields == config_fields, (
+            f"Field mismatch between PromptEnvConfig and PromptConfig.\n"
+            f"  In env but not config: {env_fields - config_fields}\n"
+            f"  In config but not env: {config_fields - env_fields}"
+        )
+
+    @pytest.mark.ai
+    def test_env_config__nested_sub_models_exist__on_config(self) -> None:
+        """
+        Purpose: Verify that every sub-model field on the env config has a
+        matching field on the UI config.
+        Why this matters: _merge_config_with_env iterates env sub-models and
+        writes into the config dict — if a field name differs the merge breaks.
+        """
+        env_nested = {
+            name
+            for name, field in LLMProcessorEnvConfig.model_fields.items()
+            if hasattr(field.default_factory, "model_fields")
+            if field.default_factory is not None
+        }
+
+        for name in env_nested:
+            assert name in LLMProcessorConfig.model_fields, (
+                f"Env sub-model field '{name}' not found on LLMProcessorConfig"
+            )
+
+
+# ---------------------------------------------------------------------------
+# LLMProcessorEnvConfig parsing tests
+# ---------------------------------------------------------------------------
+
+
+class TestLLMProcessorEnvConfig:
+    """Tests for the typed env config model."""
+
+    @pytest.mark.ai
+    def test_env_config__defaults__when_no_overrides(self) -> None:
+        """
+        Purpose: Verify defaults are applied when no keys are provided.
+        Why this matters: An empty env JSON must produce sensible defaults.
+        """
+        config = LLMProcessorEnvConfig()
+
+        assert config.enabled is False
+        assert config.min_tokens == 5000
+        assert config.privacy_filter.sanitize is False
+        assert config.privacy_filter.sanitize_mode == SanitizeMode.ALWAYS_SANITIZE
+        assert config.privacy_filter.flag_message == DEFAULT_FLAG_MESSAGE
+        assert config.model_fields_set == set()
+
+    @pytest.mark.ai
+    def test_env_config__tracks_fields_set__from_explicit_keys(self) -> None:
+        """
+        Purpose: Verify model_fields_set only contains explicitly provided keys.
+        Why this matters: _merge_config_with_env relies on this to limit overrides.
+        """
+        config = LLMProcessorEnvConfig.model_validate(
+            {"enabled": True, "minTokens": 100}
+        )
+
+        assert config.enabled is True
+        assert config.min_tokens == 100
+        assert "enabled" in config.model_fields_set
+        assert "min_tokens" in config.model_fields_set
+        assert "privacy_filter" not in config.model_fields_set
+
+    @pytest.mark.ai
+    def test_env_config__nested_privacy_filter__tracks_sub_fields_set(self) -> None:
+        """
+        Purpose: Verify nested model_fields_set works for privacy_filter sub-fields.
+        Why this matters: The merge logic uses sub_model.model_fields_set for granular overrides.
+        """
+        config = LLMProcessorEnvConfig.model_validate(
+            {"privacyFilter": {"sanitize": True}}
+        )
+
+        assert config.privacy_filter.sanitize is True
+        assert "privacy_filter" in config.model_fields_set
+        assert "sanitize" in config.privacy_filter.model_fields_set
+        assert "sanitize_mode" not in config.privacy_filter.model_fields_set
+
+    @pytest.mark.ai
+    def test_env_config__accepts_snake_case_keys(self) -> None:
+        """
+        Purpose: Verify snake_case env JSON keys are accepted.
+        Why this matters: Python-style keys in env JSON must be respected.
+        """
+        config = LLMProcessorEnvConfig.model_validate({"min_tokens": 999})
+
+        assert config.min_tokens == 999
+
+    @pytest.mark.ai
+    def test_env_config__accepts_camel_case_keys(self) -> None:
+        """
+        Purpose: Verify camelCase env JSON keys are accepted through alias.
+        Why this matters: JSON from frontend/config may use camelCase naming.
+        """
+        config = LLMProcessorEnvConfig.model_validate({"minTokens": 1234})
+
+        assert config.min_tokens == 1234
 
 
 # ---------------------------------------------------------------------------
@@ -178,73 +197,129 @@ class TestMergeConfigWithEnv:
         """
         Purpose: Verify config passes through unmodified when no env override exists.
         Why this matters: Spaces without IT lockdown must keep their own settings.
-        Setup summary: Patch _LLM_PROCESS_CONFIG to empty; compare input/output configs.
         """
-        # Arrange
         original = LLMProcessorConfig(enabled=True, min_tokens=3000)
+        env = LLMProcessorEnvConfig()
 
-        with patch(f"{_MODULE}._LLM_PROCESS_CONFIG", {}):
-            # Act
+        with patch(
+            f"{_PROCESS_MODULE}.processing_strategies_settings",
+            ProcessingStrategiesSettings(llm_processor_config=env),
+        ):
             merged = _merge_config_with_env(original)
 
-        # Assert
         assert merged.enabled is True
         assert merged.min_tokens == 3000
 
     @pytest.mark.ai
-    def test_merge__env_overrides_config_values__when_env_has_keys(self) -> None:
+    def test_merge__env_overrides_top_level_values(self) -> None:
         """
-        Purpose: Verify env config overrides space-admin config for matching keys.
+        Purpose: Verify env config overrides space-admin config for top-level keys.
         Why this matters: IT admins must be able to force settings across all spaces.
-        Setup summary: Config has enabled=False; env has camelCase overrides; assert env wins.
         """
-        # Arrange
         original = LLMProcessorConfig(enabled=False, min_tokens=5000)
+        env = LLMProcessorEnvConfig.model_validate({"enabled": True, "minTokens": 100})
 
         with patch(
-            f"{_MODULE}._LLM_PROCESS_CONFIG", {"enabled": True, "minTokens": 100}
+            f"{_PROCESS_MODULE}.processing_strategies_settings",
+            ProcessingStrategiesSettings(llm_processor_config=env),
         ):
-            # Act
             merged = _merge_config_with_env(original)
 
-        # Assert
         assert merged.enabled is True
         assert merged.min_tokens == 100
 
     @pytest.mark.ai
-    def test_merge__env_with_camel_case_keys__overrides_via_alias(self) -> None:
+    def test_merge__env_overrides_nested_privacy_filter_fields(self) -> None:
         """
-        Purpose: Verify camelCase env keys properly override config through Pydantic alias.
-        Why this matters: The config model uses aliases; env JSON may use camelCase.
-        Setup summary: Env has camelCase key for minTokens; assert it overrides config.
+        Purpose: Verify nested env keys correctly override nested privacy_filter fields.
+        Why this matters: This was the original bug — flat 'sanitize' key was lost.
         """
-        # Arrange
-        original = LLMProcessorConfig(min_tokens=5000)
+        original = LLMProcessorConfig(min_tokens=7777)
+        env = LLMProcessorEnvConfig.model_validate(
+            {"privacyFilter": {"sanitize": True}}
+        )
 
-        with patch(f"{_MODULE}._LLM_PROCESS_CONFIG", {"minTokens": 42}):
-            # Act
+        with patch(
+            f"{_PROCESS_MODULE}.processing_strategies_settings",
+            ProcessingStrategiesSettings(llm_processor_config=env),
+        ):
             merged = _merge_config_with_env(original)
 
-        # Assert
-        assert merged.min_tokens == 42
+        assert merged.privacy_filter.sanitize is True
+        assert merged.min_tokens == 7777
 
     @pytest.mark.ai
     def test_merge__partial_env__only_overrides_specified_keys(self) -> None:
         """
         Purpose: Verify only keys present in env are overridden, others keep config values.
-        Why this matters: IT may only want to lock a subset of fields (e.g. sanitize only).
-        Setup summary: Config has custom min_tokens; env only sets sanitize; assert min_tokens unchanged.
+        Why this matters: IT may only want to lock a subset of fields.
         """
-        # Arrange
-        original = LLMProcessorConfig(min_tokens=7777, sanitize=False)
+        original = LLMProcessorConfig(min_tokens=7777)
+        env = LLMProcessorEnvConfig.model_validate(
+            {"privacyFilter": {"sanitize": True, "sanitizeMode": "judge_only"}}
+        )
 
-        with patch(f"{_MODULE}._LLM_PROCESS_CONFIG", {"sanitize": True}):
-            # Act
+        with patch(
+            f"{_PROCESS_MODULE}.processing_strategies_settings",
+            ProcessingStrategiesSettings(llm_processor_config=env),
+        ):
             merged = _merge_config_with_env(original)
 
-        # Assert
-        assert merged.sanitize is True
+        assert merged.privacy_filter.sanitize is True
+        assert merged.privacy_filter.sanitize_mode == SanitizeMode.JUDGE_ONLY
         assert merged.min_tokens == 7777
+        assert merged.privacy_filter.flag_message == DEFAULT_FLAG_MESSAGE
+
+    @pytest.mark.ai
+    def test_merge__single_nested_field__does_not_clobber_sibling_fields(self) -> None:
+        """
+        Purpose: Verify that setting ONE field inside privacy_filter does not
+        reset its sibling fields to defaults (exclude_unset=True is recursive).
+        Why this matters: The IT admin writes {"privacyFilter": {"sanitize": true}}
+        and expects flag_message / sanitize_rules / sanitize_mode to stay as the
+        space-admin configured them.
+        """
+        custom_flag = "CUSTOM FLAG FROM SPACE ADMIN"
+        original = LLMProcessorConfig(
+            privacy_filter=PrivacyFilterConfig(
+                sanitize=False,
+                flag_message=custom_flag,
+                sanitize_mode=SanitizeMode.JUDGE_AND_SANITIZE,
+            ),
+        )
+        env = LLMProcessorEnvConfig.model_validate(
+            {"privacyFilter": {"sanitize": True}}
+        )
+
+        with patch(
+            f"{_PROCESS_MODULE}.processing_strategies_settings",
+            ProcessingStrategiesSettings(llm_processor_config=env),
+        ):
+            merged = _merge_config_with_env(original)
+
+        assert merged.privacy_filter.sanitize is True
+        assert merged.privacy_filter.flag_message == custom_flag
+        assert merged.privacy_filter.sanitize_mode == SanitizeMode.JUDGE_AND_SANITIZE
+
+    @pytest.mark.ai
+    def test_merge__env_prompt_override__only_overrides_specified_prompt(self) -> None:
+        """
+        Purpose: Verify a single prompt field override doesn't clobber other prompts.
+        """
+        original = LLMProcessorConfig()
+        original_user_prompt = original.prompts.user_prompt
+        env = LLMProcessorEnvConfig.model_validate(
+            {"prompts": {"systemPrompt": "custom system"}}
+        )
+
+        with patch(
+            f"{_PROCESS_MODULE}.processing_strategies_settings",
+            ProcessingStrategiesSettings(llm_processor_config=env),
+        ):
+            merged = _merge_config_with_env(original)
+
+        assert merged.prompts.system_prompt == "custom system"
+        assert merged.prompts.user_prompt == original_user_prompt
 
 
 # ---------------------------------------------------------------------------
@@ -253,85 +328,61 @@ class TestMergeConfigWithEnv:
 
 
 class TestLLMProcessorConfigDefaults:
-    """Tests for LLMProcessorConfig default values sourced from _DEFAULTS."""
+    """Tests for LLMProcessorConfig default values sourced from env settings."""
 
     @pytest.mark.ai
-    def test_config__default_enabled__matches_defaults_dict(self) -> None:
-        """
-        Purpose: Verify LLMProcessorConfig default enabled value comes from _DEFAULTS.
-        Why this matters: Ensures env-override mechanism is wired into the field defaults.
-        Setup summary: Create default config; compare enabled to _DEFAULTS["enabled"].
-        """
-        # Act
+    def test_config__default_enabled__matches_env_config(self) -> None:
         config = LLMProcessorConfig()
 
-        # Assert
-        assert config.enabled == _DEFAULTS["enabled"]
+        assert (
+            config.enabled
+            == processing_strategies_settings.llm_processor_config.enabled
+        )
 
     @pytest.mark.ai
-    def test_config__default_min_tokens__matches_defaults_dict(self) -> None:
-        """
-        Purpose: Verify LLMProcessorConfig default min_tokens comes from _DEFAULTS.
-        Why this matters: Ensures env-override mechanism is wired into the field defaults.
-        Setup summary: Create default config; compare min_tokens to _DEFAULTS["min_tokens"].
-        """
-        # Act
+    def test_config__default_min_tokens__matches_env_config(self) -> None:
         config = LLMProcessorConfig()
 
-        # Assert
-        assert config.min_tokens == _DEFAULTS["min_tokens"]
+        assert (
+            config.min_tokens
+            == processing_strategies_settings.llm_processor_config.min_tokens
+        )
 
     @pytest.mark.ai
-    def test_config__default_sanitize__matches_defaults_dict(self) -> None:
-        """
-        Purpose: Verify LLMProcessorConfig default sanitize comes from _DEFAULTS.
-        Why this matters: Ensures env-override mechanism is wired into the field defaults.
-        Setup summary: Create default config; compare sanitize to _DEFAULTS["sanitize"].
-        """
-        # Act
+    def test_config__default_sanitize__matches_env_config(self) -> None:
         config = LLMProcessorConfig()
 
-        # Assert
-        assert config.sanitize == _DEFAULTS["sanitize"]
+        assert (
+            config.privacy_filter.sanitize
+            == processing_strategies_settings.llm_processor_config.privacy_filter.sanitize
+        )
 
     @pytest.mark.ai
-    def test_config__default_sanitize_rules__matches_defaults_dict(self) -> None:
-        """
-        Purpose: Verify LLMProcessorConfig default sanitize_rules comes from _DEFAULTS.
-        Why this matters: Ensures env-override mechanism is wired into the field defaults.
-        Setup summary: Create default config; compare sanitize_rules to _DEFAULTS["sanitize_rules"].
-        """
-        # Act
+    def test_config__default_sanitize_rules__matches_env_config(self) -> None:
         config = LLMProcessorConfig()
 
-        # Assert
-        assert config.sanitize_rules == _DEFAULTS["sanitize_rules"]
+        assert (
+            config.privacy_filter.sanitize_rules
+            == processing_strategies_settings.llm_processor_config.privacy_filter.sanitize_rules
+        )
 
     @pytest.mark.ai
-    def test_config__default_system_prompt__matches_defaults_dict(self) -> None:
-        """
-        Purpose: Verify LLMProcessorConfig default system_prompt comes from _DEFAULTS.
-        Why this matters: Ensures env-override mechanism is wired into the field defaults.
-        Setup summary: Create default config; compare system_prompt to _DEFAULTS["system_prompt"].
-        """
-        # Act
+    def test_config__default_system_prompt__matches_env_config(self) -> None:
         config = LLMProcessorConfig()
 
-        # Assert
-        assert config.system_prompt == _DEFAULTS["system_prompt"]
+        assert (
+            config.prompts.system_prompt
+            == processing_strategies_settings.llm_processor_config.prompts.system_prompt
+        )
 
     @pytest.mark.ai
-    def test_config__default_user_prompt__matches_defaults_dict(self) -> None:
-        """
-        Purpose: Verify LLMProcessorConfig default user_prompt comes from _DEFAULTS.
-        Why this matters: Ensures env-override mechanism is wired into the field defaults.
-        Setup summary: Create default config; compare user_prompt to _DEFAULTS["user_prompt"].
-        """
-        # Act
+    def test_config__default_user_prompt__matches_env_config(self) -> None:
         config = LLMProcessorConfig()
 
-        # Assert
-        assert config.user_prompt == _DEFAULTS["user_prompt"]
+        assert (
+            config.prompts.user_prompt
+            == processing_strategies_settings.llm_processor_config.prompts.user_prompt
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -347,18 +398,15 @@ class TestLLMProcessInitEnvMerge:
         """
         Purpose: Verify LLMProcess.__init__ calls _merge_config_with_env on the config.
         Why this matters: Without this call, env overrides would not take effect at runtime.
-        Setup summary: Patch _merge_config_with_env; instantiate LLMProcess; assert it was called.
         """
-        # Arrange
         config = LLMProcessorConfig(enabled=False)
         mock_llm_service = Mock()
         mock_encoder = Mock()
         mock_decoder = Mock()
 
         with patch(
-            f"{_MODULE}._merge_config_with_env", wraps=_merge_config_with_env
+            f"{_PROCESS_MODULE}._merge_config_with_env", wraps=_merge_config_with_env
         ) as mock_merge:
-            # Act
             LLMProcess(
                 config=config,
                 llm_service=mock_llm_service,
@@ -366,26 +414,24 @@ class TestLLMProcessInitEnvMerge:
                 decoder=mock_decoder,
             )
 
-        # Assert
         mock_merge.assert_called_once_with(config)
 
     @pytest.mark.ai
-    def test_init__env_override_reflected_in_is_enabled__when_env_sets_enabled(
-        self,
-    ) -> None:
+    def test_init__env_override_reflected_in_is_enabled(self) -> None:
         """
         Purpose: Verify env override of 'enabled' is reflected in LLMProcess.is_enabled.
         Why this matters: The runtime behavior must respect the env-forced config.
-        Setup summary: Config has enabled=False; env has enabled=True; assert is_enabled is True.
         """
-        # Arrange
         config = LLMProcessorConfig(enabled=False)
         mock_llm_service = Mock()
         mock_encoder = Mock()
         mock_decoder = Mock()
+        env = LLMProcessorEnvConfig.model_validate({"enabled": True})
 
-        with patch(f"{_MODULE}._LLM_PROCESS_CONFIG", {"enabled": True}):
-            # Act
+        with patch(
+            f"{_PROCESS_MODULE}.processing_strategies_settings",
+            ProcessingStrategiesSettings(llm_processor_config=env),
+        ):
             processor = LLMProcess(
                 config=config,
                 llm_service=mock_llm_service,
@@ -393,7 +439,6 @@ class TestLLMProcessInitEnvMerge:
                 decoder=mock_decoder,
             )
 
-        # Assert
         assert processor.is_enabled is True
 
 

@@ -33,6 +33,8 @@ class ContentProcessorConfig(BaseModel):
     @property
     def active_processing_strategies(self) -> list[str]:
         active_cleaning_strategies = []
+        if self.cleaning.enable_character_sanitize:
+            active_cleaning_strategies.append("character_sanitize")
         if self.cleaning.line_removal.enabled:
             active_cleaning_strategies.append("line_removal")
         if self.cleaning.enable_markdown_cleaning:

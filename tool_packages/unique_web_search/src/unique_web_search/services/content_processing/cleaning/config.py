@@ -45,6 +45,12 @@ LINK_AND_URL_CLEANUP_PATTERNS = [
 class CleaningConfig(BaseModel):
     model_config = get_configuration_dict()
 
+    enable_character_sanitize: bool = Field(
+        default=True,
+        title="Enable Character Sanitization",
+        description="When enabled, strips null bytes, control characters, and other non-text binary content from web page content.",
+    )
+
     line_removal: LineRemovalPatternsConfig = Field(
         default_factory=LineRemovalPatternsConfig,
         title="Line Removal",
