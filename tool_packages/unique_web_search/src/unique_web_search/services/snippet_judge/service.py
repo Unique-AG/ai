@@ -8,7 +8,10 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.builder import MessagesBuilder
 
-from unique_web_search.services.search_engine.schema import WebSearchResult
+from unique_web_search.services.search_engine.schema import (
+    WebSearchResult,
+    extract_registered_domain,
+)
 from unique_web_search.services.snippet_judge.prompts import (
     SNIPPET_JUDGE_SYSTEM_PROMPT,
     SNIPPET_JUDGE_USER_PROMPT_TEMPLATE,
@@ -30,6 +33,11 @@ class SnippetJudgeConfig(BaseModel):
     max_urls_to_select: int = Field(
         default=5,
         description="Maximum number of URLs to select after ranking (top-k by score).",
+    )
+    max_results_per_domain: int = Field(
+        default=2,
+        ge=1,
+        description="Hard cap for how many selected results may come from the same registrable domain.",
     )
     system_prompt: str = Field(
         default=SNIPPET_JUDGE_SYSTEM_PROMPT,
@@ -110,13 +118,17 @@ async def score_and_explain(
 
 def rank_and_select(
     judgments: list[SnippetJudgment],
+    results: list[WebSearchResult],
     max_urls_to_select: int,
+    max_results_per_domain: int,
 ) -> list[int]:
     """Stage 2: Sort by relevance_score descending, return top-k indices.
 
     Tie-breaking: preserve original order (first occurrence wins).
+    Applies a deterministic hard cap on how many selected results can come from
+    the same registrable domain.
     """
-    if not judgments:
+    if not judgments or not results:
         return []
 
     # Sort by score descending, then by index ascending for ties
@@ -126,13 +138,20 @@ def rank_and_select(
     )
     selected_indices = []
     seen: set[int] = set()
+    domain_counts: dict[str, int] = {}
     for j in sorted_judgments:
         if len(selected_indices) >= max_urls_to_select:
             break
         if j.index in seen:
             continue
+        if j.index < 0 or j.index >= len(results):
+            continue
+        domain = extract_registered_domain(results[j.index].url)
+        if domain_counts.get(domain, 0) >= max_results_per_domain:
+            continue
         seen.add(j.index)
         selected_indices.append(j.index)
+        domain_counts[domain] = domain_counts.get(domain, 0) + 1
     return selected_indices
 
 
@@ -171,7 +190,12 @@ async def select_relevant(
         )
         return results[: cfg.max_urls_to_select]
 
-    ordered_indices = rank_and_select(judgments, cfg.max_urls_to_select)
+    ordered_indices = rank_and_select(
+        judgments=judgments,
+        results=results,
+        max_urls_to_select=cfg.max_urls_to_select,
+        max_results_per_domain=cfg.max_results_per_domain,
+    )
     _LOGGER.info(f"Snippet judge ordered indices: {ordered_indices}")
 
     if not ordered_indices:

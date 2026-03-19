@@ -1,6 +1,8 @@
 import logging
+from datetime import datetime
 from time import time
 
+import jinja2
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -18,6 +20,9 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_web_search.config import WebSearchConfig
+from unique_web_search.prompts import (
+    DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3_ADDENDUM,
+)
 from unique_web_search.schema import (
     WebSearchDebugInfo,
     WebSearchPlan,
@@ -120,17 +125,29 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
     def tool_description_for_system_prompt(self) -> str:
-        if self.config.web_search_mode_config.mode in (
-            WebSearchMode.V2,
-            WebSearchMode.V3,
-        ):
+        if self.config.web_search_mode_config.mode == WebSearchMode.V3:
+            return jinja2.Template(
+                self.config.web_search_mode_config.tool_description_for_system_prompt
+            ).render(
+                max_steps=self.config.web_search_mode_config.max_steps,
+                date_string=datetime.now().strftime("%A %B %d, %Y"),
+            )
+        if self.config.web_search_mode_config.mode == WebSearchMode.V2:
             return self.config.web_search_mode_config.tool_description_for_system_prompt.replace(
-                "$max_steps", str(self.config.web_search_mode_config.max_steps)
+                "$max_steps",
+                str(self.config.web_search_mode_config.max_steps),
             )
         return self.config.web_search_mode_config.tool_description_for_system_prompt
 
     def tool_format_information_for_system_prompt(self) -> str:
-        return self.config.tool_format_information_for_system_prompt
+        prompt = self.config.tool_format_information_for_system_prompt
+        if self.config.web_search_mode_config.mode == WebSearchMode.V3:
+            return (
+                prompt.rstrip()
+                + "\n"
+                + DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3_ADDENDUM
+            )
+        return prompt
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return self.config.evaluation_check_list
