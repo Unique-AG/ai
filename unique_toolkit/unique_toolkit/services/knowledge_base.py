@@ -717,10 +717,14 @@ class KnowledgeBaseService:
         )
 
     async def _translate_scope_id_to_folder_name_async(
-        self, scope_id: str
+        self, scope_id: str, semaphore: asyncio.Semaphore | None = None
     ) -> str | None:
         try:
-            folder_info = await self.get_folder_info_async(scope_id=scope_id)
+            if semaphore is not None:
+                async with semaphore:
+                    folder_info = await self.get_folder_info_async(scope_id=scope_id)
+            else:
+                folder_info = await self.get_folder_info_async(scope_id=scope_id)
             return folder_info.name
         except Exception as e:
             _LOGGER.warning(
@@ -729,13 +733,15 @@ class KnowledgeBaseService:
             return None
 
     async def _translate_scope_ids_to_folder_name_async(
-        self, scope_ids: set[str]
+        self, scope_ids: set[str], max_concurrent_requests: int = 25
     ) -> dict[str, str]:
         scope_id_list = list(scope_ids)
 
+        semaphore = asyncio.Semaphore(max_concurrent_requests)
+
         results = await asyncio.gather(
             *[
-                self._translate_scope_id_to_folder_name_async(sid)
+                self._translate_scope_id_to_folder_name_async(sid, semaphore)
                 for sid in scope_id_list
             ]
         )
