@@ -182,11 +182,11 @@ class ChatMessage(BaseModel):
     def text(self, value: str | None) -> None:
         self.content = value
 
-    # Ensure tool_call_ids is required if role is 'tool'
+    # Ensure tool_call_id is required if role is 'tool'
     @model_validator(mode="after")
     def check_tool_call_ids_for_tool_role(self):
         if self.role == ChatMessageRole.TOOL and not self.tool_call_id:
-            raise ValueError("tool_call_ids is required when role is 'tool'")
+            raise ValueError("tool_call_id is required when role is 'tool'")
         return self
 
     def to_openai_param(self) -> ChatCompletionMessageParam:
