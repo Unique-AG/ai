@@ -606,10 +606,10 @@ class TestWebSearchConfig:
         )
         assert config.web_search_active_mode == WebSearchMode.V2
 
-    def test_web_search_config_active_mode_validator_defaults_to_v1(
+    def test_web_search_config_active_mode_validator_v1_v3_and_fallback(
         self, mock_language_model_info
     ):
-        """Test WebSearchConfig active mode validator defaults to v1 for non-v2 values."""
+        """v1 and v3 literals map to their modes; strings without v2/v3 substrings fall back to v1."""
         config_v1 = WebSearchConfig(
             language_model=mock_language_model_info,
             web_search_active_mode="v1",
@@ -620,7 +620,7 @@ class TestWebSearchConfig:
             language_model=mock_language_model_info,
             web_search_active_mode="v3",
         )
-        assert config_v3.web_search_active_mode == WebSearchMode.V1
+        assert config_v3.web_search_active_mode == WebSearchMode.V3
 
         config_invalid = WebSearchConfig(
             language_model=mock_language_model_info,
