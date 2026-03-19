@@ -1,7 +1,10 @@
 """Langchain framework utilities."""
 
 try:
-    from .client import LangchainNotInstalledError, get_langchain_client
+    from .client import (  # pyright: ignore[reportUnusedImport]
+        LangchainNotInstalledError,
+        get_langchain_client,
+    )
 
     __all__ = ["get_langchain_client", "LangchainNotInstalledError"]
 except (ImportError, Exception):

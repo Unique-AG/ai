@@ -83,7 +83,7 @@ async def check_hallucination(
                 user_message=error_message,
             )
         result = parse_eval_metric_result(
-            result_content,  # type: ignore
+            result_content,  # pyright: ignore[reportArgumentType]
             EvaluationMetricName.HALLUCINATION,
         )
 
@@ -198,10 +198,10 @@ def context_text_from_stream_response(
     # Define selection strategies
     strategies = {
         SourceSelectionMode.FROM_IDS: lambda: _default_source_selection_mode(
-            response_references, selected_chunks
+            response_references or [], selected_chunks
         ),
         SourceSelectionMode.FROM_ORDER: lambda: _from_order_source_selection_mode(
-            response_references, selected_chunks
+            response_references or [], selected_chunks
         ),
         SourceSelectionMode.FROM_ORIGINAL_RESPONSE: lambda: (
             _from_original_response_source_selection_mode(
@@ -220,7 +220,7 @@ def context_text_from_stream_response(
         _LOGGER.exception(f"Error selecting context text: {e}")
         _LOGGER.info("Falling back to default source selection mode.")
         referenced_chunks = _default_source_selection_mode(
-            response_references, selected_chunks
+            response_references or [], selected_chunks
         )
 
     return [chunk.text for chunk in referenced_chunks]

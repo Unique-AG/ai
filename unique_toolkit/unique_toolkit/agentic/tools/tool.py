@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from logging import getLogger
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 
 from typing_extensions import deprecated
 
@@ -78,7 +78,7 @@ class Tool(ABC, Generic[ConfigType]):
         if not isinstance(parameters, dict):
             return parameters.model_json_schema()
         else:
-            return cast(dict[str, Any], parameters)
+            return parameters
 
     # TODO: This method should be a property
     def tool_description_for_system_prompt(self) -> str:

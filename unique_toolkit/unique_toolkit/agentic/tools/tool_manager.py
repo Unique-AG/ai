@@ -371,14 +371,7 @@ class _ToolManager(Generic[_ApiMode]):
                 name=tool_call.name,
                 error_message=str(result.exception),
             )
-        unpacked = result.unpack()
-        if not isinstance(unpacked, ToolCallResponse):
-            return ToolCallResponse(
-                id=tool_call.id or "unknown_id",
-                name=tool_call.name,
-                error_message="Tool call response is not of type ToolCallResponse",
-            )
-        return unpacked
+        return result.unpack()
 
     def filter_duplicate_tool_calls(
         self,
@@ -465,11 +458,11 @@ class _ToolManager(Generic[_ApiMode]):
         list[ChatCompletionNamedToolChoiceParam]
         | list[response_create_params.ToolChoice]
     ):
-        return [
+        return [  # pyright: ignore[reportReturnType]
             _convert_to_forced_tool(t.name, mode=self._api_mode)
             for t in self._tools
             if t.name in self._tool_choices
-        ]  # type: ignore
+        ]
 
     @overload
     def get_tool_definitions(
@@ -501,7 +494,7 @@ def _convert_to_forced_tool(
     else:
         if tool_name in OpenAIBuiltInToolName:
             # Built-in have a special syntax for forcing
-            return {"type": tool_name}  # type: ignore
+            return {"type": tool_name}  # pyright: ignore[reportReturnType]
         else:
             return {
                 "name": tool_name,

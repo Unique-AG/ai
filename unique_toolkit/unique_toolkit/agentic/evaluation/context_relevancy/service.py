@@ -124,7 +124,7 @@ class ContextRelevancyEvaluator:
         input.validate_required_fields(relevancy_required_input_fields)
 
         # TODO: Was already there in monorepo
-        if len(input.context_texts) == 0:  # type: ignore
+        if not input.context_texts or len(input.context_texts) == 0:
             error_message = "No context texts provided."
             raise EvaluatorException(
                 user_message=error_message,

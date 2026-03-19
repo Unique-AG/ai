@@ -214,7 +214,7 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
             return {"container": {"type": "auto"}, "type": "code_interpreter"}
 
         return {
-            "container": self._container_id,  # type: ignore
+            "container": self._container_id,  # pyright: ignore[reportReturnType]
             "type": "code_interpreter",
         }
 

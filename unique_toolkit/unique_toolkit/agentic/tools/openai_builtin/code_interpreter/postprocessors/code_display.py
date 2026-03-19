@@ -74,7 +74,7 @@ class ShowExecutedCodePostprocessor(ResponsesApiPostprocessor):
         for output in loop_response.code_interpreter_calls:
             prepended_text += _TEMPLATE.format(code=output.code)
 
-        loop_response.message.text = prepended_text + loop_response.message.text
+        loop_response.message.text = prepended_text + (loop_response.message.text or "")
 
         return prepended_text != ""
 

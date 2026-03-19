@@ -135,8 +135,6 @@ class LanguageModelFunction(BaseModel):
         arguments = ""
         if isinstance(self.arguments, dict):
             arguments = json.dumps(self.arguments)
-        elif isinstance(self.arguments, str):
-            arguments = self.arguments
 
         if mode == "completions":
             return ChatCompletionMessageFunctionToolCallParam(
@@ -145,9 +143,6 @@ class LanguageModelFunction(BaseModel):
                 function=Function(name=self.name, arguments=arguments),
             )
         elif mode == "responses":
-            if self.id is None:
-                raise ValueError("Missing tool call id")
-
             return ResponseFunctionToolCallParam(
                 type="function_call",
                 call_id=self.id,

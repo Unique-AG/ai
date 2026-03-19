@@ -137,7 +137,7 @@ class ContentReference(BaseModel):
     def from_sdk_reference(
         cls, reference: unique_sdk.Message.Reference | unique_sdk.Space.Reference
     ) -> "ContentReference":
-        kwargs = {
+        kwargs: dict[str, Any] = {
             "name": reference["name"],
             "url": reference["url"],
             "sequence_number": reference["sequenceNumber"],

@@ -43,7 +43,7 @@ class HallucinationConfig(EvaluationMetricConfig):
     language_model: LMI = LanguageModelInfo.from_name(
         DEFAULT_GPT_4o,
     )
-    prompts_config: HallucinationPromptsConfig = Field(  # type: ignore[assignment]
+    prompts_config: HallucinationPromptsConfig = Field(  # pyright: ignore[reportIncompatibleVariableOverride]
         default_factory=HallucinationPromptsConfig,
         description="The prompts config for the hallucination metric",
     )

@@ -187,10 +187,10 @@ class SubAgentEvaluationService(Evaluation):
             display_name = self._evaluation_specs[assistant_id].display_name
 
             for response in sub_agent_responses:
-                assessments = sort_assessments(response.message["assessment"])  #  type:ignore
-                value = get_worst_label(value, assessments[0]["label"])  # type: ignore
+                assessments = sort_assessments(response.message["assessment"] or [])
+                value = get_worst_label(value, assessments[0]["label"] or "")
 
-                data = {
+                data: dict[str, Any] = {
                     "name": display_name,
                     "assessments": assessments,
                 }
@@ -227,7 +227,7 @@ class SubAgentEvaluationService(Evaluation):
                 status=ChatMessageAssessmentStatus.DONE,
                 explanation=single_assessment_data.explanation,
                 title=single_assessment_data.name,
-                label=evaluation_result.value,  # type: ignore
+                label=evaluation_result.value,  # pyright: ignore[reportArgumentType]
                 type=self.get_assessment_type(),
             )
 
@@ -235,7 +235,7 @@ class SubAgentEvaluationService(Evaluation):
             status=ChatMessageAssessmentStatus.DONE,
             explanation=evaluation_result.reason,
             title=self.DISPLAY_NAME,
-            label=evaluation_result.value,  # type: ignore
+            label=evaluation_result.value,  # pyright: ignore[reportArgumentType]
             type=self.get_assessment_type(),
         )
 

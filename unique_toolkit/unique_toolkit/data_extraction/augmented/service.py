@@ -27,7 +27,7 @@ def _build_augmented_model_for_field(
     return create_model(  # pyright: ignore[reportCallIssue]
         f"{camelized_field_name}Value",
         __config__=ConfigDict(extra="forbid" if strict else "ignore"),
-        **fields,
+        **fields,  # pyright: ignore[reportArgumentType]
     )
 
 
@@ -62,7 +62,7 @@ class AugmentedDataExtractor(BaseDataExtractor):
             )
             fields[field_name] = wrapped_field
 
-        return create_model(  # pyright: ignore[reportCallIssue]
+        return create_model(
             schema.__name__,
             **fields,
             __config__=ConfigDict(extra="forbid" if self._strict else "ignore"),

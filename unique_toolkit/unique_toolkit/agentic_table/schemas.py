@@ -258,8 +258,8 @@ MagicTablePayloadTypes = Annotated[PayloadTypes, Field(discriminator="action")]
 
 
 class MagicTableEvent(ChatEvent):
-    event: MagicTableEventTypes  # type: ignore[assignment]
-    payload: MagicTablePayloadTypes  # type: ignore[assignment]
+    event: MagicTableEventTypes  # pyright: ignore[reportIncompatibleVariableOverride]
+    payload: MagicTablePayloadTypes  # pyright: ignore[reportIncompatibleVariableOverride]
 
 
 class LogDetail(BaseModel):

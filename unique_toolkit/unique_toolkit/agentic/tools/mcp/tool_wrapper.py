@@ -271,17 +271,8 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 )
 
         # Handle dictionary arguments (already parsed)
-        if isinstance(raw_arguments, dict):
-            self.logger.debug(f"MCP tool {self.name}: arguments already in dict format")
-            return raw_arguments
-
-        # Handle unexpected argument types
-        self.logger.error(
-            f"MCP tool {self.name}: unexpected arguments type {type(raw_arguments)}: {raw_arguments}"
-        )
-        raise ValueError(
-            f"Unexpected arguments type for MCP tool {self.name}: {type(raw_arguments)}"
-        )
+        self.logger.debug(f"MCP tool {self.name}: arguments already in dict format")
+        return raw_arguments
 
     def _process_mcp_result(self, result: Dict[str, Any]) -> tuple[str, list[str]]:
         """Parse MCP result content array, upload images, return content string and data URLs."""

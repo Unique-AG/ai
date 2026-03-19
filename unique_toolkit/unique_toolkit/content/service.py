@@ -311,7 +311,7 @@ class ContentService:
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        chat_id: str = "",
+        chat_id: str | None = None,
         reranker_config: ContentRerankerConfig | None = None,
         scope_ids: list[str] | None = None,
         chat_only: bool | None = None,
@@ -345,7 +345,7 @@ class ContentService:
         if metadata_filter is None:
             metadata_filter = self._metadata_filter
 
-        chat_id = chat_id or self._chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id
 
         if chat_only and not chat_id:
             raise ValueError("Please provide chat_id when limiting with chat_only")
@@ -378,7 +378,7 @@ class ContentService:
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        chat_id: str = "",
+        chat_id: str | None = None,
         reranker_config: ContentRerankerConfig | None = None,
         scope_ids: list[str] | None = None,
         chat_only: bool | None = None,
@@ -411,7 +411,7 @@ class ContentService:
         if metadata_filter is None:
             metadata_filter = self._metadata_filter
 
-        chat_id = chat_id or self._chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id
 
         if chat_only and not chat_id:
             raise ValueError("Please provide chat_id when limiting with chat_only.")
@@ -440,7 +440,7 @@ class ContentService:
     def search_contents(
         self,
         where: dict[str, Any],
-        chat_id: str = "",
+        chat_id: str | None = None,
     ) -> list[Content]:
         """
         Performs a search in the knowledge base by filter (and not a smilarity search)
@@ -452,7 +452,7 @@ class ContentService:
         Returns:
             list[Content]: The search results.
         """
-        chat_id = chat_id or self._chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id
 
         return search_contents(
             user_id=self._user_id,
@@ -464,7 +464,7 @@ class ContentService:
     async def search_contents_async(
         self,
         where: dict[str, Any],
-        chat_id: str = "",
+        chat_id: str | None = None,
     ) -> list[Content]:
         """
         Performs an asynchronous search for content files in the knowledge base by filter.
@@ -475,7 +475,7 @@ class ContentService:
         Returns:
             list[Content]: The search results.
         """
-        chat_id = chat_id or self._chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id
 
         return await search_contents_async(
             user_id=self._user_id,

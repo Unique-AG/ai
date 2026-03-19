@@ -21,7 +21,7 @@ def sort_assessments(
 ) -> list[unique_sdk.Space.Assessment]:
     return sorted(
         assessments,
-        key=lambda x: _ASSESSMENT_LABEL_COMPARISON_DICT[x["label"]],  # type: ignore (should be checked before sorting)
+        key=lambda x: _ASSESSMENT_LABEL_COMPARISON_DICT[x["label"]],  # pyright: ignore[reportArgumentType]
     )
 
 

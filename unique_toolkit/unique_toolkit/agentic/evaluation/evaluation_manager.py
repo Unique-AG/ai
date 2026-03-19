@@ -185,18 +185,7 @@ class EvaluationManager:
                 reason=str(result.exception),
                 error=Exception("Evaluation result is not successful"),
             )
-        unpacked = result.unpack()
-        if not isinstance(unpacked, EvaluationMetricResult):
-            return EvaluationMetricResult(
-                name=evaluation_name,
-                is_positive=True,
-                value="RED",
-                reason="Evaluation result is not of type EvaluationMetricResult",
-                error=Exception(
-                    "Evaluation result is not of type EvaluationMetricResult"
-                ),
-            )
-        return unpacked
+        return result.unpack()
 
     async def _show_message_assessment(
         self,

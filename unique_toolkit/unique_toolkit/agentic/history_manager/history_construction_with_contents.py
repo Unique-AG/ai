@@ -77,7 +77,7 @@ class ChatHistoryWithContent(RootModel[list[ChatMessageWithContents]]):
 
         return cls(root=grouped_elements)
 
-    def __iter__(self) -> Iterator[ChatMessageWithContents]:
+    def __iter__(self) -> Iterator[ChatMessageWithContents]:  # pyright: ignore[reportIncompatibleMethodOverride]
         return iter(self.root)
 
     def __getitem__(self, item):

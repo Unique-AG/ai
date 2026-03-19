@@ -233,7 +233,7 @@ class LoopTokenReducer:
             m = history[-1]
             if isinstance(m.content, list):
                 for t in reversed(m.content):
-                    if isinstance(t, dict) and t.get("type") == "text":
+                    if t.get("type") == "text":
                         inner_field = t.get("text", "")
                         if isinstance(inner_field, str):
                             added_to_message_by_history = inner_field.replace(
@@ -260,7 +260,7 @@ class LoopTokenReducer:
                 if isinstance(m.content, list):
                     content = [dict(part) for part in m.content]
                     for t in reversed(content):
-                        if isinstance(t, dict) and t.get("type") == "text":
+                        if t.get("type") == "text":
                             t["text"] = text_content
                             break
                 else:
@@ -286,7 +286,7 @@ class LoopTokenReducer:
                 m = history[-1]
                 if isinstance(m.content, list):
                     for t in reversed(m.content):
-                        if isinstance(t, dict) and t.get("type") == "text":
+                        if t.get("type") == "text":
                             t["text"] = text_content
                             break
                 else:
@@ -475,7 +475,7 @@ class LoopTokenReducer:
         for message in history:
             if self._should_reduce_message(message):
                 result = self._reduce_sources_in_tool_message(
-                    message,  # type: ignore
+                    message,  # pyright: ignore[reportArgumentType]
                     chunk_offset,
                     source_offset,
                     overshoot_factor,

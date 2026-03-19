@@ -59,7 +59,7 @@ class ThinkingManager:
             == self._tool_progress_reporter._progress_start_text
         ):
             self._tool_progress_reporter.tool_statuses = {}
-            self._tool_progress_reporter._progress_start_text = (
+            self._tool_progress_reporter._progress_start_text = (  # pyright: ignore[reportAttributeAccessIssue]
                 loop_response.message.text
             )
 

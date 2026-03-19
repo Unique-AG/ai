@@ -69,7 +69,7 @@ def sort_content_chunks(content_chunks: list[ContentChunk]):
     sorted_chunks: list[ContentChunk] = []
     for chunks in doc_id_to_chunks.values():
         chunks.sort(key=lambda x: x.order)
-        for i, s in enumerate(chunks):
+        for _i, s in enumerate(chunks):
             s.text = re.sub(
                 r"<\|/content\|>", f" text part {s.order}<|/content|>", s.text
             )

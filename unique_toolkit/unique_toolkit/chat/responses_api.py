@@ -71,10 +71,9 @@ def _convert_tools_to_openai(
 def _convert_message_to_openai(
     message: LanguageModelMessageOptions,
 ) -> ResponseInputParam:
-    res = []
     match message:
         case LanguageModelAssistantMessage():
-            return message.to_openai(mode="responses")  # type: ignore
+            return message.to_openai(mode="responses")  # pyright: ignore[reportReturnType]
         case (
             LanguageModelUserMessage()
             | LanguageModelSystemMessage()
@@ -83,7 +82,6 @@ def _convert_message_to_openai(
             return [message.to_openai(mode="responses")]
         case _:
             return _convert_message_to_openai(_convert_to_specific_message(message))
-    return res
 
 
 def _convert_to_specific_message(
@@ -329,12 +327,12 @@ def _prepare_responses_args(
         "top_p": top_p,
     }
 
-    openai_options.update({k: v for k, v in explicit_options.items() if v is not None})  # pyright: ignore[reportArgumentType]
+    openai_options.update({k: v for k, v in explicit_options.items() if v is not None})  # pyright: ignore[reportArgumentType, reportCallIssue]
 
     # allow any other openai.resources.responses.Response.create options
     if other_options is not None:
         for k, v in other_options.items():
-            openai_options.setdefault(k, v)  # type: ignore
+            openai_options.setdefault(k, v)  # pyright: ignore[reportCallIssue, reportArgumentType]
 
     options["options"] = openai_options
 

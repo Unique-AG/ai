@@ -511,9 +511,7 @@ class LanguageModelInfo(BaseModel):
 
     @classmethod
     def from_name(cls, model_name: LanguageModelName | str) -> Self:
-        if isinstance(model_name, str) and model_name in [
-            name.value for name in LanguageModelName
-        ]:
+        if model_name in [name.value for name in LanguageModelName]:
             model_name = LanguageModelName(model_name)
 
         # Check environment variable first - env definitions take precedence

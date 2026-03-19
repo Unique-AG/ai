@@ -72,8 +72,8 @@ class ParameterType(StrEnum):
                 return float
             case ParameterType.BOOLEAN:
                 return bool
-            case _:
-                raise ValueError(f"Invalid ParameterType: {self}")
+            case _:  # pyright: ignore[reportUnnecessaryComparison]
+                raise ValueError(f"Invalid ParameterType: {self}")  # pyright: ignore[reportUnreachable]
 
     @classmethod
     def from_python_type(cls, python_type: type) -> "ParameterType":
@@ -133,12 +133,11 @@ def convert_to_base_model_type(
     If the input is a list of Parameter as defined above, converts it to a BaseModel class
     If the input is a str (JSON schema), converts it to a BaseModel class using SchemaConverter from Jambo.
     """
-    if isinstance(value, type) and issubclass(value, BaseModel):
+    if isinstance(value, type):
         return value
 
     if isinstance(value, list):
-        if all(isinstance(item, Parameter) for item in value):
-            return create_pydantic_model_from_parameter_list("Parameters", value)
+        return create_pydantic_model_from_parameter_list("Parameters", value)
 
     converter = SchemaConverter()
     if isinstance(value, str):

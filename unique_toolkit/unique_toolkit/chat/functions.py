@@ -530,7 +530,7 @@ def filter_valid_messages(
     ]
 
     # Remove the last two messages
-    messages = messages["data"][:-2]  # type: ignore
+    messages = messages["data"][:-2]  # pyright: ignore[reportArgumentType]
     filtered_messages = []
     for message in messages:
         if (
@@ -993,7 +993,7 @@ def create_message_log(
             order=order,
             details=_get_model_dump_or_none(details),
             uncitedReferences=_get_model_dump_or_none(uncited_references),
-            references=references_list,  # type: ignore
+            references=references_list,  # pyright: ignore[reportArgumentType]
         )
         return MessageLog(**message_log)
     except Exception as e:
@@ -1045,7 +1045,7 @@ async def create_message_log_async(
             order=order,
             details=_get_model_dump_or_none(details),
             uncitedReferences=_get_model_dump_or_none(uncited_references),
-            references=references_list,  # type: ignore
+            references=references_list,  # pyright: ignore[reportArgumentType]
         )
         return MessageLog(**message_log)
     except Exception as e:
@@ -1097,7 +1097,7 @@ def update_message_log(
             order=order,
             details=_get_model_dump_or_none(details),
             uncitedReferences=_get_model_dump_or_none(uncited_references),
-            references=references_list,  # type: ignore
+            references=references_list,  # pyright: ignore[reportArgumentType]
         )
         return MessageLog(**message_log)
     except Exception as e:
@@ -1149,7 +1149,7 @@ async def update_message_log_async(
             order=order,
             details=_get_model_dump_or_none(details),
             uncitedReferences=_get_model_dump_or_none(uncited_references),
-            references=references_list,  # type: ignore
+            references=references_list,  # pyright: ignore[reportArgumentType]
         )
         return MessageLog(**message_log)
     except Exception as e:

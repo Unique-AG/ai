@@ -74,7 +74,9 @@ async def run_forced_tools_iteration(
     for opt in tool_choices:
         func_name = opt.get("function", {}).get("name")
 
-        per_choice_kwargs = cast(_LoopIterationRunnerKwargs, dict(loop_runner_kwargs))
+        per_choice_kwargs = cast(
+            _LoopIterationRunnerKwargs, cast(object, dict(loop_runner_kwargs))
+        )
         if prepare_loop_runner_kwargs:
             per_choice_kwargs = prepare_loop_runner_kwargs(func_name, per_choice_kwargs)
 
@@ -85,15 +87,15 @@ async def run_forced_tools_iteration(
             "tool_choice": effective_tool_choice,
         }
         if limited_tool:
-            stream_kwargs["tools"] = [limited_tool]
-        responses.append(await stream_response(**stream_kwargs))
+            stream_kwargs["tools"] = [limited_tool]  # pyright: ignore[reportArgumentType]
+        responses.append(await stream_response(**stream_kwargs))  # pyright: ignore[reportArgumentType]
 
     tool_calls = []
     references = []
     for r in responses:
         if r.tool_calls:
             tool_calls.extend(r.tool_calls)
-        references.extend(r.message.references)
+        references.extend(r.message.references or [])
 
     response = responses[0]
     response.tool_calls = tool_calls if len(tool_calls) > 0 else None

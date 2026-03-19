@@ -52,7 +52,7 @@ def is_webhook_signature_valid(
         return False
 
     # Decode payload if bytes
-    message = payload.decode("utf-8") if isinstance(payload, bytes) else payload
+    message = payload.decode("utf-8")
 
     # Compute expected signature: HMAC-SHA256(message, secret)
     expected_signature = hmac.new(

@@ -59,11 +59,7 @@ def get_event_generator(
         Events matching the specified type
     """
     event_name = get_event_name_from_event_class(event_type)
-    if (
-        event_name is None
-        or not issubclass(event_type, BaseEvent)
-        or event_type is BaseEvent
-    ):
+    if event_name is None or event_type is BaseEvent:
         raise ValueError(f"Event model {event_type} is not a valid event model")
 
     subscription = event_name.value
@@ -72,7 +68,7 @@ def get_event_generator(
         try:
             payload = json.loads(sse_event.data)
             parsed_event = event_type.model_validate(payload)
-            if parsed_event is None or parsed_event.filter_event(
+            if parsed_event.filter_event(
                 filter_options=unique_settings.chat_event_filter_options
             ):
                 continue
@@ -172,8 +168,6 @@ def run_demo_with_with_saved_event(
         return
 
     event = load_event(file_path, event_type)
-    if event is None:
-        raise ValueError(f"Event not found in {file_path}")
 
     if asyncio.iscoroutinefunction(handler):
         asyncio.run(handler(event))

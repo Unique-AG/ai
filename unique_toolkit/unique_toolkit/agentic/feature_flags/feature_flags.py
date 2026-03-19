@@ -37,10 +37,7 @@ class FeatureFlag:
         if isinstance(self.value, bool):
             return self.value
 
-        if isinstance(self.value, list):
-            return company_id in self.value if company_id else False
-
-        return False
+        return company_id in self.value if company_id else False
 
     def __repr__(self) -> str:
         return f"FeatureFlag({self.value})"
