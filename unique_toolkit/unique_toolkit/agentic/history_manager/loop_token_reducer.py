@@ -12,6 +12,7 @@ from unique_toolkit.agentic.history_manager.history_construction_with_contents i
     FileContentSerialization,
     get_full_history_with_contents,
 )
+from unique_toolkit.agentic.history_manager.utils import _build_source_dict
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.service import ChatService
@@ -552,10 +553,7 @@ class LoopTokenReducer:
     ) -> LanguageModelToolMessage:
         """Create a message with standard content chunks."""
         sources = [
-            {
-                "source_number": source_offset + i,
-                "content": chunk.text,
-            }
+            _build_source_dict(chunk, source_offset + i)
             for i, chunk in enumerate(content_chunks)
         ]
 

@@ -14,6 +14,21 @@ from unique_toolkit.language_model.schemas import (
 logger = logging.getLogger(__name__)
 
 
+def _build_source_dict(chunk: ContentChunk, source_number: int) -> dict[str, Any]:
+    source: dict[str, Any] = {
+        "source_number": source_number,
+        "content": chunk.text,
+    }
+    document_label = (
+        getattr(chunk.metadata, "document", None) if chunk.metadata else None
+    )
+    if document_label:
+        source["metadata"] = {
+            "document": document_label,
+        }
+    return source
+
+
 def convert_tool_interactions_to_content_messages(
     loop_history: list[LanguageModelMessage],
 ) -> list[LanguageModelMessage]:
@@ -73,10 +88,7 @@ def transform_chunks_to_string(
     if not content_chunks:
         return "No relevant sources found.", []
     sources: list[dict[str, Any]] = [
-        {
-            "source_number": max_source_number + i,
-            "content": chunk.text,
-        }
+        _build_source_dict(chunk, max_source_number + i)
         for i, chunk in enumerate(content_chunks)
     ]
     return json.dumps(sources), sources
