@@ -234,7 +234,7 @@ class TestScoreAndExplain:
 
         config = SnippetJudgeConfig(
             system_prompt="Custom system",
-            user_prompt_template="Objective: {objective}\nResults:\n{numbered_results}",
+            user_prompt_template="Objective: {{ objective }}\nResults:\n{{ numbered_results }}",
         )
         await score_and_explain(
             objective="Find X",

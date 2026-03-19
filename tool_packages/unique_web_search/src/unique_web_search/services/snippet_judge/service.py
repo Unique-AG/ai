@@ -2,6 +2,7 @@
 
 import logging
 
+import jinja2
 from pydantic import BaseModel, Field
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit._common.validators import LMI
@@ -41,11 +42,17 @@ class SnippetJudgeConfig(BaseModel):
     )
     system_prompt: str = Field(
         default=SNIPPET_JUDGE_SYSTEM_PROMPT,
-        description="System message for the snippet judge LLM.",
+        description=(
+            "System message for the snippet judge LLM (Jinja2). "
+            "Available variables: {{ objective }}, {{ numbered_results }}."
+        ),
     )
     user_prompt_template: str = Field(
         default=SNIPPET_JUDGE_USER_PROMPT_TEMPLATE,
-        description="User prompt template. Must support placeholders: {objective}, {numbered_results}.",
+        description=(
+            "User prompt template (Jinja2). "
+            "Use {{ objective }} and {{ numbered_results }}."
+        ),
     )
 
 
@@ -73,13 +80,15 @@ async def score_and_explain(
 
     cfg = config or SnippetJudgeConfig()
     numbered_results = _format_numbered_results(results)
+    render_ctx = {"objective": objective, "numbered_results": numbered_results}
+    system_message = jinja2.Template(cfg.system_prompt).render(**render_ctx)
     user_prompt = build_user_prompt(
         objective, numbered_results, template=cfg.user_prompt_template
     )
 
     messages = (
         MessagesBuilder()
-        .system_message_append(cfg.system_prompt)
+        .system_message_append(system_message)
         .user_message_append(user_prompt)
         .build()
     )
