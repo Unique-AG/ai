@@ -3,8 +3,10 @@ from typing import Any
 from unique_toolkit.agentic.tools.openai_builtin import OpenAICodeInterpreterTool
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.chat.service import LanguageModelStreamResponse
-from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
+from unique_toolkit.language_model.schemas import (
+    LanguageModelStreamResponse,
+    ResponsesLanguageModelStreamResponse,
+)
 
 
 class DebugInfoManager:

@@ -25,6 +25,7 @@ from unique_toolkit.language_model.schemas import (
 def _make_message() -> LanguageModelStreamResponseMessage:
     return LanguageModelStreamResponseMessage(
         id="msg-1",
+        chat_id="chat-1",
         previous_message_id=None,
         role=LanguageModelMessageRole.ASSISTANT,
         text="hello",
