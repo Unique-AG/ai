@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.51.0] - 2026-03-06
+- Add `resolve_visible_folder_tree_async()` to `KnowledgeBaseService` for hierarchical folder tree with files
+- Add `resolve_visible_files_async()` to `KnowledgeBaseService` for flat list of visible file names
+- Add `resolve_visible_folder_paths_async()` to `KnowledgeBaseService` for list of folder paths
+- Add `get_content_infos_async()` to `KnowledgeBaseService` for fetching all content in parallel using pagination
+- Add `get_paginated_content_infos_async()` to `KnowledgeBaseService` for paginated content fetching
+- Add `get_folder_info_async()` to `KnowledgeBaseService` for fetching folder info asynchronously
+- Add `extract_folder_metadata_from_content_infos()` static method to `KnowledgeBaseService` for extracting scope IDs and folder paths
+- Add `get_content_info_async()` to `functions` for fetching content info asynchronously
+- Add `get_folder_info_async()` to `functions` for fetching folder info asynchronously
 
 ## [1.58.1] - 2026-03-18
 - Code interpreter fence injection (UN-17972): extend `_build_code_blocks` matching so generated images reliably map to their producing code block — secondary match on quoted filename or stem, plus last-resort assignment to the last code block when paths are fully dynamic (e.g. `f"/mnt/data/chart_{type}_{i}.png"`). Fixes bare `![image](unique://content/...)` instead of `imgWithSource` fences.

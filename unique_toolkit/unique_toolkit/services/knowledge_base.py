@@ -1,8 +1,9 @@
 import asyncio
 import logging
 import mimetypes
+from dataclasses import dataclass, field
 from pathlib import Path, PurePath
-from typing import Any, Callable, overload
+from typing import Any, Callable, Self, overload
 
 import humps
 import unique_sdk
@@ -20,7 +21,9 @@ from unique_toolkit.content.functions import (
     download_content_to_bytes_async,
     download_content_to_file_by_id,
     get_content_info,
+    get_content_info_async,
     get_folder_info,
+    get_folder_info_async,
     search_content_chunks,
     search_content_chunks_async,
     search_contents,
@@ -653,6 +656,23 @@ class KnowledgeBaseService:
             file_path=file_path,
         )
 
+    async def get_paginated_content_infos_async(
+        self,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+        skip: int | None = None,
+        take: int | None = None,
+        file_path: str | None = None,
+    ) -> PaginatedContentInfos:
+        return await get_content_info_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            metadata_filter=metadata_filter,
+            skip=skip,
+            take=take,
+            file_path=file_path,
+        )
+
     def get_file_names_in_folder(self, *, scope_id: str) -> list[str]:
         """
         Get the list of file names in a knowledge base folder
@@ -685,71 +705,308 @@ class KnowledgeBaseService:
             scope_id=scope_id,
         )
 
-    def _resolve_visible_file_tree(self, content_infos: list[ContentInfo]) -> list[str]:
-        # collect all scope ids
+    async def get_folder_info_async(
+        self,
+        *,
+        scope_id: str,
+    ) -> FolderInfo:
+        return await get_folder_info_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            scope_id=scope_id,
+        )
+
+    async def _translate_scope_id_to_folder_name_async(
+        self, scope_id: str
+    ) -> str | None:
+        try:
+            folder_info = await self.get_folder_info_async(scope_id=scope_id)
+            return folder_info.name
+        except Exception as e:
+            _LOGGER.warning(
+                f"Could not resolve folder for scope_id {scope_id}", exc_info=e
+            )
+            return None
+
+    async def _translate_scope_ids_to_folder_name_async(
+        self, scope_ids: set[str]
+    ) -> dict[str, str]:
+        scope_id_list = list(scope_ids)
+
+        results = await asyncio.gather(
+            *[
+                self._translate_scope_id_to_folder_name_async(sid)
+                for sid in scope_id_list
+            ]
+        )
+        return {
+            key: value
+            for key, value in zip(scope_id_list, results)
+            if value is not None
+        }
+
+    @staticmethod
+    def extract_folder_metadata_from_content_infos(
+        content_infos: list[ContentInfo],
+    ) -> tuple[set[str], set[str], set[str]]:
+        """
+        Extracts folder metadata from content infos.
+
+        This extracts three types of folder information:
+        - scope_ids: Individual IDs extracted from ``folderIdPath`` that need to be
+          translated to human-readable folder names via API calls.
+        - folder_id_paths: Raw ``folderIdPath`` values (e.g., ``uniquepathid://abc/def``).
+        - known_folder_paths: Already resolved paths from ``{FullPath}`` metadata (see note).
+
+        Note:
+            The ``{FullPath}`` metadata key is **not currently populated by the backend API**.
+            It is handled here as a forward-compatible optimisation: if the backend ever
+            provides a pre-resolved human-readable path, we can skip the expensive
+            per-scope-ID translation. The curly-brace naming convention was introduced
+            in PR #636 — likely to avoid collisions with user-defined metadata keys —
+            but is not an established API convention.
+
+        Args:
+            content_infos (list[ContentInfo]): The list of content infos to extract from.
+
+        Returns:
+            tuple[set[str], set[str], set[str]]: A tuple of (scope_ids, folder_id_paths, known_folder_paths).
+        """
+        scope_ids: set[str] = set()
         folder_id_paths: set[str] = set()
         known_folder_paths: set[str] = set()
+
         for content_info in content_infos:
-            if (
-                content_info.metadata
-                and content_info.metadata.get(r"{FullPath}") is not None
-            ):
+            if content_info.metadata is None:
+                continue
+
+            # Forward-compatible: not yet present in API responses (see docstring)
+            if content_info.metadata.get(r"{FullPath}") is not None:
                 known_folder_paths.add(str(content_info.metadata.get(r"{FullPath}")))
                 continue
 
-            if (
-                content_info.metadata
-                and content_info.metadata.get("folderIdPath") is not None
-            ):
-                folder_id_paths.add(str(content_info.metadata.get("folderIdPath")))
+            # Extract scope IDs from folderIdPath
+            if content_info.metadata.get("folderIdPath") is not None:
+                folder_id_path = str(content_info.metadata.get("folderIdPath"))
+                folder_id_paths.add(folder_id_path)
+                scope_ids_list = folder_id_path.replace("uniquepathid://", "").split(
+                    "/"
+                )
+                scope_ids.update(sid for sid in scope_ids_list if sid)
 
-        scope_ids: set[str] = set()
-        for fp in folder_id_paths:
-            scope_ids_list = set(fp.replace("uniquepathid://", "").split("/"))
-            scope_ids.update(scope_ids_list)
+        return scope_ids, folder_id_paths, known_folder_paths
 
-        scope_id_to_folder_name: dict[str, str] = {}
-        for scope_id in scope_ids:
-            folder_info = self.get_folder_info(
-                scope_id=scope_id,
-            )
-            scope_id_to_folder_name[scope_id] = folder_info.name
+    async def get_content_infos_async(
+        self,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+        step_size: int = 100,
+        max_concurrent_requests: int = 25,
+    ) -> list[ContentInfo]:
+        """
+        Fetches all content infos from the knowledge base using parallel pagination.
 
-        folder_paths: set[str] = set()
-        for folder_id_path in folder_id_paths:
-            scope_ids_list = folder_id_path.replace("uniquepathid://", "").split("/")
+        The API limits responses to 100 items per request, so this method fetches
+        the total count first, then retrieves all pages concurrently (bounded by
+        ``max_concurrent_requests`` to avoid rate limiting or connection exhaustion).
 
-            if all(scope_id in scope_id_to_folder_name for scope_id in scope_ids_list):
-                folder_path = [
-                    scope_id_to_folder_name[scope_id] for scope_id in scope_ids_list
-                ]
-                folder_paths.add("/".join(folder_path))
+        Args:
+            metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
+            step_size (int): Number of items per page. Defaults to 100.
+            max_concurrent_requests (int): Maximum number of concurrent API calls.
+                Defaults to 25.
+
+        Returns:
+            list[ContentInfo]: All content infos visible to the user.
+        """
+
+        info_for_count_of_total_content = await self.get_paginated_content_infos_async(
+            metadata_filter=metadata_filter,
+            take=1,
+        )
+
+        total_count = info_for_count_of_total_content.total_count
+
+        semaphore = asyncio.Semaphore(max_concurrent_requests)
+
+        async def _fetch_page(skip: int) -> PaginatedContentInfos:
+            async with semaphore:
+                return await self.get_paginated_content_infos_async(
+                    metadata_filter=metadata_filter,
+                    skip=skip,
+                    take=step_size,
+                )
+
+        results: list[PaginatedContentInfos | BaseException] = await asyncio.gather(
+            *[_fetch_page(i) for i in range(0, total_count, step_size)],
+            return_exceptions=True,
+        )
+
+        # Log any exceptions that occurred during parallel fetching
+        for result in results:
+            if isinstance(result, BaseException):
+                _LOGGER.error("Error fetching paginated content infos", exc_info=result)
 
         return [
-            p if p.startswith("/") else f"/{p}"
-            for p in folder_paths.union(known_folder_paths)
+            content_info
+            for result in results
+            if not isinstance(result, BaseException)
+            for content_info in result.content_infos
         ]
 
-    def resolve_visible_file_tree(
+    @dataclass
+    class Folder:
+        files: list[str] = field(default_factory=list)
+        folders: dict[str, Self] = field(default_factory=dict)
+
+        def to_dict(self) -> dict:
+            return {
+                "files": self.files,
+                "folders": {
+                    name: folder.to_dict() for name, folder in self.folders.items()
+                },
+            }
+
+    async def resolve_visible_folder_tree_async(
         self, *, metadata_filter: dict[str, Any] | None = None
-    ) -> list[str]:
+    ) -> dict[str, Any]:
         """
-        Resolves the visible file tree for the knowledge base for the current user.
+        Resolves the visible folder tree for the knowledge base, including file names
+        in a hierarchical structure.
 
         Args:
             metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
 
         Returns:
-            list[str]: The visible file tree.
+            dict[str, Any]: The visible folder tree with nested folders and files.
 
-
-
+        Example:
+            ```python
+            {
+                "files": [],
+                "folders": {
+                    "Documents": {
+                        "files": ["notes.txt"],
+                        "folders": {
+                            "Reports": {
+                                "files": ["report.pdf", "summary.docx"],
+                                "folders": {}
+                            }
+                        }
+                    },
+                    "Images": {
+                        "files": ["photo.jpg"],
+                        "folders": {}
+                    }
+                }
+            }
+            ```
         """
-        info = self.get_paginated_content_infos(
-            metadata_filter=metadata_filter,
+
+        content_infos: list[ContentInfo] = await self.get_content_infos_async(
+            metadata_filter=metadata_filter
         )
 
-        return self._resolve_visible_file_tree(content_infos=info.content_infos)
+        # collect all scope ids
+        scope_ids, _, _ = self.extract_folder_metadata_from_content_infos(content_infos)
+
+        scope_id_to_folder_name: dict[
+            str, str
+        ] = await self._translate_scope_ids_to_folder_name_async(scope_ids)
+
+        tree = self.Folder()
+
+        for content_info in content_infos:
+            current = tree
+            metadata = content_info.metadata
+            path: list[str]
+            # Forward-compatible: {FullPath} not yet present in API responses
+            if metadata and (full_path := metadata.get(r"{FullPath}")) is not None:
+                path = str(full_path).split("/")
+            elif (
+                metadata
+                and (folder_id_path := metadata.get("folderIdPath")) is not None
+            ):
+                scope_ids_list = (
+                    str(folder_id_path).replace("uniquepathid://", "").split("/")
+                )
+                # Use scope_id as fallback if folder name couldn't be resolved
+                path = [
+                    scope_id_to_folder_name.get(scope_id, scope_id)
+                    for scope_id in scope_ids_list
+                ]
+            else:
+                _LOGGER.warning(
+                    f"Content {content_info.id} ({content_info.key}) has no folderIdPath or other path in metadata — placed in '_no_folder_path'"
+                )
+                current = tree.folders.setdefault("_no_folder_path", self.Folder())
+                current.files.append(content_info.key)
+                continue
+            for folder_name in path:
+                if not folder_name:  # Skip empty folder names (e.g., from leading "/")
+                    continue
+                current = current.folders.setdefault(folder_name, self.Folder())
+            current.files.append(content_info.key)
+
+        return tree.to_dict()
+
+    async def resolve_visible_files_async(
+        self, *, metadata_filter: dict[str, Any] | None = None
+    ) -> list[str]:
+        """
+        Resolves all visible file names in the knowledge base for the current user.
+
+        Args:
+            metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
+
+        Returns:
+            list[str]: List of file names (keys) visible to the user.
+        """
+        content_infos: list[ContentInfo] = await self.get_content_infos_async(
+            metadata_filter=metadata_filter
+        )
+        return [content_info.key for content_info in content_infos]
+
+    async def resolve_visible_folder_paths_async(
+        self, *, metadata_filter: dict[str, Any] | None = None
+    ) -> list[str]:
+        """
+        Resolves the visible file tree structure (only the folder paths - excluding files)
+        for the knowledge base of the current user.
+
+        Args:
+            metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
+
+        Returns:
+            list[str]: List of folder paths visible to the user.
+        """
+
+        content_infos: list[ContentInfo] = await self.get_content_infos_async(
+            metadata_filter=metadata_filter
+        )
+
+        scope_ids, folder_id_paths, known_folder_paths = (
+            self.extract_folder_metadata_from_content_infos(content_infos)
+        )
+
+        scope_id_to_folder_name: dict[
+            str, str
+        ] = await self._translate_scope_ids_to_folder_name_async(scope_ids)
+
+        folder_paths: set[str] = set()
+        for folder_id_path in folder_id_paths:
+            scope_ids_list = folder_id_path.replace("uniquepathid://", "").split("/")
+            folder_name_list = [
+                scope_id_to_folder_name.get(scope_id, scope_id)
+                for scope_id in scope_ids_list
+                if scope_id
+            ]
+            folder_paths.add("/".join(folder_name_list))
+
+        return [
+            p if p.startswith("/") else f"/{p}"
+            for p in folder_paths.union(known_folder_paths)
+        ]
 
     def _pop_forbidden_metadata_keys(self, metadata: dict[str, Any]) -> dict[str, Any]:
         forbidden_keys = [
