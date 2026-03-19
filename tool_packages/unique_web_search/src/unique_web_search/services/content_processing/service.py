@@ -6,6 +6,7 @@ from unique_toolkit._common.execution import SafeTaskExecutor
 from unique_toolkit.language_model import LanguageModelService, TypeDecoder, TypeEncoder
 
 from unique_web_search.services.content_processing.cleaning import (
+    CharacterSanitize,
     LineRemoval,
     MarkdownTransform,
 )
@@ -54,6 +55,9 @@ class ContentProcessor:
         self._decoder = decoder
 
         self._cleaning_strategies: list[CleaningStrategy] = [
+            CharacterSanitize(
+                enabled=self.config.cleaning.enable_character_sanitize,
+            ),
             LineRemoval(
                 config=self.config.cleaning.line_removal,
             ),
@@ -113,6 +117,7 @@ class ContentProcessor:
         for strategy in self._cleaning_strategies:
             if strategy.is_enabled:
                 page.content = strategy(page.content)
+                page.snippet = strategy(page.snippet)
         return page
 
     async def _process_pages(

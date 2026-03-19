@@ -1,16 +1,12 @@
-import json
 import logging
-from enum import StrEnum
-from typing import Annotated, TypeVar, Unpack
+from typing import Annotated, Unpack
 
-from humps import camelize
 from pydantic import BaseModel, Field
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
 from unique_toolkit.language_model import (
-    DEFAULT_LANGUAGE_MODEL,
     LanguageModelService,
     TypeDecoder,
     TypeEncoder,
@@ -21,100 +17,18 @@ from unique_web_search.services.content_processing.processing_strategies.base im
     ProcessingStrategyKwargs,
     WebSearchResult,
 )
-from unique_web_search.services.content_processing.processing_strategies.prompts import (
-    DEFAULT_JUDGE_AND_SANITIZE_PROMPT_TEMPLATE,
-    DEFAULT_JUDGE_PROMPT_TEMPLATE,
-    DEFAULT_KEYWORD_EXTRACT_PROMPT_TEMPLATE,
-    DEFAULT_PAGE_CONTEXT_TEMPLATE,
-    DEFAULT_SANITIZE_RULES,
-    DEFAULT_SYSTEM_PROMPT_TEMPLATE,
-    DEFAULT_USER_PROMPT_TEMPLATE,
-)
 from unique_web_search.services.content_processing.processing_strategies.schema import (
     LLMProcessorResponse,
 )
-from unique_web_search.settings import env_settings
-
-
-class SanitizeMode(StrEnum):
-    ALWAYS_SANITIZE = "always_sanitize"
-    JUDGE_ONLY = "judge_only"
-    JUDGE_AND_SANITIZE = "judge_and_sanitize"
-    JUDGE_THEN_SANITIZE = "judge_then_sanitize"
-    KEYWORD_REDACT = "keyword_redact"
-
-    @staticmethod
-    def get_enum_names() -> list[str]:
-        return [
-            "Always Sanitize — summarize and redact every page unconditionally",
-            "Judge Only — judge first; if flagged, replace content and snippet with a compliance notice",
-            "Judge and Sanitize — single LLM call that judges and returns sanitized content when flagged",
-            "Judge then Sanitize — judge first; if flagged, run a full summarize-and-sanitize call",
-            "Keyword Redact — extract sensitive phrases and apply local regex replacement (no summarization)",
-        ]
-
-
-_DEFAULT_FLAG_MESSAGE = (
-    "THIS PAGE MAY CONTAIN SENSITIVE INFORMATION. "
-    "ITS CONTENT HAS BEEN WITHHELD FOR COMPLIANCE REASONS. "
-    "YOU CAN REFERENCE THE PAGE TO THE USER SO HE CAN EXPLORE THE CONTENT HIMSELF."
+from unique_web_search.services.content_processing.processing_strategies.settings import (
+    SanitizeMode,
+    processing_strategies_settings,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-
-_LLM_PROCESS_CONFIG: dict = json.loads(env_settings.llm_process_config or "{}")
-
-T = TypeVar("T")
-
-
-def _should_disable_ui_config() -> bool:
-    return len(_LLM_PROCESS_CONFIG) > 0
-
-
-def _get_from_env(key: str, default: T) -> T:
-    if key in _LLM_PROCESS_CONFIG:
-        return _LLM_PROCESS_CONFIG[key]
-    camel = camelize(key)
-    if camel in _LLM_PROCESS_CONFIG:
-        return _LLM_PROCESS_CONFIG[camel]
-    return default
-
-
-_PRIVACY_FILTER_DEFAULTS = {
-    "sanitize": _get_from_env("sanitize", False),
-    "sanitize_mode": _get_from_env("sanitize_mode", SanitizeMode.ALWAYS_SANITIZE),
-    "flag_message": _get_from_env("flag_message", _DEFAULT_FLAG_MESSAGE),
-    "sanitize_rules": _get_from_env("sanitize_rules", DEFAULT_SANITIZE_RULES),
-}
-
-_PROMPT_DEFAULTS = {
-    "system_prompt": _get_from_env("system_prompt", DEFAULT_SYSTEM_PROMPT_TEMPLATE),
-    "user_prompt": _get_from_env("user_prompt", DEFAULT_USER_PROMPT_TEMPLATE),
-    "judge_prompt": _get_from_env("judge_prompt", DEFAULT_JUDGE_PROMPT_TEMPLATE),
-    "judge_and_sanitize_prompt": _get_from_env(
-        "judge_and_sanitize_prompt", DEFAULT_JUDGE_AND_SANITIZE_PROMPT_TEMPLATE
-    ),
-    "page_context_prompt": _get_from_env(
-        "page_context_prompt", DEFAULT_PAGE_CONTEXT_TEMPLATE
-    ),
-    "keyword_extract_prompt": _get_from_env(
-        "keyword_extract_prompt", DEFAULT_KEYWORD_EXTRACT_PROMPT_TEMPLATE
-    ),
-}
-
-_DEFAULTS = {
-    # General
-    "enabled": _get_from_env("enabled", False),
-    # TODO [UN-17646] Check the Language model selector
-    "language_model": _get_from_env("language_model", DEFAULT_LANGUAGE_MODEL),
-    "min_tokens": _get_from_env("min_tokens", 5000),
-    # Sub-models — keys match LLMProcessorConfig.model_fields
-    "privacy_filter": _PRIVACY_FILTER_DEFAULTS,
-    "prompts": _PROMPT_DEFAULTS,
-}
-
-_UI_DISABLED = _should_disable_ui_config()
+_LLM_PROCESSOR_ENV_CONFIG = processing_strategies_settings.llm_processor_config
+_UI_DISABLED = bool(_LLM_PROCESSOR_ENV_CONFIG.model_fields_set)
 
 
 class PrivacyFilterConfig(BaseModel):
@@ -123,7 +37,7 @@ class PrivacyFilterConfig(BaseModel):
     model_config = get_configuration_dict()
 
     sanitize: Annotated[bool, RJSFMetaTag({"ui:disabled": _UI_DISABLED})] = Field(
-        default=_PRIVACY_FILTER_DEFAULTS["sanitize"],
+        default=_LLM_PROCESSOR_ENV_CONFIG.privacy_filter.sanitize,
         validate_default=True,
         title="Enable Privacy Filtering",
         description="When enabled, instructs the AI to remove personal data from the content for privacy compliance.",
@@ -138,7 +52,7 @@ class PrivacyFilterConfig(BaseModel):
             }
         ),
     ] = Field(
-        default=_PRIVACY_FILTER_DEFAULTS["sanitize_mode"],
+        default=_LLM_PROCESSOR_ENV_CONFIG.privacy_filter.sanitize_mode,
         validate_default=True,
         title="Sanitization Pipeline Mode",
         description="Controls how privacy filtering is applied when 'Enable Privacy Filtering' is on.",
@@ -147,11 +61,11 @@ class PrivacyFilterConfig(BaseModel):
     flag_message: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=len(_PRIVACY_FILTER_DEFAULTS["flag_message"].split("\n")),
+            rows=len(_LLM_PROCESSOR_ENV_CONFIG.privacy_filter.flag_message.split("\n")),
             disabled=_UI_DISABLED,
         ),
     ] = Field(
-        default=_PRIVACY_FILTER_DEFAULTS["flag_message"],
+        default=_LLM_PROCESSOR_ENV_CONFIG.privacy_filter.flag_message,
         validate_default=True,
         title="Sensitive Content Flag Message",
         description="Message that replaces the content and snippet of pages flagged as sensitive when using the 'Judge Only' sanitization mode.",
@@ -160,11 +74,13 @@ class PrivacyFilterConfig(BaseModel):
     sanitize_rules: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=len(_PRIVACY_FILTER_DEFAULTS["sanitize_rules"].split("\n")),
+            rows=len(
+                _LLM_PROCESSOR_ENV_CONFIG.privacy_filter.sanitize_rules.split("\n")
+            ),
             disabled=_UI_DISABLED,
         ),
     ] = Field(
-        default=_PRIVACY_FILTER_DEFAULTS["sanitize_rules"],
+        default=_LLM_PROCESSOR_ENV_CONFIG.privacy_filter.sanitize_rules,
         validate_default=True,
         title="Privacy Filtering Rules",
         description="Rules given to the AI for identifying and removing personal data. Only used when Privacy Filtering is enabled.",
@@ -179,11 +95,11 @@ class PromptConfig(BaseModel):
     system_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=len(_PROMPT_DEFAULTS["system_prompt"].split("\n")),
+            rows=len(_LLM_PROCESSOR_ENV_CONFIG.prompts.system_prompt.split("\n")),
             disabled=_UI_DISABLED,
         ),
     ] = Field(
-        default=_PROMPT_DEFAULTS["system_prompt"],
+        default=_LLM_PROCESSOR_ENV_CONFIG.prompts.system_prompt,
         validate_default=True,
         title="System Instructions",
         description="The system-level instructions for summarize and always-sanitize modes. Uses Jinja2 template syntax.",
@@ -192,11 +108,11 @@ class PromptConfig(BaseModel):
     user_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=len(_PROMPT_DEFAULTS["user_prompt"].split("\n")),
+            rows=len(_LLM_PROCESSOR_ENV_CONFIG.prompts.user_prompt.split("\n")),
             disabled=_UI_DISABLED,
         ),
     ] = Field(
-        default=_PROMPT_DEFAULTS["user_prompt"],
+        default=_LLM_PROCESSOR_ENV_CONFIG.prompts.user_prompt,
         validate_default=True,
         title="User Instructions",
         description="The per-page user prompt for summarize and always-sanitize modes. Uses Jinja2 template syntax.",
@@ -205,11 +121,11 @@ class PromptConfig(BaseModel):
     judge_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=len(_PROMPT_DEFAULTS["judge_prompt"].split("\n")),
+            rows=len(_LLM_PROCESSOR_ENV_CONFIG.prompts.judge_prompt.split("\n")),
             disabled=_UI_DISABLED,
         ),
     ] = Field(
-        default=_PROMPT_DEFAULTS["judge_prompt"],
+        default=_LLM_PROCESSOR_ENV_CONFIG.prompts.judge_prompt,
         validate_default=True,
         title="Judge System Instructions",
         description="System prompt for the lightweight GDPR Art. 9 classification call (Judge Only and Judge then Sanitize modes). Uses Jinja2 template syntax.",
@@ -218,11 +134,13 @@ class PromptConfig(BaseModel):
     judge_and_sanitize_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=len(_PROMPT_DEFAULTS["judge_and_sanitize_prompt"].split("\n")),
+            rows=len(
+                _LLM_PROCESSOR_ENV_CONFIG.prompts.judge_and_sanitize_prompt.split("\n")
+            ),
             disabled=_UI_DISABLED,
         ),
     ] = Field(
-        default=_PROMPT_DEFAULTS["judge_and_sanitize_prompt"],
+        default=_LLM_PROCESSOR_ENV_CONFIG.prompts.judge_and_sanitize_prompt,
         validate_default=True,
         title="Judge and Sanitize System Instructions",
         description="System prompt for the single-call classify-and-sanitize mode (Judge and Sanitize). Uses Jinja2 template syntax.",
@@ -231,11 +149,11 @@ class PromptConfig(BaseModel):
     page_context_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=len(_PROMPT_DEFAULTS["page_context_prompt"].split("\n")),
+            rows=len(_LLM_PROCESSOR_ENV_CONFIG.prompts.page_context_prompt.split("\n")),
             disabled=_UI_DISABLED,
         ),
     ] = Field(
-        default=_PROMPT_DEFAULTS["page_context_prompt"],
+        default=_LLM_PROCESSOR_ENV_CONFIG.prompts.page_context_prompt,
         validate_default=True,
         title="Page Context User Prompt",
         description="User prompt template that provides the web page context for the judge call and keyword redact modes. Uses Jinja2 template syntax.",
@@ -244,11 +162,13 @@ class PromptConfig(BaseModel):
     keyword_extract_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=len(_PROMPT_DEFAULTS["keyword_extract_prompt"].split("\n")),
+            rows=len(
+                _LLM_PROCESSOR_ENV_CONFIG.prompts.keyword_extract_prompt.split("\n")
+            ),
             disabled=_UI_DISABLED,
         ),
     ] = Field(
-        default=_PROMPT_DEFAULTS["keyword_extract_prompt"],
+        default=_LLM_PROCESSOR_ENV_CONFIG.prompts.keyword_extract_prompt,
         validate_default=True,
         title="Keyword Extraction System Instructions",
         description="System prompt for extracting sensitive verbatim phrases in the Keyword Redact mode. Uses Jinja2 template syntax.",
@@ -259,41 +179,38 @@ class LLMProcessorConfig(BaseModel):
     model_config = get_configuration_dict()
 
     enabled: Annotated[bool, RJSFMetaTag({"ui:disabled": _UI_DISABLED})] = Field(
-        default=_DEFAULTS["enabled"],
+        default=_LLM_PROCESSOR_ENV_CONFIG.enabled,
         validate_default=True,
         title="Enable AI Summarization",
         description="When enabled, an AI model processes and summarizes long web page content to extract the most relevant information.",
     )
 
     language_model: Annotated[LMI, RJSFMetaTag({"ui:disabled": _UI_DISABLED})] = (
-        get_LMI_default_field(_DEFAULTS["language_model"])
+        get_LMI_default_field(_LLM_PROCESSOR_ENV_CONFIG.language_model)
     )
 
     min_tokens: Annotated[int, RJSFMetaTag({"ui:disabled": _UI_DISABLED})] = Field(
-        default=_DEFAULTS["min_tokens"],
+        default=_LLM_PROCESSOR_ENV_CONFIG.min_tokens,
         validate_default=True,
         title="Minimum Content Length for Summarization",
         description="Web pages with content shorter than this threshold (in tokens) will be kept as-is without AI summarization. Only longer pages are summarized. Ignored when privacy filtering is enabled.",
     )
 
     privacy_filter: PrivacyFilterConfig = Field(
-        default_factory=lambda: PrivacyFilterConfig(**_PRIVACY_FILTER_DEFAULTS),
+        default_factory=PrivacyFilterConfig,
         title="Privacy Filtering",
         description="Controls if and how GDPR Art. 9 sensitive data is detected and redacted from web page content.",
     )
 
     prompts: PromptConfig = Field(
-        default_factory=lambda: PromptConfig(**_PROMPT_DEFAULTS),
+        default_factory=PromptConfig,
         title="Advanced Prompts",
         description="Jinja2 prompt templates sent to the AI model. Edit only if you need to customise the AI instructions.",
     )
 
     def should_run(self, encoder: TypeEncoder, content: str) -> bool:
-        # Always run for any sanitize mode (judge or full sanitize)
         if self.privacy_filter.sanitize:
             return True
-
-        # Run if content is longer than minimum length
         return len(encoder(content)) > self.min_tokens
 
 
@@ -407,14 +324,28 @@ class LLMProcess:
         return parsed.apply_to_page(page)
 
 
+def _deep_merge(base: dict, overrides: dict) -> dict:
+    """Recursively merge *overrides* into *base*, returning a new dict."""
+    merged = {**base}
+    for key, value in overrides.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
 def _merge_config_with_env(config: LLMProcessorConfig) -> LLMProcessorConfig:
-    if not _LLM_PROCESS_CONFIG:
+    """Merge space-admin config with env overrides.
+
+    Only fields that were explicitly set in the env JSON take precedence;
+    everything else keeps the space-admin's values.
+    """
+    env_config = processing_strategies_settings.llm_processor_config
+    if not env_config.model_fields_set:
         return config
 
-    config_dict = config.model_dump(by_alias=True)
-    env_overrides = LLMProcessorConfig.model_validate(_LLM_PROCESS_CONFIG).model_dump(
-        by_alias=True, exclude_unset=True
-    )
+    config_dict = config.model_dump()
+    env_overrides = env_config.model_dump(exclude_unset=True)
 
-    updated_config_dict = {**config_dict, **env_overrides}
-    return LLMProcessorConfig.model_validate(updated_config_dict)
+    return LLMProcessorConfig.model_validate(_deep_merge(config_dict, env_overrides))

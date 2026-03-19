@@ -120,16 +120,15 @@ class TestSystemPromptTemplate:
         )
         assert "schema_no_sanitize_xyz" in rendered
 
-    def test_sanitize_true__references_sanitized_snippet_not_snippet(self) -> None:
-        """The prompt must instruct the LLM to fill sanitized_snippet, not snippet."""
+    def test_sanitize_true__references_sanitized_content(self) -> None:
+        """The prompt must instruct the LLM to fill sanitized_content."""
         rendered = render_template(
             DEFAULT_SYSTEM_PROMPT_TEMPLATE,
             sanitize=True,
             sanitize_rules="rules",
             output_schema={},
         )
-        assert "sanitized_snippet" in rendered
-        assert "sanitized_summary" in rendered
+        assert "sanitized_content" in rendered
 
     def test_sanitize_true__does_not_reference_redaction_map(self) -> None:
         """The removed redaction_map section must not appear in output."""
@@ -244,17 +243,17 @@ class TestUserPromptTemplate:
         )
         assert "objective" not in rendered.lower() or "Objective:" not in rendered
 
-    def test_sanitize_true__references_sanitized_fields_in_reminder(
+    def test_sanitize_true__references_sanitized_content_in_reminder(
         self, fake_page: WebSearchResult
     ) -> None:
-        """The reminder block should reference sanitized_snippet/sanitized_summary, not snippet/summary."""
+        """The reminder block should reference sanitized_content."""
         rendered = render_template(
             DEFAULT_USER_PROMPT_TEMPLATE,
             page=fake_page,
             query="test query",
             sanitize=True,
         )
-        assert "sanitized_snippet" in rendered or "sanitized_summary" in rendered
+        assert "sanitized_content" in rendered
 
 
 # ---------------------------------------------------------------------------
@@ -496,9 +495,9 @@ class TestResponseModelFieldOrdering:
         )
 
     def test_llm_guard_response__field_order(self) -> None:
-        """LLMGuardResponse: must have exactly reasoning, sanitized_snippet, sanitized_summary."""
+        """LLMGuardResponse: must have exactly reasoning, sanitized_content."""
         fields = list(LLMGuardResponse.model_fields.keys())
-        assert fields == ["reasoning", "sanitized_snippet", "sanitized_summary"], (
+        assert fields == ["reasoning", "sanitized_content"], (
             f"Unexpected field order: {fields}"
         )
 
@@ -532,13 +531,12 @@ class TestResponseModelFieldOrdering:
         )
 
     def test_judge_and_sanitize_response__field_order(self) -> None:
-        """JudgeAndSanitizeResponse: must follow reasoning → needs_sanitization → sanitized_snippet → sanitized_summary."""
+        """JudgeAndSanitizeResponse: must follow reasoning → needs_sanitization → sanitized_content."""
         fields = list(JudgeAndSanitizeResponse.model_fields.keys())
         assert fields == [
             "reasoning",
             "needs_sanitization",
-            "sanitized_snippet",
-            "sanitized_summary",
+            "sanitized_content",
         ], f"Unexpected field order: {fields}"
 
     def test_judge_and_sanitize_response__has_apply_to_page(self) -> None:
@@ -601,8 +599,7 @@ class TestCallSiteVariables:
             output_schema=schema,
         )
         assert "RedactHealth" in rendered
-        assert "sanitized_snippet" in rendered
-        assert "sanitized_summary" in rendered
+        assert "sanitized_content" in rendered
 
     def test_sanitize_page__user_prompt_has_query_and_page(
         self, fake_config: LLMProcessorConfig, fake_page: WebSearchResult
@@ -660,7 +657,7 @@ class TestCallSiteVariables:
         )
         assert "needs_sanitization" in rendered
         assert "reasoning" in rendered
-        assert "sanitized_snippet" in rendered
+        assert "sanitized_content" in rendered
 
     def test_judge_and_sanitize__user_prompt_has_query_and_page(
         self, fake_config: LLMProcessorConfig, fake_page: WebSearchResult
