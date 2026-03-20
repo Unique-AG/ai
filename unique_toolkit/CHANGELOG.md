@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.60.0] - 2026-03-21
+## [1.60.0] - 2026-03-20
 - Add `MessageTool` persistence and history reconstruction (UN-15977): after each agentic loop, tool calls and their responses are persisted to the database via `unique_sdk.MessageTool`. On subsequent turns, the full tool-call history is batch-loaded and interleaved into the LLM message history (parallel calls grouped into a single assistant message per round). New `ChatService` methods: `create_message_tools`, `create_message_tools_async`, `get_message_tools`, `get_message_tools_async`. New schema types: `ChatMessageTool`, `ChatMessageToolResponse`. New `HistoryManager` methods: `extract_message_tools`, `compact_message_tools`. Requires `unique-sdk>=0.10.85`.
 
 ## [1.59.1] - 2026-03-19
