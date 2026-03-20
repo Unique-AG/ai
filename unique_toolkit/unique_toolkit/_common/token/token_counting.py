@@ -167,7 +167,9 @@ def num_tokens_for_tools(
     return func_token_count
 
 
-def handle_message_with_images(message: list[dict], encode: Callable[[str], list[int]]):
+def handle_message_with_images(
+    message: list[dict[str, Any]], encode: Callable[[str], list[int]]
+):
     token_count = 0
     for item in message:
         if item.get("type") == "image_url":

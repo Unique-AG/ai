@@ -3120,7 +3120,7 @@ wheels = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.89"
+version = "0.10.83"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -3131,14 +3131,14 @@ dependencies = [
     { name = "tiktoken" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6f/58/d32f0d9df3f06986e1ed7d8eba1954fdd6abb48bad405745f7b21305194a/unique_sdk-0.10.89.tar.gz", hash = "sha256:70b39159e3313bd185c71baea8cd5bcd3689dc3dceeb1365bad20d1cfeaf61b4", size = 40705, upload-time = "2026-03-17T07:59:36.196Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cb/ac/742a8163b5d0c155cd6e6f9d463bcc2009a43058c98486d4df2374117d39/unique_sdk-0.10.83.tar.gz", hash = "sha256:a09e88a978a4b27f140e34f16f7c315bbe01506221de069ed416741821c821f5", size = 46947, upload-time = "2026-03-02T08:21:27.883Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a6/e4/f931147b737386dd05218ac756bc4d8a9881b8c418d19df5861c383ccde3/unique_sdk-0.10.89-py3-none-any.whl", hash = "sha256:1f804a15b9497bb6e0281eca77acb00ecbed6212023bebcb7aab953b0d0aad67", size = 58932, upload-time = "2026-03-17T07:59:35.254Z" },
+    { url = "https://files.pythonhosted.org/packages/17/96/cd79e69df9671239d67485fa9f4de1a614eeceb89edbaeae7fa3be3d9d61/unique_sdk-0.10.83-py3-none-any.whl", hash = "sha256:a844067fbee0ec955aa68f8b770f2d9ce6f0d1902afd3c3dcbdbf0dc6e5008cf", size = 60710, upload-time = "2026-03-02T08:21:26.865Z" },
 ]
 
 [[package]]
 name = "unique-toolkit"
-version = "1.58"
+version = "1.53.2"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -3155,7 +3155,6 @@ dependencies = [
     { name = "pillow" },
     { name = "platformdirs" },
     { name = "pydantic" },
-    { name = "pydantic-core" },
     { name = "pydantic-settings" },
     { name = "pyhumps" },
     { name = "pypandoc" },
@@ -3222,7 +3221,6 @@ requires-dist = [
     { name = "pillow", specifier = ">=12.1.1" },
     { name = "platformdirs", specifier = ">=4.0.0,<5" },
     { name = "pydantic", specifier = ">=2.11.0,<3" },
-    { name = "pydantic-core", specifier = ">=2.41.5" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
     { name = "pyhumps", specifier = ">=3.8.0,<4" },
     { name = "pypandoc", specifier = ">=1.16.2,<2" },

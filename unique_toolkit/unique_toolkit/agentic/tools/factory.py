@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import Tool
@@ -8,8 +8,8 @@ if TYPE_CHECKING:
 
 
 class ToolFactory:
-    tool_map: dict[str, type[Tool]] = {}
-    tool_config_map: dict[str, Callable] = {}
+    tool_map: dict[str, type[Tool[Any]]] = {}
+    tool_config_map: dict[str, Callable[..., Any]] = {}
 
     @classmethod
     def register_tool_config(cls, tool_name: str, tool_config: type[BaseToolConfig]):
@@ -18,7 +18,7 @@ class ToolFactory:
     @classmethod
     def register_tool(
         cls,
-        tool: type[Tool],
+        tool: type[Tool[Any]],
         tool_config: type[BaseToolConfig],
     ):
         cls.tool_map[tool.name] = tool

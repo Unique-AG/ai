@@ -51,12 +51,12 @@ class HallucinationConfig(EvaluationMetricConfig):
         default={},
         description="Additional options to pass to the language model.",
     )
-    score_to_label: dict = {
+    score_to_label: dict[str, Any] = {
         "LOW": "GREEN",
         "MEDIUM": "YELLOW",
         "HIGH": "RED",
     }
-    score_to_title: dict = {
+    score_to_title: dict[str, Any] = {
         "LOW": "No Hallucination Detected",
         "MEDIUM": "Hallucination Warning",
         "HIGH": "High Hallucination",

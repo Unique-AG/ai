@@ -1,5 +1,5 @@
 import logging
-from typing import NamedTuple, override
+from typing import Any, NamedTuple, override
 
 import unique_sdk
 from jinja2 import Template
@@ -239,7 +239,7 @@ class SubAgentEvaluationService(Evaluation):
             type=self.get_assessment_type(),
         )
 
-    async def _get_reason(self, sub_agents_display_data: list[dict]) -> str:
+    async def _get_reason(self, sub_agents_display_data: list[dict[str, Any]]) -> str:
         messages = (
             MessagesBuilder()
             .system_message_append(self._config.summarization_system_message)

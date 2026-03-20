@@ -144,7 +144,7 @@ def _prepare_responses_params_util(
     ],
     reasoning: Reasoning | None,
     text: ResponseTextConfigParam | None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
 ) -> _ResponsesParams:
     search_context = (
         _to_search_context(content_chunks) if content_chunks is not None else None
@@ -277,7 +277,7 @@ def _prepare_responses_args(
     chat_id: str,
     assistant_id: str,
     params: _ResponsesParams,
-    debug_info: dict | None,
+    debug_info: dict[str, Any] | None,
     start_text: str | None,
     include: list[ResponseIncludable] | None,
     instructions: str | None,
@@ -286,7 +286,7 @@ def _prepare_responses_args(
     parallel_tool_calls: bool | None,
     tool_choice: response_create_params.ToolChoice | None,
     top_p: float | None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     options = {}
 
@@ -326,7 +326,7 @@ def _prepare_responses_args(
         "top_p": top_p,
     }
 
-    openai_options.update({k: v for k, v in explicit_options.items() if v is not None})  # type: ignore[arg-type]
+    openai_options.update({k: v for k, v in explicit_options.items() if v is not None})  # pyright: ignore[reportArgumentType]
 
     # allow any other openai.resources.responses.Response.create options
     if other_options is not None:
@@ -463,7 +463,7 @@ def stream_responses_with_references(
     content_chunks: list[ContentChunk] | None = None,
     tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
-    debug_info: dict | None = None,
+    debug_info: dict[str, Any] | None = None,
     start_text: str | None = None,
     include: list[ResponseIncludable] | None = None,
     instructions: str | None = None,
@@ -474,7 +474,7 @@ def stream_responses_with_references(
     tool_choice: response_create_params.ToolChoice | None = None,
     top_p: float | None = None,
     reasoning: Reasoning | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
 ) -> ResponsesLanguageModelStreamResponse:
     responses_params = _prepare_responses_params_util(
         model_name=model_name,
@@ -531,7 +531,7 @@ async def stream_responses_with_references_async(
     content_chunks: list[ContentChunk] | None = None,
     tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
-    debug_info: dict | None = None,
+    debug_info: dict[str, Any] | None = None,
     start_text: str | None = None,
     include: list[ResponseIncludable] | None = None,
     instructions: str | None = None,
@@ -542,7 +542,7 @@ async def stream_responses_with_references_async(
     tool_choice: response_create_params.ToolChoice | None = None,
     top_p: float | None = None,
     reasoning: Reasoning | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
     on_rate_limit_retry: Callable[[int, float], Awaitable[None]] | None = None,
 ) -> ResponsesLanguageModelStreamResponse:
     responses_params = _prepare_responses_params_util(
