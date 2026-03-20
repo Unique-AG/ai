@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import unique_sdk
@@ -8,8 +8,12 @@ from unique_toolkit.chat.functions import (
     ChatMessageRole,
     create_message,
     create_message_async,
+    create_message_tools,
+    create_message_tools_async,
     filter_valid_messages,
     get_full_history,
+    get_message_tools,
+    get_message_tools_async,
     get_selection_from_history,
     list_messages_async,
     map_references,
@@ -19,6 +23,7 @@ from unique_toolkit.chat.functions import (
     stream_complete_to_chat,
     stream_complete_to_chat_async,
 )
+from unique_toolkit.chat.schemas import ChatMessageTool, ChatMessageToolResponse
 from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import LanguageModelMessages
@@ -645,3 +650,196 @@ def test_filter_valid_messages_preserves_message_structure():
     assert result[0]["id"] == "msg1"
     assert result[0]["extra_field"] == "extra_value"
     assert result[0]["nested"]["key"] == "value"
+
+
+def _make_sdk_tool_item(
+    external_tool_call_id: str = "tc1",
+    function_name: str = "search",
+    arguments: dict | None = None,
+    round_index: int = 0,
+    sequence_index: int = 0,
+    message_id: str = "msg1",
+    response_content: str | None = "result",
+) -> dict:
+    item: dict = {
+        "externalToolCallId": external_tool_call_id,
+        "functionName": function_name,
+        "arguments": arguments,
+        "roundIndex": round_index,
+        "sequenceIndex": sequence_index,
+        "messageId": message_id,
+        "id": f"sdk_{external_tool_call_id}",
+    }
+    if response_content is not None:
+        item["response"] = {"content": response_content}
+    return item
+
+
+class TestCreateMessageTools:
+    def test_returns_deserialized_list(self, mock_sdk):
+        mock_result = MagicMock()
+        mock_result.data = [_make_sdk_tool_item()]
+        mock_sdk.MessageTool.create_many.return_value = mock_result
+
+        tool = ChatMessageTool(
+            external_tool_call_id="tc1",
+            function_name="search",
+            arguments={"q": "test"},
+            round_index=0,
+            sequence_index=0,
+            response=ChatMessageToolResponse(content="result"),
+        )
+        result = create_message_tools(
+            user_id="u1", company_id="c1", message_id="msg1", tool_calls=[tool]
+        )
+
+        assert len(result) == 1
+        assert result[0].external_tool_call_id == "tc1"
+        assert result[0].function_name == "search"
+        assert result[0].round_index == 0
+        assert result[0].response is not None
+        assert result[0].response.content == "result"
+
+    def test_serialises_response_into_sdk_payload(self, mock_sdk):
+        mock_result = MagicMock()
+        mock_result.data = []
+        mock_sdk.MessageTool.create_many.return_value = mock_result
+
+        tool = ChatMessageTool(
+            external_tool_call_id="tc1",
+            function_name="search",
+            arguments=None,
+            round_index=0,
+            sequence_index=0,
+            response=ChatMessageToolResponse(content="ok"),
+        )
+        create_message_tools(
+            user_id="u1", company_id="c1", message_id="msg1", tool_calls=[tool]
+        )
+
+        _, call_kwargs = mock_sdk.MessageTool.create_many.call_args
+        payload = call_kwargs["tools"][0]
+        assert payload["externalToolCallId"] == "tc1"
+        assert payload["response"] == {"content": "ok"}
+
+    def test_tool_without_response_omits_response_key(self, mock_sdk):
+        mock_result = MagicMock()
+        mock_result.data = []
+        mock_sdk.MessageTool.create_many.return_value = mock_result
+
+        tool = ChatMessageTool(
+            external_tool_call_id="tc1",
+            function_name="search",
+            arguments=None,
+            round_index=0,
+            sequence_index=0,
+            response=None,
+        )
+        create_message_tools(
+            user_id="u1", company_id="c1", message_id="msg1", tool_calls=[tool]
+        )
+
+        _, call_kwargs = mock_sdk.MessageTool.create_many.call_args
+        assert "response" not in call_kwargs["tools"][0]
+
+    def test_propagates_exception(self, mock_sdk):
+        mock_sdk.MessageTool.create_many.side_effect = RuntimeError("SDK error")
+        with pytest.raises(RuntimeError, match="SDK error"):
+            create_message_tools(
+                user_id="u1", company_id="c1", message_id="msg1", tool_calls=[]
+            )
+
+    @pytest.mark.asyncio
+    async def test_async_variant(self, mock_sdk):
+        mock_result = MagicMock()
+        mock_result.data = [_make_sdk_tool_item()]
+        mock_sdk.MessageTool.create_many_async = AsyncMock(return_value=mock_result)
+
+        tool = ChatMessageTool(
+            external_tool_call_id="tc1",
+            function_name="search",
+            arguments=None,
+            round_index=0,
+            sequence_index=0,
+        )
+        result = await create_message_tools_async(
+            user_id="u1", company_id="c1", message_id="msg1", tool_calls=[tool]
+        )
+
+        assert len(result) == 1
+        assert result[0].external_tool_call_id == "tc1"
+
+
+class TestGetMessageTools:
+    def test_single_message_id(self, mock_sdk):
+        mock_result = MagicMock()
+        mock_result.data = [_make_sdk_tool_item()]
+        mock_sdk.MessageTool.get_message_tools.return_value = mock_result
+
+        result = get_message_tools(user_id="u1", company_id="c1", message_id="msg1")
+
+        assert len(result) == 1
+        assert result[0].external_tool_call_id == "tc1"
+        _, call_kwargs = mock_sdk.MessageTool.get_message_tools.call_args
+        assert call_kwargs["messageIds"] == "msg1"
+
+    def test_multiple_message_ids_joined(self, mock_sdk):
+        mock_result = MagicMock()
+        mock_result.data = []
+        mock_sdk.MessageTool.get_message_tools.return_value = mock_result
+
+        get_message_tools(user_id="u1", company_id="c1", message_ids=["m1", "m2", "m3"])
+
+        _, call_kwargs = mock_sdk.MessageTool.get_message_tools.call_args
+        assert call_kwargs["messageIds"] == "m1,m2,m3"
+
+    def test_empty_message_ids_list_returns_early(self, mock_sdk):
+        result = get_message_tools(user_id="u1", company_id="c1", message_ids=[])
+        mock_sdk.MessageTool.get_message_tools.assert_not_called()
+        assert result == []
+
+    def test_no_ids_provided_returns_early(self, mock_sdk):
+        result = get_message_tools(user_id="u1", company_id="c1")
+        mock_sdk.MessageTool.get_message_tools.assert_not_called()
+        assert result == []
+
+    def test_deserialises_response(self, mock_sdk):
+        mock_result = MagicMock()
+        mock_result.data = [
+            _make_sdk_tool_item("tc1", round_index=0, sequence_index=0),
+            _make_sdk_tool_item("tc2", round_index=1, sequence_index=0),
+        ]
+        mock_sdk.MessageTool.get_message_tools.return_value = mock_result
+
+        result = get_message_tools(user_id="u1", company_id="c1", message_id="msg1")
+
+        assert len(result) == 2
+        assert result[0].external_tool_call_id == "tc1"
+        assert result[1].round_index == 1
+
+    def test_propagates_exception(self, mock_sdk):
+        mock_sdk.MessageTool.get_message_tools.side_effect = RuntimeError("oops")
+        with pytest.raises(RuntimeError, match="oops"):
+            get_message_tools(user_id="u1", company_id="c1", message_id="msg1")
+
+    @pytest.mark.asyncio
+    async def test_async_variant(self, mock_sdk):
+        mock_result = MagicMock()
+        mock_result.data = [_make_sdk_tool_item()]
+        mock_sdk.MessageTool.get_message_tools_async = AsyncMock(
+            return_value=mock_result
+        )
+
+        result = await get_message_tools_async(
+            user_id="u1", company_id="c1", message_id="msg1"
+        )
+
+        assert len(result) == 1
+        assert result[0].external_tool_call_id == "tc1"
+
+    @pytest.mark.asyncio
+    async def test_async_empty_ids_returns_early(self, mock_sdk):
+        result = await get_message_tools_async(
+            user_id="u1", company_id="c1", message_ids=[]
+        )
+        assert result == []
