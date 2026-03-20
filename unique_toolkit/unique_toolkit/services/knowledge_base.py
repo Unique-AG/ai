@@ -78,7 +78,7 @@ class KnowledgeBaseService:
     @classmethod
     @deprecated(
         "Use UniqueContext.from_chat_event(event) (if you have a ChatEvent) or "
-        "UniqueContext.from_base_event(event) (for any BaseEvent) with UniqueServiceFactory instead."
+        "UniqueContext.from_event(event) (for any BaseEvent) with UniqueServiceFactory instead."
     )
     def from_event(cls, event: BaseEvent):
         """

@@ -70,6 +70,13 @@ class AuthContext(BaseModel):
     def get_confidential_user_id(self) -> str:
         return self.user_id.get_secret_value()
 
+    @classmethod
+    def from_event(cls, event: BaseEvent) -> Self:
+        return cls(
+            company_id=SecretStr(event.company_id),
+            user_id=SecretStr(event.user_id),
+        )
+
 
 @register_config()
 class UniqueAuth(BaseSettings):
@@ -107,7 +114,7 @@ class UniqueAuth(BaseSettings):
         return warn_about_defaults(self)
 
     @classmethod
-    def from_event(cls, event: "BaseEvent") -> Self:
+    def from_event(cls, event: BaseEvent) -> Self:
         return cls(
             company_id=SecretStr(event.company_id),
             user_id=SecretStr(event.user_id),
@@ -205,6 +212,26 @@ class ChatContext(BaseModel):
     @parent_chat_id.setter
     def parent_chat_id(self, value: str) -> None:
         self._parent_chat_id = value
+
+    @classmethod
+    def from_chat_event(cls, event: ChatEvent) -> Self:
+        return cls(
+            chat_id=event.payload.chat_id,
+            assistant_id=event.payload.assistant_id,
+            last_assistant_message_id=event.payload.assistant_message.id,
+            last_user_message_id=event.payload.user_message.id
+            if event.payload.user_message
+            else None,
+            last_user_message_text=event.payload.user_message.text
+            if event.payload.user_message
+            else None,
+            metadata_filter=event.payload.metadata_filter
+            if event.payload.metadata_filter
+            else None,
+            parent_chat_id=event.payload.correlation.parent_chat_id
+            if event.payload.correlation
+            else None,
+        )
 
 
 # App
@@ -404,39 +431,17 @@ class UniqueContext:
     @classmethod
     def from_chat_event(cls, event: ChatEvent) -> UniqueContext:
         """Build a full (auth + chat) context from a ChatEvent."""
-        auth = AuthContext(
-            user_id=SecretStr(event.user_id),
-            company_id=SecretStr(event.company_id),
-        )
-        chat = ChatContext(
-            chat_id=event.payload.chat_id,
-            assistant_id=event.payload.assistant_id,
-            last_assistant_message_id=event.payload.assistant_message.id,
-            last_user_message_id=event.payload.user_message.id
-            if event.payload.user_message
-            else None,
-            last_user_message_text=event.payload.user_message.text,
-            metadata_filter=event.payload.metadata_filter
-            if event.payload.metadata_filter
-            else None,
-            parent_chat_id=event.payload.correlation.parent_chat_id
-            if event.payload.correlation
-            else None,
-        )
 
         return cls(
-            auth=auth,
-            chat=chat,
+            auth=AuthContext.from_event(event),
+            chat=ChatContext.from_chat_event(event),
         )
 
     @classmethod
-    def from_base_event(cls, event: BaseEvent) -> Self:
+    def from_event(cls, event: BaseEvent) -> Self:
         """Build an auth-only context from any BaseEvent."""
         return cls(
-            auth=AuthContext(
-                user_id=SecretStr(event.user_id),
-                company_id=SecretStr(event.company_id),
-            ),
+            auth=AuthContext.from_event(event),
         )
 
     @classmethod
@@ -607,30 +612,12 @@ class UniqueSettings:
         Returns:
             UniqueSettings with auth + chat context populated from the event.
         """
-        auth = AuthContext(
-            user_id=SecretStr(event.user_id),
-            company_id=SecretStr(event.company_id),
+        return cls(
+            auth=AuthContext.from_event(event),
+            app=UniqueApp(),
+            api=UniqueApi(),
+            chat=ChatContext.from_chat_event(event),
         )
-        chat = ChatContext(
-            chat_id=event.payload.chat_id,
-            assistant_id=event.payload.assistant_id,
-            last_assistant_message_id=event.payload.assistant_message.id,
-            last_user_message_id=event.payload.user_message.id
-            if event.payload.user_message
-            else None,
-            last_user_message_text=event.payload.user_message.text
-            if event.payload.user_message
-            else None,
-            metadata_filter=event.payload.metadata_filter
-            if event.payload.metadata_filter
-            else None,
-            parent_chat_id=event.payload.correlation.parent_chat_id
-            if event.payload.correlation
-            else None,
-        )
-
-        instance = cls(auth=auth, app=UniqueApp(), api=UniqueApi(), chat=chat)
-        return instance
 
     @property
     def context(self) -> UniqueContext:
@@ -640,7 +627,9 @@ class UniqueSettings:
     def update_from_event(self, event: BaseEvent) -> None:
         # Use UniqueAuth.from_event so the deprecated settings.auth property
         # keeps working for callers that haven't migrated yet.
-        self._context = UniqueContext(auth=UniqueAuth.from_event(event))
+        self._context = UniqueContext(
+            auth=UniqueAuth.from_event(event), chat=self._context.chat
+        )
 
     @property
     def api(self) -> UniqueApi:

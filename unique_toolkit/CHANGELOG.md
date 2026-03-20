@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.59.1] - 2026-03-19
 - Add `UniqueServiceFactory` for registry-based service creation via `UniqueContext` (UN-18236)
-- Add `UniqueContext` with `from_chat_event` / `from_base_event` / `from_settings` factory methods
+- Add `UniqueContext` with `from_chat_event` / `from_event` / `from_settings` factory methods
 - Add `AuthContext`, `AuthContextProtocol`, `ChatContext`, `ChatContextProtocol` to `unique_settings`
 - Add `ChatService.from_context` and `KnowledgeBaseService.from_context` constructors; deprecate old event-based constructors
 - Deprecate `UniqueSettings.auth` property in favour of `UniqueSettings.authcontext`

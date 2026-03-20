@@ -1248,7 +1248,7 @@ class TestUniqueContext:
     @pytest.mark.ai
     def test_from_base_event__sets_auth_fields(self) -> None:
         """
-        Purpose: Verify from_base_event maps company_id and user_id into auth.
+        Purpose: Verify from_event maps company_id and user_id into auth.
         Why this matters: Non-chat events still need a valid auth context for API calls.
         Setup summary: BaseEvent with company-base/user-base; assert both auth fields match.
         """
@@ -1258,14 +1258,14 @@ class TestUniqueContext:
             user_id="user-base",
             company_id="company-base",
         )
-        ctx = UniqueContext.from_base_event(event)
+        ctx = UniqueContext.from_event(event)
         assert ctx.auth.get_confidential_company_id() == "company-base"
         assert ctx.auth.get_confidential_user_id() == "user-base"
 
     @pytest.mark.ai
     def test_from_base_event__chat_is_none(self) -> None:
         """
-        Purpose: Verify from_base_event produces an auth-only context with no chat.
+        Purpose: Verify from_event produces an auth-only context with no chat.
         Why this matters: BaseEvents have no chat payload; code must handle ctx.chat being None.
         Setup summary: BaseEvent; assert ctx.chat is None.
         """
@@ -1275,5 +1275,5 @@ class TestUniqueContext:
             user_id="user-1",
             company_id="company-1",
         )
-        ctx = UniqueContext.from_base_event(event)
+        ctx = UniqueContext.from_event(event)
         assert ctx.chat is None
