@@ -45,10 +45,17 @@ class MockTool(Tool[MockToolConfig]):
         mock_event.chat_id = "test_chat"
         mock_event.assistant_id = "test_assistant"
 
-        # Mock the payload structure
+        # Mock the payload structure — all string fields must be real strings
+        # because from_chat_event passes them into ChatContext (pydantic validation)
         mock_payload = Mock()
+        mock_payload.chat_id = "test_chat"
+        mock_payload.assistant_id = "test_assistant"
         mock_payload.assistant_message = Mock()
         mock_payload.assistant_message.id = "test_assistant_message_id"
+        mock_payload.user_message = Mock()
+        mock_payload.user_message.id = "test_user_message_id"
+        mock_payload.metadata_filter = None
+        mock_payload.correlation = None
         mock_event.payload = mock_payload
 
         super().__init__(configuration, mock_event)

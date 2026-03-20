@@ -14,7 +14,7 @@ from unique_toolkit.agentic.history_manager.history_construction_with_contents i
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.chat.service import ChatService
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.schemas import (
@@ -26,6 +26,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolMessage,
     LanguageModelUserMessage,
 )
+from unique_toolkit.services.factory import UniqueServiceFactory
 
 MAX_INPUT_TOKENS_SAFETY_PERCENTAGE = (
     0.1  # 10% safety margin for input tokens we need 10% less does not work.
@@ -59,7 +60,9 @@ class LoopTokenReducer:
         self._reference_manager = reference_manager
         self._language_model = language_model
         self._encoder = self._get_encoder(language_model)
-        self._chat_service = ChatService(event)
+        self._chat_service = UniqueServiceFactory(
+            settings=UniqueSettings.from_chat_event(event)
+        ).chat_service()
         self._content_service = ContentService.from_event(event)
         self._user_message = event.payload.user_message
         self._chat_id = event.payload.chat_id

@@ -5,12 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.59.1] - 2026-03-19
+- Add `UniqueServiceFactory` for registry-based service creation via `UniqueContext` (UN-18236)
+- Add `UniqueContext` with `from_chat_event` / `from_event` / `from_settings` factory methods
+- Add `AuthContext`, `AuthContextProtocol`, `ChatContext`, `ChatContextProtocol` to `unique_settings`
+- Add `ChatService.from_context` and `KnowledgeBaseService.from_context` constructors; deprecate old event-based constructors
+- Deprecate `UniqueSettings.auth` property in favour of `UniqueSettings.authcontext`
 
 ## [1.59.0] - 2026-03-19
 - Introduce `AuthContextProtocol` and `AuthContext` (Pydantic `BaseModel`) for unified auth typing across MCP services and apps (UN-18234)
 - Add `ChatContextProtocol` and `ChatContext` (Pydantic `BaseModel`) for chat context (UN-18234)
 - Add `UniqueEnvironment` class grouping env-only settings (`app` + `api`) (UN-18234)
-- Add `UniqueRequestContext` class grouping request/env context (`auth` + `chat`) (UN-18234)
+- Add `UniqueContext` class grouping request/env context (`auth` + `chat`) (UN-18234)
 - Enhance `UniqueAuth` with `get_confidential_company_id()`, `get_confidential_user_id()`, and `to_auth_context()` methods (UN-18234)
 - Add `authcontext: AuthContextProtocol` property to `UniqueSettings`; deprecate `auth` (still returns `UniqueAuth`) (UN-18234)
 
