@@ -28,7 +28,7 @@ from unique_toolkit.app import (
     ChatEventUserMessage,
     EventName,
 )
-from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.content.schemas import ContentChunk, ContentMetadata
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelName,
@@ -131,6 +131,9 @@ def create_content_chunk(
     text: str,
     content_id: str = "cont_test123",
     order: int = 0,
+    url: str | None = None,
+    title: str | None = None,
+    metadata: ContentMetadata | None = None,
 ) -> ContentChunk:
     """Helper function to create ContentChunk instances for testing."""
     return ContentChunk(
@@ -139,6 +142,9 @@ def create_content_chunk(
         text=text,
         order=order,
         key="test_file.pdf",
+        url=url,
+        title=title,
+        metadata=metadata,
     )
 
 
@@ -575,7 +581,17 @@ def test_create_reduced_standard_sources_message__formats_sources_correctly_AI(
     # Arrange
     original_message = create_tool_message("tool_1", "TestTool", "original")
     chunks = [
-        create_content_chunk("chunk_1", "First chunk text"),
+        create_content_chunk(
+            "chunk_1",
+            "First chunk text",
+            url="https://nvidianews.nvidia.com/story",
+            title='nvidianews.nvidia.com: "NVIDIA story"',
+            metadata=ContentMetadata(
+                key="websearch_v3_source_label",
+                mime_type="text/plain",
+                document='nvidianews.nvidia.com: "NVIDIA story"',
+            ),
+        ),
         create_content_chunk("chunk_2", "Second chunk text"),
     ]
 
@@ -595,8 +611,13 @@ def test_create_reduced_standard_sources_message__formats_sources_correctly_AI(
     assert len(content_dict) == 2
     assert content_dict[0]["source_number"] == 5
     assert content_dict[0]["content"] == "First chunk text"
+    assert content_dict[0]["metadata"] == {
+        "document": 'nvidianews.nvidia.com: "NVIDIA story"'
+    }
+    assert "url" not in content_dict[0]
     assert content_dict[1]["source_number"] == 6
     assert content_dict[1]["content"] == "Second chunk text"
+    assert "metadata" not in content_dict[1]
 
 
 def test_create_reduced_table_search_message__preserves_sql_content_AI(
