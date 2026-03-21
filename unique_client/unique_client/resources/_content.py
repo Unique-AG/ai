@@ -70,7 +70,7 @@ class ContentManager(BaseManager):
         content_id: str | None = None,
         file_path: str | None = None,
     ) -> str | None:
-        return await Content.resolve_content_id_from_file_path_async(
+        return Content.resolve_content_id_from_file_path(
             self._user_id, self._company_id, content_id=content_id, file_path=file_path
         )
 
