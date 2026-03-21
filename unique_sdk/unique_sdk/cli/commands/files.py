@@ -55,6 +55,9 @@ def _resolve_upload_destination(
       "subfolder/new" -> subfolder, renamed file
       "/abs/path/"    -> absolute folder, original filename
       scope_abc123    -> that scope, original filename
+
+    A bare "/" (or only slashes) is rejected: it would otherwise strip to an
+    empty path and be mis-resolved relative to cwd.
     """
     if destination is None or destination == ".":
         scope_id = state.scope_id
@@ -73,6 +76,9 @@ def _resolve_upload_destination(
             parts = destination.rsplit("/", 1)
             folder_path = parts[0] if parts[0] else "/"
             display_name = parts[1]
+
+        if not folder_path:
+            raise ValueError("cannot upload to root. cd into a folder first.")
 
         if folder_path == ".":
             scope_id = state.scope_id

@@ -264,6 +264,13 @@ class TestFiles:
         with pytest.raises(ValueError, match="cannot upload to root"):
             _resolve_upload_destination(_state(), "file.pdf", None)
 
+    def test_resolve_upload_dest_slash_only(self) -> None:
+        """'/' strips to empty folder_path; must not fall through as relative cwd."""
+        with pytest.raises(ValueError, match="cannot upload to root"):
+            _resolve_upload_destination(_state("/R", "scope_r"), "file.pdf", "/")
+        with pytest.raises(ValueError, match="cannot upload to root"):
+            _resolve_upload_destination(_state("/R", "scope_r"), "file.pdf", "///")
+
     def test_resolve_upload_dest_scope_id(self) -> None:
         scope, name = _resolve_upload_destination(
             _state(),
