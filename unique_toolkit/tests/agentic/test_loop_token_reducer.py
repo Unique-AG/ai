@@ -633,6 +633,8 @@ def test_create_reduced_standard_sources_message__preserves_readable_unicode_AI(
     assert content_dict[0]["content"] == 'ページ名 "quoted"'
     assert content_dict[1]["source_number"] == 3
     assert content_dict[1]["content"] == "مرحبا 😀"
+
+
 def test_create_reduced_table_search_message__preserves_sql_content_AI(
     loop_token_reducer: LoopTokenReducer,
 ) -> None:
