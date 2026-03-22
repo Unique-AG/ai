@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Sequence, overload
+from typing import TYPE_CHECKING, Any, Sequence, overload
 
 import unique_sdk
 from openai.types.chat import ChatCompletionToolChoiceOptionParam
@@ -14,10 +14,11 @@ from openai.types.responses import (
 )
 from openai.types.shared_params import Metadata, Reasoning
 from pydantic import BaseModel
-from typing_extensions import deprecated
+from typing_extensions import Self, deprecated
 
 from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.chat.cancellation import CancellationWatcher
 from unique_toolkit.chat.constants import (
     DEFAULT_MAX_MESSAGES,
@@ -34,10 +35,14 @@ from unique_toolkit.chat.functions import (
     create_message_execution_async,
     create_message_log,
     create_message_log_async,
+    create_message_tools,
+    create_message_tools_async,
     get_full_history,
     get_full_history_async,
     get_message_execution,
     get_message_execution_async,
+    get_message_tools,
+    get_message_tools_async,
     get_selection_from_history,
     modify_message,
     modify_message_assessment,
@@ -62,6 +67,7 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
     ChatMessageRole,
+    ChatMessageTool,
     MessageExecution,
     MessageExecutionType,
     MessageExecutionUpdateStatus,
@@ -107,23 +113,76 @@ from unique_toolkit.short_term_memory.functions import (
 )
 from unique_toolkit.short_term_memory.schemas import ShortTermMemory
 
-logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
+if TYPE_CHECKING:
+    from unique_toolkit.app.schemas import ChatEvent
+
+_LOGGER = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 
 
 class ChatService(ChatServiceDeprecated):
     """Provides all functionalities to manage the chat session."""
 
-    def __init__(self, *args, **kwargs):
-        """Initialize ChatService with lazy-loaded service properties."""
-        super().__init__(*args, **kwargs)
+    @deprecated(
+        "Use UniqueContext.from_chat_event(event) with UniqueServiceFactory instead."
+    )
+    def __init__(
+        self,
+        event: "ChatEvent",
+        content_scope_chat_id: str | None = None,
+    ) -> None:
+        """Initialize ChatService from an event (deprecated). Use :meth:`from_context` instead."""
+        super().__init__(event, content_scope_chat_id)
         self._elicitation_service: ElicitationService | None = None
-
-        self._cancellation_watcher = CancellationWatcher(
+        self._elicitation_message_id: str | None = None
+        self._cancellation_watcher: CancellationWatcher = CancellationWatcher(
             user_id=self._user_id,
             company_id=self._company_id,
             chat_id=self._chat_id,
             assistant_message_id=self._assistant_message_id,
         )
+
+    @classmethod
+    def from_settings(cls, settings: UniqueSettings, **kwargs: Any) -> Self:
+        """Create a ChatService from a :class:`UniqueSettings` or :class:`UniqueContext`.
+
+        This is the preferred constructor when using the service factory pattern.
+
+        Args:
+            settings: Either a :class:`UniqueSettings` (whose ``context`` is used)
+                or a :class:`UniqueContext` carrying auth and chat information directly.
+
+        Raises:
+            ValueError: If the resolved context has no chat or ``last_user_message_id`` is missing.
+        """
+        return cls.from_context(context=settings.context)
+
+    @classmethod
+    def from_context(cls, context: UniqueContext) -> Self:
+        if context.chat is None:
+            raise ValueError(
+                "ChatService requires a chat context (context.chat is None)"
+            )
+        chat = context.chat
+        user_message_id = chat.last_user_message_id
+        instance: ChatService = cls.__new__(cls)
+        instance._event = None
+        instance._company_id = context.auth.get_confidential_company_id()
+        instance._user_id = context.auth.get_confidential_user_id()
+        instance._chat_id = chat.chat_id
+        instance._assistant_id = chat.assistant_id
+        instance._assistant_message_id = chat.last_assistant_message_id
+        instance._user_message_id = user_message_id
+        instance._user_message_text = chat.last_user_message_text
+        instance._content_scope_chat_id = chat.parent_chat_id or chat.chat_id
+        instance._elicitation_service = None
+        instance._elicitation_message_id = chat.last_assistant_message_id
+        instance._cancellation_watcher = CancellationWatcher(
+            user_id=instance._user_id,
+            company_id=instance._company_id,
+            chat_id=instance._chat_id,
+            assistant_message_id=instance._assistant_message_id,
+        )
+        return instance
 
     @property
     def cancellation(self) -> CancellationWatcher:
@@ -136,7 +195,15 @@ class ChatService(ChatServiceDeprecated):
         if self._elicitation_service is not None:
             return self._elicitation_service
 
-        self._elicitation_service = ElicitationService.from_chat_event(self._event)
+        if self._event is not None:
+            self._elicitation_service = ElicitationService.from_chat_event(self._event)
+        else:
+            self._elicitation_service = ElicitationService(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                chat_id=self._content_scope_chat_id,
+                message_id=self._elicitation_message_id,
+            )
 
         return self._elicitation_service
 
@@ -1705,7 +1772,7 @@ class ChatService(ChatServiceDeprecated):
                     order=order,
                 )
             except Exception:
-                logger.warning(
+                _LOGGER.warning(
                     "Failed to write rate-limit retry message log",
                     exc_info=True,
                 )
@@ -1833,13 +1900,11 @@ class ChatService(ChatServiceDeprecated):
     def download_chat_images_and_documents(self) -> tuple[list[Content], list[Content]]:
         """Return images and documents from the content-scope chat (e.g. parent chat when subagent).
 
-        Searches content owned by the content-scope chat id, so when running as
-        a subagent with correlation, this returns files uploaded in the
-        primary chat session.
+        Uses the service's content-scope chat id, so when running as a subagent
+        with correlation, this accesses files from the primary chat session.
 
         Returns:
-            tuple[list[Content], list[Content]]: (images, documents) from the
-                content-scope chat.
+            tuple[list[Content], list[Content]]: (images, documents) from the content-scope chat.
         """
         images: list[Content] = []
         files: list[Content] = []
@@ -2253,4 +2318,75 @@ class ChatService(ChatServiceDeprecated):
         return await self.find_message_memory_by_id_async(
             message_id=message_id or self._assistant_message_id,
             key=key,
+        )
+
+    # Message Tool Methods
+    ############################################################################
+
+    def create_message_tools(
+        self,
+        *,
+        tool_calls: list[ChatMessageTool],
+        message_id: str | None = None,
+    ) -> list[ChatMessageTool]:
+        """Persist tool call records for an assistant message.
+
+        Args:
+            tool_calls: The tool call records to persist.
+            message_id: The assistant message to attach records to.
+                Defaults to the current turn's assistant message.
+        """
+        return create_message_tools(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id or self._assistant_message_id,
+            tool_calls=tool_calls,
+        )
+
+    async def create_message_tools_async(
+        self,
+        *,
+        tool_calls: list[ChatMessageTool],
+        message_id: str | None = None,
+    ) -> list[ChatMessageTool]:
+        """Async variant of create_message_tools.
+
+        Args:
+            tool_calls: The tool call records to persist.
+            message_id: The assistant message to attach records to.
+                Defaults to the current turn's assistant message.
+        """
+        return await create_message_tools_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id or self._assistant_message_id,
+            tool_calls=tool_calls,
+        )
+
+    def get_message_tools(
+        self,
+        *,
+        message_id: str | None = None,
+        message_ids: list[str] | None = None,
+    ) -> list[ChatMessageTool]:
+        """Fetch persisted tool call records for one or more assistant messages."""
+        return get_message_tools(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            message_ids=message_ids,
+        )
+
+    async def get_message_tools_async(
+        self,
+        *,
+        message_id: str | None = None,
+        message_ids: list[str] | None = None,
+    ) -> list[ChatMessageTool]:
+        """Async variant of get_message_tools."""
+        return await get_message_tools_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            message_id=message_id,
+            message_ids=message_ids,
         )
