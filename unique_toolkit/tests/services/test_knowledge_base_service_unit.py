@@ -1408,6 +1408,7 @@ class TestKnowledgeBaseServiceFolderManagement:
         assert isinstance(result, list)
         assert all(isinstance(scope_id, str) for scope_id in result)
 
+
 class TestKnowledgeBaseServiceMetadata:
     """Test cases for metadata management methods."""
 
@@ -2411,6 +2412,7 @@ class TestTranslateScopeIdsAsync:
         Why this matters: Batch translation with concurrency is the performance-critical path.
         Setup summary: Patch _translate_scope_id_async to return deterministic names; assert full mapping.
         """
+
         async def mock_translate(scope_id: str) -> str:
             return f"folder_{scope_id}"
 
@@ -2437,6 +2439,7 @@ class TestTranslateScopeIdsAsync:
         Why this matters: Callers fall back to raw scope IDs for unresolved entries.
         Setup summary: Mock returns None for one ID; assert it is absent from result.
         """
+
         async def mock_translate(scope_id: str) -> str | None:
             if scope_id == "bad_id":
                 return None
@@ -2488,7 +2491,9 @@ class TestTranslateScopeIdsAsync:
             nonlocal max_observed_concurrency, current_concurrency
             async with lock:
                 current_concurrency += 1
-                max_observed_concurrency = max(max_observed_concurrency, current_concurrency)
+                max_observed_concurrency = max(
+                    max_observed_concurrency, current_concurrency
+                )
             await asyncio.sleep(0.01)
             async with lock:
                 current_concurrency -= 1
@@ -2813,8 +2818,8 @@ class TestDisplayPathTree:
         result = KnowledgeBaseService.display_path_tree(paths)
 
         lines = result.split("\n")
-        folder_line_idx = next(i for i, l in enumerate(lines) if "a_folder" in l)
-        file_line_idx = next(i for i, l in enumerate(lines) if "z_file" in l)
+        folder_line_idx = next(i for i, line in enumerate(lines) if "a_folder" in line)
+        file_line_idx = next(i for i, line in enumerate(lines) if "z_file" in line)
         assert folder_line_idx < file_line_idx
 
     @pytest.mark.ai
@@ -2839,7 +2844,7 @@ class TestDisplayPathTree:
 
         assert "folder" in result
         assert "file.txt" in result
-        lines = [l.strip() for l in result.split("\n") if l.strip()]
+        lines = [ln.strip() for ln in result.split("\n") if ln.strip()]
         for line in lines:
             stripped = line.lstrip("│├└── ─\u00a0 ")
             if stripped:
