@@ -2,6 +2,7 @@ from fastmcp import FastMCP
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 
+from mcp_search.context_provider import UniqueContextProvider
 from mcp_search.routes import MCPBaseRoutes
 from mcp_search.tools import UniqueKnowledgeBaseTools
 from unique_mcp.auth.zitadel.oauth_proxy import (
@@ -22,9 +23,17 @@ def main() -> None:
     print("BASE URL: ", server_settings.base_url.encoded_string())
     print("LOCAL BASE URL: ", server_settings.local_base_url.encoded_string())
 
+    zitadel_settings = ZitadelOAuthProxySettings()
+
     zitadel_oauth_proxy = create_zitadel_oauth_proxy(
         mcp_server_base_url=server_settings.base_url.encoded_string(),
-        zitadel_oauth_proxy_settings=ZitadelOAuthProxySettings(),
+        zitadel_oauth_proxy_settings=zitadel_settings,
+    )
+
+    # Context provider: resolves per-request UniqueSettings from the OAuth token
+    context_provider = UniqueContextProvider(
+        settings=_UNIQUE_SETTINGS,
+        zitadel_settings=zitadel_settings,
     )
 
     custom_middleware = [
@@ -42,7 +51,7 @@ def main() -> None:
     )
 
     unique_knowledge_base_provider = UniqueKnowledgeBaseTools(
-        unique_settings=_UNIQUE_SETTINGS,
+        context_provider=context_provider,
     )
     unique_knowledge_base_provider.register(mcp=mcp)
 
