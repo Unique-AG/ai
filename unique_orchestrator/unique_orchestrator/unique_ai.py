@@ -210,7 +210,9 @@ class UniqueAI:
                 self._thinking_manager.update_tool_progress_reporter(loop_response)
 
                 self._debug_info_manager.extract_builtin_tool_debug_info(
-                    loop_response, self._tool_manager, self.current_iteration_index
+                    loop_response,
+                    tool_manager=self._tool_manager,  # TODO: fix type in toolkit
+                    loop_iteration_index=self.current_iteration_index,
                 )
 
                 exit_loop = await self._process_plan(loop_response)
