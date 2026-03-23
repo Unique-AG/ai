@@ -90,6 +90,11 @@ class UniqueContextProvider:
 
         Strategy: try JWT claims first (zero HTTP calls), fall back to
         Zitadel userinfo endpoint if claims don't contain company_id.
+
+        Note: the claims-first path only fires if the OAuth proxy forwards
+        ``sub`` and ``urn:zitadel:iam:user:resourceowner:id`` into the
+        FastMCP-issued JWT. With the current ZitadelOAuthProxy the proxy JWT
+        has ``subject=None``, so the userinfo fallback runs on every call.
         """
         token = get_access_token()
         if token is None:
