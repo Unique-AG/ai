@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [1.62.1] - 2026-03-23
-- Base Tool.__init__ accepts config only; optional overload for backward compat
+- Base Tool.__init__ accepts config only; optional overload for backward compatibility
 - Tools not tied to chat can use Tool(config); legacy tools use Tool(config, event, tool_progress_reporter)
 - MCPToolWrapper, SubAgentTool, DeepResearchTool, PMPositionsTool create their own services when needed
+
 ## [1.62.0] - 2026-03-23
 - Add `tool_manager` parameter to `DebugInfoManager.extract_builtin_tool_debug_info` and `_extract_tool_calls_from_stream_response`; each code interpreter call entry now includes `is_exclusive` and `is_forced` flags derived from the tool manager 
 
