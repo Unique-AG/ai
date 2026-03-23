@@ -209,6 +209,10 @@ class UniqueAI:
 
                 self._thinking_manager.update_tool_progress_reporter(loop_response)
 
+                self._debug_info_manager.extract_builtin_tool_debug_info(
+                    loop_response, self._tool_manager, self.current_iteration_index
+                )
+
                 exit_loop = await self._process_plan(loop_response)
                 self._logger.info("Done with _process_plan")
 
@@ -261,10 +265,6 @@ class UniqueAI:
 
             if not self._chat_service.cancellation.is_cancelled:
                 await self._update_debug_info_if_tool_took_control()
-                # Required for tools that execute directly in Azure such as Code Execution
-                await self._chat_service.update_debug_info_async(
-                    debug_info=self._debug_info_manager.get()
-                )
                 await self._chat_service.modify_assistant_message_async(
                     set_completed_at=not self._tool_took_control,
                 )
@@ -312,11 +312,6 @@ class UniqueAI:
             )
 
             return await self._handle_tool_calls(loop_response)
-
-        self._debug_info_manager.extract_builtin_tool_debug_info(
-            stream_response=loop_response,
-            loop_iteration_index=self.current_iteration_index,
-        )
 
         self._logger.debug("No tool calls. we might exit the loop")
 
@@ -582,8 +577,7 @@ class UniqueAI:
         self._history_manager.add_tool_call_results(tool_call_responses)
         self._reference_manager.extract_referenceable_chunks(tool_call_responses)
         self._debug_info_manager.extract_tool_debug_info(
-            tool_call_responses,
-            loop_iteration_index=self.current_iteration_index,
+            tool_call_responses, self.current_iteration_index
         )
 
         self._tool_took_control = self._tool_manager.does_a_tool_take_control(
@@ -658,18 +652,18 @@ class UniqueAI:
         if "DeepResearch" in tool_names:
             return
 
-        self._debug_info_manager.add(
-            "assistant",
-            {
+        debug_info_event = {
+            "assistant": {
                 "id": self._event.payload.assistant_id,
                 "name": self._event.payload.name,
             },
-        )
-        self._debug_info_manager.add("chosenModule", self._event.payload.name)
-        self._debug_info_manager.add("userMetadata", self._event.payload.user_metadata)
-        self._debug_info_manager.add(
-            "toolParameters", self._event.payload.tool_parameters
-        )
+            "chosenModule": self._event.payload.name,
+            "userMetadata": self._event.payload.user_metadata,
+            "toolParameters": self._event.payload.tool_parameters,
+            **self._debug_info_manager.get(),
+        }
+
+        await self._chat_service.update_debug_info_async(debug_info=debug_info_event)
 
 
 @deprecated("Use UniqueAI directly instead")
