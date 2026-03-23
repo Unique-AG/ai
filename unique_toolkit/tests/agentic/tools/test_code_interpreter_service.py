@@ -54,7 +54,7 @@ def test_get_debug_info__returns_only_expected_keys__for_any_call(
     )
 
     # Assert
-    assert set(result.keys()) == {"id", "container_id"}
+    assert set(result.keys()) == {"id", "container_id", "code"}
 
 
 @pytest.mark.ai
