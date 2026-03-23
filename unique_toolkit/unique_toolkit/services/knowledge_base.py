@@ -709,7 +709,7 @@ class KnowledgeBaseService:
         *,
         metadata_filter: dict[str, Any] | None = None,
         step_size: int = 100,
-        max_concurrent_requests: int = 25,
+        max_concurrent_requests: int = 10,
     ) -> list[ContentInfo]:
         """
         Fetches all content infos from the knowledge base using parallel pagination.
