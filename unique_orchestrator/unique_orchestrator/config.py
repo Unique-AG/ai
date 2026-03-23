@@ -9,6 +9,8 @@ from unique_deep_research.service import DeepResearchTool
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
+from unique_retrieve_search_scope.config import RetrieveSearchScopeConfig
+from unique_retrieve_search_scope.service import RetrieveSearchScopeTool
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
 from unique_toolkit._common.validators import (
@@ -353,6 +355,10 @@ class ExperimentalConfig(BaseToolConfig):
         description="If set, the main agent will use the Responses API from OpenAI",
     )
 
+    enable_retrieve_search_scope: bool = Field(
+        default=False,
+        description="Experimental: enables the RetrieveSearchScope tool, which shows the agent which files are available in the knowledge base.",
+    )
 
 class UniqueAIAgentConfig(BaseToolConfig):
     max_loop_iterations: Annotated[
@@ -409,21 +415,6 @@ class UniqueAIConfig(BaseToolConfig):
         ):
             self.agent.experimental.responses_api_config.use_responses_api = True
 
-        return self
-
-    @model_validator(mode="after")
-    def validate_open_file_tool_requires_responses_api(self) -> "UniqueAIConfig":
-        uses_responses_api = (
-            self.agent.experimental.responses_api_config.use_responses_api
-            or self.agent.experimental.use_responses_api
-        )
-        if (
-            self.agent.experimental.open_file_tool_config.enabled
-            and not uses_responses_api
-        ):
-            raise ValueError(
-                "open_file_tool_config.enabled requires the Responses API to be enabled."
-            )
         return self
 
     @property

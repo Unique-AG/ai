@@ -1,0 +1,64 @@
+[project]
+name = "unique_retrieve_search_scope"
+version = "0.1.0"
+description = "Tool to retrieve the list of files available in the knowledge base search scope."
+readme = "README.md"
+license = { text = "Proprietary" }
+authors = []
+requires-python = ">=3.12,<4"
+dependencies = [
+    "pydantic>=2.8.2,<3",
+    "typing-extensions>=4.9.0,<5",
+    "unique-toolkit>=1.47.7,<2",
+]
+
+[build-system]
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[tool.uv.sources]
+unique-toolkit = { path = "../../unique_toolkit", editable = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1,<9",
+    "pytest-asyncio>=0.24.0,<0.25",
+    "ruff==0.12.10",
+    "pytest-cov>=7.0.0,<8",
+    "deptry>=0.24.0,<0.25",
+    "basedpyright>=1.35.0,<2",
+    "poethepoet>=0.32.0,<0.33",
+]
+
+[tool.poe.tasks]
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+test = "pytest"
+typecheck = "basedpyright"
+depcheck = "deptry ."
+coverage = "pytest --cov=unique_retrieve_search_scope --cov-report=term-missing"
+ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
+ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
+
+[tool.deptry]
+known_first_party = ["unique_retrieve_search_scope"]
+extend_exclude = ["tests"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["unique-toolkit"]
+DEP003 = ["unique_toolkit"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+include = ["unique_retrieve_search_scope"]
+exclude = ["**/tests/**", "**/test_*.py"]
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+extend-select = ["I"]
