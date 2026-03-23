@@ -721,7 +721,7 @@ class KnowledgeBaseService:
             metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
             step_size (int): Number of items per page. Defaults to 100.
             max_concurrent_requests (int): Maximum number of concurrent API calls.
-                Defaults to 25.
+                Defaults to 10.
 
         Returns:
             list[ContentInfo]: All content infos visible to the user.
@@ -831,6 +831,10 @@ class KnowledgeBaseService:
         return scope_ids
 
     async def _translate_scope_id_async(self, scope_id: str) -> str | None:
+        """Resolve a single scope ID to its folder name.
+
+        Returns the folder name, or ``None`` if the lookup fails.
+        """
         try:
             folder_info = await self.get_folder_info_async(scope_id=scope_id)
             return folder_info.name
@@ -846,6 +850,18 @@ class KnowledgeBaseService:
         *,
         max_concurrent_requests: int = 25,
     ) -> dict[str, str]:
+        """Translate a set of scope IDs to folder names concurrently.
+
+        Scope IDs that cannot be resolved are silently omitted from the result.
+
+        Args:
+            scope_ids: The scope IDs to translate.
+            max_concurrent_requests: Maximum number of concurrent API calls.
+                Defaults to 25.
+
+        Returns:
+            dict[str, str]: Mapping from scope ID to folder name.
+        """
         scope_id_list = list(scope_ids)
         semaphore = asyncio.Semaphore(max_concurrent_requests)
 
@@ -862,7 +878,6 @@ class KnowledgeBaseService:
         self,
         *,
         metadata_filter: dict[str, Any] | None = None,
-        max_concurrent_requests: int = 25,
     ) -> list[list[str]]:
         """Resolves file paths visible to the current user asynchronously.
 
@@ -871,8 +886,6 @@ class KnowledgeBaseService:
 
         Args:
             metadata_filter: Optional metadata filter to narrow the content scope.
-            max_concurrent_requests: Maximum concurrent API calls for scope ID
-                translation. Defaults to 25.
 
         Returns:
             list[list[str]]: Each inner list is ``[folder1, folder2, ..., filename]``.
@@ -882,33 +895,32 @@ class KnowledgeBaseService:
         )
 
         scope_ids = self.extract_scope_ids(content_infos)
-        scope_id_to_folder_name = await self._translate_scope_ids_async(
-            scope_ids, max_concurrent_requests=max_concurrent_requests
-        )
+        scope_id_to_folder_name = await self._translate_scope_ids_async(scope_ids)
 
         file_paths: list[list[str]] = []
         for content_info in content_infos:
             metadata = content_info.metadata
 
-            # {FullPath} is present for documents ingested via confluence connector
-            # TODO: verify this assumption
+            # TODO: verify (1) {FullPath} is present for documents ingested via confluence connector, and
+            #  (2) whether {FullPath} includes the filename — if so, appending
+            #  content_info.key below produces a duplicate final segment.
             if metadata and (full_path := metadata.get(r"{FullPath}")) is not None:
-                segments = [s for s in str(full_path).split("/") if s]
+                file_path = [s for s in str(full_path).split("/") if s]
             elif (
                 metadata
                 and (folder_id_path := metadata.get("folderIdPath")) is not None
                 and isinstance(folder_id_path, str)
             ):
-                segments = [
+                file_path = [
                     scope_id_to_folder_name.get(sid, sid)
                     for sid in folder_id_path.replace("uniquepathid://", "").split("/")
                     if sid
                 ]
             else:
-                segments = ["_no_folder_path"]
+                file_path = ["_no_folder_path"]
 
-            segments.append(content_info.key)
-            file_paths.append(segments)
+            file_path.append(content_info.key)
+            file_paths.append(file_path)
 
         return file_paths
 
