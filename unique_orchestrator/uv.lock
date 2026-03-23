@@ -3948,11 +3948,12 @@ dev = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.91"
+version = "0.10.92"
 source = { editable = "../unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
     { name = "anyio" },
+    { name = "click" },
     { name = "httpx" },
     { name = "regex" },
     { name = "requests" },
@@ -3964,6 +3965,7 @@ dependencies = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9.0,<4" },
     { name = "anyio", specifier = ">=4.0.0,<5" },
+    { name = "click", specifier = ">=8.1.0,<9" },
     { name = "httpx", specifier = ">=0.28.0,<0.29" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=1.105.0,<2" },
     { name = "regex", specifier = ">=2024.5.15" },
@@ -4102,7 +4104,7 @@ dev = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.59.1"
+version = "1.60.0"
 source = { editable = "../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -4166,7 +4168,7 @@ requires-dist = [
     { name = "tiktoken", specifier = ">=0.12.0,<0.13" },
     { name = "tokenizers", specifier = ">=0.21.0,<0.22" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
-    { name = "unique-sdk", specifier = ">=0.10.80,<0.11" },
+    { name = "unique-sdk", specifier = ">=0.10.85,<0.11" },
     { name = "uvicorn", marker = "extra == 'fastapi'", specifier = ">=0.37.0,<0.38" },
 ]
 provides-extras = ["langchain", "fastapi"]
