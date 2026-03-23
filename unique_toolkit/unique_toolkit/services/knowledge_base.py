@@ -855,10 +855,110 @@ class KnowledgeBaseService:
 
         results = await asyncio.gather(*[_resolve(sid) for sid in scope_id_list])
         return {
-            sid: name
-            for sid, name in zip(scope_id_list, results)
-            if name is not None
+            sid: name for sid, name in zip(scope_id_list, results) if name is not None
         }
+
+    async def resolve_visible_file_paths_async(
+        self,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+        max_concurrent_requests: int = 25,
+    ) -> list[list[str]]:
+        """Resolves file paths visible to the current user asynchronously.
+
+        Each path is returned as a list of segments (folder names followed by filename).
+        E.g. ``[["Documents", "Reports", "report.pdf"], ["Images", "photo.jpg"]]``
+
+        Args:
+            metadata_filter: Optional metadata filter to narrow the content scope.
+            max_concurrent_requests: Maximum concurrent API calls for scope ID
+                translation. Defaults to 25.
+
+        Returns:
+            list[list[str]]: Each inner list is ``[folder1, folder2, ..., filename]``.
+        """
+        content_infos = await self.get_content_infos_async(
+            metadata_filter=metadata_filter
+        )
+
+        scope_ids = self.extract_scope_ids(content_infos)
+        scope_id_to_folder_name = await self._translate_scope_ids_async(
+            scope_ids, max_concurrent_requests=max_concurrent_requests
+        )
+
+        file_paths: list[list[str]] = []
+        for content_info in content_infos:
+            metadata = content_info.metadata
+
+            # {FullPath} is present for documents ingested via confluence connector
+            # TODO: verify this assumption
+            if metadata and (full_path := metadata.get(r"{FullPath}")) is not None:
+                segments = [s for s in str(full_path).split("/") if s]
+            elif (
+                metadata
+                and (folder_id_path := metadata.get("folderIdPath")) is not None
+                and isinstance(folder_id_path, str)
+            ):
+                segments = [
+                    scope_id_to_folder_name.get(sid, sid)
+                    for sid in folder_id_path.replace("uniquepathid://", "").split("/")
+                    if sid
+                ]
+            else:
+                segments = ["_no_folder_path"]
+
+            segments.append(content_info.key)
+            file_paths.append(segments)
+
+        return file_paths
+
+    @staticmethod
+    def display_path_tree(paths: list[list[str]], root_name: str = ".") -> str:
+        """Renders a list of path segment lists as a ``tree``-style string.
+
+        Args:
+            paths: List of path lists, e.g. ``[["a", "b"], ["a", "c"], ["d"]]``.
+            root_name: Name to show for the root node. Defaults to ``"."``.
+
+        Returns:
+            String representation of the tree.
+
+        Example::
+
+            >>> KnowledgeBaseService.display_path_tree(
+            ...     [["docs", "api"], ["docs", "guides"], ["src"]]
+            ... )
+            .
+            ├── docs
+            │   ├── api
+            │   └── guides
+            └── src
+        """
+        if not paths:
+            return root_name
+
+        tree: dict[str, dict] = {}
+        for path in paths:
+            current = tree
+            for segment in path:
+                if segment:
+                    current = current.setdefault(segment, {})
+
+        def _render(node: dict, prefix: str = "") -> list[str]:
+            lines: list[str] = []
+            folders = sorted(k for k in node if node[k])
+            files = sorted(k for k in node if not node[k])
+            children = folders + files
+            for i, name in enumerate(children):
+                last = i == len(children) - 1
+                connector = "└── " if last else "├── "
+                lines.append(prefix + connector + name)
+                child_prefix = prefix + ("    " if last else "│   ")
+                lines.extend(_render(node[name], child_prefix))
+            return lines
+
+        return "\n".join([root_name] + _render(tree))
+
     def _pop_forbidden_metadata_keys(self, metadata: dict[str, Any]) -> dict[str, Any]:
         forbidden_keys = [
             "key",
