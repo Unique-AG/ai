@@ -91,6 +91,11 @@ nav:
     - Folder Updates: tutorials/folder_updates.md
     - Rule-Based Search: tutorials/get_contents.md
     - OpenAI Integration: tutorials/openai_scripts.md
+  - CLI (Experimental):
+    - Overview: cli/index.md
+    - Command Reference: cli/commands.md
+    - Search Guide: cli/search.md
+    - Configuration: cli/configuration.md
 
 
 markdown_extensions:

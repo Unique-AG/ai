@@ -1,6 +1,6 @@
 [project]
 name = "unique_sdk"
-version = "0.10.91"
+version = "0.10.92"
 description = ""
 readme = "README.md"
 license = { text = "MIT" }
@@ -21,7 +21,11 @@ dependencies = [
     "aiohttp>=3.9.0,<4",
     "regex>=2024.5.15",
     "tiktoken>=0.12.0,<0.13",
+    "click>=8.1.0,<9",
 ]
+
+[project.scripts]
+unique-cli = "unique_sdk.cli.cli:main"
 
 [project.optional-dependencies]
 openai = [
