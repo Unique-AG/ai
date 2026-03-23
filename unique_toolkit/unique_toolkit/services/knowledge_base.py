@@ -804,6 +804,61 @@ class KnowledgeBaseService:
             scope_id=scope_id,
         )
 
+    # File Tree Resolution
+    # ------------------------------------------------------------------------------------------------
+
+    @staticmethod
+    def extract_scope_ids(content_infos: list[ContentInfo]) -> set[str]:
+        """Extracts all unique scope IDs from the ``folderIdPath`` metadata field.
+
+        Args:
+            content_infos: The content infos to extract scope IDs from.
+
+        Returns:
+            set[str]: All unique scope IDs found across content infos.
+        """
+        scope_ids: set[str] = set()
+        for content_info in content_infos:
+            metadata = content_info.metadata
+            if (
+                metadata
+                and (folder_id_path := metadata.get("folderIdPath")) is not None
+                and isinstance(folder_id_path, str)
+            ):
+                for sid in folder_id_path.replace("uniquepathid://", "").split("/"):
+                    if sid:
+                        scope_ids.add(sid)
+        return scope_ids
+
+    async def _translate_scope_id_async(self, scope_id: str) -> str | None:
+        try:
+            folder_info = await self.get_folder_info_async(scope_id=scope_id)
+            return folder_info.name
+        except Exception as e:
+            _LOGGER.warning(
+                f"Could not resolve folder for scope_id {scope_id}", exc_info=e
+            )
+            return None
+
+    async def _translate_scope_ids_async(
+        self,
+        scope_ids: set[str],
+        *,
+        max_concurrent_requests: int = 25,
+    ) -> dict[str, str]:
+        scope_id_list = list(scope_ids)
+        semaphore = asyncio.Semaphore(max_concurrent_requests)
+
+        async def _resolve(sid: str) -> str | None:
+            async with semaphore:
+                return await self._translate_scope_id_async(sid)
+
+        results = await asyncio.gather(*[_resolve(sid) for sid in scope_id_list])
+        return {
+            sid: name
+            for sid, name in zip(scope_id_list, results)
+            if name is not None
+        }
     def _pop_forbidden_metadata_keys(self, metadata: dict[str, Any]) -> dict[str, Any]:
         forbidden_keys = [
             "key",
