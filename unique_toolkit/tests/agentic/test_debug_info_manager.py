@@ -1,6 +1,7 @@
 """Tests for DebugInfoManager and _extract_tool_calls_from_stream_response."""
 
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
@@ -58,15 +59,23 @@ def debug_info_manager() -> DebugInfoManager:
     return DebugInfoManager()
 
 
+@pytest.fixture
+def tool_manager() -> MagicMock:
+    mock = MagicMock()
+    mock.get_exclusive_tools.return_value = []
+    mock.get_tool_choices.return_value = []
+    return mock
+
+
 # ---------------------------------------------------------------------------
 # _extract_tool_calls_from_stream_response
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.ai
-def test_extract_tool_calls_from_stream_response__returns_empty__when_not_responses_stream() -> (
-    None
-):
+def test_extract_tool_calls_from_stream_response__returns_empty__when_not_responses_stream(
+    tool_manager: MagicMock,
+) -> None:
     """
     Purpose: Verify the helper returns an empty list for a plain LanguageModelStreamResponse.
     Why this matters: Only ResponsesLanguageModelStreamResponse carries code interpreter calls;
@@ -80,7 +89,7 @@ def test_extract_tool_calls_from_stream_response__returns_empty__when_not_respon
 
     # Act
     result: list[dict[str, Any]] = _extract_tool_calls_from_stream_response(
-        stream_response
+        stream_response, tool_manager
     )
 
     # Assert
@@ -88,9 +97,9 @@ def test_extract_tool_calls_from_stream_response__returns_empty__when_not_respon
 
 
 @pytest.mark.ai
-def test_extract_tool_calls_from_stream_response__returns_empty__when_no_code_interpreter_calls() -> (
-    None
-):
+def test_extract_tool_calls_from_stream_response__returns_empty__when_no_code_interpreter_calls(
+    tool_manager: MagicMock,
+) -> None:
     """
     Purpose: Verify the helper returns an empty list when the stream response has no code interpreter calls.
     Why this matters: Avoids polluting debug_info with empty or wrong entries.
@@ -101,7 +110,7 @@ def test_extract_tool_calls_from_stream_response__returns_empty__when_no_code_in
 
     # Act
     result: list[dict[str, Any]] = _extract_tool_calls_from_stream_response(
-        stream_response
+        stream_response, tool_manager
     )
 
     # Assert
@@ -109,9 +118,9 @@ def test_extract_tool_calls_from_stream_response__returns_empty__when_no_code_in
 
 
 @pytest.mark.ai
-def test_extract_tool_calls_from_stream_response__returns_one_entry__for_single_call() -> (
-    None
-):
+def test_extract_tool_calls_from_stream_response__returns_one_entry__for_single_call(
+    tool_manager: MagicMock,
+) -> None:
     """
     Purpose: Verify the helper returns a single tool info dict for one code interpreter call.
     Why this matters: Each call must produce exactly one analytics entry with the correct structure.
@@ -123,7 +132,7 @@ def test_extract_tool_calls_from_stream_response__returns_one_entry__for_single_
 
     # Act
     result: list[dict[str, Any]] = _extract_tool_calls_from_stream_response(
-        stream_response
+        stream_response, tool_manager
     )
 
     # Assert
@@ -134,9 +143,9 @@ def test_extract_tool_calls_from_stream_response__returns_one_entry__for_single_
 
 
 @pytest.mark.ai
-def test_extract_tool_calls_from_stream_response__deduplicates_calls__with_same_id() -> (
-    None
-):
+def test_extract_tool_calls_from_stream_response__deduplicates_calls__with_same_id(
+    tool_manager: MagicMock,
+) -> None:
     """
     Purpose: Verify duplicate code interpreter calls (same id) are deduplicated to one entry.
     Why this matters: Streaming can produce repeated events for the same call; counting them
@@ -150,7 +159,7 @@ def test_extract_tool_calls_from_stream_response__deduplicates_calls__with_same_
 
     # Act
     result: list[dict[str, Any]] = _extract_tool_calls_from_stream_response(
-        stream_response
+        stream_response, tool_manager
     )
 
     # Assert
@@ -159,9 +168,9 @@ def test_extract_tool_calls_from_stream_response__deduplicates_calls__with_same_
 
 
 @pytest.mark.ai
-def test_extract_tool_calls_from_stream_response__returns_multiple_entries__for_distinct_calls() -> (
-    None
-):
+def test_extract_tool_calls_from_stream_response__returns_multiple_entries__for_distinct_calls(
+    tool_manager: MagicMock,
+) -> None:
     """
     Purpose: Verify two distinct code interpreter calls produce two separate tool info entries.
     Why this matters: Multiple code blocks in one response must each be tracked individually.
@@ -174,7 +183,7 @@ def test_extract_tool_calls_from_stream_response__returns_multiple_entries__for_
 
     # Act
     result: list[dict[str, Any]] = _extract_tool_calls_from_stream_response(
-        stream_response
+        stream_response, tool_manager
     )
 
     # Assert
@@ -185,9 +194,9 @@ def test_extract_tool_calls_from_stream_response__returns_multiple_entries__for_
 
 
 @pytest.mark.ai
-def test_extract_tool_calls_from_stream_response__includes_loop_iteration__when_provided() -> (
-    None
-):
+def test_extract_tool_calls_from_stream_response__includes_loop_iteration__when_provided(
+    tool_manager: MagicMock,
+) -> None:
     """
     Purpose: Verify loop_iteration is set in the info dict when a non-None index is passed.
     Why this matters: Loop iteration tracking is critical for multi-step agentic analytics.
@@ -199,7 +208,7 @@ def test_extract_tool_calls_from_stream_response__includes_loop_iteration__when_
 
     # Act
     result: list[dict[str, Any]] = _extract_tool_calls_from_stream_response(
-        stream_response, loop_iteration_index=3
+        stream_response, tool_manager, loop_iteration_index=3
     )
 
     # Assert
@@ -207,9 +216,9 @@ def test_extract_tool_calls_from_stream_response__includes_loop_iteration__when_
 
 
 @pytest.mark.ai
-def test_extract_tool_calls_from_stream_response__omits_loop_iteration_key__when_not_provided() -> (
-    None
-):
+def test_extract_tool_calls_from_stream_response__omits_loop_iteration_key__when_not_provided(
+    tool_manager: MagicMock,
+) -> None:
     """
     Purpose: Verify loop_iteration key is absent from info when loop_iteration_index is None.
     Why this matters: Matches the behaviour of extract_tool_debug_info, which only sets the key
@@ -223,7 +232,7 @@ def test_extract_tool_calls_from_stream_response__omits_loop_iteration_key__when
 
     # Act
     result: list[dict[str, Any]] = _extract_tool_calls_from_stream_response(
-        stream_response
+        stream_response, tool_manager
     )
 
     # Assert
@@ -238,6 +247,7 @@ def test_extract_tool_calls_from_stream_response__omits_loop_iteration_key__when
 @pytest.mark.ai
 def test_debug_info_manager__extract_builtin_tool_debug_info__extends_tools_list(
     debug_info_manager: DebugInfoManager,
+    tool_manager: MagicMock,
 ) -> None:
     """
     Purpose: Verify extract_builtin_tool_debug_info appends code interpreter entries to debug_info tools.
@@ -249,7 +259,7 @@ def test_debug_info_manager__extract_builtin_tool_debug_info__extends_tools_list
     stream_response = _make_responses_stream_response(calls=[call])
 
     # Act
-    debug_info_manager.extract_builtin_tool_debug_info(stream_response)
+    debug_info_manager.extract_builtin_tool_debug_info(stream_response, tool_manager)
 
     # Assert
     tools: list[dict[str, Any]] = debug_info_manager.get()["tools"]
@@ -262,6 +272,7 @@ def test_debug_info_manager__extract_builtin_tool_debug_info__extends_tools_list
 @pytest.mark.ai
 def test_debug_info_manager__extract_builtin_tool_debug_info__skips_non_responses_stream(
     debug_info_manager: DebugInfoManager,
+    tool_manager: MagicMock,
 ) -> None:
     """
     Purpose: Verify no entries are added to tools when the stream is a plain LanguageModelStreamResponse.
@@ -272,7 +283,7 @@ def test_debug_info_manager__extract_builtin_tool_debug_info__skips_non_response
     stream_response = LanguageModelStreamResponse(message=_make_message())
 
     # Act
-    debug_info_manager.extract_builtin_tool_debug_info(stream_response)
+    debug_info_manager.extract_builtin_tool_debug_info(stream_response, tool_manager)
 
     # Assert
     assert debug_info_manager.get()["tools"] == []
@@ -281,6 +292,7 @@ def test_debug_info_manager__extract_builtin_tool_debug_info__skips_non_response
 @pytest.mark.ai
 def test_debug_info_manager__extract_builtin_tool_debug_info__accumulates_across_calls(
     debug_info_manager: DebugInfoManager,
+    tool_manager: MagicMock,
 ) -> None:
     """
     Purpose: Verify multiple invocations of extract_builtin_tool_debug_info accumulate entries.
@@ -294,8 +306,12 @@ def test_debug_info_manager__extract_builtin_tool_debug_info__accumulates_across
     stream_b = _make_responses_stream_response(calls=[call_b])
 
     # Act
-    debug_info_manager.extract_builtin_tool_debug_info(stream_a, loop_iteration_index=0)
-    debug_info_manager.extract_builtin_tool_debug_info(stream_b, loop_iteration_index=1)
+    debug_info_manager.extract_builtin_tool_debug_info(
+        stream_a, tool_manager, loop_iteration_index=0
+    )
+    debug_info_manager.extract_builtin_tool_debug_info(
+        stream_b, tool_manager, loop_iteration_index=1
+    )
 
     # Assert
     tools: list[dict[str, Any]] = debug_info_manager.get()["tools"]
@@ -307,6 +323,7 @@ def test_debug_info_manager__extract_builtin_tool_debug_info__accumulates_across
 @pytest.mark.ai
 def test_debug_info_manager__extract_builtin_tool_debug_info__passes_loop_iteration_to_entries(
     debug_info_manager: DebugInfoManager,
+    tool_manager: MagicMock,
 ) -> None:
     """
     Purpose: Verify loop_iteration_index is propagated into each tool entry's info dict.
@@ -319,9 +336,102 @@ def test_debug_info_manager__extract_builtin_tool_debug_info__passes_loop_iterat
 
     # Act
     debug_info_manager.extract_builtin_tool_debug_info(
-        stream_response, loop_iteration_index=5
+        stream_response, tool_manager, loop_iteration_index=5
     )
 
     # Assert
     tools: list[dict[str, Any]] = debug_info_manager.get()["tools"]
     assert tools[0]["info"]["loop_iteration"] == 5
+
+
+# ---------------------------------------------------------------------------
+# is_exclusive / is_forced flags (new in this branch)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+def test_extract_tool_calls_from_stream_response__is_exclusive_false__when_not_in_exclusive_tools(
+    tool_manager: MagicMock,
+) -> None:
+    """
+    Purpose: Verify is_exclusive is False when CODE_INTERPRETER is not in get_exclusive_tools().
+    Why this matters: Incorrect True would misrepresent the tool's exclusivity to downstream consumers.
+    Setup summary: tool_manager returns empty exclusive list; assert is_exclusive=False on entry.
+    """
+    # Arrange
+    call = _make_code_interpreter_call()
+    stream_response = _make_responses_stream_response(calls=[call])
+    tool_manager.get_exclusive_tools.return_value = []
+
+    # Act
+    result = _extract_tool_calls_from_stream_response(stream_response, tool_manager)
+
+    # Assert
+    assert result[0]["is_exclusive"] is False
+
+
+@pytest.mark.ai
+def test_extract_tool_calls_from_stream_response__is_exclusive_true__when_in_exclusive_tools(
+    tool_manager: MagicMock,
+) -> None:
+    """
+    Purpose: Verify is_exclusive is True when CODE_INTERPRETER is returned by get_exclusive_tools().
+    Why this matters: The flag must accurately reflect whether the tool was configured as exclusive.
+    Setup summary: tool_manager returns [CODE_INTERPRETER] from get_exclusive_tools(); assert is_exclusive=True.
+    """
+    # Arrange
+    call = _make_code_interpreter_call()
+    stream_response = _make_responses_stream_response(calls=[call])
+    tool_manager.get_exclusive_tools.return_value = [
+        OpenAIBuiltInToolName.CODE_INTERPRETER
+    ]
+
+    # Act
+    result = _extract_tool_calls_from_stream_response(stream_response, tool_manager)
+
+    # Assert
+    assert result[0]["is_exclusive"] is True
+
+
+@pytest.mark.ai
+def test_extract_tool_calls_from_stream_response__is_forced_false__when_not_in_tool_choices(
+    tool_manager: MagicMock,
+) -> None:
+    """
+    Purpose: Verify is_forced is False when CODE_INTERPRETER is not in get_tool_choices().
+    Why this matters: Incorrect True would misrepresent whether the tool was force-selected.
+    Setup summary: tool_manager returns empty tool_choices list; assert is_forced=False on entry.
+    """
+    # Arrange
+    call = _make_code_interpreter_call()
+    stream_response = _make_responses_stream_response(calls=[call])
+    tool_manager.get_tool_choices.return_value = []
+
+    # Act
+    result = _extract_tool_calls_from_stream_response(stream_response, tool_manager)
+
+    # Assert
+    assert result[0]["is_forced"] is False
+
+
+@pytest.mark.ai
+def test_extract_tool_calls_from_stream_response__is_forced_true__when_in_tool_choices(
+    tool_manager: MagicMock,
+) -> None:
+    """
+    Purpose: Verify is_forced is True when CODE_INTERPRETER is returned by get_tool_choices().
+    Why this matters: The flag must accurately reflect whether the tool was force-selected by the caller.
+    Setup summary: tool_manager returns [CODE_INTERPRETER] from get_tool_choices(); assert is_forced=True.
+    """
+    # Arrange
+    call = _make_code_interpreter_call()
+    stream_response = _make_responses_stream_response(calls=[call])
+    tool_manager.get_tool_choices.return_value = [
+        OpenAIBuiltInToolName.CODE_INTERPRETER
+    ]
+
+    # Act
+    result = _extract_tool_calls_from_stream_response(stream_response, tool_manager)
+
+    # Assert
+    assert result[0]["is_forced"] is True
