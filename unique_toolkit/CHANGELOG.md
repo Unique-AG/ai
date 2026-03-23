@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Base Tool.__init__ accepts config only; optional overload for backward compat
 - Tools not tied to chat can use Tool(config); legacy tools use Tool(config, event, tool_progress_reporter)
 - MCPToolWrapper, SubAgentTool, DeepResearchTool, PMPositionsTool create their own services when needed
+
 ## [1.61.0] - 2026-03-23
 - Add option to include Code Execution in tool analytics (Debug Info)
 
