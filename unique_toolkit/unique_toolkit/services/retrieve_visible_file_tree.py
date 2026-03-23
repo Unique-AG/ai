@@ -4,62 +4,7 @@ from typing import Any
 
 from unique_toolkit import KnowledgeBaseService
 from unique_toolkit.content.schemas import ContentInfo
-
-_LOGGER = logging.getLogger(__name__)
-
-
-async def translate_scope_id_to_folder_name_async(
-    knowledge_base_service: KnowledgeBaseService, *, scope_id: str
-) -> str | None:
-    try:
-        folder_info = await knowledge_base_service.get_folder_info_async(
-            scope_id=scope_id
-        )
-        return folder_info.name
-    except Exception as e:
-        _LOGGER.warning(f"Could not resolve folder for scope_id {scope_id}", exc_info=e)
-        return None
-
-
-async def translate_scope_ids_to_folder_name_async(
-    knowledge_base_service: KnowledgeBaseService,
-    *,
-    scope_ids: set[str],
-    max_concurrent_requests: int = 25,
-) -> dict[str, str]:
-    scope_id_list = list(scope_ids)
-    semaphore = asyncio.Semaphore(max_concurrent_requests)
-
-    async def _resolve(sid: str) -> str | None:
-        async with semaphore:
-            return await translate_scope_id_to_folder_name_async(
-                knowledge_base_service, scope_id=sid
-            )
-
-    results = await asyncio.gather(*[_resolve(sid) for sid in scope_id_list])
-
-    return {
-        key: value for key, value in zip(scope_id_list, results) if value is not None
-    }
-
-
-def extract_scope_ids(content_infos: list[ContentInfo]) -> set[str]:
-    """
-    Extracts all unique scope IDs from the ``folderIdPath`` metadata field
-    across the given content infos.
-    """
-    scope_ids: set[str] = set()
-    for content_info in content_infos:
-        metadata = content_info.metadata
-        if (
-            metadata
-            and (folder_id_path := metadata.get("folderIdPath")) is not None
-            and isinstance(folder_id_path, str)
-        ):
-            for sid in folder_id_path.replace("uniquepathid://", "").split("/"):
-                if sid:
-                    scope_ids.add(sid)
-    return scope_ids
+from unique_toolkit.services import knowledge_base
 
 
 async def resolve_visible_file_paths_async(
@@ -87,9 +32,9 @@ async def resolve_visible_file_paths_async(
         metadata_filter=metadata_filter
     )
 
-    scope_ids = extract_scope_ids(content_infos)
-    scope_id_to_folder_name = await translate_scope_ids_to_folder_name_async(
-        knowledge_base_service, scope_ids=scope_ids
+    scope_ids = knowledge_base_service.extract_scope_ids(content_infos)
+    scope_id_to_folder_name = await knowledge_base_service._translate_scope_ids_async(
+        scope_ids=scope_ids
     )
     folder_name_list_of_paths: list[list[str]] = []
 
@@ -180,6 +125,7 @@ def display_path_tree(paths: list[list[str]], root_name: str = ".") -> str:
 
 
 if __name__ == "__main__":
+    import asyncio
     import time
     from pathlib import Path
 
@@ -192,7 +138,7 @@ if __name__ == "__main__":
         env_file = project_root / ".env"
     load_dotenv(env_file)
 
-    CONCURRENCY_LEVELS = [i for i in range(5, 35)]
+    CONCURRENCY_LEVELS = [1, 3, 9, 27, 81]
 
     async def main():
         kb = KnowledgeBaseService.from_settings()
@@ -215,20 +161,20 @@ if __name__ == "__main__":
             print(f"{elapsed:.3f}s  ({len(content_infos)} items)")
 
         # --- Extract scope IDs (once, from last run) ---
-        scope_ids = extract_scope_ids(content_infos)
+        scope_ids = kb.extract_scope_ids(content_infos)
         print(f"\nExtracted {len(scope_ids)} unique scope IDs\n")
 
-        # --- Benchmark translate_scope_ids_to_folder_name_async ---
+        # --- Benchmark _translate_scope_ids_async ---
         print("=" * 70)
-        print("BENCHMARK: translate_scope_ids_to_folder_name_async")
+        print("BENCHMARK: _translate_scope_ids_async")
         print("=" * 70)
 
         translate_results: dict[int, tuple[float, int]] = {}
         for level in CONCURRENCY_LEVELS:
             print(f"  max_concurrent_requests={level} ...", end=" ", flush=True)
             start = time.perf_counter()
-            mapping = await translate_scope_ids_to_folder_name_async(
-                kb, scope_ids=scope_ids, max_concurrent_requests=level
+            mapping = await kb._translate_scope_ids_async(
+                scope_ids, max_concurrent_requests=level
             )
             elapsed = time.perf_counter() - start
             translate_results[level] = (elapsed, len(mapping))
@@ -262,7 +208,7 @@ if __name__ == "__main__":
         benchmarks = [
             ("get_content_infos_async", content_results, "tab:blue"),
             (
-                "translate_scope_ids_to_folder_name_async",
+                "_translate_scope_ids_async",
                 translate_results,
                 "tab:orange",
             ),
