@@ -9,16 +9,12 @@ from typing import Any, Dict
 import unique_sdk
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit.agentic.tools.mcp.message_logger import MCPMessageLogger
 from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
-from unique_toolkit.agentic.tools.tool_progress_reporter import (
-    ProgressState,
-    ToolProgressReporter,
-)
+from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent, McpServer, McpTool
-from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.content.functions import upload_content_from_bytes
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -106,43 +102,28 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
         return []
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        active_message_log: MessageLog | None = None
-
         """Execute the MCP tool using SDK to call public API"""
         self.logger.info(f"Running MCP tool: {self.name}")
 
-        # Create message log entry for the MCP tool run
-        active_message_log = self._create_or_update_message_log(
-            progress_message="_Executing MCP tool_",
-            active_message_log=active_message_log,
+        message_logger = MCPMessageLogger(
+            message_step_logger=self._message_step_logger,
+            tool_progress_reporter=self._tool_progress_reporter,
+            tool_display_name=self.display_name(),
+            input_schema=self._mcp_tool.input_schema,
+            company_id=self.event.company_id,
         )
 
-        # Notify progress if reporter is available
-        if (
-            self._tool_progress_reporter
-            and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                self.event.company_id
-            )
-        ):
-            await self._tool_progress_reporter.notify_from_tool_call(
-                tool_call=tool_call,
-                name=f"**{self.display_name()}**",
-                message=f"Executing MCP tool: {self.display_name()}",
-                state=ProgressState.RUNNING,
-            )
-
+        arguments: Dict[str, Any] = {}
         try:
-            # Robust argument extraction and validation
             arguments = self._extract_and_validate_arguments(tool_call)
+            await message_logger.executing(tool_call, arguments)
 
-            # Use SDK to call the public API
             result = await self._call_mcp_tool_via_sdk(arguments)
 
             content_str, image_data_urls = await asyncio.to_thread(
                 self._process_mcp_result, result
             )
 
-            # TODO: Why result here not applied directly to the body of the tool_response? like so how does it know the results in the history?
             tool_response = ToolCallResponse(
                 id=tool_call.id or "",
                 name=self.name,
@@ -156,51 +137,12 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 image_data_urls=image_data_urls,
             )
 
-            # Notify completion
-            if (
-                self._tool_progress_reporter
-                and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                    self.event.company_id
-                )
-            ):
-                await self._tool_progress_reporter.notify_from_tool_call(
-                    tool_call=tool_call,
-                    name=f"**{self.display_name()}**",
-                    message=f"MCP tool completed: {self.display_name()}",
-                    state=ProgressState.FINISHED,
-                )
-
-            # Update message log entry to completed
-            active_message_log = self._create_or_update_message_log(
-                progress_message="_Completed MCP tool_",
-                status=MessageLogStatus.COMPLETED,
-                active_message_log=active_message_log,
-            )
-
+            await message_logger.completed(tool_call, arguments)
             return tool_response
 
         except Exception as e:
             self.logger.error(f"Error executing MCP tool {self.name}: {e}")
-
-            # Notify failure
-            if (
-                self._tool_progress_reporter
-                and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
-                    self.event.company_id
-                )
-            ):
-                await self._tool_progress_reporter.notify_from_tool_call(
-                    tool_call=tool_call,
-                    name=f"**{self.display_name()}**",
-                    message=f"MCP tool failed: {str(e)}",
-                    state=ProgressState.FAILED,
-                )
-
-            # Update message log entry to failed
-            active_message_log = self._create_or_update_message_log(
-                progress_message="_Failed executing MCP tool_",
-                status=MessageLogStatus.FAILED,
-            )
+            await message_logger.failed(tool_call, str(e), arguments)
 
             return ToolCallResponse(
                 id=tool_call.id or "",
@@ -213,20 +155,6 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 },
                 error_message=str(e),
             )
-
-    def _create_or_update_message_log(
-        self,
-        *,
-        progress_message: str | None = None,
-        status: MessageLogStatus = MessageLogStatus.RUNNING,
-        active_message_log: MessageLog | None = None,
-    ) -> MessageLog | None:
-        return self._message_step_logger.create_or_update_message_log(
-            active_message_log=active_message_log,
-            header=self.display_name(),
-            progress_message=progress_message,
-            status=status,
-        )
 
     def _extract_and_validate_arguments(
         self, tool_call: LanguageModelFunction
