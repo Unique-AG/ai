@@ -9,6 +9,8 @@ from unique_deep_research.service import DeepResearchTool
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
+from unique_retrieve_search_scope.config import RetrieveSearchScopeConfig
+from unique_retrieve_search_scope.service import RetrieveSearchScopeTool
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
 from unique_toolkit._common.validators import (
@@ -338,6 +340,11 @@ class ExperimentalConfig(BaseToolConfig):
 
     responses_api_config: SkipJsonSchema[ResponsesApiConfig] = ResponsesApiConfig()
 
+    enable_retrieve_search_scope: bool = Field(
+        default=False,
+        description="Experimental: enables the RetrieveSearchScope tool, which shows the agent which files are available in the knowledge base.",
+    )
+
 
 class UniqueAIAgentConfig(BaseToolConfig):
     max_loop_iterations: Annotated[
@@ -392,6 +399,27 @@ class UniqueAIConfig(BaseToolConfig):
             and model_supports_responses_api
         ):
             self.agent.experimental.responses_api_config.use_responses_api = True
+
+        return self
+
+    @model_validator(mode="after")
+    def inject_retrieve_search_scope_tool(self) -> "UniqueAIConfig":
+        tool_names = [t.name for t in self.space.tools]
+        has_tool = RetrieveSearchScopeTool.name in tool_names
+        enabled = self.agent.experimental.enable_retrieve_search_scope
+
+        if enabled and not has_tool:
+            self.space.tools.append(
+                ToolBuildConfig(
+                    name=RetrieveSearchScopeTool.name,
+                    configuration=RetrieveSearchScopeConfig(),
+                )
+            )
+        elif not enabled and has_tool:
+            self.space.tools = [
+                t for t in self.space.tools
+                if t.name != RetrieveSearchScopeTool.name
+            ]
 
         return self
 
