@@ -34,7 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.13.06] - 2026-03-03
 - Fix cancellation polling: replace passive `is_cancelled` flag checks with active `check_cancellation_async()` calls so the orchestrator actually detects user aborts
 
-
 ## [1.13.05] - 2026-02-26
 - Add system prompt instruction for image rendering: use `![image](unique://content/[content_id])` when referring to tool-returned images
 
