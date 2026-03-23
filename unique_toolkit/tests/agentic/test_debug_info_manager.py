@@ -140,6 +140,8 @@ def test_extract_tool_calls_from_stream_response__returns_one_entry__for_single_
     assert result[0]["name"] == OpenAIBuiltInToolName.CODE_INTERPRETER
     assert result[0]["info"]["id"] == "call-1"
     assert result[0]["info"]["container_id"] == "ctr-1"
+    assert result[0]["info"]["is_exclusive"] is False
+    assert result[0]["info"]["is_forced"] is False
 
 
 @pytest.mark.ai
@@ -165,6 +167,8 @@ def test_extract_tool_calls_from_stream_response__deduplicates_calls__with_same_
     # Assert
     assert len(result) == 1
     assert result[0]["info"]["id"] == "call-dup"
+    assert result[0]["info"]["is_exclusive"] is False
+    assert result[0]["info"]["is_forced"] is False
 
 
 @pytest.mark.ai
@@ -191,6 +195,9 @@ def test_extract_tool_calls_from_stream_response__returns_multiple_entries__for_
     ids = [entry["info"]["id"] for entry in result]
     assert "call-1" in ids
     assert "call-2" in ids
+    for entry in result:
+        assert entry["info"]["is_exclusive"] is False
+        assert entry["info"]["is_forced"] is False
 
 
 @pytest.mark.ai
@@ -213,6 +220,8 @@ def test_extract_tool_calls_from_stream_response__includes_loop_iteration__when_
 
     # Assert
     assert result[0]["info"]["loop_iteration"] == 3
+    assert result[0]["info"]["is_exclusive"] is False
+    assert result[0]["info"]["is_forced"] is False
 
 
 @pytest.mark.ai
@@ -237,6 +246,8 @@ def test_extract_tool_calls_from_stream_response__omits_loop_iteration_key__when
 
     # Assert
     assert "loop_iteration" not in result[0]["info"]
+    assert result[0]["info"]["is_exclusive"] is False
+    assert result[0]["info"]["is_forced"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -267,6 +278,8 @@ def test_debug_info_manager__extract_builtin_tool_debug_info__extends_tools_list
     assert tools[0]["name"] == OpenAIBuiltInToolName.CODE_INTERPRETER
     assert tools[0]["info"]["id"] == "call-1"
     assert tools[0]["info"]["container_id"] == "ctr-1"
+    assert tools[0]["info"]["is_exclusive"] is False
+    assert tools[0]["info"]["is_forced"] is False
 
 
 @pytest.mark.ai
@@ -318,6 +331,10 @@ def test_debug_info_manager__extract_builtin_tool_debug_info__accumulates_across
     assert len(tools) == 2
     assert tools[0]["info"]["loop_iteration"] == 0
     assert tools[1]["info"]["loop_iteration"] == 1
+    assert tools[0]["info"]["is_exclusive"] is False
+    assert tools[0]["info"]["is_forced"] is False
+    assert tools[1]["info"]["is_exclusive"] is False
+    assert tools[1]["info"]["is_forced"] is False
 
 
 @pytest.mark.ai
@@ -342,6 +359,8 @@ def test_debug_info_manager__extract_builtin_tool_debug_info__passes_loop_iterat
     # Assert
     tools: list[dict[str, Any]] = debug_info_manager.get()["tools"]
     assert tools[0]["info"]["loop_iteration"] == 5
+    assert tools[0]["info"]["is_exclusive"] is False
+    assert tools[0]["info"]["is_forced"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -356,7 +375,7 @@ def test_extract_tool_calls_from_stream_response__is_exclusive_false__when_not_i
     """
     Purpose: Verify is_exclusive is False when CODE_INTERPRETER is not in get_exclusive_tools().
     Why this matters: Incorrect True would misrepresent the tool's exclusivity to downstream consumers.
-    Setup summary: tool_manager returns empty exclusive list; assert is_exclusive=False on entry.
+    Setup summary: tool_manager returns empty exclusive list; assert is_exclusive=False in info.
     """
     # Arrange
     call = _make_code_interpreter_call()
@@ -367,7 +386,7 @@ def test_extract_tool_calls_from_stream_response__is_exclusive_false__when_not_i
     result = _extract_tool_calls_from_stream_response(stream_response, tool_manager)
 
     # Assert
-    assert result[0]["is_exclusive"] is False
+    assert result[0]["info"]["is_exclusive"] is False
 
 
 @pytest.mark.ai
@@ -377,7 +396,7 @@ def test_extract_tool_calls_from_stream_response__is_exclusive_true__when_in_exc
     """
     Purpose: Verify is_exclusive is True when CODE_INTERPRETER is returned by get_exclusive_tools().
     Why this matters: The flag must accurately reflect whether the tool was configured as exclusive.
-    Setup summary: tool_manager returns [CODE_INTERPRETER] from get_exclusive_tools(); assert is_exclusive=True.
+    Setup summary: tool_manager returns [CODE_INTERPRETER] from get_exclusive_tools(); assert info is_exclusive=True.
     """
     # Arrange
     call = _make_code_interpreter_call()
@@ -390,7 +409,7 @@ def test_extract_tool_calls_from_stream_response__is_exclusive_true__when_in_exc
     result = _extract_tool_calls_from_stream_response(stream_response, tool_manager)
 
     # Assert
-    assert result[0]["is_exclusive"] is True
+    assert result[0]["info"]["is_exclusive"] is True
 
 
 @pytest.mark.ai
@@ -400,7 +419,7 @@ def test_extract_tool_calls_from_stream_response__is_forced_false__when_not_in_t
     """
     Purpose: Verify is_forced is False when CODE_INTERPRETER is not in get_tool_choices().
     Why this matters: Incorrect True would misrepresent whether the tool was force-selected.
-    Setup summary: tool_manager returns empty tool_choices list; assert is_forced=False on entry.
+    Setup summary: tool_manager returns empty tool_choices list; assert is_forced=False in info.
     """
     # Arrange
     call = _make_code_interpreter_call()
@@ -411,7 +430,7 @@ def test_extract_tool_calls_from_stream_response__is_forced_false__when_not_in_t
     result = _extract_tool_calls_from_stream_response(stream_response, tool_manager)
 
     # Assert
-    assert result[0]["is_forced"] is False
+    assert result[0]["info"]["is_forced"] is False
 
 
 @pytest.mark.ai
@@ -421,7 +440,7 @@ def test_extract_tool_calls_from_stream_response__is_forced_true__when_in_tool_c
     """
     Purpose: Verify is_forced is True when CODE_INTERPRETER is returned by get_tool_choices().
     Why this matters: The flag must accurately reflect whether the tool was force-selected by the caller.
-    Setup summary: tool_manager returns [CODE_INTERPRETER] from get_tool_choices(); assert is_forced=True.
+    Setup summary: tool_manager returns [CODE_INTERPRETER] from get_tool_choices(); assert info is_forced=True.
     """
     # Arrange
     call = _make_code_interpreter_call()
@@ -434,4 +453,4 @@ def test_extract_tool_calls_from_stream_response__is_forced_true__when_in_tool_c
     result = _extract_tool_calls_from_stream_response(stream_response, tool_manager)
 
     # Assert
-    assert result[0]["is_forced"] is True
+    assert result[0]["info"]["is_forced"] is True

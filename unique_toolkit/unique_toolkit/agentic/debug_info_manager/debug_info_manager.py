@@ -74,16 +74,18 @@ def _extract_tool_calls_from_stream_response(
 
         is_exclusive = tool_name in tool_manager.get_exclusive_tools()
         is_forced = tool_name in tool_manager.get_tool_choices()
+
         debug_info = OpenAICodeInterpreterTool.get_debug_info(code_interpreter_call)
+
         if loop_iteration_index is not None:
             debug_info["loop_iteration"] = loop_iteration_index
+        debug_info["is_exclusive"] = is_exclusive
+        debug_info["is_forced"] = is_forced
 
         tool_infos.append(
             {
                 "name": tool_name,
                 "info": debug_info,
-                "is_exclusive": is_exclusive,
-                "is_forced": is_forced,
             }
         )
 
