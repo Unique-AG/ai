@@ -685,6 +685,7 @@ class LoopTokenReducer:
         sources = [
             {
                 "source_number": source_offset + i,
+                "contentId": chunk.id,
                 "content": chunk.text,
             }
             for i, chunk in enumerate(content_chunks)
