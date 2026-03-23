@@ -2241,7 +2241,7 @@ def _make_content_info(
     )
 
 
-class TestExtractScopeIds:
+class TestKnowledgeBaseServiceExtractScopeIds:
     """Test cases for KnowledgeBaseService.extract_scope_ids."""
 
     @pytest.mark.ai
@@ -2347,7 +2347,7 @@ class TestExtractScopeIds:
         assert result == {"shared_id", "unique_a", "unique_b"}
 
 
-class TestTranslateScopeIdAsync:
+class TestKnowledgeBaseServiceTranslateScopeIdAsync:
     """Test cases for KnowledgeBaseService._translate_scope_id_async."""
 
     @pytest.mark.ai
@@ -2398,7 +2398,7 @@ class TestTranslateScopeIdAsync:
         assert result is None
 
 
-class TestTranslateScopeIdsAsync:
+class TestKnowledgeBaseServiceTranslateScopeIdsAsync:
     """Test cases for KnowledgeBaseService._translate_scope_ids_async."""
 
     @pytest.mark.ai
@@ -2510,7 +2510,7 @@ class TestTranslateScopeIdsAsync:
         assert max_observed_concurrency <= 2
 
 
-class TestResolveVisibleFilePathsAsync:
+class TestKnowledgeBaseServiceResolveVisibleFilePathsAsync:
     """Test cases for KnowledgeBaseService.resolve_visible_file_paths_async."""
 
     @pytest.mark.ai
@@ -2554,6 +2554,11 @@ class TestResolveVisibleFilePathsAsync:
         Purpose: Verify {FullPath} metadata is used for confluence-ingested documents.
         Why this matters: Confluence connector provides a direct path; folderIdPath may not be present.
         Setup summary: Mock content with {FullPath}; assert path segments extracted correctly.
+
+        Note: The duplicate filename in the expected result ("page.html" appears twice)
+        reflects the current implementation which always appends content_info.key.
+        Whether {FullPath} already includes the filename is an open question (see TODO
+        in resolve_visible_file_paths_async).
         """
         mock_get_content_infos.return_value = [
             _make_content_info(
@@ -2752,7 +2757,7 @@ class TestResolveVisibleFilePathsAsync:
         assert result[2] == ["_no_folder_path", "orphan.txt"]
 
 
-class TestDisplayPathTree:
+class TestKnowledgeBaseServiceDisplayPathTree:
     """Test cases for KnowledgeBaseService.display_path_tree."""
 
     @pytest.mark.ai
