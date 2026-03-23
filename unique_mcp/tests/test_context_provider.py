@@ -1,24 +1,21 @@
 """Tests for UniqueContextProvider."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-# Import the module under test — it lives in mcp_search for now (prototype),
-# will move to unique_mcp later. We patch at the module level where it's used.
-from mcp_search.context_provider import (
-    _CLAIM_COMPANY_ID,
-    _CLAIM_USER_ID,
-    UniqueContextProvider,
-)
 from pydantic import SecretStr
-
-from unique_mcp.auth.zitadel.oauth_proxy import ZitadelOAuthProxySettings
 from unique_toolkit.app.unique_settings import (
     AuthContext,
     UniqueApi,
     UniqueApp,
     UniqueSettings,
+)
+
+from unique_mcp.auth.zitadel.oauth_proxy import ZitadelOAuthProxySettings
+from unique_mcp.provider.context_provider import (
+    _CLAIM_COMPANY_ID,
+    _CLAIM_USER_ID,
+    UniqueContextProvider,
 )
 
 
@@ -59,26 +56,38 @@ def _make_access_token(claims: dict) -> MagicMock:
     return token
 
 
+def _make_httpx_response(json_data: dict) -> MagicMock:
+    """Create a mock httpx response."""
+    response = MagicMock()
+    response.json.return_value = json_data
+    response.raise_for_status = MagicMock()
+    return response
+
+
 @pytest.mark.ai
 class TestResolveAuthContext:
-    def test__extracts_from_claims__when_both_present(
+    @pytest.mark.asyncio
+    async def test__extracts_from_claims__when_both_present(
         self, provider: UniqueContextProvider
     ) -> None:
         """
         Purpose: Verify auth context is extracted directly from JWT claims.
-        Why this matters: Avoids HTTP call to Zitadel userinfo when claims are available.
+        Why this matters: Skips Zitadel userinfo HTTP when claims are available.
         """
         token = _make_access_token(
             {_CLAIM_USER_ID: "user-123", _CLAIM_COMPANY_ID: "company-456"}
         )
 
-        with patch("mcp_search.context_provider.get_access_token", return_value=token):
-            settings = provider.get_settings()
+        with patch(
+            "unique_mcp.provider.context_provider.get_access_token", return_value=token
+        ):
+            settings = await provider.get_settings()
 
         assert settings.authcontext.get_confidential_user_id() == "user-123"
         assert settings.authcontext.get_confidential_company_id() == "company-456"
 
-    def test__falls_back_to_userinfo__when_company_id_missing(
+    @pytest.mark.asyncio
+    async def test__falls_back_to_userinfo__when_company_id_missing(
         self, provider: UniqueContextProvider
     ) -> None:
         """
@@ -86,31 +95,39 @@ class TestResolveAuthContext:
         Why this matters: Zitadel may not include org claim in JWT depending on config.
         """
         token = _make_access_token({_CLAIM_USER_ID: "user-123"})
+        userinfo_response = _make_httpx_response(
+            {
+                "sub": "user-123",
+                "urn:zitadel:iam:user:resourceowner:id": "company-from-userinfo",
+            }
+        )
 
-        userinfo_response = MagicMock()
-        userinfo_response.json.return_value = {
-            "sub": "user-123",
-            "urn:zitadel:iam:user:resourceowner:id": "company-from-userinfo",
-        }
-        userinfo_response.raise_for_status = MagicMock()
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_client.get = AsyncMock(return_value=userinfo_response)
 
         with (
-            patch("mcp_search.context_provider.get_access_token", return_value=token),
             patch(
-                "mcp_search.context_provider.requests.get",
-                return_value=userinfo_response,
-            ) as mock_get,
+                "unique_mcp.provider.context_provider.get_access_token",
+                return_value=token,
+            ),
+            patch(
+                "unique_mcp.provider.context_provider.httpx.AsyncClient",
+                return_value=mock_client,
+            ),
         ):
-            settings = provider.get_settings()
+            settings = await provider.get_settings()
 
         assert settings.authcontext.get_confidential_user_id() == "user-123"
         assert (
             settings.authcontext.get_confidential_company_id()
             == "company-from-userinfo"
         )
-        mock_get.assert_called_once()
+        mock_client.get.assert_called_once()
 
-    def test__falls_back_to_userinfo__when_claims_empty(
+    @pytest.mark.asyncio
+    async def test__falls_back_to_userinfo__when_claims_empty(
         self, provider: UniqueContextProvider
     ) -> None:
         """
@@ -118,22 +135,29 @@ class TestResolveAuthContext:
         Why this matters: Handles edge case where token has no claims at all.
         """
         token = _make_access_token({})
+        userinfo_response = _make_httpx_response(
+            {
+                "sub": "user-from-userinfo",
+                "urn:zitadel:iam:user:resourceowner:id": "company-from-userinfo",
+            }
+        )
 
-        userinfo_response = MagicMock()
-        userinfo_response.json.return_value = {
-            "sub": "user-from-userinfo",
-            "urn:zitadel:iam:user:resourceowner:id": "company-from-userinfo",
-        }
-        userinfo_response.raise_for_status = MagicMock()
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_client.get = AsyncMock(return_value=userinfo_response)
 
         with (
-            patch("mcp_search.context_provider.get_access_token", return_value=token),
             patch(
-                "mcp_search.context_provider.requests.get",
-                return_value=userinfo_response,
+                "unique_mcp.provider.context_provider.get_access_token",
+                return_value=token,
+            ),
+            patch(
+                "unique_mcp.provider.context_provider.httpx.AsyncClient",
+                return_value=mock_client,
             ),
         ):
-            settings = provider.get_settings()
+            settings = await provider.get_settings()
 
         assert settings.authcontext.get_confidential_user_id() == "user-from-userinfo"
         assert (
@@ -141,7 +165,8 @@ class TestResolveAuthContext:
             == "company-from-userinfo"
         )
 
-    def test__raises__when_no_access_token(
+    @pytest.mark.asyncio
+    async def test__raises__when_no_access_token(
         self, provider: UniqueContextProvider
     ) -> None:
         """
@@ -149,12 +174,16 @@ class TestResolveAuthContext:
         Why this matters: Clear error message when OAuth is not configured.
         """
         with (
-            patch("mcp_search.context_provider.get_access_token", return_value=None),
+            patch(
+                "unique_mcp.provider.context_provider.get_access_token",
+                return_value=None,
+            ),
             pytest.raises(RuntimeError, match="No access token available"),
         ):
-            provider.get_settings()
+            await provider.get_settings()
 
-    def test__raises__when_userinfo_missing_fields(
+    @pytest.mark.asyncio
+    async def test__raises__when_userinfo_missing_fields(
         self, provider: UniqueContextProvider
     ) -> None:
         """
@@ -162,22 +191,28 @@ class TestResolveAuthContext:
         Why this matters: Ensures clear error when Zitadel scope is misconfigured.
         """
         token = _make_access_token({})
+        userinfo_response = _make_httpx_response({"sub": "user-123"})
 
-        userinfo_response = MagicMock()
-        userinfo_response.json.return_value = {"sub": "user-123"}
-        userinfo_response.raise_for_status = MagicMock()
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_client.get = AsyncMock(return_value=userinfo_response)
 
         with (
-            patch("mcp_search.context_provider.get_access_token", return_value=token),
             patch(
-                "mcp_search.context_provider.requests.get",
-                return_value=userinfo_response,
+                "unique_mcp.provider.context_provider.get_access_token",
+                return_value=token,
+            ),
+            patch(
+                "unique_mcp.provider.context_provider.httpx.AsyncClient",
+                return_value=mock_client,
             ),
             pytest.raises(ValueError, match="missing required fields"),
         ):
-            provider.get_settings()
+            await provider.get_settings()
 
-    def test__reuses_env_config__no_deepcopy(
+    @pytest.mark.asyncio
+    async def test__reuses_env_config__no_deepcopy(
         self, provider: UniqueContextProvider
     ) -> None:
         """
@@ -188,8 +223,10 @@ class TestResolveAuthContext:
             {_CLAIM_USER_ID: "user-1", _CLAIM_COMPANY_ID: "company-1"}
         )
 
-        with patch("mcp_search.context_provider.get_access_token", return_value=token):
-            settings = provider.get_settings()
+        with patch(
+            "unique_mcp.provider.context_provider.get_access_token", return_value=token
+        ):
+            settings = await provider.get_settings()
 
         assert settings.app is provider._settings.app
         assert settings.api is provider._settings.api
@@ -197,7 +234,8 @@ class TestResolveAuthContext:
 
 @pytest.mark.ai
 class TestGetContext:
-    def test__returns_unique_context__with_auth(
+    @pytest.mark.asyncio
+    async def test__returns_unique_context__with_auth(
         self, provider: UniqueContextProvider
     ) -> None:
         """
@@ -207,20 +245,27 @@ class TestGetContext:
             {_CLAIM_USER_ID: "user-ctx", _CLAIM_COMPANY_ID: "company-ctx"}
         )
 
-        with patch("mcp_search.context_provider.get_access_token", return_value=token):
-            context = provider.get_context()
+        with patch(
+            "unique_mcp.provider.context_provider.get_access_token", return_value=token
+        ):
+            context = await provider.get_context()
 
         assert context.auth.get_confidential_user_id() == "user-ctx"
         assert context.auth.get_confidential_company_id() == "company-ctx"
         assert context.chat is None
 
-    def test__chat_is_none__by_default(self, provider: UniqueContextProvider) -> None:
+    @pytest.mark.asyncio
+    async def test__chat_is_none__by_default(
+        self, provider: UniqueContextProvider
+    ) -> None:
         """
         Purpose: Verify chat context is None when not provided (placeholder behavior).
         """
         token = _make_access_token({_CLAIM_USER_ID: "u", _CLAIM_COMPANY_ID: "c"})
 
-        with patch("mcp_search.context_provider.get_access_token", return_value=token):
-            settings = provider.get_settings()
+        with patch(
+            "unique_mcp.provider.context_provider.get_access_token", return_value=token
+        ):
+            settings = await provider.get_settings()
 
         assert settings.context.chat is None

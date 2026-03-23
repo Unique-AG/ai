@@ -4,8 +4,7 @@ from fastmcp import FastMCP
 from mcp.types import CallToolResult, TextContent
 from pydantic import Field
 
-from mcp_search.context_provider import UniqueContextProvider
-from unique_mcp.provider import BaseProvider
+from unique_mcp.provider import BaseProvider, UniqueContextProvider
 from unique_toolkit import KnowledgeBaseService
 from unique_toolkit.content.schemas import ContentSearchType
 
@@ -24,7 +23,7 @@ class UniqueKnowledgeBaseTools(BaseProvider):
                 "unique.app/system-prompt": "Choose this tool if you need to search in the knowledge base",
             },
         )
-        def _search(
+        async def _search(
             search_string: Annotated[
                 str,
                 Field(
@@ -48,7 +47,7 @@ class UniqueKnowledgeBaseTools(BaseProvider):
         ) -> CallToolResult:
             """Search in the knowledge base"""
 
-            settings = self._context_provider.get_settings()
+            settings = await self._context_provider.get_settings()
 
             knowledge_base_service = KnowledgeBaseService.from_settings(settings)
 

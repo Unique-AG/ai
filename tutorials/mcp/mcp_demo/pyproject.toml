@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-unique-mcp = "mcp_demo:main"
+mcp-demo = "mcp_demo.mcp_demo_server:main"
 
 [build-system]
 requires = ["uv_build>=0.8.14,<0.9.0"]

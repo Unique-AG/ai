@@ -9,9 +9,11 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=2.13.3",
+    "httpx>=0.28.0",
+    "platformdirs>=4.0.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.0.0",
-    "platformdirs>=4.0.0",
+    "unique-toolkit>=1.61.0",
 ]
 
 [project.scripts]
@@ -23,6 +25,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "pytest-asyncio>=0.25.0",
     "ruff>=0.14.8",
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
@@ -34,6 +37,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 markers = [
     "ai: AI-generated tests",
 ]

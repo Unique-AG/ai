@@ -2,13 +2,13 @@ from fastmcp import FastMCP
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 
-from mcp_search.context_provider import UniqueContextProvider
 from mcp_search.routes import MCPBaseRoutes
 from mcp_search.tools import UniqueKnowledgeBaseTools
 from unique_mcp.auth.zitadel.oauth_proxy import (
     ZitadelOAuthProxySettings,
     create_zitadel_oauth_proxy,
 )
+from unique_mcp.provider import UniqueContextProvider
 from unique_mcp.settings import ServerSettings
 from unique_toolkit.app.unique_settings import UniqueSettings
 

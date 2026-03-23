@@ -3,17 +3,17 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-import requests
+import httpx
 from fastmcp.server.dependencies import get_access_token
 from pydantic import SecretStr
-
-from unique_mcp.auth.zitadel.oauth_proxy import ZitadelOAuthProxySettings
 from unique_toolkit.app.unique_settings import (
     AuthContext,
     ChatContext,
     UniqueContext,
     UniqueSettings,
 )
+
+from unique_mcp.auth.zitadel.oauth_proxy import ZitadelOAuthProxySettings
 
 if TYPE_CHECKING:
     from unique_toolkit.app.unique_settings import ChatContextProtocol
@@ -46,7 +46,7 @@ class UniqueContextProvider:
         )
 
         # Per tool call
-        request_settings = provider.get_settings()
+        request_settings = await provider.get_settings()
         service = KnowledgeBaseService.from_settings(request_settings)
     """
 
@@ -59,9 +59,11 @@ class UniqueContextProvider:
         self._settings = settings
         self._zitadel_settings = zitadel_settings or ZitadelOAuthProxySettings()
 
-    def get_settings(self, chat: ChatContextProtocol | None = None) -> UniqueSettings:
-        """Build per-request UniqueSettings (env from init + auth from token + optional chat)."""
-        auth = self._resolve_auth_context()
+    async def get_settings(
+        self, chat: ChatContextProtocol | None = None
+    ) -> UniqueSettings:
+        """Build per-request UniqueSettings (env, token auth, optional chat)."""
+        auth = await self._resolve_auth_context()
         chat = chat or self._resolve_chat_context()
         return UniqueSettings(
             auth=auth,
@@ -70,9 +72,11 @@ class UniqueContextProvider:
             chat=chat,
         )
 
-    def get_context(self, chat: ChatContextProtocol | None = None) -> UniqueContext:
+    async def get_context(
+        self, chat: ChatContextProtocol | None = None
+    ) -> UniqueContext:
         """Build per-request UniqueContext (auth + optional chat)."""
-        auth = self._resolve_auth_context()
+        auth = await self._resolve_auth_context()
         chat = chat or self._resolve_chat_context()
         return UniqueContext(auth=auth, chat=chat)
 
@@ -85,7 +89,7 @@ class UniqueContextProvider:
         """
         return None
 
-    def _resolve_auth_context(self) -> AuthContext:
+    async def _resolve_auth_context(self) -> AuthContext:
         """Extract user identity from the current request's access token.
 
         Strategy: try JWT claims first (zero HTTP calls), fall back to
@@ -119,14 +123,15 @@ class UniqueContextProvider:
             bool(user_id),
             bool(company_id),
         )
-        return self._resolve_from_userinfo(token.token)
+        return await self._resolve_from_userinfo(token.token)
 
-    def _resolve_from_userinfo(self, bearer_token: str) -> AuthContext:
+    async def _resolve_from_userinfo(self, bearer_token: str) -> AuthContext:
         """Fallback: call Zitadel userinfo endpoint to get user identity."""
-        response = requests.get(
-            self._zitadel_settings.userinfo_endpoint,
-            headers={"Authorization": f"Bearer {bearer_token}"},
-        )
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                self._zitadel_settings.userinfo_endpoint,
+                headers={"Authorization": f"Bearer {bearer_token}"},
+            )
         response.raise_for_status()
         info = response.json()
 
