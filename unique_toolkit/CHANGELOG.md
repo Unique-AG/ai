@@ -5,7 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.62.0] - 2026-03-23
+## [1.62.2] - 2026-03-24
+- Code interpreter (UN-18375): harden `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT` and `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` — require `plt.savefig` + `plt.close` for plots, forbid `sandbox:/mnt/data/` links unless the file was created by executed code in the same response, and use `<filename>` (not a literal `filename.png`) in savefig examples so multiple plots do not overwrite the same path
+
+## [1.62.1] - 2026-03-23
 - Add `tool_manager` parameter to `DebugInfoManager.extract_builtin_tool_debug_info` and `_extract_tool_calls_from_stream_response`; each code interpreter call entry now includes `is_exclusive` and `is_forced` flags derived from the tool manager 
 
 ## [1.61.0] - 2026-03-23
@@ -20,9 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `AuthContext`, `AuthContextProtocol`, `ChatContext`, `ChatContextProtocol` to `unique_settings`
 - Add `ChatService.from_context` and `KnowledgeBaseService.from_context` constructors; deprecate old event-based constructors
 - Deprecate `UniqueSettings.auth` property in favour of `UniqueSettings.authcontext`
-
-## [1.59.1] - 2026-03-20
-- Code interpreter: harden `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT` and `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` — require `plt.savefig` + `plt.close` for plots, add critical handling guidance, and forbid `sandbox:/mnt/data/` links unless the file was created by executed code in the same response (UN-18375)
 
 ## [1.59.0] - 2026-03-19
 - Introduce `AuthContextProtocol` and `AuthContext` (Pydantic `BaseModel`) for unified auth typing across MCP services and apps (UN-18234)
