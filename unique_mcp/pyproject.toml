@@ -25,15 +25,8 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
-    "pytest-asyncio>=0.25.0",
-    "ruff>=0.14.8",
-    "pytest>=8.0.0",
-    "pytest-cov>=4.1.0",
     "diff-cover>=8.0.0",
-    "basedpyright>=1.33.0",
-    "deptry>=0.24.0",
     "python-dep-tree>=0.19.9",
-    "poethepoet>=0.32.0",
 ]
 
 [tool.pytest.ini_options]

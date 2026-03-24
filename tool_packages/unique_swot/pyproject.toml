@@ -29,20 +29,11 @@ module-root = ""
 constraint-dependencies = ["lxml>=5.0.0"]
 
 [dependency-groups]
-dev = [
-    "ruff>=0.11.7",
-    "pytest>=8.3.5,<9",
-    "pytest-cov>=7.0.0,<8",
-    "pytest-mock>=3.14.0,<4",
-    "pytest-asyncio>=1.2.0,<2",
-    "deptry>=0.24.0,<0.25",
-    "basedpyright>=1.35.0,<2",
-    "poethepoet>=0.32.0,<0.33",
-]
+dev = []
 
 [tool.uv.sources]
-unique-toolkit = { path = "../../unique_toolkit", editable = true }
-unique-quartr = { path = "../../connectors/unique_quartr", editable = true }
+unique-toolkit = { workspace = true }
+unique-quartr = { workspace = true }
 
 [tool.poe.tasks]
 lint = "ruff check ."

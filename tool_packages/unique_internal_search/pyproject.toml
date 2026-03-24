@@ -28,18 +28,10 @@ module-root = ""
 constraint-dependencies = ["lxml>=5.0.0"]
 
 [dependency-groups]
-dev = [
-    "pytest>=8.4.1,<9",
-    "pytest-asyncio>=0.24.0,<0.25",
-    "ruff==0.12.10",
-    "pytest-cov>=7.0.0,<8",
-    "deptry>=0.24.0,<0.25",
-    "basedpyright>=1.35.0,<2",
-    "poethepoet>=0.32.0,<0.33",
-]
+dev = []
 
 [tool.uv.sources]
-unique-toolkit = { path = "../../unique_toolkit", editable = true }
+unique-toolkit = { workspace = true }
 
 [tool.poe.tasks]
 lint = "ruff check ."

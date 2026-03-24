@@ -18,15 +18,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = [
-    "ruff>=0.12.10",
-    "pytest>=8.0.0",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.12.0",
-    "deptry>=0.24.0",
-    "basedpyright>=1.35.0",
-    "poethepoet>=0.32.0",
-]
+dev = []
 
 [build-system]
 requires = ["uv_build>=0.7.19,<0.8"]
@@ -39,7 +31,7 @@ module-root = ""
 constraint-dependencies = ["lxml>=5.0.0"]
 
 [tool.uv.sources]
-unique-toolkit = { path = "../../unique_toolkit", editable = true }
+unique-toolkit = { workspace = true }
 
 [tool.poe.tasks]
 lint = "ruff check ."

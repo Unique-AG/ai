@@ -25,14 +25,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "pytest>=8.4.1",
-    "pytest-asyncio>=0.25.0",
-    "pytest-cov>=7.0.0",
-    "unique-sdk>=0.10.0",
-    "ruff>=0.12.10",
-    "deptry>=0.24.0",
-    "basedpyright>=1.35.0",
-    "poethepoet>=0.32.0",
+    "unique-sdk",
 ]
 
 [build-system]
@@ -46,9 +39,9 @@ module-root = ""
 constraint-dependencies = ["lxml>=5.0.0"]
 
 [tool.uv.sources]
-unique-sdk = { path = "../../unique_sdk", editable = true }
-unique-toolkit = { path = "../../unique_toolkit", editable = true }
-unique-six = { path = "../../connectors/unique_six", editable = true }
+unique-sdk = { workspace = true }
+unique-toolkit = { workspace = true }
+unique-six = { workspace = true }
 
 [tool.poe.tasks]
 lint = "ruff check ."
