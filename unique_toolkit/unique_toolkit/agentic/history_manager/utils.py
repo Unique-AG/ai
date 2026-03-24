@@ -14,6 +14,11 @@ from unique_toolkit.language_model.schemas import (
 logger = logging.getLogger(__name__)
 
 
+def serialize_tool_content_json(value: Any) -> str:
+    """Serialize tool-role JSON text while preserving readable Unicode."""
+    return json.dumps(value, ensure_ascii=False)
+
+
 def convert_tool_interactions_to_content_messages(
     loop_history: list[LanguageModelMessage],
 ) -> list[LanguageModelMessage]:
@@ -80,7 +85,7 @@ def transform_chunks_to_string(
         }
         for i, chunk in enumerate(content_chunks)
     ]
-    return json.dumps(sources), sources
+    return serialize_tool_content_json(sources), sources
 
 
 def load_sources_from_string(

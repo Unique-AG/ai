@@ -714,3 +714,40 @@ class TestCompactMessageTools:
         parsed = json.loads(result[0].response.content)
         assert len(parsed) == 1
         assert parsed[0]["source_number"] == 0
+
+    def test_preserves_readable_unicode_when_stripping_uncited_sources(self):
+        content = json.dumps(
+            [
+                {
+                    "source_number": 0,
+                    "content_id": "cont_0",
+                    "content": 'ページ名 "quoted" / مرحبا 😀',
+                },
+                {
+                    "source_number": 1,
+                    "content_id": "cont_1",
+                    "content": "other",
+                },
+            ],
+            ensure_ascii=False,
+        )
+        records = [self._make_record(content)]
+
+        result = HistoryManager.compact_message_tools(
+            records=records,
+            assistant_text="Only [source0] is cited.",
+        )
+
+        compacted_content = result[0].response.content
+        assert "ページ名" in compacted_content
+        assert "مرحبا" in compacted_content
+        assert "😀" in compacted_content
+        assert "\\u30da" not in compacted_content
+        assert "\\ud83d" not in compacted_content
+        assert json.loads(compacted_content) == [
+            {
+                "source_number": 0,
+                "content_id": "cont_0",
+                "content": 'ページ名 "quoted" / مرحبا 😀',
+            }
+        ]

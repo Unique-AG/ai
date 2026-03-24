@@ -604,6 +604,39 @@ def test_create_reduced_standard_sources_message__formats_sources_correctly_AI(
 
 
 @pytest.mark.ai
+def test_create_reduced_standard_sources_message__preserves_readable_unicode_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify reduced source messages keep multilingual text readable.
+    Why this matters: Token reduction should not reintroduce escaped Unicode in tool content.
+    """
+    original_message = create_tool_message("tool_1", "TestTool", "original")
+    chunks = [
+        create_content_chunk("chunk_1", 'ページ名 "quoted"'),
+        create_content_chunk("chunk_2", "مرحبا 😀"),
+    ]
+
+    result = loop_token_reducer._create_reduced_standard_sources_message(
+        message=original_message,
+        content_chunks=chunks,
+        source_offset=2,
+    )
+
+    content = result.content
+    assert isinstance(content, str)
+    assert "ページ名" in content
+    assert "مرحبا" in content
+    assert "😀" in content
+    assert "\\u30da" not in content
+
+    content_dict = json.loads(content)
+    assert content_dict[0]["source_number"] == 2
+    assert content_dict[0]["content"] == 'ページ名 "quoted"'
+    assert content_dict[1]["source_number"] == 3
+    assert content_dict[1]["content"] == "مرحبا 😀"
+
+
 def test_create_reduced_table_search_message__preserves_sql_content_AI(
     loop_token_reducer: LoopTokenReducer,
 ) -> None:
@@ -629,6 +662,39 @@ def test_create_reduced_table_search_message__preserves_sql_content_AI(
     content_dict = json.loads(content)
     assert content_dict["source_number"] == 0
     assert content_dict["content"] == "SELECT * FROM users"
+
+
+@pytest.mark.ai
+def test_create_reduced_table_search_message__preserves_readable_unicode_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify reduced TableSearch messages keep non-ASCII content readable.
+    Why this matters: TableSearch reduction serializes tool content separately from chunk history.
+    """
+    table_content = {
+        "content": "ページ名 / マーケティングタグ / مرحبا 😀",
+        "other_field": "value",
+    }
+    original_message = create_tool_message("tool_1", "TableSearch", table_content)
+    chunk = create_content_chunk("chunk_1", "table result")
+
+    result = loop_token_reducer._create_reduced_table_search_message(
+        message=original_message,
+        content_chunks=[chunk],
+        source_offset=4,
+    )
+
+    content = result.content
+    assert isinstance(content, str)
+    assert "ページ名" in content
+    assert "مرحبا" in content
+    assert "😀" in content
+    assert "\\u30da" not in content
+
+    content_dict = json.loads(content)
+    assert content_dict["source_number"] == 4
+    assert content_dict["content"] == "ページ名 / マーケティングタグ / مرحبا 😀"
 
 
 @pytest.mark.ai

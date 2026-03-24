@@ -1,3 +1,4 @@
+import json
 from typing import Any
 from unittest.mock import AsyncMock, Mock, PropertyMock, patch
 
@@ -2648,3 +2649,68 @@ class TestInternalSearchTool:
         # The sources string should reference source numbers starting from 4 (after existing 3)
         # This verifies the max_source_number is being used correctly
         mock_logger.debug.assert_called()
+
+    @pytest.mark.ai
+    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.ChunkRelevancySorter")
+    def test_get_tool_call_result_for_loop_history__preserves_readable_unicode_content(
+        self,
+        mock_chunk_relevancy_sorter_class: Any,
+        mock_content_service_class: Any,
+        base_internal_search_config: InternalSearchConfig,
+        mock_chat_event: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify loop history tool content keeps multilingual text readable.
+        Why this matters: InternalSearch tool messages are forwarded to the next LLM call as-is.
+        Setup summary: Create tool, serialize non-ASCII chunks into loop history, and verify both raw and decoded content.
+        """
+        mock_content_service = Mock(spec=ContentService)
+        mock_content_service._metadata_filter = None
+        mock_content_service_class.from_event.return_value = mock_content_service
+
+        mock_sorter = Mock()
+        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+
+        def setup_tool(self, configuration, event, *args, **kwargs):
+            setattr(self, "_event", event)
+            setattr(self, "logger", mock_logger)
+            setattr(self, "_message_step_logger", None)
+
+        with patch("unique_internal_search.service.Tool.__init__", setup_tool):
+            tool = InternalSearchTool(
+                configuration=base_internal_search_config,
+                event=mock_chat_event,
+            )
+
+        unicode_chunks = [
+            ContentChunk(
+                id="cont_unicode_chunk_01",
+                chunk_id="chunk_unicode_1",
+                text='ページ名 "quoted" / マーケティングタグ / مرحبا 😀',
+                order=1,
+            )
+        ]
+        mock_handler = Mock()
+        mock_handler.chunks = [Mock(), Mock(), Mock()]
+        tool_response = ToolCallResponse(
+            id="tool_call_123",
+            name="InternalSearch",
+            content_chunks=unicode_chunks,
+            debug_info={},
+        )
+
+        result = tool.get_tool_call_result_for_loop_history(
+            tool_response=tool_response,
+            agent_chunks_handler=mock_handler,
+        )
+
+        assert isinstance(result.content, str)
+
+        decoded_sources = json.loads(result.content)
+        assert len(decoded_sources) == 1
+        assert decoded_sources[0]["source_number"] == 3
+        assert decoded_sources[0]["content"] == (
+            'ページ名 "quoted" / マーケティングタグ / مرحبا 😀'
+        )
