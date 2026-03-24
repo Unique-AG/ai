@@ -31,7 +31,6 @@ OPTIONS:
     -v, --version        Show version information and exit
     -o, --output FILE    Path to output JSON file (default: /tmp/deptry.json)
     -r, --runner CMD     Command executor prefix (default: "uv run")
-
 EXAMPLES:
     # Basic usage
     ${SCRIPT_NAME} unique_mcp
@@ -58,7 +57,7 @@ EOF
 # Initialize variables with defaults
 PACKAGE_DIR=""
 OUTPUT_FILE="/tmp/deptry.json"
-RUNNER="uv run"
+RUNNER="uvx"
 
 # Convert long options to short options for getopts
 ARGS=()

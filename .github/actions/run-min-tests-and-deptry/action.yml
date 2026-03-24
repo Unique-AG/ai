@@ -41,14 +41,13 @@ runs:
           PKG_SPEC=".[$EXTRAS]"
         fi
         uv pip install -e "$PKG_SPEC" --resolution=lowest-direct
-        uv export --only-group dev --no-hashes | uv pip install -r -
+        REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
+        uv export --directory "$REPO_ROOT" --only-group dev --no-hashes | uv pip install -r -
 
     - name: Run deptry
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      env:
-        UV_NO_SOURCES: 1
-      run: uv run --no-sync deptry .
+      run: uvx deptry .
 
     - name: Run tests with min dependencies
       shell: bash
