@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 import httpx
-from fastmcp.server.dependencies import get_access_token
+from fastmcp.server.dependencies import get_access_token, get_context
 from pydantic import SecretStr
 from unique_toolkit.app.unique_settings import (
     AuthContext,
@@ -35,21 +35,13 @@ def _make_auth(user_id: str, company_id: str) -> AuthContext:
 def _read_meta() -> dict[str, Any] | None:
     """Read ``_meta`` from the active FastMCP request, if available."""
     try:
-        from fastmcp.server.dependencies import (
-            get_context as _get_ctx,
-        )
-
-        ctx = _get_ctx()
+        ctx = get_context()
     except (RuntimeError, LookupError):
         return None
     rc = ctx.request_context
     if rc is None or rc.meta is None:
         return None
-    meta = rc.meta
-    if hasattr(meta, "model_dump"):
-        data = meta.model_dump(mode="python", exclude_none=True)
-        return data or None
-    return dict(meta) if meta else None
+    return dict(rc.meta) or None
 
 
 class UniqueContextProvider:
@@ -65,9 +57,6 @@ class UniqueContextProvider:
         settings = await provider.get_settings()
     """
 
-    _zitadel: ZitadelOAuthProxySettings
-    _settings: UniqueSettings
-
     def __init__(
         self,
         *,
@@ -76,6 +65,7 @@ class UniqueContextProvider:
     ) -> None:
         self._settings = settings or UniqueSettings.from_env_auto_with_sdk_init()
         self._zitadel = zitadel_settings or ZitadelOAuthProxySettings()
+        self._http = httpx.AsyncClient(timeout=_USERINFO_TIMEOUT)
 
     async def get_settings(self) -> UniqueSettings:
         """Per-request UniqueSettings (swaps auth, keeps app/api)."""
@@ -132,10 +122,9 @@ class UniqueContextProvider:
         return _make_auth(uid, cid)
 
     async def _fetch_userinfo(self, bearer: str) -> dict[str, Any]:
-        async with httpx.AsyncClient(timeout=_USERINFO_TIMEOUT) as client:
-            resp = await client.get(
-                self._zitadel.userinfo_endpoint,
-                headers={"Authorization": f"Bearer {bearer}"},
-            )
-        _ = resp.raise_for_status()
+        resp = await self._http.get(
+            self._zitadel.userinfo_endpoint,
+            headers={"Authorization": f"Bearer {bearer}"},
+        )
+        resp.raise_for_status()
         return resp.json()  # type: ignore[no-any-return]

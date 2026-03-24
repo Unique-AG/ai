@@ -1,17 +1,18 @@
 from typing import Annotated
 
 from fastmcp import FastMCP
+from fastmcp.dependencies import Depends
 from mcp.types import CallToolResult, TextContent
 from pydantic import Field
 
 from unique_mcp.provider import BaseProvider, UniqueContextProvider
 from unique_toolkit import KnowledgeBaseService
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentSearchType
 
 
 class UniqueKnowledgeBaseTools(BaseProvider):
     def __init__(self, context_provider: UniqueContextProvider) -> None:
-        super().__init__()
         self._context_provider = context_provider
 
     def register(self, *, mcp: FastMCP) -> None:
@@ -44,10 +45,9 @@ class UniqueKnowledgeBaseTools(BaseProvider):
                     default=10,
                 ),
             ] = 10,
+            settings: UniqueSettings = Depends(self._context_provider.get_settings),
         ) -> CallToolResult:
             """Search in the knowledge base"""
-
-            settings = await self._context_provider.get_settings()
 
             knowledge_base_service = KnowledgeBaseService.from_settings(settings)
 

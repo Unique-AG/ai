@@ -64,10 +64,8 @@ def _userinfo_response(data: dict) -> MagicMock:
     return r
 
 
-def _mock_httpx(response: MagicMock) -> AsyncMock:
+def _mock_http_client(response: MagicMock) -> AsyncMock:
     c = AsyncMock()
-    c.__aenter__ = AsyncMock(return_value=c)
-    c.__aexit__ = AsyncMock(return_value=None)
     c.get = AsyncMock(return_value=response)
     return c
 
@@ -86,10 +84,8 @@ class TestResolveAuth:
     async def test_fallback_to_userinfo(self, provider):
         tok = _token({_CLAIM_USER_ID: "u1"})
         resp = _userinfo_response({"sub": "u1", _CLAIM_COMPANY_ID: "c-info"})
-        with (
-            patch(f"{_MOD}.get_access_token", return_value=tok),
-            patch(f"{_MOD}.httpx.AsyncClient", return_value=_mock_httpx(resp)),
-        ):
+        provider._http = _mock_http_client(resp)
+        with patch(f"{_MOD}.get_access_token", return_value=tok):
             s = await provider.get_settings()
         assert s.authcontext.get_confidential_company_id() == "c-info"
 
@@ -97,10 +93,8 @@ class TestResolveAuth:
     async def test_fallback_when_claims_empty(self, provider):
         tok = _token({})
         resp = _userinfo_response({"sub": "u-info", _CLAIM_COMPANY_ID: "c-info"})
-        with (
-            patch(f"{_MOD}.get_access_token", return_value=tok),
-            patch(f"{_MOD}.httpx.AsyncClient", return_value=_mock_httpx(resp)),
-        ):
+        provider._http = _mock_http_client(resp)
+        with patch(f"{_MOD}.get_access_token", return_value=tok):
             s = await provider.get_settings()
         assert s.authcontext.get_confidential_user_id() == "u-info"
 
@@ -116,9 +110,9 @@ class TestResolveAuth:
     async def test_raises_when_userinfo_incomplete(self, provider):
         tok = _token({})
         resp = _userinfo_response({"sub": "u1"})
+        provider._http = _mock_http_client(resp)
         with (
             patch(f"{_MOD}.get_access_token", return_value=tok),
-            patch(f"{_MOD}.httpx.AsyncClient", return_value=_mock_httpx(resp)),
             pytest.raises(ValueError, match="incomplete"),
         ):
             await provider.get_settings()
@@ -185,12 +179,10 @@ class TestResolveAuth:
         """httpx timeout in userinfo call propagates as-is."""
         tok = _token({})
         mock_client = AsyncMock()
-        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-        mock_client.__aexit__ = AsyncMock(return_value=None)
         mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("timed out"))
+        provider._http = mock_client
         with (
             patch(f"{_MOD}.get_access_token", return_value=tok),
-            patch(f"{_MOD}.httpx.AsyncClient", return_value=mock_client),
             pytest.raises(httpx.TimeoutException),
         ):
             await provider.get_settings()
@@ -214,10 +206,8 @@ class TestGetUserinfo:
         tok = _token({})
         data = {"sub": "u1", "email": "u@example.com", "name": "User"}
         resp = _userinfo_response(data)
-        with (
-            patch(f"{_MOD}.get_access_token", return_value=tok),
-            patch(f"{_MOD}.httpx.AsyncClient", return_value=_mock_httpx(resp)),
-        ):
+        provider._http = _mock_http_client(resp)
+        with patch(f"{_MOD}.get_access_token", return_value=tok):
             info = await provider.get_userinfo()
         assert info == data
 

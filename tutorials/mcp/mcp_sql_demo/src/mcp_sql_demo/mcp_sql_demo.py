@@ -3,19 +3,14 @@ from typing import Annotated
 
 from dotenv import load_dotenv
 from fastapi.responses import FileResponse, JSONResponse
-from fastmcp import FastMCP
+from fastmcp.dependencies import Depends
 from pydantic import Field
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
 from mcp_sql_demo.db_tool_pm.service import PMPositionsTool
-from unique_mcp.auth.zitadel.oauth_proxy import (
-    ZitadelOAuthProxySettings,
-    create_zitadel_oauth_proxy,
-)
-from unique_mcp.provider import UniqueContextProvider
-from unique_mcp.settings import ServerSettings
+from unique_mcp.server import create_mcp_server
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.app.schemas import (
     ChatEvent,
@@ -23,7 +18,7 @@ from unique_toolkit.app.schemas import (
     ChatEventPayload,
     ChatEventUserMessage,
 )
-from unique_toolkit.app.unique_settings import UniqueSettings
+from unique_toolkit.app.unique_settings import UniqueContext
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 # Load environment variables from .env file
@@ -58,20 +53,8 @@ _METADATA_TOOL = ToolFactory.build_tool("PM_Positions", {}, _PLACEHOLDER_EVENT)
 
 
 def main() -> None:
-    _unique_settings = UniqueSettings.from_env_auto_with_sdk_init()
-
-    server_settings = ServerSettings()  # type: ignore
-    zitadel_settings = ZitadelOAuthProxySettings()
-
-    context_provider = UniqueContextProvider(
-        settings=_unique_settings,
-        zitadel_settings=zitadel_settings,
-    )
-
-    zitadel_oauth_proxy = create_zitadel_oauth_proxy(
-        mcp_server_base_url=server_settings.base_url.encoded_string(),
-        zitadel_oauth_proxy_settings=zitadel_settings,
-    )
+    bundle = create_mcp_server("Demo 🚀")
+    context_provider = bundle.context_provider
 
     custom_middleware = [
         Middleware(
@@ -83,9 +66,7 @@ def main() -> None:
         )
     ]
 
-    mcp = FastMCP("Demo 🚀", auth=zitadel_oauth_proxy)
-
-    @mcp.tool(
+    @bundle.mcp.tool(
         name=_METADATA_TOOL.name,
         title=_METADATA_TOOL.display_name(),
         description=_METADATA_TOOL.tool_description().description,
@@ -103,9 +84,9 @@ def main() -> None:
                 description="Search string to find relevant information on stocks and instruments it can include exposure. This will be converted to sql and run against the database."
             ),
         ],
+        context: UniqueContext = Depends(context_provider.get_context),
     ) -> str:
         """Search string to find relevant information on stocks and instruments. This will be converted to sql and run against the database."""
-        context = await context_provider.get_context()
         user_id = context.auth.get_confidential_user_id()
         company_id = context.auth.get_confidential_company_id()
 
@@ -130,19 +111,19 @@ def main() -> None:
         result = await tool.run(tool_call)
         return result.content
 
-    @mcp.custom_route("/", methods=["GET"])
+    @bundle.mcp.custom_route("/", methods=["GET"])
     async def get_status(request: Request):
         return JSONResponse({"server": "running"})
 
-    @mcp.custom_route("/favicon.ico", methods=["GET"])
+    @bundle.mcp.custom_route("/favicon.ico", methods=["GET"])
     async def favicon(request: Request):
         FAVICON_PATH = Path(__file__).parent / "favicon.ico"
         return FileResponse(FAVICON_PATH)
 
-    mcp.run(
-        transport=server_settings.transport_scheme,
-        host=server_settings.local_base_url.host,
-        port=server_settings.local_base_url.port,
+    bundle.mcp.run(
+        transport=bundle.server_settings.transport_scheme,
+        host=bundle.server_settings.local_base_url.host,
+        port=bundle.server_settings.local_base_url.port,
         debug=True,
         log_level="debug",
         middleware=custom_middleware,
