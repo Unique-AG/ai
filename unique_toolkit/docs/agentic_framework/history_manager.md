@@ -132,6 +132,16 @@ The `HistoryManager` is a critical component responsible for managing the conver
              loop_history=self._loop_history,
              remove_from_text=remove_from_text,
          )
+
+         # On the first iteration, initialize the global source offset
+         # from the highest source number persisted in prior turns.
+         if not self._source_offset_initialized:
+             offset = max(0, self._token_reducer.max_db_source_number + 1)
+             self._source_enumerator = offset
+             self._initial_source_offset = offset
+             self._db_source_map = self._token_reducer.db_source_map
+             self._source_offset_initialized = True
+
          return messages
      ```
 

@@ -451,7 +451,7 @@ class LoopTokenReducer:
         history_reduced: list[LanguageModelMessage] = []
         content_chunks_reduced: list[ContentChunk] = []
         chunk_offset = 0
-        source_offset = 0
+        source_offset = max(0, self._max_db_source_number + 1)
 
         for message in history:
             if self._should_reduce_message(message):
