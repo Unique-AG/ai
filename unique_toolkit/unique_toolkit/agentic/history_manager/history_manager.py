@@ -269,27 +269,19 @@ class HistoryManager:
 
     def extract_message_tools(self) -> list[ChatMessageTool]:
         """Convert the in-memory loop history into persistable ChatMessageTool records."""
+        # Build a map of tool_call_id -> response_content in O(T) time
+        tool_responses: dict[str, str | None] = {}
+        for msg in self._loop_history:
+            if isinstance(msg, LanguageModelToolMessage):
+                response_content = msg.content if isinstance(msg.content, str) else None
+                tool_responses[msg.tool_call_id] = response_content
+
         records: list[ChatMessageTool] = []
         round_index = 0
-        i = 0
-        while i < len(self._loop_history):
-            msg = self._loop_history[i]
+        for msg in self._loop_history:
             if isinstance(msg, LanguageModelAssistantMessage) and msg.tool_calls:
                 for seq_index, tc in enumerate(msg.tool_calls):
-                    response_content = None
-                    for j in range(i + 1, len(self._loop_history)):
-                        candidate = self._loop_history[j]
-                        if (
-                            isinstance(candidate, LanguageModelToolMessage)
-                            and candidate.tool_call_id == tc.id
-                        ):
-                            response_content = (
-                                candidate.content
-                                if isinstance(candidate.content, str)
-                                else None
-                            )
-                            break
-
+                    response_content = tool_responses.get(tc.id)
                     response = (
                         ChatMessageToolResponse(content=response_content)
                         if response_content is not None
@@ -306,7 +298,6 @@ class HistoryManager:
                         )
                     )
                 round_index += 1
-            i += 1
         return records
 
     @staticmethod
