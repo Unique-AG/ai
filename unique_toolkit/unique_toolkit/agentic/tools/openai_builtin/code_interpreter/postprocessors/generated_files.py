@@ -165,6 +165,10 @@ class DisplayCodeInterpreterFilesPostProcessor(
     def apply_postprocessing_to_response(
         self, loop_response: ResponsesLanguageModelStreamResponse
     ) -> bool:
+        if loop_response.message.references is None:
+            loop_response.message.references = []
+        if loop_response.message.text is None:
+            loop_response.message.text = ""
         ref_number = _get_next_ref_number(loop_response.message.references)
         changed = False
 
@@ -826,7 +830,9 @@ def _warn_unmatched_code_blocks(
             )
 
 
-def _get_next_ref_number(references: list[ContentReference]) -> int:
+def _get_next_ref_number(references: list[ContentReference] | None) -> int:
+    if not references:
+        return 1
     max_ref_number = 0
     for ref in references:
         max_ref_number = max(max_ref_number, ref.sequence_number)
