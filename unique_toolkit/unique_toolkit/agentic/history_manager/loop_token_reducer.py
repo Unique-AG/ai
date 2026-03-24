@@ -114,7 +114,9 @@ class LoopTokenReducer:
 
         while self._exceeds_token_limit(token_count):
             token_count_before_reduction = token_count
-            loop_history = self._handle_token_limit_exceeded(loop_history, token_count)
+            loop_history[:] = self._handle_token_limit_exceeded(
+                loop_history, token_count
+            )
             messages = self._construct_history(
                 history_from_db,
                 loop_history,
