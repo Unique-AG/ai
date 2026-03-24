@@ -186,16 +186,13 @@ class HistoryManager:
                 tool_response.content_chunks or []
             )  # it can be that the tool response does not have content chunks
 
-            # Transform content chunks into sources to be appended to tool result
             stringified_sources, sources = transform_chunks_to_string(
                 content_chunks,
                 self._source_enumerator,
             )
             content = stringified_sources
 
-            self._source_enumerator += len(
-                sources
-            )  # To make sure all sources have unique source numbers
+            self._source_enumerator += len(sources)
 
         if tool_response.system_reminder:
             content += f"\n\n{tool_response.system_reminder}"
@@ -268,16 +265,25 @@ class HistoryManager:
             )
         return LanguageModelMessages(history)
 
+    @staticmethod
+    def _placeholder_chunk() -> ContentChunk:
+        """An empty but backend-valid placeholder for gap positions."""
+        return ContentChunk(key="", chunk_id="")
+
     def get_content_chunks_for_backend(self) -> list[ContentChunk]:
         """Build a positional list where ``result[N]`` is the chunk for ``[sourceN]``.
 
         Positions ``0..K-1`` are filled from ``_db_source_map`` (prior turns).
-        Gaps get empty ``ContentChunk()``.  Positions ``K..`` are the current
-        turn's chunks from the reference manager.
+        Gaps get placeholder ``ContentChunk`` instances with empty-string
+        ``key`` / ``chunk_id`` so the backend doesn't reject the payload.
+        Positions ``K..`` are the current turn's chunks from the reference
+        manager.
         """
         current_chunks = self._reference_manager.get_chunks()
         total_size = self._initial_source_offset + len(current_chunks)
-        result: list[ContentChunk] = [ContentChunk()] * total_size
+        result: list[ContentChunk] = [
+            self._placeholder_chunk() for _ in range(total_size)
+        ]
         for source_number, chunk in self._db_source_map.items():
             if source_number < self._initial_source_offset:
                 result[source_number] = chunk

@@ -112,7 +112,12 @@ def _parse_sources_from_response(content: str) -> list[dict[str, Any]]:
         if isinstance(data, list):
             return data
         return []
-    except (json.JSONDecodeError, ValueError):
+    except (json.JSONDecodeError, ValueError) as exc:
+        logger.warning(
+            "_parse_sources_from_response: JSON parse failed (content_len=%d): %s",
+            len(content),
+            exc,
+        )
         return []
 
 
@@ -157,5 +162,5 @@ def build_source_map_from_tool_calls(
             sn = entry.get("source_number")
             text = entry.get("content")
             if isinstance(sn, int) and isinstance(text, str):
-                source_map[sn] = ContentChunk(text=text)
+                source_map[sn] = ContentChunk(text=text, key="", chunk_id="")
     return source_map

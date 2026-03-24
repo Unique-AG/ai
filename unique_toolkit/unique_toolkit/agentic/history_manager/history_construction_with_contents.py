@@ -294,7 +294,6 @@ def get_full_history_with_contents_and_tool_calls(
             _LOGGER.warning(
                 "Failed to batch-load tool calls, falling back to empty", exc_info=True
             )
-
     max_source_number = compute_max_source_number_from_tool_calls(all_tool_calls)
     source_map: dict[int, ContentChunk] = build_source_map_from_tool_calls(
         all_tool_calls
