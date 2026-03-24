@@ -178,3 +178,56 @@ def test_get_all_openai_builtin_tools_returns_copy() -> None:
     assert first is not second
     first.clear()
     assert len(manager.get_all_openai_builtin_tools()) == 1
+
+
+# ============================================================================
+# Tests for get_required_include_params
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_get_required_include_params__returns_empty_list__when_no_tools() -> None:
+    """
+    Purpose: Verify get_required_include_params returns [] when no built-in tools are active.
+    Why this matters: No tools means no include params should be forwarded to the Responses API.
+    """
+    manager = OpenAIBuiltInToolManager(builtin_tools=[])
+    assert manager.get_required_include_params() == []
+
+
+@pytest.mark.ai
+def test_get_required_include_params__aggregates_params__from_all_tools() -> None:
+    """
+    Purpose: Verify get_required_include_params merges params returned by each tool.
+    Why this matters: Future tools may request different include values; the manager must
+    collect all of them without duplicates.
+    """
+    tool_a = MagicMock(spec=OpenAIBuiltInTool)
+    tool_a.get_required_include_params.return_value = ["code_interpreter_call.outputs"]
+    tool_b = MagicMock(spec=OpenAIBuiltInTool)
+    tool_b.get_required_include_params.return_value = []
+
+    manager = OpenAIBuiltInToolManager(builtin_tools=[tool_a, tool_b])
+    result = manager.get_required_include_params()
+
+    assert result == ["code_interpreter_call.outputs"]
+
+
+@pytest.mark.ai
+def test_get_required_include_params__deduplicates_params__when_multiple_tools_return_same_value() -> (
+    None
+):
+    """
+    Purpose: Verify get_required_include_params deduplicates identical params from multiple tools.
+    Why this matters: The Responses API would reject duplicate include values; the manager must
+    guarantee uniqueness regardless of how many tools request the same param.
+    """
+    tool_a = MagicMock(spec=OpenAIBuiltInTool)
+    tool_a.get_required_include_params.return_value = ["code_interpreter_call.outputs"]
+    tool_b = MagicMock(spec=OpenAIBuiltInTool)
+    tool_b.get_required_include_params.return_value = ["code_interpreter_call.outputs"]
+
+    manager = OpenAIBuiltInToolManager(builtin_tools=[tool_a, tool_b])
+    result = manager.get_required_include_params()
+
+    assert result == ["code_interpreter_call.outputs"]

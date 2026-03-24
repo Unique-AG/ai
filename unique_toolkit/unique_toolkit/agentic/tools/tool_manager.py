@@ -7,6 +7,7 @@ from openai.types.chat import (
     ChatCompletionNamedToolChoiceParam,
 )
 from openai.types.responses import (
+    ResponseIncludable,
     ToolParam,
     response_create_params,
 )
@@ -490,6 +491,7 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
         a2a_manager: A2AManager,
         builtin_tool_manager: OpenAIBuiltInToolManager,
     ) -> None:
+        self._builtin_tool_manager = builtin_tool_manager
         super().__init__(
             logger=logger,
             config=config,
@@ -500,3 +502,7 @@ class ResponsesApiToolManager(_ToolManager[Literal["responses"]]):
             api_mode="responses",
             builtin_tool_manager=builtin_tool_manager,
         )
+
+    def get_required_include_params(self) -> list[ResponseIncludable]:
+        """Return Responses API include params required by all active built-in tools."""
+        return self._builtin_tool_manager.get_required_include_params()

@@ -2,7 +2,7 @@ import logging
 from typing import Any, override
 
 from openai import AsyncOpenAI, BaseModel, NotFoundError
-from openai.types.responses import ResponseCodeInterpreterToolCall
+from openai.types.responses import ResponseCodeInterpreterToolCall, ResponseIncludable
 from openai.types.responses.tool_param import CodeInterpreter
 
 from unique_toolkit import ContentService, ShortTermMemoryService
@@ -274,6 +274,14 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
     @override
     def display_name(self) -> str:
         return self.DISPLAY_NAME
+
+    @override
+    def get_required_include_params(self) -> list[ResponseIncludable]:
+        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+            self._company_id
+        ):
+            return ["code_interpreter_call.outputs"]
+        return []
 
     @classmethod
     def get_debug_info(cls, call: ResponseCodeInterpreterToolCall) -> dict[str, Any]:

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.62.3] - 2026-03-24
+- Code interpreter (UN-17972): synthesise a `.txt` artifact and `fileWithSource` fence when code runs but produces no container files ("orphan" calls), replacing the legacy `<details>` UI — gated on `enable_code_execution_fence_un_17972` FF
+- Code interpreter (UN-17972): `OpenAICodeInterpreterTool.get_required_include_params()` returns `["code_interpreter_call.outputs"]` when the fence FF is on, so execution logs populate `call.outputs` for use as downloadable stdout
+- Add `OpenAIBuiltInTool.get_required_include_params()` default (returns `[]`) and `OpenAIBuiltInToolManager.get_required_include_params()` to aggregate/deduplicate include params across all active built-in tools
+- Add `ResponsesApiToolManager.get_required_include_params()` that delegates to the built-in tool manager
+- Add `_collect_stdout` helper to extract logs from `ResponseCodeInterpreterToolCall.outputs`
+
 ## [1.62.2] - 2026-03-24
 - Code interpreter (UN-18375): harden `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT` and `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` — require `plt.savefig` + `plt.close` for plots, forbid `sandbox:/mnt/data/` links unless the file was created by executed code in the same response, and use `<filename>` (not a literal `filename.png`) in savefig examples so multiple plots do not overwrite the same path
 
