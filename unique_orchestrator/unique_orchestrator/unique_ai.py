@@ -285,7 +285,7 @@ class UniqueAI:
             streaming_handler=self._streaming_handler,  # type: ignore (constructor accepts only compatible arguments)
             model=self._config.space.language_model,
             tools=self._tool_manager.get_tool_definitions(),  # type: ignore (as above)
-            content_chunks=self._reference_manager.get_chunks(),
+            content_chunks=self._history_manager.get_content_chunks_for_backend(),
             start_text=self.start_text,
             debug_info=self._debug_info_manager.get(),
             temperature=self._config.agent.experimental.temperature,

@@ -274,14 +274,6 @@ class InputTokenDistributionConfig(BaseToolConfig):
         description="The fraction of the max input tokens that will be reserved for the history.",
     )
 
-    percent_for_tool_call_history: float = Field(
-        default=0.0,
-        ge=0.0,
-        lt=1.0,
-        description="The fraction of the max input tokens reserved for tool call rounds in the reconstructed DB history. "
-        "Most recent rounds are kept first. 0 disables tool call history.",
-    )
-
     def max_history_tokens(self, max_input_token: int) -> int:
         return int(self.percent_for_history * max_input_token)
 
