@@ -34,7 +34,6 @@ OPTIONS:
     -c, --ci             CI mode - use git checkout instead of stash/restore
     -o, --output FILE    Output file for baseline (default: /tmp/baseline.json)
     -r, --runner CMD     Command executor prefix (default: "uv run")
-
 EXAMPLES:
     # Basic usage
     ${SCRIPT_NAME} unique_toolkit
