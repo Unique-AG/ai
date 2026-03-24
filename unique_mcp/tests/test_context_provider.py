@@ -2,6 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 from pydantic import SecretStr
 from unique_toolkit.app.unique_settings import (
@@ -146,6 +147,54 @@ class TestResolveAuth:
         assert s.authcontext.get_confidential_user_id() == "mu"
         assert s.authcontext.get_confidential_company_id() == "mc"
 
+    @pytest.mark.asyncio
+    async def test_meta_wins_over_jwt(self, provider):
+        """Meta IDs take priority even when a valid JWT is present."""
+        tok = _token({_CLAIM_USER_ID: "jwt-u", _CLAIM_COMPANY_ID: "jwt-c"})
+        with (
+            patch(
+                f"{_MOD}._read_meta",
+                return_value={
+                    "unique.app/user-id": "meta-u",
+                    "unique.app/company-id": "meta-c",
+                },
+            ),
+            patch(f"{_MOD}.get_access_token", return_value=tok),
+        ):
+            s = await provider.get_settings()
+        assert s.authcontext.get_confidential_user_id() == "meta-u"
+        assert s.authcontext.get_confidential_company_id() == "meta-c"
+
+    @pytest.mark.asyncio
+    async def test_meta_partial_falls_through_to_jwt(self, provider):
+        """Meta with only user-id (no company-id) falls through to JWT."""
+        tok = _token({_CLAIM_USER_ID: "jwt-u", _CLAIM_COMPANY_ID: "jwt-c"})
+        with (
+            patch(
+                f"{_MOD}._read_meta",
+                return_value={"unique.app/user-id": "meta-u"},
+            ),
+            patch(f"{_MOD}.get_access_token", return_value=tok),
+        ):
+            s = await provider.get_settings()
+        assert s.authcontext.get_confidential_user_id() == "jwt-u"
+        assert s.authcontext.get_confidential_company_id() == "jwt-c"
+
+    @pytest.mark.asyncio
+    async def test_userinfo_timeout_propagates(self, provider):
+        """httpx timeout in userinfo call propagates as-is."""
+        tok = _token({})
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("timed out"))
+        with (
+            patch(f"{_MOD}.get_access_token", return_value=tok),
+            patch(f"{_MOD}.httpx.AsyncClient", return_value=mock_client),
+            pytest.raises(httpx.TimeoutException),
+        ):
+            await provider.get_settings()
+
 
 @pytest.mark.ai
 class TestGetContext:
@@ -156,3 +205,26 @@ class TestGetContext:
             ctx = await provider.get_context()
         assert ctx.auth.get_confidential_user_id() == "u"
         assert ctx.chat is None
+
+
+@pytest.mark.ai
+class TestGetUserinfo:
+    @pytest.mark.asyncio
+    async def test_returns_full_userinfo(self, provider):
+        tok = _token({})
+        data = {"sub": "u1", "email": "u@example.com", "name": "User"}
+        resp = _userinfo_response(data)
+        with (
+            patch(f"{_MOD}.get_access_token", return_value=tok),
+            patch(f"{_MOD}.httpx.AsyncClient", return_value=_mock_httpx(resp)),
+        ):
+            info = await provider.get_userinfo()
+        assert info == data
+
+    @pytest.mark.asyncio
+    async def test_raises_when_no_token(self, provider):
+        with (
+            patch(f"{_MOD}.get_access_token", return_value=None),
+            pytest.raises(RuntimeError, match="No access token"),
+        ):
+            await provider.get_userinfo()
