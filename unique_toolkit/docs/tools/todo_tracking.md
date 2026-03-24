@@ -9,6 +9,7 @@ Long agentic conversations lose track of progress. The model may repeat steps, s
 - Giving the model a structured task list it controls
 - Attaching execution reminders to tool responses via `system_reminder` on `ToolCallResponse`
 - Providing structured debug info for observability in the debug UI and terminal logs
+- Supporting multi-step workflows (10-50+ steps) and batch operations (process ALL items)
 
 ## Architecture
 
@@ -19,12 +20,13 @@ sequenceDiagram
     participant TodoWriteTool
     participant ShortTermMemory
     participant HistoryManager
+    participant TraceLogger
 
     Model->>UniqueAI: tool_call(todo_write, {todos, merge})
     UniqueAI->>TodoWriteTool: run(tool_call)
     TodoWriteTool->>ShortTermMemory: load current state
     ShortTermMemory-->>TodoWriteTool: TodoList | None
-    TodoWriteTool->>TodoWriteTool: update or replace, truncate
+    TodoWriteTool->>TodoWriteTool: update or replace
     TodoWriteTool->>ShortTermMemory: save updated state (best-effort)
     TodoWriteTool-->>UniqueAI: ToolCallResponse (content + system_reminder + debug_info)
 
@@ -33,8 +35,10 @@ sequenceDiagram
     HistoryManager->>HistoryManager: content += system_reminder
     Note over UniqueAI: DebugInfoManager captures debug_info for UI
     UniqueAI->>UniqueAI: _log_tool_results (Steps panel entry)
+    UniqueAI->>TraceLogger: log_tool_execution (system_reminders, todo state)
     Note over UniqueAI: After loop exits
     UniqueAI->>UniqueAI: _persist_debug_info (saves to message)
+    UniqueAI->>TraceLogger: write_session_summary
     UniqueAI->>Model: messages (reminder visible in tool response history)
 ```
 
@@ -54,6 +58,7 @@ When all items are terminal (completed/cancelled), the `system_reminder` is set 
 | `TodoWriteTool` | `unique_toolkit/agentic/tools/todo/service.py` | Tool implementation |
 | `TodoReadTool` | `unique_toolkit/agentic/tools/todo/service.py` | Read-only tool (not registered by default) |
 | `_inject_todo_tools` | `unique_orchestrator/unique_ai_builder.py` | Adds `todo_write` to space tools when enabled |
+| `TraceLogger` | `unique_orchestrator/trace_logger.py` | Per-iteration trace logging for debugging |
 
 ## Enabling
 
@@ -75,7 +80,8 @@ The tool is dynamically injected at runtime when `todo_tracking` is active. If n
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `memory_key` | `str` | `"agent_todo_state"` | ShortTermMemory key for persisting state |
-| `max_todos` | `int` | `20` (1-50) | Maximum items stored; excess is truncated |
+
+There is no artificial limit on the number of todo items. Multi-step workflows and batch operations may have 50+ items, and all are preserved.
 
 ## Tool Behavior
 
@@ -86,7 +92,7 @@ Accepts a list of `TodoItem` objects and a `merge` flag:
 - **`merge=True`** (default): Updates existing items by ID, appends new ones, preserves items not mentioned in the call.
 - **`merge=False`**: Replaces the entire list.
 
-After update/replace, the list is truncated to `max_todos` and saved to ShortTermMemory. Returns a formatted summary.
+After update/replace, the state is saved to ShortTermMemory. Returns a formatted summary.
 
 Each `TodoItem` has:
 - `id` -- model-generated, free-form string identifier (e.g. `"research-apis"`, `"step-1"`)
@@ -108,14 +114,20 @@ Not registered by default. The LLM never used it because `todo_write` already re
 
 ### Autonomous Execution
 
-The system prompt for `todo_write` includes explicit autonomous execution instructions:
+The system prompt establishes a two-phase workflow:
 
+1. **Clarification Phase** (before creating the task list): Ask all clarifying questions in a single message upfront.
+2. **Execution Phase** (after creating the task list): Execute every step autonomously without stopping. No follow-up questions. Sensible defaults for ambiguous details.
+
+Execution rules enforced by the prompt:
 - After creating a task list, execute each step immediately
+- Work through ALL items until every item is in a terminal state
 - Do not ask the user for confirmation between steps
-- Work through all items autonomously until complete or blocked
-- Only stop to ask the user if genuinely blocked on information
+- Before finishing, verify that every item has been processed
+- Do NOT summarize remaining items or ask if you should continue
+- Only stop for hard blockers (missing credentials, nonexistent resources, unrecoverable errors)
 
-The `system_reminder` on the tool response reinforces this: "Continue executing tasks autonomously."
+The `system_reminder` on each tool response reinforces this: "You are in the EXECUTION PHASE. You MUST process every pending item — do not skip or summarize."
 
 ### Debug Info
 
@@ -157,8 +169,8 @@ Additionally, after tool execution, tools with `debug_info` get a summary entry 
 `tests/agentic/tools/test_todo_service.py` -- tests covering:
 - `TodoList.update()` logic (update, append, preserve)
 - `TodoList.has_active_items()` logic
-- `TodoWriteTool.run()` (create, update, replace, truncate, formatting)
-- `TodoReadTool.run()` (empty state, existing state)
+- `TodoWriteTool.run()` (create, update, replace, formatting)
+- Large todo lists (100 items) preserved without truncation
 - `debug_info` structure on tool response
 - `system_reminder` set when active items, empty when all terminal
 - Tool registration, config validation
@@ -176,14 +188,34 @@ Additionally, after tool execution, tools with `debug_info` get a summary entry 
 - `_log_tool_results` creates Steps entries for tools with debug_info
 - `_format_tool_result_summary` formats todo state and generic debug info
 
+`unique_orchestrator/tests/test_trace_logger.py` -- tests covering:
+- `_serialize` and `_strip_chunks` helpers (recursive chunk removal)
+- TraceLogger disabled when no env var and non-dev mode
+- TraceLogger enabled via `UNIQUE_AI_TRACE_DIR` or dev-mode auto-enable
+- LLM call logging, tool execution logging with system_reminder extraction
+- Session summary writing with model, timing, todo progression
+
 ### Multi-Step Workflow Tests
 
 `tests/agentic/tools/test_todo_eval.py` -- scripted conversation simulations:
 - Full lifecycle: pending -> in_progress -> completed across multiple iterations
 - Update behavior with mid-conversation additions
-- Truncation at max_todos boundary
+- Large merge preserves all items (no truncation)
 - System-reminder on tool response validates active state tracking
 - Iteration counter preserved across replace operations
+
+### Automated Prompt Evaluation
+
+`tests/agentic/tools/todo_prompt_eval/` -- LLM-powered prompt evaluation:
+- `scenarios.yaml`: 8 behavioral scenarios (simple questions, 5-step research, 10-item batch, 20-step workflow, ambiguous tasks, formatting tasks, document processing)
+- `eval_runner.py`: Runs scenarios through actual OpenAI API with tool calling, uses LLM-as-judge to score behavior against criteria, optionally auto-refines prompts
+
+Run with:
+```bash
+cd unique_toolkit
+python -m tests.agentic.tools.todo_prompt_eval.eval_runner
+python -m tests.agentic.tools.todo_prompt_eval.eval_runner --refine  # auto-refine mode
+```
 
 ### Manual QA Scenarios
 
@@ -203,7 +235,13 @@ What's the current price of AAPL?
 ```
 - Expect: Direct answer, no todo_write calls.
 
-**Scenario 3: Autonomous execution (should NOT ask for confirmation)**
+**Scenario 3: Batch operation (should create todo per item)**
+```
+Summarize each of these 10 emails: [list 10 topics]
+```
+- Expect: 10 todos created, all reach completed status, no mid-execution questions.
+
+**Scenario 4: Autonomous execution (should NOT ask for confirmation)**
 ```
 Research emerging market trends, compare with developed markets, and provide a recommendation.
 ```
@@ -215,6 +253,26 @@ Research emerging market trends, compare with developed markets, and provide a r
 - Debug panel shows structured `debug_info` (input items, resulting state counts)
 - `system_reminder` appears in tool response message history (drives autonomous execution)
 - Status transitions follow `pending -> in_progress -> completed` lifecycle
+- Trace files in `/tmp/unique-ai-traces/` (or custom `UNIQUE_AI_TRACE_DIR`)
+
+## Debugging
+
+### Trace Logging
+
+Set `UNIQUE_AI_TRACE_DIR=/tmp/unique-ai-traces` to write per-iteration JSON files capturing the full agent flow. In dev mode (`ENV=local` or `ENV=dev`), tracing auto-enables to `/tmp/unique-ai-traces`.
+
+Each agent run creates a timestamped session directory with:
+- `iter-NNN-llm.json`: messages sent to LLM + model response (excluding content chunks)
+- `iter-NNN-tools.json`: tool calls + responses, system_reminders extracted, todo state snapshots
+- `session-summary.json`: iteration count, tools used, todo progression, timing, model
+
+### Recommended Model
+
+GPT-5.4 (`AZURE_GPT_54_2026_0305`) is recommended for agentic use with todo tracking — it follows multi-step plans more reliably than earlier models. Set via the admin UI or the `DEFAULT_LANGUAGE_MODEL` environment variable:
+
+```
+DEFAULT_LANGUAGE_MODEL=AZURE_GPT_54_2026_0305
+```
 
 ## Relationship with PlanningMiddleware
 
@@ -229,20 +287,6 @@ The codebase has an existing `PlanningMiddleware` (in `unique_toolkit/agentic/lo
 | Without the other | Must infer progress from raw history | Model plans implicitly |
 
 **Either feature works independently.** Together, the planning step sees the TODO state in the conversation history and can make better decisions about what to do next.
-
-## Debugging
-
-### Trace Logging
-
-Set `UNIQUE_AI_TRACE_DIR=/tmp/unique-ai-traces` to write per-iteration JSON files capturing the messages sent to the LLM and its responses (excluding content chunks). Each agent run creates a timestamped session directory. Files are named `iter-000-llm.json` (messages + model response) and `iter-000-tools.json` (tool calls + tool responses).
-
-### Recommended Model
-
-GPT-5.4 (`AZURE_GPT_54_2026_0305`) is recommended for agentic use with todo tracking — it follows multi-step plans more reliably than earlier models. Set via the admin UI or the `DEFAULT_LANGUAGE_MODEL` environment variable:
-
-```
-DEFAULT_LANGUAGE_MODEL=AZURE_GPT_54_2026_0305
-```
 
 ## Known Issue: ShortTermMemory Persistence
 

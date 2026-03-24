@@ -1,0 +1,94 @@
+- id: simple_question
+  description: Simple question that should NOT trigger todo_write
+  user_message: "What's the capital of France?"
+  expected:
+    should_use_todos: false
+
+- id: five_step_research
+  description: Research task with ~5 distinct steps
+  user_message: >
+    Compare Tesla, Apple, and Microsoft stock performance.
+    For each company, provide: current price, P/E ratio, YTD performance,
+    recent news, and your buy/hold/sell recommendation.
+  expected:
+    should_use_todos: true
+    min_todo_items: 3
+    should_complete_all: true
+    should_not_ask_mid_execution: true
+
+- id: batch_emails_10
+  description: Batch operation processing 10 items
+  user_message: >
+    I found these 10 emails in my inbox. For each one, summarize the
+    key points and action items:
+    1. Email from John about Q3 budget review
+    2. Email from Sarah RE: product launch timeline
+    3. Email from Mike about server migration plan
+    4. Email from Lisa RE: customer feedback analysis
+    5. Email from Tom about hiring plan update
+    6. Email from Anna RE: compliance audit results
+    7. Email from Dave about API deprecation notice
+    8. Email from Rachel RE: partnership proposal
+    9. Email from Chris about security incident report
+    10. Email from Emma RE: quarterly OKR review
+  expected:
+    should_use_todos: true
+    min_todo_items: 10
+    should_complete_all: true
+    should_not_ask_mid_execution: true
+
+- id: ambiguous_task
+  description: Ambiguous task that needs clarification before execution
+  user_message: "Analyze the data and create a report."
+  expected:
+    should_use_todos: false
+    should_ask_clarification: true
+
+- id: twenty_step_workflow
+  description: Complex 20-step workflow
+  user_message: >
+    I need a comprehensive competitive analysis. Research these 10 companies
+    and for each one provide: (1) their main product, and (2) their market
+    position. Companies: Salesforce, HubSpot, Zendesk, Freshworks, ServiceNow,
+    Monday.com, Asana, Jira, Linear, ClickUp.
+  expected:
+    should_use_todos: true
+    min_todo_items: 10
+    should_complete_all: true
+    should_not_ask_mid_execution: true
+
+- id: task_with_blocker
+  description: Task where one step genuinely cannot proceed
+  user_message: >
+    Do these three things:
+    1. Summarize the key points of our last board meeting
+    2. Send a follow-up email to the board members
+    3. Update the project timeline in our planning tool
+  expected:
+    should_use_todos: true
+    min_todo_items: 3
+    should_not_ask_mid_execution: false
+
+- id: formatting_task
+  description: Simple formatting that should NOT use todos
+  user_message: "Convert this list to a markdown table: Name - Alice, Age - 30; Name - Bob, Age - 25"
+  expected:
+    should_use_todos: false
+
+- id: multi_step_document_processing
+  description: Document processing with multiple sequential steps
+  user_message: >
+    I have a research paper to review. Please:
+    1. Summarize the abstract
+    2. List the key findings
+    3. Identify the methodology used
+    4. Note any limitations mentioned
+    5. Extract the main conclusions
+    6. List all references to machine learning techniques
+    7. Compare findings with the current state of the art
+    8. Draft a brief review response
+  expected:
+    should_use_todos: true
+    min_todo_items: 6
+    should_complete_all: true
+    should_not_ask_mid_execution: true
