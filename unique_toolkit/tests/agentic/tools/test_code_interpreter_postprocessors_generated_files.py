@@ -720,6 +720,23 @@ def test_build_file_fence__document__uses_fileWithSource_tag() -> None:
 
 
 @pytest.mark.ai
+def test_build_file_fence__html__uses_htmlWithSource_tag() -> None:
+    """
+    Purpose: Verify HTML files produce an htmlWithSource fence (no type= attribute).
+    """
+    file = CodeInterpreterFile(
+        filename="report.html", content_id="cont_html1", type="html"
+    )
+    fence = _build_file_fence(
+        file, 'open("/mnt/data/report.html", "w").write("<html></html>")', fence_id=3
+    )
+    assert fence.startswith("````htmlWithSource(")
+    assert "contentId='cont_html1'" in fence
+    assert 'title="Report"' in fence
+    assert "````fileWithSource(" not in fence
+
+
+@pytest.mark.ai
 def test_build_file_fence__code_is_escaped__when_contains_double_quotes() -> None:
     """
     Purpose: Verify double quotes inside the code string are escaped so the
@@ -799,6 +816,30 @@ def test_inject_code_execution_fences__replaces_document_inline_ref__with_fileWi
     assert "````fileWithSource(" in result
     assert "cont_doc1" in result
     assert "[data.xlsx](unique://content/cont_doc1)" not in result
+
+
+@pytest.mark.ai
+def test_inject_code_execution_fences__replaces_html_inline_ref__with_htmlWithSource() -> (
+    None
+):
+    """
+    Purpose: Verify an HTML file markdown link is replaced by an htmlWithSource fence.
+    """
+    block = CodeInterpreterBlock(
+        code='open("/mnt/data/page.html", "w").write("<html></html>")',
+        files=[
+            CodeInterpreterFile(
+                filename="page.html", content_id="cont_html1", type="html"
+            )
+        ],
+    )
+    text = "View: [page.html](unique://content/cont_html1)"
+
+    result = _inject_code_execution_fences(text, [block])
+
+    assert "````htmlWithSource(" in result
+    assert "cont_html1" in result
+    assert "[page.html](unique://content/cont_html1)" not in result
 
 
 @pytest.mark.ai
@@ -1215,6 +1256,22 @@ def test_ensure_fences_are_standalone__strips_list_prefix__before_img_fence() ->
 
     assert "- Chart: " not in result
     assert result.startswith("````imgWithSource(")
+
+
+@pytest.mark.ai
+def test_ensure_fences_are_standalone__strips_list_prefix__before_html_fence() -> None:
+    """
+    Purpose: Verify a list-item prefix before an htmlWithSource fence is stripped.
+    """
+    text = (
+        "- Page: ````htmlWithSource(id='1', contentId='cid', title=\"Page\", "
+        'code="")````'
+    )
+
+    result = _ensure_fences_are_standalone(text)
+
+    assert "- Page: " not in result
+    assert result.startswith("````htmlWithSource(")
 
 
 @pytest.mark.ai

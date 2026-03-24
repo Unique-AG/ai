@@ -1,10 +1,16 @@
-"""Tests for OpenAICodeInterpreterTool.get_debug_info."""
+"""Tests for OpenAICodeInterpreterTool.get_debug_info and get_tool_prompts."""
 
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
 
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
+    OpenAICodeInterpreterConfig,
+)
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service import (
     OpenAICodeInterpreterTool,
 )
@@ -88,3 +94,109 @@ def test_get_debug_info__reflects_call_fields__for_different_calls(
     # Assert
     assert result["id"] == call_id
     assert result["container_id"] == container_id
+
+
+def _auto_container_tool(
+    config: OpenAICodeInterpreterConfig,
+    company_id: str = "company-1",
+) -> OpenAICodeInterpreterTool:
+    cfg = config.model_copy(update={"use_auto_container": True})
+    return OpenAICodeInterpreterTool(
+        config=cfg,
+        container_id=None,
+        company_id=company_id,
+    )
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service."
+    "feature_flags.enable_code_execution_fence_un_17972.is_enabled",
+    return_value=True,
+)
+def test_get_tool_prompts__uses_fence_default__when_ff_on_and_stored_is_non_fence_default(
+    _mock_ff: Any,
+) -> None:
+    """
+    Purpose: When fence FF is on and the operator left the non-fence default prompt,
+    the effective system prompt must be the fence-aware default (UN-17972).
+    """
+    config = OpenAICodeInterpreterConfig()
+    assert (
+        config.tool_description_for_system_prompt
+        == DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT
+    )
+    tool = _auto_container_tool(config)
+
+    prompts = tool.get_tool_prompts()
+
+    assert (
+        prompts.tool_system_prompt == DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
+    )
+    assert "HTML files" in prompts.tool_system_prompt
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service."
+    "feature_flags.enable_code_execution_fence_un_17972.is_enabled",
+    return_value=True,
+)
+def test_get_tool_prompts__uses_fence_default__when_ff_on_and_stored_is_fence_default(
+    _mock_ff: Any,
+) -> None:
+    """
+    Purpose: Spaces that already persisted the fence default must still count as
+    uncustomised so the fence prompt remains active (cross-version robustness).
+    """
+    config = OpenAICodeInterpreterConfig(
+        tool_description_for_system_prompt=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
+    )
+    tool = _auto_container_tool(config)
+
+    prompts = tool.get_tool_prompts()
+
+    assert (
+        prompts.tool_system_prompt == DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
+    )
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service."
+    "feature_flags.enable_code_execution_fence_un_17972.is_enabled",
+    return_value=True,
+)
+def test_get_tool_prompts__uses_custom_prompt__when_ff_on_and_operator_customised(
+    _mock_ff: Any,
+) -> None:
+    """Purpose: A customised prompt is always respected when the fence FF is on."""
+    custom = "CUSTOM OPERATOR PROMPT — DO NOT REPLACE"
+    config = OpenAICodeInterpreterConfig(tool_description_for_system_prompt=custom)
+    tool = _auto_container_tool(config)
+
+    prompts = tool.get_tool_prompts()
+
+    assert prompts.tool_system_prompt == custom
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service."
+    "feature_flags.enable_code_execution_fence_un_17972.is_enabled",
+    return_value=False,
+)
+def test_get_tool_prompts__uses_stored_prompt__when_ff_off_even_if_matches_fence_default(
+    _mock_ff: Any,
+) -> None:
+    """Purpose: When fence FF is off, stored text is used as-is (may be fence-shaped)."""
+    config = OpenAICodeInterpreterConfig(
+        tool_description_for_system_prompt=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
+    )
+    tool = _auto_container_tool(config)
+
+    prompts = tool.get_tool_prompts()
+
+    assert (
+        prompts.tool_system_prompt == DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
+    )

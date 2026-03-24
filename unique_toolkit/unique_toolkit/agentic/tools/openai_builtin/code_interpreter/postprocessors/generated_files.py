@@ -169,6 +169,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
             is_image = (guess_type(filename)[0] or "").startswith("image/")
             is_html = (guess_type(filename)[0] or "") == "text/html"
+            fence_ff_on = feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+                self._company_id
+            )
 
             # Images
             if is_image:
@@ -181,9 +184,13 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # HTML (behind feature flag)
-            elif is_html and feature_flags.enable_html_rendering_un_15131.is_enabled(
-                self._company_id
+            # HTML rendered as legacy HtmlRendering block — only when fence FF is off
+            elif (
+                is_html
+                and not fence_ff_on
+                and feature_flags.enable_html_rendering_un_15131.is_enabled(
+                    self._company_id
+                )
             ):
                 loop_response.message.text, replaced = _replace_container_html_citation(
                     text=loop_response.message.text,
@@ -192,13 +199,8 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # Files (including HTML when feature flag is disabled)
+            # Files and HTML (fence FF on: HTML → htmlWithSource; others → fileWithSource)
             else:
-                fence_ff_on = (
-                    feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-                        self._company_id
-                    )
-                )
                 loop_response.message.text, replaced = _replace_container_file_citation(
                     text=loop_response.message.text,
                     filename=filename,
@@ -210,11 +212,19 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
             is_html_rendered = (
                 is_html
+                and not fence_ff_on
                 and feature_flags.enable_html_rendering_un_15131.is_enabled(
                     self._company_id
                 )
             )
-            if replaced and not is_image and not is_html_rendered:
+            # htmlWithSource fences carry contentId directly — no separate reference needed
+            is_html_fenced = is_html and fence_ff_on
+            if (
+                replaced
+                and not is_image
+                and not is_html_rendered
+                and not is_html_fenced
+            ):
                 loop_response.message.references.append(
                     ContentReference(
                         sequence_number=ref_number,
@@ -382,6 +392,8 @@ def _build_file_fence(file: CodeInterpreterFile, code: str, fence_id: int) -> st
     outer = "````"
     if file.type == "image":
         tag = f"imgWithSource(id='{fence_id}', contentId='{file.content_id}', title=\"{title}\", code=\"{escaped}\")"
+    elif file.type == "html":
+        tag = f"htmlWithSource(id='{fence_id}', contentId='{file.content_id}', title=\"{title}\", code=\"{escaped}\")"
     else:
         ftype = _file_frontend_type(file.filename)
         tag = f'fileWithSource(id=\'{fence_id}\', contentId=\'{file.content_id}\', title="{title}", type="{ftype}", code="{escaped}")'
@@ -394,23 +406,18 @@ def _inline_ref_pattern(file: CodeInterpreterFile) -> re.Pattern[str]:
     After apply_postprocessing_to_response replaces sandbox paths, each file type
     has a distinct inline form in the text:
       image    → ![image](unique://content/{content_id})
+      html     → [{filename}](unique://content/{content_id})
       document → [{filename}](unique://content/{content_id})
-      html     → ```HtmlRendering\\n100%\\n500px\\n\\nunique://content/{content_id}\\n\\n```
     """
     cid = re.escape(file.content_id)
     fname = re.escape(file.filename)
     if file.type == "image":
         return re.compile(rf"!\[image\]\(unique://content/{cid}\)")
-    if file.type == "html":
-        return re.compile(
-            rf"```HtmlRendering\n100%\n500px\n\nunique://content/{cid}\n\n```",
-            re.DOTALL,
-        )
     return re.compile(rf"\[{fname}\]\(unique://content/{cid}\)")
 
 
 _FENCE_BLOCK_START = re.compile(
-    r"^[^\n`]+?(````(?:imgWithSource|fileWithSource)\()",
+    r"^[^\n`]+?(````(?:imgWithSource|fileWithSource|htmlWithSource)\()",
     re.MULTILINE,
 )
 
@@ -420,9 +427,9 @@ _FENCE_BLOCK_START = re.compile(
 #   - cross-line: 1 or 2 newlines optionally surrounded by horizontal whitespace
 #     (list-item linebreak, or blank-line paragraph gap)
 _CONSECUTIVE_FENCES_RE = re.compile(
-    r"(````(?:imgWithSource|fileWithSource)\([^\n]*\)````)"
+    r"(````(?:imgWithSource|fileWithSource|htmlWithSource)\([^\n]*\)````)"
     r"(?:[^\n`]*|[ \t]*\n{1,2}[ \t]*)"
-    r"(?=````(?:imgWithSource|fileWithSource)\()"
+    r"(?=````(?:imgWithSource|fileWithSource|htmlWithSource)\()"
 )
 
 
