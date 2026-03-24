@@ -241,6 +241,10 @@ class HistoryManager:
             self._db_source_map = self._token_reducer.db_source_map
             self._source_offset_initialized = True
 
+        self._source_enumerator = self._initial_source_offset + len(
+            self._reference_manager.get_chunks()
+        )
+
         return messages
 
     async def get_user_visible_chat_history(

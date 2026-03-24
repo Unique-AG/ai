@@ -261,6 +261,103 @@ class TestBuildSourceMap:
         assert result[0].id == ""
 
 
+class TestSourceEnumeratorSync:
+    """Tests that _source_enumerator stays in sync after source reduction."""
+
+    @staticmethod
+    def _make_history_manager_with_enumerator(
+        initial_source_offset: int,
+        source_enumerator: int,
+        current_chunks: list[ContentChunk] | None = None,
+    ) -> HistoryManager:
+        hm = HistoryManager.__new__(HistoryManager)
+        hm._initial_source_offset = initial_source_offset
+        hm._source_enumerator = source_enumerator
+        hm._db_source_map = {}
+        hm._source_offset_initialized = True
+        mock_ref_mgr = ReferenceManager.__new__(ReferenceManager)
+        mock_ref_mgr._chunks = current_chunks or []
+        hm._reference_manager = mock_ref_mgr
+        return hm
+
+    @pytest.mark.ai
+    def test_enumerator_stays_consistent_when_no_reduction(self) -> None:
+        """
+        Purpose: Without reduction _source_enumerator equals offset + chunk count.
+        Why this matters: Confirms the synchronisation formula is idempotent in the
+            normal (no-reduction) path — it must not misalign a healthy enumerator.
+        Setup summary: offset=5, 3 current chunks, enumerator already at 8 → stays 8.
+        """
+        chunks = [ContentChunk(text=str(i)) for i in range(3)]
+        hm = self._make_history_manager_with_enumerator(
+            initial_source_offset=5,
+            source_enumerator=8,
+            current_chunks=chunks,
+        )
+        synced = hm._initial_source_offset + len(hm._reference_manager.get_chunks())
+        assert synced == 8
+        assert synced == hm._source_enumerator
+
+    @pytest.mark.ai
+    def test_enumerator_corrected_after_reduction(self) -> None:
+        """
+        Purpose: After source reduction compacts chunks, _source_enumerator must
+            be lowered to offset + remaining chunk count.
+        Why this matters: If not corrected, new tool results would get source numbers
+            that leave a gap, causing get_content_chunks_for_backend to place chunks
+            at wrong positions.
+        Setup summary: offset=5, originally 5 chunks (enumerator=10), reduction
+            compacted to 3 chunks → synced enumerator should be 8, not 10.
+        """
+        reduced_chunks = [ContentChunk(text=str(i)) for i in range(3)]
+        hm = self._make_history_manager_with_enumerator(
+            initial_source_offset=5,
+            source_enumerator=10,
+            current_chunks=reduced_chunks,
+        )
+        hm._source_enumerator = hm._initial_source_offset + len(
+            hm._reference_manager.get_chunks()
+        )
+        assert hm._source_enumerator == 8
+
+    @pytest.mark.ai
+    def test_new_sources_contiguous_after_reduction(self) -> None:
+        """
+        Purpose: After reduction + enumerator sync, new tool sources continue
+            contiguously so get_content_chunks_for_backend maps them correctly.
+        Why this matters: End-to-end validation that the gap scenario described in
+            the bot comment does not occur: reduction compacts 5→3 chunks, new
+            sources start at 8 (not 10), and get_content_chunks_for_backend places
+            all 6 chunks correctly at positions 5..10.
+        Setup summary: offset=5, 3 reduced chunks + 3 new chunks simulated by
+            manually appending → result[5..10] maps to all 6 chunks.
+        """
+        reduced_chunks = [ContentChunk(text=f"reduced_{i}") for i in range(3)]
+        hm = self._make_history_manager_with_enumerator(
+            initial_source_offset=5,
+            source_enumerator=10,
+            current_chunks=reduced_chunks,
+        )
+        hm._source_enumerator = hm._initial_source_offset + len(
+            hm._reference_manager.get_chunks()
+        )
+        assert hm._source_enumerator == 8
+
+        new_chunks = [ContentChunk(text=f"new_{i}") for i in range(3)]
+        hm._reference_manager._chunks.extend(new_chunks)
+        hm._source_enumerator += len(new_chunks)
+        assert hm._source_enumerator == 11
+
+        result = hm.get_content_chunks_for_backend()
+        assert len(result) == 11
+        assert result[5].text == "reduced_0"
+        assert result[6].text == "reduced_1"
+        assert result[7].text == "reduced_2"
+        assert result[8].text == "new_0"
+        assert result[9].text == "new_1"
+        assert result[10].text == "new_2"
+
+
 class TestGetContentChunksForBackend:
     @staticmethod
     def _make_history_manager(
