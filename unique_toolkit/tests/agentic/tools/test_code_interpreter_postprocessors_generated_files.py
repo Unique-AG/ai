@@ -1,7 +1,8 @@
 """Tests for code interpreter generated-files postprocessor (config, __init__, helpers)."""
 
 import logging
-from unittest.mock import MagicMock
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
@@ -306,6 +307,21 @@ def _make_annotation(
         start_index=0,
         end_index=10,
         type="container_file_citation",
+    )
+
+
+def _make_display_files_postprocessor(
+    company_id: str = "co-test",
+) -> DisplayCodeInterpreterFilesPostProcessor:
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    return DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id=company_id,
+        user_id="u1",
+        chat_id="ch1",
     )
 
 
@@ -1536,3 +1552,87 @@ def test_warn_unmatched_code_blocks__skips_none_content_ids(caplog) -> None:
         _warn_unmatched_code_blocks(content_map, code_blocks)
 
     assert not any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
+    "generated_files.feature_flags.enable_html_rendering_un_15131.is_enabled",
+    return_value=True,
+)
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
+    "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
+    return_value=False,
+)
+def test_apply_postprocessing_to_response__html_uses_legacy_HtmlRendering__when_fence_ff_off(
+    _mock_fence_ff: MagicMock,
+    _mock_html_ff: MagicMock,
+) -> None:
+    """
+    Purpose: HTML with fence FF off and HTML-rendering FF on uses _replace_container_html_citation.
+    Why this matters: Covers the legacy HtmlRendering branch (UN-15131) in apply_postprocessing.
+    """
+    proc = _make_display_files_postprocessor()
+    proc._content_map = {"report.html": "cid_html"}
+
+    refs: list[ContentReference] = []
+    message = SimpleNamespace(
+        text="[Download](sandbox:/mnt/data/report.html)",
+        references=refs,
+    )
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[],
+        code_interpreter_calls=[],
+    )
+
+    changed = proc.apply_postprocessing_to_response(loop_response)
+
+    assert changed is True
+    assert "HtmlRendering" in message.text
+    assert "unique://content/cid_html" in message.text
+    assert len(refs) == 0
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
+    "generated_files.feature_flags.enable_html_rendering_un_15131.is_enabled",
+    return_value=False,
+)
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
+    "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
+    return_value=True,
+)
+def test_apply_postprocessing_to_response__html_with_fence_ff_on__skips_reference_and_injects_fence(
+    _mock_fence_ff: MagicMock,
+    _mock_html_ff: MagicMock,
+) -> None:
+    """
+    Purpose: HTML + fence FF uses file citation then htmlWithSource; no ContentReference row.
+    Why this matters: Covers is_html_fenced and fence injection paths for .html (UN-17972).
+    """
+    proc = _make_display_files_postprocessor()
+    proc._content_map = {"page.html": "cid_page"}
+
+    refs: list[ContentReference] = []
+    message = SimpleNamespace(
+        text="[page.html](sandbox:/mnt/data/page.html)",
+        references=refs,
+    )
+    call = _make_ci_call('open("/mnt/data/page.html", "w").write("x")')
+    ann = _make_annotation("page.html", file_id="f_html", container_id="cntr_x")
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[ann],
+        code_interpreter_calls=[call],
+    )
+
+    changed = proc.apply_postprocessing_to_response(loop_response)
+
+    assert changed is True
+    assert len(refs) == 0
+    assert "````htmlWithSource(" in message.text
+    assert "cid_page" in message.text
