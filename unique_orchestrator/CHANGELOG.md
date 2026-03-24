@@ -16,9 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.15.0] - 2026-03-23
 - Add support for Code Execution in tool analytics (Debug Info)
 
-## [1.14.4] - 2026-03-18
-- Persist tool calls and compacted responses to the database after each agentic loop via `_persist_tool_calls()` (UN-15977)
-
 ## [1.14.3] - 2026-03-17
 - Add execution timing tracking to the agentic loop: records per-iteration durations for planning/streaming, tool execution, post-processing, and evaluation
 - Persist aggregated execution times (per-loop and total) into user message debug info
