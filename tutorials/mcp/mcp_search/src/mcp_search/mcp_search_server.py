@@ -48,6 +48,7 @@ def main() -> None:
 
     mcp = FastMCP(
         name="Knowledge Base Search 🚀",
+        auth=zitadel_oauth_proxy,
     )
 
     unique_knowledge_base_provider = UniqueKnowledgeBaseTools(
@@ -57,8 +58,6 @@ def main() -> None:
 
     mcp_base_routes = MCPBaseRoutes()
     mcp_base_routes.register(mcp=mcp)
-
-    mcp.auth = zitadel_oauth_proxy
 
     mcp.run(
         transport=server_settings.transport_scheme,

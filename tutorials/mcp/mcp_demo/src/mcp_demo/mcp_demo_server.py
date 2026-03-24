@@ -87,7 +87,7 @@ custom_middleware = [
 ]
 
 # mcp = FastMCP.from_fastapi(app=app,auth=auth,debug=True,log_level="debug")
-mcp = FastMCP("Demo 🚀", auth=auth, debug=True, log_level="debug")
+mcp = FastMCP("Demo 🚀", auth=auth)
 
 
 def get_user():
@@ -143,6 +143,7 @@ def main() -> None:
         transport="http",
         host="127.0.0.1",
         port=8003,
+        debug=True,
         log_level="debug",
         middleware=custom_middleware,
     )

@@ -85,7 +85,7 @@ def main() -> None:
         )
     ]
 
-    mcp = FastMCP("Demo 🚀", debug=True, log_level="debug")
+    mcp = FastMCP("Demo 🚀", auth=zitadel_oauth_proxy)
 
     @mcp.tool(
         name=_METADATA_TOOL.name,
@@ -148,12 +148,11 @@ def main() -> None:
         FAVICON_PATH = Path(__file__).parent / "favicon.ico"
         return FileResponse(FAVICON_PATH)
 
-    mcp.auth = zitadel_oauth_proxy
-
     mcp.run(
         transport=server_settings.transport_scheme,
         host=server_settings.local_base_url.host,
         port=server_settings.local_base_url.port,
+        debug=True,
         log_level="debug",
         middleware=custom_middleware,
     )
