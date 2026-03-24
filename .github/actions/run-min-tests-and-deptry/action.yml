@@ -27,8 +27,7 @@ runs:
         package_dir: ${{ inputs.package_dir }}
         python_version: ${{ inputs.python_version }}
 
-    - name: Install package (min deps)
-      shell: bash
+    - name: Install package (min deps)      shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1

@@ -12,8 +12,7 @@ inputs:
   python_version:
     description: 'Python version to use'
     required: false
-    default: '3.11'
-  output_file:
+    default: '3.11'  output_file:
     description: 'Output file for baseline'
     required: false
     default: '/tmp/baseline.json'
@@ -41,7 +40,6 @@ runs:
       shell: bash
       run: |
         git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
-
     - name: Checkout base branch
       shell: bash
       run: git checkout "origin/${{ inputs.branch }}" --quiet

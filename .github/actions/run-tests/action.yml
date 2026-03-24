@@ -10,8 +10,7 @@ inputs:
     required: false
     default: '3.11'
   install_args:
-    description: 'Additional arguments for uv sync (e.g., --with fastapi)'
-    required: false
+    description: 'Additional arguments for uv sync (e.g., --with fastapi)'    required: false
     default: ''
   test_args:
     description: 'Additional arguments to pass to pytest'

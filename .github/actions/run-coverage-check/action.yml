@@ -8,8 +8,7 @@ inputs:
   python_version:
     description: 'Python version to use'
     required: false
-    default: '3.11'
-  base_ref:
+    default: '3.11'  base_ref:
     description: 'Base branch/ref for comparison'
     required: false
     default: ''
@@ -42,8 +41,7 @@ runs:
         ARGS=(
           "${{ inputs.package_dir }}"
           --min-coverage "${{ inputs.min_coverage }}"
-          --runner "uv run"
-        )
+          --runner "uv run"        )
         if [ -n "${{ inputs.base_ref }}" ]; then
           ARGS+=(--base-ref "${{ inputs.base_ref }}")
         fi
