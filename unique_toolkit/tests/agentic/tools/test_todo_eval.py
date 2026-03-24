@@ -312,16 +312,15 @@ class TestTodoEdgeCases:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_truncation__mid_workflow__keeps_earliest_items(
+    async def test_large_merge__preserves_all_items(
         self, mock_event: ChatEvent, shared_memory: dict
     ) -> None:
         """
-        Purpose: Verify truncation at max_todos during an active workflow.
-        Why: Guard rail must not crash or corrupt state when the model overshoots.
-        Setup: Config max_todos=3, create 2 items, then merge 3 more (total 5 > 3).
+        Purpose: Verify that large todo lists are preserved without truncation.
+        Why: Multi-step workflows and batch operations may have many items.
+        Setup: Create 2 items, then merge 3 more (total 5), verify all kept.
         """
-        config = TodoConfig(max_todos=3)
-        tool = _build_tool(mock_event, shared_memory, config=config)
+        tool = _build_tool(mock_event, shared_memory)
 
         await tool.run(
             _make_write_call(
@@ -347,7 +346,7 @@ class TestTodoEdgeCases:
         )
 
         state = shared_memory["agent_todo_state"]
-        assert len(state.todos) == 3
+        assert len(state.todos) == 5
 
     @pytest.mark.ai
     @pytest.mark.asyncio

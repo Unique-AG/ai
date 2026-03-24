@@ -25,16 +25,19 @@ logger = getLogger(__name__)
 
 _TODO_SYSTEM_PROMPT = textwrap.dedent("""\
     You have access to a task tracking tool (todo_write). \
-    Use it proactively for complex tasks with 3+ distinct steps.
+    Use it to track progress on multi-step work.
 
     When to use:
-    - Multi-step analysis or research tasks
-    - Tasks requiring data from multiple sources
-    - Any task where tracking progress helps avoid repeating work
+    - Multi-step workflows with several distinct steps \
+    (research, analysis, document processing, comparisons)
+    - Batch operations: when asked to process ALL items matching a \
+    criteria (e.g. all emails, all documents, all entries), create \
+    a todo for each item so none are skipped
+    - Any task where tracking progress prevents repeating or \
+    forgetting work
 
     When NOT to use:
-    - Simple single-step questions
-    - Quick lookups or formatting tasks
+    - Simple single-step questions or quick lookups
 
     Two-phase workflow:
     1. CLARIFICATION PHASE (before creating the task list):
@@ -48,12 +51,16 @@ _TODO_SYSTEM_PROMPT = textwrap.dedent("""\
     Execution rules:
     - After creating a task list, execute each step IMMEDIATELY. \
     Do NOT ask the user for confirmation between steps.
-    - Work through ALL items autonomously until the list is complete.
+    - Work through ALL items autonomously until every item is in \
+    a terminal state (completed or cancelled).
     - Mark only ONE item as in_progress at a time.
     - Update status immediately after completing each step.
     - When a detail is unclear, choose the most reasonable default \
-    rather than stopping to ask. Document your assumption in the \
-    todo item or response.
+    rather than stopping to ask. Document your assumption.
+    - Before finishing, verify that every item has been processed. \
+    If any items are still pending, continue executing them.
+    - Do NOT summarize remaining items or ask if you should continue. \
+    Just keep going.
     - The ONLY reason to stop mid-execution is a hard blocker: \
     missing credentials, a required resource that does not exist, \
     or an unrecoverable error.""")
@@ -61,6 +68,7 @@ _TODO_SYSTEM_PROMPT = textwrap.dedent("""\
 _TODO_EXECUTION_REMINDER = (
     "You are in the EXECUTION PHASE. "
     "Do NOT ask the user any questions or request confirmation. "
+    "You MUST process every pending item — do not skip or summarize. "
     "Pick the next pending item, mark it in_progress, execute it, "
     "mark it completed, and continue to the next item. "
     "If anything is ambiguous, choose a sensible default and note the assumption."
@@ -90,7 +98,8 @@ class TodoWriteTool(Tool[TodoConfig]):
             name="todo_write",
             description=(
                 "Create or update a task list to track progress on multi-step work. "
-                "Use for tasks with 3+ steps. Mark items in_progress when starting, "
+                "Use for multi-step workflows and batch operations where every item "
+                "must be processed. Mark items in_progress when starting, "
                 "completed when done. Only one item should be in_progress at a time."
             ),
             parameters=TodoWriteInput.model_json_schema(),
@@ -121,7 +130,6 @@ class TodoWriteTool(Tool[TodoConfig]):
                 last_updated_iteration=current_state.last_updated_iteration,
             )
 
-        current_state.todos = current_state.todos[: self.config.max_todos]
         current_state.last_updated_iteration += 1
 
         try:

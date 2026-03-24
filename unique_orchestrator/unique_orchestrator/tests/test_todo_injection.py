@@ -113,7 +113,6 @@ class TestTodoTrackingConfig:
     def test_defaults(self) -> None:
         config = TodoTrackingConfig()
         assert config.memory_key == "agent_todo_state"
-        assert config.max_todos == 20
 
     @pytest.mark.ai
     def test_no_inject_system_reminder_field(self) -> None:

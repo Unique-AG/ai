@@ -243,22 +243,21 @@ class TestTodoWriteTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__exceeds_max_todos__truncates(
-        self, mock_chat_event: ChatEvent
+    async def test_run__large_todo_list__no_truncation(
+        self, mock_chat_event: ChatEvent, todo_config: TodoConfig
     ) -> None:
         """
-        Purpose: Verify max_todos guard rail truncates the list.
-        Why: Prevents runaway list generation by the model.
-        Setup: Config with max_todos=3, write 5 items.
+        Purpose: Verify there is no artificial limit on todo items.
+        Why: Multi-step workflows and batch operations may have 50+ items.
+        Setup: Write 100 items, verify all are preserved.
         """
-        config = TodoConfig(max_todos=3)
-        tool = TodoWriteTool(config, mock_chat_event)
+        tool = TodoWriteTool(todo_config, mock_chat_event)
         tool._memory_manager.load_async = AsyncMock(return_value=None)
         tool._memory_manager.save_async = AsyncMock()
 
         items = [
             TodoItem(id=f"t{i}", content=f"Task {i}", status="pending")
-            for i in range(5)
+            for i in range(100)
         ]
         call = _make_tool_call(
             TodoWriteInput(todos=items, merge=False).model_dump_json()
@@ -267,7 +266,7 @@ class TestTodoWriteTool:
         await tool.run(call)
 
         saved_state: TodoList = tool._memory_manager.save_async.call_args[0][0]
-        assert len(saved_state.todos) == 3
+        assert len(saved_state.todos) == 100
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -579,24 +578,3 @@ class TestTodoConfig:
         """
         config = TodoConfig()
         assert config.memory_key == "agent_todo_state"
-        assert config.max_todos == 20
-
-    @pytest.mark.ai
-    def test_config__max_todos_lower_bound(self) -> None:
-        """
-        Purpose: Verify max_todos rejects values below 1.
-        Why: Guard rail validation.
-        Setup: Attempt to create config with max_todos=0.
-        """
-        with pytest.raises(Exception):
-            TodoConfig(max_todos=0)
-
-    @pytest.mark.ai
-    def test_config__max_todos_upper_bound(self) -> None:
-        """
-        Purpose: Verify max_todos rejects values above 50.
-        Why: Guard rail validation.
-        Setup: Attempt to create config with max_todos=100.
-        """
-        with pytest.raises(Exception):
-            TodoConfig(max_todos=100)

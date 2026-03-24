@@ -280,6 +280,7 @@ class UniqueAI:
             await self._persist_debug_info_best_effort()
             raise
         finally:
+            self._trace_logger.write_session_summary()
             sub.cancel()
 
     # @track()
@@ -753,9 +754,8 @@ class UniqueAI:
         todo_write) is visible in the UI debug panel. DeepResearch is excluded
         because it manages its own debug info across multiple orchestrator calls.
         """
-        tool_names = [
-            tool["name"] for tool in self._debug_info_manager.get().get("tools", [])
-        ]
+        debug_data = self._debug_info_manager.get() or {}
+        tool_names = [tool["name"] for tool in debug_data.get("tools", [])]
         if "DeepResearch" in tool_names:
             return
 
