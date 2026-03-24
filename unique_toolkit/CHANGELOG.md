@@ -5,10 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.62.4] - 2026-03-24
+## [1.63.1] - 2026-03-24
 - Code interpreter (UN-17972): emit `htmlWithSource` fences for `.html` artifacts when `enable_code_execution_fence_un_17972` is on; HTML uses the same sandbox-link → fence injection path as other files. Legacy `HtmlRendering` block is used only when the fence FF is off and `enable_html_rendering_un_15131` is on.
 - Fence-mode system prompt (`DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): require HTML only as saved files under `/mnt/data/`, not inline in the assistant text; add UI-oriented best practices (HTML5 shell, self-contained CSS/JS, fluid layout, contrast, semantic elements, no parent-frame access).
 - `get_tool_prompts()`: treat stored `tool_description_for_system_prompt` as the unmodified default when it equals either `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT` or `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`, so spaces created across toolkit versions still receive the fence prompt when the FF is on.
+
+## [1.63.0] - 2026-03-24
+- Globally unique source numbering across chat turns (UN-15977): source numbers now continue from the highest index persisted in the database, ensuring `[sourceN]` citations remain unique and stable across the entire conversation
+- Add `get_content_chunks_for_backend()` to `HistoryManager`: builds a positional content-chunk list where `result[N]` contains the chunk for `[sourceN]`, including prior-turn sources reconstructed from the database
+- Remove `percent_for_tool_call_history` from `HistoryManagerConfig` and `_limit_tool_call_tokens` from `LoopTokenReducer`; history truncation now relies solely on `percent_of_max_tokens_for_history` with whole-turn dropping
+- Add `compute_max_source_number_from_tool_calls` and `build_source_map_from_tool_calls` utilities
+- `get_full_history_with_contents_and_tool_calls` now returns `(messages, max_source_number, source_map)` tuple
+
+## [1.62.4] - 2026-03-24
+- Fix tool-history source serialization to preserve readable Unicode in LLM-facing JSON payloads
+- Fix reduced tool responses to keep readable Unicode for standard source reduction and `TableSearch`
 
 ## [1.62.3] - 2026-03-24
 - Add `content_id` to search result source dicts in tool call responses (`transform_chunks_to_string` and `_create_reduced_standard_sources_message`) so the LLM can associate each source with its content object
