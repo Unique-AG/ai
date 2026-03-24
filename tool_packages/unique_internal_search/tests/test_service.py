@@ -2712,6 +2712,7 @@ class TestInternalSearchTool:
         assert decoded_sources == [
             {
                 "source_number": 3,
+                "content_id": "cont_unicode_chunk_01",
                 "content": 'ページ名 "quoted" / マーケティングタグ / مرحبا 😀',
             }
         ]

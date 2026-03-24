@@ -280,4 +280,5 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         return {
             "id": call.id,
             "container_id": call.container_id,
+            "code": call.code,
         }

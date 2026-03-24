@@ -596,8 +596,10 @@ def test_create_reduced_standard_sources_message__formats_sources_correctly_AI(
     content_dict = json.loads(content)
     assert len(content_dict) == 2
     assert content_dict[0]["source_number"] == 5
+    assert content_dict[0]["content_id"] == "cont_test123"
     assert content_dict[0]["content"] == "First chunk text"
     assert content_dict[1]["source_number"] == 6
+    assert content_dict[1]["content_id"] == "cont_test123"
     assert content_dict[1]["content"] == "Second chunk text"
 
 
