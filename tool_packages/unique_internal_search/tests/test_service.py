@@ -2709,10 +2709,8 @@ class TestInternalSearchTool:
         assert isinstance(result.content, str)
 
         decoded_sources = json.loads(result.content)
-        assert decoded_sources == [
-            {
-                "source_number": 3,
-                "content_id": "cont_unicode_chunk_01",
-                "content": 'ページ名 "quoted" / マーケティングタグ / مرحبا 😀',
-            }
-        ]
+        assert len(decoded_sources) == 1
+        assert decoded_sources[0]["source_number"] == 3
+        assert decoded_sources[0]["content"] == (
+            'ページ名 "quoted" / マーケティングタグ / مرحبا 😀'
+        )

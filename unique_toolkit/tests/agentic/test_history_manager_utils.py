@@ -40,6 +40,7 @@ def test_transform_chunks_to_string__preserves_readable_unicode_and_round_trips_
     assert sources == [
         {
             "source_number": 7,
+            "content_id": "cont_chunk_1",
             "content": "ページ名 cafe déjà مرحبا שלום 😀",
         }
     ]
