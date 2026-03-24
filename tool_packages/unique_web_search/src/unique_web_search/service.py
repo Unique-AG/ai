@@ -186,11 +186,13 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 state=ProgressState.FINISHED,
             )
 
+            format_info = self.tool_format_information_for_system_prompt()
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
                 debug_info=debug_info.model_dump(with_debug_details=self.debug),
                 content_chunks=content_chunks,
+                system_reminder=format_info if format_info.strip() else "",
             )
         except Exception as e:
             _LOGGER.exception(f"Error executing WebSearch tool: {e}")

@@ -564,11 +564,160 @@ class TestWebSearchToolRun:
         assert result.name == "WebSearch"
         assert hasattr(result, "content_chunks")
         assert result.content_chunks == sample_content_chunks
+        assert result.system_reminder == "Test format info"
         assert (
             not hasattr(result, "error_message")
             or result.error_message is None
             or result.error_message == ""
         )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("blank_format", ["", "   ", "\t"])
+    async def test_run__sets_empty_system_reminder__when_format_info_blank(
+        self,
+        mock_web_search_config_v1: Mock,
+        sample_content_chunks: list,
+        mocker: Any,
+        blank_format: str,
+    ) -> None:
+        """
+        Purpose: Verify run leaves system_reminder empty when format config is blank.
+        Why this matters: Avoids appending whitespace-only noise to tool message content.
+        Setup summary: Same as successful run but tool_format_information_for_system_prompt is empty or whitespace.
+
+        Note: When system_reminder is non-empty, persisted tool content is JSON sources plus a suffix;
+        uncited-source compaction uses json.loads on the full string and may skip trimming (see HistoryManager).
+        """
+        mock_web_search_config_v1.tool_format_information_for_system_prompt = (
+            blank_format
+        )
+
+        mock_executor = AsyncMock()
+        mock_executor.run = AsyncMock(return_value=sample_content_chunks)
+        mock_executor.notify_name = "test-name"
+        mock_executor.notify_message = "test-message"
+
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+
+        mock_debug_info_class = Mock()
+        mock_debug_info_instance = Mock()
+        mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
+        mock_debug_info_instance.num_chunks_in_final_prompts = None
+        mock_debug_info_instance.execution_time = None
+        mock_debug_info_class.return_value = mock_debug_info_instance
+        mocker.patch(
+            "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
+        )
+
+        mock_message_logger = Mock()
+        mock_message_logger.finished = AsyncMock()
+        mocker.patch(
+            "unique_web_search.service.WebSearchMessageLogger",
+            return_value=mock_message_logger,
+        )
+
+        mocker.patch.object(
+            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
+        )
+        mocker.patch.object(WebSearchTool, "_get_executor", return_value=mock_executor)
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v1
+        tool.tool_parameter_calls = WebSearchToolParameters
+        tool.logger = Mock()
+        tool._message_step_logger = Mock()
+        tool._tool_progress_reporter = None
+        tool._display_name = "WebSearch"
+        tool.company_id = "test-company"
+        tool.debug = False
+        tool.name = "WebSearch"
+        tool.settings = Mock()
+        tool.settings.display_name = "WebSearch"
+
+        tool_call = Mock()
+        tool_call.id = "test-id"
+        tool_call.arguments = {"query": "test", "date_restrict": None}
+
+        result = await tool.run(tool_call)
+
+        assert result.system_reminder == ""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__system_reminder_includes_v3_addendum__when_mode_is_v3(
+        self,
+        mock_web_search_config_v3: Mock,
+        sample_content_chunks: list,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify run sets system_reminder from tool_format_information_for_system_prompt() including V3 addendum.
+        Why this matters: Tool message must match the same formatting rules as the former system-prompt block.
+        """
+        mock_executor = AsyncMock()
+        mock_executor.run = AsyncMock(return_value=sample_content_chunks)
+        mock_executor.notify_name = "test-name"
+        mock_executor.notify_message = "test-message"
+
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+
+        mock_debug_info_class = Mock()
+        mock_debug_info_instance = Mock()
+        mock_debug_info_instance.model_dump.return_value = {"test": "debug_info"}
+        mock_debug_info_instance.num_chunks_in_final_prompts = None
+        mock_debug_info_instance.execution_time = None
+        mock_debug_info_class.return_value = mock_debug_info_instance
+        mocker.patch(
+            "unique_web_search.service.WebSearchDebugInfo", mock_debug_info_class
+        )
+
+        mock_message_logger = Mock()
+        mock_message_logger.finished = AsyncMock()
+        mocker.patch(
+            "unique_web_search.service.WebSearchMessageLogger",
+            return_value=mock_message_logger,
+        )
+
+        mocker.patch.object(
+            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
+        )
+        mocker.patch.object(WebSearchTool, "_get_executor", return_value=mock_executor)
+
+        plan = WebSearchPlan(
+            objective="test",
+            query_analysis="test",
+            steps=[],
+            expected_outcome="test",
+        )
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v3
+        tool.tool_parameter_calls = WebSearchPlan
+        tool.logger = Mock()
+        tool._message_step_logger = Mock()
+        tool._tool_progress_reporter = None
+        tool._display_name = "WebSearch"
+        tool.company_id = "test-company"
+        tool.debug = False
+        tool.name = "WebSearch"
+        tool.settings = Mock()
+        tool.settings.display_name = "WebSearch"
+
+        tool_call = Mock()
+        tool_call.id = "test-id"
+        tool_call.arguments = plan.model_dump()
+
+        result = await tool.run(tool_call)
+
+        assert "Test format info" in result.system_reminder
+        assert "Domain Diversity Requirement" in result.system_reminder
 
     @pytest.mark.ai
     @pytest.mark.asyncio
