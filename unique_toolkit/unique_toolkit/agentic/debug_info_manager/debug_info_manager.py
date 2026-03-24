@@ -3,7 +3,10 @@ from typing import Any
 from unique_toolkit.agentic.tools.openai_builtin import OpenAICodeInterpreterTool
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
-from unique_toolkit.agentic.tools.tool_manager import ToolManager
+from unique_toolkit.agentic.tools.tool_manager import (
+    ResponsesApiToolManager,
+    ToolManager,
+)
 from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponse,
     ResponsesLanguageModelStreamResponse,
@@ -38,7 +41,7 @@ class DebugInfoManager:
     def extract_builtin_tool_debug_info(
         self,
         stream_response: LanguageModelStreamResponse,
-        tool_manager: ToolManager,
+        tool_manager: ToolManager | ResponsesApiToolManager,
         loop_iteration_index: int | None = None,
     ) -> None:
         self.debug_info["tools"].extend(
@@ -56,7 +59,7 @@ class DebugInfoManager:
 
 def _extract_tool_calls_from_stream_response(
     stream_response: LanguageModelStreamResponse,
-    tool_manager: ToolManager,
+    tool_manager: ToolManager | ResponsesApiToolManager,
     loop_iteration_index: int | None = None,
 ) -> list[dict[str, Any]]:
     if not isinstance(stream_response, ResponsesLanguageModelStreamResponse):
