@@ -25,7 +25,7 @@ Instructions:
 Uploaded and generated files:
 - All files uploaded to the chat are available at the path `/mnt/data/<filename>`.
 - All files generated through code MUST be saved in the `/mnt/data` folder.
-- CRITICAL: When generating any plot or visualization, the code MUST call `plt.savefig('/mnt/data/filename.png', bbox_inches='tight')` and `plt.close()` to save the file. Never rely on `plt.show()` alone — a file that is not saved to `/mnt/data/` cannot be displayed.
+- CRITICAL: When generating any plot or visualization, the code MUST call `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` to save the file. Never rely on `plt.show()` alone — a file that is not saved to `/mnt/data/` cannot be displayed.
 
 CRUCIAL Instructions for displaying images and files in the chat:
 - Once files are generated in the `/mnt/data` folder you MUST reference them in the chat using markdown syntax in order to display them in the chat.
@@ -69,7 +69,7 @@ Instructions:
 Uploaded and generated files:
 - All files uploaded to the chat are available at the path `/mnt/data/<filename>`.
 - All files generated through code MUST be saved in the `/mnt/data` folder.
-- CRITICAL: When generating any plot or visualization, the code MUST call `plt.savefig('/mnt/data/filename.png', bbox_inches='tight')` and `plt.close()` to save the file. Never rely on `plt.show()` alone — a file that is not saved to `/mnt/data/` cannot be displayed.
+- CRITICAL: When generating any plot or visualization, the code MUST call `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` to save the file. Never rely on `plt.show()` alone — a file that is not saved to `/mnt/data/` cannot be displayed.
 
 CRUCIAL Instructions for displaying images and files in the chat:
 - Once files are generated in the `/mnt/data` folder you MUST reference them in the chat using markdown syntax in order to display them in the chat.
