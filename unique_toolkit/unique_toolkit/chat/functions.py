@@ -1410,9 +1410,6 @@ async def update_message_execution_async(
         raise e
 
 
-_MAX_TOOL_RESPONSE_CONTENT_LEN = 10_000
-
-
 def _build_tool_call_items(
     tool_calls: list[ChatMessageTool],
 ) -> list[dict[str, object]]:
@@ -1423,15 +1420,7 @@ def _build_tool_call_items(
             "arguments": tc.arguments,
             "roundIndex": tc.round_index,
             "sequenceIndex": tc.sequence_index,
-            **(
-                {
-                    "response": {
-                        "content": tc.response.content[:_MAX_TOOL_RESPONSE_CONTENT_LEN]
-                    }
-                }
-                if tc.response
-                else {}
-            ),
+            **({"response": {"content": tc.response.content}} if tc.response else {}),
         }
         for tc in tool_calls
     ]
@@ -1484,7 +1473,8 @@ async def create_message_tools_async(
             messageId=message_id,
             tools=_build_tool_call_items(tool_calls),  # type: ignore
         )
-        return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
+        tools = [ChatMessageTool.model_validate(dict(item)) for item in result.data]
+        return tools
     except Exception as e:
         _LOGGER.error(f"Failed to create message tools: {e}")
         raise e
@@ -1507,7 +1497,8 @@ def get_message_tools(
             company_id=company_id,
             messageIds=ids,
         )
-        return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
+        tools = [ChatMessageTool.model_validate(dict(item)) for item in result.data]
+        return tools
     except Exception as e:
         _LOGGER.error(f"Failed to get message tools: {e}")
         raise e

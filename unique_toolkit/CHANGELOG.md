@@ -34,7 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.62.0] - 2026-03-23
 - Add `tool_manager` parameter to `DebugInfoManager.extract_builtin_tool_debug_info` and `_extract_tool_calls_from_stream_response`; each code interpreter call entry now includes `is_exclusive` and `is_forced` flags derived from the tool manager
-
 ## [1.61.0] - 2026-03-23
 - Add option to include Code Execution in tool analytics (Debug Info)
 

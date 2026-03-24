@@ -64,13 +64,15 @@ from unique_toolkit.agentic.history_manager.history_construction_with_contents i
     get_full_history_with_contents_and_tool_calls,
 )
 
-messages = get_full_history_with_contents_and_tool_calls(
+messages, max_source_number, source_map = get_full_history_with_contents_and_tool_calls(
     user_message=event.payload.user_message,
     chat_id=event.payload.chat_id,
     chat_service=chat_service,
     content_service=content_service,
 )
 ```
+
+The function returns a 3-tuple: the `LanguageModelMessages` for the LLM, the highest `source_number` found in persisted tool responses (`-1` when none exist), and a `dict[int, ContentChunk]` mapping each prior-turn source number to its content. These are used by `HistoryManager` to initialise global source numbering so that current-turn sources continue from where prior turns left off.
 
 The function batch-loads all `ChatMessageTool` records for every assistant message in the chat history in a single call, then interleaves them in the correct order:
 
