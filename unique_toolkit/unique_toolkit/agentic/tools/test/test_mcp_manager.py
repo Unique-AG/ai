@@ -33,8 +33,8 @@ class MockInternalSearchTool(Tool[BaseToolConfig]):
 
     name = "internal_search"
 
-    def __init__(self, config, event, tool_progress_reporter=None):
-        super().__init__(config, event, tool_progress_reporter)
+    def __init__(self, config, event=None, tool_progress_reporter=None):
+        super().__init__(config)
 
     def tool_description(self):
         from unique_toolkit.language_model.schemas import LanguageModelToolDescription
