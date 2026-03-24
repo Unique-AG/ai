@@ -280,7 +280,7 @@ class UniqueAI:
 
         self._logger.info("Done composing message plan execution.")
 
-        return await self._loop_iteration_runner(
+        kwargs: dict = dict(
             messages=messages,
             iteration_index=self.current_iteration_index,
             streaming_handler=self._streaming_handler,  # type: ignore (constructor accepts only compatible arguments)
@@ -293,6 +293,11 @@ class UniqueAI:
             tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
             other_options=self._config.agent.experimental.additional_llm_options,
         )
+        if isinstance(self._tool_manager, ResponsesApiToolManager):
+            include = self._tool_manager.get_required_include_params()
+            if include:
+                kwargs["include"] = include
+        return await self._loop_iteration_runner(**kwargs)
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
         self._logger.info(
