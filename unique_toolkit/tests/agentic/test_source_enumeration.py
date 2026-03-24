@@ -130,6 +130,18 @@ class TestBuildSourceMap:
         result = build_source_map_from_tool_calls([tc1, tc2])
         assert result[0].text == "second"
 
+    def test_preserves_content_id(self) -> None:
+        tc = _tool_call(
+            [{"source_number": 0, "content": "hello", "content_id": "abc123"}]
+        )
+        result = build_source_map_from_tool_calls([tc])
+        assert result[0].id == "abc123"
+
+    def test_missing_content_id_defaults_to_empty_string(self) -> None:
+        tc = _tool_call([{"source_number": 0, "content": "hello"}])
+        result = build_source_map_from_tool_calls([tc])
+        assert result[0].id == ""
+
 
 class TestGetContentChunksForBackend:
     @staticmethod

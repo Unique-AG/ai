@@ -162,5 +162,8 @@ def build_source_map_from_tool_calls(
             sn = entry.get("source_number")
             text = entry.get("content")
             if isinstance(sn, int) and isinstance(text, str):
-                source_map[sn] = ContentChunk(text=text, key="", chunk_id="")
+                content_id = entry.get("content_id") or ""
+                source_map[sn] = ContentChunk(
+                    id=content_id, text=text, key="", chunk_id=""
+                )
     return source_map
