@@ -185,7 +185,7 @@ class TestGetFullHistoryWithContentsAndToolCalls:
             ]
         )
 
-        result = get_full_history_with_contents_and_tool_calls(
+        result, _, _ = get_full_history_with_contents_and_tool_calls(
             user_message=user_msg,
             chat_id="chat1",
             chat_service=mock_chat_service,
@@ -298,7 +298,7 @@ class TestGetFullHistoryWithContentsAndToolCalls:
         )
         mock_get_contents.return_value = history
 
-        result = get_full_history_with_contents_and_tool_calls(
+        result, _, _ = get_full_history_with_contents_and_tool_calls(
             user_message=user_msg,
             chat_id="chat1",
             chat_service=mock_chat_service,
@@ -349,7 +349,7 @@ class TestGetFullHistoryWithContentsAndToolCalls:
         )
         mock_get_contents.return_value = history
 
-        result = get_full_history_with_contents_and_tool_calls(
+        result, _, _ = get_full_history_with_contents_and_tool_calls(
             user_message=user_msg,
             chat_id="chat1",
             chat_service=mock_chat_service,
@@ -392,7 +392,7 @@ class TestGetFullHistoryWithContentsAndToolCalls:
         )
         mock_get_contents.return_value = history
 
-        result = get_full_history_with_contents_and_tool_calls(
+        result, _, _ = get_full_history_with_contents_and_tool_calls(
             user_message=user_msg,
             chat_id="chat1",
             chat_service=mock_chat_service,
@@ -429,7 +429,7 @@ class TestGetFullHistoryWithContentsAndToolCalls:
         )
         mock_get_contents.return_value = history
 
-        result = get_full_history_with_contents_and_tool_calls(
+        result, _, _ = get_full_history_with_contents_and_tool_calls(
             user_message=user_msg,
             chat_id="chat1",
             chat_service=mock_chat_service,
@@ -470,7 +470,7 @@ class TestGetFullHistoryWithContentsAndToolCalls:
         )
         mock_get_contents.return_value = history
 
-        result = get_full_history_with_contents_and_tool_calls(
+        result, _, _ = get_full_history_with_contents_and_tool_calls(
             user_message=user_msg,
             chat_id="chat1",
             chat_service=mock_chat_service,
@@ -542,7 +542,7 @@ class TestGetFullHistoryWithContentsAndToolCalls:
             ]
         )
 
-        result = get_full_history_with_contents_and_tool_calls(
+        result, _, _ = get_full_history_with_contents_and_tool_calls(
             user_message=user_msg,
             chat_id="chat1",
             chat_service=mock_chat_service,
@@ -590,7 +590,7 @@ class TestGetFullHistoryWithContentsAndToolCalls:
             ]
         )
 
-        result = get_full_history_with_contents_and_tool_calls(
+        result, _, _ = get_full_history_with_contents_and_tool_calls(
             user_message=user_msg,
             chat_id="chat1",
             chat_service=mock_chat_service,

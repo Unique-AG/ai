@@ -19,6 +19,7 @@ from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.chat.schemas import ChatMessageTool, ChatMessageToolResponse
+from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
@@ -67,13 +68,6 @@ class HistoryManagerConfig(BaseModel):
         description="The fraction of the max input tokens that will be reserved for the history.",
     )
 
-    percent_for_tool_call_history: float = Field(
-        default=0.0,
-        ge=0.0,
-        lt=1.0,
-        description="The fraction of the max input tokens reserved for tool call rounds. 0 disables.",
-    )
-
     language_model: LMI = LanguageModelInfo.from_name(DEFAULT_GPT_4o)
 
     @property
@@ -81,13 +75,6 @@ class HistoryManagerConfig(BaseModel):
         return int(
             self.language_model.token_limits.token_limit_input
             * self.percent_of_max_tokens_for_history,
-        )
-
-    @property
-    def max_tool_call_history_tokens(self) -> int:
-        return int(
-            self.language_model.token_limits.token_limit_input
-            * self.percent_for_tool_call_history,
         )
 
     uploaded_content_config: (
@@ -138,12 +125,15 @@ class HistoryManager:
             has_uploaded_content_config=bool(self._config.uploaded_content_config),
             language_model=self._language_model,
             reference_manager=reference_manager,
-            max_tokens_for_tool_call_history=self._config.max_tool_call_history_tokens,
         )
+        self._reference_manager = reference_manager
         self._tool_call_result_history: list[ToolCallResponse] = []
         self._tool_calls: list[LanguageModelFunction] = []
         self._loop_history: list[LanguageModelMessage] = []
         self._source_enumerator = 0
+        self._initial_source_offset = 0
+        self._db_source_map: dict[int, ContentChunk] = {}
+        self._source_offset_initialized = False
         self._collected_tool_response_image_urls: list[tuple[str, str]] = []
 
     def add_tool_call(self, tool_call: LanguageModelFunction) -> None:
@@ -246,6 +236,14 @@ class HistoryManager:
             image_data_urls_from_tools=image_data_from_tools,
         )
         self._collected_tool_response_image_urls = []
+
+        if not self._source_offset_initialized:
+            offset = max(0, self._token_reducer.max_db_source_number + 1)
+            self._source_enumerator = offset
+            self._initial_source_offset = offset
+            self._db_source_map = self._token_reducer.db_source_map
+            self._source_offset_initialized = True
+
         return messages
 
     async def get_user_visible_chat_history(
@@ -269,6 +267,23 @@ class HistoryManager:
                 LanguageModelAssistantMessage(content=assistant_message_text)
             )
         return LanguageModelMessages(history)
+
+    def get_content_chunks_for_backend(self) -> list[ContentChunk]:
+        """Build a positional list where ``result[N]`` is the chunk for ``[sourceN]``.
+
+        Positions ``0..K-1`` are filled from ``_db_source_map`` (prior turns).
+        Gaps get empty ``ContentChunk()``.  Positions ``K..`` are the current
+        turn's chunks from the reference manager.
+        """
+        current_chunks = self._reference_manager.get_chunks()
+        total_size = self._initial_source_offset + len(current_chunks)
+        result: list[ContentChunk] = [ContentChunk()] * total_size
+        for source_number, chunk in self._db_source_map.items():
+            if source_number < self._initial_source_offset:
+                result[source_number] = chunk
+        for i, chunk in enumerate(current_chunks):
+            result[self._initial_source_offset + i] = chunk
+        return result
 
     def extract_message_tools(self) -> list[ChatMessageTool]:
         """Convert the in-memory loop history into persistable ChatMessageTool records."""
