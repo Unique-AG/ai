@@ -1,94 +1,248 @@
+# Scenarios for evaluating todo_write prompt behavior.
+#
+# Each scenario has mock work tools available (search_web, send_email,
+# write_document, read_database) alongside todo_write. Scenarios are designed
+# so tasks genuinely require multiple sequential tool calls, making todo
+# tracking the natural way to manage progress.
+
 - id: simple_question
   description: Simple question that should NOT trigger todo_write
   user_message: "What's the capital of France?"
   expected:
     should_use_todos: false
 
-- id: five_step_research
-  description: Research task with ~5 distinct steps
+- id: formatting_task
+  description: Simple formatting that should NOT use todos
   user_message: >
-    Compare Tesla, Apple, and Microsoft stock performance.
-    For each company, provide: current price, P/E ratio, YTD performance,
-    recent news, and your buy/hold/sell recommendation.
+    Convert this list to a markdown table:
+    Name - Alice, Age - 30; Name - Bob, Age - 25
+  expected:
+    should_use_todos: false
+
+- id: research_three_competitors
+  description: >
+    Research task requiring separate web searches for each company.
+    Each search returns different data, so results can't be combined
+    into a single lookup.
+  user_message: >
+    I need competitive intelligence on three companies: Salesforce,
+    HubSpot, and Zendesk. For each one, search the web for their
+    latest quarterly revenue, any recent acquisitions, and their
+    main product updates from the last 3 months. Then write a
+    document summarizing your findings.
   expected:
     should_use_todos: true
     min_todo_items: 3
     should_complete_all: true
     should_not_ask_mid_execution: true
 
-- id: batch_emails_10
-  description: Batch operation processing 10 items
+- id: batch_customer_outreach
+  description: >
+    Batch operation: look up 6 customers in the database and send
+    each one a personalized follow-up email. Each step requires a
+    database read then an email send — genuine sequential work.
   user_message: >
-    I found these 10 emails in my inbox. For each one, summarize the
-    key points and action items:
-    1. Email from John about Q3 budget review
-    2. Email from Sarah RE: product launch timeline
-    3. Email from Mike about server migration plan
-    4. Email from Lisa RE: customer feedback analysis
-    5. Email from Tom about hiring plan update
-    6. Email from Anna RE: compliance audit results
-    7. Email from Dave about API deprecation notice
-    8. Email from Rachel RE: partnership proposal
-    9. Email from Chris about security incident report
-    10. Email from Emma RE: quarterly OKR review
+    We need to follow up with 6 customers who had support tickets
+    last week. For each customer below, look them up in the database,
+    then send them a personalized follow-up email asking if their
+    issue was resolved:
+    1. Alice Johnson (alice@acme.com)
+    2. Bob Smith (bob@globex.com)
+    3. Carol Williams (carol@initech.com)
+    4. Dave Brown (dave@umbrella.com)
+    5. Eve Davis (eve@wayne.com)
+    6. Frank Miller (frank@stark.com)
   expected:
     should_use_todos: true
-    min_todo_items: 10
+    min_todo_items: 6
     should_complete_all: true
     should_not_ask_mid_execution: true
 
-- id: ambiguous_task
-  description: Ambiguous task that needs clarification before execution
-  user_message: "Analyze the data and create a report."
-  expected:
-    should_use_todos: false
-    should_ask_clarification: true
-
-- id: twenty_step_workflow
-  description: Complex 20-step workflow
+- id: research_report_pipeline
+  description: >
+    Multi-phase workflow: research a topic via web search, look up
+    internal data, then produce a written report. Sequential steps
+    where each phase depends on the previous one's output.
   user_message: >
-    I need a comprehensive competitive analysis. Research these 10 companies
-    and for each one provide: (1) their main product, and (2) their market
-    position. Companies: Salesforce, HubSpot, Zendesk, Freshworks, ServiceNow,
-    Monday.com, Asana, Jira, Linear, ClickUp.
+    Create a market analysis report on the AI coding assistants space.
+    First, search the web for the top 5 AI coding assistant tools and
+    their market share. Then search for recent funding rounds in this
+    space. Then look up our internal database for our competitive
+    positioning data (table: competitive_analysis, query: AI coding
+    assistants). Finally, write a document combining all findings into
+    a structured report with sections for market overview, key players,
+    funding landscape, and our competitive position.
   expected:
     should_use_todos: true
-    min_todo_items: 10
+    min_todo_items: 4
+    should_complete_all: true
+    should_not_ask_mid_execution: true
+
+- id: ten_item_web_research
+  description: >
+    Batch research: search for 10 different topics and compile results.
+    Each search is independent but all must be completed. The model may
+    batch topics into coarser-grained todos (e.g. "topics 1-5") — that's
+    fine as long as all 10 topics are researched and the document covers
+    all of them.
+  user_message: >
+    I'm preparing a tech trends briefing. Search the web for the latest
+    developments on each of these 10 topics, then write a document with
+    a one-paragraph summary for each:
+    1. Large language model reasoning capabilities
+    2. Autonomous AI agents in production
+    3. AI regulation in the EU
+    4. Quantum computing commercial applications
+    5. Edge AI deployment trends
+    6. AI in drug discovery
+    7. Synthetic data for model training
+    8. AI hardware accelerator market
+    9. Open source vs proprietary AI models
+    10. AI-powered code review tools
+  expected:
+    should_use_todos: true
+    min_todo_items: 3
     should_complete_all: true
     should_not_ask_mid_execution: true
 
 - id: task_with_blocker
-  description: Task where one step genuinely cannot proceed
+  description: >
+    Task where the agent has enough context to proceed on all steps
+    but one step requires a resource it doesn't have (internal CMS).
+    It should use todos, complete what it can, and cancel/skip the
+    blocked step with a note.
   user_message: >
-    Do these three things:
-    1. Summarize the key points of our last board meeting
-    2. Send a follow-up email to the board members
-    3. Update the project timeline in our planning tool
+    Do these three things for Acme Corp:
+    1. Search the web for Acme Corp's latest press release
+    2. Send the summary to press@acmecorp.com
+    3. Upload the press release to our internal CMS at https://cms.internal.acmecorp.com/upload
   expected:
     should_use_todos: true
     min_todo_items: 3
-    should_not_ask_mid_execution: false
+    should_complete_all: false
+    should_not_ask_mid_execution: true
 
-- id: formatting_task
-  description: Simple formatting that should NOT use todos
-  user_message: "Convert this list to a markdown table: Name - Alice, Age - 30; Name - Bob, Age - 25"
+- id: ambiguous_research_request
+  description: >
+    Ambiguous task with tools available. Agent should clarify scope
+    before starting, since "analyze competitors" is too vague without
+    knowing which competitors or what dimensions to analyze.
+  user_message: "Analyze our competitors and write a report."
   expected:
     should_use_todos: false
+    should_ask_clarification: true
 
-- id: multi_step_document_processing
-  description: Document processing with multiple sequential steps
+# --- Extreme / stress-test scenarios ---
+
+- id: batch_25_customer_emails
+  description: >
+    Stress test: 25 customers each needing a DB lookup and personalized
+    email. Tests whether the model maintains tracking discipline at scale
+    and doesn't skip or summarize remaining items.
   user_message: >
-    I have a research paper to review. Please:
-    1. Summarize the abstract
-    2. List the key findings
-    3. Identify the methodology used
-    4. Note any limitations mentioned
-    5. Extract the main conclusions
-    6. List all references to machine learning techniques
-    7. Compare findings with the current state of the art
-    8. Draft a brief review response
+    Send personalized onboarding emails to all 25 new trial signups from
+    this week. For each person, look them up in the customers database to
+    get their company and plan details, then send them a welcome email.
+    Here are the signups:
+    1. alice@acme.com
+    2. bob@globex.com
+    3. carol@initech.com
+    4. dave@umbrella.com
+    5. eve@wayne.com
+    6. frank@stark.com
+    7. grace@oscorp.com
+    8. hank@lexcorp.com
+    9. iris@capsule.com
+    10. jack@cyberdyne.com
+    11. kate@aperture.com
+    12. leo@massive.com
+    13. mia@abstergo.com
+    14. noah@weyland.com
+    15. olivia@tyrell.com
+    16. paul@soylent.com
+    17. quinn@omnicorp.com
+    18. rosa@rekall.com
+    19. sam@wonka.com
+    20. tina@virtucon.com
+    21. uri@genco.com
+    22. vera@bluthco.com
+    23. will@prestige.com
+    24. xena@delos.com
+    25. yuri@dharma.com
   expected:
     should_use_todos: true
-    min_todo_items: 6
+    min_todo_items: 25
+    should_complete_all: true
+    should_not_ask_mid_execution: true
+
+- id: batch_50_web_research
+  description: >
+    Extreme stress test: research 50 companies via web search.
+    Tests whether the model creates todos for all 50, processes
+    every single one without summarizing or skipping, and maintains
+    consistent tracking across a very long execution.
+  user_message: >
+    I need a one-sentence competitive summary for each of these 50
+    SaaS companies. For each one, search the web and write a brief
+    description of what they do and their estimated ARR. Compile
+    everything into a single document at the end.
+
+    1. Salesforce  2. HubSpot  3. Zendesk  4. Freshworks  5. ServiceNow
+    6. Monday.com  7. Asana  8. Atlassian  9. Linear  10. ClickUp
+    11. Notion  12. Airtable  13. Coda  14. Figma  15. Canva
+    16. Miro  17. Loom  18. Calendly  19. Zapier  20. Make
+    21. Retool  22. Vercel  23. Supabase  24. PlanetScale  25. Neon
+    26. Datadog  27. Grafana  28. Sentry  29. LaunchDarkly  30. Split
+    31. Amplitude  32. Mixpanel  33. Segment  34. Braze  35. Customer.io
+    36. Intercom  37. Drift  38. Gong  39. Chorus  40. Clari
+    41. Snowflake  42. Databricks  43. dbt Labs  44. Fivetran  45. Airbyte
+    46. GitLab  47. GitHub  48. Bitbucket  49. CircleCI  50. Buildkite
+  expected:
+    should_use_todos: true
+    min_todo_items: 50
+    should_complete_all: true
+    should_not_ask_mid_execution: true
+
+- id: batch_100_db_audit
+  description: >
+    Maximum stress test: audit 100 database records. The model may
+    ask for clarification first (e.g. about certification fields) —
+    that's fine and expected for such a large task. A follow-up
+    provides the answers. The key test is whether it then processes
+    all 100 vendors without giving up, skipping, or summarizing.
+    The model may batch into coarser-grained todos — that's acceptable
+    as long as all vendors are processed.
+  user_message: >
+    We need to audit all 100 vendor records in our database for compliance.
+    For each vendor ID below, look them up in the vendors database table,
+    check if they have a valid certification, and if the certification is
+    missing or expired, send an email to the vendor's contact address
+    requesting updated documentation. Track every single vendor — do not
+    skip any.
+
+    Vendor IDs: V001, V002, V003, V004, V005, V006, V007, V008, V009, V010,
+    V011, V012, V013, V014, V015, V016, V017, V018, V019, V020,
+    V021, V022, V023, V024, V025, V026, V027, V028, V029, V030,
+    V031, V032, V033, V034, V035, V036, V037, V038, V039, V040,
+    V041, V042, V043, V044, V045, V046, V047, V048, V049, V050,
+    V051, V052, V053, V054, V055, V056, V057, V058, V059, V060,
+    V061, V062, V063, V064, V065, V066, V067, V068, V069, V070,
+    V071, V072, V073, V074, V075, V076, V077, V078, V079, V080,
+    V081, V082, V083, V084, V085, V086, V087, V088, V089, V090,
+    V091, V092, V093, V094, V095, V096, V097, V098, V099, V100
+  followup_messages:
+    - >
+      Good questions. Here are the answers:
+      - The certification field is called "compliance_cert_status" — values
+        are "valid", "expired", or "missing".
+      - If status is "expired" or "missing", email the vendor's "contact_email"
+        field with subject "Compliance certification update required" and a
+        polite request for updated documentation.
+      - Use a standard professional tone, no special template needed.
+      Now please proceed with all 100 vendors.
+  max_turns: 500
+  expected:
+    should_use_todos: true
+    min_todo_items: 10
     should_complete_all: true
     should_not_ask_mid_execution: true

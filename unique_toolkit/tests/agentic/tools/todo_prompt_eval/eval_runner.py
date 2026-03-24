@@ -1,44 +1,66 @@
 """Automated prompt evaluation for todo_write system prompt and execution reminder.
 
-Simulates multi-turn tool-calling conversations using the OpenAI API, then
-scores each conversation against behavioral criteria with an LLM-as-judge.
+Simulates multi-turn tool-calling conversations through the Unique platform's
+OpenAI proxy, then scores each conversation against behavioral criteria with
+an LLM-as-judge.
 
 Usage:
     # Default: run all scenarios with current prompts
     python -m tests.agentic.tools.todo_prompt_eval.eval_runner
 
     # With a specific model
-    python -m tests.agentic.tools.todo_prompt_eval.eval_runner --model gpt-4o
+    python -m tests.agentic.tools.todo_prompt_eval.eval_runner --model AZURE_GPT_4o_2024_1120
 
     # Auto-refine mode: run, score, propose better prompts, re-test
     python -m tests.agentic.tools.todo_prompt_eval.eval_runner --refine
 
-Environment variables:
-    OPENAI_API_KEY: Required for API access.
-    EVAL_MODEL: Model to use for agent simulation (default: gpt-4o-mini).
-    JUDGE_MODEL: Model to use for LLM-as-judge (default: gpt-4o).
+Prerequisites:
+    Local backend running at http://localhost:8092/ (or set UNIQUE_API_BASE_URL).
+    No API keys needed — uses the platform's OpenAI proxy with dummy credentials.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import sys
 import textwrap
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import yaml
+from openai import OpenAI
 
-try:
-    from openai import OpenAI
-except ImportError:
-    print("Install openai: pip install openai")
-    sys.exit(1)
-
+from unique_toolkit.framework_utilities.openai.client import get_openai_client
 
 SCENARIO_FILE = Path(__file__).parent / "scenarios.yaml"
+
+MAX_RETRIES = 5
+RETRY_BASE_DELAY = 2.0
+INTER_TURN_DELAY = 0.5
+
+
+def _call_with_retry(fn, *args, **kwargs):
+    """Call fn with exponential backoff on transient server errors."""
+    for attempt in range(MAX_RETRIES):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:
+            error_str = str(e)
+            if attempt < MAX_RETRIES - 1 and (
+                "500" in error_str or "404" in error_str or "429" in error_str
+            ):
+                delay = RETRY_BASE_DELAY * (2**attempt)
+                print(
+                    f"\n    Retrying in {delay}s (attempt {attempt + 2}/{MAX_RETRIES})...",
+                    end=" ",
+                    flush=True,
+                )
+                time.sleep(delay)
+            else:
+                raise
+
 
 TODO_WRITE_SCHEMA: dict[str, Any] = {
     "type": "function",
@@ -79,6 +101,210 @@ TODO_WRITE_SCHEMA: dict[str, Any] = {
         },
     },
 }
+
+SEARCH_WEB_SCHEMA: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": "search_web",
+        "description": (
+            "Search the web for current information. Returns a list of results "
+            "with titles, snippets, and URLs. Use for questions requiring "
+            "up-to-date data, facts, or research."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The search query",
+                },
+            },
+            "required": ["query"],
+        },
+    },
+}
+
+SEND_EMAIL_SCHEMA: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": "send_email",
+        "description": (
+            "Send an email to the specified recipient. Returns a confirmation "
+            "with message ID."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "to": {"type": "string", "description": "Recipient email address"},
+                "subject": {"type": "string", "description": "Email subject line"},
+                "body": {"type": "string", "description": "Email body content"},
+            },
+            "required": ["to", "subject", "body"],
+        },
+    },
+}
+
+WRITE_DOCUMENT_SCHEMA: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": "write_document",
+        "description": (
+            "Create or update a document with the given title and content. "
+            "Returns the document ID and URL."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Document title"},
+                "content": {
+                    "type": "string",
+                    "description": "Document content (markdown)",
+                },
+            },
+            "required": ["title", "content"],
+        },
+    },
+}
+
+READ_DATABASE_SCHEMA: dict[str, Any] = {
+    "type": "function",
+    "function": {
+        "name": "read_database",
+        "description": (
+            "Query a database table and return matching records. "
+            "Use to look up customer records, orders, inventory, etc."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "table": {"type": "string", "description": "Table name to query"},
+                "query": {"type": "string", "description": "Search query or filter"},
+            },
+            "required": ["table", "query"],
+        },
+    },
+}
+
+ALL_TOOL_SCHEMAS = [
+    TODO_WRITE_SCHEMA,
+    SEARCH_WEB_SCHEMA,
+    SEND_EMAIL_SCHEMA,
+    WRITE_DOCUMENT_SCHEMA,
+    READ_DATABASE_SCHEMA,
+]
+
+
+_SEARCH_COUNTER = 0
+
+
+def _simulate_work_tool(tool_name: str, args: dict[str, Any]) -> str:
+    """Return realistic canned responses for mock work tools."""
+    global _SEARCH_COUNTER
+
+    if tool_name == "search_web":
+        query = args.get("query", "unknown")
+        _SEARCH_COUNTER += 1
+        return json.dumps(
+            {
+                "results": [
+                    {
+                        "title": f"Result 1 for: {query}",
+                        "snippet": f"Comprehensive analysis of {query}. Key findings include market trends, "
+                        "competitive positioning, and growth trajectory based on latest data.",
+                        "url": f"https://example.com/result-{_SEARCH_COUNTER}-1",
+                    },
+                    {
+                        "title": f"Result 2 for: {query}",
+                        "snippet": f"Recent developments in {query}. Industry experts weigh in on "
+                        "current challenges and future outlook.",
+                        "url": f"https://example.com/result-{_SEARCH_COUNTER}-2",
+                    },
+                ]
+            }
+        )
+
+    if tool_name == "send_email":
+        to = args.get("to", "unknown")
+        subject = args.get("subject", "")
+        return json.dumps(
+            {
+                "status": "sent",
+                "message_id": f"msg-{hash(to + subject) % 10000:04d}",
+                "to": to,
+            }
+        )
+
+    if tool_name == "write_document":
+        title = args.get("title", "Untitled")
+        content = args.get("content", "")
+        return json.dumps(
+            {
+                "document_id": f"doc-{hash(title) % 10000:04d}",
+                "title": title,
+                "url": f"https://docs.example.com/doc-{hash(title) % 10000:04d}",
+                "chars_written": len(content),
+            }
+        )
+
+    if tool_name == "read_database":
+        table = args.get("table", "unknown")
+        query = args.get("query", "")
+        query_str = json.dumps(args) if isinstance(query, dict) else str(query)
+
+        import re
+
+        vendor_match = re.search(r"V(\d{3})", query_str)
+        if vendor_match or "vendor" in table.lower():
+            vid = vendor_match.group(0) if vendor_match else "V001"
+            num = int(vendor_match.group(1)) if vendor_match else 1
+            if num % 3 == 0:
+                cert_status = "expired"
+            elif num % 5 == 0:
+                cert_status = "missing"
+            else:
+                cert_status = "valid"
+            return json.dumps(
+                {
+                    "table": table,
+                    "records": [
+                        {
+                            "vendor_id": vid,
+                            "name": f"Vendor {vid} Corp",
+                            "contact_email": f"contact@vendor-{vid.lower()}.com",
+                            "compliance_cert_status": cert_status,
+                            "cert_expiry": "2025-06-15"
+                            if cert_status == "expired"
+                            else None,
+                            "last_audit": "2025-01-10",
+                        }
+                    ],
+                    "total_count": 1,
+                }
+            )
+
+        return json.dumps(
+            {
+                "table": table,
+                "query": query,
+                "records": [
+                    {
+                        "id": 1,
+                        "name": f"Record matching '{query}'",
+                        "status": "active",
+                        "details": f"Sample data from {table} table for query '{query}'.",
+                    },
+                    {
+                        "id": 2,
+                        "name": f"Related record for '{query}'",
+                        "status": "active",
+                        "details": f"Additional matching data from {table}.",
+                    },
+                ],
+                "total_count": 2,
+            }
+        )
+
+    return json.dumps({"error": f"Unknown tool: {tool_name}"})
 
 
 def load_scenarios() -> list[dict[str, Any]]:
@@ -125,7 +351,9 @@ def _simulate_todo_response(
             "completed": "[x]",
             "cancelled": "[-]",
         }
-        lines.append(f"{marker.get(t['status'], '[ ]')} {t['id']}: {t['content']}")
+        lines.append(
+            f"{marker.get(t['status'], '[ ]')} {t.get('id', '?')}: {t.get('content', t.get('description', '(no content)'))}"
+        )
 
     summary = "\n".join(lines)
     return summary, state
@@ -137,28 +365,49 @@ def run_scenario(
     system_prompt: str,
     execution_reminder: str,
     model: str,
-    max_turns: int = 30,
+    max_turns: int | None = None,
 ) -> dict[str, Any]:
     """Run a single scenario through a simulated agent loop."""
+    if max_turns is None:
+        scenario_override = scenario.get("max_turns")
+        if scenario_override:
+            max_turns = scenario_override
+        else:
+            min_items = scenario.get("expected", {}).get("min_todo_items", 0)
+            max_turns = max(30, min_items * 5)
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": scenario["user_message"]},
     ]
 
     todo_state: list[dict[str, Any]] = []
-    all_tool_calls: list[dict[str, Any]] = []
+    todo_tool_calls: list[dict[str, Any]] = []
+    work_tool_calls: list[dict[str, Any]] = []
     turn = 0
     used_todos = False
     asked_questions = False
+    followups = list(scenario.get("followup_messages", []))
 
+    tools_for_scenario = list(ALL_TOOL_SCHEMAS)
+
+    context_overflow = False
     while turn < max_turns:
         turn += 1
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            tools=[TODO_WRITE_SCHEMA],
-            tool_choice="auto",
-        )
+        if turn > 1:
+            time.sleep(INTER_TURN_DELAY)
+        try:
+            response = _call_with_retry(
+                client.chat.completions.create,
+                model=model,
+                messages=messages,
+                tools=tools_for_scenario,
+                tool_choice="auto",
+            )
+        except Exception as e:
+            if "context_length_exceeded" in str(e):
+                context_overflow = True
+                break
+            raise
 
         choice = response.choices[0]
         msg = choice.message
@@ -167,21 +416,21 @@ def run_scenario(
             messages.append(msg.model_dump())
 
             for tc in msg.tool_calls:
+                args = json.loads(tc.function.arguments)
+
                 if tc.function.name == "todo_write":
                     used_todos = True
-                    args = json.loads(tc.function.arguments)
-                    all_tool_calls.append(args)
+                    todo_tool_calls.append(args)
 
                     summary, todo_state = _simulate_todo_response(
                         args, todo_state, execution_reminder
                     )
 
-                    tool_response_content = summary
                     messages.append(
                         {
                             "role": "tool",
                             "tool_call_id": tc.id,
-                            "content": tool_response_content,
+                            "content": summary,
                         }
                     )
 
@@ -194,6 +443,16 @@ def run_scenario(
                                 "content": execution_reminder,
                             }
                         )
+                else:
+                    work_tool_calls.append({"tool": tc.function.name, "args": args})
+                    result = _simulate_work_tool(tc.function.name, args)
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tc.id,
+                            "content": result,
+                        }
+                    )
         else:
             content = msg.content or ""
             messages.append({"role": "assistant", "content": content})
@@ -202,19 +461,32 @@ def run_scenario(
                 asked_questions = True
 
             if choice.finish_reason == "stop":
-                break
+                if followups:
+                    followup = followups.pop(0)
+                    messages.append({"role": "user", "content": followup})
+                elif any(
+                    t.get("status") in ("pending", "in_progress") for t in todo_state
+                ):
+                    messages.append({"role": "user", "content": execution_reminder})
+                else:
+                    break
 
-    return {
+    result_dict: dict[str, Any] = {
         "scenario_id": scenario["id"],
         "turns": turn,
         "used_todos": used_todos,
         "asked_questions": asked_questions,
         "total_todo_items": len(todo_state),
         "final_todo_state": todo_state,
-        "tool_call_count": len(all_tool_calls),
-        "all_tool_calls": all_tool_calls,
+        "todo_tool_call_count": len(todo_tool_calls),
+        "work_tool_call_count": len(work_tool_calls),
+        "todo_tool_calls": todo_tool_calls,
+        "work_tool_calls": work_tool_calls,
         "messages": messages,
     }
+    if context_overflow:
+        result_dict["context_overflow"] = True
+    return result_dict
 
 
 JUDGE_PROMPT = textwrap.dedent("""\
@@ -235,7 +507,8 @@ JUDGE_PROMPT = textwrap.dedent("""\
     - Todo item count: {total_todo_items}
     - Total turns: {turns}
     - Asked mid-execution questions: {asked_questions}
-    - Tool calls: {tool_call_count}
+    - Todo tool calls: {todo_tool_call_count}
+    - Work tool calls: {work_tool_call_count}
 
     ## Final todo state
     {final_state_json}
@@ -277,11 +550,13 @@ def judge_result(
         total_todo_items=result["total_todo_items"],
         turns=result["turns"],
         asked_questions=result["asked_questions"],
-        tool_call_count=result["tool_call_count"],
+        todo_tool_call_count=result["todo_tool_call_count"],
+        work_tool_call_count=result["work_tool_call_count"],
         final_state_json=json.dumps(result["final_todo_state"], indent=2),
     )
 
-    response = client.chat.completions.create(
+    response = _call_with_retry(
+        client.chat.completions.create,
         model=judge_model,
         messages=[{"role": "user", "content": prompt}],
         response_format={"type": "json_object"},
@@ -294,23 +569,60 @@ def judge_result(
         return {"scores": {}, "reasoning": f"Failed to parse: {content[:200]}"}
 
 
+def _create_client() -> OpenAI:
+    """Create an OpenAI client routed through the Unique platform proxy."""
+    return get_openai_client()
+
+
 def run_eval(
     system_prompt: str,
     execution_reminder: str,
-    model: str = "gpt-4o-mini",
-    judge_model: str = "gpt-4o",
+    model: str = "AZURE_GPT_4o_MINI_2024_0718",
+    judge_model: str = "AZURE_GPT_4o_2024_1120",
 ) -> dict[str, Any]:
     """Run all scenarios, score with judge, return aggregate results."""
-    client = OpenAI()
+    client = _create_client()
     scenarios = load_scenarios()
 
     results: list[dict[str, Any]] = []
 
-    for scenario in scenarios:
+    for i, scenario in enumerate(scenarios):
+        if i > 0:
+            time.sleep(1.0)
         print(f"  Running: {scenario['id']}...", end=" ", flush=True)
-        result = run_scenario(
-            client, scenario, system_prompt, execution_reminder, model
-        )
+        try:
+            result = run_scenario(
+                client, scenario, system_prompt, execution_reminder, model
+            )
+        except Exception as e:
+            err_msg = str(e)
+            is_context_overflow = "context_length_exceeded" in err_msg
+            label = "CONTEXT_OVERFLOW" if is_context_overflow else "ERROR"
+            print(f"{label} ({err_msg[:80]})")
+            result = {
+                "scenario": scenario["id"],
+                "error": label,
+                "error_detail": err_msg[:500],
+                "turns": 0,
+                "todo_tool_call_count": 0,
+                "work_tool_call_count": 0,
+                "total_todo_items": 0,
+                "final_todo_state": [],
+                "messages": [],
+                "judgment": {
+                    "scores": {
+                        "todo_usage": 0,
+                        "item_count": 0,
+                        "completeness": 0,
+                        "autonomy": 0,
+                        "overall": 0,
+                    },
+                    "reasoning": f"Scenario failed with {label}: {err_msg[:200]}",
+                },
+            }
+            results.append(result)
+            continue
+
         judgment = judge_result(client, scenario, result, judge_model)
         result["judgment"] = judgment
         results.append(result)
@@ -340,7 +652,11 @@ def run_eval(
                 "turns": r["turns"],
                 "used_todos": r["used_todos"],
                 "total_todo_items": r["total_todo_items"],
+                "todo_tool_call_count": r["todo_tool_call_count"],
+                "work_tool_call_count": r["work_tool_call_count"],
+                "final_todo_state": r["final_todo_state"],
                 "judgment": r["judgment"],
+                "messages": r["messages"],
             }
             for r in results
         ],
@@ -419,8 +735,16 @@ def propose_refinement(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Todo prompt eval runner")
-    parser.add_argument("--model", default="gpt-4o-mini", help="Agent model")
-    parser.add_argument("--judge-model", default="gpt-4o", help="Judge model")
+    parser.add_argument(
+        "--model",
+        default="AZURE_GPT_4o_MINI_2024_0718",
+        help="Agent model (LanguageModelName enum value)",
+    )
+    parser.add_argument(
+        "--judge-model",
+        default="AZURE_GPT_4o_2024_1120",
+        help="Judge model (LanguageModelName enum value)",
+    )
     parser.add_argument(
         "--refine",
         action="store_true",
@@ -486,7 +810,7 @@ def main() -> None:
             break
 
         print("\nProposing refined prompts...")
-        client = OpenAI()
+        client = _create_client()
         refinement = propose_refinement(
             client,
             current_system_prompt,
@@ -513,11 +837,14 @@ def main() -> None:
         "rounds": all_rounds,
     }
 
+    results_dir = Path(__file__).parent / "results"
+    results_dir.mkdir(exist_ok=True)
+
     if args.output:
         out_path = Path(args.output)
     else:
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        out_path = Path(f"/tmp/todo-prompt-eval-{ts}.json")
+        out_path = results_dir / f"eval-{ts}.json"
 
     out_path.write_text(json.dumps(output_data, indent=2))
     print(f"\nResults saved to {out_path}")
