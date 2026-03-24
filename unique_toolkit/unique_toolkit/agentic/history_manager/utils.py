@@ -75,6 +75,7 @@ def transform_chunks_to_string(
     sources: list[dict[str, Any]] = [
         {
             "source_number": max_source_number + i,
+            "content_id": chunk.id,
             "content": chunk.text,
         }
         for i, chunk in enumerate(content_chunks)

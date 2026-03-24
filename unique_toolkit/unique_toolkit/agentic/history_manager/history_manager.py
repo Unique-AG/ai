@@ -347,10 +347,10 @@ class HistoryManager:
 def _strip_uncited_sources_from_content(content: str, cited: set[int]) -> str:
     """Filter a tool response content string to only keep cited source items.
 
-    The content is expected to be a JSON array of
-    ``{"source_number": N, "content": "..."}`` dicts.  Items whose
-    ``source_number`` is not in *cited* are removed.  If the content is
-    not in the expected JSON format it is returned unchanged.
+    The content is expected to be a JSON array of dicts containing at least
+    a "source_number" key.  Items whose "source_number" is not in *cited*
+    are removed.  If the content is not valid JSON or not in the expected
+    format it is returned unchanged.
     """
     try:
         data = json.loads(content)
