@@ -10,7 +10,10 @@ from unique_toolkit._common.feature_flags.schema import (
 )
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.history_manager.loop_token_reducer import LoopTokenReducer
-from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
+from unique_toolkit.agentic.history_manager.utils import (
+    serialize_tool_content_json,
+    transform_chunks_to_string,
+)
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -366,4 +369,4 @@ def _strip_uncited_sources_from_content(content: str, cited: set[int]) -> str:
         return content
 
     filtered = [item for item in data if item.get("source_number") in cited]
-    return json.dumps(filtered)
+    return serialize_tool_content_json(filtered)
