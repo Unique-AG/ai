@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.97] - 2026-03-24
+- Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
+
 ## [0.10.96] - 2026-03-31
 - Remove leftover `poetry` references from tox config, CONTRIBUTING.md, and tutorial docs — all replaced with `uv` equivalents
 
@@ -18,7 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.93] - 2026-03-25
 - Add `Space.create_chat`
-
 ## [0.10.92] - 2026-03-19
 - Add experimental CLI (`unique-cli`) for interactive file exploration of the Unique knowledge base
 - Add `click` as a required dependency for the CLI

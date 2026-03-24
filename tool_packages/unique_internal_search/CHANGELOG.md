@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.36] - 2026-03-24
+- Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
+
 ## [1.2.35] - 2026-03-31
 - Chore: remove leftover poetry.toml config file
 
@@ -15,7 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add configurable tool-response system reminder for citation enforcement
   - New `ToolResponseSystemReminderConfig` under `ExperimentalFeatures` with `enabled` toggle and customisable prompt
   - When enabled, the reminder text is attached as `system_reminder` on every successful `InternalSearch` tool response
-
 ## [1.2.32] - 2026-03-24
 - Add regression coverage for readable Unicode in `InternalSearch` loop-history tool payloads
 - Clarify that loop-history tool content remains JSON text while preserving readable Unicode when provided by `unique_toolkit`

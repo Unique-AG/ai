@@ -1,6 +1,6 @@
 [project]
 name = "core"
-version = "0.1.1"
+version = "0.1.2"
 description = "Web Search Proxy implementation"
 authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]
 readme = "README.md"
