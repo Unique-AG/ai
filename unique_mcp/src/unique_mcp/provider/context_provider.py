@@ -1,152 +1,141 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import Any
 
 import httpx
 from fastmcp.server.dependencies import get_access_token
 from pydantic import SecretStr
 from unique_toolkit.app.unique_settings import (
     AuthContext,
-    ChatContext,
     UniqueContext,
     UniqueSettings,
 )
 
 from unique_mcp.auth.zitadel.oauth_proxy import ZitadelOAuthProxySettings
 
-if TYPE_CHECKING:
-    from unique_toolkit.app.unique_settings import ChatContextProtocol
-
 logger = logging.getLogger(__name__)
 
-# Zitadel claim keys
 _CLAIM_USER_ID = "sub"
 _CLAIM_COMPANY_ID = "urn:zitadel:iam:user:resourceowner:id"
 
+_META_USER_ID = "unique.app/user-id"
+_META_COMPANY_ID = "unique.app/company-id"
 
-class UniqueContextProvider:
-    """Resolves per-request UniqueSettings from FastMCP's AccessToken.
+_USERINFO_TIMEOUT = 10.0
 
-    Initialized once at startup with UniqueSettings (same pattern as
-    UniqueServiceFactory). Each tutorial/server configures UniqueSettings
-    differently — the provider reuses the env config (app, api) and swaps
-    auth per request based on the OAuth token.
 
-    Called per tool invocation to produce fresh UniqueSettings with the
-    current user's auth context resolved from Zitadel.
+def _make_auth(user_id: str, company_id: str) -> AuthContext:
+    return AuthContext(
+        user_id=SecretStr(user_id),
+        company_id=SecretStr(company_id),
+    )
 
-    Example::
 
-        # Startup
-        settings = UniqueSettings.from_env_auto_with_sdk_init()
-        provider = UniqueContextProvider(
-            settings=settings,
-            zitadel_settings=ZitadelOAuthProxySettings(),
+def _read_meta() -> dict[str, Any] | None:
+    """Read ``_meta`` from the active FastMCP request, if available."""
+    try:
+        from fastmcp.server.dependencies import (
+            get_context as _get_ctx,
         )
 
-        # Per tool call
-        request_settings = await provider.get_settings()
-        service = KnowledgeBaseService.from_settings(request_settings)
+        ctx = _get_ctx()
+    except (RuntimeError, LookupError):
+        return None
+    rc = ctx.request_context
+    if rc is None or rc.meta is None:
+        return None
+    meta = rc.meta
+    if hasattr(meta, "model_dump"):
+        data = meta.model_dump(mode="python", exclude_none=True)
+        return data or None
+    return dict(meta) if meta else None
+
+
+class UniqueContextProvider:
+    """Resolves per-request auth from the active MCP request.
+
+    Priority (highest wins):
+      1. ``_meta`` keys (``unique.app/user-id``, ``unique.app/company-id``)
+      2. JWT claims
+      3. Zitadel userinfo endpoint
+
+    Usage::
+
+        settings = await provider.get_settings()
     """
+
+    _zitadel: ZitadelOAuthProxySettings
+    _settings: UniqueSettings
 
     def __init__(
         self,
         *,
-        settings: UniqueSettings,
+        settings: UniqueSettings | None = None,
         zitadel_settings: ZitadelOAuthProxySettings | None = None,
     ) -> None:
-        self._settings = settings
-        self._zitadel_settings = zitadel_settings or ZitadelOAuthProxySettings()
+        self._settings = settings or UniqueSettings.from_env_auto_with_sdk_init()
+        self._zitadel = zitadel_settings or ZitadelOAuthProxySettings()
 
-    async def get_settings(
-        self, chat: ChatContextProtocol | None = None
-    ) -> UniqueSettings:
-        """Build per-request UniqueSettings (env, token auth, optional chat)."""
-        auth = await self._resolve_auth_context()
-        chat = chat or self._resolve_chat_context()
+    async def get_settings(self) -> UniqueSettings:
+        """Per-request UniqueSettings (swaps auth, keeps app/api)."""
         return UniqueSettings(
-            auth=auth,
+            auth=await self._resolve_auth(),
             app=self._settings.app,
             api=self._settings.api,
-            chat=chat,
         )
 
-    async def get_context(
-        self, chat: ChatContextProtocol | None = None
-    ) -> UniqueContext:
-        """Build per-request UniqueContext (auth + optional chat)."""
-        auth = await self._resolve_auth_context()
-        chat = chat or self._resolve_chat_context()
-        return UniqueContext(auth=auth, chat=chat)
+    async def get_context(self) -> UniqueContext:
+        """Per-request UniqueContext (auth only, no chat)."""
+        return UniqueContext(auth=await self._resolve_auth())
 
-    def _resolve_chat_context(self) -> ChatContext | None:
-        """Resolve ChatContext from HTTP headers or _meta.
+    async def get_userinfo(self) -> dict[str, Any]:
+        """Full Zitadel userinfo for the current request's token.
 
-        Future: read X-Chat-Id, X-Assistant-Id from get_http_headers(),
-        or from _meta in the MCP tool call params.
-        Currently returns None (auth-only context).
-        """
-        return None
-
-    async def _resolve_auth_context(self) -> AuthContext:
-        """Extract user identity from the current request's access token.
-
-        Strategy: try JWT claims first (zero HTTP calls), fall back to
-        Zitadel userinfo endpoint if claims don't contain company_id.
-
-        Note: the claims-first path only fires if the OAuth proxy forwards
-        ``sub`` and ``urn:zitadel:iam:user:resourceowner:id`` into the
-        FastMCP-issued JWT. With the current ZitadelOAuthProxy the proxy JWT
-        has ``subject=None``, so the userinfo fallback runs on every call.
+        Useful when you need fields beyond user_id/company_id (e.g. email).
         """
         token = get_access_token()
         if token is None:
-            raise RuntimeError(
-                "No access token available in the current request context. "
-                "Ensure the MCP server has OAuth authentication configured."
-            )
+            raise RuntimeError("No access token. Is OAuth configured?")
+        return await self._fetch_userinfo(token.token)
 
-        claims = token.claims
-        user_id = claims.get(_CLAIM_USER_ID)
-        company_id = claims.get(_CLAIM_COMPANY_ID)
+    async def _resolve_auth(self) -> AuthContext:
+        """_meta > JWT claims > Zitadel userinfo."""
 
-        if user_id and company_id:
-            logger.debug("Resolved auth context from JWT claims (user=%s)", user_id)
-            return AuthContext(
-                user_id=SecretStr(user_id),
-                company_id=SecretStr(company_id),
-            )
+        meta = _read_meta()
+        if meta:
+            uid = meta.get(_META_USER_ID)
+            cid = meta.get(_META_COMPANY_ID)
+            if uid and cid:
+                logger.debug("Auth from _meta (user=%s)", uid)
+                return _make_auth(uid, cid)
 
-        logger.debug(
-            "JWT claims missing user_id=%s or company_id=%s, falling back to userinfo",
-            bool(user_id),
-            bool(company_id),
-        )
-        return await self._resolve_from_userinfo(token.token)
+        token = get_access_token()
+        if token is None:
+            raise RuntimeError("No access token. Is OAuth configured?")
 
-    async def _resolve_from_userinfo(self, bearer_token: str) -> AuthContext:
-        """Fallback: call Zitadel userinfo endpoint to get user identity."""
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                self._zitadel_settings.userinfo_endpoint,
-                headers={"Authorization": f"Bearer {bearer_token}"},
-            )
-        response.raise_for_status()
-        info = response.json()
+        uid = token.claims.get(_CLAIM_USER_ID)
+        cid = token.claims.get(_CLAIM_COMPANY_ID)
+        if uid and cid:
+            logger.debug("Auth from JWT (user=%s)", uid)
+            return _make_auth(uid, cid)
 
-        user_id = info.get("sub")
-        company_id = info.get("urn:zitadel:iam:user:resourceowner:id")
-
-        if not user_id or not company_id:
+        logger.debug("JWT incomplete, falling back to userinfo")
+        info = await self._fetch_userinfo(token.token)
+        uid = info.get("sub")
+        cid = info.get(_CLAIM_COMPANY_ID)
+        if not uid or not cid:
             raise ValueError(
-                f"Zitadel userinfo response missing required fields. "
-                f"Got sub={user_id!r}, company_id={company_id!r}. "
-                f"Ensure the 'urn:zitadel:iam:user:resourceowner' scope is requested."
+                f"Zitadel userinfo incomplete: sub={uid!r}, company_id={cid!r}"
             )
+        logger.debug("Auth from userinfo (user=%s)", uid)
+        return _make_auth(uid, cid)
 
-        logger.debug("Resolved auth context from Zitadel userinfo (user=%s)", user_id)
-        return AuthContext(
-            user_id=SecretStr(user_id),
-            company_id=SecretStr(company_id),
-        )
+    async def _fetch_userinfo(self, bearer: str) -> dict[str, Any]:
+        async with httpx.AsyncClient(timeout=_USERINFO_TIMEOUT) as client:
+            resp = await client.get(
+                self._zitadel.userinfo_endpoint,
+                headers={"Authorization": f"Bearer {bearer}"},
+            )
+        _ = resp.raise_for_status()
+        return resp.json()  # type: ignore[no-any-return]

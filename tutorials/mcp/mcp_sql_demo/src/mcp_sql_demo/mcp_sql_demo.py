@@ -1,11 +1,9 @@
 from pathlib import Path
 from typing import Annotated
 
-import httpx
 from dotenv import load_dotenv
 from fastapi.responses import FileResponse, JSONResponse
 from fastmcp import FastMCP
-from fastmcp.server.dependencies import get_access_token
 from pydantic import Field
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
@@ -111,15 +109,8 @@ def main() -> None:
         user_id = context.auth.get_confidential_user_id()
         company_id = context.auth.get_confidential_company_id()
 
-        # Email is not provided by UniqueContextProvider — fetch from Zitadel userinfo directly.
-        token = get_access_token()
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                zitadel_settings.userinfo_endpoint,
-                headers={"Authorization": f"Bearer {token.token}"},
-            )
-        response.raise_for_status()
-        email = response.json().get("email", "alice@alphabet.example")
+        userinfo = await context_provider.get_userinfo()
+        email = userinfo.get("email", "alice@alphabet.example")
 
         per_request_event = ChatEvent(
             event="user_message_created",
