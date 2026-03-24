@@ -121,6 +121,10 @@ class UniqueContextProvider:
         logger.debug("Auth from userinfo (user=%s)", uid)
         return _make_auth(uid, cid)
 
+    async def close(self) -> None:
+        """Close the underlying HTTP client (call on shutdown)."""
+        await self._http.aclose()
+
     async def _fetch_userinfo(self, bearer: str) -> dict[str, Any]:
         resp = await self._http.get(
             self._zitadel.userinfo_endpoint,

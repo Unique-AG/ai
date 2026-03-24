@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from fastmcp import FastMCP
-from pydantic import BaseModel, ConfigDict
 from unique_toolkit.app.unique_settings import UniqueSettings
 
 from unique_mcp.auth.zitadel.oauth_proxy import (
@@ -16,10 +16,11 @@ from unique_mcp.provider import UniqueContextProvider
 from unique_mcp.settings import ServerSettings
 
 
-class MCPServerBundle(BaseModel):
-    """Typed result of :func:`create_mcp_server`."""
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+@dataclass
+class MCPServerBundle:
+    """Typed result of :func:`create_mcp_server`.
+    Dataclass for type safety, no need for serialization and validation.
+    """
 
     mcp: FastMCP
     context_provider: UniqueContextProvider

@@ -85,12 +85,12 @@ def main() -> None:
             ),
         ],
         context: UniqueContext = Depends(context_provider.get_context),
+        userinfo: dict = Depends(context_provider.get_userinfo),
     ) -> str:
         """Search string to find relevant information on stocks and instruments. This will be converted to sql and run against the database."""
         user_id = context.auth.get_confidential_user_id()
         company_id = context.auth.get_confidential_company_id()
 
-        userinfo = await context_provider.get_userinfo()
         email = userinfo.get("email", "alice@alphabet.example")
 
         per_request_event = ChatEvent(
