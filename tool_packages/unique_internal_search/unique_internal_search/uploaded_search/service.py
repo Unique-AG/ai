@@ -93,7 +93,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             system_prompt_valid_documents = (
                 system_prompt_valid_documents
                 + "\n".join(
-                    f"- {doc.title or doc.key} (contentId: {doc.id})"
+                    f"- {doc.title or doc.key} (content_id: {doc.id})"
                     for doc in valid_documents
                 )
                 + "\n"
@@ -106,7 +106,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             system_prompt_expired_documents = (
                 system_prompt_expired_documents
                 + "\n".join(
-                    f"- {doc.title or doc.key} (contentId: {doc.id})"
+                    f"- {doc.title or doc.key} (content_id: {doc.id})"
                     for doc in expired_documents
                 )
             )

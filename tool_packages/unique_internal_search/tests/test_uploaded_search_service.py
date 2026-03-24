@@ -130,8 +130,8 @@ class TestUploadedSearchTool:
                 "**The currently uploaded and valid documents are the following**"
                 in result
             )
-            assert "Q2 Financial Report (contentId: doc_1)" in result
-            assert "policy_document.pdf (contentId: doc_2)" in result
+            assert "Q2 Financial Report (content_id: doc_1)" in result
+            assert "policy_document.pdf (content_id: doc_2)" in result
             assert (
                 "**The currently uploaded and expired documents are the following**"
                 not in result
@@ -179,7 +179,7 @@ class TestUploadedSearchTool:
                 "**The currently uploaded and expired documents are the following**"
                 in result
             )
-            assert "Old Report (contentId: doc_expired_1)" in result
+            assert "Old Report (content_id: doc_expired_1)" in result
             assert (
                 "**The currently uploaded and valid documents are the following**"
                 not in result
@@ -225,13 +225,13 @@ class TestUploadedSearchTool:
                 "**The currently uploaded and valid documents are the following**"
                 in result
             )
-            assert "Valid Document (contentId: doc_valid_1)" in result
-            assert "another_valid.pdf (contentId: doc_valid_2)" in result
+            assert "Valid Document (content_id: doc_valid_1)" in result
+            assert "another_valid.pdf (content_id: doc_valid_2)" in result
             assert (
                 "**The currently uploaded and expired documents are the following**"
                 in result
             )
-            assert "Expired Document (contentId: doc_expired_1)" in result
+            assert "Expired Document (content_id: doc_expired_1)" in result
 
     @pytest.mark.ai
     def test_tool_description_for_system_prompt__returns_base_prompt__with_no_documents(
@@ -319,8 +319,8 @@ class TestUploadedSearchTool:
             result = tool.tool_description_for_system_prompt()
 
             # Assert
-            assert "important_file.pdf (contentId: doc_1)" in result
-            assert "- important_file.pdf (contentId: doc_1)" in result
+            assert "important_file.pdf (content_id: doc_1)" in result
+            assert "- important_file.pdf (content_id: doc_1)" in result
 
     @pytest.mark.ai
     def test_tool_description_for_system_prompt__uses_title_when_available(
@@ -365,8 +365,8 @@ class TestUploadedSearchTool:
             result = tool.tool_description_for_system_prompt()
 
             # Assert
-            assert "Annual Report 2024 (contentId: doc_1)" in result
-            assert "- Annual Report 2024 (contentId: doc_1)" in result
+            assert "Annual Report 2024 (content_id: doc_1)" in result
+            assert "- Annual Report 2024 (content_id: doc_1)" in result
             # Key should not appear when title is present
             assert "report_2024.pdf" not in result
 
@@ -477,8 +477,8 @@ class TestUploadedSearchTool:
 
             # Assert
             # Verify bullet points are present
-            assert "- Q2 Financial Report (contentId: doc_1)" in result
-            assert "- policy_document.pdf (contentId: doc_2)" in result
+            assert "- Q2 Financial Report (content_id: doc_1)" in result
+            assert "- policy_document.pdf (content_id: doc_2)" in result
             # Verify documents are on separate lines by checking the valid documents section
             valid_section = result.split(
                 "**The currently uploaded and valid documents are the following**"
