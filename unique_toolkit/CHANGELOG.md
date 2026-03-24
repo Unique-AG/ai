@@ -5,12 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.62.5] - 2026-03-24
+## [1.63.1] - 2026-03-24
 - Code interpreter (UN-17972): synthesise a `.txt` artifact and `fileWithSource` fence when code runs but produces no container files ("orphan" calls), replacing the legacy `<details>` UI — gated on `enable_code_execution_fence_un_17972` FF
 - Code interpreter (UN-17972): `OpenAICodeInterpreterTool.get_required_include_params()` returns `["code_interpreter_call.outputs"]` when the fence FF is on, so execution logs populate `call.outputs` for use as downloadable stdout
 - Add `OpenAIBuiltInTool.get_required_include_params()` default (returns `[]`) and `OpenAIBuiltInToolManager.get_required_include_params()` to aggregate/deduplicate include params across all active built-in tools
 - Add `ResponsesApiToolManager.get_required_include_params()` that delegates to the built-in tool manager
 - Add `_collect_stdout` helper to extract logs from `ResponseCodeInterpreterToolCall.outputs`
+## [1.63.0] - 2026-03-24
+- Globally unique source numbering across chat turns (UN-15977): source numbers now continue from the highest index persisted in the database, ensuring `[sourceN]` citations remain unique and stable across the entire conversation
+- Add `get_content_chunks_for_backend()` to `HistoryManager`: builds a positional content-chunk list where `result[N]` contains the chunk for `[sourceN]`, including prior-turn sources reconstructed from the database
+- Remove `percent_for_tool_call_history` from `HistoryManagerConfig` and `_limit_tool_call_tokens` from `LoopTokenReducer`; history truncation now relies solely on `percent_of_max_tokens_for_history` with whole-turn dropping
+- Add `compute_max_source_number_from_tool_calls` and `build_source_map_from_tool_calls` utilities
+- `get_full_history_with_contents_and_tool_calls` now returns `(messages, max_source_number, source_map)` tuple
+
 ## [1.62.4] - 2026-03-24
 - Fix tool-history source serialization to preserve readable Unicode in LLM-facing JSON payloads
 - Fix reduced tool responses to keep readable Unicode for standard source reduction and `TableSearch`
