@@ -12,6 +12,7 @@ from unique_toolkit.agentic.history_manager.history_construction_with_contents i
     FileContentSerialization,
     get_full_history_with_contents_and_tool_calls,
 )
+from unique_toolkit.agentic.history_manager.utils import serialize_tool_content_json
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -651,7 +652,7 @@ class LoopTokenReducer:
             else:
                 raise ValueError(f"Unexpected content type: {type(message.content)}")
 
-            content = json.dumps(
+            content = serialize_tool_content_json(
                 {
                     "source_number": source_offset,
                     "content": content_dict.get("content"),
@@ -685,13 +686,14 @@ class LoopTokenReducer:
         sources = [
             {
                 "source_number": source_offset + i,
+                "content_id": chunk.id,
                 "content": chunk.text,
             }
             for i, chunk in enumerate(content_chunks)
         ]
 
         return LanguageModelToolMessage(
-            content=json.dumps(sources),
+            content=serialize_tool_content_json(sources),
             tool_call_id=message.tool_call_id,
             name=message.name,
         )
