@@ -1209,7 +1209,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.120.2" },
-    { name = "fastmcp", specifier = ">=2.13.0.2" },
+    { name = "fastmcp", specifier = ">=3.1.1,<4" },
     { name = "pydantic", specifier = ">=2.12.3" },
     { name = "unique-mcp", editable = "../../../unique_mcp" },
     { name = "unique-toolkit", editable = "../../../unique_toolkit" },
@@ -2451,7 +2451,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "fastmcp", specifier = ">=2.13.3" },
+    { name = "fastmcp", specifier = ">=3.1.1,<4" },
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "platformdirs", specifier = ">=4.0.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
