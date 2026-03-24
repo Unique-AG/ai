@@ -43,6 +43,7 @@ runs:
         uv pip install -e "$PKG_SPEC" --resolution=lowest-direct
         REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
         uv export --directory "$REPO_ROOT" --only-group dev --no-hashes | uv pip install -r -
+        uv export --only-group dev --no-hashes | uv pip install -r -
 
     - name: Run deptry
       shell: bash
