@@ -305,7 +305,7 @@ class HistoryManager:
         for msg in self._loop_history:
             if isinstance(msg, LanguageModelAssistantMessage) and msg.tool_calls:
                 for seq_index, tc in enumerate(msg.tool_calls):
-                    response_content = tool_responses.get(tc.id)
+                    response_content = tool_responses.get(tc.id) if tc.id else None
                     response = (
                         ChatMessageToolResponse(content=response_content)
                         if response_content is not None
