@@ -1172,8 +1172,12 @@ async def test_get_history_for_model_call__returns_messages__when_under_limit_AI
     Why this matters: Normal case should return full history without reduction.
     """
     # Arrange
-    mock_get_history.return_value = LanguageModelMessages(
-        root=[LanguageModelUserMessage(content="Test user message")]
+    mock_get_history.return_value = (
+        LanguageModelMessages(
+            root=[LanguageModelUserMessage(content="Test user message")]
+        ),
+        -1,
+        {},
     )
     mock_count_tokens.return_value = 100  # Under limit
 
@@ -1209,8 +1213,12 @@ async def test_get_history_for_model_call__appends_image_urls_to_user_message__w
     Why this matters: Tool-returned images must appear in the user message for the LLM.
     """
     # Arrange
-    mock_get_history.return_value = LanguageModelMessages(
-        root=[LanguageModelUserMessage(content="Original question")]
+    mock_get_history.return_value = (
+        LanguageModelMessages(
+            root=[LanguageModelUserMessage(content="Original question")]
+        ),
+        -1,
+        {},
     )
     mock_count_tokens.return_value = 100
 
