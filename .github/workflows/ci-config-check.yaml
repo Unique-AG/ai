@@ -129,7 +129,7 @@ jobs:
 
       - name: Restore lock file before checkout
         run: |
-          git restore "${{ matrix.dir }}/uv.lock" 2>/dev/null || true
+          git restore uv.lock 2>/dev/null || true
 
       # 3. Checkout tip and validate
       - name: Checkout PR tip

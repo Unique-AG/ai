@@ -25,6 +25,11 @@ dev = [
     "pytest-mock>=3.14.0,<4",
     "deptry>=0.24.0,<0.25",
     "poethepoet>=0.32.0,<0.33",
+    # migrated from per-package dev groups
+    "python-dotenv>=1.1.0,<2",
+    "openai>=1.105.0,<2",
+    "isort>=6.0.1,<7",
+    "opik>=1.8.42,<2",
 ]
 docs = [
     "mkdocs>=1.6.1",

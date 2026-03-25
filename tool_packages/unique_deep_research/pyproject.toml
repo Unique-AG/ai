@@ -36,12 +36,7 @@ build-backend = "uv_build"
 module-root = ""
 
 [dependency-groups]
-dev = [
-    "unique-sdk",
-    "opik>=1.8.42,<2",
-    "google>=3.0.0,<4",
-    "google-genai>=1.46.0,<2",
-]
+dev = []
 
 [tool.uv.sources]
 unique-sdk = { workspace = true }

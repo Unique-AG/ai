@@ -24,9 +24,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = [
-    "unique-sdk",
-]
+dev = []
 
 [build-system]
 requires = ["uv_build>=0.7.19,<0.8"]

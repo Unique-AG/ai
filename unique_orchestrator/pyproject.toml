@@ -30,10 +30,7 @@ build-backend = "uv_build"
 module-root = ""
 
 [dependency-groups]
-dev = [
-    "deepdiff>=8.6.1,<9",
-    "unique-sdk",
-]
+dev = []
 
 [tool.uv.sources]
 unique-sdk = { workspace = true }

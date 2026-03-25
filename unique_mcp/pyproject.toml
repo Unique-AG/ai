@@ -24,10 +24,7 @@ requires = ["uv_build>=0.8.14,<0.9.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
-dev = [
-    "diff-cover>=8.0.0",
-    "python-dep-tree>=0.19.9",
-]
+dev = []
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -67,12 +67,7 @@ build-backend = "uv_build"
 module-root = ""
 
 [dependency-groups]
-dev = [
-    "tox>=4.11.4,<5",
-    "pyright>=1.1.341,<2",
-    "pre-commit>=3.7.1,<4",
-    "isort>=6.0.1,<7",
-]
+dev = []
 
 [tool.uv]
 constraint-dependencies = [

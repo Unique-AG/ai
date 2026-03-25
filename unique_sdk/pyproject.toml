@@ -40,11 +40,7 @@ build-backend = "uv_build"
 module-root = ""
 
 [dependency-groups]
-dev = [
-    "tox>=4.11.4,<5",
-    "python-dotenv>=1.1.0,<2",
-    "openai>=1.105.0,<2",
-]
+dev = []
 
 [tool.deptry]
 known_first_party = ["unique_sdk"]
@@ -94,34 +90,3 @@ coverage = "pytest --cov=unique_sdk --cov-report=term-missing"
 ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
 ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
-[tool.tox]
-legacy_tox_ini = """
-    [tox]
-    min_version = 4.0
-    isolated_build = true
-    env_list =
-        lint
-        py311
-        py312
-
-    [testenv]
-    allowlist_externals = uv
-    commands_pre =
-        uv sync --frozen
-
-    [testenv:py311]
-    description = run tests with python 3.11
-    basepython = python3.11
-    commands =
-        uv run pytest --cov=unique_sdk tests/ --import-mode importlib
-
-    [testenv:py312]
-    description = run tests with python 3.12
-    basepython = python3.12
-    commands =
-        uv run pytest --cov=unique_sdk tests/ --import-mode importlib
-
-    [testenv:lint]
-    description = lint source code
-    commands = ruff check {posargs:unique_sdk tests}
-"""

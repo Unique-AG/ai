@@ -38,13 +38,17 @@ dependencies = [
 dev = [
     { name = "basedpyright" },
     { name = "deptry" },
+    { name = "isort" },
     { name = "langchain" },
+    { name = "openai" },
+    { name = "opik" },
     { name = "poethepoet" },
     { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-mock" },
+    { name = "python-dotenv" },
     { name = "ruff" },
 ]
 docs = [
@@ -72,13 +76,17 @@ requires-dist = [
 dev = [
     { name = "basedpyright", specifier = ">=1.35.0,<2" },
     { name = "deptry", specifier = ">=0.24.0,<0.25" },
+    { name = "isort", specifier = ">=6.0.1,<7" },
     { name = "langchain", specifier = ">=1.1.0" },
+    { name = "openai", specifier = ">=1.105.0,<2" },
+    { name = "opik", specifier = ">=1.8.42,<2" },
     { name = "poethepoet", specifier = ">=0.32.0,<0.33" },
     { name = "pyright", specifier = ">=1.1.405" },
     { name = "pytest", specifier = ">=8.4.1,<9" },
     { name = "pytest-asyncio", specifier = ">=0.25.0" },
     { name = "pytest-cov", specifier = ">=7.0.0,<8" },
     { name = "pytest-mock", specifier = ">=3.14.0,<4" },
+    { name = "python-dotenv", specifier = ">=1.1.0,<2" },
     { name = "ruff", specifier = ">=0.14.2" },
 ]
 docs = [
@@ -631,15 +639,6 @@ wheels = [
 ]
 
 [[package]]
-name = "cfgv"
-version = "3.5.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/4e/b5/721b8799b04bf9afe054a3899c6cf4e880fcf8563cc71c15610242490a0c/cfgv-3.5.0.tar.gz", hash = "sha256:d5b1034354820651caa73ede66a6294d6e95c1b00acc5e9b098e917404669132", size = 7334, upload-time = "2025-11-19T20:55:51.612Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/db/3c/33bac158f8ab7f89b2e59426d5fe2e4f63f7ed25df84c036890172b412b5/cfgv-3.5.0-py2.py3-none-any.whl", hash = "sha256:a8dc6b26ad22ff227d2634a65cb388215ce6cc96bbcc5cfde7641ae87e8dacc0", size = 7445, upload-time = "2025-11-19T20:55:50.744Z" },
-]
-
-[[package]]
 name = "chardet"
 version = "7.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1052,30 +1051,6 @@ wheels = [
 ]
 
 [[package]]
-name = "diff-cover"
-version = "10.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "chardet" },
-    { name = "jinja2" },
-    { name = "pluggy" },
-    { name = "pygments" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/99/b4/eee71d1e338bc1f9bd3539b46b70e303dac061324b759c9a80fa3c96d90d/diff_cover-10.2.0.tar.gz", hash = "sha256:61bf83025f10510c76ef6a5820680cf61b9b974e8f81de70c57ac926fa63872a", size = 102473, upload-time = "2026-01-09T01:59:07.605Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/2c/61eeb887055a37150db824b6bf830e821a736580769ac2fea4eadb0d613f/diff_cover-10.2.0-py3-none-any.whl", hash = "sha256:59c328595e0b8948617cc5269af9e484c86462e2844bfcafa3fb37f8fca0af87", size = 56748, upload-time = "2026-01-09T01:59:06.028Z" },
-]
-
-[[package]]
-name = "distlib"
-version = "0.4.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/96/8e/709914eb2b5749865801041647dc7f4e6d00b549cfe88b65ca192995f07c/distlib-0.4.0.tar.gz", hash = "sha256:feec40075be03a04501a973d81f633735b4b69f98b05450592310c0f401a4e0d", size = 614605, upload-time = "2025-07-17T16:52:00.465Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/33/6b/e0547afaf41bf2c42e52430072fa5658766e3d65bd4b03a563d1b6336f57/distlib-0.4.0-py2.py3-none-any.whl", hash = "sha256:9659f7d87e46584a30b5780e43ac7a2143098441670ff0a49d5f9034c54a6c16", size = 469047, upload-time = "2025-07-17T16:51:58.613Z" },
-]
-
-[[package]]
 name = "distro"
 version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1461,18 +1436,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d9/29/d40217cbe2f6b1359e00c6c307bb3fc876ba74068cbab3dde77f03ca0dc4/ghp-import-2.1.0.tar.gz", hash = "sha256:9c535c4c61193c2df8871222567d7fd7e5014d835f97dc7b7439069e2413d343", size = 10943, upload-time = "2022-05-02T15:47:16.11Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f7/ec/67fbef5d497f86283db54c22eec6f6140243aae73265799baaaa19cd17fb/ghp_import-2.1.0-py3-none-any.whl", hash = "sha256:8337dd7b50877f163d4c0289bc1f1c7f127550241988d568c1db512c4324a619", size = 11034, upload-time = "2022-05-02T15:47:14.552Z" },
-]
-
-[[package]]
-name = "google"
-version = "3.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "beautifulsoup4" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/89/97/b49c69893cddea912c7a660a4b6102c6b02cd268f8c7162dd70b7c16f753/google-3.0.0.tar.gz", hash = "sha256:143530122ee5130509ad5e989f0512f7cb218b2d4eddbafbad40fd10e8d8ccbe", size = 44978, upload-time = "2020-07-11T14:50:45.678Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ac/35/17c9141c4ae21e9a29a43acdfd848e3e468a810517f862cad07977bf8fe9/google-3.0.0-py2.py3-none-any.whl", hash = "sha256:889cf695f84e4ae2c55fbc0cfdaf4c1e729417fa52ab1db0485202ba173e4935", size = 45258, upload-time = "2020-07-11T14:49:58.287Z" },
 ]
 
 [[package]]
@@ -2089,15 +2052,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/02/e7/94f8232d4a74cc99514c13a9f995811485a6903d48e5d952771ef6322e30/hyperframe-6.1.0.tar.gz", hash = "sha256:f630908a00854a7adeabd6382b43923a4c4cd4b821fcb527e6ab9e15382a3b08", size = 26566, upload-time = "2025-01-22T21:41:49.302Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/48/30/47d0bf6072f7252e6521f3447ccfa40b421b6824517f82854703d0f5a98b/hyperframe-6.1.0-py3-none-any.whl", hash = "sha256:b03380493a519fce58ea5af42e4a42317bf9bd425596f7a0835ffce80f1a42e5", size = 13007, upload-time = "2025-01-22T21:41:47.295Z" },
-]
-
-[[package]]
-name = "identify"
-version = "2.6.18"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/46/c4/7fb4db12296cdb11893d61c92048fe617ee853f8523b9b296ac03b43757e/identify-2.6.18.tar.gz", hash = "sha256:873ac56a5e3fd63e7438a7ecbc4d91aca692eb3fefa4534db2b7913f3fc352fd", size = 99580, upload-time = "2026-03-15T18:39:50.319Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/46/33/92ef41c6fad0233e41d3d84ba8e8ad18d1780f1e5d99b3c683e6d7f98b63/identify-2.6.18-py2.py3-none-any.whl", hash = "sha256:8db9d3c8ea9079db92cafb0ebf97abdc09d52e97f4dcf773a2e694048b7cd737", size = 99394, upload-time = "2026-03-15T18:39:48.915Z" },
 ]
 
 [[package]]
@@ -3730,22 +3684,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pre-commit"
-version = "3.8.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cfgv" },
-    { name = "identify" },
-    { name = "nodeenv" },
-    { name = "pyyaml" },
-    { name = "virtualenv" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/64/10/97ee2fa54dff1e9da9badbc5e35d0bbaef0776271ea5907eccf64140f72f/pre_commit-3.8.0.tar.gz", hash = "sha256:8bb6494d4a20423842e198980c9ecf9f96607a07ea29549e180eef9ae80fe7af", size = 177815, upload-time = "2024-07-28T19:59:01.538Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/07/92/caae8c86e94681b42c246f0bca35c059a2f0529e5b92619f6aba4cf7e7b6/pre_commit-3.8.0-py2.py3-none-any.whl", hash = "sha256:9a90a53bf82fdd8778d58085faf8d83df56e40dfe18f45b19446e26bf1b3a63f", size = 204643, upload-time = "2024-07-28T19:58:59.335Z" },
-]
-
-[[package]]
 name = "prompt-toolkit"
 version = "3.0.52"
 source = { registry = "https://pypi.org/simple" }
@@ -4162,18 +4100,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pyproject-api"
-version = "1.10.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "packaging" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/45/7b/c0e1333b61d41c69e59e5366e727b18c4992688caf0de1be10b3e5265f6b/pyproject_api-1.10.0.tar.gz", hash = "sha256:40c6f2d82eebdc4afee61c773ed208c04c19db4c4a60d97f8d7be3ebc0bbb330", size = 22785, upload-time = "2025-10-09T19:12:27.21Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/54/cc/cecf97be298bee2b2a37dd360618c819a2a7fd95251d8e480c1f0eb88f3b/pyproject_api-1.10.0-py3-none-any.whl", hash = "sha256:8757c41a79c0f4ab71b99abed52b97ecf66bd20b04fa59da43b5840bac105a09", size = 13218, upload-time = "2025-10-09T19:12:24.428Z" },
-]
-
-[[package]]
 name = "pyright"
 version = "1.1.408"
 source = { registry = "https://pypi.org/simple" }
@@ -4251,28 +4177,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3", size = 342432, upload-time = "2024-03-01T18:36:20.211Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427", size = 229892, upload-time = "2024-03-01T18:36:18.57Z" },
-]
-
-[[package]]
-name = "python-dep-tree"
-version = "0.19.9"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d0/67/2a86013f8cf450a045899d9700fe025df3956eeefc749bd8edbbac2d266a/python_dep_tree-0.19.9.tar.gz", hash = "sha256:c2966d1aa31eb3b54278a7104c0dd08e44ce6e19be3fc7e3d886ae548f63db6c", size = 1502, upload-time = "2024-02-18T09:43:29.854Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e7/49/04e61ca98461fb5a7c3d8709b79612e69af4aeaeeaf18a845311f586e450/python_dep_tree-0.19.9-py3-none-any.whl", hash = "sha256:a1b56bc6b1c13c0b9a0c4989376b64aebf5abe2c39f79f782c81aba2916bce81", size = 2219, upload-time = "2024-02-18T09:43:28.131Z" },
-]
-
-[[package]]
-name = "python-discovery"
-version = "1.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "filelock" },
-    { name = "platformdirs" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/9c/90/bcce6b46823c9bec1757c964dc37ed332579be512e17a30e9698095dcae4/python_discovery-1.2.0.tar.gz", hash = "sha256:7d33e350704818b09e3da2bd419d37e21e7c30db6e0977bb438916e06b41b5b1", size = 58055, upload-time = "2026-03-19T01:43:08.248Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c2/3c/2005227cb951df502412de2fa781f800663cccbef8d90ec6f1b371ac2c0d/python_discovery-1.2.0-py3-none-any.whl", hash = "sha256:1e108f1bbe2ed0ef089823d28805d5ad32be8e734b86a5f212bf89b71c266e4a", size = 31524, upload-time = "2026-03-19T01:43:07.045Z" },
 ]
 
 [[package]]
@@ -5161,41 +5065,12 @@ wheels = [
 ]
 
 [[package]]
-name = "tomli-w"
-version = "1.2.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/19/75/241269d1da26b624c0d5e110e8149093c759b7a286138f4efd61a60e75fe/tomli_w-1.2.0.tar.gz", hash = "sha256:2dd14fac5a47c27be9cd4c976af5a12d87fb1f0b4512f81d69cce3b35ae25021", size = 7184, upload-time = "2025-01-15T12:07:24.262Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c7/18/c86eb8e0202e32dd3df50d43d7ff9854f8e0603945ff398974c1d91ac1ef/tomli_w-1.2.0-py3-none-any.whl", hash = "sha256:188306098d013b691fcadc011abd66727d3c414c571bb01b1a174ba8c983cf90", size = 6675, upload-time = "2025-01-15T12:07:22.074Z" },
-]
-
-[[package]]
 name = "tomlkit"
 version = "0.12.5"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/2b/ab/18f4c8f2bec75eb1a7aebcc52cdb02ab04fd39ff7025bb1b1c7846cc45b8/tomlkit-0.12.5.tar.gz", hash = "sha256:eef34fba39834d4d6b73c9ba7f3e4d1c417a4e56f89a7e96e090dd0d24b8fb3c", size = 191420, upload-time = "2024-05-08T13:50:19.363Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/73/6d/b5406752c4e4ba86692b22fab0afed8b48f16bdde8f92e1d852976b61dc6/tomlkit-0.12.5-py3-none-any.whl", hash = "sha256:af914f5a9c59ed9d0762c7b64d3b5d5df007448eb9cd2edc8a46b1eafead172f", size = 37685, upload-time = "2024-05-08T13:50:17.343Z" },
-]
-
-[[package]]
-name = "tox"
-version = "4.50.3"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cachetools" },
-    { name = "colorama" },
-    { name = "filelock" },
-    { name = "packaging" },
-    { name = "platformdirs" },
-    { name = "pluggy" },
-    { name = "pyproject-api" },
-    { name = "tomli-w" },
-    { name = "virtualenv" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ae/45/e4c0ac54af794f992790abe350770bb1fa6d5a85b25d47b6182c83ec7915/tox-4.50.3.tar.gz", hash = "sha256:c745641de6cc4f19d066bd9f98c1c25f7affb005b381b7f3694a1f142ea0946b", size = 266455, upload-time = "2026-03-20T01:17:59.351Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fe/ab/369d60db70d9031341082842071541f2497741b04140816c7df82734faf6/tox-4.50.3-py3-none-any.whl", hash = "sha256:5e788a512bfe6f7447e0c8d7c1b666eb2e56e5e676c65717490423bec37d1a07", size = 207667, upload-time = "2026-03-20T01:17:57.553Z" },
 ]
 
 [[package]]
@@ -5321,14 +5196,6 @@ dependencies = [
     { name = "unique-web-search" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "google" },
-    { name = "google-genai" },
-    { name = "opik" },
-    { name = "unique-sdk" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.12.0,<5" },
@@ -5348,12 +5215,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "google", specifier = ">=3.0.0,<4" },
-    { name = "google-genai", specifier = ">=1.46.0,<2" },
-    { name = "opik", specifier = ">=1.8.42,<2" },
-    { name = "unique-sdk", editable = "unique_sdk" },
-]
+dev = []
 
 [[package]]
 name = "unique-follow-up-questions"
@@ -5411,12 +5273,6 @@ dependencies = [
     { name = "pydantic-settings" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "diff-cover" },
-    { name = "python-dep-tree" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "fastmcp", specifier = ">=2.13.3" },
@@ -5426,10 +5282,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "diff-cover", specifier = ">=8.0.0" },
-    { name = "python-dep-tree", specifier = ">=0.19.9" },
-]
+dev = []
 
 [[package]]
 name = "unique-orchestrator"
@@ -5449,12 +5302,6 @@ dependencies = [
     { name = "unique-web-search" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "deepdiff" },
-    { name = "unique-sdk" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "jinja2", specifier = ">=3.1.0,<4" },
@@ -5471,10 +5318,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "deepdiff", specifier = ">=8.6.1,<9" },
-    { name = "unique-sdk", editable = "unique_sdk" },
-]
+dev = []
 
 [[package]]
 name = "unique-quartr"
@@ -5522,13 +5366,6 @@ openai = [
     { name = "openai" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "openai" },
-    { name = "python-dotenv" },
-    { name = "tox" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9.0,<4" },
@@ -5544,11 +5381,7 @@ requires-dist = [
 provides-extras = ["openai"]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "openai", specifier = ">=1.105.0,<2" },
-    { name = "python-dotenv", specifier = ">=1.1.0,<2" },
-    { name = "tox", specifier = ">=4.11.4,<5" },
-]
+dev = []
 
 [[package]]
 name = "unique-six"
@@ -5599,11 +5432,6 @@ dependencies = [
     { name = "unique-toolkit" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "unique-sdk" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "numerize", specifier = ">=0.12" },
@@ -5618,7 +5446,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [{ name = "unique-sdk", editable = "unique_sdk" }]
+dev = []
 
 [[package]]
 name = "unique-swot"
@@ -5693,14 +5521,6 @@ langchain = [
     { name = "openai" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "isort" },
-    { name = "pre-commit" },
-    { name = "pyright" },
-    { name = "tox" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.12.0,<4" },
@@ -5741,12 +5561,7 @@ requires-dist = [
 provides-extras = ["langchain", "fastapi"]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "isort", specifier = ">=6.0.1,<7" },
-    { name = "pre-commit", specifier = ">=3.7.1,<4" },
-    { name = "pyright", specifier = ">=1.1.341,<2" },
-    { name = "tox", specifier = ">=4.11.4,<5" },
-]
+dev = []
 
 [[package]]
 name = "unique-web-search"
@@ -5916,21 +5731,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e7/44/8126f9f0c44319b2efc65feaad589cadef4d77ece200ae3c9133d58464d0/verspec-0.1.0.tar.gz", hash = "sha256:c4504ca697b2056cdb4bfa7121461f5a0e81809255b41c03dda4ba823637c01e", size = 27123, upload-time = "2020-11-30T02:24:09.646Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a4/ce/3b6fee91c85626eaf769d617f1be9d2e15c1cca027bbdeb2e0d751469355/verspec-0.1.0-py3-none-any.whl", hash = "sha256:741877d5633cc9464c45a469ae2a31e801e6dbbaa85b9675d481cda100f11c31", size = 19640, upload-time = "2020-11-30T02:24:08.387Z" },
-]
-
-[[package]]
-name = "virtualenv"
-version = "21.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "distlib" },
-    { name = "filelock" },
-    { name = "platformdirs" },
-    { name = "python-discovery" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/aa/92/58199fe10049f9703c2666e809c4f686c54ef0a68b0f6afccf518c0b1eb9/virtualenv-21.2.0.tar.gz", hash = "sha256:1720dc3a62ef5b443092e3f499228599045d7fea4c79199770499df8becf9098", size = 5840618, upload-time = "2026-03-09T17:24:38.013Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c6/59/7d02447a55b2e55755011a647479041bc92a82e143f96a8195cb33bd0a1c/virtualenv-21.2.0-py3-none-any.whl", hash = "sha256:1bd755b504931164a5a496d217c014d098426cddc79363ad66ac78125f9d908f", size = 5825084, upload-time = "2026-03-09T17:24:35.378Z" },
 ]
 
 [[package]]
