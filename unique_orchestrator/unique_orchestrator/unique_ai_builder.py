@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
 from logging import Logger
-from typing import NamedTuple, cast
+from typing import Any, NamedTuple, cast
 
 from openai import AsyncOpenAI
+from typing_extensions import override
 from unique_follow_up_questions.follow_up_postprocessor import (
     FollowUpPostprocessor,
 )
@@ -76,6 +77,38 @@ from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferen
 from unique_orchestrator._builders import build_loop_iteration_runner
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
+
+
+class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
+    """Streaming handler for Responses API runs.
+
+    Injects `include` params from the tool manager on every call so the
+    orchestrator loop stays generic (no isinstance checks in UniqueAI).
+    """
+
+    def __init__(
+        self,
+        chat_service: ChatService,
+        tool_manager: ResponsesApiToolManager,
+    ) -> None:
+        self._chat_service: ChatService = chat_service
+        self._tool_manager: ResponsesApiToolManager = tool_manager
+
+    @override
+    def complete_with_references(self, *args: Any, **kwargs: Any) -> Any:
+        include = self._tool_manager.get_required_include_params()
+        if include:
+            kwargs["include"] = include
+        return self._chat_service.complete_responses_with_references(*args, **kwargs)
+
+    @override
+    async def complete_with_references_async(self, *args: Any, **kwargs: Any) -> Any:
+        include = self._tool_manager.get_required_include_params()
+        if include:
+            kwargs["include"] = include
+        return await self._chat_service.complete_responses_with_references_async(
+            *args, **kwargs
+        )
 
 
 async def build_unique_ai(
@@ -355,18 +388,10 @@ async def _build_responses(
         use_responses_api=True,
     )
 
-    class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
-        def complete_with_references(self, *args, **kwargs):
-            return common_components.chat_service.complete_responses_with_references(
-                *args, **kwargs
-            )
-
-        async def complete_with_references_async(self, *args, **kwargs):
-            return await common_components.chat_service.complete_responses_with_references_async(
-                *args, **kwargs
-            )
-
-    streaming_handler = ResponsesStreamingHandler()
+    streaming_handler = ResponsesStreamingHandler(
+        chat_service=common_components.chat_service,
+        tool_manager=tool_manager,
+    )
 
     _add_sub_agents_postprocessor(
         postprocessor_manager=postprocessor_manager,

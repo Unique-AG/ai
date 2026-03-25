@@ -529,6 +529,7 @@ class TestRunExecutionTimingIntegration:
         )
         mock_history_manager._append_tool_calls_to_history = MagicMock()
         mock_history_manager.add_tool_call_results = MagicMock()
+        mock_history_manager.extract_message_tools.return_value = []
 
         mock_postprocessor_manager = MagicMock()
         mock_postprocessor_manager.run_postprocessors = AsyncMock(return_value=None)

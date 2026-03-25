@@ -5,14 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.15.2] - 2026-03-25
+## [1.16.1] - 2026-03-25
+- Forward Responses API `include` params from `ResponsesApiToolManager.get_required_include_params()` via `ResponsesStreamingHandler` (UN-17972); gating lives in `unique_toolkit` — no FF logic in orchestrator
 - Pass `company_id` into `ShowExecutedCodePostprocessor` so fence feature-flag checks match `DisplayCodeInterpreterFilesPostProcessor` (UN-17972)
-- Add unit tests for `_plan_or_execute` forwarding Responses API `include` from `ResponsesApiToolManager`
 - Bump `unique-toolkit` lower-bound to `>=1.64.0`
 
-## [1.15.2] - 2026-03-24
-- Forward Responses API `include` params from `ResponsesApiToolManager.get_required_include_params()` into each loop iteration (UN-17972); gating lives in `unique_toolkit` — no FF logic in orchestrator
-- Bump `unique-toolkit` lower-bound to `>=1.62.3`
+## [1.16.0] - 2026-03-25
+- Persist tool calls and compacted responses to the database after each agentic loop via `_persist_tool_calls()` (UN-15977)
+- Use `history_manager.get_content_chunks_for_backend()` for citation indexing so `searchContext[N]` correctly resolves `[sourceN]` across turns (UN-15977)
+- Remove `percent_for_tool_call_history` from `InputTokenDistributionConfig` and `HistoryManagerConfig` wiring; history truncation now relies solely on `percent_for_history`
+- Bump `unique-toolkit` dependency to `>=1.63.0`
+
+
 ## [1.15.1] - 2026-03-25
 - Fix debug info
 

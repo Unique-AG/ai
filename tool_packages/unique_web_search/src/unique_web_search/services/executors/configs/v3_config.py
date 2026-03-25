@@ -7,6 +7,9 @@ from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 
+from unique_web_search.prompts import (
+    DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3,
+)
 from unique_web_search.services.executors.configs.base import (
     BaseWebSearchModeConfig,
     WebSearchMode,
@@ -56,8 +59,21 @@ class WebSearchV3Config(BaseWebSearchModeConfig[WebSearchMode.V3]):
         ),
     ] = Field(
         default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT["v3"],
-        title="Tool Usage Instructions",
-        description="Advanced: Instructions for the AI on how to plan and execute web research (V3).",
+        title="Tool Description for System Prompt",
+        description="Advanced: Description that helps the AI model decide when to use web search (V3).",
+    )
+    tool_format_information_for_system_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(
+                len(DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3.split("\n"))
+                / 3
+            )
+        ),
+    ] = Field(
+        default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3,
+        title="Tool Format Information For System Prompt",
+        description="Advanced: Instructions that tell the AI how to cite web search sources in its answers (V3 includes domain diversity requirements).",
     )
 
     @field_validator("mode", mode="before")

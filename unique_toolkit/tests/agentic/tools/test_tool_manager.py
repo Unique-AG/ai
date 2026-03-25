@@ -289,6 +289,37 @@ def test_responses_api_tool_manager__initializes__with_builtin_tools(
 
 
 @pytest.mark.ai
+def test_responses_api_tool_manager__get_required_include_params__delegates_to_builtin_manager(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+) -> None:
+    """ResponsesApiToolManager forwards include params from OpenAIBuiltInToolManager."""
+    mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_all_openai_builtin_tools.return_value = []
+    mock_builtin_manager.get_required_include_params.return_value = [
+        "code_interpreter_call.outputs",
+    ]
+    tool_manager = ResponsesApiToolManager(
+        logger=logger,
+        config=tool_manager_config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+        builtin_tool_manager=mock_builtin_manager,
+    )
+    assert tool_manager.get_required_include_params() == [
+        "code_interpreter_call.outputs",
+    ]
+    mock_builtin_manager.get_required_include_params.assert_called_once()
+
+
+@pytest.mark.ai
 def test_tool_manager__filters_disabled_tools__from_config(
     logger,
     base_event,

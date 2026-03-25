@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.64.0] - 2026-03-25
+- Code interpreter (UN-17972): orphan code runs — synthesise a `.txt` artifact and `fileWithSource` fence when code produces no container files, gated on `enable_code_execution_fence_un_17972` (replaces legacy `<details>` for that case)
+- Code interpreter (UN-17972): `OpenAICodeInterpreterTool.get_required_include_params()` returns `["code_interpreter_call.outputs"]` when the fence FF is on; add `OpenAIBuiltInTool.get_required_include_params()`, `OpenAIBuiltInToolManager.get_required_include_params()`, and `ResponsesApiToolManager.get_required_include_params()`; add `_collect_stdout` for `ResponseCodeInterpreterToolCall.outputs` (end-to-end `include` requires orchestrator PR)
+- Code interpreter (UN-17972): when fence FF is on, `ShowExecutedCodePostprocessor` is a no-op; remove `strip_executed_code_blocks` and its use in `DisplayCodeInterpreterFilesPostProcessor`; add optional `company_id` on `ShowExecutedCodePostprocessor` (orchestrator should pass company id alongside generated-files postprocessor)
+- Add unit test for `message.text is None` handling in `DisplayCodeInterpreterFilesPostProcessor.apply_postprocessing_to_response`
+
+## [1.63.2] - 2026-03-25
+- Code interpreter (UN-17972): emit `htmlWithSource` fences for `.html` artifacts when `enable_code_execution_fence_un_17972` is on; HTML uses the same sandbox-link → fence injection path as other files. Legacy `HtmlRendering` block is used only when the fence FF is off and `enable_html_rendering_un_15131` is on.
+- Fence-mode system prompt (`DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): require HTML only as saved files under `/mnt/data/`, not inline in the assistant text; add UI-oriented best practices (HTML5 shell, self-contained CSS/JS, fluid layout, contrast, semantic elements, no parent-frame access).
+- `get_tool_prompts()`: treat stored `tool_description_for_system_prompt` as the unmodified default when it equals either `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT` or `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`, so spaces created across toolkit versions still receive the fence prompt when the FF is on.
+
 ## [1.63.1] - 2026-03-25
 - Broaden internal API URL matching to include hostnames that contain `.svc.` or end with `.svc`
 

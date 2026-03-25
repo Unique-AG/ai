@@ -1,4 +1,5 @@
 from openai import AsyncOpenAI
+from openai.types.responses import ResponseIncludable
 
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.openai_builtin.base import (
@@ -79,3 +80,14 @@ class OpenAIBuiltInToolManager:
 
     def get_all_openai_builtin_tools(self) -> list[OpenAIBuiltInTool]:
         return self._builtin_tools.copy()
+
+    def get_required_include_params(self) -> list[ResponseIncludable]:
+        """Aggregate include params required by all active built-in tools."""
+        seen: set[str] = set()
+        result: list[ResponseIncludable] = []
+        for tool in self._builtin_tools:
+            for param in tool.get_required_include_params():
+                if param not in seen:
+                    seen.add(param)
+                    result.append(param)
+        return result

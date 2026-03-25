@@ -2,7 +2,7 @@ import logging
 from typing import Any, override
 
 from openai import AsyncOpenAI, BaseModel, NotFoundError
-from openai.types.responses import ResponseCodeInterpreterToolCall
+from openai.types.responses import ResponseCodeInterpreterToolCall, ResponseIncludable
 from openai.types.responses.tool_param import CodeInterpreter
 
 from unique_toolkit import ContentService, ShortTermMemoryService
@@ -251,14 +251,19 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         fence_ff_on = feature_flags.enable_code_execution_fence_un_17972.is_enabled(
             self._company_id
         )
-        operator_customised = (
-            self._config.tool_description_for_system_prompt
-            != DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT
-        )
+        # A prompt is considered operator-customised only when it differs from every
+        # known default variant. Comparing against both defaults ensures spaces whose
+        # stored value was written by an earlier deployment (which may have used the
+        # non-fence default) are still treated as uncustomised once the fence FF is on.
+        stored = self._config.tool_description_for_system_prompt
+        operator_customised = stored not in {
+            DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+            DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
+        }
         if fence_ff_on and not operator_customised:
             system_prompt = DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
         else:
-            system_prompt = self._config.tool_description_for_system_prompt
+            system_prompt = stored
 
         return ToolPrompts(
             name="python",  # https://platform.openai.com/docs/guides/tools-code-interpreter
@@ -274,6 +279,14 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
     @override
     def display_name(self) -> str:
         return self.DISPLAY_NAME
+
+    @override
+    def get_required_include_params(self) -> list[ResponseIncludable]:
+        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+            self._company_id
+        ):
+            return ["code_interpreter_call.outputs"]
+        return []
 
     @classmethod
     def get_debug_info(cls, call: ResponseCodeInterpreterToolCall) -> dict[str, Any]:
