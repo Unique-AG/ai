@@ -147,7 +147,7 @@ class TestGetRandomUserAgent:
     def test_uses_chrome_user_agent(self, mock_ua_cls):
         mock_ua_cls.return_value.chrome = "Mozilla/5.0 FakeChrome/1.0"
         ua = get_random_user_agent()
-        assert ua.startswith("Mozilla/5.0 FakeChrome/1.0(")
+        assert ua.startswith("Mozilla/5.0 FakeChrome/1.0 (")
 
 
 class TestBasicCrawlerCrawlUrl:
