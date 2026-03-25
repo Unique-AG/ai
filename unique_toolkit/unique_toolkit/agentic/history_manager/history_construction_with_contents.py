@@ -9,6 +9,7 @@ from itertools import groupby
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from unique_toolkit.content.schemas import ContentChunk
     from unique_toolkit.language_model.builder import MessagesBuilder
 
 import numpy as np
@@ -256,13 +257,30 @@ def get_full_history_with_contents_and_tool_calls(
     content_service: ContentService,
     include_images: ImageContentInclusion = ImageContentInclusion.ALL,
     file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
-) -> LanguageModelMessages:
-    """Build the full LLM message history, including persisted tool call rounds."""
+) -> tuple[LanguageModelMessages, int, dict[int, "ContentChunk"]]:
+    """Build the full LLM message history, including persisted tool call rounds.
+
+    Returns:
+        A triple of (messages, max_source_number, source_map) where
+        *max_source_number* is the highest ``source_number`` found in any
+        persisted tool response (``-1`` when none exist) and *source_map*
+        maps each ``source_number`` to a ``ContentChunk`` reconstructed from
+        the persisted response content.
+    """
+    from unique_toolkit.agentic.history_manager.utils import (
+        build_source_map_from_tool_calls,
+        compute_max_source_number_from_tool_calls,
+    )
+    from unique_toolkit.content.schemas import (
+        ContentChunk as ContentChunk,  # noqa: F811
+    )
+
     chat_history = chat_service.get_full_history()
 
     assistant_message_ids = [
         msg.id for msg in chat_history if msg.role == ChatRole.ASSISTANT and msg.id
     ]
+    all_tool_calls: list[ChatMessageTool] = []
     tool_calls_by_message: dict[str, list[ChatMessageTool]] = {}
     if assistant_message_ids:
         try:
@@ -276,6 +294,10 @@ def get_full_history_with_contents_and_tool_calls(
             _LOGGER.warning(
                 "Failed to batch-load tool calls, falling back to empty", exc_info=True
             )
+    max_source_number = compute_max_source_number_from_tool_calls(all_tool_calls)
+    source_map: dict[int, ContentChunk] = build_source_map_from_tool_calls(
+        all_tool_calls
+    )
 
     grouped_elements = get_chat_history_with_contents(
         user_message=user_message,
@@ -366,7 +388,7 @@ def get_full_history_with_contents_and_tool_calls(
             content_service=content_service,
             chat_id=chat_id,
         )
-    return builder.build()
+    return builder.build(), max_source_number, source_map
 
 
 def get_full_history_as_llm_messages(

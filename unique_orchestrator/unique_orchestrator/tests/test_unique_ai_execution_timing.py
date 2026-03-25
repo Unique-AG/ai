@@ -494,6 +494,7 @@ class TestRunExecutionTimingIntegration:
 
         mock_chat_service = MagicMock()
         mock_chat_service.cancellation = mock_cancellation
+        mock_chat_service.get_debug_info_async = AsyncMock(return_value={})
         mock_chat_service.update_debug_info_async = AsyncMock(return_value=None)
         mock_chat_service.modify_assistant_message_async = AsyncMock(return_value=None)
         mock_chat_service.create_assistant_message_async = AsyncMock(
@@ -516,7 +517,7 @@ class TestRunExecutionTimingIntegration:
         )
 
         mock_debug_info_manager = MagicMock()
-        mock_debug_info_manager.get.return_value = {}
+        mock_debug_info_manager.get.return_value = {"tools": []}
 
         mock_config = MagicMock()
         mock_config.effective_max_loop_iterations = 1
@@ -696,23 +697,23 @@ class TestRunExecutionTimingIntegration:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__debug_info_update_failure__does_not_block_completion(
+    async def test_run__debug_info_update_failure__propagates_exception(
         self, monkeypatch
     ) -> None:
         """
-        Purpose: Verify that a failure in update_debug_info_async does not prevent
-        assistant message completion.
-        Why this matters: Debug info persistence is diagnostic; users should still get a
-        completed message even if debug info write fails.
-        Setup summary: Make update_debug_info_async raise; run one iteration; assert
-        modify_assistant_message_async is still called.
+        Purpose: Verify that a failure in update_debug_info_async propagates to the caller.
+        Why this matters: After refactoring, debug info failures are no longer silently
+        swallowed; callers must handle them.
+        Setup summary: Make update_debug_info_async raise; run; assert RuntimeError
+        propagates and modify_assistant_message_async is never reached.
         """
         ua = self._build_run_ua(monkeypatch)
         ua._chat_service.update_debug_info_async.side_effect = RuntimeError("boom")
 
-        await ua.run()
+        with pytest.raises(RuntimeError, match="boom"):
+            await ua.run()
 
-        ua._chat_service.modify_assistant_message_async.assert_called()
+        ua._chat_service.modify_assistant_message_async.assert_not_called()
 
     @pytest.mark.ai
     @pytest.mark.asyncio

@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add unit tests for `_plan_or_execute` forwarding Responses API `include` from `ResponsesApiToolManager`
 - Bump `unique-toolkit` lower-bound to `>=1.64.0`
 
-## [1.15.1] - 2026-03-24
+## [1.15.2] - 2026-03-24
 - Forward Responses API `include` params from `ResponsesApiToolManager.get_required_include_params()` into each loop iteration (UN-17972); gating lives in `unique_toolkit` — no FF logic in orchestrator
 - Bump `unique-toolkit` lower-bound to `>=1.62.3`
+## [1.15.1] - 2026-03-25
+- Fix debug info
 
 ## [1.15.0] - 2026-03-23
 - Add support for Code Execution in tool analytics (Debug Info)

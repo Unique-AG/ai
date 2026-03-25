@@ -117,6 +117,13 @@ def mock_chat_event() -> ChatEvent:
     event.user_id = "user_123"
     payload = Mock()
     payload.chat_id = "chat_123"
+    payload.assistant_id = "assistant_123"
+    payload.assistant_message = Mock()
+    payload.assistant_message.id = "assistant_message_123"
+    payload.user_message = Mock()
+    payload.user_message.id = "user_message_123"
+    payload.user_message.text = "User question"
+    payload.metadata_filter = None
     payload.correlation = (
         None  # so service uses payload.chat_id, not correlation.parent_chat_id
     )
@@ -132,6 +139,13 @@ def mock_chat_event_with_correlation() -> ChatEvent:
     event.user_id = "user_123"
     payload = Mock()
     payload.chat_id = "child_chat_789"
+    payload.assistant_id = "assistant_123"
+    payload.assistant_message = Mock()
+    payload.assistant_message.id = "assistant_message_123"
+    payload.user_message = Mock()
+    payload.user_message.id = "user_message_123"
+    payload.user_message.text = "User question"
+    payload.metadata_filter = None
     payload.correlation = Mock()
     payload.correlation.parent_chat_id = "parent_chat_456"
     event.payload = payload

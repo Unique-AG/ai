@@ -247,26 +247,19 @@ class UniqueAI:
                 },
             )
 
-            debug_info = self._debug_info_manager.get()
-            tool_names = [tool.get("name") for tool in debug_info.get("tools", [])]
-            contains_deep_research = "DeepResearch" in tool_names
+            tool_names = [
+                tool["name"] for tool in self._debug_info_manager.get()["tools"]
+            ]
 
-            try:
-                if (
-                    self._chat_service.cancellation.is_cancelled
-                    or not self._tool_took_control
-                    or contains_deep_research
-                ):
-                    await self._chat_service.update_debug_info_async(
-                        debug_info=debug_info
-                    )
-            except Exception:
-                self._logger.warning(
-                    "Failed to persist execution timing to debug info", exc_info=True
-                )
+            # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names.
+            if "DeepResearch" not in tool_names:
+                debug_info = {
+                    **await self._chat_service.get_debug_info_async(),
+                    **self._debug_info_manager.get(),
+                }
+                await self._chat_service.update_debug_info_async(debug_info=debug_info)
 
             if not self._chat_service.cancellation.is_cancelled:
-                await self._update_debug_info_if_tool_took_control()
                 await self._chat_service.modify_assistant_message_async(
                     set_completed_at=not self._tool_took_control,
                 )
@@ -645,32 +638,6 @@ class UniqueAI:
                 if k in self._config.agent.prompt_config.user_metadata
             }
         return user_metadata
-
-    async def _update_debug_info_if_tool_took_control(self) -> None:
-        """
-        Update debug info when a tool takes control of the conversation.
-        DeepResearch is excluded as it handles debug info directly since it calls
-        the orchestrator multiple times.
-        """
-        if not self._tool_took_control:
-            return
-
-        tool_names = [tool["name"] for tool in self._debug_info_manager.get()["tools"]]
-        if "DeepResearch" in tool_names:
-            return
-
-        debug_info_event = {
-            "assistant": {
-                "id": self._event.payload.assistant_id,
-                "name": self._event.payload.name,
-            },
-            "chosenModule": self._event.payload.name,
-            "userMetadata": self._event.payload.user_metadata,
-            "toolParameters": self._event.payload.tool_parameters,
-            **self._debug_info_manager.get(),
-        }
-
-        await self._chat_service.update_debug_info_async(debug_info=debug_info_event)
 
 
 @deprecated("Use UniqueAI directly instead")
