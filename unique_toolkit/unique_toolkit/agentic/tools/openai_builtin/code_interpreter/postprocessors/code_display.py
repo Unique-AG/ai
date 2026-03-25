@@ -25,13 +25,6 @@ _TEMPLATE = """
 
 """.lstrip()
 
-# Pattern matching the block emitted by _TEMPLATE (including trailing </br>).
-# Used by remove_from_text to clean history entries.
-_EXECUTED_CODE_BLOCK_RE = re.compile(
-    r"\n*<details><summary>Code Interpreter Call</summary>.*?</details>[ \t]*\n*(?:[ \t]*</br>[ \t]*\n*)?",
-    re.DOTALL,
-)
-
 
 logger = logging.getLogger(__name__)
 
