@@ -1256,3 +1256,117 @@ async def test_get_history_for_model_call__appends_image_urls_to_user_message__w
         image_parts[0].get("imageUrl", {}).get("url")
         == "data:image/png;base64,iVBORw0KGgo="
     )
+
+
+# Feature flag path tests
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
+)
+@patch(
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls"
+)
+@patch.object(LoopTokenReducer, "_count_message_tokens")
+async def test_get_history_from_db__calls_without_tool_calls__when_persistence_disabled_AI(
+    mock_count_tokens: "Mock",
+    mock_with_tool_calls: "Mock",
+    mock_without_tool_calls: "Mock",
+    mock_logger: Logger,
+    test_event: ChatEvent,
+    mock_reference_manager: ReferenceManager,
+    language_model_info: LanguageModelInfo,
+) -> None:
+    """
+    Purpose: Verify get_history_from_db calls get_full_history_with_contents (not the tool-call
+        variant) when enable_tool_call_persistence=False.
+    Why this matters: With the flag off, we must avoid the DB round-trip that loads ToolCall
+        records, keeping the code path identical to before the feature was introduced.
+    Setup summary: LoopTokenReducer constructed with enable_tool_call_persistence=False;
+        assert get_full_history_with_contents is called and get_full_history_with_contents_and_tool_calls
+        is not called.
+    """
+    reducer = LoopTokenReducer(
+        logger=mock_logger,
+        event=test_event,
+        max_history_tokens=4000,
+        has_uploaded_content_config=False,
+        reference_manager=mock_reference_manager,
+        language_model=language_model_info,
+        enable_tool_call_persistence=False,
+    )
+    mock_without_tool_calls.return_value = LanguageModelMessages(
+        root=[LanguageModelUserMessage(content="hello")]
+    )
+    mock_count_tokens.return_value = 100
+
+    async def noop(text: str) -> str:
+        return text
+
+    await reducer.get_history_for_model_call(
+        original_user_message="hello",
+        rendered_user_message_string="hello",
+        rendered_system_message_string="system",
+        loop_history=[],
+        remove_from_text=noop,
+    )
+
+    mock_without_tool_calls.assert_called_once()
+    mock_with_tool_calls.assert_not_called()
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
+)
+@patch(
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls"
+)
+@patch.object(LoopTokenReducer, "_count_message_tokens")
+async def test_get_history_from_db__calls_with_tool_calls__when_persistence_enabled_AI(
+    mock_count_tokens: "Mock",
+    mock_with_tool_calls: "Mock",
+    mock_without_tool_calls: "Mock",
+    mock_logger: Logger,
+    test_event: ChatEvent,
+    mock_reference_manager: ReferenceManager,
+    language_model_info: LanguageModelInfo,
+) -> None:
+    """
+    Purpose: Verify get_history_from_db calls get_full_history_with_contents_and_tool_calls
+        when enable_tool_call_persistence=True.
+    Why this matters: With the flag on, prior-turn tool call records must be loaded from the
+        DB so that source numbering can continue from where the last turn left off.
+    Setup summary: LoopTokenReducer constructed with enable_tool_call_persistence=True;
+        assert get_full_history_with_contents_and_tool_calls is called and
+        get_full_history_with_contents is not called.
+    """
+    reducer = LoopTokenReducer(
+        logger=mock_logger,
+        event=test_event,
+        max_history_tokens=4000,
+        has_uploaded_content_config=False,
+        reference_manager=mock_reference_manager,
+        language_model=language_model_info,
+        enable_tool_call_persistence=True,
+    )
+    mock_with_tool_calls.return_value = (
+        LanguageModelMessages(root=[LanguageModelUserMessage(content="hello")]),
+        5,
+        {},
+    )
+    mock_count_tokens.return_value = 100
+
+    async def noop(text: str) -> str:
+        return text
+
+    await reducer.get_history_for_model_call(
+        original_user_message="hello",
+        rendered_user_message_string="hello",
+        rendered_system_message_string="system",
+        loop_history=[],
+        remove_from_text=noop,
+    )
+
+    mock_with_tool_calls.assert_called_once()
+    mock_without_tool_calls.assert_not_called()
+    assert reducer.max_db_source_number == 5
