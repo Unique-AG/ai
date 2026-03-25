@@ -179,8 +179,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
             )
 
             exp = self.config.experimental_features
+            rem = exp.tool_response_system_reminder
             system_reminder = (
-                exp.system_reminder_prompt.strip() if exp.enable_system_reminder else ""
+                rem.system_reminder_prompt.strip() if rem.enable_system_reminder else ""
             )
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore

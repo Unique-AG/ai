@@ -620,10 +620,9 @@ class TestWebSearchToolRun:
         mock_web_search_config_v1.tool_format_information_for_system_prompt = (
             blank_format
         )
-        mock_web_search_config_v1.experimental_features.enable_system_reminder = True
-        mock_web_search_config_v1.experimental_features.system_reminder_prompt = (
-            blank_format
-        )
+        rem = mock_web_search_config_v1.experimental_features.tool_response_system_reminder
+        rem.enable_system_reminder = True
+        rem.system_reminder_prompt = blank_format
 
         mock_executor = AsyncMock()
         mock_executor.run = AsyncMock(return_value=sample_content_chunks)
@@ -690,8 +689,12 @@ class TestWebSearchToolRun:
         Purpose: Verify run sets system_reminder from experimental features when enabled (V3).
         Why this matters: Tool response reminder is independent of system-prompt citation instructions.
         """
-        mock_web_search_config_v3.experimental_features.enable_system_reminder = True
-        mock_web_search_config_v3.experimental_features.system_reminder_prompt = "Test format info\n\n## Domain Diversity Requirement\n\nWhen the current WebSearch tool response"
+        rem = mock_web_search_config_v3.experimental_features.tool_response_system_reminder
+        rem.enable_system_reminder = True
+        rem.system_reminder_prompt = (
+            "Test format info\n\n## Domain Diversity Requirement\n\n"
+            "When the current WebSearch tool response"
+        )
         mock_executor = AsyncMock()
         mock_executor.run = AsyncMock(return_value=sample_content_chunks)
         mock_executor.notify_name = "test-name"

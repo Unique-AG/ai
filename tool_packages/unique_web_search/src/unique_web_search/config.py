@@ -60,6 +60,28 @@ DefaultCrawler = get_default_crawler_config(env_settings.active_crawlers)
 DEFAULT_WEB_SEARCH_MODE_CONFIG = get_default_web_search_mode_config()
 
 
+class ToolResponseSystemReminderConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    enable_system_reminder: bool = Field(
+        default=False,
+        title="Enable Tool Response Reminder",
+        description="When enabled, attach reminder text to each successful WebSearch tool response (independent of system-prompt citation instructions).",
+    )
+    system_reminder_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(
+                len(DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT.split("\n")) / 3
+            )
+        ),
+    ] = Field(
+        default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
+        title="Tool Response System Reminder Prompt",
+        description="Text sent as system_reminder on WebSearch tool responses when the reminder is enabled.",
+    )
+
+
 class AnswerGenerationConfig(BaseModel):
     model_config = get_configuration_dict()
 
@@ -83,22 +105,10 @@ class ExperimentalFeatures(FeatureExtendedSourceSerialization):
         title="Query Review",
         description="Allow users to review and modify search queries before execution.",
     )
-    enable_system_reminder: bool = Field(
-        default=False,
-        title="Enable Tool Response Reminder",
-        description="When enabled, attach reminder text to each successful WebSearch tool response (independent of system-prompt citation instructions).",
-    )
-    system_reminder_prompt: Annotated[
-        str,
-        RJSFMetaTag.StringWidget.textarea(
-            rows=int(
-                len(DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT.split("\n")) / 3
-            )
-        ),
-    ] = Field(
-        default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
-        title="Tool Response Reminder Text",
-        description="Text sent as system_reminder on WebSearch tool responses when the reminder is enabled.",
+    tool_response_system_reminder: ToolResponseSystemReminderConfig = Field(
+        default_factory=ToolResponseSystemReminderConfig,
+        title="Tool Response System Reminder",
+        description="Optional reminder text attached to each successful WebSearch tool response.",
     )
 
 

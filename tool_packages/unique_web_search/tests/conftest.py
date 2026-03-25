@@ -68,8 +68,10 @@ def _mock_experimental_features(
     system_reminder_prompt: str = "",
 ) -> Mock:
     exp = Mock()
-    exp.enable_system_reminder = enable_system_reminder
-    exp.system_reminder_prompt = system_reminder_prompt
+    rem = Mock()
+    rem.enable_system_reminder = enable_system_reminder
+    rem.system_reminder_prompt = system_reminder_prompt
+    exp.tool_response_system_reminder = rem
     return exp
 
 
