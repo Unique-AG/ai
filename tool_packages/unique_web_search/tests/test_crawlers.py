@@ -1,8 +1,19 @@
+from unittest.mock import AsyncMock, patch
+
+import httpx
 import pytest
 
 from unique_web_search.services.crawlers import get_crawler_service
 from unique_web_search.services.crawlers.base import CrawlerType
 from unique_web_search.services.crawlers.basic import BasicCrawler, BasicCrawlerConfig
+from unique_web_search.services.crawlers.utils import (
+    EMAIL_DOMAINS,
+    FIRST_NAMES,
+    LAST_NAMES,
+    SEPARATORS,
+    generate_random_email,
+    get_random_user_agent,
+)
 
 
 class TestCrawlerFactory:
@@ -89,6 +100,94 @@ class TestCrawlerTypes:
         assert "BasicCrawler" in CrawlerType
         assert "Crawl4AiCrawler" in CrawlerType
         assert "invalid_crawler" not in CrawlerType
+
+
+class TestGenerateRandomEmail:
+    def test_returns_valid_email_format(self):
+        email = generate_random_email()
+        local, _, domain = email.rpartition("@")
+        assert _ == "@"
+        assert len(local) > 0
+        assert domain in EMAIL_DOMAINS
+
+    def test_local_part_uses_known_names(self):
+        for _ in range(50):
+            email = generate_random_email()
+            local = email.split("@")[0]
+            stripped = local.rstrip("0123456789")
+            has_first = any(stripped.startswith(name) for name in FIRST_NAMES)
+            has_last = any(stripped.endswith(name) for name in LAST_NAMES)
+            assert has_first
+            assert has_last
+
+    def test_separator_is_from_allowed_set(self):
+        for _ in range(50):
+            email = generate_random_email()
+            local = email.split("@")[0]
+            stripped = local.rstrip("0123456789")
+            for sep in SEPARATORS:
+                if sep == "":
+                    continue
+                if sep in stripped:
+                    parts = stripped.split(sep)
+                    assert parts[0] in FIRST_NAMES
+                    assert parts[1] in LAST_NAMES
+                    break
+
+
+class TestGetRandomUserAgent:
+    def test_returns_string_with_email_suffix(self):
+        ua = get_random_user_agent()
+        assert isinstance(ua, str)
+        assert ua.endswith(")")
+        assert "(" in ua
+        assert "@" in ua
+
+    @patch("unique_web_search.services.crawlers.utils.UserAgent")
+    def test_uses_chrome_user_agent(self, mock_ua_cls):
+        mock_ua_cls.return_value.chrome = "Mozilla/5.0 FakeChrome/1.0"
+        ua = get_random_user_agent()
+        assert ua.startswith("Mozilla/5.0 FakeChrome/1.0(")
+
+
+class TestBasicCrawlerCrawlUrl:
+    @pytest.fixture
+    def basic_crawler(self):
+        config = BasicCrawlerConfig(crawler_type=CrawlerType.BASIC)
+        return BasicCrawler(config)
+
+    @pytest.mark.asyncio
+    async def test_crawl_url_returns_markdown(self, basic_crawler):
+        html = "<html><body><h1>Hello</h1><p>World</p></body></html>"
+        response = httpx.Response(
+            200,
+            text=html,
+            headers={"content-type": "text/html; charset=utf-8"},
+            request=httpx.Request("GET", "https://example.com"),
+        )
+        client = AsyncMock(spec=httpx.AsyncClient)
+        client.get.return_value = response
+
+        result = await basic_crawler._crawl_url_with_client(
+            client, "https://example.com"
+        )
+
+        client.get.assert_called_once()
+        call_headers = client.get.call_args[1].get(
+            "headers", client.get.call_args[0][1] if len(client.get.call_args[0]) > 1 else None
+        )
+        assert "User-Agent" in call_headers
+        assert "@" in call_headers["User-Agent"]
+        assert "Hello" in result
+
+    @pytest.mark.asyncio
+    async def test_crawl_url_blacklisted(self, basic_crawler):
+        client = AsyncMock(spec=httpx.AsyncClient)
+        result = await basic_crawler._crawl_url_with_client(
+            client, "https://example.com/file.pdf"
+        )
+        assert "blacklisted" in result
+        client.get.assert_not_called()
 
 
 if __name__ == "__main__":
