@@ -38,8 +38,7 @@ runs:
 
     - name: Restore lock file before checkout
       shell: bash
-      run: |
-        git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
+      run: git restore uv.lock 2>/dev/null || true
     - name: Checkout base branch
       shell: bash
       run: git checkout "origin/${{ inputs.branch }}" --quiet
@@ -54,8 +53,8 @@ runs:
     - name: Discard lock file changes
       shell: bash
       run: |
-        git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
-        git clean -f -- "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
+        git restore uv.lock 2>/dev/null || true
+        git clean -f -- uv.lock 2>/dev/null || true
 
     - name: Create baseline
       shell: bash
