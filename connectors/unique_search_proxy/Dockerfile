@@ -18,13 +18,14 @@ RUN useradd -m appuser && \
 
 # Copy only requirements to cache them in docker layer
 WORKDIR /app
-COPY requirements.txt pyproject.toml ./
-
-# Project initialization (install dependencies)
-RUN uv pip install -r requirements.txt
 
 ENV VIRTUAL_ENV=/app/.venv \
     PATH="/app/.venv/bin:$PATH"
+
+COPY requirements.txt pyproject.toml ./
+
+# Project initialization (install dependencies)
+RUN uv venv && uv pip install -r requirements.txt
 
 # Copy application code
 COPY web/ ./
