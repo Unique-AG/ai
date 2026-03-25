@@ -31,7 +31,7 @@ build-backend = "uv_build"
 
 [tool.uv]
 exclude-newer = "2 weeks"
-exclude-newer-package = {
-    "unique-sdk" = false,
-    "unique-toolkit" = false,
-}
+
+[tool.uv.exclude-newer-package]
+"unique-sdk" = false
+"unique-toolkit" = false

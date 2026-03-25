@@ -27,11 +27,11 @@ module-root = ""
 
 [tool.uv]
 exclude-newer = "2 weeks"
-exclude-newer-package = {
-    "unique-quartr" = false,
-    "unique-toolkit" = false,
-}
 constraint-dependencies = ["lxml>=5.0.0"]
+
+[tool.uv.exclude-newer-package]
+"unique-quartr" = false
+"unique-toolkit" = false
 
 [dependency-groups]
 dev = [

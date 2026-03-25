@@ -52,11 +52,11 @@ dev = [
 
 [tool.uv]
 exclude-newer = "2 weeks"
-exclude-newer-package = {
-    "unique-sdk" = false,
-    "unique-toolkit" = false,
-    "unique-web-search" = false,
-}
+
+[tool.uv.exclude-newer-package]
+"unique-sdk" = false
+"unique-toolkit" = false
+"unique-web-search" = false
 
 [tool.uv.sources]
 unique-sdk = { path = "../../unique_sdk", editable = true }
