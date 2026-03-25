@@ -21,9 +21,6 @@ from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memo
     PersistentShortMemoryManager,
 )
 from unique_toolkit.agentic.tools.config import get_configuration_dict
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
-    strip_executed_code_blocks,
-)
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import (
     CodeInterpreterBlock,
     CodeInterpreterFile,
@@ -256,9 +253,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
             if self._orphan_code_blocks:
                 fence_id = _get_next_fence_id(loop_response.message.text)
                 orphan_fences = _build_orphan_fences(self._orphan_code_blocks, fence_id)
-                loop_response.message.text = strip_executed_code_blocks(
-                    loop_response.message.text
-                )
                 loop_response.message.text = (
                     loop_response.message.text.rstrip() + "\n\n" + orphan_fences
                 )
@@ -596,8 +590,6 @@ def _inject_code_execution_fences(
 
     Each file gets its own fence placed at the position of its inline ref. Duplicate
     refs for the same file (overwrite case) are removed after the first is replaced.
-    When at least one fence was injected, executed-code <details> blocks are
-    stripped via strip_executed_code_blocks() from the code_display postprocessor.
 
     fence_id is a message-level counter so each fence has a unique id.
     """
@@ -623,7 +615,6 @@ def _inject_code_execution_fences(
             # Remove duplicate refs (overwrite case)
             text = re.sub(pattern, "", text)
     if any_fence_injected:
-        text = strip_executed_code_blocks(text)
         text = _ensure_fences_are_standalone(text)
         text = _CONSECUTIVE_FENCES_RE.sub(r"\1\n", text)
     return text

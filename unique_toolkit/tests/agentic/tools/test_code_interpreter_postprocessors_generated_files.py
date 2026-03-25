@@ -907,68 +907,6 @@ def test_inject_code_execution_fences__two_blocks__produce_two_fences() -> None:
 
 
 @pytest.mark.ai
-def test_inject_code_execution_fences__strips_details_block__when_present() -> None:
-    """
-    Purpose: Verify <details><summary>Code Interpreter Call</summary>...</details>
-    blocks are removed after fence injection.
-    Why this matters: ShowExecutedCodePostprocessor output is superseded by codeExecution fences.
-    Setup summary: Text has a <details> block followed by an image ref; assert <details> stripped.
-    """
-    block = CodeInterpreterBlock(
-        code='plt.savefig("/mnt/data/chart.png")',
-        files=[
-            CodeInterpreterFile(
-                filename="chart.png", content_id="cont_img1", type="image"
-            )
-        ],
-    )
-    text = (
-        "<details><summary>Code Interpreter Call</summary>\n"
-        "```python\nplt.savefig('/mnt/data/chart.png')\n```\n"
-        "</details>\n"
-        "![image](unique://content/cont_img1)"
-    )
-
-    result = _inject_code_execution_fences(text, [block])
-
-    assert "````imgWithSource(" in result
-    assert "<details>" not in result
-
-
-@pytest.mark.ai
-def test_inject_code_execution_fences__strips_trailing_br__after_details_block() -> (
-    None
-):
-    """
-    Purpose: Verify the stray </br> separator left after <details> stripping is also removed.
-    Why this matters: ShowExecutedCodePostprocessor emits <details>...</details>    \n</br>\n
-    — after stripping <details> the </br> must not be left dangling at the top of the message.
-    """
-    block = CodeInterpreterBlock(
-        code='plt.savefig("/mnt/data/chart.png")',
-        files=[
-            CodeInterpreterFile(
-                filename="chart.png", content_id="cont_img1", type="image"
-            )
-        ],
-    )
-    text = (
-        "<details><summary>Code Interpreter Call</summary>\n"
-        "```python\nplt.savefig('/mnt/data/chart.png')\n```\n"
-        "</details>    \n</br>\n\n"
-        "Here is the chart.\n\n"
-        "![image](unique://content/cont_img1)"
-    )
-
-    result = _inject_code_execution_fences(text, [block])
-
-    assert "</br>" not in result
-    assert "<details>" not in result
-    assert "Here is the chart." in result
-    assert "````imgWithSource(" in result
-
-
-@pytest.mark.ai
 def test_inject_code_execution_fences__no_op__when_code_blocks_empty() -> None:
     """
     Purpose: Verify text is unchanged when code_blocks is empty (Case 5 — no files).
