@@ -174,7 +174,8 @@ class TestBasicCrawlerCrawlUrl:
 
         client.get.assert_called_once()
         call_headers = client.get.call_args[1].get(
-            "headers", client.get.call_args[0][1] if len(client.get.call_args[0]) > 1 else None
+            "headers",
+            client.get.call_args[0][1] if len(client.get.call_args[0]) > 1 else None,
         )
         assert "User-Agent" in call_headers
         assert "@" in call_headers["User-Agent"]
