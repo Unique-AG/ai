@@ -247,7 +247,9 @@ class UniqueAI:
                 },
             )
 
-            tool_names = [tool["name"] for tool in self._debug_info_manager.get()["tools"]]
+            tool_names = [
+                tool["name"] for tool in self._debug_info_manager.get()["tools"]
+            ]
 
             # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names.
             if "DeepResearch" not in tool_names:
