@@ -225,10 +225,7 @@ class TestExperimentalFeatures:
             config.tool_response_system_reminder.system_reminder_prompt
             == DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT
         )
-        assert (
-            config.tool_response_system_reminder.get_reminder_prompt
-            == ""
-        )
+        assert config.tool_response_system_reminder.get_reminder_prompt == ""
 
 
 class TestWebSearchV3Config:
