@@ -40,7 +40,6 @@ EXAMPLES:
 
     # Specify package directory and output file
     ${SCRIPT_NAME} unique_sdk /tmp/my-results.json
-
 EXAMPLES:
     # Basic usage
     ${SCRIPT_NAME} unique_toolkit

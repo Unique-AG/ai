@@ -32,10 +32,6 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      working-directory: ${{ inputs.package_dir }}
-      env:
-        UV_NO_SOURCES: 1
       run: |
-        uv lock
-        uv sync
+        uv sync --locked
 
