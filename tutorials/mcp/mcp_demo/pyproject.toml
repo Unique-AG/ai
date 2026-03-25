@@ -7,12 +7,12 @@ authors = [{ name = "Cedric Klinkert", email = "cedric@unique.ch" }]
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.120.2",
-    "fastmcp>=2.13.0.2",
+    "fastmcp>=3.1.1,<4",
     "pydantic>=2.12.3",
 ]
 
 [project.scripts]
-unique-mcp = "mcp_demo:main"
+mcp-demo = "mcp_demo.mcp_demo_server:main"
 
 [build-system]
 requires = ["uv_build>=0.8.14,<0.9.0"]
