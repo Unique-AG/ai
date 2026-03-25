@@ -632,8 +632,17 @@ def test_unique_api__base_path__returns_default_path__for_standard_hostname() ->
         ("gateway.unique.com", "/public/chat-gen2"),
         ("localhost", "/public"),
         ("svc.cluster.local", "/public"),
+        ("my-service.default.svc.cluster", "/public"),
+        ("my-service.default.svc", "/public"),
     ],
-    ids=["qa-gateway", "prod-gateway", "localhost", "cluster-local"],
+    ids=[
+        "qa-gateway",
+        "prod-gateway",
+        "localhost",
+        "cluster-local",
+        "svc-dot-in-hostname",
+        "hostname-ends-with-svc",
+    ],
 )
 def test_unique_api__base_path__returns_special_path__for_special_hostnames(
     hostname: str, expected_path: str
