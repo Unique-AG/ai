@@ -63,7 +63,7 @@ DEFAULT_WEB_SEARCH_MODE_CONFIG = get_default_web_search_mode_config()
 class ToolResponseSystemReminderConfig(BaseModel):
     model_config = get_configuration_dict()
 
-    enable_system_reminder: bool = Field(
+    enabled: bool = Field(
         default=False,
         title="Enable Tool Response Reminder",
         description="When enabled, attach reminder text to each successful WebSearch tool response (independent of system-prompt citation instructions).",
@@ -80,6 +80,13 @@ class ToolResponseSystemReminderConfig(BaseModel):
         title="Tool Response System Reminder Prompt",
         description="Text sent as system_reminder on WebSearch tool responses when the reminder is enabled.",
     )
+
+    @property
+    def get_reminder_prompt(self):
+        if not self.enabled:
+            return ""
+
+        return self.system_reminder_prompt
 
 
 class AnswerGenerationConfig(BaseModel):

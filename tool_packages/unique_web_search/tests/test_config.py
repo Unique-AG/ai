@@ -220,10 +220,14 @@ class TestExperimentalFeatures:
         config = ExperimentalFeatures()
 
         assert isinstance(config, ExperimentalFeatures)
-        assert config.tool_response_system_reminder.enable_system_reminder is False
+        assert config.tool_response_system_reminder.enabled is False
         assert (
             config.tool_response_system_reminder.system_reminder_prompt
             == DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT
+        )
+        assert (
+            config.tool_response_system_reminder.get_reminder_prompt
+            == ""
         )
 
 

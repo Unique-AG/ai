@@ -178,17 +178,12 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 state=ProgressState.FINISHED,
             )
 
-            exp = self.config.experimental_features
-            rem = exp.tool_response_system_reminder
-            system_reminder = (
-                rem.system_reminder_prompt.strip() if rem.enable_system_reminder else ""
-            )
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
                 debug_info=debug_info.model_dump(with_debug_details=self.debug),
                 content_chunks=content_chunks,
-                system_reminder=system_reminder,
+                system_reminder=self.config.experimental_features.tool_response_system_reminder.get_reminder_prompt,
             )
         except Exception as e:
             _LOGGER.exception(f"Error executing WebSearch tool: {e}")
