@@ -59,8 +59,8 @@ class WebSearchV3Config(BaseWebSearchModeConfig[WebSearchMode.V3]):
         ),
     ] = Field(
         default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT["v3"],
-        title="Tool Usage Instructions",
-        description="Advanced: Instructions for the AI on how to plan and execute web research (V3).",
+        title="Tool Description for System Prompt",
+        description="Advanced: Description that helps the AI model decide when to use web search (V3).",
     )
     tool_format_information_for_system_prompt: Annotated[
         str,
@@ -72,7 +72,7 @@ class WebSearchV3Config(BaseWebSearchModeConfig[WebSearchMode.V3]):
         ),
     ] = Field(
         default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3,
-        title="Source Citation Instructions",
+        title="Tool Format Information for System Prompt",
         description="Advanced: Instructions that tell the AI how to cite web search sources in its answers (V3 includes domain diversity requirements).",
     )
 
