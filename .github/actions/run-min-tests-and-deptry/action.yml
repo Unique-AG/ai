@@ -31,6 +31,7 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
+        UV_NO_WORKSPACE: 1
       run: |
         uv venv --clear
         EXTRAS="${{ inputs.extras }}"

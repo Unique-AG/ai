@@ -38,9 +38,18 @@ dependencies = [
 dev = [
     { name = "basedpyright" },
     { name = "deptry" },
+    { name = "langchain" },
+    { name = "poethepoet" },
+    { name = "pyright" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+    { name = "ruff" },
+]
+docs = [
     { name = "entangled-cli", version = "2.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
     { name = "entangled-cli", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
-    { name = "langchain" },
     { name = "mike" },
     { name = "mkdocs" },
     { name = "mkdocs-callouts" },
@@ -51,13 +60,6 @@ dev = [
     { name = "mkdocs-material" },
     { name = "mkdocs-monorepo-plugin" },
     { name = "mkdocstrings-python" },
-    { name = "poethepoet" },
-    { name = "pyright" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "pytest-mock" },
-    { name = "ruff" },
 ]
 
 [package.metadata]
@@ -70,8 +72,17 @@ requires-dist = [
 dev = [
     { name = "basedpyright", specifier = ">=1.35.0,<2" },
     { name = "deptry", specifier = ">=0.24.0,<0.25" },
-    { name = "entangled-cli", specifier = ">=2.1.13" },
     { name = "langchain", specifier = ">=1.1.0" },
+    { name = "poethepoet", specifier = ">=0.32.0,<0.33" },
+    { name = "pyright", specifier = ">=1.1.405" },
+    { name = "pytest", specifier = ">=8.4.1,<9" },
+    { name = "pytest-asyncio", specifier = ">=0.25.0" },
+    { name = "pytest-cov", specifier = ">=7.0.0,<8" },
+    { name = "pytest-mock", specifier = ">=3.14.0,<4" },
+    { name = "ruff", specifier = ">=0.14.2" },
+]
+docs = [
+    { name = "entangled-cli", specifier = ">=2.1.13" },
     { name = "mike", specifier = ">=2.1.3" },
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-callouts", specifier = ">=1.16.0" },
@@ -82,13 +93,6 @@ dev = [
     { name = "mkdocs-material", specifier = ">=9.6.11" },
     { name = "mkdocs-monorepo-plugin", specifier = ">=1.1.2" },
     { name = "mkdocstrings-python", specifier = ">=1.16.10" },
-    { name = "poethepoet", specifier = ">=0.32.0,<0.33" },
-    { name = "pyright", specifier = ">=1.1.405" },
-    { name = "pytest", specifier = ">=8.4.1,<9" },
-    { name = "pytest-asyncio", specifier = ">=0.25.0" },
-    { name = "pytest-cov", specifier = ">=7.0.0,<8" },
-    { name = "pytest-mock", specifier = ">=3.14.0,<4" },
-    { name = "ruff", specifier = ">=0.14.2" },
 ]
 
 [[package]]
@@ -5654,6 +5658,7 @@ dependencies = [
     { name = "httpx" },
     { name = "jambo" },
     { name = "jinja2" },
+    { name = "lxml" },
     { name = "markdown-it-py" },
     { name = "numpy" },
     { name = "openai" },
@@ -5690,8 +5695,6 @@ langchain = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "entangled-cli", version = "2.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "entangled-cli", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
     { name = "isort" },
     { name = "pre-commit" },
     { name = "pyright" },
@@ -5711,6 +5714,7 @@ requires-dist = [
     { name = "langchain", marker = "extra == 'langchain'", specifier = ">=1.0.0,<2" },
     { name = "langchain-core", marker = "extra == 'langchain'", specifier = ">=1.0.0,<2" },
     { name = "langchain-openai", marker = "extra == 'langchain'", specifier = ">=0.3.28" },
+    { name = "lxml", specifier = ">=5.0.0" },
     { name = "markdown-it-py", specifier = ">=4.0.0,<5" },
     { name = "numpy", specifier = ">=2.4.2,<3" },
     { name = "openai", specifier = ">=1.105.0,<2" },
@@ -5738,7 +5742,6 @@ provides-extras = ["langchain", "fastapi"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "entangled-cli", specifier = ">=2.4.0,<3" },
     { name = "isort", specifier = ">=6.0.1,<7" },
     { name = "pre-commit", specifier = ">=3.7.1,<4" },
     { name = "pyright", specifier = ">=1.1.341,<2" },

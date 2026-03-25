@@ -18,10 +18,10 @@ RUN useradd -m appuser && \
 
 # Copy only requirements to cache them in docker layer
 WORKDIR /app
-COPY uv.lock pyproject.toml ./
+COPY requirements.txt pyproject.toml ./
 
 # Project initialization (install dependencies)
-RUN uv sync --locked --no-dev --no-install-project
+RUN uv pip install -r requirements.txt
 
 ENV VIRTUAL_ENV=/app/.venv \
     PATH="/app/.venv/bin:$PATH"
