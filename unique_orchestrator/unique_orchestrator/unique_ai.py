@@ -265,7 +265,6 @@ class UniqueAI:
 
             if not self._chat_service.cancellation.is_cancelled:
                 await self._persist_tool_calls()
-                await self._update_debug_info_if_tool_took_control()
                 await self._chat_service.modify_assistant_message_async(
                     set_completed_at=not self._tool_took_control,
                 )
