@@ -57,7 +57,7 @@ EOF
 # Initialize variables with defaults
 PACKAGE_DIR=""
 OUTPUT_FILE="/tmp/deptry.json"
-RUNNER="uvx"
+RUNNER="uv run"
 
 # Convert long options to short options for getopts
 ARGS=()
