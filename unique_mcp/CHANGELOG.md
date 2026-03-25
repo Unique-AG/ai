@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2026-03-24
 - Add `UniqueContextProvider`: per-request auth from FastMCP token (`_meta` > JWT claims > Zitadel userinfo)
-- Add `create_mcp_server()` factory returning `MCPServerBundle` (FastMCP + Zitadel OAuth + context provider)
+- Add `create_unique_mcp_server()` factory returning `UniqueMCPServerBundle` (FastMCP + Zitadel OAuth + context provider)
 - Add `BaseProvider` protocol for registering tools and routes with a FastMCP server
 - Fix `userinfo_endpoint` used as property instead of method call in `mcp_search`
 

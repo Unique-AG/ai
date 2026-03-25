@@ -10,7 +10,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
 from mcp_sql_demo.db_tool_pm.service import PMPositionsTool
-from unique_mcp.server import create_mcp_server
+from unique_mcp.server import create_unique_mcp_server
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.app.schemas import (
     ChatEvent,
@@ -53,7 +53,7 @@ _METADATA_TOOL = ToolFactory.build_tool("PM_Positions", {}, _PLACEHOLDER_EVENT)
 
 
 def main() -> None:
-    bundle = create_mcp_server("Demo 🚀")
+    bundle = create_unique_mcp_server("Demo 🚀")
     context_provider = bundle.context_provider
 
     custom_middleware = [

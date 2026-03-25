@@ -3,12 +3,12 @@ from starlette.middleware.cors import CORSMiddleware
 
 from mcp_search.routes import MCPBaseRoutes
 from mcp_search.tools import UniqueKnowledgeBaseTools
-from unique_mcp.server import create_mcp_server
+from unique_mcp.server import create_unique_mcp_server
 
 
 def main() -> None:
     """Main entry point for the MCP Search server."""
-    bundle = create_mcp_server("Knowledge Base Search 🚀")
+    bundle = create_unique_mcp_server("Knowledge Base Search 🚀")
 
     custom_middleware = [
         Middleware(

@@ -17,8 +17,8 @@ from unique_mcp.settings import ServerSettings
 
 
 @dataclass
-class MCPServerBundle:
-    """Typed result of :func:`create_mcp_server`.
+class UniqueMCPServerBundle:
+    """Typed result of :func:`create_unique_mcp_server`.
     Dataclass for type safety, no need for serialization and validation.
     """
 
@@ -27,14 +27,14 @@ class MCPServerBundle:
     server_settings: ServerSettings
 
 
-def create_mcp_server(
+def create_unique_mcp_server(
     name: str,
     *,
     settings: UniqueSettings | None = None,
     server_settings: ServerSettings | None = None,
     zitadel_settings: ZitadelOAuthProxySettings | None = None,
     **fastmcp_kwargs: Any,
-) -> MCPServerBundle:
+) -> UniqueMCPServerBundle:
     """Create a FastMCP server wired with Zitadel OAuth and a context provider.
 
     Args:
@@ -45,7 +45,7 @@ def create_mcp_server(
         **fastmcp_kwargs: Extra kwargs forwarded to :class:`FastMCP`.
 
     Returns:
-        MCPServerBundle with *mcp*, *context_provider*, and *server_settings*.
+        UniqueMCPServerBundle with *mcp*, *context_provider*, and *server_settings*.
     """
     settings = settings or UniqueSettings.from_env_auto_with_sdk_init()
     server_settings = server_settings or ServerSettings()  # type: ignore[assignment]
@@ -63,7 +63,7 @@ def create_mcp_server(
 
     mcp = FastMCP(name, auth=oauth_proxy, **fastmcp_kwargs)
 
-    return MCPServerBundle(
+    return UniqueMCPServerBundle(
         mcp=mcp,
         context_provider=context_provider,
         server_settings=server_settings,

@@ -2455,7 +2455,7 @@ wheels = [
 
 [[package]]
 name = "unique-mcp"
-version = "0.1.4"
+version = "0.2.0"
 source = { editable = "../../../unique_mcp" }
 dependencies = [
     { name = "fastmcp" },
@@ -2510,7 +2510,7 @@ wheels = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.62.2"
+version = "1.62.4"
 source = { editable = "../../../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
