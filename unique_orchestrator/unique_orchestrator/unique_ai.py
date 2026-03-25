@@ -247,13 +247,16 @@ class UniqueAI:
                 },
             )
 
-            # Get current debug info from chat service and add debug info from run
-            debug_info = {
-                **await self._chat_service.get_debug_info_async(),
-                **self._debug_info_manager.get(),
-            }
+            tool_names = [tool["name"] for tool in self._debug_info_manager.get()["tools"]]
 
-            await self._chat_service.update_debug_info_async(debug_info=debug_info)
+            # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names.
+            if "DeepResearch" not in tool_names
+                debug_info = {
+                    **await self._chat_service.get_debug_info_async(),
+                    **self._debug_info_manager.get(),
+                }
+                await self._chat_service.update_debug_info_async(debug_info=debug_info)
+
             if not self._chat_service.cancellation.is_cancelled:
                 await self._chat_service.modify_assistant_message_async(
                     set_completed_at=not self._tool_took_control,
