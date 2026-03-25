@@ -173,9 +173,9 @@ class TestPersistToolCalls:
         ):
             await ua._persist_tool_calls()
 
-        ua._logger.error.assert_called_once()
-        error_msg = str(ua._logger.error.call_args)
-        assert "DB unavailable" in error_msg
+        ua._logger.error.assert_called_once_with(
+            "Failed to persist tool calls", exc_info=True
+        )
 
     @pytest.mark.asyncio
     @pytest.mark.ai

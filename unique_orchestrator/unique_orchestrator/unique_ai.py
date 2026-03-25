@@ -515,8 +515,8 @@ class UniqueAI:
                 tool_calls=records,
             )
             self._logger.info(f"Persisted {len(records)} tool call records")
-        except Exception as e:
-            self._logger.error(f"Failed to persist tool calls: {e}")
+        except Exception:
+            self._logger.error("Failed to persist tool calls", exc_info=True)
 
     def _log_tool_calls(self, tool_calls: list) -> None:
         # Create dictionary mapping tool names to display names for efficient lookup
