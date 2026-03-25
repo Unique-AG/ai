@@ -249,8 +249,8 @@ class UniqueAI:
 
             tool_names = [tool["name"] for tool in self._debug_info_manager.get()["tools"]]
 
-            # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names.
-            if "DeepResearch" not in tool_names
+            # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names or if the tool took control.
+            if "DeepResearch" not in tool_names and not self._tool_took_control
                 debug_info = {
                     **await self._chat_service.get_debug_info_async(),
                     **self._debug_info_manager.get(),
