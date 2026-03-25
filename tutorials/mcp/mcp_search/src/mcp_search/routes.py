@@ -8,9 +8,6 @@ from unique_mcp.provider import BaseProvider
 
 
 class MCPBaseRoutes(BaseProvider):
-    def __init__(self) -> None:
-        super().__init__()
-
     def register(self, *, mcp: FastMCP) -> None:
         @mcp.custom_route("/", methods=["GET"])
         async def get_status(request: Request) -> JSONResponse:

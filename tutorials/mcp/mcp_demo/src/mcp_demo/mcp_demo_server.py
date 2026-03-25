@@ -1,22 +1,20 @@
+import json
 import os
-from dotenv import load_dotenv
-from fastmcp import FastMCP
-from fastmcp.server.dependencies import get_access_token
+import sys
+from pathlib import Path
+from typing import Annotated
+
 import requests
+from dotenv import load_dotenv
+from fastapi.responses import FileResponse, JSONResponse
+from fastmcp import FastMCP
+from fastmcp.server.auth.oauth_proxy import OAuthProxy
+from fastmcp.server.auth.providers.jwt import JWTVerifier
+from fastmcp.server.dependencies import get_access_token
+from pydantic import Field
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
-from fastmcp.server.auth.providers.jwt import JWTVerifier
-from fastmcp.server.auth.oauth_proxy import OAuthProxy
 from starlette.requests import Request
-import json
-import sys
-from typing import Annotated
-from pydantic import Field
-
-
-from fastapi.responses import FileResponse, JSONResponse
-from pathlib import Path
-
 
 # Ensure the static directory exists and contains favicon.ico
 FAVICON_PATH = Path(__file__).parent / "favicon.ico"
@@ -89,7 +87,7 @@ custom_middleware = [
 ]
 
 # mcp = FastMCP.from_fastapi(app=app,auth=auth,debug=True,log_level="debug")
-mcp = FastMCP("Demo 🚀", auth=auth, debug=True, log_level="debug")
+mcp = FastMCP("Demo 🚀", auth=auth)
 
 
 def get_user():
@@ -140,11 +138,16 @@ async def favicon(request: Request):
     return FileResponse(FAVICON_PATH)
 
 
-if __name__ == "__main__":
+def main() -> None:
     mcp.run(
         transport="http",
         host="127.0.0.1",
         port=8003,
+        debug=True,
         log_level="debug",
         middleware=custom_middleware,
     )
+
+
+if __name__ == "__main__":
+    main()
