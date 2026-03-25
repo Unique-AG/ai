@@ -13,6 +13,23 @@ from unique_web_search.services.executors.configs import WebSearchMode
 from unique_web_search.services.search_engine.schema import WebSearchResult
 
 
+class _ReminderConfigStub:
+    def __init__(
+        self,
+        enable_system_reminder: bool = False,
+        system_reminder_prompt: str = "",
+    ):
+        self.enable_system_reminder = enable_system_reminder
+        self.enabled = enable_system_reminder
+        self.system_reminder_prompt = system_reminder_prompt
+
+    @property
+    def get_reminder_prompt(self) -> str:
+        if not (self.enabled or self.enable_system_reminder):
+            return ""
+        return self.system_reminder_prompt
+
+
 @pytest.fixture
 def event_loop():
     """Create an instance of the default event loop for the test session."""
@@ -68,9 +85,10 @@ def _mock_experimental_features(
     system_reminder_prompt: str = "",
 ) -> Mock:
     exp = Mock()
-    rem = Mock()
-    rem.enable_system_reminder = enable_system_reminder
-    rem.system_reminder_prompt = system_reminder_prompt
+    rem = _ReminderConfigStub(
+        enable_system_reminder=enable_system_reminder,
+        system_reminder_prompt=system_reminder_prompt,
+    )
     exp.tool_response_system_reminder = rem
     return exp
 
