@@ -6,6 +6,7 @@ from mimetypes import guess_type
 from typing import NamedTuple, override
 
 from openai import AsyncOpenAI
+from openai.types.responses import ResponseCodeInterpreterToolCall
 from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 from pydantic import BaseModel, Field, RootModel
 from pydantic.json_schema import SkipJsonSchema
@@ -20,9 +21,6 @@ from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memo
     PersistentShortMemoryManager,
 )
 from unique_toolkit.agentic.tools.config import get_configuration_dict
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
-    strip_executed_code_blocks,
-)
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import (
     CodeInterpreterBlock,
     CodeInterpreterFile,
@@ -110,6 +108,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         if self._chat_service is None:
             raise ValueError("ChatService is required if uploadToChat is True")
 
+        self._orphan_code_blocks: list[CodeInterpreterBlock] = []
         self._short_term_memory_manager = None
         if chat_id is not None and user_id is not None and company_id is not None:
             self._short_term_memory_manager = _init_short_term_memory_manager(
@@ -150,10 +149,23 @@ class DisplayCodeInterpreterFilesPostProcessor(
             ]
         )
 
+        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+            self._company_id
+        ):
+            self._orphan_code_blocks = await self._upload_orphan_code_as_txt(
+                loop_response
+            )
+        else:
+            self._orphan_code_blocks = []
+
     @override
     def apply_postprocessing_to_response(
         self, loop_response: ResponsesLanguageModelStreamResponse
     ) -> bool:
+        if loop_response.message.references is None:
+            loop_response.message.references = []
+        if loop_response.message.text is None:
+            loop_response.message.text = ""
         ref_number = _get_next_ref_number(loop_response.message.references)
         changed = False
 
@@ -248,6 +260,27 @@ class DisplayCodeInterpreterFilesPostProcessor(
             )
             changed |= loop_response.message.text != text_before
 
+            if self._orphan_code_blocks:
+                fence_id = _get_next_fence_id(loop_response.message.text)
+                orphan_fences = _build_orphan_fences(self._orphan_code_blocks, fence_id)
+                loop_response.message.text = (
+                    loop_response.message.text.rstrip() + "\n\n" + orphan_fences
+                )
+                ref_number = _get_next_ref_number(loop_response.message.references)
+                for block in self._orphan_code_blocks:
+                    for file in block.files:
+                        loop_response.message.references.append(
+                            ContentReference(
+                                sequence_number=ref_number,
+                                source_id=file.content_id,
+                                source="node-ingestion-chunks",
+                                url=f"unique://content/{file.content_id}",
+                                name=file.filename,
+                            )
+                        )
+                        ref_number += 1
+                changed = True
+
         _warn_missing_content_ids(loop_response.message.text, self._content_map)
         loop_response.message.text, dangling_replaced = _replace_dangling_sandbox_links(
             loop_response.message.text, self._config.file_download_failed_message
@@ -316,6 +349,110 @@ class DisplayCodeInterpreterFilesPostProcessor(
         await self._short_term_memory_manager.save_async(
             _DisplayedFilesShortTermMemorySchema(root=content_infos)
         )
+
+    async def _upload_orphan_code_as_txt(
+        self, loop_response: ResponsesLanguageModelStreamResponse
+    ) -> list[CodeInterpreterBlock]:
+        """Upload stdout (or code) from calls that produced no container files as .txt artifacts.
+
+        When code interpreter runs but generates no files or images, the response
+        text has no sandbox links for fence injection to hook onto.  This method
+        converts those "orphan" calls into downloadable .txt files so the fence
+        postprocessor can attach a fileWithSource component and the new Code
+        Execution UI is shown instead of the legacy <details> block.
+
+        Called only when the fence feature flag is enabled.  Skipped entirely if
+        any container files were produced (normal fencing handles those).
+        """
+        if loop_response.container_files:
+            return []
+
+        calls = loop_response.code_interpreter_calls
+        if not calls:
+            return []
+
+        assert self._chat_service is not None  # Checked in __init__
+
+        use_numeric_suffix = len(calls) > 1
+        orphan_blocks: list[CodeInterpreterBlock] = []
+
+        for i, call in enumerate(calls):
+            if not call.code:
+                continue
+
+            # Code interpreter logs are only present on each code_interpreter_call when
+            # the create/retrieve request sets include=["code_interpreter_call.outputs"]
+            # (see OpenAI Responses API `include` and manual examples in
+            # docs/manual_examples_for_docs/code_execution_openai_client.py).  If
+            # `outputs` is omitted, call.outputs is null and we fall back to the
+            # source code as the downloadable txt.
+            txt_content = _collect_stdout(call) or call.code
+            filename = f"code_{i + 1}.txt" if use_numeric_suffix else "code.txt"
+
+            try:
+                content = await self._chat_service.upload_to_chat_from_bytes_async(
+                    content=txt_content.encode("utf-8"),
+                    content_name=filename,
+                    mime_type="text/plain",
+                    skip_ingestion=True,
+                    hide_in_chat=True,
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to upload orphan code block as txt for call %d ('%s'); "
+                    "falling back to legacy code block display.",
+                    i,
+                    filename,
+                )
+                continue
+
+            orphan_file = CodeInterpreterFile(
+                filename=filename,
+                content_id=content.id,
+                type="document",
+            )
+            orphan_blocks.append(
+                CodeInterpreterBlock(code=call.code, files=[orphan_file])
+            )
+            logger.info(
+                "Uploaded orphan code block as '%s' (content_id=%s)",
+                filename,
+                content.id,
+            )
+
+        return orphan_blocks
+
+
+def _collect_stdout(call: ResponseCodeInterpreterToolCall) -> str:
+    """Collect all stdout logs from a code interpreter call's outputs."""
+    if not call.outputs:
+        return ""
+    return "\n".join(output.logs for output in call.outputs if output.type == "logs")
+
+
+def _get_next_fence_id(text: str) -> int:
+    """Return the next available fence id by scanning existing fences in the text."""
+    existing = re.findall(r"````(?:imgWithSource|fileWithSource)\(id='(\d+)'", text)
+    if not existing:
+        return 1
+    return max(int(fid) for fid in existing) + 1
+
+
+def _build_orphan_fences(
+    blocks: list[CodeInterpreterBlock], start_fence_id: int
+) -> str:
+    """Build concatenated fence text for orphan code blocks.
+
+    Orphan blocks have no inline ref in the message text, so their fences are
+    appended directly rather than injected via pattern replacement.
+    """
+    fence_id = start_fence_id
+    parts: list[str] = []
+    for block in blocks:
+        for file in block.files:
+            parts.append(_build_file_fence(file, block.code, fence_id))
+            fence_id += 1
+    return "\n".join(parts)
 
 
 def _get_file_type(filename: str) -> CodeInterpreterFileType:
@@ -460,8 +597,6 @@ def _inject_code_execution_fences(
 
     Each file gets its own fence placed at the position of its inline ref. Duplicate
     refs for the same file (overwrite case) are removed after the first is replaced.
-    When at least one fence was injected, executed-code <details> blocks are
-    stripped via strip_executed_code_blocks() from the code_display postprocessor.
 
     fence_id is a message-level counter so each fence has a unique id.
     """
@@ -487,7 +622,6 @@ def _inject_code_execution_fences(
             # Remove duplicate refs (overwrite case)
             text = re.sub(pattern, "", text)
     if any_fence_injected:
-        text = strip_executed_code_blocks(text)
         text = _ensure_fences_are_standalone(text)
         text = _CONSECUTIVE_FENCES_RE.sub(r"\1\n", text)
     return text
@@ -694,7 +828,9 @@ def _warn_unmatched_code_blocks(
             )
 
 
-def _get_next_ref_number(references: list[ContentReference]) -> int:
+def _get_next_ref_number(references: list[ContentReference] | None) -> int:
+    if not references:
+        return 1
     max_ref_number = 0
     for ref in references:
         max_ref_number = max(max_ref_number, ref.sequence_number)

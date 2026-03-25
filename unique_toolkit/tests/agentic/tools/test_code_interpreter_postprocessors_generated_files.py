@@ -2,7 +2,7 @@
 
 import logging
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
@@ -16,6 +16,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     DisplayCodeInterpreterFilesPostProcessorConfig,
     _build_code_blocks,
     _build_file_fence,
+    _collect_stdout,
     _ensure_fences_are_standalone,
     _file_frontend_type,
     _file_title,
@@ -28,7 +29,11 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import
     CodeInterpreterBlock,
     CodeInterpreterFile,
 )
+from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentReference
+from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
+
+GEN_FILES_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files.feature_flags"
 
 
 @pytest.mark.ai
@@ -87,6 +92,12 @@ def test_get_next_ref_number__returns_one__when_references_empty() -> None:
 
     # Assert
     assert result == 1
+
+
+@pytest.mark.ai
+def test_get_next_ref_number__returns_one__when_references_none() -> None:
+    """Message.references may be None before postprocessing; treat like no refs."""
+    assert gen_mod._get_next_ref_number(None) == 1
 
 
 @pytest.mark.ai
@@ -953,68 +964,6 @@ def test_inject_code_execution_fences__two_blocks__produce_two_fences() -> None:
 
 
 @pytest.mark.ai
-def test_inject_code_execution_fences__strips_details_block__when_present() -> None:
-    """
-    Purpose: Verify <details><summary>Code Interpreter Call</summary>...</details>
-    blocks are removed after fence injection.
-    Why this matters: ShowExecutedCodePostprocessor output is superseded by codeExecution fences.
-    Setup summary: Text has a <details> block followed by an image ref; assert <details> stripped.
-    """
-    block = CodeInterpreterBlock(
-        code='plt.savefig("/mnt/data/chart.png")',
-        files=[
-            CodeInterpreterFile(
-                filename="chart.png", content_id="cont_img1", type="image"
-            )
-        ],
-    )
-    text = (
-        "<details><summary>Code Interpreter Call</summary>\n"
-        "```python\nplt.savefig('/mnt/data/chart.png')\n```\n"
-        "</details>\n"
-        "![image](unique://content/cont_img1)"
-    )
-
-    result = _inject_code_execution_fences(text, [block])
-
-    assert "````imgWithSource(" in result
-    assert "<details>" not in result
-
-
-@pytest.mark.ai
-def test_inject_code_execution_fences__strips_trailing_br__after_details_block() -> (
-    None
-):
-    """
-    Purpose: Verify the stray </br> separator left after <details> stripping is also removed.
-    Why this matters: ShowExecutedCodePostprocessor emits <details>...</details>    \n</br>\n
-    — after stripping <details> the </br> must not be left dangling at the top of the message.
-    """
-    block = CodeInterpreterBlock(
-        code='plt.savefig("/mnt/data/chart.png")',
-        files=[
-            CodeInterpreterFile(
-                filename="chart.png", content_id="cont_img1", type="image"
-            )
-        ],
-    )
-    text = (
-        "<details><summary>Code Interpreter Call</summary>\n"
-        "```python\nplt.savefig('/mnt/data/chart.png')\n```\n"
-        "</details>    \n</br>\n\n"
-        "Here is the chart.\n\n"
-        "![image](unique://content/cont_img1)"
-    )
-
-    result = _inject_code_execution_fences(text, [block])
-
-    assert "</br>" not in result
-    assert "<details>" not in result
-    assert "Here is the chart." in result
-    assert "````imgWithSource(" in result
-
-
-@pytest.mark.ai
 def test_inject_code_execution_fences__no_op__when_code_blocks_empty() -> None:
     """
     Purpose: Verify text is unchanged when code_blocks is empty (Case 5 — no files).
@@ -1552,6 +1501,387 @@ def test_warn_unmatched_code_blocks__skips_none_content_ids(caplog) -> None:
         _warn_unmatched_code_blocks(content_map, code_blocks)
 
     assert not any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+# ============================================================================
+# Tests for _collect_stdout
+# ============================================================================
+
+
+def _make_logs_output(logs: str) -> MagicMock:
+    """Build a mock output item with type='logs' and the given logs string."""
+    output = MagicMock()
+    output.type = "logs"
+    output.logs = logs
+    return output
+
+
+def _make_image_output() -> MagicMock:
+    """Build a mock output item with type='image' (should be ignored by _collect_stdout)."""
+    output = MagicMock()
+    output.type = "image"
+    return output
+
+
+def _make_call(outputs: list | None) -> ResponseCodeInterpreterToolCall:
+    """Build a minimal ResponseCodeInterpreterToolCall with the given outputs list."""
+    call = MagicMock(spec=ResponseCodeInterpreterToolCall)
+    call.outputs = outputs
+    return call
+
+
+@pytest.mark.ai
+def test_collect_stdout__returns_empty_string__when_outputs_is_none() -> None:
+    """
+    Purpose: Verify _collect_stdout returns '' when the call has no outputs (include not set).
+    Why this matters: When the Responses API is called without include=["code_interpreter_call.outputs"],
+    call.outputs is None; we must not crash and must fall back to source code.
+    """
+    call = _make_call(outputs=None)
+    assert _collect_stdout(call) == ""
+
+
+@pytest.mark.ai
+def test_collect_stdout__returns_empty_string__when_outputs_is_empty_list() -> None:
+    """
+    Purpose: Verify _collect_stdout returns '' for an empty outputs list.
+    Why this matters: Empty list is a valid API response when code produces no stdout.
+    """
+    call = _make_call(outputs=[])
+    assert _collect_stdout(call) == ""
+
+
+@pytest.mark.ai
+def test_collect_stdout__returns_logs__when_single_logs_output() -> None:
+    """
+    Purpose: Verify _collect_stdout extracts the logs text from a single logs output item.
+    Why this matters: Core happy-path: stdout from a print() call should become the txt content.
+    """
+    call = _make_call(outputs=[_make_logs_output("Hello, world!")])
+    assert _collect_stdout(call) == "Hello, world!"
+
+
+@pytest.mark.ai
+def test_collect_stdout__joins_multiple_logs_outputs__with_newline() -> None:
+    """
+    Purpose: Verify _collect_stdout joins multiple logs outputs with newlines.
+    Why this matters: Code interpreter may emit several log chunks; they must be
+    concatenated in order so the txt file is readable.
+    """
+    call = _make_call(
+        outputs=[
+            _make_logs_output("line 1"),
+            _make_logs_output("line 2"),
+            _make_logs_output("line 3"),
+        ]
+    )
+    assert _collect_stdout(call) == "line 1\nline 2\nline 3"
+
+
+@pytest.mark.ai
+def test_collect_stdout__ignores_non_logs_outputs() -> None:
+    """
+    Purpose: Verify _collect_stdout skips image (and other non-logs) output items.
+    Why this matters: Code interpreter outputs can include images; those must not
+    be included in the stdout text.
+    """
+    call = _make_call(
+        outputs=[
+            _make_logs_output("stdout text"),
+            _make_image_output(),
+        ]
+    )
+    assert _collect_stdout(call) == "stdout text"
+
+
+# ============================================================================
+# Tests for orphan path, _get_next_fence_id, _build_orphan_fences, run()
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_get_next_fence_id__returns_one__when_no_fences_in_text() -> None:
+    assert gen_mod._get_next_fence_id("plain text") == 1
+
+
+@pytest.mark.ai
+def test_get_next_fence_id__returns_max_plus_one__when_fences_in_text() -> None:
+    text = "x ````fileWithSource(id='2', contentId='a')```` y ````imgWithSource(id='5', contentId='b')````"
+    assert gen_mod._get_next_fence_id(text) == 6
+
+
+@pytest.mark.ai
+def test_build_orphan_fences__concatenates_file_fences() -> None:
+    f = CodeInterpreterFile(filename="code.txt", content_id="cid1", type="document")
+    block = CodeInterpreterBlock(code="print(1)", files=[f])
+    out = gen_mod._build_orphan_fences([block], start_fence_id=1)
+    assert "fileWithSource" in out
+    assert "cid1" in out
+    assert "print(1)" in out or "\\n" in out  # code may be escaped in fence
+
+
+@pytest.mark.ai
+@patch(GEN_FILES_FF)
+def test_apply_postprocessing__normalizes_none_message_text__to_empty_string(
+    mock_ff: MagicMock,
+) -> None:
+    """
+    Purpose: `apply_postprocessing_to_response` must coerce `message.text` None to ''.
+    Why this matters: Downstream regex/replace assumes a string; Responses payloads can
+    omit text until postprocessing.
+    """
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id="company-null-text",
+    )
+    proc._content_map = {}
+    proc._orphan_code_blocks = []
+    msg = ChatMessage(
+        chat_id="c1",
+        role=ChatMessageRole.ASSISTANT,
+        content=None,
+        references=[],
+    )
+    loop = ResponsesLanguageModelStreamResponse(message=msg, output=[])
+    proc.apply_postprocessing_to_response(loop)
+    assert msg.text == ""
+
+
+@pytest.mark.ai
+@patch(GEN_FILES_FF)
+def test_apply_postprocessing__orphan_path_appends_fence_and_references__when_ff_on(
+    mock_ff: MagicMock,
+) -> None:
+    """Orphan blocks get appended fences and ContentReference rows when fence FF is on."""
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id="company-orphan",
+    )
+    proc._content_map = {}
+    orphan_file = CodeInterpreterFile(
+        filename="code.txt", content_id="cont_orphan", type="document"
+    )
+    proc._orphan_code_blocks = [
+        CodeInterpreterBlock(code="print('hi')", files=[orphan_file]),
+    ]
+    msg = ChatMessage(
+        chat_id="c1",
+        role=ChatMessageRole.ASSISTANT,
+        content="Hello",
+        references=None,
+    )
+    loop = ResponsesLanguageModelStreamResponse(message=msg, output=[])
+    changed = proc.apply_postprocessing_to_response(loop)
+    assert changed is True
+    assert msg.references is not None
+    assert any(r.source_id == "cont_orphan" for r in msg.references)
+    assert msg.text is not None
+    assert "fileWithSource" in msg.text
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@patch(GEN_FILES_FF)
+async def test_run__populates_orphan_blocks__when_ff_on_and_no_container_files(
+    mock_ff: MagicMock,
+) -> None:
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
+    call = ResponseCodeInterpreterToolCall(
+        id="call-1",
+        container_id="ctr",
+        status="completed",
+        type="code_interpreter_call",
+        code="print(42)",
+    )
+    msg = ChatMessage(
+        chat_id="c1",
+        role=ChatMessageRole.ASSISTANT,
+        content="Hi",
+    )
+    loop = ResponsesLanguageModelStreamResponse(message=msg, output=[call])
+    uploaded = MagicMock()
+    uploaded.id = "cont_up"
+    chat = AsyncMock()
+    chat.upload_to_chat_from_bytes_async = AsyncMock(return_value=uploaded)
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=chat,
+        company_id="co1",
+    )
+    await proc.run(loop)
+    assert len(proc._orphan_code_blocks) == 1
+    assert proc._orphan_code_blocks[0].files[0].content_id == "cont_up"
+    chat.upload_to_chat_from_bytes_async.assert_awaited()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@patch(GEN_FILES_FF)
+async def test_run__clears_orphan_blocks__when_fence_ff_off(mock_ff: MagicMock) -> None:
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
+    call = ResponseCodeInterpreterToolCall(
+        id="call-1",
+        container_id="ctr",
+        status="completed",
+        type="code_interpreter_call",
+        code="print(1)",
+    )
+    msg = ChatMessage(chat_id="c1", role=ChatMessageRole.ASSISTANT, content="Hi")
+    loop = ResponsesLanguageModelStreamResponse(message=msg, output=[call])
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=AsyncMock(),
+        company_id="co1",
+    )
+    proc._orphan_code_blocks = [
+        CodeInterpreterBlock(code="old", files=[]),
+    ]
+    await proc.run(loop)
+    assert proc._orphan_code_blocks == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@patch(GEN_FILES_FF)
+async def test_run__orphan_upload_skips_calls_when_upload_fails(
+    mock_ff: MagicMock,
+) -> None:
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
+    call = ResponseCodeInterpreterToolCall(
+        id="call-1",
+        container_id="ctr",
+        status="completed",
+        type="code_interpreter_call",
+        code="print(1)",
+    )
+    msg = ChatMessage(chat_id="c1", role=ChatMessageRole.ASSISTANT, content="Hi")
+    loop = ResponsesLanguageModelStreamResponse(message=msg, output=[call])
+    chat = AsyncMock()
+    chat.upload_to_chat_from_bytes_async = AsyncMock(
+        side_effect=RuntimeError("upload failed")
+    )
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=chat,
+        company_id="co1",
+    )
+    await proc.run(loop)
+    assert proc._orphan_code_blocks == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_upload_orphan_code_as_txt__returns_empty_when_container_files_present() -> (
+    None
+):
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=MagicMock(),
+        company_id="co1",
+    )
+    lr = MagicMock(spec=ResponsesLanguageModelStreamResponse)
+    lr.container_files = [MagicMock()]
+    lr.code_interpreter_calls = []
+    assert await proc._upload_orphan_code_as_txt(lr) == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_upload_orphan_code_as_txt__returns_empty_when_no_calls() -> None:
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=MagicMock(),
+        company_id="co1",
+    )
+    lr = MagicMock(spec=ResponsesLanguageModelStreamResponse)
+    lr.container_files = []
+    lr.code_interpreter_calls = []
+    assert await proc._upload_orphan_code_as_txt(lr) == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_upload_orphan_code_as_txt__skips_call_without_code() -> None:
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=MagicMock(),
+        company_id="co1",
+    )
+    call_no_code = MagicMock(spec=ResponseCodeInterpreterToolCall)
+    call_no_code.code = None
+    lr = MagicMock(spec=ResponsesLanguageModelStreamResponse)
+    lr.container_files = []
+    lr.code_interpreter_calls = [call_no_code]
+    assert await proc._upload_orphan_code_as_txt(lr) == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize("num_calls", [1, 2])
+async def test_upload_orphan_code_as_txt__uploads_txt_uses_expected_filename(
+    num_calls: int,
+) -> None:
+    """Single call → code.txt; multiple calls → code_1.txt, code_2.txt."""
+    calls = [
+        ResponseCodeInterpreterToolCall(
+            id=f"call-{i}",
+            container_id="ctr",
+            status="completed",
+            type="code_interpreter_call",
+            code=f"print({i})",
+        )
+        for i in range(num_calls)
+    ]
+    lr = MagicMock(spec=ResponsesLanguageModelStreamResponse)
+    lr.container_files = []
+    lr.code_interpreter_calls = calls
+    chat = AsyncMock()
+
+    async def _upload(**kwargs):
+        m = MagicMock()
+        m.id = f"id-{kwargs.get('content_name', '')}"
+        return m
+
+    chat.upload_to_chat_from_bytes_async = AsyncMock(side_effect=_upload)
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=chat,
+        company_id="co1",
+    )
+    blocks = await proc._upload_orphan_code_as_txt(lr)
+    assert len(blocks) == num_calls
+    if num_calls == 1:
+        chat.upload_to_chat_from_bytes_async.assert_awaited_once()
+        assert blocks[0].files[0].filename == "code.txt"
+    else:
+        assert {blocks[i].files[0].filename for i in range(2)} == {
+            "code_1.txt",
+            "code_2.txt",
+        }
 
 
 @pytest.mark.ai
