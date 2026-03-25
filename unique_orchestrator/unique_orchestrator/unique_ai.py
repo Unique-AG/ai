@@ -248,15 +248,16 @@ class UniqueAI:
             )
 
             # Get current debug info from chat service and add debug info from run
-            debug_info = {**await self._chat_service.get_debug_info_async(), **self._debug_info_manager.get()}
+            debug_info = {
+                **await self._chat_service.get_debug_info_async(),
+                **self._debug_info_manager.get(),
+            }
 
-            await self._chat_service.update_debug_info_async(
-                debug_info=debug_info
-            )
+            await self._chat_service.update_debug_info_async(debug_info=debug_info)
             if not self._chat_service.cancellation.is_cancelled:
                 await self._chat_service.modify_assistant_message_async(
                     set_completed_at=not self._tool_took_control,
-                )     
+                )
         finally:
             sub.cancel()
 
