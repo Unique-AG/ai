@@ -43,6 +43,19 @@ dev = [
     "unique-sdk",
 ]
 
+[tool.uv]
+exclude-newer = "2 weeks"
+exclude-newer-package = {
+    "unique-deep-research" = false,
+    "unique-follow-up-questions" = false,
+    "unique-internal-search" = false,
+    "unique-sdk" = false,
+    "unique-stock-ticker" = false,
+    "unique-swot" = false,
+    "unique-toolkit" = false,
+    "unique-web-search" = false,
+}
+
 [tool.uv.sources]
 unique-sdk = { path = "../unique_sdk", editable = true }
 unique-toolkit = { path = "../unique_toolkit", editable = true }

@@ -39,6 +39,9 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-root = ""
 
+[tool.uv]
+exclude-newer = "2 weeks"
+
 [dependency-groups]
 dev = [
     "ruff==0.11.7",

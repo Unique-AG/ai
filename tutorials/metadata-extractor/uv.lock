@@ -6,6 +6,14 @@ resolution-markers = [
     "python_full_version < '3.12'",
 ]
 
+[options]
+exclude-newer = "2026-03-11T09:50:17.48387Z"
+exclude-newer-span = "P2W"
+
+[options.exclude-newer-package]
+unique-toolkit = false
+unique-sdk = false
+
 [[package]]
 name = "aiofiles"
 version = "25.1.0"

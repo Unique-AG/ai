@@ -32,3 +32,10 @@ dev = [
     "pytest>=9.0.2",
     "pytest-asyncio>=0.25.0",
 ]
+
+[tool.uv]
+exclude-newer = "2 weeks"
+exclude-newer-package = {
+    "unique-mcp" = false,
+    "unique-toolkit" = false,
+}
