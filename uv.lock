@@ -2850,7 +2850,7 @@ wheels = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.62.2"
+version = "1.63.1"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },

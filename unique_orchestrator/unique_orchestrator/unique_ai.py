@@ -142,6 +142,7 @@ class UniqueAI:
         # Helper variable to support control loop
         self._tool_took_control = False
         self._loop_iteration_runner = loop_iteration_runner
+        self._last_assistant_text: str | None = None
 
         self._execution_times: list[dict[str, Any]] = []
         self._current_loop_timing: dict[str, Any] = {}
@@ -205,6 +206,9 @@ class UniqueAI:
                 self._reference_manager.add_references(
                     loop_response.message.references or []
                 )
+                self._last_assistant_text = (
+                    loop_response.message.original_text or loop_response.message.text
+                )
                 self._logger.info("Done with adding references")
 
                 self._thinking_manager.update_tool_progress_reporter(loop_response)
@@ -260,6 +264,7 @@ class UniqueAI:
                 await self._chat_service.update_debug_info_async(debug_info=debug_info)
 
             if not self._chat_service.cancellation.is_cancelled:
+                await self._persist_tool_calls()
                 await self._chat_service.modify_assistant_message_async(
                     set_completed_at=not self._tool_took_control,
                 )
@@ -279,7 +284,7 @@ class UniqueAI:
             streaming_handler=self._streaming_handler,  # type: ignore (constructor accepts only compatible arguments)
             model=self._config.space.language_model,
             tools=self._tool_manager.get_tool_definitions(),  # type: ignore (as above)
-            content_chunks=self._reference_manager.get_chunks(),
+            content_chunks=self._history_manager.get_content_chunks_for_backend(),
             start_text=self.start_text,
             debug_info=self._debug_info_manager.get(),
             temperature=self._config.agent.experimental.temperature,
@@ -490,6 +495,28 @@ class UniqueAI:
             )  # TODO: add retry counter and instruction
 
         return True
+
+    async def _persist_tool_calls(self) -> None:
+        """Persist tool calls and responses from the loop to the database.
+
+        Before persisting, uncited sources are stripped from tool response
+        content so that only sources referenced in the final assistant message
+        are kept (compaction).
+        """
+        records = self._history_manager.extract_message_tools()
+        if not records:
+            return
+        records = HistoryManager.compact_message_tools(
+            records=records,
+            assistant_text=self._last_assistant_text,
+        )
+        try:
+            await self._chat_service.create_message_tools_async(
+                tool_calls=records,
+            )
+            self._logger.info(f"Persisted {len(records)} tool call records")
+        except Exception:
+            self._logger.error("Failed to persist tool calls", exc_info=True)
 
     def _log_tool_calls(self, tool_calls: list) -> None:
         # Create dictionary mapping tool names to display names for efficient lookup

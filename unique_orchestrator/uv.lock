@@ -3853,7 +3853,7 @@ dev = [
 
 [[package]]
 name = "unique-orchestrator"
-version = "1.15.0"
+version = "1.14.4"
 source = { editable = "." }
 dependencies = [
     { name = "jinja2" },
@@ -4104,7 +4104,7 @@ dev = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.62.0"
+version = "1.60.0"
 source = { editable = "../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
