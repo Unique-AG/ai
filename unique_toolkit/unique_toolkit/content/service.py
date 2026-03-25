@@ -172,6 +172,7 @@ class ContentService:
         cls,
         settings: UniqueSettings | str | None = None,
         metadata_filter: dict | None = None,
+        **kwargs: Any,
     ):
         """
         Initialize the ContentService with a settings object and metadata filter.

@@ -126,11 +126,8 @@ class UniqueServiceFactory:
     @classmethod
     def register_known_services(cls) -> None:
         """Register the default services with the factory.
-        Currently only registers the KnowledgeBaseService and ChatService.
+        Currently only registers the KnowledgeBaseService, ChatService and ContentService.
         """
-        from unique_toolkit.services.chat_service import ChatService
-        from unique_toolkit.services.knowledge_base import KnowledgeBaseService
-
         for service_class in [KnowledgeBaseService, ChatService, ContentService]:
             if service_class.__name__ not in cls._registry:
                 cls.register(service_class=service_class)
