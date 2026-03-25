@@ -5,12 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.63.1] - 2026-03-24
-- Code interpreter (UN-17972): synthesise a `.txt` artifact and `fileWithSource` fence when code runs but produces no container files ("orphan" calls), replacing the legacy `<details>` UI — gated on `enable_code_execution_fence_un_17972` FF
-- Code interpreter (UN-17972): `OpenAICodeInterpreterTool.get_required_include_params()` returns `["code_interpreter_call.outputs"]` when the fence FF is on, so execution logs populate `call.outputs` for use as downloadable stdout
-- Add `OpenAIBuiltInTool.get_required_include_params()` default (returns `[]`) and `OpenAIBuiltInToolManager.get_required_include_params()` to aggregate/deduplicate include params across all active built-in tools
-- Add `ResponsesApiToolManager.get_required_include_params()` that delegates to the built-in tool manager
-- Add `_collect_stdout` helper to extract logs from `ResponseCodeInterpreterToolCall.outputs`
+## [1.64.0] - 2026-03-25
+- Code interpreter (UN-17972): orphan code runs — synthesise a `.txt` artifact and `fileWithSource` fence when code produces no container files, gated on `enable_code_execution_fence_un_17972` (replaces legacy `<details>` for that case)
+- Code interpreter (UN-17972): `OpenAICodeInterpreterTool.get_required_include_params()` returns `["code_interpreter_call.outputs"]` when the fence FF is on; add `OpenAIBuiltInTool.get_required_include_params()`, `OpenAIBuiltInToolManager.get_required_include_params()`, and `ResponsesApiToolManager.get_required_include_params()`; add `_collect_stdout` for `ResponseCodeInterpreterToolCall.outputs` (end-to-end `include` requires orchestrator PR)
+- Code interpreter (UN-17972): when fence FF is on, `ShowExecutedCodePostprocessor` is a no-op; remove `strip_executed_code_blocks` and its use in `DisplayCodeInterpreterFilesPostProcessor`; add optional `company_id` on `ShowExecutedCodePostprocessor` (orchestrator should pass company id alongside generated-files postprocessor)
+- Add unit test for `message.text is None` handling in `DisplayCodeInterpreterFilesPostProcessor.apply_postprocessing_to_response`
+
 ## [1.63.0] - 2026-03-24
 - Globally unique source numbering across chat turns (UN-15977): source numbers now continue from the highest index persisted in the database, ensuring `[sourceN]` citations remain unique and stable across the entire conversation
 - Add `get_content_chunks_for_backend()` to `HistoryManager`: builds a positional content-chunk list where `result[N]` contains the chunk for `[sourceN]`, including prior-turn sources reconstructed from the database

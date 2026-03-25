@@ -1549,6 +1549,38 @@ def test_build_orphan_fences__concatenates_file_fences() -> None:
 
 @pytest.mark.ai
 @patch(GEN_FILES_FF)
+def test_apply_postprocessing__normalizes_none_message_text__to_empty_string(
+    mock_ff: MagicMock,
+) -> None:
+    """
+    Purpose: `apply_postprocessing_to_response` must coerce `message.text` None to ''.
+    Why this matters: Downstream regex/replace assumes a string; Responses payloads can
+    omit text until postprocessing.
+    """
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id="company-null-text",
+    )
+    proc._content_map = {}
+    proc._orphan_code_blocks = []
+    msg = ChatMessage(
+        chat_id="c1",
+        role=ChatMessageRole.ASSISTANT,
+        content=None,
+        references=[],
+    )
+    loop = ResponsesLanguageModelStreamResponse(message=msg, output=[])
+    proc.apply_postprocessing_to_response(loop)
+    assert msg.text == ""
+
+
+@pytest.mark.ai
+@patch(GEN_FILES_FF)
 def test_apply_postprocessing__orphan_path_appends_fence_and_references__when_ff_on(
     mock_ff: MagicMock,
 ) -> None:
