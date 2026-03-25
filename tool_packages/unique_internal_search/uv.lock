@@ -2,6 +2,13 @@ version = 1
 revision = 3
 requires-python = ">=3.12, <4"
 
+[options]
+exclude-newer = "2026-03-11T09:50:17.949085Z"
+exclude-newer-span = "P2W"
+
+[options.exclude-newer-package]
+unique-toolkit = false
+
 [manifest]
 constraints = [{ name = "lxml", specifier = ">=5.0.0" }]
 
@@ -1885,6 +1892,15 @@ wheels = [
 ]
 
 [[package]]
+name = "tenacity"
+version = "9.1.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/47/c6/ee486fd809e357697ee8a44d3d69222b344920433d3b6666ccd9b374630c/tenacity-9.1.4.tar.gz", hash = "sha256:adb31d4c263f2bd041081ab33b498309a57c77f9acf2db65aadf0898179cf93a", size = 49413, upload-time = "2026-02-07T10:45:33.841Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/c1/eb8f9debc45d3b7918a32ab756658a0904732f75e555402972246b0b8e71/tenacity-9.1.4-py3-none-any.whl", hash = "sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55", size = 28926, upload-time = "2026-02-07T10:45:32.24Z" },
+]
+
+[[package]]
 name = "tiktoken"
 version = "0.12.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2039,7 +2055,7 @@ dev = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.84"
+version = "0.10.85"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -2050,9 +2066,9 @@ dependencies = [
     { name = "tiktoken" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6d/fc/f920f0c8e404482314d713b30a68b2f1f3afc2db3da90cce697061cafd55/unique_sdk-0.10.84.tar.gz", hash = "sha256:18fd3a325d0fddf39fc23ff7ebeb402b89795f5ac69540d5fb9fafe060f6b9d2", size = 38667, upload-time = "2026-03-05T13:14:29.968Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1c/23/00c10a8c393f9cee27088df7752037a11b171386a31e40845e8d7c042ce3/unique_sdk-0.10.85.tar.gz", hash = "sha256:3edaa665eca9513e49839702a7f8de60787e779041875d1465f9a863066522e2", size = 38666, upload-time = "2026-03-10T15:55:34.695Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/65/da/9bbf2afa1b7a925e248f602a7f02833d27f89d07eba95eb384962d977618/unique_sdk-0.10.84-py3-none-any.whl", hash = "sha256:78b26a60874b2ba473126a6c12de3d4f06545d0e667c04b061d5a1fac029dc4b", size = 55848, upload-time = "2026-03-05T13:14:31.299Z" },
+    { url = "https://files.pythonhosted.org/packages/b4/2a/15e18ac74db436ca741fc061dba46445adaf913f8350c2644197014d5f96/unique_sdk-0.10.85-py3-none-any.whl", hash = "sha256:89af4781e4e4fba62a41a15a95a715c9b8b02bdf6715c35e615bce3eefdb8bdf", size = 55847, upload-time = "2026-03-10T15:55:35.483Z" },
 ]
 
 [[package]]
@@ -2075,12 +2091,14 @@ dependencies = [
     { name = "platformdirs" },
     { name = "pydantic" },
     { name = "pydantic-core" },
+    { name = "pydantic-core" },
     { name = "pydantic-settings" },
     { name = "pyhumps" },
     { name = "pypandoc" },
     { name = "python-docx" },
     { name = "requests" },
     { name = "sseclient" },
+    { name = "tenacity" },
     { name = "tenacity" },
     { name = "tiktoken" },
     { name = "tokenizers" },
@@ -2110,6 +2128,7 @@ requires-dist = [
     { name = "platformdirs", specifier = ">=4.0.0,<5" },
     { name = "pydantic", specifier = ">=2.11.0,<3" },
     { name = "pydantic-core", specifier = ">=2.41.5" },
+    { name = "pydantic-core", specifier = ">=2.41.5" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
     { name = "pyhumps", specifier = ">=3.8.0,<4" },
     { name = "pypandoc", specifier = ">=1.16.2,<2" },
@@ -2118,10 +2137,11 @@ requires-dist = [
     { name = "sseclient", specifier = ">=0.0.27,<0.0.28" },
     { name = "starlette", marker = "extra == 'fastapi'", specifier = ">=0.49.1" },
     { name = "tenacity", specifier = ">=9.1.4" },
+    { name = "tenacity", specifier = ">=9.1.4" },
     { name = "tiktoken", specifier = ">=0.12.0,<0.13" },
     { name = "tokenizers", specifier = ">=0.21.0,<0.22" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
-    { name = "unique-sdk", specifier = ">=0.10.80,<0.11" },
+    { name = "unique-sdk", specifier = ">=0.10.85,<0.11" },
     { name = "uvicorn", marker = "extra == 'fastapi'", specifier = ">=0.37.0,<0.38" },
 ]
 provides-extras = ["langchain", "fastapi"]

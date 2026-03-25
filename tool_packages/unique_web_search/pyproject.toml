@@ -50,6 +50,10 @@ dev = [
     "poethepoet>=0.32.0",
 ]
 
+[tool.uv]
+exclude-newer = "2 weeks"
+exclude-newer-package = { "unique-toolkit" = false }
+
 [tool.poe.tasks]
 lint = "ruff check ."
 lint-fix = "ruff check . --fix"
