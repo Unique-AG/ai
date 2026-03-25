@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.12, <4"
 
 [options]
-exclude-newer = "2026-03-11T10:15:02.880839Z"
+exclude-newer = "2026-03-11T10:27:21.437662Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -2169,7 +2169,7 @@ wheels = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.92"
+version = "0.10.93"
 source = { editable = "../../unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
@@ -2214,7 +2214,7 @@ dev = [
 
 [[package]]
 name = "unique-six"
-version = "0.1.3"
+version = "0.1.4"
 source = { editable = "../../connectors/unique_six" }
 dependencies = [
     { name = "cryptography" },
@@ -2249,7 +2249,7 @@ dev = [
 
 [[package]]
 name = "unique-stock-ticker"
-version = "1.1.2"
+version = "1.1.3"
 source = { editable = "." }
 dependencies = [
     { name = "numerize" },
@@ -2302,7 +2302,7 @@ dev = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.63.1"
+version = "1.63.2"
 source = { editable = "../../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },

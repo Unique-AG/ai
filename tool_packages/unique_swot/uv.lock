@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.12, <4"
 
 [options]
-exclude-newer = "2026-03-11T10:15:02.406392Z"
+exclude-newer = "2026-03-11T10:27:20.878606Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -2021,7 +2021,7 @@ wheels = [
 
 [[package]]
 name = "unique-quartr"
-version = "0.2.6"
+version = "0.2.7"
 source = { editable = "../../connectors/unique_quartr" }
 dependencies = [
     { name = "httpx" },
@@ -2073,7 +2073,7 @@ wheels = [
 
 [[package]]
 name = "unique-swot"
-version = "1.3.1"
+version = "1.3.2"
 source = { editable = "." }
 dependencies = [
     { name = "jinja2" },
@@ -2120,7 +2120,7 @@ dev = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.63.1"
+version = "1.63.2"
 source = { editable = "../../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
