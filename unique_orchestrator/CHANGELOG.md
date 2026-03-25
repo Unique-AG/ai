@@ -2,8 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.15.2] - 2026-03-25
+- Pass `company_id` into `ShowExecutedCodePostprocessor` so fence feature-flag checks match `DisplayCodeInterpreterFilesPostProcessor` (UN-17972)
+- Add unit tests for `_plan_or_execute` forwarding Responses API `include` from `ResponsesApiToolManager`
+- Bump `unique-toolkit` lower-bound to `>=1.64.0`
 
 ## [1.15.1] - 2026-03-24
 - Forward Responses API `include` params from `ResponsesApiToolManager.get_required_include_params()` into each loop iteration (UN-17972); gating lives in `unique_toolkit` — no FF logic in orchestrator

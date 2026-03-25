@@ -3853,7 +3853,7 @@ dev = [
 
 [[package]]
 name = "unique-orchestrator"
-version = "1.15.1"
+version = "1.15.2"
 source = { editable = "." }
 dependencies = [
     { name = "jinja2" },
