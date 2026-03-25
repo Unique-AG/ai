@@ -83,6 +83,23 @@ class ExperimentalFeatures(FeatureExtendedSourceSerialization):
         title="Query Review",
         description="Allow users to review and modify search queries before execution.",
     )
+    enable_system_reminder: bool = Field(
+        default=False,
+        title="Enable Tool Response Reminder",
+        description="When enabled, attach reminder text to each successful WebSearch tool response (independent of system-prompt citation instructions).",
+    )
+    system_reminder_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(
+                len(DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT.split("\n")) / 3
+            )
+        ),
+    ] = Field(
+        default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
+        title="Tool Response Reminder Text",
+        description="Text sent as system_reminder on WebSearch tool responses when the reminder is enabled.",
+    )
 
 
 class WebSearchConfig(BaseToolConfig):

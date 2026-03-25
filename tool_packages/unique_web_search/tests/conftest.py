@@ -63,6 +63,16 @@ def mock_environment_variables(monkeypatch):
     monkeypatch.setenv("BRAVE_API_KEY", "test-brave-key")
 
 
+def _mock_experimental_features(
+    enable_system_reminder: bool = False,
+    system_reminder_prompt: str = "",
+) -> Mock:
+    exp = Mock()
+    exp.enable_system_reminder = enable_system_reminder
+    exp.system_reminder_prompt = system_reminder_prompt
+    return exp
+
+
 @pytest.fixture
 def mock_web_search_config_v1():
     """Mock WebSearchConfig for V1 mode testing."""
@@ -78,6 +88,8 @@ def mock_web_search_config_v1():
     config.debug = False
     config.tool_format_information_for_system_prompt = "Test format info"
     config.evaluation_check_list = []
+    config.experimental_features = _mock_experimental_features()
+    config.web_search_active_mode = WebSearchMode.V1
     config.web_search_mode_config.mode = WebSearchMode.V1
     config.web_search_mode_config.tool_description = "V1 tool description"
     config.web_search_mode_config.tool_description_for_system_prompt = (
@@ -110,6 +122,8 @@ def mock_web_search_config_v2():
     config.debug = False
     config.tool_format_information_for_system_prompt = "Test format info"
     config.evaluation_check_list = []
+    config.experimental_features = _mock_experimental_features()
+    config.web_search_active_mode = WebSearchMode.V2
     config.web_search_mode_config.mode = WebSearchMode.V2
     config.web_search_mode_config.tool_description = "V2 tool description"
     config.web_search_mode_config.tool_description_for_system_prompt = (
@@ -134,12 +148,16 @@ def mock_web_search_config_v3():
     config.debug = False
     config.tool_format_information_for_system_prompt = "Test format info"
     config.evaluation_check_list = []
+    config.experimental_features = _mock_experimental_features()
+    config.web_search_active_mode = WebSearchMode.V3
     config.web_search_mode_config.mode = WebSearchMode.V3
     config.web_search_mode_config.tool_description = "V3 tool description"
     config.web_search_mode_config.tool_description_for_system_prompt = (
         "V3 system prompt with {{ max_steps }} and {{ date_string }}"
     )
     config.web_search_mode_config.max_steps = 7
+    config.web_search_mode_config.tool_format_information_for_system_prompt = "Test format info\n\n## Domain Diversity Requirement\n\nWhen the current WebSearch tool response"
+    config.web_search_mode_config_v3 = config.web_search_mode_config
     return config
 
 

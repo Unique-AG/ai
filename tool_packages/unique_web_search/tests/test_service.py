@@ -189,6 +189,34 @@ class TestWebSearchToolFormatInformation:
         assert isinstance(result, str)
         assert result == "Test format info"
 
+    @pytest.mark.ai
+    def test_tool_format_information_for_system_prompt__returns_v3_nested_value(
+        self,
+        mock_web_search_config_v3: Mock,
+        mocker: Any,
+    ) -> None:
+        """
+        Purpose: Verify V3 citation instructions come from Search Mode V3 settings, not root + append.
+        Why this matters: V3 has a single configured prompt without runtime concatenation.
+        """
+        mocker.patch("unique_web_search.service.get_search_engine_service")
+        mocker.patch("unique_web_search.service.get_crawler_service")
+        mocker.patch("unique_web_search.service.ChunkRelevancySorter")
+        mocker.patch("unique_web_search.service.ContentProcessor")
+        mocker.patch.object(
+            WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
+        )
+
+        tool = WebSearchTool.__new__(WebSearchTool)
+        tool.config = mock_web_search_config_v3
+
+        result: str = tool.tool_format_information_for_system_prompt()
+
+        assert result == (
+            mock_web_search_config_v3.web_search_mode_config_v3.tool_format_information_for_system_prompt
+        )
+        assert "Domain Diversity Requirement" in result
+
 
 class TestWebSearchToolEvaluationCheckList:
     """Test WebSearchTool.evaluation_check_list() method."""
@@ -564,7 +592,7 @@ class TestWebSearchToolRun:
         assert result.name == "WebSearch"
         assert hasattr(result, "content_chunks")
         assert result.content_chunks == sample_content_chunks
-        assert result.system_reminder == "Test format info"
+        assert result.system_reminder == ""
         assert (
             not hasattr(result, "error_message")
             or result.error_message is None
@@ -582,14 +610,18 @@ class TestWebSearchToolRun:
         blank_format: str,
     ) -> None:
         """
-        Purpose: Verify run leaves system_reminder empty when format config is blank.
+        Purpose: Verify run leaves system_reminder empty when experimental reminder text is blank.
         Why this matters: Avoids appending whitespace-only noise to tool message content.
-        Setup summary: Same as successful run but tool_format_information_for_system_prompt is empty or whitespace.
+        Setup summary: enable_system_reminder with empty or whitespace system_reminder_prompt.
 
         Note: When system_reminder is non-empty, persisted tool content is JSON sources plus a suffix;
         uncited-source compaction uses json.loads on the full string and may skip trimming (see HistoryManager).
         """
         mock_web_search_config_v1.tool_format_information_for_system_prompt = (
+            blank_format
+        )
+        mock_web_search_config_v1.experimental_features.enable_system_reminder = True
+        mock_web_search_config_v1.experimental_features.system_reminder_prompt = (
             blank_format
         )
 
@@ -648,16 +680,18 @@ class TestWebSearchToolRun:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__system_reminder_includes_v3_addendum__when_mode_is_v3(
+    async def test_run__system_reminder_uses_experimental_prompt__when_enabled_for_v3(
         self,
         mock_web_search_config_v3: Mock,
         sample_content_chunks: list,
         mocker: Any,
     ) -> None:
         """
-        Purpose: Verify run sets system_reminder from tool_format_information_for_system_prompt() including V3 addendum.
-        Why this matters: Tool message must match the same formatting rules as the former system-prompt block.
+        Purpose: Verify run sets system_reminder from experimental features when enabled (V3).
+        Why this matters: Tool response reminder is independent of system-prompt citation instructions.
         """
+        mock_web_search_config_v3.experimental_features.enable_system_reminder = True
+        mock_web_search_config_v3.experimental_features.system_reminder_prompt = "Test format info\n\n## Domain Diversity Requirement\n\nWhen the current WebSearch tool response"
         mock_executor = AsyncMock()
         mock_executor.run = AsyncMock(return_value=sample_content_chunks)
         mock_executor.notify_name = "test-name"

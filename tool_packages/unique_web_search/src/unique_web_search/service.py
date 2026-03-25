@@ -20,9 +20,6 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_web_search.config import WebSearchConfig
-from unique_web_search.prompts import (
-    DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3_ADDENDUM,
-)
 from unique_web_search.schema import (
     WebSearchDebugInfo,
     WebSearchPlan,
@@ -140,14 +137,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
         return self.config.web_search_mode_config.tool_description_for_system_prompt
 
     def tool_format_information_for_system_prompt(self) -> str:
-        prompt = self.config.tool_format_information_for_system_prompt
-        if self.config.web_search_mode_config.mode == WebSearchMode.V3:
-            return (
-                prompt.rstrip()
-                + "\n"
-                + DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3_ADDENDUM
-            )
-        return prompt
+        if self.config.web_search_active_mode == WebSearchMode.V3:
+            return self.config.web_search_mode_config_v3.tool_format_information_for_system_prompt
+        return self.config.tool_format_information_for_system_prompt
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return self.config.evaluation_check_list
@@ -186,13 +178,16 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 state=ProgressState.FINISHED,
             )
 
-            format_info = self.tool_format_information_for_system_prompt()
+            exp = self.config.experimental_features
+            system_reminder = (
+                exp.system_reminder_prompt.strip() if exp.enable_system_reminder else ""
+            )
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,
                 debug_info=debug_info.model_dump(with_debug_details=self.debug),
                 content_chunks=content_chunks,
-                system_reminder=format_info if format_info.strip() else "",
+                system_reminder=system_reminder,
             )
         except Exception as e:
             _LOGGER.exception(f"Error executing WebSearch tool: {e}")

@@ -44,8 +44,8 @@ When multiple sources are available, prioritize:
 **REMEMBER**: Source numbers reset with each new WebSearch. Only use numbers from the most recent tool response.
 """
 
-DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3_ADDENDUM = """
 
+_TOOL_FORMAT_INFORMATION_V3_DOMAIN_DIVERSITY_SECTION = """
 ## Domain Diversity Requirement
 
 When the current WebSearch tool response contains enough evidence from multiple domains, your final answer should rely on and cite facts from **at least 3 different domains**.
@@ -55,4 +55,10 @@ When the current WebSearch tool response contains enough evidence from multiple 
 - Do **not** quote or reproduce raw URLs in your answer just to show diversity.
 - If fewer than 3 distinct domains are available in the current WebSearch tool response, use the best available sources and clearly reflect the limitation instead of inventing diversity.
 - If one domain dominates the available sources, still prefer the strongest supporting facts from other available domains whenever possible.
-"""
+""".strip()
+
+DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3 = (
+    DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT.rstrip()
+    + "\n\n"
+    + _TOOL_FORMAT_INFORMATION_V3_DOMAIN_DIVERSITY_SECTION
+)
