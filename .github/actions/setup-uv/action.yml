@@ -33,7 +33,8 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
+        ROOT_PKG=$(grep '^name' pyproject.toml | head -1 | sed 's/.*= *"\(.*\)"/\1/')
         PKG_NAME=$(grep '^name' "${{ inputs.package_dir }}/pyproject.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
-        echo "Syncing package: $PKG_NAME"
-        uv sync --locked --package "$PKG_NAME"
+        echo "Syncing packages: $PKG_NAME + $ROOT_PKG (dev tools)"
+        uv sync --locked --package "$PKG_NAME" --package "$ROOT_PKG"
 
