@@ -33,5 +33,7 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
-        uv sync --locked
+        PKG_NAME=$(grep '^name' "${{ inputs.package_dir }}/pyproject.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+        echo "Syncing package: $PKG_NAME"
+        uv sync --locked --package "$PKG_NAME"
 
