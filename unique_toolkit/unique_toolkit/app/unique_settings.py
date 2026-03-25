@@ -334,7 +334,10 @@ class UniqueApi(BaseSettings):
             base_path = "/public/chat-gen2"
 
         if parsed.hostname and (
-            "localhost" in parsed.hostname or "svc.cluster.local" in parsed.hostname
+            "localhost" in parsed.hostname
+            or "svc.cluster.local" in parsed.hostname
+            or ".svc." in parsed.hostname
+            or parsed.hostname.endswith(".svc")
         ):
             base_path = "/public"
 
