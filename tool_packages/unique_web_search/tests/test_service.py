@@ -557,6 +557,7 @@ class TestWebSearchToolRun:
         # Mock WebSearchMessageLogger
         mock_message_logger = Mock()
         mock_message_logger.finished = AsyncMock()
+        mock_message_logger.failed = AsyncMock()
         mocker.patch(
             "unique_web_search.service.WebSearchMessageLogger",
             return_value=mock_message_logger,
@@ -623,6 +624,7 @@ class TestWebSearchToolRun:
         rem = mock_web_search_config_v1.experimental_features.tool_response_system_reminder
         rem.enable_system_reminder = True
         rem.system_reminder_prompt = blank_format
+        rem.get_reminder_prompt = ""
 
         mock_executor = AsyncMock()
         mock_executor.run = AsyncMock(return_value=sample_content_chunks)
@@ -646,6 +648,7 @@ class TestWebSearchToolRun:
 
         mock_message_logger = Mock()
         mock_message_logger.finished = AsyncMock()
+        mock_message_logger.failed = AsyncMock()
         mocker.patch(
             "unique_web_search.service.WebSearchMessageLogger",
             return_value=mock_message_logger,
@@ -695,6 +698,7 @@ class TestWebSearchToolRun:
             "Test format info\n\n## Domain Diversity Requirement\n\n"
             "When the current WebSearch tool response"
         )
+        rem.get_reminder_prompt = rem.system_reminder_prompt
         mock_executor = AsyncMock()
         mock_executor.run = AsyncMock(return_value=sample_content_chunks)
         mock_executor.notify_name = "test-name"
@@ -717,6 +721,7 @@ class TestWebSearchToolRun:
 
         mock_message_logger = Mock()
         mock_message_logger.finished = AsyncMock()
+        mock_message_logger.failed = AsyncMock()
         mocker.patch(
             "unique_web_search.service.WebSearchMessageLogger",
             return_value=mock_message_logger,
@@ -872,6 +877,7 @@ class TestWebSearchToolRun:
         # Mock WebSearchMessageLogger
         mock_message_logger = Mock()
         mock_message_logger.finished = AsyncMock()
+        mock_message_logger.failed = AsyncMock()
         mocker.patch(
             "unique_web_search.service.WebSearchMessageLogger",
             return_value=mock_message_logger,

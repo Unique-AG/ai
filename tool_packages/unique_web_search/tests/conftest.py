@@ -71,6 +71,7 @@ def _mock_experimental_features(
     rem = Mock()
     rem.enable_system_reminder = enable_system_reminder
     rem.system_reminder_prompt = system_reminder_prompt
+    rem.get_reminder_prompt = system_reminder_prompt if enable_system_reminder else ""
     exp.tool_response_system_reminder = rem
     return exp
 
