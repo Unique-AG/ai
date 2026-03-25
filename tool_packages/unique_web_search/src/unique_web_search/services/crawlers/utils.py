@@ -122,4 +122,4 @@ def get_random_user_agent() -> str:
     random_chrome = UserAgent().chrome
     random_email = generate_random_email()
 
-    return random_chrome + f"({random_email})"
+    return random_chrome + f" ({random_email})"
