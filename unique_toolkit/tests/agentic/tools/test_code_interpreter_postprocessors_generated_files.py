@@ -1,7 +1,8 @@
 """Tests for code interpreter generated-files postprocessor (config, __init__, helpers)."""
 
 import logging
-from unittest.mock import MagicMock
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
@@ -306,6 +307,21 @@ def _make_annotation(
         start_index=0,
         end_index=10,
         type="container_file_citation",
+    )
+
+
+def _make_display_files_postprocessor(
+    company_id: str = "co-test",
+) -> DisplayCodeInterpreterFilesPostProcessor:
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    return DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id=company_id,
+        user_id="u1",
+        chat_id="ch1",
     )
 
 
@@ -720,6 +736,23 @@ def test_build_file_fence__document__uses_fileWithSource_tag() -> None:
 
 
 @pytest.mark.ai
+def test_build_file_fence__html__uses_htmlWithSource_tag() -> None:
+    """
+    Purpose: Verify HTML files produce an htmlWithSource fence (no type= attribute).
+    """
+    file = CodeInterpreterFile(
+        filename="report.html", content_id="cont_html1", type="html"
+    )
+    fence = _build_file_fence(
+        file, 'open("/mnt/data/report.html", "w").write("<html></html>")', fence_id=3
+    )
+    assert fence.startswith("````htmlWithSource(")
+    assert "contentId='cont_html1'" in fence
+    assert 'title="Report"' in fence
+    assert "````fileWithSource(" not in fence
+
+
+@pytest.mark.ai
 def test_build_file_fence__code_is_escaped__when_contains_double_quotes() -> None:
     """
     Purpose: Verify double quotes inside the code string are escaped so the
@@ -799,6 +832,30 @@ def test_inject_code_execution_fences__replaces_document_inline_ref__with_fileWi
     assert "````fileWithSource(" in result
     assert "cont_doc1" in result
     assert "[data.xlsx](unique://content/cont_doc1)" not in result
+
+
+@pytest.mark.ai
+def test_inject_code_execution_fences__replaces_html_inline_ref__with_htmlWithSource() -> (
+    None
+):
+    """
+    Purpose: Verify an HTML file markdown link is replaced by an htmlWithSource fence.
+    """
+    block = CodeInterpreterBlock(
+        code='open("/mnt/data/page.html", "w").write("<html></html>")',
+        files=[
+            CodeInterpreterFile(
+                filename="page.html", content_id="cont_html1", type="html"
+            )
+        ],
+    )
+    text = "View: [page.html](unique://content/cont_html1)"
+
+    result = _inject_code_execution_fences(text, [block])
+
+    assert "````htmlWithSource(" in result
+    assert "cont_html1" in result
+    assert "[page.html](unique://content/cont_html1)" not in result
 
 
 @pytest.mark.ai
@@ -1218,6 +1275,22 @@ def test_ensure_fences_are_standalone__strips_list_prefix__before_img_fence() ->
 
 
 @pytest.mark.ai
+def test_ensure_fences_are_standalone__strips_list_prefix__before_html_fence() -> None:
+    """
+    Purpose: Verify a list-item prefix before an htmlWithSource fence is stripped.
+    """
+    text = (
+        "- Page: ````htmlWithSource(id='1', contentId='cid', title=\"Page\", "
+        'code="")````'
+    )
+
+    result = _ensure_fences_are_standalone(text)
+
+    assert "- Page: " not in result
+    assert result.startswith("````htmlWithSource(")
+
+
+@pytest.mark.ai
 def test_ensure_fences_are_standalone__no_change__when_fence_already_standalone() -> (
     None
 ):
@@ -1479,3 +1552,87 @@ def test_warn_unmatched_code_blocks__skips_none_content_ids(caplog) -> None:
         _warn_unmatched_code_blocks(content_map, code_blocks)
 
     assert not any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
+    "generated_files.feature_flags.enable_html_rendering_un_15131.is_enabled",
+    return_value=True,
+)
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
+    "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
+    return_value=False,
+)
+def test_apply_postprocessing_to_response__html_uses_legacy_HtmlRendering__when_fence_ff_off(
+    _mock_fence_ff: MagicMock,
+    _mock_html_ff: MagicMock,
+) -> None:
+    """
+    Purpose: HTML with fence FF off and HTML-rendering FF on uses _replace_container_html_citation.
+    Why this matters: Covers the legacy HtmlRendering branch (UN-15131) in apply_postprocessing.
+    """
+    proc = _make_display_files_postprocessor()
+    proc._content_map = {"report.html": "cid_html"}
+
+    refs: list[ContentReference] = []
+    message = SimpleNamespace(
+        text="[Download](sandbox:/mnt/data/report.html)",
+        references=refs,
+    )
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[],
+        code_interpreter_calls=[],
+    )
+
+    changed = proc.apply_postprocessing_to_response(loop_response)
+
+    assert changed is True
+    assert "HtmlRendering" in message.text
+    assert "unique://content/cid_html" in message.text
+    assert len(refs) == 0
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
+    "generated_files.feature_flags.enable_html_rendering_un_15131.is_enabled",
+    return_value=False,
+)
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
+    "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
+    return_value=True,
+)
+def test_apply_postprocessing_to_response__html_with_fence_ff_on__skips_reference_and_injects_fence(
+    _mock_fence_ff: MagicMock,
+    _mock_html_ff: MagicMock,
+) -> None:
+    """
+    Purpose: HTML + fence FF uses file citation then htmlWithSource; no ContentReference row.
+    Why this matters: Covers is_html_fenced and fence injection paths for .html (UN-17972).
+    """
+    proc = _make_display_files_postprocessor()
+    proc._content_map = {"page.html": "cid_page"}
+
+    refs: list[ContentReference] = []
+    message = SimpleNamespace(
+        text="[page.html](sandbox:/mnt/data/page.html)",
+        references=refs,
+    )
+    call = _make_ci_call('open("/mnt/data/page.html", "w").write("x")')
+    ann = _make_annotation("page.html", file_id="f_html", container_id="cntr_x")
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[ann],
+        code_interpreter_calls=[call],
+    )
+
+    changed = proc.apply_postprocessing_to_response(loop_response)
+
+    assert changed is True
+    assert len(refs) == 0
+    assert "````htmlWithSource(" in message.text
+    assert "cid_page" in message.text
