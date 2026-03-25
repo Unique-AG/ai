@@ -72,7 +72,7 @@ class WebSearchV3Config(BaseWebSearchModeConfig[WebSearchMode.V3]):
         ),
     ] = Field(
         default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3,
-        title="Tool Format Information for System Prompt",
+        title="Tool Format Information For System Prompt",
         description="Advanced: Instructions that tell the AI how to cite web search sources in its answers (V3 includes domain diversity requirements).",
     )
 

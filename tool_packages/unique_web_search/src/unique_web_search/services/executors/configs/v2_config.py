@@ -46,7 +46,7 @@ class WebSearchV2Config(BaseWebSearchModeConfig[WebSearchMode.V2]):
         ),
     ] = Field(
         default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT["v2"],
-        title="Tool Usage Instructions",
+        title="Tool Description For System Prompt",
         description="Advanced: Detailed instructions for the AI model on how to plan and execute web research.",
     )
 

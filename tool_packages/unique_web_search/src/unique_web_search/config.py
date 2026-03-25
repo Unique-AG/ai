@@ -217,7 +217,7 @@ class WebSearchConfig(BaseToolConfig):
         ),
     ] = Field(
         default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
-        title="Source Citation Instructions",
+        title="Tool Format Information For System Prompt",
         description="Advanced: Instructions that tell the AI how to cite web search sources in its answers.",
     )
 
