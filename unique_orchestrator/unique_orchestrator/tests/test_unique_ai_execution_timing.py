@@ -517,7 +517,7 @@ class TestRunExecutionTimingIntegration:
         )
 
         mock_debug_info_manager = MagicMock()
-        mock_debug_info_manager.get.return_value = {}
+        mock_debug_info_manager.get.return_value = {"tools": []}
 
         mock_config = MagicMock()
         mock_config.effective_max_loop_iterations = 1
