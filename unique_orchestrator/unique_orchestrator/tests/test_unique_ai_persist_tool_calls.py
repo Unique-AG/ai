@@ -60,6 +60,7 @@ def _make_unique_ai(monkeypatch) -> UniqueAI:
 class TestPersistToolCalls:
     """Test suite for UniqueAI._persist_tool_calls method."""
 
+    @pytest.mark.asyncio
     @pytest.mark.ai
     async def test_persist_tool_calls__returns_early__when_no_records(
         self, monkeypatch
@@ -80,6 +81,7 @@ class TestPersistToolCalls:
 
         ua._chat_service.create_message_tools_async.assert_not_called()
 
+    @pytest.mark.asyncio
     @pytest.mark.ai
     async def test_persist_tool_calls__persists_records__when_records_exist(
         self, monkeypatch
@@ -115,6 +117,7 @@ class TestPersistToolCalls:
             tool_calls=[record_a, record_b],
         )
 
+    @pytest.mark.asyncio
     @pytest.mark.ai
     async def test_persist_tool_calls__logs_count__after_successful_persistence(
         self, monkeypatch
@@ -143,6 +146,7 @@ class TestPersistToolCalls:
         log_calls = [str(call) for call in ua._logger.info.call_args_list]
         assert any("2" in msg for msg in log_calls)
 
+    @pytest.mark.asyncio
     @pytest.mark.ai
     async def test_persist_tool_calls__logs_error__when_db_raises(
         self, monkeypatch
@@ -173,6 +177,7 @@ class TestPersistToolCalls:
         error_msg = str(ua._logger.error.call_args)
         assert "DB unavailable" in error_msg
 
+    @pytest.mark.asyncio
     @pytest.mark.ai
     async def test_persist_tool_calls__passes_last_assistant_text_to_compact(
         self, monkeypatch
@@ -205,6 +210,7 @@ class TestPersistToolCalls:
 
         assert captured_kwargs["assistant_text"] == "Here is the answer [source3]."
 
+    @pytest.mark.asyncio
     @pytest.mark.ai
     async def test_persist_tool_calls__none_last_assistant_text__still_persists(
         self, monkeypatch
