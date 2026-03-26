@@ -173,7 +173,12 @@ sequenceDiagram
     MCP->>MCP: verify Bearer token (transport-level auth)
     alt _meta has both user-id + company-id
         MCP->>MCP: build UniqueSettings from _meta (skip JWT/userinfo)
-        MCP-->>InternalSvc: tool result
+        MCP->>MCP: call Unique API with provided identity
+        alt identity is valid
+            MCP-->>InternalSvc: tool result
+        else user-id or company-id not recognised by Unique
+            MCP-->>InternalSvc: error (API rejects identity)
+        end
     else _meta incomplete or absent
         MCP->>MCP: fall through to JWT claims / userinfo
         Note over MCP: fails if token missing or claims incomplete
