@@ -209,8 +209,6 @@ class InternalSearchConfig(BaseToolConfig):
         description="Allow execution of multiple search strings in one call. When set to True, each string is searched individually and results are merged into a single response.",
     )
 
-    experimental_features: SkipJsonSchema[ExperimentalFeatures] = ExperimentalFeatures()
-
     metadata_chunk_sections: dict[str, str] = Field(
         default={},
         description=(
@@ -232,4 +230,9 @@ class InternalSearchConfig(BaseToolConfig):
         default=10,
         ge=1,
         description="The maximum number of search strings to perform in a single tool call.",
+    )
+    
+    experimental_features: ExperimentalFeatures = Field(
+        default_factory=ExperimentalFeatures,
+        description="Experimental features.",
     )
