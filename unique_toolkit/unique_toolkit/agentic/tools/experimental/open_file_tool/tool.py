@@ -1,4 +1,7 @@
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
+    OpenFileToolConfig,
+)
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig, ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
@@ -9,7 +12,7 @@ from unique_toolkit.language_model.schemas import (
 )
 
 
-class OpenFileTool(Tool[BaseToolConfig]):
+class OpenFileTool(Tool[OpenFileToolConfig]):
     """Tool that lets the agent open a knowledge-base file so the full document
     is included in the LLM payload (unique://content/<id> URL).
 
@@ -24,8 +27,9 @@ class OpenFileTool(Tool[BaseToolConfig]):
         self,
         event: ChatEvent,
         registry: list[str],
+        config: OpenFileToolConfig,
     ) -> None:
-        super().__init__(BaseToolConfig(), event)
+        super().__init__(config, event)
         self._registry = registry
 
     def display_name(self) -> str:
@@ -34,31 +38,14 @@ class OpenFileTool(Tool[BaseToolConfig]):
     def tool_description(self) -> LanguageModelToolDescription:
         return LanguageModelToolDescription(
             name=self.name,
-            description=(
-                "Open one or more documents so you can read and reason over their "
-                "full content. ALWAYS call this tool for any file you want to answer "
-                "questions about — the text chunks from InternalSearch are lossy extracts "
-                "and miss tables, charts, layout, and context. Opening the full file gives "
-                "you far superior information.\n\n"
-                "How to find the content_id:\n"
-                "- After an InternalSearch call, each source includes a 'content_id' "
-                "field (starts with 'cont_'). Use that value.\n"
-                "- The document name is shown inside <|document|>…<|/document|> tags in "
-                "the search result content, e.g. "
-                "'<|document|>Report.pdf<|/document|>'.\n\n"
-                "The opened files will be available in all subsequent iterations."
-            ),
+            description=self.config.tool_description,
             parameters={
                 "type": "object",
                 "properties": {
                     "content_ids": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": (
-                            "List of content_ids of the documents to open. "
-                            "Each content_id is found in search results as the "
-                            "'content_id' field (starts with 'cont_')."
-                        ),
+                        "description": self.config.tool_parameter_description_content_ids,
                     }
                 },
                 "required": ["content_ids"],
@@ -66,21 +53,7 @@ class OpenFileTool(Tool[BaseToolConfig]):
         )
 
     def tool_description_for_system_prompt(self) -> str:
-        return (
-            "When the user asks you to work with, analyze, summarize, or reason over a "
-            "document, you MUST open it with OpenFile before answering. "
-            "The text chunks returned by InternalSearch are extracted fragments — they lose "
-            "tables, charts, formatting, and cross-page context. Opening the full file gives "
-            "you the complete document with all visual and structural information intact.\n\n"
-            "Workflow:\n"
-            "1. Use InternalSearch to find relevant documents and identify their content_ids.\n"
-            "2. Call OpenFile with the content_ids of the files you need.\n"
-            "3. The full files will be available in the next iteration for you to read.\n"
-            "4. Answer the user's question using the full file content, referencing the "
-            "InternalSearch source numbers for citations.\n\n"
-            "You should still cite source numbers from InternalSearch in your answer "
-            "(e.g. [source0]), but base your reasoning on the full opened file when available."
-        )
+        return self.config.tool_description_for_system_prompt
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         args = tool_call.arguments or {}
