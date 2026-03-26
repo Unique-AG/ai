@@ -11,7 +11,6 @@ from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
-from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import (
     LMI,
     ClipInt,
@@ -34,6 +33,9 @@ from unique_toolkit.agentic.tools.a2a import (
     REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
+from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
+    OpenFileToolConfig,
+)
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
@@ -309,55 +311,6 @@ class ResponsesApiConfig(BaseToolConfig):
     use_responses_api: bool = Field(
         default=False,
         description="If set, the main agent will use the Responses API from OpenAI",
-    )
-
-
-class OpenFileToolConfig(BaseToolConfig):
-    """Configuration for sending files directly in the LLM payload."""
-
-    enabled: Annotated[
-        bool,
-        RJSFMetaTag.BooleanWidget.checkbox(
-            help=(
-                "Master switch for all Open File Tool. When disabled, "
-                "none of the other flags in this config block take effect."
-            ),
-        ),
-    ] = Field(
-        default=False,
-        description="Enable the Open File Tool.",
-    )
-
-    send_files_in_payload: Annotated[
-        bool,
-        RJSFMetaTag.BooleanWidget.checkbox(
-            help=(
-                "Enable the OpenFile tool for knowledge-base files. When the agent "
-                "finds files via InternalSearch, it can call OpenFile with the "
-                "content_id to include the full document in the LLM context "
-                "(unique://content/<id> URLs, resolved to base64 by the backend). "
-                "Only takes effect when use_responses_api is also True."
-            ),
-        ),
-    ] = Field(
-        default=False,
-        description="Enable the OpenFile tool for knowledge-base files.",
-    )
-
-    send_uploaded_files_in_payload: Annotated[
-        bool,
-        RJSFMetaTag.BooleanWidget.checkbox(
-            help=(
-                "Attach uploaded files directly to the LLM payload as full "
-                "documents (unique://content/<id> URLs, resolved to base64 by the "
-                "backend). When enabled, uploaded files bypass InternalSearch and "
-                "are included automatically from iteration 1. "
-                "Only takes effect when use_responses_api is also True."
-            ),
-        ),
-    ] = Field(
-        default=False,
-        description="Attach uploaded files directly to the LLM payload.",
     )
 
 

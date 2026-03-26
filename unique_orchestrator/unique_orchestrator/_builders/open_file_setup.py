@@ -110,6 +110,6 @@ def configure_file_payload(
     agent_file_registry: list[str] = []
 
     if config.agent.experimental.open_file_tool_config.send_files_in_payload:
-        tool_manager.add_tool(OpenFileTool(event=event, registry=agent_file_registry))
+        tool_manager.add_tool(OpenFileTool(event=event, registry=agent_file_registry, config=config.agent.experimental.open_file_tool_config))
 
     return history_manager, agent_file_registry
