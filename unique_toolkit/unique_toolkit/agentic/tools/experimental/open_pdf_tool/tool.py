@@ -14,8 +14,8 @@ class OpenPdfTool(Tool[BaseToolConfig]):
     is included in the LLM payload (unique://content/<id> URL).
 
     The agent calls this with the content_id it sees in search results.  The
-    shared registry is then read by UniqueAI._collect_content_file_parts() on
-    every subsequent loop iteration.
+    shared registry is then read by OpenPdfToolRuntime on every subsequent
+    loop iteration.
     """
 
     name = "OpenPdf"

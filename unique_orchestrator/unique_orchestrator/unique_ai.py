@@ -22,6 +22,10 @@ from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.thinking_manager.thinking_manager import ThinkingManager
+from unique_toolkit.agentic.tools.experimental.open_pdf_tool import (
+    OpenPdfToolRuntime,
+    OpenPdfToolRuntimeConfig,
+)
 from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
     SafeTaskExecutor,
@@ -118,6 +122,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner | ResponsesLoopIterationRunner,
+        agent_file_registry: list[str] | None = None,
     ) -> None:
         self._logger = logger
         self._event = event
@@ -139,6 +144,28 @@ class UniqueAI:
         self._streaming_handler = streaming_handler
 
         self._message_step_logger = message_step_logger
+        if self.config.agent.experimental.open_pdf_tool_config.enabled:
+            self._agent_file_registry: list[str] = (
+                agent_file_registry if agent_file_registry is not None else []
+            )
+            pdf_cfg = config.agent.experimental.open_pdf_tool_config
+            self._open_pdf_runtime = OpenPdfToolRuntime(
+                logger=logger,
+                config=OpenPdfToolRuntimeConfig(
+                    enabled=pdf_cfg.enabled,
+                    send_pdf_files_in_payload=pdf_cfg.send_pdf_files_in_payload,
+                    send_uploaded_pdf_in_payload=pdf_cfg.send_uploaded_pdf_in_payload,
+                    use_responses_api=(
+                        config.agent.experimental.responses_api_config.use_responses_api
+                        or config.agent.experimental.use_responses_api
+                    ),
+                ),
+                content_service=content_service,
+                tool_manager=tool_manager,
+                message_step_logger=message_step_logger,
+                agent_file_registry=self._agent_file_registry,
+            )
+        self._pdf_fallback_occurred = False
         # Helper variable to support control loop
         self._tool_took_control = False
         self._loop_iteration_runner = loop_iteration_runner
@@ -212,6 +239,13 @@ class UniqueAI:
                 self._logger.info("Done with adding references")
 
                 self._thinking_manager.update_tool_progress_reporter(loop_response)
+
+                if (
+                    self.config.agent.experimental.open_pdf_tool_config.enabled
+                    and self._pdf_fallback_occurred
+                ):
+                    await self._open_pdf_runtime.report_pdf_fallback_step()
+                    self._pdf_fallback_occurred = False
 
                 self._debug_info_manager.extract_builtin_tool_debug_info(
                     loop_response,
@@ -294,6 +328,24 @@ class UniqueAI:
             tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
             other_options=self._config.agent.experimental.additional_llm_options,
         )
+
+        # Experimental Feature UN-17905
+        if self.config.agent.experimental.open_pdf_tool_config.enabled:
+            try:
+                return await self._loop_iteration_runner(**kwargs)
+            except Exception as exc:
+                if not self._open_pdf_runtime.should_retry_without_pdf_files(exc):
+                    raise
+                self._logger.warning(
+                    "LLM call failed (likely payload too large). "
+                    "Retrying without PDF files."
+                )
+                self._pdf_fallback_occurred = True
+                kwargs["messages"] = self._open_pdf_runtime.prepare_retry_messages(
+                    messages=messages
+                )
+                return await self._loop_iteration_runner(**kwargs)
+
         return await self._loop_iteration_runner(**kwargs)
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
@@ -332,6 +384,14 @@ class UniqueAI:
             rendered_system_message_string,
             self._postprocessor_manager.remove_from_text,
         )
+
+        if self.config.agent.experimental.open_pdf_tool_config.enabled:
+            if self._open_pdf_runtime.should_attach_content_files():
+                messages = (
+                    self._open_pdf_runtime.inject_content_files_into_user_message(
+                        messages
+                    )
+                )
         return messages
 
     async def _render_user_prompt(self) -> str:
@@ -462,7 +522,13 @@ class UniqueAI:
             logger=self._logger,
         )
 
-        selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
+        if self.config.agent.experimental.open_pdf_tool_config.enabled:
+            selected_evaluation_names = self._open_pdf_runtime.filter_evaluation_names(
+                self._tool_manager.get_evaluation_check_list()
+            )
+        else:
+            selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
+
         evaluation_results = task_executor.execute_async(
             self._evaluation_manager.run_evaluations,
             selected_evaluation_names,
@@ -573,6 +639,9 @@ class UniqueAI:
 
         # Log tool calls
         self._log_tool_calls(tool_calls)
+
+        if self.config.agent.experimental.open_pdf_tool_config.enabled:
+            tool_calls = self._open_pdf_runtime.filter_tool_calls(tool_calls)
 
         execution_start = time.perf_counter()
         tool_call_responses = await self._tool_manager.execute_selected_tools(
