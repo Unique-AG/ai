@@ -119,13 +119,16 @@ def _inject_todo_tools(config: UniqueAIConfig) -> list[ToolBuildConfig]:
         return config.space.tools
 
     import unique_toolkit.agentic.tools.todo  # noqa: F401 — registers with ToolFactory
+    from unique_toolkit.agentic.tools.todo.config import TodoConfig
 
     tools = list(config.space.tools)
     existing_names = {t.name for t in tools}
-    cfg_dict = todo_cfg.model_dump()
     if "todo_write" not in existing_names:
+        todo_tool_config = TodoConfig(**todo_cfg.model_dump())
         tools.append(
-            ToolBuildConfig(name="todo_write", configuration=cfg_dict, is_enabled=True)
+            ToolBuildConfig(
+                name="todo_write", configuration=todo_tool_config, is_enabled=True
+            )
         )
     return tools
 
