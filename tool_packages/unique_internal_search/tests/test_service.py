@@ -1539,6 +1539,136 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_run__system_reminder_empty__when_reminder_disabled(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_chat_event: Any,
+        mock_logger: Any,
+        mock_language_model_function: Any,
+        sample_content_chunks: list[ContentChunk],
+        mock_tool_progress_reporter: Any,
+    ) -> None:
+        """
+        Purpose: Verify system_reminder is empty when tool_response_system_reminder is disabled (default).
+        Why this matters: Ensures no reminder leaks into responses when the feature is off.
+        Setup summary: Default config (reminder disabled), run tool, assert system_reminder is empty.
+        """
+        with (
+            patch(
+                "unique_internal_search.service.ContentService"
+            ) as mock_content_service_class,
+            patch(
+                "unique_internal_search.service.ChunkRelevancySorter"
+            ) as mock_sorter_class,
+            patch(
+                "unique_internal_search.service.append_metadata_in_chunks",
+                return_value=sample_content_chunks,
+            ),
+        ):
+            mock_content_service = Mock(spec=ContentService)
+            mock_content_service._metadata_filter = None
+            mock_content_service.search_contents_async = AsyncMock(return_value=[])
+            mock_content_service.search_content_chunks_async = AsyncMock(
+                return_value=sample_content_chunks
+            )
+            mock_content_service_class.from_event.return_value = mock_content_service
+            mock_sorter_class.from_event.return_value = Mock()
+
+            def setup_tool(self, configuration, event, *args, **kwargs):
+                setattr(self, "_event", event)
+                setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
+
+            with (
+                patch("unique_internal_search.service.Tool.__init__", setup_tool),
+                patch.object(
+                    InternalSearchTool,
+                    "tool_progress_reporter",
+                    new_callable=PropertyMock,
+                    return_value=mock_tool_progress_reporter,
+                ),
+            ):
+                tool = InternalSearchTool(
+                    configuration=base_internal_search_config,
+                    event=mock_chat_event,
+                )
+                result = await tool.run(mock_language_model_function)
+
+            assert result.system_reminder == ""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__system_reminder_populated__when_reminder_enabled(
+        self,
+        mock_chat_event: Any,
+        mock_logger: Any,
+        mock_language_model_function: Any,
+        sample_content_chunks: list[ContentChunk],
+        mock_tool_progress_reporter: Any,
+    ) -> None:
+        """
+        Purpose: Verify system_reminder contains the prompt when tool_response_system_reminder is enabled.
+        Why this matters: Ensures citation reminder reaches the LLM when the feature is turned on.
+        Setup summary: Config with reminder enabled, run tool, assert system_reminder is the default prompt.
+        """
+        config = InternalSearchConfig.model_validate(
+            {
+                "experimentalFeatures": {
+                    "toolResponseSystemReminder": {
+                        "enabled": True,
+                    }
+                }
+            }
+        )
+        with (
+            patch(
+                "unique_internal_search.service.ContentService"
+            ) as mock_content_service_class,
+            patch(
+                "unique_internal_search.service.ChunkRelevancySorter"
+            ) as mock_sorter_class,
+            patch(
+                "unique_internal_search.service.append_metadata_in_chunks",
+                return_value=sample_content_chunks,
+            ),
+        ):
+            mock_content_service = Mock(spec=ContentService)
+            mock_content_service._metadata_filter = None
+            mock_content_service.search_contents_async = AsyncMock(return_value=[])
+            mock_content_service.search_content_chunks_async = AsyncMock(
+                return_value=sample_content_chunks
+            )
+            mock_content_service_class.from_event.return_value = mock_content_service
+            mock_sorter_class.from_event.return_value = Mock()
+
+            def setup_tool(self, configuration, event, *args, **kwargs):
+                setattr(self, "_event", event)
+                setattr(self, "logger", mock_logger)
+                setattr(self, "_message_step_logger", None)
+
+            with (
+                patch("unique_internal_search.service.Tool.__init__", setup_tool),
+                patch.object(
+                    InternalSearchTool,
+                    "tool_progress_reporter",
+                    new_callable=PropertyMock,
+                    return_value=mock_tool_progress_reporter,
+                ),
+            ):
+                tool = InternalSearchTool(
+                    configuration=config,
+                    event=mock_chat_event,
+                )
+                result = await tool.run(mock_language_model_function)
+
+            from unique_internal_search.prompts import (
+                DEFAULT_TOOL_RESPONSE_SYSTEM_REMINDER_PROMPT,
+            )
+
+            assert result.system_reminder == DEFAULT_TOOL_RESPONSE_SYSTEM_REMINDER_PROMPT
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_run__notifies_finished__when_search_completes(
         self,
         base_internal_search_config: InternalSearchConfig,
