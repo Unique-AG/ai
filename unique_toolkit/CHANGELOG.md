@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.64.1] - 2026-03-26
+- Code interpreter (UN-17972): fix system prompt default handling across fence FF states. `OpenAICodeInterpreterConfig.tool_description_for_system_prompt` now defaults to `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` (UI default alignment), while `OpenAICodeInterpreterTool.get_tool_prompts()` now selects the effective default by FF in both directions for uncustomised spaces (`fence` when FF on, `non-fence` when FF off). Operator-customised prompts remain unchanged.
+
 ## [1.64.0] - 2026-03-25
 - Code interpreter (UN-17972): orphan code runs — synthesise a `.txt` artifact and `fileWithSource` fence when code produces no container files, gated on `enable_code_execution_fence_un_17972` (replaces legacy `<details>` for that case)
 - Code interpreter (UN-17972): `OpenAICodeInterpreterTool.get_required_include_params()` returns `["code_interpreter_call.outputs"]` when the fence FF is on; add `OpenAIBuiltInTool.get_required_include_params()`, `OpenAIBuiltInToolManager.get_required_include_params()`, and `ResponsesApiToolManager.get_required_include_params()`; add `_collect_stdout` for `ResponseCodeInterpreterToolCall.outputs` (end-to-end `include` requires orchestrator PR)
