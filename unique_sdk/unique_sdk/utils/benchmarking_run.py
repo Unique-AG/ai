@@ -1,7 +1,8 @@
 import asyncio
 import shutil
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from unique_sdk.api_resources._benchmarking import Benchmarking
 
