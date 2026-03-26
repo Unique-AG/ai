@@ -159,13 +159,12 @@ def test_get_tool_prompts__uses_fence_default__when_ff_on_and_stored_is_non_fenc
     _mock_ff: Any,
 ) -> None:
     """
-    Purpose: When fence FF is on and the operator left the non-fence default prompt,
-    the effective system prompt must be the fence-aware default (UN-17972).
+    Purpose: When fence FF is on and the operator left the legacy non-fence default
+    (written by an older deployment), the effective system prompt must still be the
+    fence-aware default (UN-17972 migration path).
     """
-    config = OpenAICodeInterpreterConfig()
-    assert (
-        config.tool_description_for_system_prompt
-        == DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT
+    config = OpenAICodeInterpreterConfig(
+        tool_description_for_system_prompt=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT
     )
     tool = _auto_container_tool(config)
 
@@ -244,17 +243,21 @@ def test_get_tool_prompts__uses_custom_prompt__when_ff_on_and_operator_customise
     "feature_flags.enable_code_execution_fence_un_17972.is_enabled",
     return_value=False,
 )
-def test_get_tool_prompts__uses_stored_prompt__when_ff_off_even_if_matches_fence_default(
+def test_get_tool_prompts__uses_non_fence_default__when_ff_off_and_uncustomised(
     _mock_ff: Any,
 ) -> None:
-    """Purpose: When fence FF is off, stored text is used as-is (may be fence-shaped)."""
-    config = OpenAICodeInterpreterConfig(
-        tool_description_for_system_prompt=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
-    )
-    tool = _auto_container_tool(config)
+    """
+    Purpose: When fence FF is off and the operator has not customised the prompt
+    (stored value matches any known default), the non-fence default must be used
+    regardless of which default variant is stored.
+    """
+    for stored in (
+        DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+        DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
+    ):
+        config = OpenAICodeInterpreterConfig(tool_description_for_system_prompt=stored)
+        tool = _auto_container_tool(config)
 
-    prompts = tool.get_tool_prompts()
+        prompts = tool.get_tool_prompts()
 
-    assert (
-        prompts.tool_system_prompt == DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
-    )
+        assert prompts.tool_system_prompt == DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT
