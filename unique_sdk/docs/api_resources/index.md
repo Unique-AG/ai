@@ -5,6 +5,7 @@ This section contains documentation for all API resources available in the Uniqu
 ## Available Resources
 
 - [Agentic Table API](agentic_table.md) - AI-powered interactive tables with activity tracking
+- [Benchmarking API](benchmarking.md) - Benchmarking spreadsheet upload and downloads
 - [ChatCompletion API](chat_completion.md) - Chat completion functionality
 - [Content API](content.md) - Content management operations
 - [Embeddings API](embeddings.md) - Vector embeddings for semantic search
