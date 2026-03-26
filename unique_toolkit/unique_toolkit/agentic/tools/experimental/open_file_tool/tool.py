@@ -105,4 +105,4 @@ class OpenFileTool(Tool[OpenFileToolConfig]):
         return []
 
 
-ToolFactory.register_tool(OpenFileTool, BaseToolConfig)
+ToolFactory.register_tool(OpenFileTool, OpenFileToolConfig)

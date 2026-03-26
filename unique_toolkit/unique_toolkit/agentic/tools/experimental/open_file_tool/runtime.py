@@ -168,7 +168,7 @@ class OpenFileToolRuntime:
         return messages
 
     async def report_file_fallback_step(self) -> None:
-        self._message_step_logger.create_message_log_entry(
+        await self._message_step_logger.create_message_log_entry_async(
             text=(
                 "**Open File:** The file is too large to open. "
                 "Please ask an admin to include the document in the knowledge base."

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 
@@ -90,7 +90,9 @@ def tool_manager():
 
 @pytest.fixture
 def message_step_logger():
-    return Mock()
+    mock = Mock()
+    mock.create_message_log_entry_async = AsyncMock()
+    return mock
 
 
 @pytest.fixture
@@ -1214,8 +1216,8 @@ class TestReportFileFallbackStep:
         """
         await runtime.report_file_fallback_step()
 
-        message_step_logger.create_message_log_entry.assert_called_once()
-        call_kwargs = message_step_logger.create_message_log_entry.call_args
+        message_step_logger.create_message_log_entry_async.assert_called_once()
+        call_kwargs = message_step_logger.create_message_log_entry_async.call_args
         assert (
             "too large"
             in call_kwargs.kwargs.get("text", call_kwargs[1].get("text", "")).lower()
