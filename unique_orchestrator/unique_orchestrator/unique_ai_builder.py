@@ -76,9 +76,9 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
 from unique_orchestrator._builders import build_loop_iteration_runner
-from unique_orchestrator._builders.open_pdf_setup import (
-    configure_pdf_payload,
-    handle_uploaded_pdf_tool_choices,
+from unique_orchestrator._builders.open_file_setup import (
+    configure_file_payload,
+    handle_uploaded_file_tool_choices,
 )
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
@@ -370,10 +370,13 @@ async def _build_responses(
     )
 
     has_non_pdf_uploads = False
-    if config.agent.experimental.open_pdf_tool_config.enabled:
-        has_non_pdf_uploads = handle_uploaded_pdf_tool_choices(
-            config, event, common_components.uploaded_documents,
-            common_components.tool_manager_config, logger,
+    if config.agent.experimental.open_file_tool_config.enabled:
+        has_non_pdf_uploads = handle_uploaded_file_tool_choices(
+            config,
+            event,
+            common_components.uploaded_documents,
+            common_components.tool_manager_config,
+            logger,
         )
 
     builtin_tool_manager = await OpenAIBuiltInToolManager.build_manager(
@@ -399,12 +402,14 @@ async def _build_responses(
         tool_manager.add_forced_tool(UploadedSearchTool.name)
 
     agent_file_registry: list[str] = []
-    if config.agent.experimental.open_pdf_tool_config.enabled:
+    if config.agent.experimental.open_file_tool_config.enabled:
         if has_non_pdf_uploads and not event.payload.tool_choices:
             tool_manager.add_forced_tool(UploadedSearchTool.name)
 
-        history_manager, agent_file_registry = configure_pdf_payload(
-            config, event, logger,
+        history_manager, agent_file_registry = configure_file_payload(
+            config,
+            event,
+            logger,
             common_components.history_manager,
             common_components.reference_manager,
             config.space.language_model,

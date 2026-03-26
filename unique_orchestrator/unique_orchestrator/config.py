@@ -312,28 +312,28 @@ class ResponsesApiConfig(BaseToolConfig):
     )
 
 
-class OpenPdfToolConfig(BaseToolConfig):
-    """Configuration for sending PDF files directly in the LLM payload."""
+class OpenFileToolConfig(BaseToolConfig):
+    """Configuration for sending files directly in the LLM payload."""
 
     enabled: Annotated[
         bool,
         RJSFMetaTag.BooleanWidget.checkbox(
             help=(
-                "Master switch for all OpenPdf-related features. When disabled, "
+                "Master switch for all Open File Tool. When disabled, "
                 "none of the other flags in this config block take effect."
             ),
         ),
     ] = Field(
         default=False,
-        description="Enable the OpenPdf tool features.",
+        description="Enable the Open File Tool.",
     )
 
-    send_pdf_files_in_payload: Annotated[
+    send_files_in_payload: Annotated[
         bool,
         RJSFMetaTag.BooleanWidget.checkbox(
             help=(
-                "Enable the OpenPdf tool for knowledge-base PDFs. When the agent "
-                "finds PDFs via InternalSearch, it can call OpenPdf with the "
+                "Enable the OpenFile tool for knowledge-base files. When the agent "
+                "finds files via InternalSearch, it can call OpenFile with the "
                 "content_id to include the full document in the LLM context "
                 "(unique://content/<id> URLs, resolved to base64 by the backend). "
                 "Only takes effect when use_responses_api is also True."
@@ -341,23 +341,23 @@ class OpenPdfToolConfig(BaseToolConfig):
         ),
     ] = Field(
         default=False,
-        description="Enable the OpenPdf tool for knowledge-base PDFs.",
+        description="Enable the OpenFile tool for knowledge-base files.",
     )
 
-    send_uploaded_pdf_in_payload: Annotated[
+    send_uploaded_files_in_payload: Annotated[
         bool,
         RJSFMetaTag.BooleanWidget.checkbox(
             help=(
-                "Attach uploaded PDF files directly to the LLM payload as full "
+                "Attach uploaded files directly to the LLM payload as full "
                 "documents (unique://content/<id> URLs, resolved to base64 by the "
-                "backend). When enabled, uploaded PDFs bypass InternalSearch and "
+                "backend). When enabled, uploaded files bypass InternalSearch and "
                 "are included automatically from iteration 1. "
                 "Only takes effect when use_responses_api is also True."
             ),
         ),
     ] = Field(
         default=False,
-        description="Attach uploaded PDF files directly to the LLM payload.",
+        description="Attach uploaded files directly to the LLM payload.",
     )
 
 
@@ -388,7 +388,7 @@ class ExperimentalConfig(BaseToolConfig):
 
     responses_api_config: SkipJsonSchema[ResponsesApiConfig] = ResponsesApiConfig()
 
-    open_pdf_tool_config: OpenPdfToolConfig = OpenPdfToolConfig()
+    open_file_tool_config: OpenFileToolConfig = OpenFileToolConfig()
 
     use_responses_api: bool = Field(
         default=False,

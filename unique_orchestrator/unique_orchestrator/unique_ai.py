@@ -22,9 +22,9 @@ from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.thinking_manager.thinking_manager import ThinkingManager
-from unique_toolkit.agentic.tools.experimental.open_pdf_tool import (
-    OpenPdfToolRuntime,
-    OpenPdfToolRuntimeConfig,
+from unique_toolkit.agentic.tools.experimental.open_file_tool import (
+    OpenFileToolRuntime,
+    OpenFileToolRuntimeConfig,
 )
 from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
@@ -144,17 +144,17 @@ class UniqueAI:
         self._streaming_handler = streaming_handler
 
         self._message_step_logger = message_step_logger
-        if self.config.agent.experimental.open_pdf_tool_config.enabled:
+        if self.config.agent.experimental.open_file_tool_config.enabled:
             self._agent_file_registry: list[str] = (
                 agent_file_registry if agent_file_registry is not None else []
             )
-            pdf_cfg = config.agent.experimental.open_pdf_tool_config
-            self._open_pdf_runtime = OpenPdfToolRuntime(
+            file_cfg = config.agent.experimental.open_file_tool_config
+            self._open_file_runtime = OpenFileToolRuntime(
                 logger=logger,
-                config=OpenPdfToolRuntimeConfig(
-                    enabled=pdf_cfg.enabled,
-                    send_pdf_files_in_payload=pdf_cfg.send_pdf_files_in_payload,
-                    send_uploaded_pdf_in_payload=pdf_cfg.send_uploaded_pdf_in_payload,
+                config=OpenFileToolRuntimeConfig(
+                    enabled=file_cfg.enabled,
+                    send_files_in_payload=file_cfg.send_files_in_payload,
+                    send_uploaded_files_in_payload=file_cfg.send_uploaded_files_in_payload,
                     use_responses_api=(
                         config.agent.experimental.responses_api_config.use_responses_api
                         or config.agent.experimental.use_responses_api
@@ -165,7 +165,7 @@ class UniqueAI:
                 message_step_logger=message_step_logger,
                 agent_file_registry=self._agent_file_registry,
             )
-        self._pdf_fallback_occurred = False
+        self._file_fallback_occurred = False
         # Helper variable to support control loop
         self._tool_took_control = False
         self._loop_iteration_runner = loop_iteration_runner
@@ -241,11 +241,11 @@ class UniqueAI:
                 self._thinking_manager.update_tool_progress_reporter(loop_response)
 
                 if (
-                    self.config.agent.experimental.open_pdf_tool_config.enabled
-                    and self._pdf_fallback_occurred
+                    self.config.agent.experimental.open_file_tool_config.enabled
+                    and self._file_fallback_occurred
                 ):
-                    await self._open_pdf_runtime.report_pdf_fallback_step()
-                    self._pdf_fallback_occurred = False
+                    await self._open_file_runtime.report_file_fallback_step()
+                    self._file_fallback_occurred = False
 
                 self._debug_info_manager.extract_builtin_tool_debug_info(
                     loop_response,
@@ -330,18 +330,18 @@ class UniqueAI:
         )
 
         # Experimental Feature UN-17905
-        if self.config.agent.experimental.open_pdf_tool_config.enabled:
+        if self.config.agent.experimental.open_file_tool_config.enabled:
             try:
                 return await self._loop_iteration_runner(**kwargs)
             except Exception as exc:
-                if not self._open_pdf_runtime.should_retry_without_pdf_files(exc):
+                if not self._open_file_runtime.should_retry_without_files(exc):
                     raise
                 self._logger.warning(
                     "LLM call failed (likely payload too large). "
-                    "Retrying without PDF files."
+                    "Retrying without attached files."
                 )
-                self._pdf_fallback_occurred = True
-                kwargs["messages"] = self._open_pdf_runtime.prepare_retry_messages(
+                self._file_fallback_occurred = True
+                kwargs["messages"] = self._open_file_runtime.prepare_retry_messages(
                     messages=messages
                 )
                 return await self._loop_iteration_runner(**kwargs)
@@ -385,10 +385,10 @@ class UniqueAI:
             self._postprocessor_manager.remove_from_text,
         )
 
-        if self.config.agent.experimental.open_pdf_tool_config.enabled:
-            if self._open_pdf_runtime.should_attach_content_files():
+        if self.config.agent.experimental.open_file_tool_config.enabled:
+            if self._open_file_runtime.should_attach_content_files():
                 messages = (
-                    self._open_pdf_runtime.inject_content_files_into_user_message(
+                    self._open_file_runtime.inject_content_files_into_user_message(
                         messages
                     )
                 )
@@ -522,8 +522,8 @@ class UniqueAI:
             logger=self._logger,
         )
 
-        if self.config.agent.experimental.open_pdf_tool_config.enabled:
-            selected_evaluation_names = self._open_pdf_runtime.filter_evaluation_names(
+        if self.config.agent.experimental.open_file_tool_config.enabled:
+            selected_evaluation_names = self._open_file_runtime.filter_evaluation_names(
                 self._tool_manager.get_evaluation_check_list()
             )
         else:
@@ -640,8 +640,8 @@ class UniqueAI:
         # Log tool calls
         self._log_tool_calls(tool_calls)
 
-        if self.config.agent.experimental.open_pdf_tool_config.enabled:
-            tool_calls = self._open_pdf_runtime.filter_tool_calls(tool_calls)
+        if self.config.agent.experimental.open_file_tool_config.enabled:
+            tool_calls = self._open_file_runtime.filter_tool_calls(tool_calls)
 
         execution_start = time.perf_counter()
         tool_call_responses = await self._tool_manager.execute_selected_tools(

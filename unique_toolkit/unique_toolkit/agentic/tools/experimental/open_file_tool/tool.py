@@ -9,16 +9,16 @@ from unique_toolkit.language_model.schemas import (
 )
 
 
-class OpenPdfTool(Tool[BaseToolConfig]):
-    """Tool that lets the agent open a knowledge-base PDF so the full document
+class OpenFileTool(Tool[BaseToolConfig]):
+    """Tool that lets the agent open a knowledge-base file so the full document
     is included in the LLM payload (unique://content/<id> URL).
 
     The agent calls this with the content_id it sees in search results.  The
-    shared registry is then read by OpenPdfToolRuntime on every subsequent
+    shared registry is then read by OpenFileToolRuntime on every subsequent
     loop iteration.
     """
 
-    name = "OpenPdf"
+    name = "OpenFile"
 
     def __init__(
         self,
@@ -29,24 +29,23 @@ class OpenPdfTool(Tool[BaseToolConfig]):
         self._registry = registry
 
     def display_name(self) -> str:
-        return "Open PDF"
+        return "Open File"
 
     def tool_description(self) -> LanguageModelToolDescription:
         return LanguageModelToolDescription(
             name=self.name,
             description=(
-                "Open one or more PDF documents so you can read and reason over their "
-                "full content. ALWAYS call this tool for any PDF you want to answer "
+                "Open one or more documents so you can read and reason over their "
+                "full content. ALWAYS call this tool for any file you want to answer "
                 "questions about — the text chunks from InternalSearch are lossy extracts "
-                "and miss tables, charts, layout, and context. Opening the full PDF gives "
+                "and miss tables, charts, layout, and context. Opening the full file gives "
                 "you far superior information.\n\n"
                 "How to find the content_id:\n"
-                "- After an InternalSearch call, each PDF source includes a 'content_id' "
+                "- After an InternalSearch call, each source includes a 'content_id' "
                 "field (starts with 'cont_'). Use that value.\n"
                 "- The document name is shown inside <|document|>…<|/document|> tags in "
                 "the search result content, e.g. "
                 "'<|document|>Report.pdf<|/document|>'.\n\n"
-                "Only PDF documents are supported. "
                 "The opened files will be available in all subsequent iterations."
             ),
             parameters={
@@ -56,10 +55,9 @@ class OpenPdfTool(Tool[BaseToolConfig]):
                         "type": "array",
                         "items": {"type": "string"},
                         "description": (
-                            "List of content_ids of the PDF documents to open. "
+                            "List of content_ids of the documents to open. "
                             "Each content_id is found in search results as the "
-                            "'content_id' field (starts with 'cont_'). "
-                            "Only PDF documents are supported."
+                            "'content_id' field (starts with 'cont_')."
                         ),
                     }
                 },
@@ -70,18 +68,18 @@ class OpenPdfTool(Tool[BaseToolConfig]):
     def tool_description_for_system_prompt(self) -> str:
         return (
             "When the user asks you to work with, analyze, summarize, or reason over a "
-            "PDF document, you MUST open it with OpenPdf before answering. "
+            "document, you MUST open it with OpenFile before answering. "
             "The text chunks returned by InternalSearch are extracted fragments — they lose "
-            "tables, charts, formatting, and cross-page context. Opening the full PDF gives "
+            "tables, charts, formatting, and cross-page context. Opening the full file gives "
             "you the complete document with all visual and structural information intact.\n\n"
             "Workflow:\n"
             "1. Use InternalSearch to find relevant documents and identify their content_ids.\n"
-            "2. Call OpenPdf with the content_ids of the PDFs you need.\n"
-            "3. The full PDFs will be available in the next iteration for you to read.\n"
-            "4. Answer the user's question using the full PDF content, referencing the "
+            "2. Call OpenFile with the content_ids of the files you need.\n"
+            "3. The full files will be available in the next iteration for you to read.\n"
+            "4. Answer the user's question using the full file content, referencing the "
             "InternalSearch source numbers for citations.\n\n"
             "You should still cite source numbers from InternalSearch in your answer "
-            "(e.g. [source0]), but base your reasoning on the full opened PDF when available."
+            "(e.g. [source0]), but base your reasoning on the full opened file when available."
         )
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
@@ -134,4 +132,4 @@ class OpenPdfTool(Tool[BaseToolConfig]):
         return []
 
 
-ToolFactory.register_tool(OpenPdfTool, BaseToolConfig)
+ToolFactory.register_tool(OpenFileTool, BaseToolConfig)

@@ -1,7 +1,7 @@
 import pytest
 
 from tests.test_obj_factory import get_event_obj
-from unique_toolkit.agentic.tools.experimental.open_pdf_tool import OpenPdfTool
+from unique_toolkit.agentic.tools.experimental.open_file_tool import OpenFileTool
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 
@@ -22,13 +22,13 @@ def registry():
 
 @pytest.fixture
 def tool(event, registry):
-    return OpenPdfTool(event=event, registry=registry)
+    return OpenFileTool(event=event, registry=registry)
 
 
-async def test_open_pdf_tool__run__adds_content_ids_to_registry(tool, registry):
+async def test_open_file_tool__run__adds_content_ids_to_registry(tool, registry):
     call = LanguageModelFunction(
         id="call_1",
-        name="OpenPdf",
+        name="OpenFile",
         arguments={"content_ids": ["cont_abc", "cont_def"]},
     )
 
@@ -39,12 +39,12 @@ async def test_open_pdf_tool__run__adds_content_ids_to_registry(tool, registry):
     assert not response.error_message
 
 
-async def test_open_pdf_tool__run__deduplicates_ids(tool, registry):
+async def test_open_file_tool__run__deduplicates_ids(tool, registry):
     registry.append("cont_abc")
 
     call = LanguageModelFunction(
         id="call_1",
-        name="OpenPdf",
+        name="OpenFile",
         arguments={"content_ids": ["cont_abc", "cont_new"]},
     )
 
@@ -55,10 +55,10 @@ async def test_open_pdf_tool__run__deduplicates_ids(tool, registry):
     assert "Added" in response.content
 
 
-async def test_open_pdf_tool__run__rejects_empty_list(tool, registry):
+async def test_open_file_tool__run__rejects_empty_list(tool, registry):
     call = LanguageModelFunction(
         id="call_1",
-        name="OpenPdf",
+        name="OpenFile",
         arguments={"content_ids": []},
     )
 
@@ -69,10 +69,10 @@ async def test_open_pdf_tool__run__rejects_empty_list(tool, registry):
     assert registry == []
 
 
-async def test_open_pdf_tool__run__rejects_invalid_ids(tool, registry):
+async def test_open_file_tool__run__rejects_invalid_ids(tool, registry):
     call = LanguageModelFunction(
         id="call_1",
-        name="OpenPdf",
+        name="OpenFile",
         arguments={"content_ids": ["invalid_id", "cont_ok"]},
     )
 
@@ -83,10 +83,10 @@ async def test_open_pdf_tool__run__rejects_invalid_ids(tool, registry):
     assert registry == []
 
 
-async def test_open_pdf_tool__run__handles_missing_arguments(tool, registry):
+async def test_open_file_tool__run__handles_missing_arguments(tool, registry):
     call = LanguageModelFunction(
         id="call_1",
-        name="OpenPdf",
+        name="OpenFile",
         arguments={},
     )
 
@@ -96,15 +96,15 @@ async def test_open_pdf_tool__run__handles_missing_arguments(tool, registry):
     assert registry == []
 
 
-def test_open_pdf_tool__evaluation_check_list__returns_empty(tool):
+def test_open_file_tool__evaluation_check_list__returns_empty(tool):
     assert tool.evaluation_check_list() == []
 
 
-def test_open_pdf_tool__tool_description__has_correct_name(tool):
+def test_open_file_tool__tool_description__has_correct_name(tool):
     desc = tool.tool_description()
-    assert desc.name == "OpenPdf"
+    assert desc.name == "OpenFile"
     assert "content_ids" in str(desc.parameters)
 
 
-def test_open_pdf_tool__display_name__returns_open_pdf(tool):
-    assert tool.display_name() == "Open PDF"
+def test_open_file_tool__display_name__returns_open_file(tool):
+    assert tool.display_name() == "Open File"

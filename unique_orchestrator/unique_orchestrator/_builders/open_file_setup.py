@@ -1,4 +1,4 @@
-"""Helpers for the experimental OpenPdf payload flow (UN-17905).
+"""Helpers for the experimental OpenFile payload flow (UN-17905).
 
 Extracted from ``unique_ai_builder`` to keep tool-specific wiring
 out of the main builder module.
@@ -20,7 +20,7 @@ from unique_toolkit.agentic.history_manager.history_manager import (
     HistoryManagerConfig,
 )
 from unique_toolkit.agentic.tools.config import ToolBuildConfig
-from unique_toolkit.agentic.tools.experimental.open_pdf_tool import OpenPdfTool
+from unique_toolkit.agentic.tools.experimental.open_file_tool import OpenFileTool
 from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
     ToolManagerConfig,
@@ -36,20 +36,20 @@ if TYPE_CHECKING:
     )
 
 
-def handle_uploaded_pdf_tool_choices(
+def handle_uploaded_file_tool_choices(
     config: UniqueAIConfig,
     event: ChatEvent,
     uploaded_documents: list[Content],
     tool_manager_config: ToolManagerConfig,
     logger: Logger,
 ) -> bool:
-    """When send_uploaded_pdf_in_payload is active, uploaded PDFs are attached
+    """When send_uploaded_files_in_payload is active, uploaded files are attached
     directly to the LLM context — no InternalSearch needed for them.
-    UploadedSearch is only added for non-PDF uploaded files (.docx, .txt, etc.).
+    UploadedSearch is only added for non-supported uploaded files.
 
     Returns True if non-PDF uploads were detected.
     """
-    if not config.agent.experimental.open_pdf_tool_config.send_uploaded_pdf_in_payload:
+    if not config.agent.experimental.open_file_tool_config.send_uploaded_files_in_payload:
         return False
 
     now = datetime.now(timezone.utc)
@@ -83,7 +83,7 @@ def handle_uploaded_pdf_tool_choices(
     return False
 
 
-def configure_pdf_payload(
+def configure_file_payload(
     config: UniqueAIConfig,
     event: ChatEvent,
     logger: Logger,
@@ -92,18 +92,18 @@ def configure_pdf_payload(
     language_model: object,
     tool_manager: ResponsesApiToolManager,
 ) -> tuple[HistoryManager, list[str]]:
-    """Configure PDF-in-payload handling for the Responses API.
+    """Configure file-in-payload handling for the Responses API.
 
-    When sending uploaded PDFs as file parts, disables the UploadedContentConfig
+    When sending uploaded files as file parts, disables the UploadedContentConfig
     mechanism so the HistoryManager doesn't also inject uploaded content as text
     (which would duplicate what the input_file parts already provide).
 
-    Also registers the OpenPdfTool when send_pdf_files_in_payload is enabled,
+    Also registers the OpenFileTool when send_files_in_payload is enabled,
     backed by a shared registry for agent-requested KB file IDs.
 
     Returns the (possibly updated) history_manager and the agent file registry.
     """
-    if config.agent.experimental.open_pdf_tool_config.send_uploaded_pdf_in_payload:
+    if config.agent.experimental.open_file_tool_config.send_uploaded_files_in_payload:
         upload_free_config = HistoryManagerConfig(
             experimental_features=history_manager_module.ExperimentalFeatures(),
             percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
@@ -120,8 +120,8 @@ def configure_pdf_payload(
 
     agent_file_registry: list[str] = []
 
-    if config.agent.experimental.open_pdf_tool_config.send_pdf_files_in_payload:
-        tool_manager.add_tool(OpenPdfTool(event=event, registry=agent_file_registry))
+    if config.agent.experimental.open_file_tool_config.send_files_in_payload:
+        tool_manager.add_tool(OpenFileTool(event=event, registry=agent_file_registry))
 
     return history_manager, agent_file_registry
 
@@ -129,10 +129,7 @@ def configure_pdf_payload(
 def ensure_uploaded_search_tool_registered(
     tool_manager_config: ToolManagerConfig,
 ) -> None:
-    if any(
-        tool.name == UploadedSearchTool.name
-        for tool in tool_manager_config.tools
-    ):
+    if any(tool.name == UploadedSearchTool.name for tool in tool_manager_config.tools):
         return
 
     tool_manager_config.tools.append(

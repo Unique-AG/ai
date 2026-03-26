@@ -212,7 +212,7 @@ class _ToolManager(Generic[_ApiMode]):
 
     def get_tool_prompts(self) -> list[ToolPrompts]:
         return [tool.get_tool_prompts() for tool in self._tools]
-    
+
     def add_tool(self, tool: Tool) -> None:
         """Inject an externally constructed tool into the manager.
 

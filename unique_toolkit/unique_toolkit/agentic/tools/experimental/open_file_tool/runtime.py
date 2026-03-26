@@ -23,23 +23,23 @@ from unique_toolkit.language_model.schemas import (
 
 
 @dataclass(frozen=True)
-class OpenPdfToolRuntimeConfig:
-    """Flat configuration for the OpenPdfTool runtime.
+class OpenFileToolRuntimeConfig:
+    """Flat configuration for the OpenFileTool runtime.
 
     The orchestrator is responsible for mapping its own nested config
     (e.g. ``UniqueAIConfig``) into this structure.
     """
 
     enabled: bool = False
-    send_pdf_files_in_payload: bool = False
-    send_uploaded_pdf_in_payload: bool = False
+    send_files_in_payload: bool = False
+    send_uploaded_files_in_payload: bool = False
     use_responses_api: bool = False
 
 
-class OpenPdfToolRuntime:
-    """Runtime helper for the experimental OpenPdf payload flow."""
+class OpenFileToolRuntime:
+    """Runtime helper for the experimental OpenFile payload flow."""
 
-    _OPEN_PDF_TOOL_NAME = "OpenPdf"
+    _OPEN_FILE_TOOL_NAME = "OpenFile"
     _RETRY_SIGNALS = (
         "too large",
         "payload too large",
@@ -52,18 +52,18 @@ class OpenPdfToolRuntime:
         "403 forbidden",
         "application-gateway",
     )
-    _PDF_TOO_LARGE_TOOL_RESPONSE = (
-        "ERROR: The PDF file is too large to open. "
+    _FILE_TOO_LARGE_TOOL_RESPONSE = (
+        "ERROR: The file is too large to open. "
         "Could not include the document in the context. "
         "Please inform the user that the file is too large to process directly "
         "and suggest asking an admin to include the document in the knowledge base."
     )
-    _OPEN_PDF_SYSTEM_REMINDER = (
-        "<|system_reminder|>PDF documents were found in the search results. "
-        "For any PDF you want to reference or reason over, call the OpenPdf tool "
+    _OPEN_FILE_SYSTEM_REMINDER = (
+        "<|system_reminder|>Documents were found in the search results. "
+        "For any file you want to reference or reason over, call the OpenFile tool "
         "with the content_id from the search results. The document name is shown "
         "inside <|document|>...<|/document|> tags in the content field. "
-        "The full PDF provides far better information than the extracted text "
+        "The full file provides far better information than the extracted text "
         "chunks (tables, charts, layout, and cross-page context are preserved)."
         "<|/system_reminder|>"
     )
@@ -71,7 +71,7 @@ class OpenPdfToolRuntime:
     def __init__(
         self,
         logger: Logger,
-        config: OpenPdfToolRuntimeConfig,
+        config: OpenFileToolRuntimeConfig,
         content_service: Any,
         tool_manager: ResponsesApiToolManager | ToolManager,
         message_step_logger: MessageStepLogger,
@@ -84,14 +84,14 @@ class OpenPdfToolRuntime:
         self._message_step_logger = message_step_logger
         self._agent_file_registry = agent_file_registry
         self._cached_uploaded_documents: list[Content] | None = None
-        self._pdf_payload_attachments_disabled = False
+        self._file_payload_attachments_disabled = False
 
     def should_attach_content_files(self) -> bool:
-        if self._pdf_payload_attachments_disabled:
+        if self._file_payload_attachments_disabled:
             return False
 
         return self._is_feature_enabled() and (
-            self._kb_pdf_payload_enabled() or self._uploaded_pdf_payload_enabled()
+            self._kb_file_payload_enabled() or self._uploaded_file_payload_enabled()
         )
 
     def inject_content_files_into_user_message(
@@ -128,22 +128,24 @@ class OpenPdfToolRuntime:
 
         return messages
 
-    def should_retry_without_pdf_files(self, exc: Exception) -> bool:
-        if self._pdf_payload_attachments_disabled:
+    def should_retry_without_files(self, exc: Exception) -> bool:
+        if self._file_payload_attachments_disabled:
             return False
         if not self._is_feature_enabled():
             return False
         if (
-            not self._kb_pdf_payload_enabled()
-            and not self._uploaded_pdf_payload_enabled()
+            not self._kb_file_payload_enabled()
+            and not self._uploaded_file_payload_enabled()
         ):
             return False
 
-        has_kb_pdfs = self._kb_pdf_payload_enabled() and bool(self._agent_file_registry)
-        has_uploaded_pdfs = self._uploaded_pdf_payload_enabled() and bool(
+        has_kb_files = self._kb_file_payload_enabled() and bool(
+            self._agent_file_registry
+        )
+        has_uploaded_files = self._uploaded_file_payload_enabled() and bool(
             self._get_uploaded_documents()
         )
-        if not has_kb_pdfs and not has_uploaded_pdfs:
+        if not has_kb_files and not has_uploaded_files:
             return False
 
         error_text = str(exc).lower()
@@ -152,23 +154,23 @@ class OpenPdfToolRuntime:
     def prepare_retry_messages(
         self, messages: LanguageModelMessages
     ) -> LanguageModelMessages:
-        self._tool_manager.exclude_tool(self._OPEN_PDF_TOOL_NAME)
-        self._pdf_payload_attachments_disabled = True
+        self._tool_manager.exclude_tool(self._OPEN_FILE_TOOL_NAME)
+        self._file_payload_attachments_disabled = True
 
         messages = self.strip_file_parts_from_messages(messages)
 
-        if self._kb_pdf_payload_enabled():
-            self._strip_open_pdf_messages(messages)
-        if self._uploaded_pdf_payload_enabled():
-            self._inject_uploaded_pdf_fallback_messages(messages)
+        if self._kb_file_payload_enabled():
+            self._strip_open_file_messages(messages)
+        if self._uploaded_file_payload_enabled():
+            self._inject_uploaded_file_fallback_messages(messages)
 
         self._agent_file_registry.clear()
         return messages
 
-    async def report_pdf_fallback_step(self) -> None:
+    async def report_file_fallback_step(self) -> None:
         self._message_step_logger.create_message_log_entry(
             text=(
-                "**Open PDF:** The PDF file is too large to open. "
+                "**Open File:** The file is too large to open. "
                 "Please ask an admin to include the document in the knowledge base."
             ),
             references=[],
@@ -187,13 +189,13 @@ class OpenPdfToolRuntime:
         ]
         if len(filtered_names) != len(evaluation_names):
             self._logger.info(
-                "OpenPdf was used - skipping hallucination check "
-                "(LLM has full PDF content, not just search chunks)."
+                "OpenFile was used - skipping hallucination check "
+                "(LLM has full file content, not just search chunks)."
             )
         return filtered_names
 
-    def inject_open_pdf_reminder(self, tool_call_responses: list[Any]) -> None:
-        if not self._tool_manager.get_tool_by_name(self._OPEN_PDF_TOOL_NAME):
+    def inject_open_file_reminder(self, tool_call_responses: list[Any]) -> None:
+        if not self._tool_manager.get_tool_by_name(self._OPEN_FILE_TOOL_NAME):
             return
 
         for response in tool_call_responses:
@@ -209,7 +211,7 @@ class OpenPdfToolRuntime:
 
             existing_reminder = response.system_reminder or ""
             response.system_reminder = (
-                f"{existing_reminder}\n{self._OPEN_PDF_SYSTEM_REMINDER}".strip()
+                f"{existing_reminder}\n{self._OPEN_FILE_SYSTEM_REMINDER}".strip()
             )
 
     def get_uploaded_documents(self) -> list[Content]:
@@ -241,11 +243,11 @@ class OpenPdfToolRuntime:
     def _is_feature_enabled(self) -> bool:
         return self._config.use_responses_api and self._config.enabled
 
-    def _kb_pdf_payload_enabled(self) -> bool:
-        return self._config.send_pdf_files_in_payload
+    def _kb_file_payload_enabled(self) -> bool:
+        return self._config.send_files_in_payload
 
-    def _uploaded_pdf_payload_enabled(self) -> bool:
-        return self._config.send_uploaded_pdf_in_payload
+    def _uploaded_file_payload_enabled(self) -> bool:
+        return self._config.send_uploaded_files_in_payload
 
     def _get_uploaded_documents(self) -> list[Content]:
         if self._cached_uploaded_documents is None:
@@ -267,13 +269,13 @@ class OpenPdfToolRuntime:
         return self._cached_uploaded_documents
 
     def _collect_content_file_parts(self) -> list[dict[str, dict[str, str] | str]]:
-        if self._pdf_payload_attachments_disabled:
+        if self._file_payload_attachments_disabled:
             return []
 
         seen_ids: set[str] = set()
         file_parts: list[dict[str, dict[str, str] | str]] = []
 
-        if self._uploaded_pdf_payload_enabled():
+        if self._uploaded_file_payload_enabled():
             for document in self._get_uploaded_documents():
                 if not document.id or document.id in seen_ids:
                     continue
@@ -289,7 +291,7 @@ class OpenPdfToolRuntime:
                     }
                 )
 
-        if self._kb_pdf_payload_enabled():
+        if self._kb_file_payload_enabled():
             for content_id in self._agent_file_registry:
                 if content_id in seen_ids:
                     continue
@@ -307,8 +309,8 @@ class OpenPdfToolRuntime:
 
         return file_parts
 
-    def _strip_open_pdf_messages(self, messages: LanguageModelMessages) -> None:
-        open_pdf_call_ids: set[str] = set()
+    def _strip_open_file_messages(self, messages: LanguageModelMessages) -> None:
+        open_file_call_ids: set[str] = set()
 
         for message in messages.root:
             if not isinstance(message, LanguageModelAssistantMessage):
@@ -317,10 +319,10 @@ class OpenPdfToolRuntime:
                 continue
 
             for tool_call in message.tool_calls:
-                if tool_call.function.name == self._OPEN_PDF_TOOL_NAME:
-                    open_pdf_call_ids.add(tool_call.id or tool_call.function.id)
+                if tool_call.function.name == self._OPEN_FILE_TOOL_NAME:
+                    open_file_call_ids.add(tool_call.id or tool_call.function.id)
 
-        if not open_pdf_call_ids:
+        if not open_file_call_ids:
             return
 
         messages.root[:] = [
@@ -328,7 +330,7 @@ class OpenPdfToolRuntime:
             for message in messages.root
             if not (
                 isinstance(message, LanguageModelToolMessage)
-                and message.tool_call_id in open_pdf_call_ids
+                and message.tool_call_id in open_file_call_ids
             )
         ]
 
@@ -341,10 +343,10 @@ class OpenPdfToolRuntime:
             message.tool_calls = [
                 tool_call
                 for tool_call in message.tool_calls
-                if tool_call.function.name != self._OPEN_PDF_TOOL_NAME
+                if tool_call.function.name != self._OPEN_FILE_TOOL_NAME
             ]
 
-    def _inject_uploaded_pdf_fallback_messages(
+    def _inject_uploaded_file_fallback_messages(
         self, messages: LanguageModelMessages
     ) -> None:
         uploaded_documents = self._get_uploaded_documents()
@@ -356,13 +358,13 @@ class OpenPdfToolRuntime:
             return
 
         function = LanguageModelFunction(
-            name=self._OPEN_PDF_TOOL_NAME,
+            name=self._OPEN_FILE_TOOL_NAME,
             arguments={"content_ids": content_ids},
         )
         assistant_message = LanguageModelAssistantMessage.from_functions([function])
         tool_message = LanguageModelToolMessage(
-            content=self._PDF_TOO_LARGE_TOOL_RESPONSE,
-            name=self._OPEN_PDF_TOOL_NAME,
+            content=self._FILE_TOO_LARGE_TOOL_RESPONSE,
+            name=self._OPEN_FILE_TOOL_NAME,
             tool_call_id=function.id,
         )
         messages.root.append(assistant_message)

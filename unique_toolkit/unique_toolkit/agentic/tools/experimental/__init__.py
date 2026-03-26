@@ -1,11 +1,11 @@
-from unique_toolkit.agentic.tools.experimental.open_pdf_tool import (
-    OpenPdfTool,
-    OpenPdfToolRuntime,
-    OpenPdfToolRuntimeConfig,
+from unique_toolkit.agentic.tools.experimental.open_file_tool import (
+    OpenFileTool,
+    OpenFileToolRuntime,
+    OpenFileToolRuntimeConfig,
 )
 
 __all__ = [
-    "OpenPdfTool",
-    "OpenPdfToolRuntime",
-    "OpenPdfToolRuntimeConfig",
+    "OpenFileTool",
+    "OpenFileToolRuntime",
+    "OpenFileToolRuntimeConfig",
 ]
