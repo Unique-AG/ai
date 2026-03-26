@@ -2000,7 +2000,7 @@ wheels = [
 
 [[package]]
 name = "unique-internal-search"
-version = "1.2.34"
+version = "1.2.35"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
@@ -2058,7 +2058,7 @@ wheels = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.64.3"
+version = "1.63.2"
 source = { editable = "../../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },

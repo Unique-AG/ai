@@ -15,7 +15,6 @@ from unique_toolkit.app.schemas import (
 )
 from unique_toolkit.app.unique_settings import (
     AuthContext,
-    ChatContext,
     EnvFileNotFoundError,
     UniqueApi,
     UniqueApp,
@@ -1043,58 +1042,6 @@ def test_unique_settings__init__ignores_env_file__when_not_exists(
 
 
 @pytest.mark.ai
-def test_unique_settings__with_auth__returns_distinct_instance__with_new_auth(
-    valid_auth: UniqueAuth, valid_app: UniqueApp, valid_api: UniqueApi
-) -> None:
-    """Branch settings with a new AuthContext; app/api shared, original auth unchanged."""
-    settings = UniqueSettings(auth=valid_auth, app=valid_app, api=valid_api)
-    new_auth = AuthContext(
-        company_id=SecretStr("branch-co"), user_id=SecretStr("branch-user")
-    )
-    branched = settings.with_auth(new_auth)
-    assert branched is not settings
-    assert branched.authcontext is new_auth
-    assert branched.authcontext.get_confidential_company_id() == "branch-co"
-    assert branched.authcontext.get_confidential_user_id() == "branch-user"
-    assert settings.authcontext is valid_auth
-    assert branched.app is valid_app
-    assert branched.api is valid_api
-    assert branched.context.chat is None
-
-
-@pytest.mark.ai
-def test_unique_settings__with_auth__preserves_chat_filters_and_env_file(
-    valid_auth: UniqueAuth,
-    valid_app: UniqueApp,
-    valid_api: UniqueApi,
-    tmp_path: Path,
-) -> None:
-    """with_auth keeps chat, filter options, and stored env file path on the clone."""
-    env_file = tmp_path / "branch.env"
-    env_file.write_text("FOO=bar")
-    chat = ChatContext(chat_id="chat-z", assistant_id="asst-z")
-    filters = UniqueChatEventFilterOptions(
-        assistant_ids=["a1"], references_in_code=["m1"]
-    )
-    settings = UniqueSettings(
-        auth=valid_auth,
-        app=valid_app,
-        api=valid_api,
-        chat_event_filter_options=filters,
-        chat=chat,
-        env_file=env_file,
-    )
-    new_auth = AuthContext(
-        company_id=SecretStr("other-co"), user_id=SecretStr("other-user")
-    )
-    branched = settings.with_auth(new_auth)
-    assert branched.authcontext is new_auth
-    assert branched.context.chat is chat
-    assert branched.chat_event_filter_options is filters
-    assert branched._env_file == env_file
-
-
-@pytest.mark.ai
 def test_env_file_not_found_error__is_file_not_found_error() -> None:
     """
     Purpose: Verify EnvFileNotFoundError is a subclass of FileNotFoundError.
@@ -1339,73 +1286,3 @@ class TestUniqueContext:
         )
         ctx = UniqueContext.from_event(event)
         assert ctx.chat is None
-
-
-class TestUniqueSettingsFromEvent:
-    """Tests for UniqueSettings.from_event (auth-only settings from a plain BaseEvent)."""
-
-    @pytest.mark.ai
-    def test_from_event__maps_company_id(self) -> None:
-        """
-        Purpose: Verify company_id is extracted from the event into auth.
-        Why this matters: Wrong company_id silently routes requests to another tenant.
-        Setup summary: BaseEvent with company-base; assert authcontext.company_id matches.
-        """
-        event = BaseEvent(
-            id="evt-1",
-            event=EventName.EXTERNAL_MODULE_CHOSEN,
-            user_id="user-1",
-            company_id="company-base",
-        )
-        settings = UniqueSettings.from_event(event)
-        assert settings.authcontext.get_confidential_company_id() == "company-base"
-
-    @pytest.mark.ai
-    def test_from_event__maps_user_id(self) -> None:
-        """
-        Purpose: Verify user_id is extracted from the event into auth.
-        Why this matters: Wrong user_id attributes actions to the wrong user.
-        Setup summary: BaseEvent with user-base; assert authcontext.user_id matches.
-        """
-        event = BaseEvent(
-            id="evt-1",
-            event=EventName.EXTERNAL_MODULE_CHOSEN,
-            user_id="user-base",
-            company_id="company-1",
-        )
-        settings = UniqueSettings.from_event(event)
-        assert settings.authcontext.get_confidential_user_id() == "user-base"
-
-    @pytest.mark.ai
-    def test_from_event__has_no_chat_context(self) -> None:
-        """
-        Purpose: Verify settings built from a BaseEvent carry no chat context.
-        Why this matters: Callers using UniqueServiceFactory.create with these settings must not
-        accidentally receive a chat-scoped KnowledgeBaseService.
-        Setup summary: BaseEvent; assert settings.context.chat is None.
-        """
-        event = BaseEvent(
-            id="evt-1",
-            event=EventName.EXTERNAL_MODULE_CHOSEN,
-            user_id="user-1",
-            company_id="company-1",
-        )
-        settings = UniqueSettings.from_event(event)
-        assert settings.context.chat is None
-
-    @pytest.mark.ai
-    def test_from_event__uses_default_app_and_api(self) -> None:
-        """
-        Purpose: Verify that app and api are populated with default values, not None.
-        Why this matters: Services may read app/api; None would cause AttributeErrors.
-        Setup summary: BaseEvent; assert settings.app and settings.api are not None.
-        """
-        event = BaseEvent(
-            id="evt-1",
-            event=EventName.EXTERNAL_MODULE_CHOSEN,
-            user_id="user-1",
-            company_id="company-1",
-        )
-        settings = UniqueSettings.from_event(event)
-        assert settings.app is not None
-        assert settings.api is not None

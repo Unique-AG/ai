@@ -64,10 +64,9 @@ class KnowledgeBaseService:
         company_id: str,
         user_id: str,
         metadata_filter: dict | None = None,
-        chat_id: str = "",
     ):
         """
-        Initialize the KnowledgeBaseService with a company_id, user_id, optional metadata_filter and chat_id.
+        Initialize the KnowledgeBaseService with a company_id, user_id and chat_id.
         """
 
         self._metadata_filter = None
@@ -75,7 +74,6 @@ class KnowledgeBaseService:
         self._company_id = company_id
         self._user_id = user_id
         self._metadata_filter = metadata_filter
-        self._chat_id = chat_id
 
     @classmethod
     @deprecated(
@@ -88,16 +86,13 @@ class KnowledgeBaseService:
         """
         metadata_filter = None
 
-        chat_id = ""
         if isinstance(event, (ChatEvent | Event)):
             metadata_filter = event.payload.metadata_filter
-            chat_id = event.payload.chat_id
 
         return cls(
             company_id=event.company_id,
             user_id=event.user_id,
             metadata_filter=metadata_filter,
-            chat_id=chat_id,
         )
 
     @classmethod
@@ -116,7 +111,6 @@ class KnowledgeBaseService:
             company_id=context.auth.get_confidential_company_id(),
             user_id=context.auth.get_confidential_user_id(),
             metadata_filter=metadata_filter,
-            chat_id=context.chat.chat_id if context.chat is not None else "",
         )
 
     @classmethod
@@ -142,9 +136,6 @@ class KnowledgeBaseService:
             company_id=settings.authcontext.get_confidential_company_id(),
             user_id=settings.authcontext.get_confidential_user_id(),
             metadata_filter=metadata_filter,
-            chat_id=settings.context.chat.chat_id
-            if settings.context.chat is not None
-            else "",
         )
 
     # Content Search
@@ -203,8 +194,6 @@ class KnowledgeBaseService:
         metadata_filter: dict | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
-        chat_id: str | None = None,
-        chat_only: bool = False,
     ) -> list[ContentChunk]:
         """
         Performs a synchronous search for content chunks in the knowledge base.
@@ -234,14 +223,14 @@ class KnowledgeBaseService:
             searches = search_content_chunks(
                 user_id=self._user_id,
                 company_id=self._company_id,
-                chat_id=chat_id if chat_id is not None else self._chat_id,
+                chat_id="",
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
                 search_language=search_language,
                 reranker_config=reranker_config,
                 scope_ids=scope_ids,
-                chat_only=chat_only,
+                chat_only=False,
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
                 score_threshold=score_threshold,
@@ -304,8 +293,6 @@ class KnowledgeBaseService:
         metadata_filter: dict | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
-        chat_id: str | None = None,
-        chat_only: bool = False,
     ):
         """
         Performs an asynchronous search for content chunks in the knowledge base.
@@ -334,14 +321,14 @@ class KnowledgeBaseService:
             searches = await search_content_chunks_async(
                 user_id=self._user_id,
                 company_id=self._company_id,
-                chat_id=chat_id if chat_id is not None else self._chat_id,
+                chat_id="",
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
                 search_language=search_language,
                 reranker_config=reranker_config,
                 scope_ids=scope_ids,
-                chat_only=chat_only,
+                chat_only=False,
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
                 score_threshold=score_threshold,
@@ -371,7 +358,7 @@ class KnowledgeBaseService:
         return search_contents(
             user_id=self._user_id,
             company_id=self._company_id,
-            chat_id=self._chat_id,
+            chat_id="",
             where=where,
             include_failed_content=include_failed_content,
         )
@@ -395,7 +382,7 @@ class KnowledgeBaseService:
         return await search_contents_async(
             user_id=self._user_id,
             company_id=self._company_id,
-            chat_id=self._chat_id,
+            chat_id="",
             where=where,
             include_failed_content=include_failed_content,
         )
