@@ -231,7 +231,7 @@ class InternalSearchConfig(BaseToolConfig):
         ge=1,
         description="The maximum number of search strings to perform in a single tool call.",
     )
-    
+
     experimental_features: ExperimentalFeatures = Field(
         default_factory=ExperimentalFeatures,
         description="Experimental features.",
