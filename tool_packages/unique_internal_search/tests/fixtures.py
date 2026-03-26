@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from datetime import datetime
 from logging import Logger
 from typing import Any
@@ -10,8 +11,9 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
 from unique_toolkit.content.schemas import Content, ContentChunk, ContentMetadata
-from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.schemas import LanguageModelFunction
+from unique_toolkit.services.factory import UniqueServiceFactory
+from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 from unique_internal_search.config import InternalSearchConfig
 
@@ -24,11 +26,18 @@ def mock_logger() -> Logger:
 
 
 @pytest.fixture
-def mock_content_service() -> ContentService:
-    """Create a mock ContentService for testing."""
-    service: ContentService = Mock(spec=ContentService)
+def mock_kb_service() -> Generator[KnowledgeBaseService, None, None]:
+    """Create a mock KnowledgeBaseService and register it in UniqueServiceFactory.
+
+    Registers the mock as the KnowledgeBaseService creator for the duration of the
+    test so that InternalSearchTool (which uses UniqueServiceFactory.create) receives
+    the mock without any per-test patching.
+    """
+    service: KnowledgeBaseService = Mock(spec=KnowledgeBaseService)
     service._metadata_filter = None
-    return service
+    UniqueServiceFactory.register_known_services()
+    with UniqueServiceFactory.override(KnowledgeBaseService, lambda s, **kw: service):
+        yield service
 
 
 @pytest.fixture

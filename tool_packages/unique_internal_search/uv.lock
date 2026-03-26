@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12, <4"
 
 [manifest]
@@ -2058,7 +2058,7 @@ wheels = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.64.0"
+version = "1.64.3"
 source = { editable = "../../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },

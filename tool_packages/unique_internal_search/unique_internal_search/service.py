@@ -40,6 +40,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
     LanguageModelToolMessage,
 )
+from unique_toolkit.services.factory import UniqueServiceFactory
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 from unique_internal_search.config import InternalSearchConfig
@@ -55,7 +56,7 @@ class InternalSearchService:
     def __init__(
         self,
         config: InternalSearchConfig,
-        content_service: KnowledgeBaseService,
+        kb_service: KnowledgeBaseService,
         chunk_relevancy_sorter: ChunkRelevancySorter,
         chat_id: str | None,
         logger: Logger,
@@ -65,7 +66,8 @@ class InternalSearchService:
         language_model_orchestrator: "LanguageModelInfo | None" = None,
     ):
         self.config = config
-        self.content_service = content_service
+        self.kb_service = kb_service
+        self._metadata_filter: dict | None = kb_service._metadata_filter
         self.chunk_relevancy_sorter = chunk_relevancy_sorter
         self.chat_id = chat_id
         self.company_id = company_id
@@ -81,7 +83,7 @@ class InternalSearchService:
         pass
 
     async def get_uploaded_files(self) -> list[Content]:
-        chat_results = await self.content_service.search_contents_async(
+        chat_results = await self.kb_service.search_contents_async(
             where={
                 "ownerId": {
                     "equals": self.chat_id,
@@ -141,27 +143,24 @@ class InternalSearchService:
         ###
         chat_only = await self.is_chat_only(**kwargs)
 
-        """
-        Handle the fact that metadata can exclude uploaded content
-        and that the search service is hardcoded to use the metadata_filter 
-        from the event if set to None
-        """
-        # Take a backup of the metadata filter
-        metadata_filter_copy = self.content_service._metadata_filter
-
-        if metadata_filter is None:
-            metadata_filter = self.content_service._metadata_filter
-        if chat_only and metadata_filter:
-            # if this is not set to none search_content_chunks_async will overwrite it inside its call thats why it needs to stay.
-            self.content_service._metadata_filter = None
-            metadata_filter = None
+        # Resolve effective metadata filter for this search.
+        # self._metadata_filter is captured at init from kb_service and used as the
+        # fallback when no explicit filter is provided by the caller.
+        # When chat_only=True, we must pass an explicit empty dict ({}) rather than None,
+        # because kb_service.search_content_chunks_async treats None as "use instance
+        # default", which would re-apply the filter we want to suppress.
+        effective_metadata_filter = (
+            metadata_filter if metadata_filter is not None else self._metadata_filter
+        )
+        if chat_only and effective_metadata_filter:
+            effective_metadata_filter = {}
 
         # Run all searches in parallel
         results = await asyncio.gather(
             *[
                 self._search_single_string(
                     search_string=search_string,
-                    metadata_filter=metadata_filter,
+                    metadata_filter=effective_metadata_filter,
                     chat_only=chat_only,
                     content_ids=content_ids,
                 )
@@ -174,9 +173,6 @@ class InternalSearchService:
         found_chunks_per_search_string = self._process_search_results(
             results, search_strings
         )
-
-        # Reset the metadata filter in case it was disabled
-        self.content_service._metadata_filter = metadata_filter_copy
 
         # Apply chunk relevancy sorter if enabled
         if self.config.chunk_relevancy_sort_config.enabled:
@@ -243,7 +239,7 @@ class InternalSearchService:
 
         self.debug_info = {
             "searchStrings": search_strings,
-            "metadataFilter": metadata_filter,
+            "metadataFilter": effective_metadata_filter,
             "chatOnly": chat_only,
         }
         return selected_chunks
@@ -259,7 +255,7 @@ class InternalSearchService:
         try:
             found_chunks: list[
                 ContentChunk
-            ] = await self.content_service.search_content_chunks_async(
+            ] = await self.kb_service.search_content_chunks_async(
                 search_string=search_string,  # type: ignore
                 search_type=self.config.search_type,
                 limit=self.config.limit,
@@ -430,23 +426,23 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         )
         if isinstance(self.event, (ChatEvent, Event)):
             settings = UniqueSettings.from_chat_event(self.event)
-            content_service = KnowledgeBaseService.from_settings(settings)
             chat_id = (
                 self.event.payload.correlation.parent_chat_id
                 if self.event.payload.correlation
                 else self.event.payload.chat_id
             )
         else:
-            content_service = KnowledgeBaseService(
-                company_id=self.event.company_id,
-                user_id=self.event.user_id,
-            )
+            settings = UniqueSettings.from_event(self.event)
             chat_id = None
+        UniqueServiceFactory.register_known_services()
+        kb_service = UniqueServiceFactory.create(
+            KnowledgeBaseService, settings=settings
+        )
         self._display_name = kwargs.get("display_name", "Internal Search")
         InternalSearchService.__init__(
             self,
             config=configuration,
-            content_service=content_service,
+            kb_service=kb_service,
             chunk_relevancy_sorter=chunk_relevancy_sorter,
             chat_id=chat_id,
             company_id=self.event.company_id,

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.35] - 2026-03-26
+- Replace `ContentService` with `KnowledgeBaseService` throughout `InternalSearchService` and `InternalSearchTool` (UN-18568)
+- Use `UniqueSettings.from_chat_event` / `UniqueSettings.from_event` + `UniqueServiceFactory.create` for service construction in all event branches
+- Rename `content_service` → `kb_service` in `InternalSearchService`
+- Fix `_metadata_filter` mutation: `InternalSearchService` now owns its own `_metadata_filter` captured at init; passes explicit `{}` when `chat_only=True` instead of temporarily nulling out `kb_service._metadata_filter`
+
 ## [1.2.34] - 2026-03-26
 - Expose Experimental Configs
 
