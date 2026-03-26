@@ -125,7 +125,8 @@ Execution rules enforced by the prompt:
 - After creating a task list, execute each step immediately
 - Work through ALL items until every item is in a terminal state
 - Do not ask the user for confirmation between steps
-- When multiple items are completed in one iteration (e.g. parallel tool calls), batch-update all of them in a single `todo_write` call
+- When working on multiple items in parallel, mark all of them as `in_progress` — not limited to one at a time
+- Combine `todo_write` with work tool calls in the same response — don't waste separate iterations on bookkeeping
 - Do NOT summarize remaining items or ask if you should continue
 - Only stop for hard blockers (missing credentials, nonexistent resources, unrecoverable errors)
 
@@ -134,7 +135,7 @@ Completion rules enforced by the prompt:
 - Never write a final response while items are still pending
 - For complex tasks, include a final "verify and synthesize" item to ensure clean wrap-up
 
-The `system_reminder` on each tool response reinforces this: "You are in the EXECUTION PHASE... Do NOT write a final text response while items are still pending or in_progress — keep executing until every item reaches a terminal state, then call todo_write one final time before responding."
+The `system_reminder` on each tool response reinforces this: "Always include a todo_write call alongside your work tool calls in the same response... Do NOT write a final text response while items are still pending or in_progress — keep executing until every item reaches a terminal state, then call todo_write one final time before responding."
 
 ### Debug Info
 

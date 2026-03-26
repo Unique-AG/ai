@@ -58,11 +58,12 @@ _TODO_SYSTEM_PROMPT = textwrap.dedent("""\
     Do NOT ask the user for confirmation between steps.
     - Work through ALL items autonomously until every item is in \
     a terminal state (completed or cancelled).
-    - Mark only ONE item as in_progress at a time.
-    - Update status immediately after completing each step. \
-    When you complete multiple items in one iteration \
-    (e.g. parallel tool calls), update ALL of them in a single \
-    todo_write call.
+    - When working on multiple items in parallel, mark ALL of them \
+    as in_progress — do not limit yourself to one at a time.
+    - Combine todo_write with work tool calls in the same response. \
+    For example, call todo_write (to update statuses) alongside \
+    your WebSearch or other tool calls — do not waste a separate \
+    turn on bookkeeping alone.
     - When a detail is unclear, choose the most reasonable default \
     rather than stopping to ask. Document your assumption.
     - Do NOT summarize remaining items or ask if you should continue. \
@@ -85,8 +86,10 @@ _TODO_EXECUTION_REMINDER = (
     "You are in the EXECUTION PHASE. "
     "Do NOT ask the user any questions or request confirmation. "
     "You MUST process every pending item — do not skip or summarize. "
-    "Execute items, then call todo_write to mark completed items "
-    "(batch multiple completions into one call when possible). "
+    "IMPORTANT: Always include a todo_write call alongside your work "
+    "tool calls in the same response — mark items in_progress before "
+    "executing and completed after. Do not use a separate turn just "
+    "for status updates. "
     "Do NOT write a final text response while items are still "
     "pending or in_progress — keep executing until every item "
     "reaches a terminal state (completed/cancelled), then call "
@@ -120,8 +123,8 @@ class TodoWriteTool(Tool[TodoConfig]):
                 "Create or update a task list to track progress. "
                 "Use for any task involving multiple tool calls — the user sees "
                 "this as a live progress indicator. Mark items in_progress when "
-                "starting, completed when done. Only one item should be "
-                "in_progress at a time."
+                "starting, completed when done. You can mark multiple items "
+                "in_progress if working on them in parallel."
             ),
             parameters=TodoWriteInput.model_json_schema(),
         )
