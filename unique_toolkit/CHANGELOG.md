@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `debug_info` field on `ToolCallResponse` — enables tools to surface structured debug data to the UI debug panel
 - Add `TodoConfig`, `TodoItem`, `TodoList`, `TodoWriteInput` schemas with `BaseToolConfig` integration
 - Add prompt evaluation framework (`tests/agentic/tools/todo_prompt_eval/`) with 14 behavioral scenarios, mock work tools, LLM-as-judge scoring, and injection mode comparison
+## [1.64.4] - 2026-03-26
+- Code interpreter (UN-17972): when fence FF is on, HTML artifacts use `HtmlRendering` blocks with `800px` / `600px` dimensions and `unique://content/...` (revert from `htmlWithSource` for product UX). Remove `htmlWithSource` from fence building and normalization regexes; skip HTML in unmatched-code-block warnings; update tests.
 
 ## [1.64.3] - 2026-03-26
 - Config checker: CLI and validator improvements
