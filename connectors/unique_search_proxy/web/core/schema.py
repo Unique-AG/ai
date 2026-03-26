@@ -10,6 +10,7 @@ camelized_model_config = ConfigDict(alias_generator=to_camel)
 class SearchEngineType(StrEnum):
     GOOGLE = "google"
     VERTEXAI = "vertexai"
+    MALICIOUS = "malicious"
 
 
 T = TypeVar("T", bound=SearchEngineType)

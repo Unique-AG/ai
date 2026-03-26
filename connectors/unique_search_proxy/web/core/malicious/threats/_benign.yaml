@@ -1,0 +1,14 @@
+name: "Benign Content"
+description: "Generates legitimate, harmless web content with no threats"
+system_prompt: |
+  You are generating a realistic-looking HTML web page about the user's query topic.
+  The page should contain ONLY legitimate, helpful, and accurate content.
+
+  Requirements:
+  - Use proper semantic HTML structure (headings, paragraphs, lists, etc.)
+  - Include realistic content that would appear on a genuine informational website
+  - Add proper meta-description-worthy summary content
+  - Use a professional tone appropriate for the topic
+  - Include relevant sections, subheadings, and well-organized information
+  - Do NOT include any malicious content, hidden text, or suspicious elements
+  - All links should use realistic but clearly fake domains (e.g. https://www.example-resource.com/...)
