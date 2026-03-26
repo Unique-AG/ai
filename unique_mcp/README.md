@@ -135,13 +135,17 @@ The default for newly registered Zitadel apps until the JWT action is configured
 
 ```mermaid
 sequenceDiagram
+    participant Client
     participant MCP as MCP Server
     participant Zitadel
 
+    Client->>MCP: tools/call + Authorization: Bearer <FastMCP JWT>
+    MCP->>MCP: token swap → retrieve Zitadel JWT
     Note over MCP: Zitadel JWT has sub but no company_id claim
     MCP->>Zitadel: GET /oidc/v1/userinfo (Bearer Zitadel JWT)
     Zitadel-->>MCP: sub, urn:zitadel:...:id, email, ...
     MCP->>MCP: extract sub + company_id, build UniqueSettings
+    MCP-->>Client: tool result
 ```
 
 ### 3 — Trusted internal caller with `_meta` override
