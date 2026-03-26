@@ -1665,7 +1665,9 @@ class TestInternalSearchTool:
                 DEFAULT_TOOL_RESPONSE_SYSTEM_REMINDER_PROMPT,
             )
 
-            assert result.system_reminder == DEFAULT_TOOL_RESPONSE_SYSTEM_REMINDER_PROMPT
+            assert (
+                result.system_reminder == DEFAULT_TOOL_RESPONSE_SYSTEM_REMINDER_PROMPT
+            )
 
     @pytest.mark.ai
     @pytest.mark.asyncio

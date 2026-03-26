@@ -99,7 +99,9 @@ class TestToolResponseSystemReminderConfig:
     def test_defaults__disabled_with_default_prompt(self) -> None:
         cfg = ToolResponseSystemReminderConfig()
         assert cfg.enabled is False
-        assert cfg.system_reminder_prompt == DEFAULT_TOOL_RESPONSE_SYSTEM_REMINDER_PROMPT
+        assert (
+            cfg.system_reminder_prompt == DEFAULT_TOOL_RESPONSE_SYSTEM_REMINDER_PROMPT
+        )
 
     @pytest.mark.unit
     def test_get_reminder_prompt__returns_empty__when_disabled(self) -> None:
@@ -114,19 +116,27 @@ class TestToolResponseSystemReminderConfig:
     @pytest.mark.unit
     def test_get_reminder_prompt__returns_custom_prompt__when_enabled(self) -> None:
         custom = "Always cite your sources."
-        cfg = ToolResponseSystemReminderConfig(enabled=True, system_reminder_prompt=custom)
+        cfg = ToolResponseSystemReminderConfig(
+            enabled=True, system_reminder_prompt=custom
+        )
         assert cfg.get_reminder_prompt == custom
 
     @pytest.mark.unit
-    def test_get_reminder_prompt__returns_empty__when_disabled_with_custom_prompt(self) -> None:
+    def test_get_reminder_prompt__returns_empty__when_disabled_with_custom_prompt(
+        self,
+    ) -> None:
         custom = "Always cite your sources."
-        cfg = ToolResponseSystemReminderConfig(enabled=False, system_reminder_prompt=custom)
+        cfg = ToolResponseSystemReminderConfig(
+            enabled=False, system_reminder_prompt=custom
+        )
         assert cfg.get_reminder_prompt == ""
 
     @pytest.mark.unit
     def test_experimental_features__contains_default_reminder_config(self) -> None:
         features = ExperimentalFeatures()
-        assert isinstance(features.tool_response_system_reminder, ToolResponseSystemReminderConfig)
+        assert isinstance(
+            features.tool_response_system_reminder, ToolResponseSystemReminderConfig
+        )
         assert features.tool_response_system_reminder.enabled is False
 
     @pytest.mark.unit
