@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.0] - 2026-03-26
+- Add `TodoTrackingConfig` to `ExperimentalConfig` for enabling todo task tracking via admin UI
+- Add `_inject_todo_tools()` in builder to dynamically register `todo_write` when todo tracking is active
+- Add `TraceLogger` for per-iteration JSON trace logging with system_reminder extraction, todo state snapshots, and session summary (activated by `ENV=LOCAL` or `UNIQUE_AI_TRACE_DIR`)
+- Persist accumulated `debug_info` from all tools to message `debugInfo` after every loop exit (not gated by tool-took-control)
+- Add Steps panel entries for tools with `debug_info` (e.g. `todo_write — 3 items (1 completed, 1 in_progress, 1 pending)`)
+- Bump `unique-toolkit` lower-bound to `>=1.65.0`
+
 ## [1.17.1] - 2026-03-26
 - Gate tool call persistence and history reconstruction behind `FEATURE_FLAG_ENABLE_TOOL_CALL_PERSISTENCE_UN_15977`; both are disabled by default (UN-15977)
 - Bump `unique-toolkit` lower-bound to `>=1.64.1`
