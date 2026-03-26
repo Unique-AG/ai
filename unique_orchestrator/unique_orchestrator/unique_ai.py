@@ -144,11 +144,11 @@ class UniqueAI:
         self._streaming_handler = streaming_handler
 
         self._message_step_logger = message_step_logger
-        if self.config.agent.experimental.open_file_tool_config.enabled:
+        if self._config.agent.experimental.open_file_tool_config.enabled:
             self._agent_file_registry: list[str] = (
                 agent_file_registry if agent_file_registry is not None else []
             )
-            file_cfg = config.agent.experimental.open_file_tool_config
+            file_cfg = self._config.agent.experimental.open_file_tool_config
             self._open_file_runtime = OpenFileToolRuntime(
                 logger=logger,
                 config=OpenFileToolRuntimeConfig(
@@ -156,8 +156,8 @@ class UniqueAI:
                     send_files_in_payload=file_cfg.send_files_in_payload,
                     send_uploaded_files_in_payload=file_cfg.send_uploaded_files_in_payload,
                     use_responses_api=(
-                        config.agent.experimental.responses_api_config.use_responses_api
-                        or config.agent.experimental.use_responses_api
+                        self._config.agent.experimental.responses_api_config.use_responses_api
+                        or self._config.agent.experimental.use_responses_api
                     ),
                 ),
                 content_service=content_service,
@@ -241,7 +241,7 @@ class UniqueAI:
                 self._thinking_manager.update_tool_progress_reporter(loop_response)
 
                 if (
-                    self.config.agent.experimental.open_file_tool_config.enabled
+                    self._config.agent.experimental.open_file_tool_config.enabled
                     and self._file_fallback_occurred
                 ):
                     await self._open_file_runtime.report_file_fallback_step()
@@ -330,7 +330,7 @@ class UniqueAI:
         )
 
         # Experimental Feature UN-17905
-        if self.config.agent.experimental.open_file_tool_config.enabled:
+        if self._config.agent.experimental.open_file_tool_config.enabled:
             try:
                 return await self._loop_iteration_runner(**kwargs)
             except Exception as exc:
@@ -385,7 +385,7 @@ class UniqueAI:
             self._postprocessor_manager.remove_from_text,
         )
 
-        if self.config.agent.experimental.open_file_tool_config.enabled:
+        if self._config.agent.experimental.open_file_tool_config.enabled:
             if self._open_file_runtime.should_attach_content_files():
                 messages = (
                     self._open_file_runtime.inject_content_files_into_user_message(
@@ -522,7 +522,7 @@ class UniqueAI:
             logger=self._logger,
         )
 
-        if self.config.agent.experimental.open_file_tool_config.enabled:
+        if self._config.agent.experimental.open_file_tool_config.enabled:
             selected_evaluation_names = self._open_file_runtime.filter_evaluation_names(
                 self._tool_manager.get_evaluation_check_list()
             )
@@ -640,7 +640,7 @@ class UniqueAI:
         # Log tool calls
         self._log_tool_calls(tool_calls)
 
-        if self.config.agent.experimental.open_file_tool_config.enabled:
+        if self._config.agent.experimental.open_file_tool_config.enabled:
             tool_calls = self._open_file_runtime.filter_tool_calls(tool_calls)
 
         execution_start = time.perf_counter()
