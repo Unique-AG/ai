@@ -32,6 +32,7 @@ from unique_toolkit.language_model.schemas import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_content(
     *,
     id: str = "cont_abc",
@@ -65,6 +66,7 @@ def _make_config(
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def logger():
@@ -115,6 +117,7 @@ def runtime(
 # OpenFileToolRuntimeConfig
 # ===================================================================
 
+
 @pytest.mark.ai
 class TestOpenFileToolRuntimeConfig:
     def test__defaults__all_disabled(self):
@@ -145,6 +148,7 @@ class TestOpenFileToolRuntimeConfig:
 # ===================================================================
 # should_attach_content_files
 # ===================================================================
+
 
 @pytest.mark.ai
 class TestShouldAttachContentFiles:
@@ -260,6 +264,7 @@ class TestShouldAttachContentFiles:
 # inject_content_files_into_user_message
 # ===================================================================
 
+
 @pytest.mark.ai
 class TestInjectContentFilesIntoUserMessage:
     def test__noop__when_no_files(self, runtime):
@@ -366,7 +371,9 @@ class TestInjectContentFilesIntoUserMessage:
 
         parts = result.root[0].content
         assert isinstance(parts, list)
-        file_parts = [p for p in parts if isinstance(p, dict) and p.get("type") == "file"]
+        file_parts = [
+            p for p in parts if isinstance(p, dict) and p.get("type") == "file"
+        ]
         assert len(file_parts) == 1
 
     def test__targets_last_user_message__not_first(
@@ -434,6 +441,7 @@ class TestInjectContentFilesIntoUserMessage:
 # ===================================================================
 # should_retry_without_files
 # ===================================================================
+
 
 @pytest.mark.ai
 class TestShouldRetryWithoutFiles:
@@ -585,6 +593,7 @@ class TestShouldRetryWithoutFiles:
 # prepare_retry_messages
 # ===================================================================
 
+
 @pytest.mark.ai
 class TestPrepareRetryMessages:
     def test__excludes_open_file_tool(
@@ -691,9 +700,7 @@ class TestPrepareRetryMessages:
             tool_call_id=tool_call_id,
         )
         user_msg = LanguageModelUserMessage(content="hi")
-        messages = LanguageModelMessages(
-            root=[user_msg, assistant_msg, tool_msg]
-        )
+        messages = LanguageModelMessages(root=[user_msg, assistant_msg, tool_msg])
 
         rt = OpenFileToolRuntime(
             logger=logger,
@@ -745,9 +752,7 @@ class TestPrepareRetryMessages:
 
         result = rt.prepare_retry_messages(messages)
 
-        tool_msgs = [
-            m for m in result.root if isinstance(m, LanguageModelToolMessage)
-        ]
+        tool_msgs = [m for m in result.root if isinstance(m, LanguageModelToolMessage)]
         assert any(
             isinstance(m.content, str) and "too large" in m.content.lower()
             for m in tool_msgs
@@ -757,6 +762,7 @@ class TestPrepareRetryMessages:
 # ===================================================================
 # strip_file_parts_from_messages (static)
 # ===================================================================
+
 
 @pytest.mark.ai
 class TestStripFilePartsFromMessages:
@@ -806,9 +812,7 @@ class TestStripFilePartsFromMessages:
             root=[
                 LanguageModelSystemMessage(content="system prompt"),
                 LanguageModelAssistantMessage(content="response"),
-                LanguageModelUserMessage(
-                    content=[{"type": "text", "text": "user"}]
-                ),
+                LanguageModelUserMessage(content=[{"type": "text", "text": "user"}]),
             ]
         )
 
@@ -846,6 +850,7 @@ class TestStripFilePartsFromMessages:
 # ===================================================================
 # filter_evaluation_names
 # ===================================================================
+
 
 @pytest.mark.ai
 class TestFilterEvaluationNames:
@@ -916,6 +921,7 @@ class TestFilterEvaluationNames:
 # ===================================================================
 # inject_open_file_reminder
 # ===================================================================
+
 
 @pytest.mark.ai
 class TestInjectOpenFileReminder:
@@ -1061,6 +1067,7 @@ class TestInjectOpenFileReminder:
 # get_uploaded_documents
 # ===================================================================
 
+
 @pytest.mark.ai
 class TestGetUploadedDocuments:
     def test__returns_empty_list__when_no_uploads(self, runtime, content_service):
@@ -1083,7 +1090,10 @@ class TestGetUploadedDocuments:
         """
         pdf_doc = _make_content(id="cont_pdf", key="report.pdf")
         docx_doc = _make_content(id="cont_docx", key="notes.docx")
-        content_service.get_documents_uploaded_to_chat.return_value = [pdf_doc, docx_doc]
+        content_service.get_documents_uploaded_to_chat.return_value = [
+            pdf_doc,
+            docx_doc,
+        ]
 
         rt = OpenFileToolRuntime(
             logger=logger,
@@ -1192,6 +1202,7 @@ class TestGetUploadedDocuments:
 # report_file_fallback_step
 # ===================================================================
 
+
 @pytest.mark.ai
 class TestReportFileFallbackStep:
     @pytest.mark.asyncio
@@ -1205,5 +1216,8 @@ class TestReportFileFallbackStep:
 
         message_step_logger.create_message_log_entry.assert_called_once()
         call_kwargs = message_step_logger.create_message_log_entry.call_args
-        assert "too large" in call_kwargs.kwargs.get("text", call_kwargs[1].get("text", "")).lower() or \
-               "too large" in str(call_kwargs).lower()
+        assert (
+            "too large"
+            in call_kwargs.kwargs.get("text", call_kwargs[1].get("text", "")).lower()
+            or "too large" in str(call_kwargs).lower()
+        )
