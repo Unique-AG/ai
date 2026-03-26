@@ -110,6 +110,8 @@ class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
         return await self._chat_service.complete_responses_with_references_async(
             *args, **kwargs
         )
+
+
 def _inject_todo_tools(config: UniqueAIConfig) -> list[ToolBuildConfig]:
     """Return space tools with todo_write appended when todo tracking is active."""
     todo_cfg = config.agent.experimental.todo_tracking

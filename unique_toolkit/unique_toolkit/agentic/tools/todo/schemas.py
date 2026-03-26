@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -20,7 +19,7 @@ _STATUS_ICONS: dict[TodoStatus, str] = {
     TodoStatus.CANCELLED: "[-]",
 }
 
-_TERMINAL_STATUSES: ClassVar[frozenset[TodoStatus]] = frozenset(
+_TERMINAL_STATUSES: frozenset[TodoStatus] = frozenset(
     {TodoStatus.COMPLETED, TodoStatus.CANCELLED}
 )
 

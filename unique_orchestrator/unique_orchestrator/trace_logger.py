@@ -35,6 +35,12 @@ class TraceLogger:
     """Writes per-iteration JSON trace files when tracing is enabled."""
 
     def __init__(self, chat_id: str | None = None) -> None:
+        self._run_start = time.perf_counter()
+        self._iteration_count = 0
+        self._tools_used: list[str] = []
+        self._todo_progression: list[dict[str, int]] = []
+        self._model: str | None = None
+
         trace_root = os.environ.get(_TRACE_DIR_ENV)
         if not trace_root and _is_dev_mode():
             trace_root = _DEV_DEFAULT_DIR
@@ -48,12 +54,6 @@ class TraceLogger:
         self._session_dir = Path(trace_root) / f"{ts}{suffix}"
         self._session_dir.mkdir(parents=True, exist_ok=True)
         logger.info("Trace logging enabled → %s", self._session_dir)
-
-        self._run_start = time.perf_counter()
-        self._iteration_count = 0
-        self._tools_used: list[str] = []
-        self._todo_progression: list[dict[str, int]] = []
-        self._model: str | None = None
 
     @property
     def enabled(self) -> bool:

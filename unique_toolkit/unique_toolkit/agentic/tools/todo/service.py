@@ -120,7 +120,14 @@ class TodoWriteTool(Tool[TodoConfig]):
             ],
         )
 
-        current_state = await self._memory_manager.load_async() or TodoList()
+        try:
+            current_state = await self._memory_manager.load_async() or TodoList()
+        except Exception:
+            logger.warning(
+                "TodoWriteTool: failed to load state, starting fresh",
+                exc_info=True,
+            )
+            current_state = TodoList()
 
         if input_data.merge:
             current_state = current_state.update(input_data.todos)
