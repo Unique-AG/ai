@@ -282,6 +282,146 @@ def _simulate_work_tool(tool_name: str, args: dict[str, Any]) -> str:
                 }
             )
 
+        if "SKU-7742" in query_str or "product" in table.lower():
+            return json.dumps(
+                {
+                    "table": table,
+                    "records": [
+                        {
+                            "sku": "SKU-7742",
+                            "name": "Industrial Widget Pro",
+                            "supplier_id": "SUP-331",
+                            "supplier_name": "Acme Industrial Supply",
+                            "unit_price": 24.50,
+                            "category": "industrial_components",
+                        }
+                    ],
+                    "total_count": 1,
+                }
+            )
+
+        if "SUP-" in query_str or "supplier" in table.lower():
+            sup_id = "SUP-331"
+            import re as _re
+
+            sup_match = _re.search(r"SUP-\d+", query_str)
+            if sup_match:
+                sup_id = sup_match.group(0)
+            is_alternative = "alternative" in query_str.lower() or sup_id != "SUP-331"
+            return json.dumps(
+                {
+                    "table": table,
+                    "records": [
+                        {
+                            "supplier_id": sup_id,
+                            "name": "Global Parts Co"
+                            if is_alternative
+                            else "Acme Industrial Supply",
+                            "contact_email": f"orders@{'globalparts' if is_alternative else 'acme-industrial'}.com",
+                            "inventory_SKU7742": 45 if not is_alternative else 500,
+                            "unit_price": 22.00 if is_alternative else 24.50,
+                            "lead_time_days": 3,
+                            "rating": 4.7 if is_alternative else 4.2,
+                        }
+                    ],
+                    "total_count": 1,
+                }
+            )
+
+        if "alert" in table.lower() or "alert" in query_str.lower():
+            return json.dumps(
+                {
+                    "table": table,
+                    "records": [
+                        {
+                            "alert_id": "ALT-20260324-001",
+                            "severity": "critical",
+                            "service": "payment-gateway",
+                            "error_type": "connection_timeout",
+                            "started_at": "2026-03-24T14:32:00Z",
+                            "affected_region": "eu-west-1",
+                            "error_rate": "47%",
+                            "description": "Payment gateway connection timeouts spiking. Upstream provider Stripe reporting degraded API performance.",
+                        }
+                    ],
+                    "total_count": 1,
+                }
+            )
+
+        if "runbook" in table.lower():
+            return json.dumps(
+                {
+                    "table": table,
+                    "records": [
+                        {
+                            "runbook_id": "RB-PAY-003",
+                            "title": "Payment Gateway Connection Timeout Remediation",
+                            "steps": [
+                                "1. Verify upstream provider status page",
+                                "2. Enable circuit breaker fallback to secondary payment processor",
+                                "3. Increase connection timeout to 30s",
+                                "4. Monitor error rate for 15 minutes",
+                                "5. If not resolved, failover to backup gateway",
+                            ],
+                            "escalation_contact": "payments-oncall@engineering.com",
+                        }
+                    ],
+                    "total_count": 1,
+                }
+            )
+
+        if "ticket" in table.lower() or "C-4419" in query_str:
+            return json.dumps(
+                {
+                    "table": table,
+                    "records": [
+                        {
+                            "ticket_id": "TK-8891",
+                            "customer_id": "C-4419",
+                            "subject": "Slow dashboard loading",
+                            "created_at": "2026-03-20T09:15:00Z",
+                            "first_response_at": "2026-03-21T14:30:00Z",
+                            "response_time_hours": 29.25,
+                            "status": "open",
+                            "priority": "high",
+                        },
+                        {
+                            "ticket_id": "TK-8910",
+                            "customer_id": "C-4419",
+                            "subject": "Export feature timeout",
+                            "created_at": "2026-03-22T11:00:00Z",
+                            "first_response_at": None,
+                            "response_time_hours": None,
+                            "status": "open",
+                            "priority": "medium",
+                        },
+                    ],
+                    "total_count": 2,
+                }
+            )
+
+        if "C-4419" in query_str or "customer" in table.lower():
+            return json.dumps(
+                {
+                    "table": table,
+                    "records": [
+                        {
+                            "customer_id": "C-4419",
+                            "company": "NovaTech Solutions",
+                            "contact_name": "Sarah Chen",
+                            "contact_email": "sarah.chen@novatech.com",
+                            "sla_tier": "premium",
+                            "sla_response_hours": 4,
+                            "account_manager": "James Wilson",
+                            "account_manager_email": "j.wilson@ourcompany.com",
+                            "plan": "Enterprise",
+                            "arr": 125000,
+                        }
+                    ],
+                    "total_count": 1,
+                }
+            )
+
         return json.dumps(
             {
                 "table": table,
@@ -366,8 +506,16 @@ def run_scenario(
     execution_reminder: str,
     model: str,
     max_turns: int | None = None,
+    reminder_mode: str = "system_message",
 ) -> dict[str, Any]:
-    """Run a single scenario through a simulated agent loop."""
+    """Run a single scenario through a simulated agent loop.
+
+    Args:
+        reminder_mode: How the execution reminder is injected after todo_write.
+            "system_message" — appends a separate system message (current default).
+            "tool_result" — appends the reminder text to the todo_write tool
+            response content, matching the real orchestrator's behavior.
+    """
     if max_turns is None:
         scenario_override = scenario.get("max_turns")
         if scenario_override:
@@ -426,17 +574,24 @@ def run_scenario(
                         args, todo_state, execution_reminder
                     )
 
+                    has_pending = any(
+                        t["status"] in ("pending", "in_progress") for t in todo_state
+                    )
+
+                    if has_pending and reminder_mode == "tool_result":
+                        tool_content = summary + "\n\n" + execution_reminder
+                    else:
+                        tool_content = summary
+
                     messages.append(
                         {
                             "role": "tool",
                             "tool_call_id": tc.id,
-                            "content": summary,
+                            "content": tool_content,
                         }
                     )
 
-                    if any(
-                        t["status"] in ("pending", "in_progress") for t in todo_state
-                    ):
+                    if has_pending and reminder_mode == "system_message":
                         messages.append(
                             {
                                 "role": "system",
@@ -473,6 +628,7 @@ def run_scenario(
 
     result_dict: dict[str, Any] = {
         "scenario_id": scenario["id"],
+        "reminder_mode": reminder_mode,
         "turns": turn,
         "used_todos": used_todos,
         "asked_questions": asked_questions,
@@ -579,6 +735,7 @@ def run_eval(
     execution_reminder: str,
     model: str = "AZURE_GPT_4o_MINI_2024_0718",
     judge_model: str = "AZURE_GPT_4o_2024_1120",
+    reminder_mode: str = "system_message",
 ) -> dict[str, Any]:
     """Run all scenarios, score with judge, return aggregate results."""
     client = _create_client()
@@ -592,7 +749,12 @@ def run_eval(
         print(f"  Running: {scenario['id']}...", end=" ", flush=True)
         try:
             result = run_scenario(
-                client, scenario, system_prompt, execution_reminder, model
+                client,
+                scenario,
+                system_prompt,
+                execution_reminder,
+                model,
+                reminder_mode=reminder_mode,
             )
         except Exception as e:
             err_msg = str(e)
@@ -644,6 +806,7 @@ def run_eval(
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "model": model,
         "judge_model": judge_model,
+        "reminder_mode": reminder_mode,
         "scenario_count": len(scenarios),
         "averages": averages,
         "results": [
@@ -762,6 +925,13 @@ def main() -> None:
         default=None,
         help="Output file for results JSON",
     )
+    parser.add_argument(
+        "--reminder-mode",
+        choices=["system_message", "tool_result", "compare"],
+        default="system_message",
+        help="How to inject the execution reminder after todo_write. "
+        "'compare' runs both modes and outputs side-by-side results.",
+    )
     args = parser.parse_args()
 
     from unique_toolkit.agentic.tools.todo.service import (
@@ -772,65 +942,82 @@ def main() -> None:
     current_system_prompt = _TODO_SYSTEM_PROMPT
     current_reminder = _TODO_EXECUTION_REMINDER
 
+    modes = (
+        ["system_message", "tool_result"]
+        if args.reminder_mode == "compare"
+        else [args.reminder_mode]
+    )
+
     all_rounds: list[dict[str, Any]] = []
     best_score = 0.0
 
-    for round_num in range(1, args.max_refine_rounds + 1 if args.refine else 2):
-        print(f"\n{'=' * 60}")
-        print(f"Round {round_num}: evaluating prompts")
-        print(f"{'=' * 60}")
+    for mode in modes:
+        for round_num in range(1, args.max_refine_rounds + 1 if args.refine else 2):
+            print(f"\n{'=' * 60}")
+            label = f"Round {round_num}"
+            if len(modes) > 1:
+                label += f" [reminder_mode={mode}]"
+            print(f"{label}: evaluating prompts")
+            print(f"{'=' * 60}")
 
-        system_prompt = _build_system_prompt(current_system_prompt)
-        results = run_eval(
-            system_prompt, current_reminder, args.model, args.judge_model
-        )
+            system_prompt = _build_system_prompt(current_system_prompt)
+            results = run_eval(
+                system_prompt,
+                current_reminder,
+                args.model,
+                args.judge_model,
+                reminder_mode=mode,
+            )
 
-        overall = results["averages"].get("overall", 0)
-        print(f"\nOverall: {overall:.0%}")
-        for k, v in results["averages"].items():
-            if k != "overall":
-                print(f"  {k}: {v:.0%}")
+            overall = results["averages"].get("overall", 0)
+            print(f"\nOverall: {overall:.0%}")
+            for k, v in results["averages"].items():
+                if k != "overall":
+                    print(f"  {k}: {v:.0%}")
 
-        round_data = {
-            "round": round_num,
-            "system_prompt": current_system_prompt,
-            "execution_reminder": current_reminder,
-            "results": results,
-        }
-        all_rounds.append(round_data)
+            round_data = {
+                "round": round_num,
+                "reminder_mode": mode,
+                "system_prompt": current_system_prompt,
+                "execution_reminder": current_reminder,
+                "results": results,
+            }
+            all_rounds.append(round_data)
 
-        if overall > best_score:
-            best_score = overall
+            if overall > best_score:
+                best_score = overall
 
-        if overall == 1.0:
-            print("\nAll scenarios passed! No refinement needed.")
-            break
+            if overall == 1.0:
+                print("\nAll scenarios passed! No refinement needed.")
+                break
 
-        if not args.refine or round_num >= args.max_refine_rounds:
-            break
+            if not args.refine or round_num >= args.max_refine_rounds:
+                break
 
-        print("\nProposing refined prompts...")
-        client = _create_client()
-        refinement = propose_refinement(
-            client,
-            current_system_prompt,
-            current_reminder,
-            results,
-            args.judge_model,
-        )
+            print("\nProposing refined prompts...")
+            client = _create_client()
+            refinement = propose_refinement(
+                client,
+                current_system_prompt,
+                current_reminder,
+                results,
+                args.judge_model,
+            )
 
-        if refinement.get("no_changes"):
-            print("No changes proposed.")
-            break
+            if refinement.get("no_changes"):
+                print("No changes proposed.")
+                break
 
-        if "error" in refinement:
-            print(f"Refinement error: {refinement['error']}")
-            break
+            if "error" in refinement:
+                print(f"Refinement error: {refinement['error']}")
+                break
 
-        print(f"Changes: {refinement.get('changes_made', 'N/A')}")
-        current_system_prompt = refinement.get("system_prompt", current_system_prompt)
-        current_reminder = refinement.get("execution_reminder", current_reminder)
-        round_data["refinement"] = refinement
+            print(f"Changes: {refinement.get('changes_made', 'N/A')}")
+            current_system_prompt = refinement.get(
+                "system_prompt", current_system_prompt
+            )
+            current_reminder = refinement.get("execution_reminder", current_reminder)
+            round_data["refinement"] = refinement
 
     output_data = {
         "best_overall_score": best_score,

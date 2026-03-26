@@ -132,6 +132,80 @@
     should_use_todos: false
     should_ask_clarification: true
 
+# --- Sequential-dependency scenarios (can't be parallelized) ---
+
+- id: sequential_supply_chain
+  description: >
+    5-step pipeline where each step depends on the previous step's output.
+    The agent must look up a product, find its supplier, check supplier
+    inventory, find an alternative if out of stock, and finally place an
+    order. Each read_database returns data that determines the next query.
+  user_message: >
+    We have a rush order for product SKU-7742. Handle this end-to-end:
+    1. Look up SKU-7742 in the products database to find its supplier
+    2. Check the supplier's record in the suppliers database for current inventory
+    3. If inventory is below 100 units, search the web for alternative suppliers
+    4. Look up the best alternative in the suppliers database to verify pricing
+    5. Write a purchase order document with the supplier details and pricing
+    Each step depends on what you learn in the previous step — you can't
+    skip ahead.
+  expected:
+    should_use_todos: true
+    min_todo_items: 4
+    should_complete_all: true
+    should_not_ask_mid_execution: true
+
+- id: sequential_incident_response
+  description: >
+    Sequential incident response where each action depends on the findings
+    from the previous one. Can't be parallelized because the triage
+    determines the response path.
+  user_message: >
+    We received an alert about service degradation. Handle incident response:
+    1. Read the alerts database (table: alerts, query: "active critical") to
+       find what's failing
+    2. Based on the alert details, search the web for known issues with
+       the affected service
+    3. Read the runbooks database (table: runbooks) for the remediation
+       procedure matching the failure type you found
+    4. Send an email to oncall@engineering.com with the incident summary,
+       root cause from your research, and recommended remediation steps
+    5. Write an incident report document with timeline, findings, and
+       actions taken
+    Work through these sequentially — each step builds on what you
+    learned in the previous one.
+  expected:
+    should_use_todos: true
+    min_todo_items: 4
+    should_complete_all: true
+    should_not_ask_mid_execution: true
+
+- id: sequential_customer_escalation
+  description: >
+    Customer escalation chain: look up customer, find their tickets,
+    check SLA, escalate to manager, notify customer. Each step uses
+    data from the previous step.
+  user_message: >
+    Customer ID C-4419 has complained about response times. Handle the
+    full escalation:
+    1. Look up customer C-4419 in the customers database to get their
+       account details and SLA tier
+    2. Read their support tickets (table: tickets, query: "C-4419") to
+       find recent open tickets and response times
+    3. Based on their SLA tier and actual response times, determine if
+       SLA was breached — search the web for our SLA policy if needed
+    4. Send an escalation email to the customer's account manager (you'll
+       find their manager's email in the customer record)
+    5. Send an apology email to the customer with specifics about their
+       tickets and what's being done
+    6. Write an escalation report document summarizing the situation
+    Each step depends on the data from the previous steps.
+  expected:
+    should_use_todos: true
+    min_todo_items: 5
+    should_complete_all: true
+    should_not_ask_mid_execution: true
+
 # --- Extreme / stress-test scenarios ---
 
 - id: batch_25_customer_emails
