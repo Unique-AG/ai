@@ -24,6 +24,7 @@ from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManag
 from unique_toolkit.agentic.evaluation.hallucination.hallucination_evaluation import (
     HallucinationEvaluation,
 )
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager import (
     history_manager as history_manager_module,
 )
@@ -193,6 +194,9 @@ def _build_common(
         percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
         language_model=config.space.language_model,
         uploaded_content_config=config.agent.services.uploaded_content_config,
+        enable_tool_call_persistence=feature_flags.enable_tool_call_persistence_un_15977.is_enabled(
+            event.company_id
+        ),
     )
     history_manager = HistoryManager(
         logger,
