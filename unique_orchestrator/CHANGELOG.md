@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.16.1] - 2026-03-25
+## [1.17.0] - 2026-03-25
 - Forward Responses API `include` params from `ResponsesApiToolManager.get_required_include_params()` via `ResponsesStreamingHandler` (UN-17972); gating lives in `unique_toolkit` — no FF logic in orchestrator
 - Pass `company_id` into `ShowExecutedCodePostprocessor` so fence feature-flag checks match `DisplayCodeInterpreterFilesPostProcessor` (UN-17972)
 - Bump `unique-toolkit` lower-bound to `>=1.64.0`
