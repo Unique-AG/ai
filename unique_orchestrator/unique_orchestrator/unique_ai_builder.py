@@ -371,10 +371,12 @@ async def _build_responses(
             logger,
         )
     else:
-        has_valid_uploaded_documents, has_tool_choices = _configure_uploaded_search_tool(
-            event=event,
-            logger=logger,
-            common_components=common_components,
+        has_valid_uploaded_documents, has_tool_choices = (
+            _configure_uploaded_search_tool(
+                event=event,
+                logger=logger,
+                common_components=common_components,
+            )
         )
 
     builtin_tool_manager = await OpenAIBuiltInToolManager.build_manager(

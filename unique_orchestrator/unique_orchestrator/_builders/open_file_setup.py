@@ -113,5 +113,3 @@ def configure_file_payload(
         tool_manager.add_tool(OpenFileTool(event=event, registry=agent_file_registry))
 
     return history_manager, agent_file_registry
-
-
