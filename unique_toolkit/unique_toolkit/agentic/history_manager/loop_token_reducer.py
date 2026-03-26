@@ -10,6 +10,7 @@ from unique_toolkit._common.token.token_counting import (
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
     FileContentSerialization,
+    get_full_history_with_contents,
     get_full_history_with_contents_and_tool_calls,
 )
 from unique_toolkit.agentic.history_manager.utils import serialize_tool_content_json
@@ -54,6 +55,7 @@ class LoopTokenReducer:
         has_uploaded_content_config: bool,
         reference_manager: ReferenceManager,
         language_model: LMI,
+        enable_tool_call_persistence: bool = False,
     ):
         self._max_history_tokens = max_history_tokens
         self._has_uploaded_content_config = has_uploaded_content_config
@@ -73,6 +75,7 @@ class LoopTokenReducer:
         )
         self._max_db_source_number: int = -1
         self._db_source_map: dict[int, ContentChunk] = {}
+        self._enable_tool_call_persistence = enable_tool_call_persistence
 
     @property
     def max_db_source_number(self) -> int:
@@ -303,19 +306,31 @@ class LoopTokenReducer:
         Returns:
             list[LanguageModelMessage]: The history
         """
-        full_history, max_src, src_map = get_full_history_with_contents_and_tool_calls(
-            user_message=self._user_message,
-            chat_id=self._chat_id,
-            chat_service=self._chat_service,
-            content_service=self._content_service,
-            file_content_serialization_type=(
-                FileContentSerialization.NONE
-                if self._has_uploaded_content_config
-                else FileContentSerialization.FILE_NAME
-            ),
+        file_content_serialization_type = (
+            FileContentSerialization.NONE
+            if self._has_uploaded_content_config
+            else FileContentSerialization.FILE_NAME
         )
-        self._max_db_source_number = max_src
-        self._db_source_map = src_map
+        if self._enable_tool_call_persistence:
+            full_history, max_src, src_map = (
+                get_full_history_with_contents_and_tool_calls(
+                    user_message=self._user_message,
+                    chat_id=self._chat_id,
+                    chat_service=self._chat_service,
+                    content_service=self._content_service,
+                    file_content_serialization_type=file_content_serialization_type,
+                )
+            )
+            self._max_db_source_number = max_src
+            self._db_source_map = src_map
+        else:
+            full_history = get_full_history_with_contents(
+                user_message=self._user_message,
+                chat_id=self._chat_id,
+                chat_service=self._chat_service,
+                content_service=self._content_service,
+                file_content_serialization_type=file_content_serialization_type,
+            )
 
         if remove_from_text is not None:
             full_history.root = await self._clean_messages(

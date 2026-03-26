@@ -1159,7 +1159,7 @@ def test_get_encoder__uses_model_get_encoder_AI(
 # Integration-style Tests (still unit tests but test larger flows)
 @pytest.mark.ai
 @patch(
-    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls"
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
 )
 @patch.object(LoopTokenReducer, "_count_message_tokens")
 async def test_get_history_for_model_call__returns_messages__when_under_limit_AI(
@@ -1172,12 +1172,8 @@ async def test_get_history_for_model_call__returns_messages__when_under_limit_AI
     Why this matters: Normal case should return full history without reduction.
     """
     # Arrange
-    mock_get_history.return_value = (
-        LanguageModelMessages(
-            root=[LanguageModelUserMessage(content="Test user message")]
-        ),
-        -1,
-        {},
+    mock_get_history.return_value = LanguageModelMessages(
+        root=[LanguageModelUserMessage(content="Test user message")]
     )
     mock_count_tokens.return_value = 100  # Under limit
 
@@ -1200,7 +1196,7 @@ async def test_get_history_for_model_call__returns_messages__when_under_limit_AI
 
 @pytest.mark.ai
 @patch(
-    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls"
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
 )
 @patch.object(LoopTokenReducer, "_count_message_tokens")
 async def test_get_history_for_model_call__appends_image_urls_to_user_message__when_provided_AI(
@@ -1213,12 +1209,8 @@ async def test_get_history_for_model_call__appends_image_urls_to_user_message__w
     Why this matters: Tool-returned images must appear in the user message for the LLM.
     """
     # Arrange
-    mock_get_history.return_value = (
-        LanguageModelMessages(
-            root=[LanguageModelUserMessage(content="Original question")]
-        ),
-        -1,
-        {},
+    mock_get_history.return_value = LanguageModelMessages(
+        root=[LanguageModelUserMessage(content="Original question")]
     )
     mock_count_tokens.return_value = 100
 
@@ -1252,3 +1244,106 @@ async def test_get_history_for_model_call__appends_image_urls_to_user_message__w
         image_parts[0].get("imageUrl", {}).get("url")
         == "data:image/png;base64,iVBORw0KGgo="
     )
+
+
+# Feature flag path tests
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
+)
+@patch.object(LoopTokenReducer, "_count_message_tokens")
+async def test_get_history_from_db__calls_without_tool_calls__when_persistence_disabled_AI(
+    mock_count_tokens: "Mock",
+    mock_get_history: "Mock",
+    mock_logger: Logger,
+    test_event: ChatEvent,
+    mock_reference_manager: ReferenceManager,
+    language_model_info: LanguageModelInfo,
+) -> None:
+    """
+    Purpose: Verify get_history_from_db calls get_full_history_with_contents (not the tool-call
+        variant) when enable_tool_call_persistence=False.
+    Why this matters: With the flag off, we must avoid the DB round-trip that loads ToolCall
+        records, keeping the code path identical to before the feature was introduced.
+    Setup summary: LoopTokenReducer constructed with enable_tool_call_persistence=False;
+        assert get_full_history_with_contents is called once.
+    """
+    reducer = LoopTokenReducer(
+        logger=mock_logger,
+        event=test_event,
+        max_history_tokens=4000,
+        has_uploaded_content_config=False,
+        reference_manager=mock_reference_manager,
+        language_model=language_model_info,
+        enable_tool_call_persistence=False,
+    )
+    mock_get_history.return_value = LanguageModelMessages(
+        root=[LanguageModelUserMessage(content="hello")]
+    )
+    mock_count_tokens.return_value = 100
+
+    async def noop(text: str) -> str:
+        return text
+
+    await reducer.get_history_for_model_call(
+        original_user_message="hello",
+        rendered_user_message_string="hello",
+        rendered_system_message_string="system",
+        loop_history=[],
+        remove_from_text=noop,
+    )
+
+    mock_get_history.assert_called_once()
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls"
+)
+@patch.object(LoopTokenReducer, "_count_message_tokens")
+async def test_get_history_from_db__calls_with_tool_calls__when_persistence_enabled_AI(
+    mock_count_tokens: "Mock",
+    mock_get_history: "Mock",
+    mock_logger: Logger,
+    test_event: ChatEvent,
+    mock_reference_manager: ReferenceManager,
+    language_model_info: LanguageModelInfo,
+) -> None:
+    """
+    Purpose: Verify get_history_from_db calls get_full_history_with_contents_and_tool_calls
+        when enable_tool_call_persistence=True.
+    Why this matters: With the flag on, prior-turn tool call records must be loaded from the
+        DB so that source numbering can continue from where the last turn left off.
+    Setup summary: LoopTokenReducer constructed with enable_tool_call_persistence=True;
+        assert get_full_history_with_contents_and_tool_calls is called and max_db_source_number
+        is populated from its return value.
+    """
+    reducer = LoopTokenReducer(
+        logger=mock_logger,
+        event=test_event,
+        max_history_tokens=4000,
+        has_uploaded_content_config=False,
+        reference_manager=mock_reference_manager,
+        language_model=language_model_info,
+        enable_tool_call_persistence=True,
+    )
+    mock_get_history.return_value = (
+        LanguageModelMessages(root=[LanguageModelUserMessage(content="hello")]),
+        5,
+        {},
+    )
+    mock_count_tokens.return_value = 100
+
+    async def noop(text: str) -> str:
+        return text
+
+    await reducer.get_history_for_model_call(
+        original_user_message="hello",
+        rendered_user_message_string="hello",
+        rendered_system_message_string="system",
+        loop_history=[],
+        remove_from_text=noop,
+    )
+
+    mock_get_history.assert_called_once()
+    assert reducer.max_db_source_number == 5

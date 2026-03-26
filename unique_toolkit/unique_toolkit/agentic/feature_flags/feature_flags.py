@@ -82,6 +82,11 @@ class FeatureFlags(BaseSettings):
         description="Emit codeExecution fences in message.text for code interpreter outputs (UN-17972). When disabled, inline file refs are kept as-is. Can be 'true' or comma-separated company IDs.",
     )
 
+    enable_tool_call_persistence_un_15977: FeatureFlag = Field(
+        default=FeatureFlag(False),
+        description="Persist tool calls and reconstruct tool call history across turns (UN-15977). Can be 'true' or comma-separated company IDs.",
+    )
+
     model_config = SettingsConfigDict(
         extra="ignore",
         env_prefix="FEATURE_FLAG_",

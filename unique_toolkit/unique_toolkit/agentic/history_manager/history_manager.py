@@ -77,6 +77,11 @@ class HistoryManagerConfig(BaseModel):
             * self.percent_of_max_tokens_for_history,
         )
 
+    enable_tool_call_persistence: bool = Field(
+        default=False,
+        description="When True, tool calls are persisted to the database and reconstructed from prior turns.",
+    )
+
     uploaded_content_config: (
         Annotated[
             UploadedContentConfig,
@@ -125,6 +130,7 @@ class HistoryManager:
             has_uploaded_content_config=bool(self._config.uploaded_content_config),
             language_model=self._language_model,
             reference_manager=reference_manager,
+            enable_tool_call_persistence=self._config.enable_tool_call_persistence,
         )
         self._reference_manager = reference_manager
         self._tool_call_result_history: list[ToolCallResponse] = []
