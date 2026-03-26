@@ -21,6 +21,7 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.chat.schemas import (
     MessageLog,
     MessageLogDetails,
@@ -423,16 +424,23 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     ):
         Tool.__init__(self, configuration, event, *args, **kwargs)
 
-        content_service = KnowledgeBaseService.from_event(self.event)
-        chunk_relevancy_sorter = ChunkRelevancySorter.from_event(self.event)
-        # Determing chat_id if possible
+        chunk_relevancy_sorter = ChunkRelevancySorter(
+            company_id=self.event.company_id,
+            user_id=self.event.user_id,
+        )
         if isinstance(self.event, (ChatEvent, Event)):
-            if self.event.payload.correlation:
-                # Use parent chat id if correlation is present
-                chat_id = self.event.payload.correlation.parent_chat_id
-            else:
-                chat_id = self.event.payload.chat_id
+            settings = UniqueSettings.from_chat_event(self.event)
+            content_service = KnowledgeBaseService.from_settings(settings)
+            chat_id = (
+                self.event.payload.correlation.parent_chat_id
+                if self.event.payload.correlation
+                else self.event.payload.chat_id
+            )
         else:
+            content_service = KnowledgeBaseService(
+                company_id=self.event.company_id,
+                user_id=self.event.user_id,
+            )
             chat_id = None
         self._display_name = kwargs.get("display_name", "Internal Search")
         InternalSearchService.__init__(

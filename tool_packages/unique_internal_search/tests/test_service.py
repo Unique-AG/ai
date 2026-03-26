@@ -661,12 +661,14 @@ class TestInternalSearchTool:
     """Tests for InternalSearchTool class."""
 
     @pytest.mark.ai
+    @patch("unique_internal_search.service.UniqueSettings")
     @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_tool__initializes__with_chat_event(
         self,
         mock_chunk_relevancy_sorter_class: Any,
         mock_content_service_class: Any,
+        mock_unique_settings_class: Any,
         base_internal_search_config: InternalSearchConfig,
         mock_chat_event: Any,
         mock_logger: Any,
@@ -674,15 +676,15 @@ class TestInternalSearchTool:
         """
         Purpose: Verify InternalSearchTool initializes correctly with ChatEvent.
         Why this matters: Ensures proper tool initialization and chat_id extraction from ChatEvent.
-        Setup summary: Mock KnowledgeBaseService and ChunkRelevancySorter from_event, verify initialization.
+        Setup summary: Mock KnowledgeBaseService and ChunkRelevancySorter, verify initialization.
         """
         # Arrange
         mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
-        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_content_service_class.from_settings.return_value = mock_content_service
 
         mock_sorter = Mock()
-        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+        mock_chunk_relevancy_sorter_class.return_value = mock_sorter
 
         mock_tool_base = Mock()
         mock_tool_base.logger = mock_logger
@@ -701,20 +703,28 @@ class TestInternalSearchTool:
             )
 
         # Assert
-        mock_content_service_class.from_event.assert_called_once_with(mock_chat_event)
-        mock_chunk_relevancy_sorter_class.from_event.assert_called_once_with(
+        mock_unique_settings_class.from_chat_event.assert_called_once_with(
             mock_chat_event
+        )
+        mock_content_service_class.from_settings.assert_called_once_with(
+            mock_unique_settings_class.from_chat_event.return_value
+        )
+        mock_chunk_relevancy_sorter_class.assert_called_once_with(
+            company_id=mock_chat_event.company_id,
+            user_id=mock_chat_event.user_id,
         )
         assert tool.config == base_internal_search_config
         assert tool.chat_id == "chat_123"
 
     @pytest.mark.ai
+    @patch("unique_internal_search.service.UniqueSettings")
     @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_tool__initializes__with_chat_event__uses_parent_chat_id__when_correlation_set(
         self,
         mock_chunk_relevancy_sorter_class: Any,
         mock_content_service_class: Any,
+        mock_unique_settings_class: Any,
         base_internal_search_config: InternalSearchConfig,
         mock_chat_event_with_correlation: Any,
         mock_logger: Any,
@@ -727,10 +737,10 @@ class TestInternalSearchTool:
         # Arrange
         mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
-        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_content_service_class.from_settings.return_value = mock_content_service
 
         mock_sorter = Mock()
-        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+        mock_chunk_relevancy_sorter_class.return_value = mock_sorter
 
         # Act
         def setup_tool(self, configuration, event, *args, **kwargs):
@@ -745,11 +755,15 @@ class TestInternalSearchTool:
             )
 
         # Assert: chat_id comes from correlation.parent_chat_id, not payload.chat_id
-        mock_content_service_class.from_event.assert_called_once_with(
+        mock_unique_settings_class.from_chat_event.assert_called_once_with(
             mock_chat_event_with_correlation
         )
-        mock_chunk_relevancy_sorter_class.from_event.assert_called_once_with(
-            mock_chat_event_with_correlation
+        mock_content_service_class.from_settings.assert_called_once_with(
+            mock_unique_settings_class.from_chat_event.return_value
+        )
+        mock_chunk_relevancy_sorter_class.assert_called_once_with(
+            company_id=mock_chat_event_with_correlation.company_id,
+            user_id=mock_chat_event_with_correlation.user_id,
         )
         assert tool.config == base_internal_search_config
         assert tool.chat_id == "parent_chat_456"
@@ -773,10 +787,10 @@ class TestInternalSearchTool:
         # Arrange
         mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
-        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_content_service_class.from_settings.return_value = mock_content_service
 
         mock_sorter = Mock()
-        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+        mock_chunk_relevancy_sorter_class.return_value = mock_sorter
 
         # Act
         def setup_tool(self, configuration, event, *args, **kwargs):
@@ -821,8 +835,8 @@ class TestInternalSearchTool:
         ):
             mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 # Set attributes that Tool base class expects
@@ -881,8 +895,8 @@ class TestInternalSearchTool:
         ):
             mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 # Set attributes that Tool base class expects
@@ -936,8 +950,8 @@ class TestInternalSearchTool:
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
         ):
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = mock_chunk_relevancy_sorter
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
             def setup_tool(self, configuration, event, *args, **kwargs):
@@ -989,8 +1003,8 @@ class TestInternalSearchTool:
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
         ):
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = mock_chunk_relevancy_sorter
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
             def setup_tool(self, configuration, event, *args, **kwargs):
@@ -1042,8 +1056,8 @@ class TestInternalSearchTool:
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
         ):
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = mock_chunk_relevancy_sorter
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
             def setup_tool(self, configuration, event, *args, **kwargs):
@@ -1091,8 +1105,8 @@ class TestInternalSearchTool:
         ):
             mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 # Set attributes that Tool base class expects
@@ -1145,8 +1159,8 @@ class TestInternalSearchTool:
         ):
             mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 # Set attributes that Tool base class expects
@@ -1192,8 +1206,8 @@ class TestInternalSearchTool:
         ):
             mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 # Set attributes that Tool base class expects
@@ -1240,8 +1254,8 @@ class TestInternalSearchTool:
         ):
             mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 # Set attributes that Tool base class expects
@@ -1288,8 +1302,8 @@ class TestInternalSearchTool:
         ):
             mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 # Set attributes that Tool base class expects
@@ -1339,8 +1353,8 @@ class TestInternalSearchTool:
         ):
             mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 # Set attributes that Tool base class expects
@@ -1387,8 +1401,8 @@ class TestInternalSearchTool:
         ):
             mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 # Set attributes that Tool base class expects
@@ -1440,8 +1454,8 @@ class TestInternalSearchTool:
         ):
             mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 # Set attributes that Tool base class expects
@@ -1503,8 +1517,8 @@ class TestInternalSearchTool:
             mock_content_service.search_content_chunks_async = AsyncMock(
                 return_value=sample_content_chunks
             )
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 # Set attributes that Tool base class expects
@@ -1554,8 +1568,9 @@ class TestInternalSearchTool:
         Setup summary: Default config (reminder disabled), run tool, assert system_reminder is empty.
         """
         with (
+            patch("unique_internal_search.service.UniqueSettings"),
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1565,14 +1580,14 @@ class TestInternalSearchTool:
                 return_value=sample_content_chunks,
             ),
         ):
-            mock_content_service = Mock(spec=ContentService)
+            mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
             mock_content_service.search_content_chunks_async = AsyncMock(
                 return_value=sample_content_chunks
             )
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 setattr(self, "_event", event)
@@ -1621,8 +1636,9 @@ class TestInternalSearchTool:
             }
         )
         with (
+            patch("unique_internal_search.service.UniqueSettings"),
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1632,14 +1648,14 @@ class TestInternalSearchTool:
                 return_value=sample_content_chunks,
             ),
         ):
-            mock_content_service = Mock(spec=ContentService)
+            mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
             mock_content_service.search_content_chunks_async = AsyncMock(
                 return_value=sample_content_chunks
             )
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 setattr(self, "_event", event)
@@ -1704,8 +1720,8 @@ class TestInternalSearchTool:
             mock_content_service.search_content_chunks_async = AsyncMock(
                 return_value=sample_content_chunks
             )
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 # Set attributes that Tool base class expects
@@ -1768,8 +1784,8 @@ class TestInternalSearchTool:
         Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify returns list.
         """
         # Arrange
-        mock_content_service_class.from_event.return_value = mock_content_service
-        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+        mock_content_service_class.from_settings.return_value = mock_content_service
+        mock_sorter_class.return_value = mock_chunk_relevancy_sorter
         content_chunks = [sample_content_chunk]
 
         def setup_tool(self, configuration, event, *args, **kwargs):
@@ -1813,8 +1829,8 @@ class TestInternalSearchTool:
         Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify sequence_number is 0.
         """
         # Arrange
-        mock_content_service_class.from_event.return_value = mock_content_service
-        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+        mock_content_service_class.from_settings.return_value = mock_content_service
+        mock_sorter_class.return_value = mock_chunk_relevancy_sorter
         content_chunks = [sample_content_chunk]
 
         def setup_tool(self, configuration, event, *args, **kwargs):
@@ -1858,8 +1874,8 @@ class TestInternalSearchTool:
         Setup summary: Create internal content chunk with ID, call _define_reference_list_for_message_log, verify source_id matches.
         """
         # Arrange
-        mock_content_service_class.from_event.return_value = mock_content_service
-        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+        mock_content_service_class.from_settings.return_value = mock_content_service
+        mock_sorter_class.return_value = mock_chunk_relevancy_sorter
         content_chunks = [sample_content_chunk]
 
         def setup_tool(self, configuration, event, *args, **kwargs):
@@ -1903,8 +1919,8 @@ class TestInternalSearchTool:
         Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify reference source is "internal".
         """
         # Arrange
-        mock_content_service_class.from_event.return_value = mock_content_service
-        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+        mock_content_service_class.from_settings.return_value = mock_content_service
+        mock_sorter_class.return_value = mock_chunk_relevancy_sorter
         content_chunks = [sample_content_chunk]
 
         def setup_tool(self, configuration, event, *args, **kwargs):
@@ -1948,8 +1964,8 @@ class TestInternalSearchTool:
         """
 
         # Arrange
-        mock_content_service_class.from_event.return_value = mock_content_service
-        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+        mock_content_service_class.from_settings.return_value = mock_content_service
+        mock_sorter_class.return_value = mock_chunk_relevancy_sorter
 
         content_chunk = ContentChunk(
             id="chunk_internal_2",
@@ -1999,8 +2015,8 @@ class TestInternalSearchTool:
         """
 
         # Arrange
-        mock_content_service_class.from_event.return_value = mock_content_service
-        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+        mock_content_service_class.from_settings.return_value = mock_content_service
+        mock_sorter_class.return_value = mock_chunk_relevancy_sorter
 
         content_chunk = ContentChunk(
             id="chunk_internal_1",
@@ -2051,8 +2067,8 @@ class TestInternalSearchTool:
         Setup summary: Create internal content chunk, call _define_reference_list_for_message_log, verify URL format.
         """
         # Arrange
-        mock_content_service_class.from_event.return_value = mock_content_service
-        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+        mock_content_service_class.from_settings.return_value = mock_content_service
+        mock_sorter_class.return_value = mock_chunk_relevancy_sorter
         content_chunks = [sample_content_chunk]
 
         def setup_tool(self, configuration, event, *args, **kwargs):
@@ -2096,8 +2112,8 @@ class TestInternalSearchTool:
         """
 
         # Arrange
-        mock_content_service_class.from_event.return_value = mock_content_service
-        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+        mock_content_service_class.from_settings.return_value = mock_content_service
+        mock_sorter_class.return_value = mock_chunk_relevancy_sorter
 
         content_chunks = [
             ContentChunk(
@@ -2155,8 +2171,8 @@ class TestInternalSearchTool:
         """
 
         # Arrange
-        mock_content_service_class.from_event.return_value = mock_content_service
-        mock_sorter_class.from_event.return_value = mock_chunk_relevancy_sorter
+        mock_content_service_class.from_settings.return_value = mock_content_service
+        mock_sorter_class.return_value = mock_chunk_relevancy_sorter
 
         content_chunks = [
             ContentChunk(
@@ -2229,8 +2245,8 @@ class TestInternalSearchTool:
             mock_content_service.search_content_chunks_async = AsyncMock(
                 return_value=sample_content_chunks
             )
-            mock_content_service_class.from_event.return_value = mock_content_service
-            mock_sorter_class.from_event.return_value = Mock()
+            mock_content_service_class.from_settings.return_value = mock_content_service
+            mock_sorter_class.return_value = Mock()
 
             def setup_tool(self, configuration, event, *args, **kwargs):
                 # Set attributes that Tool base class expects
@@ -2580,10 +2596,10 @@ class TestInternalSearchTool:
         # Arrange
         mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
-        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_content_service_class.from_settings.return_value = mock_content_service
 
         mock_sorter = Mock()
-        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+        mock_chunk_relevancy_sorter_class.return_value = mock_sorter
 
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
@@ -2635,10 +2651,10 @@ class TestInternalSearchTool:
         # Arrange
         mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
-        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_content_service_class.from_settings.return_value = mock_content_service
 
         mock_sorter = Mock()
-        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+        mock_chunk_relevancy_sorter_class.return_value = mock_sorter
 
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
@@ -2689,10 +2705,10 @@ class TestInternalSearchTool:
         # Arrange
         mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
-        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_content_service_class.from_settings.return_value = mock_content_service
 
         mock_sorter = Mock()
-        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+        mock_chunk_relevancy_sorter_class.return_value = mock_sorter
 
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
@@ -2743,10 +2759,10 @@ class TestInternalSearchTool:
         # Arrange
         mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
-        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_content_service_class.from_settings.return_value = mock_content_service
 
         mock_sorter = Mock()
-        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+        mock_chunk_relevancy_sorter_class.return_value = mock_sorter
 
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
@@ -2800,10 +2816,10 @@ class TestInternalSearchTool:
         """
         mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
-        mock_content_service_class.from_event.return_value = mock_content_service
+        mock_content_service_class.from_settings.return_value = mock_content_service
 
         mock_sorter = Mock()
-        mock_chunk_relevancy_sorter_class.from_event.return_value = mock_sorter
+        mock_chunk_relevancy_sorter_class.return_value = mock_sorter
 
         def setup_tool(self, configuration, event, *args, **kwargs):
             setattr(self, "_event", event)
