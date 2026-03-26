@@ -2210,3 +2210,68 @@ async def test_tool_manager__execute_tool_call__rounds_execution_time_to_three_d
     parts = str(time_value).split(".")
     if len(parts) == 2:
         assert len(parts[1]) <= 3
+
+
+# --- Tests for add_tool, exclude_tool ---
+
+
+def test_tool_manager__add_tool__injects_external_tool(
+    logger, base_event, tool_progress_reporter, mcp_manager, a2a_manager
+):
+    config = ToolManagerConfig(tools=[], max_tool_calls=10)
+    tm = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    assert tm.get_tool_by_name("mock_tool") is None
+
+    tool = MockTool(MockToolConfig(), base_event, tool_progress_reporter)
+    tm.add_tool(tool)
+
+    assert tm.get_tool_by_name("mock_tool") is not None
+    assert any(td.name == "mock_tool" for td in tm.get_tool_definitions())
+
+
+def test_tool_manager__exclude_tool__excludes_from_all_lists(
+    logger, base_event, tool_config, tool_progress_reporter, mcp_manager, a2a_manager
+):
+    config = ToolManagerConfig(tools=[tool_config], max_tool_calls=10)
+    tm = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    assert tm.get_tool_by_name("mock_tool") is not None
+
+    result = tm.exclude_tool("mock_tool")
+
+    assert result is True
+    assert tm.get_tool_by_name("mock_tool") is None
+    assert not any(td.name == "mock_tool" for td in tm.get_tool_definitions())
+
+
+def test_tool_manager__exclude_tool__returns_false_for_missing(
+    logger, base_event, tool_progress_reporter, mcp_manager, a2a_manager
+):
+    config = ToolManagerConfig(tools=[], max_tool_calls=10)
+    tm = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    result = tm.exclude_tool("nonexistent")
+
+    assert result is False
