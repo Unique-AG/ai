@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.65.0] - 2026-03-26
 - Adding experimental open pdf tool
+## [1.64.4] - 2026-03-26
+- Code interpreter (UN-17972): when fence FF is on, HTML artifacts use `HtmlRendering` blocks with `800px` / `600px` dimensions and `unique://content/...` (revert from `htmlWithSource` for product UX). Remove `htmlWithSource` from fence building and normalization regexes; skip HTML in unmatched-code-block warnings; update tests.
 
 ## [1.64.3] - 2026-03-26
 - Config checker: CLI and validator improvements
