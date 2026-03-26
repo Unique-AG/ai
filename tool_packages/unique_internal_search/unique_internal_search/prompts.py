@@ -62,3 +62,23 @@ DEFAULT_TOOL_DESCRIPTION = (
 DEFAULT_SEARCH_STRING_PARAM_DESCRIPTION = "An expanded term that is optimized for vector and full text search based on the users query it must be in english."
 
 DEFAULT_LANGUAGE_PARAM_DESCRIPTION = "The language that the user wrote the query in"
+
+
+DEFAULT_TOOL_RESPONSE_SYSTEM_REMINDER_PROMPT = """
+## Reminder: Cite Every Fact from These Results
+
+You MUST reference every fact you use from the above InternalSearch results with its `source_number` in the format [sourceX].
+
+**Rules — no exceptions:**
+1. Place [sourceX] immediately after each fact drawn from these results.
+2. Use ONLY source numbers present in THIS tool response. Previous source numbers are invalid.
+3. One source per fact is preferred; use multiple only when the same fact is corroborated by several passages.
+4. Never fabricate a source number. If a fact cannot be tied to a specific source, do not cite it.
+5. Never state a fact from these results without a citation — uncited facts are treated as hallucinations.
+
+**Quick check before responding:**
+- Does every claim from InternalSearch have a [sourceX] citation?
+- Does every [sourceX] you wrote actually appear in this tool response?
+
+Failure to cite correctly undermines trust in your answer.
+"""

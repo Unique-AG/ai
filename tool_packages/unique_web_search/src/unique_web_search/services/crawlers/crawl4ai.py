@@ -10,6 +10,7 @@ from unique_web_search.services.crawlers.base import (
     BaseCrawlerConfig,
     CrawlerType,
 )
+from unique_web_search.services.crawlers.utils import get_random_user_agent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -186,6 +187,7 @@ class Crawl4AiCrawler(BaseCrawler[Crawl4AiCrawlerConfig]):
             headless=True,
             verbose=False,
             text_mode=True,
+            user_agent=get_random_user_agent(),
         )
 
         content_filter = None

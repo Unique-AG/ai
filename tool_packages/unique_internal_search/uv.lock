@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.12, <4"
 
 [manifest]
@@ -2000,7 +2000,7 @@ wheels = [
 
 [[package]]
 name = "unique-internal-search"
-version = "1.2.32"
+version = "1.2.34"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
@@ -2039,25 +2039,26 @@ dev = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.84"
+version = "0.10.92"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "anyio" },
+    { name = "click" },
     { name = "httpx" },
     { name = "regex" },
     { name = "requests" },
     { name = "tiktoken" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6d/fc/f920f0c8e404482314d713b30a68b2f1f3afc2db3da90cce697061cafd55/unique_sdk-0.10.84.tar.gz", hash = "sha256:18fd3a325d0fddf39fc23ff7ebeb402b89795f5ac69540d5fb9fafe060f6b9d2", size = 38667, upload-time = "2026-03-05T13:14:29.968Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4d/e1/38d41387b2de9e314b7587e5ba5044f425bb2d3860f76a325850dfceb0f4/unique_sdk-0.10.92.tar.gz", hash = "sha256:ddb458b2aa3e66e4b073fe118917b4b6feb925e48bded2d269a720137e1e3608", size = 55696, upload-time = "2026-03-21T14:22:46.092Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/65/da/9bbf2afa1b7a925e248f602a7f02833d27f89d07eba95eb384962d977618/unique_sdk-0.10.84-py3-none-any.whl", hash = "sha256:78b26a60874b2ba473126a6c12de3d4f06545d0e667c04b061d5a1fac029dc4b", size = 55848, upload-time = "2026-03-05T13:14:31.299Z" },
+    { url = "https://files.pythonhosted.org/packages/85/33/376d8648c3684dfae325230b14b6aa14195619a8c5bce58d549c9645794e/unique_sdk-0.10.92-py3-none-any.whl", hash = "sha256:45c7d67809e4f49fe3592a7df4e4acd2032aa1aa6ac75756c55fab90ca93cf3c", size = 80138, upload-time = "2026-03-21T14:22:44.766Z" },
 ]
 
 [[package]]
 name = "unique-toolkit"
-version = "1.59.1"
+version = "1.64.0"
 source = { editable = "../../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -2121,7 +2122,7 @@ requires-dist = [
     { name = "tiktoken", specifier = ">=0.12.0,<0.13" },
     { name = "tokenizers", specifier = ">=0.21.0,<0.22" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
-    { name = "unique-sdk", specifier = ">=0.10.80,<0.11" },
+    { name = "unique-sdk", specifier = ">=0.10.85,<0.11" },
     { name = "uvicorn", marker = "extra == 'fastapi'", specifier = ">=0.37.0,<0.38" },
 ]
 provides-extras = ["langchain", "fastapi"]
