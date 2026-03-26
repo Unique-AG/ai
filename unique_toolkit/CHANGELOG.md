@@ -5,35 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.66.0] - 2026-03-30
-- Add `applied_ingestion_config` to `Content` schema
-
-## [1.65.2] - 2026-03-30
-- Remove experimental open pdf tool
-
-## [1.65.1] - 2026-03-30
-- Code interpreter (UN-17972): `get_tool_prompts()` now always uses the stored `tool_description_for_system_prompt` (no feature-flag substitution); UI and backend stay aligned when the config default is the fence prompt.
-- Code interpreter (UN-18561): extend `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` — sandbox has no internet; do not use `requests` / `httpx` / `urllib` for web fetches; use the web search tool first, then code interpreter.
-- Code interpreter: RJSF textarea `rows` for `tool_description_for_system_prompt` is derived from `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` so the widget height matches the default body (fixes undersized editor).
-
-## [1.65.0] - 2026-03-29
-- Adding experimental open pdf tool
-
-## [1.64.7] - 2026-03-27
-- Code interpreter (UN-17972): when the sandbox HTML link is the only content on its line (including indented list continuations), replace the full line so the `HtmlRendering` opening fence starts at column 0; match is anchored to line start so mid-line links still use the separate mid-line path.
-- Code interpreter (UN-17972): strip runs of whitespace-only lines immediately preceding that link line so blank indented lines do not remain above the `HtmlRendering` block.
-- Code interpreter (UN-17972): when the link is mid-line and the response continues immediately after the closing parenthesis with no newline, append a newline after the closing fence so following text does not adjoin the fence.
-
-## [1.64.6] - 2026-03-27
-- Code interpreter (UN-17972): fix `HtmlRendering` block format for fenced code-interpreter HTML — remove an extra blank line before the `unique://content/...` URL (template had `\n\n\n`, parser expected a single blank line; broke rendering when images/PDFs were in the same message).
-- Code interpreter (UN-17972): when the model places the sandbox link mid-line (e.g. numbered list item), insert a leading newline before the `HtmlRendering` fence so it starts on its own line (same requirement as `imgWithSource` / `fileWithSource` standalone fences).
-
-## [1.64.5] - 2026-03-27
-- RJSF: Add `CustomWidgetName` values `folderScopePicker`, `selectionPolicy`, `toolIconSelect`, and `toggleSwitch` (aligned with TypeScript custom widgets).
-- RJSF: `RJSFMetaTag.custom()` accepts `name: CustomWidgetName | str` so callers can pass string widget identifiers (e.g. custom icons) in addition to enum members.
-
-## [1.64.4] - 2026-03-26
-- Code interpreter (UN-17972): when fence FF is on, HTML artifacts use `HtmlRendering` blocks with `800px` / `600px` dimensions and `unique://content/...` (revert from `htmlWithSource` for product UX). Remove `htmlWithSource` from fence building and normalization regexes; skip HTML in unmatched-code-block warnings; update tests.
+## [1.67.0] - 2026-03-31
+- Add `AUTO_CONTAINER_ONLY` model capability for models that require `container: {"type": "auto"}` instead of explicit container IDs (GPT-5.4 Pro)
+- Add `force_auto_container` parameter to `OpenAICodeInterpreterTool.build_tool` and `OpenAIBuiltInToolManager.build_manager`/`_build_tool`
+- Fix auto-container path dropping `is_exclusive` flag — now correctly forwarded to the constructor
 
 ## [1.64.3] - 2026-03-26
 - Config checker: CLI and validator improvements
