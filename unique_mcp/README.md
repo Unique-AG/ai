@@ -89,7 +89,6 @@ if __name__ == "__main__":
 ```python
 settings = await provider.get_settings()   # UniqueSettings (app + api config + auth)
 context  = await provider.get_context()    # UniqueContext (auth only, lighter weight)
-info     = await provider.get_userinfo()   # Raw Zitadel userinfo (email, name, etc.)
 ```
 
 ---

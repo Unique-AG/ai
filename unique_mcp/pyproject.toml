@@ -36,6 +36,9 @@ dev = [
     "poethepoet>=0.32.0",
 ]
 
+[tool.uv.sources]
+unique-toolkit = { path = "../unique_toolkit", editable = true }
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 markers = [
