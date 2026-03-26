@@ -131,7 +131,12 @@ class Benchmarking(APIResource["Benchmarking"]):
     ) -> Path:
         _, headers = cls._requestor_and_headers(user_id, company_id)
         url = f"{unique_sdk.api_base}{path}"
-        response = requests.get(url, headers=headers, timeout=_TIMEOUT)
+        response = requests.get(
+            url,
+            headers=headers,
+            timeout=_TIMEOUT,
+            verify=unique_sdk.api_verify_mode,
+        )
         if response.status_code == 200:
             random_dir = tempfile.mkdtemp(dir="/tmp")
             file_path = Path(random_dir) / filename
