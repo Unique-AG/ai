@@ -328,21 +328,30 @@ def _configure_pdf_payload_for_open_pdf_tool(
     Returns the (possibly updated) common_components and the agent file registry.
     """
     if config.agent.experimental.open_pdf_tool_config.send_uploaded_pdf_in_payload:
-        upload_free_config = HistoryManagerConfig(
-            experimental_features=history_manager_module.ExperimentalFeatures(),
-            percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
-            language_model=config.space.language_model,
-            uploaded_content_config=None,
-        )
-        common_components = common_components._replace(
-            history_manager=HistoryManager(
-                logger,
-                event,
-                upload_free_config,
-                config.space.language_model,
-                common_components.reference_manager,
+        now = datetime.now(timezone.utc)
+        valid_uploads = [
+            doc
+            for doc in common_components.uploaded_documents
+            if doc.expired_at is None or doc.expired_at > now
+        ]
+        uploaded_pdfs = [d for d in valid_uploads if d.key.lower().endswith(".pdf")]
+
+        if uploaded_pdfs:
+            upload_free_config = HistoryManagerConfig(
+                experimental_features=history_manager_module.ExperimentalFeatures(),
+                percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
+                language_model=config.space.language_model,
+                uploaded_content_config=None,
             )
-        )
+            common_components = common_components._replace(
+                history_manager=HistoryManager(
+                    logger,
+                    event,
+                    upload_free_config,
+                    config.space.language_model,
+                    common_components.reference_manager,
+                )
+            )
 
     # Shared registry for agent-requested KB file IDs.
     # Written to by OpenPdfTool, read by UniqueAI._collect_content_file_parts().
