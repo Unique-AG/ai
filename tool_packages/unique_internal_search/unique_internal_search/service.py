@@ -29,7 +29,6 @@ from unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.content.schemas import Content, ContentChunk, ContentReference
-from unique_toolkit.content.service import ContentService
 from unique_toolkit.content.utils import (
     merge_content_chunks,
     pick_content_chunks_for_token_window,
@@ -40,6 +39,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessage,
     LanguageModelToolMessage,
 )
+from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.utils import (
@@ -54,7 +54,7 @@ class InternalSearchService:
     def __init__(
         self,
         config: InternalSearchConfig,
-        content_service: ContentService,
+        content_service: KnowledgeBaseService,
         chunk_relevancy_sorter: ChunkRelevancySorter,
         chat_id: str | None,
         logger: Logger,
@@ -423,7 +423,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
     ):
         Tool.__init__(self, configuration, event, *args, **kwargs)
 
-        content_service = ContentService.from_event(self.event)
+        content_service = KnowledgeBaseService.from_event(self.event)
         chunk_relevancy_sorter = ChunkRelevancySorter.from_event(self.event)
         # Determing chat_id if possible
         if isinstance(self.event, (ChatEvent, Event)):

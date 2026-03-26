@@ -8,7 +8,7 @@ from unique_toolkit._common.chunk_relevancy_sorter.exception import (
 )
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.content.schemas import ContentChunk
-from unique_toolkit.content.service import ContentService
+from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchService, InternalSearchTool
@@ -21,7 +21,7 @@ class TestInternalSearchService:
     def test_service__initializes__with_all_dependencies(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
     ) -> None:
@@ -55,7 +55,7 @@ class TestInternalSearchService:
     async def test_get_uploaded_files__returns_sorted_by_created_at__descending(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         sample_content_list: list[Any],
@@ -93,7 +93,7 @@ class TestInternalSearchService:
     async def test_is_chat_only__returns_true__when_config_chat_only_is_true(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
     ) -> None:
@@ -123,7 +123,7 @@ class TestInternalSearchService:
     async def test_is_chat_only__returns_false__when_config_chat_only_is_false_and_no_uploaded_files(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
     ) -> None:
@@ -155,7 +155,7 @@ class TestInternalSearchService:
     async def test_is_chat_only__returns_true__when_scope_to_chat_on_upload_and_files_exist(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         sample_content_list: list[Any],
@@ -190,7 +190,7 @@ class TestInternalSearchService:
     async def test_search__calls_content_service__with_correct_parameters(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         sample_content_chunks: list[ContentChunk],
@@ -230,7 +230,7 @@ class TestInternalSearchService:
     async def test_search__handles_metadata_filter__when_chat_only_is_true(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         sample_content_chunks: list[ContentChunk],
@@ -269,7 +269,7 @@ class TestInternalSearchService:
     async def test_search__resets_metadata_filter__after_search_completes(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         sample_content_chunks: list[ContentChunk],
@@ -306,7 +306,7 @@ class TestInternalSearchService:
     async def test_search__resorts_chunks__when_chunk_relevancy_sort_enabled(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         sample_content_chunks: list[ContentChunk],
@@ -347,7 +347,7 @@ class TestInternalSearchService:
     async def test_search__handles_chunk_relevancy_sorter_exception__gracefully(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         sample_content_chunks: list[ContentChunk],
@@ -389,7 +389,7 @@ class TestInternalSearchService:
     async def test_search__merges_chunks__when_chunked_sources_is_false(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         sample_content_chunks: list[ContentChunk],
@@ -425,7 +425,7 @@ class TestInternalSearchService:
     async def test_search__sorts_chunks__when_chunked_sources_is_true(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         sample_content_chunks: list[ContentChunk],
@@ -461,7 +461,7 @@ class TestInternalSearchService:
     async def test_search__logs_error__when_search_fails(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
     ) -> None:
@@ -497,7 +497,7 @@ class TestInternalSearchService:
     async def test_search__sets_debug_info__with_search_parameters(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         sample_content_chunks: list[ContentChunk],
@@ -535,7 +535,7 @@ class TestInternalSearchService:
     def test_get_max_tokens__returns_percentage_of_language_model_max__when_set(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
     ) -> None:
@@ -566,7 +566,7 @@ class TestInternalSearchService:
     def test_get_max_tokens__returns_max_tokens_for_sources__when_language_model_max_not_set(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
     ) -> None:
@@ -598,7 +598,7 @@ class TestInternalSearchService:
     async def test_resort_found_chunks_if_enabled__returns_sorted_chunks__on_success(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         sample_content_chunks: list[ContentChunk],
@@ -635,7 +635,7 @@ class TestInternalSearchService:
     async def test_post_progress_message__does_nothing__in_base_service(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
     ) -> None:
@@ -661,7 +661,7 @@ class TestInternalSearchTool:
     """Tests for InternalSearchTool class."""
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_tool__initializes__with_chat_event(
         self,
@@ -674,10 +674,10 @@ class TestInternalSearchTool:
         """
         Purpose: Verify InternalSearchTool initializes correctly with ChatEvent.
         Why this matters: Ensures proper tool initialization and chat_id extraction from ChatEvent.
-        Setup summary: Mock ContentService and ChunkRelevancySorter from_event, verify initialization.
+        Setup summary: Mock KnowledgeBaseService and ChunkRelevancySorter from_event, verify initialization.
         """
         # Arrange
-        mock_content_service = Mock(spec=ContentService)
+        mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
         mock_content_service_class.from_event.return_value = mock_content_service
 
@@ -709,7 +709,7 @@ class TestInternalSearchTool:
         assert tool.chat_id == "chat_123"
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_tool__initializes__with_chat_event__uses_parent_chat_id__when_correlation_set(
         self,
@@ -725,7 +725,7 @@ class TestInternalSearchTool:
         Setup summary: ChatEvent with payload.correlation.parent_chat_id set, verify tool.chat_id equals it.
         """
         # Arrange
-        mock_content_service = Mock(spec=ContentService)
+        mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
         mock_content_service_class.from_event.return_value = mock_content_service
 
@@ -755,7 +755,7 @@ class TestInternalSearchTool:
         assert tool.chat_id == "parent_chat_456"
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_tool__initializes__with_base_event(
         self,
@@ -768,10 +768,10 @@ class TestInternalSearchTool:
         """
         Purpose: Verify InternalSearchTool initializes correctly with BaseEvent (no chat_id).
         Why this matters: Ensures tool works with non-chat events that don't have chat_id.
-        Setup summary: Mock ContentService and ChunkRelevancySorter from_event, verify chat_id is None.
+        Setup summary: Mock KnowledgeBaseService and ChunkRelevancySorter from_event, verify chat_id is None.
         """
         # Arrange
-        mock_content_service = Mock(spec=ContentService)
+        mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
         mock_content_service_class.from_event.return_value = mock_content_service
 
@@ -813,13 +813,13 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
         ):
-            mock_content_service = Mock(spec=ContentService)
+            mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
@@ -873,13 +873,13 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
         ):
-            mock_content_service = Mock(spec=ContentService)
+            mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
@@ -916,7 +916,7 @@ class TestInternalSearchTool:
         base_internal_search_config: InternalSearchConfig,
         mock_chat_event: Any,
         mock_logger: Any,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
     ) -> None:
         """
@@ -930,7 +930,7 @@ class TestInternalSearchTool:
 
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -969,7 +969,7 @@ class TestInternalSearchTool:
         base_internal_search_config: InternalSearchConfig,
         mock_chat_event: Any,
         mock_logger: Any,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
     ) -> None:
         """
@@ -983,7 +983,7 @@ class TestInternalSearchTool:
 
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1022,7 +1022,7 @@ class TestInternalSearchTool:
         base_internal_search_config: InternalSearchConfig,
         mock_chat_event: Any,
         mock_logger: Any,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
     ) -> None:
         """
@@ -1036,7 +1036,7 @@ class TestInternalSearchTool:
 
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1083,13 +1083,13 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
         ):
-            mock_content_service = Mock(spec=ContentService)
+            mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
@@ -1137,13 +1137,13 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
         ):
-            mock_content_service = Mock(spec=ContentService)
+            mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
@@ -1184,13 +1184,13 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
         ):
-            mock_content_service = Mock(spec=ContentService)
+            mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
@@ -1232,13 +1232,13 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
         ):
-            mock_content_service = Mock(spec=ContentService)
+            mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
@@ -1280,13 +1280,13 @@ class TestInternalSearchTool:
 
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
         ):
-            mock_content_service = Mock(spec=ContentService)
+            mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
@@ -1331,13 +1331,13 @@ class TestInternalSearchTool:
 
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
         ):
-            mock_content_service = Mock(spec=ContentService)
+            mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
@@ -1379,13 +1379,13 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
         ):
-            mock_content_service = Mock(spec=ContentService)
+            mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
@@ -1432,13 +1432,13 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
             ) as mock_sorter_class,
         ):
-            mock_content_service = Mock(spec=ContentService)
+            mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
             mock_content_service_class.from_event.return_value = mock_content_service
             mock_sorter_class.from_event.return_value = Mock()
@@ -1487,7 +1487,7 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1497,7 +1497,7 @@ class TestInternalSearchTool:
                 return_value=sample_content_chunks,
             ),
         ):
-            mock_content_service = Mock(spec=ContentService)
+            mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
             mock_content_service.search_content_chunks_async = AsyncMock(
@@ -1688,7 +1688,7 @@ class TestInternalSearchTool:
         # Arrange
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -1698,7 +1698,7 @@ class TestInternalSearchTool:
                 return_value=sample_content_chunks,
             ),
         ):
-            mock_content_service = Mock(spec=ContentService)
+            mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
             mock_content_service.search_content_chunks_async = AsyncMock(
@@ -1749,7 +1749,7 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     async def test_define_reference_list_for_message_log__returns_list__with_internal_chunks(
         self,
@@ -1757,7 +1757,7 @@ class TestInternalSearchTool:
         mock_content_service_class: Any,
         sample_content_chunk: ContentChunk,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         mock_chat_event: Any,
@@ -1794,7 +1794,7 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     async def test_define_reference_list_for_message_log__sets_sequence_number__for_first_chunk(
         self,
@@ -1802,7 +1802,7 @@ class TestInternalSearchTool:
         mock_content_service_class: Any,
         sample_content_chunk: ContentChunk,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         mock_chat_event: Any,
@@ -1839,7 +1839,7 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     async def test_define_reference_list_for_message_log__sets_source_id__from_chunk_id(
         self,
@@ -1847,7 +1847,7 @@ class TestInternalSearchTool:
         mock_content_service_class: Any,
         sample_content_chunk: ContentChunk,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         mock_chat_event: Any,
@@ -1884,7 +1884,7 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     async def test_define_reference_list_for_message_log__sets_source__to_internal(
         self,
@@ -1892,7 +1892,7 @@ class TestInternalSearchTool:
         mock_content_service_class: Any,
         sample_content_chunk: ContentChunk,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         mock_chat_event: Any,
@@ -1929,14 +1929,14 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     async def test_define_reference_list_for_message_log__sets_name__from_chunk_key_when_no_title(
         self,
         mock_sorter_class: Any,
         mock_content_service_class: Any,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         mock_chat_event: Any,
@@ -1980,14 +1980,14 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     async def test_define_reference_list_for_message_log__sets_name__from_chunk_title_when_available(
         self,
         mock_sorter_class: Any,
         mock_content_service_class: Any,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         mock_chat_event: Any,
@@ -2032,7 +2032,7 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     async def test_define_reference_list_for_message_log__sets_unique_url__for_internal_chunks(
         self,
@@ -2040,7 +2040,7 @@ class TestInternalSearchTool:
         mock_content_service_class: Any,
         sample_content_chunk: ContentChunk,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         mock_chat_event: Any,
@@ -2077,14 +2077,14 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     async def test_define_reference_list_for_message_log__increments_sequence_number__for_multiple_chunks(
         self,
         mock_sorter_class: Any,
         mock_content_service_class: Any,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         mock_chat_event: Any,
@@ -2136,14 +2136,14 @@ class TestInternalSearchTool:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     async def test_define_reference_list_for_message_log__includes_chunks__with_empty_name(
         self,
         mock_sorter_class: Any,
         mock_content_service_class: Any,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         mock_chat_event: Any,
@@ -2213,7 +2213,7 @@ class TestInternalSearchTool:
 
         with (
             patch(
-                "unique_internal_search.service.ContentService"
+                "unique_internal_search.service.KnowledgeBaseService"
             ) as mock_content_service_class,
             patch(
                 "unique_internal_search.service.ChunkRelevancySorter"
@@ -2223,7 +2223,7 @@ class TestInternalSearchTool:
                 return_value=sample_content_chunks,
             ),
         ):
-            mock_content_service = Mock(spec=ContentService)
+            mock_content_service = Mock(spec=KnowledgeBaseService)
             mock_content_service._metadata_filter = None
             mock_content_service.search_contents_async = AsyncMock(return_value=[])
             mock_content_service.search_content_chunks_async = AsyncMock(
@@ -2274,7 +2274,7 @@ class TestInternalSearchTool:
     async def test_search__executes_searches_in_parallel__when_multiple_search_strings(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         sample_content_chunks: list[ContentChunk],
@@ -2321,7 +2321,7 @@ class TestInternalSearchTool:
     async def test_search__deduplicates_search_strings__when_duplicates_provided(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         sample_content_chunks: list[ContentChunk],
@@ -2363,7 +2363,7 @@ class TestInternalSearchTool:
     async def test_search__limits_search_strings__to_max_search_strings_config(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         sample_content_chunks: list[ContentChunk],
@@ -2410,7 +2410,7 @@ class TestInternalSearchTool:
     async def test_search__continues_with_other_searches__when_one_search_fails(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
         sample_content_chunks: list[ContentChunk],
@@ -2464,7 +2464,7 @@ class TestInternalSearchTool:
     async def test_prepare_message_log_details__returns_message_log_details__with_queries(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
     ) -> None:
@@ -2499,7 +2499,7 @@ class TestInternalSearchTool:
     async def test_prepare_message_log_details__returns_empty_data__when_empty_query_list(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
     ) -> None:
@@ -2530,7 +2530,7 @@ class TestInternalSearchTool:
     async def test_create_or_update_active_message_log__returns_none__when_no_message_step_logger(
         self,
         base_internal_search_config: InternalSearchConfig,
-        mock_content_service: ContentService,
+        mock_content_service: KnowledgeBaseService,
         mock_chunk_relevancy_sorter: Any,
         mock_logger: Any,
     ) -> None:
@@ -2560,7 +2560,7 @@ class TestInternalSearchTool:
         assert result is None
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_get_tool_call_result_for_loop_history__returns_tool_message__with_sources(
         self,
@@ -2578,7 +2578,7 @@ class TestInternalSearchTool:
         Setup summary: Create tool, call get_tool_call_result_for_loop_history, verify message structure.
         """
         # Arrange
-        mock_content_service = Mock(spec=ContentService)
+        mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
         mock_content_service_class.from_event.return_value = mock_content_service
 
@@ -2616,7 +2616,7 @@ class TestInternalSearchTool:
         assert isinstance(result.content, str)
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_get_tool_call_result_for_loop_history__handles_empty_chunks__gracefully(
         self,
@@ -2633,7 +2633,7 @@ class TestInternalSearchTool:
         Setup summary: Create tool, call get_tool_call_result_for_loop_history with empty chunks, verify no error.
         """
         # Arrange
-        mock_content_service = Mock(spec=ContentService)
+        mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
         mock_content_service_class.from_event.return_value = mock_content_service
 
@@ -2670,7 +2670,7 @@ class TestInternalSearchTool:
         assert result.name == "InternalSearch"
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_get_tool_call_result_for_loop_history__handles_none_chunks__gracefully(
         self,
@@ -2687,7 +2687,7 @@ class TestInternalSearchTool:
         Setup summary: Create tool, call get_tool_call_result_for_loop_history with None chunks, verify no error.
         """
         # Arrange
-        mock_content_service = Mock(spec=ContentService)
+        mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
         mock_content_service_class.from_event.return_value = mock_content_service
 
@@ -2724,7 +2724,7 @@ class TestInternalSearchTool:
         assert result.name == "InternalSearch"
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_get_tool_call_result_for_loop_history__uses_correct_source_numbering(
         self,
@@ -2741,7 +2741,7 @@ class TestInternalSearchTool:
         Setup summary: Create tool with existing chunks in handler, verify source numbering continues correctly.
         """
         # Arrange
-        mock_content_service = Mock(spec=ContentService)
+        mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
         mock_content_service_class.from_event.return_value = mock_content_service
 
@@ -2783,7 +2783,7 @@ class TestInternalSearchTool:
         mock_logger.debug.assert_called()
 
     @pytest.mark.ai
-    @patch("unique_internal_search.service.ContentService")
+    @patch("unique_internal_search.service.KnowledgeBaseService")
     @patch("unique_internal_search.service.ChunkRelevancySorter")
     def test_get_tool_call_result_for_loop_history__preserves_readable_unicode_content(
         self,
@@ -2798,7 +2798,7 @@ class TestInternalSearchTool:
         Why this matters: InternalSearch tool messages are forwarded to the next LLM call as-is.
         Setup summary: Create tool, serialize non-ASCII chunks into loop history, and verify both raw and decoded content.
         """
-        mock_content_service = Mock(spec=ContentService)
+        mock_content_service = Mock(spec=KnowledgeBaseService)
         mock_content_service._metadata_filter = None
         mock_content_service_class.from_event.return_value = mock_content_service
 
