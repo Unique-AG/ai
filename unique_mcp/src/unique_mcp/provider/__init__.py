@@ -1,7 +1,7 @@
 from unique_mcp.provider.base import BaseProvider
-from unique_mcp.provider.context_provider import UniqueContextProvider
+from unique_mcp.unique_injectors import UniqueUserInfo
 
 __all__ = [
     "BaseProvider",
-    "UniqueContextProvider",
+    "UniqueUserInfo",
 ]
