@@ -363,20 +363,18 @@ async def _build_responses(
         chat_service=common_components.chat_service,
     )
 
-    has_valid_uploaded_documents, has_tool_choices = _configure_uploaded_search_tool(
-        event=event,
-        logger=logger,
-        common_components=common_components,
-    )
-
-    has_non_pdf_uploads = False
     if config.agent.experimental.open_file_tool_config.enabled:
-        has_non_pdf_uploads = handle_uploaded_file_tool_choices(
+        handle_uploaded_file_tool_choices(
             config,
             event,
             common_components.uploaded_documents,
-            common_components.tool_manager_config,
             logger,
+        )
+    else:
+        has_valid_uploaded_documents, has_tool_choices = _configure_uploaded_search_tool(
+            event=event,
+            logger=logger,
+            common_components=common_components,
         )
 
     builtin_tool_manager = await OpenAIBuiltInToolManager.build_manager(
@@ -398,14 +396,12 @@ async def _build_responses(
         a2a_manager=common_components.a2a_manager,
         builtin_tool_manager=builtin_tool_manager,
     )
-    if not has_tool_choices and has_valid_uploaded_documents:
-        tool_manager.add_forced_tool(UploadedSearchTool.name)
+    if not config.agent.experimental.open_file_tool_config.enabled:
+        if not has_tool_choices and has_valid_uploaded_documents:
+            tool_manager.add_forced_tool(UploadedSearchTool.name)
 
     agent_file_registry: list[str] = []
     if config.agent.experimental.open_file_tool_config.enabled:
-        if has_non_pdf_uploads and not event.payload.tool_choices:
-            tool_manager.add_forced_tool(UploadedSearchTool.name)
-
         history_manager, agent_file_registry = configure_file_payload(
             config,
             event,

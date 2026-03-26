@@ -10,8 +10,6 @@ from datetime import datetime, timezone
 from logging import Logger
 from typing import TYPE_CHECKING
 
-from unique_internal_search.uploaded_search.config import UploadedSearchConfig
-from unique_internal_search.uploaded_search.service import UploadedSearchTool
 from unique_toolkit.agentic.history_manager import (
     history_manager as history_manager_module,
 )
@@ -19,11 +17,9 @@ from unique_toolkit.agentic.history_manager.history_manager import (
     HistoryManager,
     HistoryManagerConfig,
 )
-from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.experimental.open_file_tool import OpenFileTool
 from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
-    ToolManagerConfig,
 )
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content import Content
@@ -40,17 +36,16 @@ def handle_uploaded_file_tool_choices(
     config: UniqueAIConfig,
     event: ChatEvent,
     uploaded_documents: list[Content],
-    tool_manager_config: ToolManagerConfig,
     logger: Logger,
-) -> bool:
+) -> None:
     """When send_uploaded_files_in_payload is active, uploaded files are attached
     directly to the LLM context — no InternalSearch needed for them.
-    UploadedSearch is only added for non-supported uploaded files.
 
-    Returns True if non-PDF uploads were detected.
+    UploadedSearch is intentionally never registered here because the
+    open-file tool replaces its functionality.
     """
     if not config.agent.experimental.open_file_tool_config.send_uploaded_files_in_payload:
-        return False
+        return
 
     now = datetime.now(timezone.utc)
     valid_uploads = [
@@ -59,7 +54,6 @@ def handle_uploaded_file_tool_choices(
         if doc.expired_at is None or doc.expired_at > now
     ]
     uploaded_pdfs = [d for d in valid_uploads if d.key.lower().endswith(".pdf")]
-    uploaded_non_pdfs = [d for d in valid_uploads if not d.key.lower().endswith(".pdf")]
 
     if uploaded_pdfs and "InternalSearch" in event.payload.tool_choices:
         event.payload.tool_choices.remove("InternalSearch")
@@ -69,18 +63,13 @@ def handle_uploaded_file_tool_choices(
             len(uploaded_pdfs),
         )
 
+    uploaded_non_pdfs = [d for d in valid_uploads if not d.key.lower().endswith(".pdf")]
     if uploaded_non_pdfs:
         logger.info(
-            "Non-PDF uploads detected (%s files) - adding UploadedSearch for "
-            "these files.",
+            "Non-PDF uploads detected (%s files) - skipping UploadedSearch; "
+            "open-file tool is active.",
             len(uploaded_non_pdfs),
         )
-        ensure_uploaded_search_tool_registered(tool_manager_config)
-        if event.payload.tool_choices:
-            event.payload.tool_choices.append(str(UploadedSearchTool.name))
-        return True
-
-    return False
 
 
 def configure_file_payload(
@@ -126,16 +115,3 @@ def configure_file_payload(
     return history_manager, agent_file_registry
 
 
-def ensure_uploaded_search_tool_registered(
-    tool_manager_config: ToolManagerConfig,
-) -> None:
-    if any(tool.name == UploadedSearchTool.name for tool in tool_manager_config.tools):
-        return
-
-    tool_manager_config.tools.append(
-        ToolBuildConfig(
-            name=UploadedSearchTool.name,
-            display_name=UploadedSearchTool.name,
-            configuration=UploadedSearchConfig(),
-        )
-    )

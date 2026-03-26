@@ -640,9 +640,6 @@ class UniqueAI:
         # Log tool calls
         self._log_tool_calls(tool_calls)
 
-        if self._config.agent.experimental.open_file_tool_config.enabled:
-            tool_calls = self._open_file_runtime.filter_tool_calls(tool_calls)
-
         execution_start = time.perf_counter()
         tool_call_responses = await self._tool_manager.execute_selected_tools(
             tool_calls
@@ -678,6 +675,10 @@ class UniqueAI:
         self._tool_took_control = self._tool_manager.does_a_tool_take_control(
             tool_calls
         )
+
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            self._open_file_runtime.inject_open_file_reminder(tool_call_responses)
+
         return self._tool_took_control
 
     async def _create_new_assistant_message_if_loop_response_contains_content(
