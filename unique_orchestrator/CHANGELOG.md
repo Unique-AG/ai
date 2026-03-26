@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.0] - 2026-03-26
+- Experimental open file tool
+
 ## [1.17.1] - 2026-03-26
 - Gate tool call persistence and history reconstruction behind `FEATURE_FLAG_ENABLE_TOOL_CALL_PERSISTENCE_UN_15977`; both are disabled by default (UN-15977)
 - Bump `unique-toolkit` lower-bound to `>=1.64.1`
