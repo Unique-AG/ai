@@ -11,6 +11,7 @@ from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import (
     LMI,
     ClipInt,
@@ -311,6 +312,55 @@ class ResponsesApiConfig(BaseToolConfig):
     )
 
 
+class OpenPdfToolConfig(BaseToolConfig):
+    """Configuration for sending PDF files directly in the LLM payload."""
+
+    enabled: Annotated[
+        bool,
+        RJSFMetaTag.BooleanWidget.checkbox(
+            help=(
+                "Master switch for all OpenPdf-related features. When disabled, "
+                "none of the other flags in this config block take effect."
+            ),
+        ),
+    ] = Field(
+        default=False,
+        description="Enable the OpenPdf tool features.",
+    )
+
+    send_pdf_files_in_payload: Annotated[
+        bool,
+        RJSFMetaTag.BooleanWidget.checkbox(
+            help=(
+                "Enable the OpenPdf tool for knowledge-base PDFs. When the agent "
+                "finds PDFs via InternalSearch, it can call OpenPdf with the "
+                "content_id to include the full document in the LLM context "
+                "(unique://content/<id> URLs, resolved to base64 by the backend). "
+                "Only takes effect when use_responses_api is also True."
+            ),
+        ),
+    ] = Field(
+        default=False,
+        description="Enable the OpenPdf tool for knowledge-base PDFs.",
+    )
+
+    send_uploaded_pdf_in_payload: Annotated[
+        bool,
+        RJSFMetaTag.BooleanWidget.checkbox(
+            help=(
+                "Attach uploaded PDF files directly to the LLM payload as full "
+                "documents (unique://content/<id> URLs, resolved to base64 by the "
+                "backend). When enabled, uploaded PDFs bypass InternalSearch and "
+                "are included automatically from iteration 1. "
+                "Only takes effect when use_responses_api is also True."
+            ),
+        ),
+    ] = Field(
+        default=False,
+        description="Attach uploaded PDF files directly to the LLM payload.",
+    )
+
+
 class ExperimentalConfig(BaseToolConfig):
     """Experimental features this part of the configuration might evolve in the future continuously"""
 
@@ -337,6 +387,13 @@ class ExperimentalConfig(BaseToolConfig):
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
 
     responses_api_config: SkipJsonSchema[ResponsesApiConfig] = ResponsesApiConfig()
+
+    open_pdf_tool_config: OpenPdfToolConfig = OpenPdfToolConfig()
+
+    use_responses_api: bool = Field(
+        default=False,
+        description="If set, the main agent will use the Responses API from OpenAI",
+    )
 
 
 class UniqueAIAgentConfig(BaseToolConfig):
