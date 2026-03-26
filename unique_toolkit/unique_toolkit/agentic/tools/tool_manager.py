@@ -223,10 +223,12 @@ class _ToolManager(Generic[_ApiMode]):
         self.available_tools.append(tool)
         self._tools.append(tool)
 
-    def remove_tool(self, name: str) -> bool:
-        """Remove a tool by name from all internal lists.
+    def exclude_tool(self, name: str) -> bool:
+        """Exclude a tool by name from the active tool set.
 
-        Returns True if the tool was found and removed.
+        The tool is removed from all internal tracking lists so it will no
+        longer be offered to the model or executed.  Returns True if the tool
+        was present in at least one list.
         """
         found = False
         for lst in (self._tools, self._internal_tools, self.available_tools):

@@ -2212,7 +2212,7 @@ async def test_tool_manager__execute_tool_call__rounds_execution_time_to_three_d
         assert len(parts[1]) <= 3
 
 
-# --- Tests for add_tool, remove_tool ---
+# --- Tests for add_tool, exclude_tool ---
 
 
 def test_tool_manager__add_tool__injects_external_tool(
@@ -2237,7 +2237,7 @@ def test_tool_manager__add_tool__injects_external_tool(
     assert any(td.name == "mock_tool" for td in tm.get_tool_definitions())
 
 
-def test_tool_manager__remove_tool__removes_from_all_lists(
+def test_tool_manager__exclude_tool__excludes_from_all_lists(
     logger, base_event, tool_config, tool_progress_reporter, mcp_manager, a2a_manager
 ):
     config = ToolManagerConfig(tools=[tool_config], max_tool_calls=10)
@@ -2252,14 +2252,14 @@ def test_tool_manager__remove_tool__removes_from_all_lists(
 
     assert tm.get_tool_by_name("mock_tool") is not None
 
-    result = tm.remove_tool("mock_tool")
+    result = tm.exclude_tool("mock_tool")
 
     assert result is True
     assert tm.get_tool_by_name("mock_tool") is None
     assert not any(td.name == "mock_tool" for td in tm.get_tool_definitions())
 
 
-def test_tool_manager__remove_tool__returns_false_for_missing(
+def test_tool_manager__exclude_tool__returns_false_for_missing(
     logger, base_event, tool_progress_reporter, mcp_manager, a2a_manager
 ):
     config = ToolManagerConfig(tools=[], max_tool_calls=10)
@@ -2272,6 +2272,6 @@ def test_tool_manager__remove_tool__returns_false_for_missing(
         a2a_manager=a2a_manager,
     )
 
-    result = tm.remove_tool("nonexistent")
+    result = tm.exclude_tool("nonexistent")
 
     assert result is False

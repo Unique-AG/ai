@@ -152,7 +152,7 @@ class OpenPdfToolRuntime:
     def prepare_retry_messages(
         self, messages: LanguageModelMessages
     ) -> LanguageModelMessages:
-        self._tool_manager.remove_tool(self._OPEN_PDF_TOOL_NAME)
+        self._tool_manager.exclude_tool(self._OPEN_PDF_TOOL_NAME)
         self._pdf_payload_attachments_disabled = True
 
         messages = self.strip_file_parts_from_messages(messages)
