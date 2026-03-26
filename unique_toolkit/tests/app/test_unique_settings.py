@@ -1339,3 +1339,73 @@ class TestUniqueContext:
         )
         ctx = UniqueContext.from_event(event)
         assert ctx.chat is None
+
+
+class TestUniqueSettingsFromEvent:
+    """Tests for UniqueSettings.from_event (auth-only settings from a plain BaseEvent)."""
+
+    @pytest.mark.ai
+    def test_from_event__maps_company_id(self) -> None:
+        """
+        Purpose: Verify company_id is extracted from the event into auth.
+        Why this matters: Wrong company_id silently routes requests to another tenant.
+        Setup summary: BaseEvent with company-base; assert authcontext.company_id matches.
+        """
+        event = BaseEvent(
+            id="evt-1",
+            event=EventName.EXTERNAL_MODULE_CHOSEN,
+            user_id="user-1",
+            company_id="company-base",
+        )
+        settings = UniqueSettings.from_event(event)
+        assert settings.authcontext.get_confidential_company_id() == "company-base"
+
+    @pytest.mark.ai
+    def test_from_event__maps_user_id(self) -> None:
+        """
+        Purpose: Verify user_id is extracted from the event into auth.
+        Why this matters: Wrong user_id attributes actions to the wrong user.
+        Setup summary: BaseEvent with user-base; assert authcontext.user_id matches.
+        """
+        event = BaseEvent(
+            id="evt-1",
+            event=EventName.EXTERNAL_MODULE_CHOSEN,
+            user_id="user-base",
+            company_id="company-1",
+        )
+        settings = UniqueSettings.from_event(event)
+        assert settings.authcontext.get_confidential_user_id() == "user-base"
+
+    @pytest.mark.ai
+    def test_from_event__has_no_chat_context(self) -> None:
+        """
+        Purpose: Verify settings built from a BaseEvent carry no chat context.
+        Why this matters: Callers using UniqueServiceFactory.create with these settings must not
+        accidentally receive a chat-scoped KnowledgeBaseService.
+        Setup summary: BaseEvent; assert settings.context.chat is None.
+        """
+        event = BaseEvent(
+            id="evt-1",
+            event=EventName.EXTERNAL_MODULE_CHOSEN,
+            user_id="user-1",
+            company_id="company-1",
+        )
+        settings = UniqueSettings.from_event(event)
+        assert settings.context.chat is None
+
+    @pytest.mark.ai
+    def test_from_event__uses_default_app_and_api(self) -> None:
+        """
+        Purpose: Verify that app and api are populated with default values, not None.
+        Why this matters: Services may read app/api; None would cause AttributeErrors.
+        Setup summary: BaseEvent; assert settings.app and settings.api are not None.
+        """
+        event = BaseEvent(
+            id="evt-1",
+            event=EventName.EXTERNAL_MODULE_CHOSEN,
+            user_id="user-1",
+            company_id="company-1",
+        )
+        settings = UniqueSettings.from_event(event)
+        assert settings.app is not None
+        assert settings.api is not None

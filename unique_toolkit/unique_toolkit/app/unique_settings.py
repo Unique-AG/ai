@@ -622,6 +622,26 @@ class UniqueSettings:
             chat=ChatContext.from_chat_event(event),
         )
 
+    @classmethod
+    def from_event(cls, event: "BaseEvent") -> "UniqueSettings":
+        """Build an auth-only :class:`UniqueSettings` from any :class:`BaseEvent`.
+
+        No chat context is set — use :meth:`from_chat_event` when a chat
+        context is available.  App and API settings are left at their
+        default values.
+
+        Args:
+            event: Any incoming event carrying company_id and user_id.
+
+        Returns:
+            UniqueSettings with only auth context populated from the event.
+        """
+        return cls(
+            auth=AuthContext.from_event(event),
+            app=UniqueApp(),
+            api=UniqueApi(),
+        )
+
     @property
     def context(self) -> UniqueContext:
         """The request-level context (auth + optional chat) for this settings object."""
