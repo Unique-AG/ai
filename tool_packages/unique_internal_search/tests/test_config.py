@@ -1,6 +1,11 @@
 import pytest
 
-from unique_internal_search.config import InternalSearchConfig
+from unique_internal_search.config import (
+    ExperimentalFeatures,
+    InternalSearchConfig,
+    ToolResponseSystemReminderConfig,
+)
+from unique_internal_search.prompts import DEFAULT_TOOL_RESPONSE_SYSTEM_REMINDER_PROMPT
 
 
 class TestSearchLanguageAliasChoices:
@@ -85,3 +90,75 @@ class TestSearchLanguageAliasChoices:
         dumped = original.model_dump(by_alias=True)
         restored = InternalSearchConfig.model_validate(dumped)
         assert restored.search_language == "japanese"
+
+
+class TestToolResponseSystemReminderConfig:
+    """Tests for ToolResponseSystemReminderConfig and its integration in ExperimentalFeatures."""
+
+    @pytest.mark.unit
+    def test_defaults__disabled_with_default_prompt(self) -> None:
+        cfg = ToolResponseSystemReminderConfig()
+        assert cfg.enabled is False
+        assert (
+            cfg.system_reminder_prompt == DEFAULT_TOOL_RESPONSE_SYSTEM_REMINDER_PROMPT
+        )
+
+    @pytest.mark.unit
+    def test_get_reminder_prompt__returns_empty__when_disabled(self) -> None:
+        cfg = ToolResponseSystemReminderConfig(enabled=False)
+        assert cfg.get_reminder_prompt == ""
+
+    @pytest.mark.unit
+    def test_get_reminder_prompt__returns_prompt__when_enabled(self) -> None:
+        cfg = ToolResponseSystemReminderConfig(enabled=True)
+        assert cfg.get_reminder_prompt == DEFAULT_TOOL_RESPONSE_SYSTEM_REMINDER_PROMPT
+
+    @pytest.mark.unit
+    def test_get_reminder_prompt__returns_custom_prompt__when_enabled(self) -> None:
+        custom = "Always cite your sources."
+        cfg = ToolResponseSystemReminderConfig(
+            enabled=True, system_reminder_prompt=custom
+        )
+        assert cfg.get_reminder_prompt == custom
+
+    @pytest.mark.unit
+    def test_get_reminder_prompt__returns_empty__when_disabled_with_custom_prompt(
+        self,
+    ) -> None:
+        custom = "Always cite your sources."
+        cfg = ToolResponseSystemReminderConfig(
+            enabled=False, system_reminder_prompt=custom
+        )
+        assert cfg.get_reminder_prompt == ""
+
+    @pytest.mark.unit
+    def test_experimental_features__contains_default_reminder_config(self) -> None:
+        features = ExperimentalFeatures()
+        assert isinstance(
+            features.tool_response_system_reminder, ToolResponseSystemReminderConfig
+        )
+        assert features.tool_response_system_reminder.enabled is False
+
+    @pytest.mark.unit
+    def test_internal_search_config__experimental_features_default(self) -> None:
+        config = InternalSearchConfig()
+        reminder = config.experimental_features.tool_response_system_reminder
+        assert isinstance(reminder, ToolResponseSystemReminderConfig)
+        assert reminder.enabled is False
+        assert reminder.get_reminder_prompt == ""
+
+    @pytest.mark.unit
+    def test_internal_search_config__round_trips_reminder_enabled(self) -> None:
+        config = InternalSearchConfig.model_validate(
+            {
+                "experimentalFeatures": {
+                    "toolResponseSystemReminder": {
+                        "enabled": True,
+                        "systemReminderPrompt": "Cite everything!",
+                    }
+                }
+            }
+        )
+        reminder = config.experimental_features.tool_response_system_reminder
+        assert reminder.enabled is True
+        assert reminder.get_reminder_prompt == "Cite everything!"

@@ -590,6 +590,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             name=self.name,
             content_chunks=selected_chunks,
             debug_info=self.debug_info,
+            system_reminder=self.config.experimental_features.tool_response_system_reminder.get_reminder_prompt,
         )
 
         if (
