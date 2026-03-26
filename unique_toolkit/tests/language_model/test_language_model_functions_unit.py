@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import patch
 
 import pytest
@@ -168,8 +169,8 @@ async def test_complete_async_basic(mock_create):
 
 def test_resolve_temp_and_reasoning_clamps_temperature():
     """Test that temperature is clamped to the model's declared bounds when no reasoning."""
-    # AZURE_GPT_4o has min=0.0, max=1.0
-    model = LanguageModelName.AZURE_GPT_4o_2024_1120
+    # AZURE_GPT_51 has temperature_bounds min=0.0, max=1.0 (switchable model)
+    model = LanguageModelName.AZURE_GPT_51_2025_1113
 
     assert LanguageModelInfo.resolve_temp_and_reasoning(model, 0.12345, None) == (
         0.12,
@@ -218,15 +219,19 @@ def test_resolve_temp_and_reasoning_forces_1_when_reasoning_active():
         "high",
     )
 
-    # Non-thinking model with active reasoning also gets temperature=1.0
-    regular_model = LanguageModelName.AZURE_GPT_4o_2024_1120
-    assert LanguageModelInfo.resolve_temp_and_reasoning(regular_model, 0.0, "low") == (
+    # Switchable model with active reasoning also gets temperature=1.0
+    switchable_model = LanguageModelName.AZURE_GPT_51_2025_1113
+    assert LanguageModelInfo.resolve_temp_and_reasoning(
+        switchable_model, 0.0, "low"
+    ) == (
         1.0,
         "low",
     )
 
-    # reasoning_effort='none' → clamping applies
-    assert LanguageModelInfo.resolve_temp_and_reasoning(regular_model, 0.5, "none") == (
+    # reasoning_effort='none' on switchable model → clamping applies
+    assert LanguageModelInfo.resolve_temp_and_reasoning(
+        switchable_model, 0.5, "none"
+    ) == (
         0.5,
         "none",
     )
@@ -250,3 +255,82 @@ def test_resolve_temp_and_reasoning_fixes_thinking_only_model_with_none_effort()
     )
     assert temp == 1.0
     assert effort == "medium"
+
+
+def test_resolve_temp_and_reasoning_warns_on_unsupported_effort(caplog):
+    """Warning is logged when reasoning_effort is not in supported_reasoning_efforts."""
+    # gpt-5.4-pro supports ["low", "medium", "high"] — "minimal" is not in the list
+    thinking_model = LanguageModelName.AZURE_GPT_54_PRO_2026_0305
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit.language_model.infos"):
+        temp, effort = LanguageModelInfo.resolve_temp_and_reasoning(
+            thinking_model, 1.0, "minimal"
+        )
+
+    assert "not supported" in caplog.text
+    # The effort is still passed through (not corrected) since it is active reasoning
+    assert temp == 1.0
+    assert effort == "minimal"
+
+
+def test_resolve_temp_and_reasoning_warns_on_out_of_bounds_temperature(caplog):
+    """Warning is logged when temperature is outside model bounds (no reasoning)."""
+    # AZURE_GPT_51 has temperature_bounds [0.0, 1.0]
+    model = LanguageModelName.AZURE_GPT_51_2025_1113
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit.language_model.infos"):
+        temp, effort = LanguageModelInfo.resolve_temp_and_reasoning(model, 2.5, None)
+
+    assert "out of bounds" in caplog.text
+    assert temp == 1.0  # clamped to max
+    assert effort is None
+
+
+def test_resolve_temp_and_reasoning_no_warning_for_valid_effort(caplog):
+    """No warning is logged when reasoning_effort is valid for the model."""
+    # gpt-5.4-pro supports ["low", "medium", "high"]
+    thinking_model = LanguageModelName.AZURE_GPT_54_PRO_2026_0305
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit.language_model.infos"):
+        temp, effort = LanguageModelInfo.resolve_temp_and_reasoning(
+            thinking_model, 0.0, "high"
+        )
+
+    assert "not supported" not in caplog.text
+    assert temp == 1.0
+    assert effort == "high"
+
+
+def test_supported_reasoning_efforts_set_correctly():
+    """Verify that supported_reasoning_efforts is assigned correctly for key models."""
+    # gpt-5 family (original) supports minimal
+    gpt5 = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_5_2025_0807)
+    assert gpt5.supported_reasoning_efforts == ["minimal", "low", "medium", "high"]
+
+    # gpt-5-pro only supports high
+    gpt5_pro = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_5_PRO_2025_1006)
+    assert gpt5_pro.supported_reasoning_efforts == ["high"]
+
+    # gpt-5.1 and greater support none but not minimal
+    gpt51 = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_51_2025_1113)
+    assert gpt51.supported_reasoning_efforts == ["none", "low", "medium", "high"]
+    assert "minimal" not in gpt51.supported_reasoning_efforts
+
+    # Thinking-only variants do not include none
+    gpt54_pro = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_54_PRO_2026_0305
+    )
+    assert gpt54_pro.supported_reasoning_efforts == ["low", "medium", "high"]
+    assert "none" not in gpt54_pro.supported_reasoning_efforts
+
+    # o-series
+    o3 = LanguageModelInfo.from_name(LanguageModelName.AZURE_o3_2025_0416)
+    assert o3.supported_reasoning_efforts == ["low", "medium", "high"]
+
+    # o1-mini has no reasoning_effort support (None)
+    o1_mini = LanguageModelInfo.from_name(LanguageModelName.AZURE_o1_MINI_2024_0912)
+    assert o1_mini.supported_reasoning_efforts is None
+
+    # Third-party models (DeepSeek, Qwen) have None
+    deepseek = LanguageModelInfo.from_name(LanguageModelName.LITELLM_DEEPSEEK_R1)
+    assert deepseek.supported_reasoning_efforts is None
