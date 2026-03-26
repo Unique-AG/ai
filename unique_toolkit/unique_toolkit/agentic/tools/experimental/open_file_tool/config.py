@@ -72,9 +72,7 @@ class OpenFileToolConfig(BaseToolConfig):
 
     tool_description: Annotated[
         str,
-        RJSFMetaTag.StringWidget.textarea(
-            rows=3
-        ),
+        RJSFMetaTag.StringWidget.textarea(rows=3),
     ] = Field(
         default=DEFAULT_TOOL_DESCRIPTION,
         description="The description of the tool that will be included in the system prompt.",
@@ -82,8 +80,7 @@ class OpenFileToolConfig(BaseToolConfig):
 
     tool_description_for_system_prompt: Annotated[
         str,
-        RJSFMetaTag.StringWidget.textarea(
-            rows=7),
+        RJSFMetaTag.StringWidget.textarea(rows=7),
     ] = Field(
         default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
         description="The description of the tool that will be included in the system prompt.",
