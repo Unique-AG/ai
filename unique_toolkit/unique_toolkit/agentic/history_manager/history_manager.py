@@ -180,6 +180,7 @@ class HistoryManager:
             # Transform content chunks into sources to be appended to tool result
             stringified_sources, sources = transform_chunks_to_string(
                 content_chunks,
+                self._source_enumerator,
             )
             content = stringified_sources
 

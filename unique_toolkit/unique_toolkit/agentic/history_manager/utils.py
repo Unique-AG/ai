@@ -57,15 +57,6 @@ def _convert_tool_call_response_to_content(
     return assistant_message
 
 
-def _chunk_is_pdf(chunk: "ContentChunk") -> bool:
-    """Return True when the chunk originates from a PDF document."""
-    if chunk.metadata and chunk.metadata.mime_type == "application/pdf":
-        return True
-    if chunk.key:
-        return chunk.key.split(" : ")[0].lower().endswith(".pdf")
-    return False
-
-
 def transform_chunks_to_string(
     content_chunks: list[ContentChunk],
     max_source_number: int,
