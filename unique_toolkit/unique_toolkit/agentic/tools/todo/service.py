@@ -54,23 +54,38 @@ _TODO_SYSTEM_PROMPT = textwrap.dedent("""\
     - Work through ALL items autonomously until every item is in \
     a terminal state (completed or cancelled).
     - Mark only ONE item as in_progress at a time.
-    - Update status immediately after completing each step.
+    - Update status immediately after completing each step. \
+    When you complete multiple items in one iteration \
+    (e.g. parallel tool calls), update ALL of them in a single \
+    todo_write call.
     - When a detail is unclear, choose the most reasonable default \
     rather than stopping to ask. Document your assumption.
-    - Before finishing, verify that every item has been processed. \
-    If any items are still pending, continue executing them.
     - Do NOT summarize remaining items or ask if you should continue. \
     Just keep going.
     - The ONLY reason to stop mid-execution is a hard blocker: \
     missing credentials, a required resource that does not exist, \
-    or an unrecoverable error.""")
+    or an unrecoverable error.
+
+    Completion rules:
+    - Before writing your final response, you MUST call todo_write \
+    one last time to mark every remaining item as completed or \
+    cancelled. Your final todo list must have ZERO pending or \
+    in_progress items.
+    - Never write a final response while items are still pending. \
+    If items remain, keep executing them.
+    - For complex tasks, include a final "verify and synthesize" \
+    item in your todo list to ensure a clean wrap-up.""")
 
 _TODO_EXECUTION_REMINDER = (
     "You are in the EXECUTION PHASE. "
     "Do NOT ask the user any questions or request confirmation. "
     "You MUST process every pending item — do not skip or summarize. "
-    "Pick the next pending item, mark it in_progress, execute it, "
-    "mark it completed, and continue to the next item. "
+    "Execute items, then call todo_write to mark completed items "
+    "(batch multiple completions into one call when possible). "
+    "Do NOT write a final text response while items are still "
+    "pending or in_progress — keep executing until every item "
+    "reaches a terminal state (completed/cancelled), then call "
+    "todo_write one final time before responding. "
     "If anything is ambiguous, choose a sensible default and note the assumption."
 )
 
