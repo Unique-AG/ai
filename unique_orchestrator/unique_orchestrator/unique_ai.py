@@ -255,18 +255,6 @@ class UniqueAI:
                 },
             )
 
-            tool_names = [
-                tool["name"] for tool in self._debug_info_manager.get()["tools"]
-            ]
-
-            # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names.
-            if "DeepResearch" not in tool_names:
-                debug_info = {
-                    **await self._chat_service.get_debug_info_async(),
-                    **self._debug_info_manager.get(),
-                }
-                await self._chat_service.update_debug_info_async(debug_info=debug_info)
-
             if not self._chat_service.cancellation.is_cancelled:
                 if feature_flags.enable_tool_call_persistence_un_15977.is_enabled(
                     self._event.company_id
@@ -303,7 +291,7 @@ class UniqueAI:
             tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
             other_options=self._config.agent.experimental.additional_llm_options,
         )
-        response  await self._loop_iteration_runner(**kwargs)
+        response = await self._loop_iteration_runner(**kwargs)
 
         self._trace_logger.log_llm_call(
             self.current_iteration_index,
