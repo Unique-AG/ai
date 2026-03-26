@@ -25,11 +25,15 @@ logger = getLogger(__name__)
 
 _TODO_SYSTEM_PROMPT = textwrap.dedent("""\
     You have access to a task tracking tool (todo_write). \
-    Use it to track progress on multi-step work.
+    Use it liberally — any task involving multiple tool calls \
+    should use todo_write to track progress. The user sees the \
+    task list as a live progress indicator, so using it is \
+    helpful even for moderately complex tasks.
 
     When to use:
-    - Multi-step workflows with several distinct steps \
-    (research, analysis, document processing, comparisons)
+    - Any task that will require 2 or more tool calls
+    - Multi-step workflows (research, analysis, document \
+    processing, comparisons)
     - Batch operations: when asked to process ALL items matching a \
     criteria (e.g. all emails, all documents, all entries), create \
     a todo for each item so none are skipped
@@ -37,7 +41,8 @@ _TODO_SYSTEM_PROMPT = textwrap.dedent("""\
     forgetting work
 
     When NOT to use:
-    - Simple single-step questions or quick lookups
+    - Simple single-step questions or quick lookups that need \
+    at most one tool call
 
     Two-phase workflow:
     1. CLARIFICATION PHASE (before creating the task list):
@@ -112,10 +117,11 @@ class TodoWriteTool(Tool[TodoConfig]):
         return LanguageModelToolDescription(
             name="todo_write",
             description=(
-                "Create or update a task list to track progress on multi-step work. "
-                "Use for multi-step workflows and batch operations where every item "
-                "must be processed. Mark items in_progress when starting, "
-                "completed when done. Only one item should be in_progress at a time."
+                "Create or update a task list to track progress. "
+                "Use for any task involving multiple tool calls — the user sees "
+                "this as a live progress indicator. Mark items in_progress when "
+                "starting, completed when done. Only one item should be "
+                "in_progress at a time."
             ),
             parameters=TodoWriteInput.model_json_schema(),
         )

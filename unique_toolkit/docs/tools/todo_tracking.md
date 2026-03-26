@@ -114,7 +114,9 @@ Not registered by default. The LLM never used it because `todo_write` already re
 
 ### Autonomous Execution
 
-The system prompt establishes a two-phase workflow:
+The system prompt encourages liberal use of `todo_write` — any task involving 2+ tool calls should use it, since the user sees the task list as a live progress indicator. The threshold is deliberately low: it's better to track a simple task than to forget items in a complex one.
+
+The prompt establishes a two-phase workflow:
 
 1. **Clarification Phase** (before creating the task list): Ask all clarifying questions in a single message upfront.
 2. **Execution Phase** (after creating the task list): Execute every step autonomously without stopping. No follow-up questions. Sensible defaults for ambiguous details.
