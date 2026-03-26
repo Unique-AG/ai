@@ -251,19 +251,21 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         fence_ff_on = feature_flags.enable_code_execution_fence_un_17972.is_enabled(
             self._company_id
         )
-        # A prompt is considered operator-customised only when it differs from every
-        # known default variant. Comparing against both defaults ensures spaces whose
-        # stored value was written by an earlier deployment (which may have used the
-        # non-fence default) are still treated as uncustomised once the fence FF is on.
+        # A prompt is operator-customised only when it differs from every known default
+        # variant. Comparing against both defaults covers spaces whose stored value was
+        # written by an earlier deployment (non-fence default) or the current one
+        # (fence default) — both are treated as uncustomised.
         stored = self._config.tool_description_for_system_prompt
         operator_customised = stored not in {
             DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
             DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
         }
-        if fence_ff_on and not operator_customised:
+        if operator_customised:
+            system_prompt = stored
+        elif fence_ff_on:
             system_prompt = DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
         else:
-            system_prompt = stored
+            system_prompt = DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT
 
         return ToolPrompts(
             name="python",  # https://platform.openai.com/docs/guides/tools-code-interpreter

@@ -141,7 +141,7 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
             rows=int(len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT.split("\n")) / 2)
         ),
     ] = Field(
-        default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+        default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
         description="The description of the tool that will be included in the system prompt.",
     )
     tool_description_for_user_prompt: SkipJsonSchema[str] = (
