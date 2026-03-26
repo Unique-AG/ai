@@ -3,7 +3,7 @@ from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
 from unique_toolkit.agentic.tools.factory import ToolFactory
-from unique_toolkit.agentic.tools.schemas import BaseToolConfig, ToolCallResponse
+from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.language_model.schemas import (
