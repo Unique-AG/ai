@@ -7,7 +7,7 @@ from unique_sdk.api_resources._benchmarking import Benchmarking
 
 
 def _is_complete(status: Benchmarking.StatusSnapshot) -> bool:
-    return status["total"] > 0 and status["done"] >= status["total"]
+    return status["total"] > 0 and (status["done"] + status["error"]) >= status["total"]
 
 
 async def _poll_until_done(
