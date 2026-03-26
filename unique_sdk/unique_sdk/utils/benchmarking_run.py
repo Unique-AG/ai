@@ -1,25 +1,13 @@
 import asyncio
 import shutil
-from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 from unique_sdk.api_resources._benchmarking import Benchmarking
 
 
-def _is_complete(status: Mapping[str, Any]) -> bool:
-    if status.get("complete") is True or status.get("finished") is True:
-        return True
-    total_raw = status.get("total")
-    done_raw = status.get("done")
-    try:
-        total = int(total_raw) if total_raw is not None else None
-        done = int(done_raw) if done_raw is not None else None
-    except (TypeError, ValueError):
-        return False
-    if total is not None and done is not None:
-        return total > 0 and done >= total
-    return False
+def _is_complete(status: Benchmarking.StatusSnapshot) -> bool:
+    return status["total"] > 0 and status["done"] >= status["total"]
 
 
 async def _poll_until_done(
@@ -27,15 +15,13 @@ async def _poll_until_done(
     company_id: str,
     poll_interval: float,
     max_wait: float,
-) -> dict[str, Any]:
+) -> Benchmarking.StatusSnapshot:
     max_attempts = max(1, int(max_wait // poll_interval))
-    final_status: dict[str, Any] | None = None
+    final_status: Benchmarking.StatusSnapshot | None = None
     for _ in range(max_attempts):
-        status_obj = await Benchmarking.get_status_async(user_id, company_id)
-        status_dict = dict(status_obj)
-        final_status = status_dict
-        if _is_complete(status_dict):
-            return status_dict
+        final_status = await Benchmarking.get_status_async(user_id, company_id)
+        if _is_complete(final_status):
+            return final_status
         await asyncio.sleep(poll_interval)
     raise TimeoutError(
         "Timed out waiting for benchmarking to complete. Last status: %r"

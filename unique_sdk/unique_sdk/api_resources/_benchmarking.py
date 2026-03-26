@@ -2,8 +2,8 @@ import asyncio
 import tempfile
 from pathlib import Path
 from typing import (
-    Any,
     Literal,
+    NotRequired,
     TypedDict,
     cast,
 )
@@ -26,17 +26,21 @@ class Benchmarking(APIResource["Benchmarking"]):
 
     RESOURCE_URL = "/benchmarking"
 
-    class ProcessUploadResponse(TypedDict, total=False):
-        """Response shape for a benchmarking upload (fields depend on the service)."""
-
-        benchmarkStatus: Any
-
-    class StatusSnapshot(TypedDict, total=False):
-        """Snapshot returned by the benchmarking status endpoint (fields depend on the service)."""
-
-        error: int
+    class BenchmarkStatusNumbers(TypedDict):
         done: int
+        error: int
         total: int
+
+    class ProcessUploadResponse(TypedDict):
+        benchmarkStatus: "Benchmarking.BenchmarkStatusNumbers"
+
+    class StatusSnapshot(TypedDict):
+        done: int
+        error: int
+        total: int
+        filename: str
+        status: str
+        benchmarkId: NotRequired[str]
 
     @classmethod
     def _requestor_and_headers(
