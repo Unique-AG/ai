@@ -24,9 +24,7 @@ def test_get_tool_call_result_for_loop_history__includes_pdf_content_id_when_ena
     # Arrange
     history_manager = HistoryManager.__new__(HistoryManager)
     history_manager._logger = MagicMock(spec=Logger)
-    history_manager._config = HistoryManagerConfig(
-        include_content_id_for_pdf_chunks=True
-    )
+    history_manager._config = HistoryManagerConfig()
     history_manager._source_enumerator = 0
 
     tool_response = ToolCallResponse(

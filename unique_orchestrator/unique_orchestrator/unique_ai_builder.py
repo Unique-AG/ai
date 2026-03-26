@@ -178,7 +178,6 @@ def _build_common(
         percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
         language_model=config.space.language_model,
         uploaded_content_config=config.agent.services.uploaded_content_config,
-        include_content_id_for_pdf_chunks=config.agent.experimental.open_pdf_tool_config.enabled,  # experimental feature UN-17905
     )
     history_manager = HistoryManager(
         logger,
@@ -334,7 +333,6 @@ def _configure_pdf_payload_for_open_pdf_tool(
             percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
             language_model=config.space.language_model,
             uploaded_content_config=None,
-            include_content_id_for_pdf_chunks=config.agent.experimental.open_pdf_tool_config.enabled,
         )
         common_components = common_components._replace(
             history_manager=HistoryManager(
