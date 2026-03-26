@@ -212,6 +212,29 @@ class _ToolManager(Generic[_ApiMode]):
 
     def get_tool_prompts(self) -> list[ToolPrompts]:
         return [tool.get_tool_prompts() for tool in self._tools]
+    
+    def add_tool(self, tool: Tool) -> None:
+        """Inject an externally constructed tool into the manager.
+
+        Use this for tools that require custom constructor arguments (e.g. a
+        shared registry) that cannot be built through ToolFactory.
+        """
+        self._internal_tools.append(tool)
+        self.available_tools.append(tool)
+        self._tools.append(tool)
+
+    def remove_tool(self, name: str) -> bool:
+        """Remove a tool by name from all internal lists.
+
+        Returns True if the tool was found and removed.
+        """
+        found = False
+        for lst in (self._tools, self._internal_tools, self.available_tools):
+            before = len(lst)
+            lst[:] = [t for t in lst if t.name != name]
+            if len(lst) < before:
+                found = True
+        return found
 
     def add_forced_tool(self, name):
         tool = self.get_tool_by_name(name)
