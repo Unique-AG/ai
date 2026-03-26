@@ -207,14 +207,15 @@ Additionally, after tool execution, tools with `debug_info` get a summary entry 
 ### Automated Prompt Evaluation
 
 `tests/agentic/tools/todo_prompt_eval/` -- LLM-powered prompt evaluation:
-- `scenarios.yaml`: 8 behavioral scenarios (simple questions, 5-step research, 10-item batch, 20-step workflow, ambiguous tasks, formatting tasks, document processing)
-- `eval_runner.py`: Runs scenarios through actual OpenAI API with tool calling, uses LLM-as-judge to score behavior against criteria, optionally auto-refines prompts
+- `scenarios.yaml`: 14 behavioral scenarios including simple questions, multi-step research, batch operations, sequential-dependency chains, stress tests (25/50/100 items), and ambiguous/clarification tasks
+- `eval_runner.py`: Runs scenarios through actual OpenAI API with tool calling and mock work tools (search_web, send_email, write_document, read_database), uses LLM-as-judge to score behavior, supports injection mode comparison (system_message vs tool_result)
+- `view_traces.py`: Human-readable trace viewer for reviewing full conversation logs and tool call sequences
 
 Run with:
 ```bash
 cd unique_toolkit
 python -m tests.agentic.tools.todo_prompt_eval.eval_runner
-python -m tests.agentic.tools.todo_prompt_eval.eval_runner --refine  # auto-refine mode
+python -m tests.agentic.tools.todo_prompt_eval.eval_runner --compare  # compare injection modes
 ```
 
 ### Manual QA Scenarios
