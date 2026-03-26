@@ -15,6 +15,7 @@ from unique_toolkit.app.schemas import (
 )
 from unique_toolkit.app.unique_settings import (
     AuthContext,
+    ChatContext,
     EnvFileNotFoundError,
     UniqueApi,
     UniqueApp,
@@ -1039,6 +1040,58 @@ def test_unique_settings__init__ignores_env_file__when_not_exists(
     )
     # Assert
     assert settings._env_file is None
+
+
+@pytest.mark.ai
+def test_unique_settings__with_auth__returns_distinct_instance__with_new_auth(
+    valid_auth: UniqueAuth, valid_app: UniqueApp, valid_api: UniqueApi
+) -> None:
+    """Branch settings with a new AuthContext; app/api shared, original auth unchanged."""
+    settings = UniqueSettings(auth=valid_auth, app=valid_app, api=valid_api)
+    new_auth = AuthContext(
+        company_id=SecretStr("branch-co"), user_id=SecretStr("branch-user")
+    )
+    branched = settings.with_auth(new_auth)
+    assert branched is not settings
+    assert branched.authcontext is new_auth
+    assert branched.authcontext.get_confidential_company_id() == "branch-co"
+    assert branched.authcontext.get_confidential_user_id() == "branch-user"
+    assert settings.authcontext is valid_auth
+    assert branched.app is valid_app
+    assert branched.api is valid_api
+    assert branched.context.chat is None
+
+
+@pytest.mark.ai
+def test_unique_settings__with_auth__preserves_chat_filters_and_env_file(
+    valid_auth: UniqueAuth,
+    valid_app: UniqueApp,
+    valid_api: UniqueApi,
+    tmp_path: Path,
+) -> None:
+    """with_auth keeps chat, filter options, and stored env file path on the clone."""
+    env_file = tmp_path / "branch.env"
+    env_file.write_text("FOO=bar")
+    chat = ChatContext(chat_id="chat-z", assistant_id="asst-z")
+    filters = UniqueChatEventFilterOptions(
+        assistant_ids=["a1"], references_in_code=["m1"]
+    )
+    settings = UniqueSettings(
+        auth=valid_auth,
+        app=valid_app,
+        api=valid_api,
+        chat_event_filter_options=filters,
+        chat=chat,
+        env_file=env_file,
+    )
+    new_auth = AuthContext(
+        company_id=SecretStr("other-co"), user_id=SecretStr("other-user")
+    )
+    branched = settings.with_auth(new_auth)
+    assert branched.authcontext is new_auth
+    assert branched.context.chat is chat
+    assert branched.chat_event_filter_options is filters
+    assert branched._env_file == env_file
 
 
 @pytest.mark.ai
