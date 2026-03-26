@@ -5,8 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.64.3] - 2026-03-26
+## [1.64.5] - 2026-03-26
 - Code interpreter (UN-17972): fix system prompt default handling across fence FF states. `OpenAICodeInterpreterConfig.tool_description_for_system_prompt` now defaults to `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` (UI default alignment), while `OpenAICodeInterpreterTool.get_tool_prompts()` now selects the effective default by FF in both directions for uncustomised spaces (`fence` when FF on, `non-fence` when FF off). Operator-customised prompts remain unchanged.
+## [1.64.4] - 2026-03-26
+- Code interpreter (UN-17972): when fence FF is on, HTML artifacts use `HtmlRendering` blocks with `800px` / `600px` dimensions and `unique://content/...` (revert from `htmlWithSource` for product UX). Remove `htmlWithSource` from fence building and normalization regexes; skip HTML in unmatched-code-block warnings; update tests.
+
+## [1.64.3] - 2026-03-26
+- Config checker: CLI and validator improvements
+
 ## [1.64.2] - 2026-03-26
 - Add `UniqueSettings.with_auth` to return a new settings instance with a given auth context while preserving app, api, chat, filter options, and env file reference (UN-18484)
 - Add tests for `UniqueSettings`

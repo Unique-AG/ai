@@ -286,6 +286,8 @@ def test_replace_container_html_citation__replaces_markdown__with_html_rendering
     # Assert
     assert replaced is True
     assert "HtmlRendering" in new_text
+    assert "800px" in new_text
+    assert "600px" in new_text
     assert f"unique://content/{content_id}" in new_text
     assert "sandbox" not in new_text
 
@@ -747,9 +749,12 @@ def test_build_file_fence__document__uses_fileWithSource_tag() -> None:
 
 
 @pytest.mark.ai
-def test_build_file_fence__html__uses_htmlWithSource_tag() -> None:
+def test_build_file_fence__html__falls_through_to_fileWithSource() -> None:
     """
-    Purpose: Verify HTML files produce an htmlWithSource fence (no type= attribute).
+    Purpose: HTML files now fall through to fileWithSource in _build_file_fence.
+    Why this matters: HTML is rendered via HtmlRendering blocks (not fence injection),
+    so this function should never be called for HTML in practice, but if it is the
+    fallback is a fileWithSource fence rather than the removed htmlWithSource branch.
     """
     file = CodeInterpreterFile(
         filename="report.html", content_id="cont_html1", type="html"
@@ -757,10 +762,9 @@ def test_build_file_fence__html__uses_htmlWithSource_tag() -> None:
     fence = _build_file_fence(
         file, 'open("/mnt/data/report.html", "w").write("<html></html>")', fence_id=3
     )
-    assert fence.startswith("````htmlWithSource(")
-    assert "contentId='cont_html1'" in fence
-    assert 'title="Report"' in fence
-    assert "````fileWithSource(" not in fence
+    assert fence.startswith("````fileWithSource(")
+    assert "cont_html1" in fence
+    assert "htmlWithSource" not in fence
 
 
 @pytest.mark.ai
@@ -846,11 +850,12 @@ def test_inject_code_execution_fences__replaces_document_inline_ref__with_fileWi
 
 
 @pytest.mark.ai
-def test_inject_code_execution_fences__replaces_html_inline_ref__with_htmlWithSource() -> (
-    None
-):
+def test_inject_code_execution_fences__html_file__is_not_injected() -> None:
     """
-    Purpose: Verify an HTML file markdown link is replaced by an htmlWithSource fence.
+    Purpose: HTML files are rendered via HtmlRendering blocks (not fence injection),
+    so an HTML block passed to _inject_code_execution_fences leaves the text unchanged.
+    Why this matters: In normal flow HTML never reaches fence injection — this guards
+    against accidental regressions where an htmlWithSource fence is emitted.
     """
     block = CodeInterpreterBlock(
         code='open("/mnt/data/page.html", "w").write("<html></html>")',
@@ -860,13 +865,15 @@ def test_inject_code_execution_fences__replaces_html_inline_ref__with_htmlWithSo
             )
         ],
     )
-    text = "View: [page.html](unique://content/cont_html1)"
+    # HTML produces no unique://content inline ref (it was replaced by HtmlRendering),
+    # so there is nothing for the injector to match.
+    text = "```HtmlRendering\nunique://content/cont_html1\n```"
 
     result = _inject_code_execution_fences(text, [block])
 
-    assert "````htmlWithSource(" in result
+    assert "htmlWithSource" not in result
+    assert "HtmlRendering" in result
     assert "cont_html1" in result
-    assert "[page.html](unique://content/cont_html1)" not in result
 
 
 @pytest.mark.ai
@@ -1221,22 +1228,6 @@ def test_ensure_fences_are_standalone__strips_list_prefix__before_img_fence() ->
 
     assert "- Chart: " not in result
     assert result.startswith("````imgWithSource(")
-
-
-@pytest.mark.ai
-def test_ensure_fences_are_standalone__strips_list_prefix__before_html_fence() -> None:
-    """
-    Purpose: Verify a list-item prefix before an htmlWithSource fence is stripped.
-    """
-    text = (
-        "- Page: ````htmlWithSource(id='1', contentId='cid', title=\"Page\", "
-        'code="")````'
-    )
-
-    result = _ensure_fences_are_standalone(text)
-
-    assert "- Page: " not in result
-    assert result.startswith("````htmlWithSource(")
 
 
 @pytest.mark.ai
@@ -1936,13 +1927,14 @@ def test_apply_postprocessing_to_response__html_uses_legacy_HtmlRendering__when_
     "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
     return_value=True,
 )
-def test_apply_postprocessing_to_response__html_with_fence_ff_on__skips_reference_and_injects_fence(
+def test_apply_postprocessing_to_response__html_with_fence_ff_on__uses_HtmlRendering(
     _mock_fence_ff: MagicMock,
     _mock_html_ff: MagicMock,
 ) -> None:
     """
-    Purpose: HTML + fence FF uses file citation then htmlWithSource; no ContentReference row.
-    Why this matters: Covers is_html_fenced and fence injection paths for .html (UN-17972).
+    Purpose: HTML + fence FF on now emits a HtmlRendering block (not htmlWithSource).
+    Why this matters: Product revert — HTML always goes through _replace_container_html_citation
+    regardless of fence FF state; no ContentReference row is added.
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"page.html": "cid_page"}
@@ -1964,5 +1956,6 @@ def test_apply_postprocessing_to_response__html_with_fence_ff_on__skips_referenc
 
     assert changed is True
     assert len(refs) == 0
-    assert "````htmlWithSource(" in message.text
+    assert "HtmlRendering" in message.text
     assert "cid_page" in message.text
+    assert "htmlWithSource" not in message.text
