@@ -17,6 +17,7 @@ from unique_mcp.provider.context_provider import (
     _CLAIM_COMPANY_ID,
     _CLAIM_USER_ID,
     UniqueContextProvider,
+    UniqueUserInfo,
 )
 
 _MOD = "unique_mcp.provider.context_provider"
@@ -50,6 +51,30 @@ def provider(
     )
 
 
+@pytest.fixture
+def empty_env_settings() -> UniqueSettings:
+    """Settings with no env auth so _resolve_auth can only use meta/JWT."""
+    return UniqueSettings(
+        auth=AuthContext(
+            user_id=SecretStr(""),
+            company_id=SecretStr(""),
+        ),
+        app=UniqueApp(),
+        api=UniqueApi(),
+    )
+
+
+@pytest.fixture
+def provider_no_env_auth(
+    empty_env_settings: UniqueSettings,
+    zitadel_settings: ZitadelOAuthProxySettings,
+) -> UniqueContextProvider:
+    return UniqueContextProvider(
+        settings=empty_env_settings,
+        zitadel_settings=zitadel_settings,
+    )
+
+
 def _token(claims: dict) -> MagicMock:
     t = MagicMock()
     t.claims = claims
@@ -73,7 +98,7 @@ def _mock_http_client(response: MagicMock) -> AsyncMock:
 @pytest.mark.ai
 class TestResolveAuth:
     @pytest.mark.asyncio
-    async def test_from_jwt_claims(self, provider):
+    async def test_from_jwt_claims(self, provider: UniqueContextProvider):
         tok = _token({_CLAIM_USER_ID: "u1", _CLAIM_COMPANY_ID: "c1"})
         with patch(f"{_MOD}.get_access_token", return_value=tok):
             s = await provider.get_settings()
@@ -81,36 +106,46 @@ class TestResolveAuth:
         assert s.authcontext.get_confidential_company_id() == "c1"
 
     @pytest.mark.asyncio
-    async def test_fallback_to_userinfo(self, provider):
+    async def test_fallback_to_userinfo(self, provider: UniqueContextProvider):
+        """Incomplete JWT is completed via Zitadel userinfo (company from userinfo)."""
         tok = _token({_CLAIM_USER_ID: "u1"})
         resp = _userinfo_response({"sub": "u1", _CLAIM_COMPANY_ID: "c-info"})
-        provider._http = _mock_http_client(resp)
+        provider._http_client = _mock_http_client(resp)
         with patch(f"{_MOD}.get_access_token", return_value=tok):
             s = await provider.get_settings()
         assert s.authcontext.get_confidential_company_id() == "c-info"
 
     @pytest.mark.asyncio
-    async def test_fallback_when_claims_empty(self, provider):
+    async def test_fallback_when_claims_empty(self, provider: UniqueContextProvider):
+        """Empty JWT claims: user and company come from userinfo."""
         tok = _token({})
         resp = _userinfo_response({"sub": "u-info", _CLAIM_COMPANY_ID: "c-info"})
-        provider._http = _mock_http_client(resp)
+        provider._http_client = _mock_http_client(resp)
         with patch(f"{_MOD}.get_access_token", return_value=tok):
             s = await provider.get_settings()
         assert s.authcontext.get_confidential_user_id() == "u-info"
 
     @pytest.mark.asyncio
-    async def test_raises_when_no_token(self, provider):
+    async def test_raises_when_no_token(
+        self, provider_no_env_auth: UniqueContextProvider
+    ):
+        """Without meta, JWT, or env auth, _resolve_auth raises."""
         with (
             patch(f"{_MOD}.get_access_token", return_value=None),
-            pytest.raises(RuntimeError, match="No access token"),
+            pytest.raises(RuntimeError, match="Auth context must be provided"),
         ):
-            await provider.get_settings()
+            await provider_no_env_auth.get_settings()
 
     @pytest.mark.asyncio
-    async def test_raises_when_userinfo_incomplete(self, provider):
+    async def test_raises_when_userinfo_incomplete(
+        self, provider: UniqueContextProvider
+    ):
+        """
+        Incomplete userinfo response fails auth resolution (ValueError propagates).
+        """
         tok = _token({})
         resp = _userinfo_response({"sub": "u1"})
-        provider._http = _mock_http_client(resp)
+        provider._http_client = _mock_http_client(resp)
         with (
             patch(f"{_MOD}.get_access_token", return_value=tok),
             pytest.raises(ValueError, match="incomplete"),
@@ -118,7 +153,7 @@ class TestResolveAuth:
             await provider.get_settings()
 
     @pytest.mark.asyncio
-    async def test_reuses_app_api_refs(self, provider):
+    async def test_reuses_app_api_refs(self, provider: UniqueContextProvider):
         tok = _token({_CLAIM_USER_ID: "u", _CLAIM_COMPANY_ID: "c"})
         with patch(f"{_MOD}.get_access_token", return_value=tok):
             s = await provider.get_settings()
@@ -126,14 +161,14 @@ class TestResolveAuth:
         assert s.api is provider._settings.api
 
     @pytest.mark.asyncio
-    async def test_from_meta(self, provider):
+    async def test_from_meta(self, provider: UniqueContextProvider):
         with (
             patch(
-                f"{_MOD}._read_meta",
-                return_value={
-                    "unique.app/user-id": "mu",
-                    "unique.app/company-id": "mc",
-                },
+                f"{_MOD}.fastmcp_context_to_auth_context",
+                return_value=AuthContext(
+                    user_id=SecretStr("mu"),
+                    company_id=SecretStr("mc"),
+                ),
             ),
             patch(f"{_MOD}.get_access_token", return_value=None),
         ):
@@ -142,16 +177,16 @@ class TestResolveAuth:
         assert s.authcontext.get_confidential_company_id() == "mc"
 
     @pytest.mark.asyncio
-    async def test_meta_wins_over_jwt(self, provider):
+    async def test_meta_wins_over_jwt(self, provider: UniqueContextProvider):
         """Meta IDs take priority even when a valid JWT is present."""
         tok = _token({_CLAIM_USER_ID: "jwt-u", _CLAIM_COMPANY_ID: "jwt-c"})
         with (
             patch(
-                f"{_MOD}._read_meta",
-                return_value={
-                    "unique.app/user-id": "meta-u",
-                    "unique.app/company-id": "meta-c",
-                },
+                f"{_MOD}.fastmcp_context_to_auth_context",
+                return_value=AuthContext(
+                    user_id=SecretStr("meta-u"),
+                    company_id=SecretStr("meta-c"),
+                ),
             ),
             patch(f"{_MOD}.get_access_token", return_value=tok),
         ):
@@ -160,14 +195,13 @@ class TestResolveAuth:
         assert s.authcontext.get_confidential_company_id() == "meta-c"
 
     @pytest.mark.asyncio
-    async def test_meta_partial_falls_through_to_jwt(self, provider):
+    async def test_meta_partial_falls_through_to_jwt(
+        self, provider: UniqueContextProvider
+    ):
         """Meta with only user-id (no company-id) falls through to JWT."""
         tok = _token({_CLAIM_USER_ID: "jwt-u", _CLAIM_COMPANY_ID: "jwt-c"})
         with (
-            patch(
-                f"{_MOD}._read_meta",
-                return_value={"unique.app/user-id": "meta-u"},
-            ),
+            patch(f"{_MOD}.fastmcp_context_to_auth_context", return_value=None),
             patch(f"{_MOD}.get_access_token", return_value=tok),
         ):
             s = await provider.get_settings()
@@ -175,12 +209,12 @@ class TestResolveAuth:
         assert s.authcontext.get_confidential_company_id() == "jwt-c"
 
     @pytest.mark.asyncio
-    async def test_userinfo_timeout_propagates(self, provider):
-        """httpx timeout in userinfo call propagates as-is."""
+    async def test_userinfo_timeout_propagates(self, provider: UniqueContextProvider):
+        """httpx timeout in userinfo call propagates from _resolve_auth."""
         tok = _token({})
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("timed out"))
-        provider._http = mock_client
+        provider._http_client = mock_client
         with (
             patch(f"{_MOD}.get_access_token", return_value=tok),
             pytest.raises(httpx.TimeoutException),
@@ -191,7 +225,7 @@ class TestResolveAuth:
 @pytest.mark.ai
 class TestGetContext:
     @pytest.mark.asyncio
-    async def test_returns_context_with_auth(self, provider):
+    async def test_returns_context_with_auth(self, provider: UniqueContextProvider):
         tok = _token({_CLAIM_USER_ID: "u", _CLAIM_COMPANY_ID: "c"})
         with patch(f"{_MOD}.get_access_token", return_value=tok):
             ctx = await provider.get_context()
@@ -202,19 +236,29 @@ class TestGetContext:
 @pytest.mark.ai
 class TestGetUserinfo:
     @pytest.mark.asyncio
-    async def test_returns_full_userinfo(self, provider):
+    async def test_returns_full_userinfo(self, provider: UniqueContextProvider):
+        """
+        get_userinfo maps Zitadel JSON to UniqueUserInfo (requires sub + company claim).
+        """
         tok = _token({})
-        data = {"sub": "u1", "email": "u@example.com", "name": "User"}
+        data = {
+            "sub": "u1",
+            "email": "u@example.com",
+            "name": "User",
+            _CLAIM_COMPANY_ID: "c1",
+        }
         resp = _userinfo_response(data)
-        provider._http = _mock_http_client(resp)
+        provider._http_client = _mock_http_client(resp)
         with patch(f"{_MOD}.get_access_token", return_value=tok):
             info = await provider.get_userinfo()
-        assert info == data
+        assert info == UniqueUserInfo(
+            user_id="u1",
+            company_id="c1",
+            email="u@example.com",
+        )
 
     @pytest.mark.asyncio
-    async def test_raises_when_no_token(self, provider):
-        with (
-            patch(f"{_MOD}.get_access_token", return_value=None),
-            pytest.raises(RuntimeError, match="No access token"),
-        ):
-            await provider.get_userinfo()
+    async def test_returns_none_when_no_token(self, provider: UniqueContextProvider):
+        """Without a bearer token, get_userinfo returns None."""
+        with patch(f"{_MOD}.get_access_token", return_value=None):
+            assert await provider.get_userinfo() is None
