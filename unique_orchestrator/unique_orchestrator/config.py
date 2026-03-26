@@ -319,6 +319,9 @@ class TodoTrackingConfig(BaseToolConfig):
 
     Mirrors TodoConfig from unique_toolkit but lives in orchestrator to avoid
     hard dependency on the todo subpackage at import time.
+
+    IMPORTANT: The ``memory_key`` default must match
+    ``unique_toolkit.agentic.tools.todo.config.TodoConfig.memory_key``.
     """
 
     memory_key: str = Field(

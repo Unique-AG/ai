@@ -586,15 +586,16 @@ class UniqueAI:
 
         Returns None if no meaningful summary can be produced.
         """
-        state = debug_info.get("state")
-        if state and "total" in state:
-            parts = []
-            for key in ("completed", "in_progress", "pending"):
-                count = state.get(key, 0)
-                if count:
-                    parts.append(f"{count} {key}")
-            status_line = ", ".join(parts) if parts else "empty"
-            return f"**{tool_name}** — {state['total']} items ({status_line})"
+        if tool_name == "todo_write":
+            state = debug_info.get("state")
+            if state and "total" in state:
+                parts = []
+                for key in ("completed", "in_progress", "pending"):
+                    count = state.get(key, 0)
+                    if count:
+                        parts.append(f"{count} {key}")
+                status_line = ", ".join(parts) if parts else "empty"
+                return f"**{tool_name}** — {state['total']} items ({status_line})"
 
         info_keys = [k for k in debug_info if k not in ("mcp_server", "mcp_tool")]
         if info_keys:
