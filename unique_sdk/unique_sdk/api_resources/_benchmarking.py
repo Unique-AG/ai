@@ -39,6 +39,16 @@ class Benchmarking(APIResource["Benchmarking"]):
         total: int
 
     @classmethod
+    def _requestor_and_headers(
+        cls, user_id: str, company_id: str
+    ) -> tuple[APIRequestor, dict[str, str]]:
+        requestor = APIRequestor(user_id=user_id, company_id=company_id)
+        api_key = requestor.api_key or unique_sdk.api_key
+        app_id = requestor.app_id or unique_sdk.app_id
+        headers = requestor.request_headers(api_key, app_id, "get")
+        return requestor, headers
+
+    @classmethod
     def process_upload(
         cls,
         user_id: str,
@@ -48,14 +58,13 @@ class Benchmarking(APIResource["Benchmarking"]):
         force: bool | None = None,
     ) -> "Benchmarking.ProcessUploadResponse":
         """Upload a benchmarking spreadsheet for processing."""
-        requestor = APIRequestor(user_id=user_id, company_id=company_id)
-        params = {"force": force} if force is not None else None
-        _, abs_url, headers, _ = requestor._get_request_args(
-            "get", cls.RESOURCE_URL, params
-        )
+        _, headers = cls._requestor_and_headers(user_id, company_id)
         resp = requests.post(
-            abs_url,
+            f"{unique_sdk.api_base}{cls.RESOURCE_URL}",
             headers=headers,
+            params={"force": "true" if force else "false"}
+            if force is not None
+            else None,
             files={"file": (filename, file, _XLSX)},
             timeout=_TIMEOUT,
             verify=unique_sdk.api_verify_mode,
@@ -116,9 +125,9 @@ class Benchmarking(APIResource["Benchmarking"]):
         path: str,
         filename: str,
     ) -> Path:
-        requestor = APIRequestor(user_id=user_id, company_id=company_id)
-        _, abs_url, headers, _ = requestor._get_request_args("get", path)
-        response = requests.get(abs_url, headers=headers, timeout=_TIMEOUT)
+        _, headers = cls._requestor_and_headers(user_id, company_id)
+        url = f"{unique_sdk.api_base}{path}"
+        response = requests.get(url, headers=headers, timeout=_TIMEOUT)
         if response.status_code == 200:
             random_dir = tempfile.mkdtemp(dir="/tmp")
             file_path = Path(random_dir) / filename
