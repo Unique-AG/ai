@@ -146,7 +146,7 @@ sequenceDiagram
 
 ### 3 — Trusted internal caller with `_meta` override
 
-An internal service calls the tool on behalf of a known user by passing identity directly in the MCP `_meta` field. This takes highest priority and bypasses JWT/userinfo resolution entirely.
+An internal service calls the tool on behalf of a known user by passing identity directly in the MCP `_meta` field. This takes highest priority — but **only works if both `unique.app/user-id` and `unique.app/company-id` are present**. If either is missing, the provider falls through to JWT/userinfo resolution, which will fail if no valid Bearer token is present.
 
 > **Security:** The server takes `_meta` values as-is without further validation. Only use this from callers you fully trust — never expose it to external users.
 
@@ -169,10 +169,16 @@ sequenceDiagram
     participant InternalSvc as Internal Service
     participant MCP as MCP Server
 
-    InternalSvc->>MCP: tools/call + _meta (user-id + company-id)
-    Note over MCP: _meta present → skip JWT + userinfo
-    MCP->>MCP: build UniqueSettings from _meta
-    MCP-->>InternalSvc: tool result
+    InternalSvc->>MCP: tools/call + Bearer <token> + _meta
+    MCP->>MCP: verify Bearer token (transport-level auth)
+    alt _meta has both user-id + company-id
+        MCP->>MCP: build UniqueSettings from _meta (skip JWT/userinfo)
+        MCP-->>InternalSvc: tool result
+    else _meta incomplete or absent
+        MCP->>MCP: fall through to JWT claims / userinfo
+        Note over MCP: fails if token missing or claims incomplete
+        MCP-->>InternalSvc: error
+    end
 ```
 
 ---
