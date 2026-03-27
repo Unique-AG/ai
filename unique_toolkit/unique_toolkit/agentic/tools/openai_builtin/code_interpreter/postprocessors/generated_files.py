@@ -892,14 +892,18 @@ def _replace_container_html_citation(
         return text, False
 
     logger.info("Inserting HTML rendering block for '%s'", filename)
-    html_rendering_block = (
-        f"```HtmlRendering\n800px\n600px\n\n\nunique://content/{content_id}\n\n```"
-    )
-    return re.sub(
-        html_markdown,
-        html_rendering_block,
-        text,
-    ), True
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+
+    def _replace(m: re.Match[str]) -> str:
+        # Ensure the block starts on its own line. When the LLM places the
+        # sandbox link mid-line (e.g. inside a numbered list item), a leading
+        # newline is needed so the HtmlRendering fence is not inline.
+        start = m.start()
+        line_start = text.rfind("\n", 0, start) + 1
+        prefix_on_line = text[line_start:start].strip()
+        return ("\n" + block) if prefix_on_line else block
+
+    return re.sub(html_markdown, _replace, text), True
 
 
 def _replace_container_file_citation(
