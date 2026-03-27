@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `debug_info` field on `ToolCallResponse` — enables tools to surface structured debug data to the UI debug panel
 - Add `TodoConfig`, `TodoItem`, `TodoList`, `TodoWriteInput` schemas with `BaseToolConfig` integration
 - Add prompt evaluation framework (`tests/agentic/tools/todo_prompt_eval/`) with 14 behavioral scenarios, mock work tools, LLM-as-judge scoring, and injection mode comparison
+## [1.64.6] - 2026-03-27
+- Code interpreter (UN-17972): fix `HtmlRendering` block format for fenced code-interpreter HTML — remove an extra blank line before the `unique://content/...` URL (template had `\n\n\n`, parser expected a single blank line; broke rendering when images/PDFs were in the same message).
+- Code interpreter (UN-17972): when the model places the sandbox link mid-line (e.g. numbered list item), insert a leading newline before the `HtmlRendering` fence so it starts on its own line (same requirement as `imgWithSource` / `fileWithSource` standalone fences).
+
 ## [1.64.5] - 2026-03-27
 - RJSF: Add `CustomWidgetName` values `folderScopePicker`, `selectionPolicy`, `toolIconSelect`, and `toggleSwitch` (aligned with TypeScript custom widgets).
 - RJSF: `RJSFMetaTag.custom()` accepts `name: CustomWidgetName | str` so callers can pass string widget identifiers (e.g. custom icons) in addition to enum members.
