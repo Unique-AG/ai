@@ -395,7 +395,7 @@ class TestTodoWriteToolConfig:
     def test_default_execution_reminder(self) -> None:
         """Default execution reminder is used when config doesn't override."""
         tool = _make_tool()
-        assert tool.config.execution_reminder is None
+        assert tool.config.execution_reminder == ""
 
     @pytest.mark.asyncio
     async def test_custom_execution_reminder(self) -> None:

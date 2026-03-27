@@ -114,8 +114,8 @@ class TestTodoTrackingConfig:
     def test_defaults(self) -> None:
         config = TodoTrackingConfig()
         assert config.memory_key == "agent_todo_state"
-        assert config.system_prompt is None
-        assert config.execution_reminder is None
+        assert config.system_prompt == ""
+        assert config.execution_reminder == ""
 
     @pytest.mark.ai
     def test_field_parity_with_toolkit_config(self) -> None:

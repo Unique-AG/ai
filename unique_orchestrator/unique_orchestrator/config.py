@@ -331,8 +331,8 @@ class TodoTrackingConfig(BaseToolConfig):
     instance at runtime.
 
     Prompt fields (``system_prompt``, ``execution_reminder``) default to
-    ``None`` — the built-in prompts in the toolkit are used.  Set a non-None
-    value to override them from the admin UI for experimentation.
+    empty string — the built-in prompts in the toolkit are used.  Set a
+    non-empty value to override them from the admin UI for experimentation.
     """
 
     memory_key: str = Field(
@@ -341,16 +341,16 @@ class TodoTrackingConfig(BaseToolConfig):
         "Must match TodoConfig.memory_key in unique_toolkit.",
     )
 
-    system_prompt: str | None = Field(
-        default=None,
+    system_prompt: str = Field(
+        default="",
         description="Override the default system prompt injected for todo tracking. "
-        "None uses the built-in default. Supports experimentation.",
+        "Leave empty to use the built-in default. Supports experimentation.",
     )
 
-    execution_reminder: str | None = Field(
-        default=None,
+    execution_reminder: str = Field(
+        default="",
         description="Override the execution-phase reminder appended to tool responses. "
-        "None uses the built-in default. Supports experimentation.",
+        "Leave empty to use the built-in default. Supports experimentation.",
     )
 
 
