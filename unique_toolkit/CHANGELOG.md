@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.64.8] - 2026-03-27
+- Code interpreter (UN-17972): `get_tool_prompts()` now always uses the stored `tool_description_for_system_prompt` (no feature-flag substitution); UI and backend stay aligned when the config default is the fence prompt.
+- Code interpreter (UN-18561): extend `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` — sandbox has no internet; do not use `requests` / `httpx` / `urllib` for web fetches; use the web search tool first, then code interpreter.
+- Code interpreter: RJSF textarea `rows` for `tool_description_for_system_prompt` is derived from `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` so the widget height matches the default body (fixes undersized editor).
+
 ## [1.64.7] - 2026-03-27
 - Code interpreter (UN-17972): when the sandbox HTML link is the only content on its line (including indented list continuations), replace the full line so the `HtmlRendering` opening fence starts at column 0; match is anchored to line start so mid-line links still use the separate mid-line path.
 - Code interpreter (UN-17972): strip runs of whitespace-only lines immediately preceding that link line so blank indented lines do not remain above the `HtmlRendering` block.

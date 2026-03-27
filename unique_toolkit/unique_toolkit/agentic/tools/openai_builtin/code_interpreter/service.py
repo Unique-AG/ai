@@ -15,8 +15,6 @@ from unique_toolkit.agentic.tools.openai_builtin.base import (
     OpenAIBuiltInToolName,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
-    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
-    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
     OpenAICodeInterpreterConfig,
 )
 from unique_toolkit.agentic.tools.schemas import ToolPrompts
@@ -243,35 +241,11 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
 
     @override
     def get_tool_prompts(self) -> ToolPrompts:
-        # When the fence feature flag is on the frontend derives the artifact title
-        # from the filename, so the LLM no longer needs to produce a markdown heading.
-        # We only substitute the fence-aware default when the operator has NOT
-        # customised the prompt — a custom value is always respected regardless of FF.
-        # When FF is off we always use the operator-configured prompt as-is.
-        fence_ff_on = feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-            self._company_id
-        )
-        # A prompt is operator-customised only when it differs from every known default
-        # variant. Comparing against both defaults covers spaces whose stored value was
-        # written by an earlier deployment (non-fence default) or the current one
-        # (fence default) — both are treated as uncustomised.
-        stored = self._config.tool_description_for_system_prompt
-        operator_customised = stored not in {
-            DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
-            DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
-        }
-        if operator_customised:
-            system_prompt = stored
-        elif fence_ff_on:
-            system_prompt = DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
-        else:
-            system_prompt = DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT
-
         return ToolPrompts(
             name="python",  # https://platform.openai.com/docs/guides/tools-code-interpreter
             display_name=self.DISPLAY_NAME,
             tool_description=self._config.tool_description,
-            tool_system_prompt=system_prompt,
+            tool_system_prompt=self._config.tool_description_for_system_prompt,
             tool_format_information_for_system_prompt="",
             tool_user_prompt=self._config.tool_description_for_user_prompt,
             tool_format_information_for_user_prompt="",

@@ -7,7 +7,6 @@ import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
 
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
-    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
     DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
     OpenAICodeInterpreterConfig,
 )
@@ -150,22 +149,9 @@ def test_get_required_include_params__returns_code_interpreter_outputs__when_ff_
 
 
 @pytest.mark.ai
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service."
-    "feature_flags.enable_code_execution_fence_un_17972.is_enabled",
-    return_value=True,
-)
-def test_get_tool_prompts__uses_fence_default__when_ff_on_and_stored_is_non_fence_default(
-    _mock_ff: Any,
-) -> None:
-    """
-    Purpose: When fence FF is on and the operator left the legacy non-fence default
-    (written by an older deployment), the effective system prompt must still be the
-    fence-aware default (UN-17972 migration path).
-    """
-    config = OpenAICodeInterpreterConfig(
-        tool_description_for_system_prompt=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT
-    )
+def test_get_tool_prompts__uses_config_system_prompt__when_uncustomised() -> None:
+    """Purpose: Effective system prompt is always the stored config value (fence default)."""
+    config = OpenAICodeInterpreterConfig()
     tool = _auto_container_tool(config)
 
     prompts = tool.get_tool_prompts()
@@ -173,32 +159,19 @@ def test_get_tool_prompts__uses_fence_default__when_ff_on_and_stored_is_non_fenc
     assert (
         prompts.tool_system_prompt == DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
     )
-    assert "HTML files" in prompts.tool_system_prompt
+    assert "NO internet access" in prompts.tool_system_prompt
 
 
 @pytest.mark.ai
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service."
-    "feature_flags.enable_code_execution_fence_un_17972.is_enabled",
-    return_value=True,
-)
-def test_get_tool_prompts__uses_fence_default__when_ff_on_and_stored_is_fence_default(
-    _mock_ff: Any,
-) -> None:
-    """
-    Purpose: Spaces that already persisted the fence default must still count as
-    uncustomised so the fence prompt remains active (cross-version robustness).
-    """
-    config = OpenAICodeInterpreterConfig(
-        tool_description_for_system_prompt=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
-    )
+def test_get_tool_prompts__uses_config_system_prompt__when_customised() -> None:
+    """Purpose: Operator-customised text is returned as-is."""
+    custom = "CUSTOM OPERATOR PROMPT — DO NOT REPLACE"
+    config = OpenAICodeInterpreterConfig(tool_description_for_system_prompt=custom)
     tool = _auto_container_tool(config)
 
     prompts = tool.get_tool_prompts()
 
-    assert (
-        prompts.tool_system_prompt == DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
-    )
+    assert prompts.tool_system_prompt == custom
 
 
 @pytest.mark.ai
@@ -216,48 +189,3 @@ def test_get_required_include_params__returns_empty_list__when_ff_off() -> None:
         result = tool.get_required_include_params()
 
     assert result == []
-
-
-@pytest.mark.ai
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service."
-    "feature_flags.enable_code_execution_fence_un_17972.is_enabled",
-    return_value=True,
-)
-def test_get_tool_prompts__uses_custom_prompt__when_ff_on_and_operator_customised(
-    _mock_ff: Any,
-) -> None:
-    """Purpose: A customised prompt is always respected when the fence FF is on."""
-    custom = "CUSTOM OPERATOR PROMPT — DO NOT REPLACE"
-    config = OpenAICodeInterpreterConfig(tool_description_for_system_prompt=custom)
-    tool = _auto_container_tool(config)
-
-    prompts = tool.get_tool_prompts()
-
-    assert prompts.tool_system_prompt == custom
-
-
-@pytest.mark.ai
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service."
-    "feature_flags.enable_code_execution_fence_un_17972.is_enabled",
-    return_value=False,
-)
-def test_get_tool_prompts__uses_non_fence_default__when_ff_off_and_uncustomised(
-    _mock_ff: Any,
-) -> None:
-    """
-    Purpose: When fence FF is off and the operator has not customised the prompt
-    (stored value matches any known default), the non-fence default must be used
-    regardless of which default variant is stored.
-    """
-    for stored in (
-        DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
-        DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
-    ):
-        config = OpenAICodeInterpreterConfig(tool_description_for_system_prompt=stored)
-        tool = _auto_container_tool(config)
-
-        prompts = tool.get_tool_prompts()
-
-        assert prompts.tool_system_prompt == DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT

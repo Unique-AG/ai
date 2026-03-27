@@ -106,6 +106,7 @@ Handling User Queries:
 - Whenever the user query requires using the python tool, you must always think first about the steps required.
 - CRITICAL: If any step generates a plot or visualization, that code block MUST include `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` as the final lines. Code that only calls `plt.show()` without saving will NOT display the image to the user.
 - CRITICAL: NEVER reference a `sandbox:/mnt/data/<filename>` link unless you have already executed code in this response that saved that exact file. Referencing a file that was not created by executed code will result in a broken link.
+- CRITICAL: The sandbox has NO internet access. NEVER use `requests`, `httpx`, `urllib`, or any other HTTP library to fetch data from the web — these calls will always fail. If the user's query requires live web data (e.g. market prices, news, APIs), you MUST retrieve it using the web search tool first and then pass the result into the code interpreter.
 - Use the tool multiple times:
     - You MUST NOT guess anything about the structure of the data / files uploaded. Rather, you MUST perform some data exploration first.
         - Example: User uploads an excel files and asks a question about it. First Read the data, explore the columns, columns types, etc. Then use the tool to answer the user's query.
@@ -138,7 +139,9 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
     tool_description_for_system_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=int(len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT.split("\n")) / 2)
+            rows=int(
+                len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE.split("\n")) / 2
+            )
         ),
     ] = Field(
         default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
