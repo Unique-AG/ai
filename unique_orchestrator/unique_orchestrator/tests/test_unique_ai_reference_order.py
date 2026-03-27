@@ -27,6 +27,11 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
             assistant_message = AssistantMessage()
             user_message = MagicMock()
             user_message.text = "query"
+            chat_id = "test_chat"
+            assistant_id = "test_assistant"
+            name = "test-assistant"
+            user_metadata = {}
+            tool_parameters = {}
 
         payload = Payload()
 

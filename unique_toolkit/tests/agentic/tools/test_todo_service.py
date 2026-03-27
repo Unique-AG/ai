@@ -19,6 +19,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+import unique_toolkit.agentic.tools.todo  # noqa: F401 — registers with ToolFactory
 from unique_toolkit.agentic.tools.todo.config import TodoConfig
 from unique_toolkit.agentic.tools.todo.schemas import (
     TodoItem,

@@ -148,7 +148,7 @@ class UniqueAI:
         self._execution_times: list[dict[str, Any]] = []
         self._current_loop_timing: dict[str, Any] = {}
         self._trace_logger = TraceLogger(
-            chat_id=event.payload.chat_id if event.payload else None
+            chat_id=getattr(event.payload, "chat_id", None)
         )
 
     async def _on_cancellation(self, _event: CancellationEvent) -> None:
