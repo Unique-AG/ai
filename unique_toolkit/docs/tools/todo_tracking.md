@@ -79,8 +79,8 @@ The tool is dynamically injected at runtime when `todo_tracking` is active. If n
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `memory_key` | `str` | `"agent_todo_state"` | ShortTermMemory key for persisting state |
-| `system_prompt` | `str \| None` | `None` | Override the system prompt for todo tracking. `None` uses built-in default. |
-| `execution_reminder` | `str \| None` | `None` | Override the execution-phase reminder. `None` uses built-in default. |
+| `system_prompt` | `str` | `""` | Override the default system prompt injected for todo tracking. Leave empty to use the built-in default. |
+| `execution_reminder` | `str` | `""` | Override the execution-phase reminder appended to tool responses. Leave empty to use the built-in default. |
 
 There is no artificial limit on the number of todo items. Multi-step workflows and batch operations may have 50+ items, and all are preserved.
 

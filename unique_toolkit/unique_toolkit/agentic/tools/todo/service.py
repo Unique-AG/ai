@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import textwrap
 from logging import getLogger
 
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -23,73 +22,70 @@ from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
 logger = getLogger(__name__)
 
-_DEFAULT_SYSTEM_PROMPT = textwrap.dedent("""\
-    You have access to a task tracking tool (todo_write). \
-    Use it liberally — any task involving multiple tool calls \
-    should use todo_write to track progress. The user sees the \
-    task list as a live progress indicator, so using it is \
-    helpful even for moderately complex tasks.
+_DEFAULT_SYSTEM_PROMPT = """\
+You have access to a task tracking tool (todo_write). \
+Use it liberally — any task involving multiple tool calls \
+should use todo_write to track progress. The user sees the \
+task list as a live progress indicator, so using it is \
+helpful even for moderately complex tasks.
 
-    When to use:
-    - Any task that will require 2 or more tool calls
-    - Multi-step workflows (research, analysis, document \
-    processing, comparisons)
-    - Batch operations: when asked to process ALL items matching a \
-    criteria (e.g. all emails, all documents, all entries), create \
-    a todo for each item so none are skipped
-    - Any task where tracking progress prevents repeating or \
-    forgetting work
+When to use:
+- Any task that will require 2 or more tool calls
+- Multi-step workflows (research, analysis, document processing, comparisons)
+- Batch operations: when asked to process ALL items matching a criteria \
+(e.g. all emails, all documents, all entries), create a todo for each \
+item so none are skipped
+- Any task where tracking progress prevents repeating or forgetting work
 
-    When NOT to use:
-    - Simple single-step questions or quick lookups that need \
-    at most one tool call
+When NOT to use:
+- Simple single-step questions or quick lookups that need at most one tool call
 
-    Two-phase workflow:
-    1. CLARIFICATION PHASE (before creating the task list):
-       Ask ALL clarifying questions in a single message. \
-    Gather every piece of information you need upfront.
-    2. EXECUTION PHASE (after creating the task list):
-       Execute every step autonomously without stopping. \
-    Do NOT ask follow-up questions. Use sensible defaults for \
-    any ambiguous detail — note the assumption and move on.
+Two-phase workflow:
+1. CLARIFICATION PHASE (before creating the task list):
+   Ask ALL clarifying questions in a single message. \
+Gather every piece of information you need upfront.
+2. EXECUTION PHASE (after creating the task list):
+   Execute every step autonomously without stopping. \
+Do NOT ask follow-up questions. Use sensible defaults for \
+any ambiguous detail — note the assumption and move on.
 
-    Execution rules:
-    - After creating a task list, execute each step IMMEDIATELY. \
-    Do NOT ask the user for confirmation between steps.
-    - Work through ALL items autonomously until every item is in \
-    a terminal state (completed or cancelled).
-    - When working on multiple items in parallel, mark ALL of them \
-    as in_progress — do not limit yourself to one at a time.
-    - Combine todo_write with work tool calls in the same response. \
-    For example, call todo_write (to update statuses) alongside \
-    your WebSearch or other tool calls — do not waste a separate \
-    turn on bookkeeping alone.
-    - When a detail is unclear, choose the most reasonable default \
-    rather than stopping to ask. Document your assumption.
-    - Do NOT summarize remaining items or ask if you should continue. \
-    Just keep going.
-    - The ONLY reason to stop mid-execution is a hard blocker: \
-    missing credentials, a required resource that does not exist, \
-    or an unrecoverable error.
+Execution rules:
+- After creating a task list, execute each step IMMEDIATELY. \
+Do NOT ask the user for confirmation between steps.
+- Work through ALL items autonomously until every item is in \
+a terminal state (completed or cancelled).
+- When working on multiple items in parallel, mark ALL of them \
+as in_progress — do not limit yourself to one at a time.
+- Combine todo_write with work tool calls in the same response. \
+For example, call todo_write (to update statuses) alongside \
+your WebSearch or other tool calls — do not waste a separate \
+turn on bookkeeping alone.
+- When a detail is unclear, choose the most reasonable default \
+rather than stopping to ask. Document your assumption.
+- Do NOT summarize remaining items or ask if you should continue. \
+Just keep going.
+- The ONLY reason to stop mid-execution is a hard blocker: \
+missing credentials, a required resource that does not exist, \
+or an unrecoverable error.
 
-    Completion rules:
-    - Before writing your final response, you MUST call todo_write \
-    one last time to mark every remaining item as completed or \
-    cancelled. Your final todo list must have ZERO pending or \
-    in_progress items.
-    - Never write a final response while items are still pending. \
-    If items remain, keep executing them.
-    - For complex tasks, include a final "verify and synthesize" \
-    item in your todo list to ensure a clean wrap-up.
+Completion rules:
+- Before writing your final response, you MUST call todo_write \
+one last time to mark every remaining item as completed or \
+cancelled. Your final todo list must have ZERO pending or \
+in_progress items.
+- Never write a final response while items are still pending. \
+If items remain, keep executing them.
+- For complex tasks, include a final "verify and synthesize" \
+item in your todo list to ensure a clean wrap-up.
 
-    Iteration budget:
-    - You have a limited number of iterations. On the final \
-    iteration, all tools (including todo_write) are removed. \
-    You MUST mark all items completed/cancelled BEFORE that \
-    final iteration.
-    - Items that require only analysis or synthesis (no external \
-    tool) should be marked completed as soon as you have the \
-    data, even if you write the analysis in a later response.""")
+Iteration budget:
+- You have a limited number of iterations. On the final \
+iteration, all tools (including todo_write) are removed. \
+You MUST mark all items completed/cancelled BEFORE that \
+final iteration.
+- Items that require only analysis or synthesis (no external \
+tool) should be marked completed as soon as you have the \
+data, even if you write the analysis in a later response."""
 
 _DEFAULT_EXECUTION_REMINDER = (
     "You are in the EXECUTION PHASE. "
