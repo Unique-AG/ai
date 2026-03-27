@@ -711,7 +711,7 @@ class UniqueAI:
             detail = ", ".join(parts) if parts else "empty"
             return f"**todo_write** — {total} items ({detail})"
 
-        return f"**{tool_name}** — debug info available"
+        return None
 
     def _build_debug_info_event(self) -> dict:  # type: ignore[type-arg]
         """Build the debug info payload with assistant metadata and tool info."""

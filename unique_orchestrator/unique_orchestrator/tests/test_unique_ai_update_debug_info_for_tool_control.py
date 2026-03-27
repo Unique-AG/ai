@@ -6,7 +6,7 @@ Covers:
 - _persist_debug_info_best_effort swallows errors
 - _build_debug_info_event includes assistant metadata
 - _log_tool_results creates Steps entries for tools with debug_info
-- _format_tool_result_summary formats todo state and generic debug info
+- _format_tool_result_summary formats todo state, returns None for unknown tools
 """
 
 from __future__ import annotations
@@ -146,7 +146,7 @@ class TestLogToolResults:
         ai._message_step_logger.create_message_log_entry.assert_not_called()
 
     @pytest.mark.ai
-    def test_generic_tool_with_debug_info(self) -> None:
+    def test_skips_generic_tool_with_debug_info(self) -> None:
         ai = _make_unique_ai()
 
         response = MagicMock()
@@ -155,11 +155,7 @@ class TestLogToolResults:
 
         ai._log_tool_results([response])
 
-        ai._message_step_logger.create_message_log_entry.assert_called_once()
-        call_text = ai._message_step_logger.create_message_log_entry.call_args[1][
-            "text"
-        ]
-        assert "custom_tool" in call_text
+        ai._message_step_logger.create_message_log_entry.assert_not_called()
 
 
 class TestFormatToolResultSummary:
@@ -185,12 +181,11 @@ class TestFormatToolResultSummary:
         assert "2 pending" in result
 
     @pytest.mark.ai
-    def test_generic_tool_format(self) -> None:
+    def test_unknown_tool_returns_none(self) -> None:
         from unique_orchestrator.unique_ai import UniqueAI
 
         result = UniqueAI._format_tool_result_summary("other_tool", {"key": "value"})
-        assert result is not None
-        assert "other_tool" in result
+        assert result is None
 
     @pytest.mark.ai
     def test_todo_write_all_completed(self) -> None:
