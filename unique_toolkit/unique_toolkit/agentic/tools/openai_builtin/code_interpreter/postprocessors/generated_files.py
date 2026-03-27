@@ -880,7 +880,8 @@ def _replace_container_image_citation(
 def _replace_container_html_citation(
     text: str, filename: str, content_id: str
 ) -> tuple[str, bool]:
-    html_markdown = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+    link_core = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+    html_markdown = link_core
 
     if not re.search(html_markdown, text):
         logger.warning(
@@ -892,14 +893,34 @@ def _replace_container_html_citation(
         return text, False
 
     logger.info("Inserting HTML rendering block for '%s'", filename)
-    html_rendering_block = (
-        f"```HtmlRendering\n800px\n600px\n\n\nunique://content/{content_id}\n\n```"
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+
+    # Pattern 1 — link is the only non-whitespace content on its line (the common case
+    # when the model writes the link as a list continuation on its own indented line).
+    # Replace the FULL line (including leading whitespace) so the opening fence is
+    # flush-left. Parsers require column-0 fences.
+    # Also consume any whitespace-only lines immediately before the match so we don't
+    # leave orphan indented blank lines above the block.
+    line_only_link = re.compile(
+        rf"(?m)^(?:[ \t]*\n)*[ \t]*{link_core}[ \t]*(?=\r?\n|$)"
     )
-    return re.sub(
-        html_markdown,
-        html_rendering_block,
-        text,
-    ), True
+    if line_only_link.search(text):
+        result = line_only_link.sub(block, text)
+        return result, True
+
+    # Pattern 2 — link shares a line with other content (e.g. "3. Dashboard: [link]").
+    # Keep the label, then start the block on the next line.
+    def _replace(m: re.Match[str]) -> str:
+        start = m.start()
+        line_start = text.rfind("\n", 0, start) + 1
+        prefix_on_line = text[line_start:start].strip()
+        leading = "\n" if prefix_on_line else ""
+        # Ensure one blank line after the closing fence when followed by more text.
+        end = m.end()
+        trailing = "\n" if end < len(text) and not text[end:].startswith("\n") else ""
+        return leading + block + trailing
+
+    return re.sub(html_markdown, _replace, text), True
 
 
 def _replace_container_file_citation(

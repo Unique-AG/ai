@@ -5,8 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.64.6] - 2026-03-26
-- Code interpreter (UN-17972): fix system prompt default handling across fence FF states. `OpenAICodeInterpreterConfig.tool_description_for_system_prompt` now defaults to `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` (UI default alignment), while `OpenAICodeInterpreterTool.get_tool_prompts()` now selects the effective default by FF in both directions for uncustomised spaces (`fence` when FF on, `non-fence` when FF off). Operator-customised prompts remain unchanged.
+## [1.64.7] - 2026-03-27
+- Code interpreter (UN-17972): when the sandbox HTML link is the only content on its line (including indented list continuations), replace the full line so the `HtmlRendering` opening fence starts at column 0; match is anchored to line start so mid-line links still use the separate mid-line path.
+- Code interpreter (UN-17972): strip runs of whitespace-only lines immediately preceding that link line so blank indented lines do not remain above the `HtmlRendering` block.
+- Code interpreter (UN-17972): when the link is mid-line and the response continues immediately after the closing parenthesis with no newline, append a newline after the closing fence so following text does not adjoin the fence.
+
+## [1.64.6] - 2026-03-27
+- Code interpreter (UN-17972): fix `HtmlRendering` block format for fenced code-interpreter HTML — remove an extra blank line before the `unique://content/...` URL (template had `\n\n\n`, parser expected a single blank line; broke rendering when images/PDFs were in the same message).
+- Code interpreter (UN-17972): when the model places the sandbox link mid-line (e.g. numbered list item), insert a leading newline before the `HtmlRendering` fence so it starts on its own line (same requirement as `imgWithSource` / `fileWithSource` standalone fences).
+
 ## [1.64.5] - 2026-03-27
 - RJSF: Add `CustomWidgetName` values `folderScopePicker`, `selectionPolicy`, `toolIconSelect`, and `toggleSwitch` (aligned with TypeScript custom widgets).
 - RJSF: `RJSFMetaTag.custom()` accepts `name: CustomWidgetName | str` so callers can pass string widget identifiers (e.g. custom icons) in addition to enum members.
