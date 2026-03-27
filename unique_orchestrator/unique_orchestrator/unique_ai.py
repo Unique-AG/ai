@@ -729,18 +729,20 @@ class UniqueAI:
     async def _persist_debug_info(self) -> None:
         """Persist accumulated debug info to the message.
 
-        Always runs after the loop exits so that tool debug_info (e.g. from
-        todo_write) is visible in the UI debug panel. DeepResearch is excluded
-        because it manages its own debug info across multiple orchestrator calls.
+        Merges with any pre-existing debug info from the chat service so that
+        data written by earlier orchestrator calls or other processes is preserved.
+        DeepResearch is excluded because it manages its own debug info lifecycle.
         """
         debug_data = self._debug_info_manager.get() or {}
         tool_names = [tool["name"] for tool in debug_data.get("tools", [])]
         if "DeepResearch" in tool_names:
             return
 
-        await self._chat_service.update_debug_info_async(
-            debug_info=self._build_debug_info_event()
-        )
+        debug_info = {
+            **await self._chat_service.get_debug_info_async(),
+            **self._build_debug_info_event(),
+        }
+        await self._chat_service.update_debug_info_async(debug_info=debug_info)
 
     async def _persist_debug_info_best_effort(self) -> None:
         """Save whatever debug info has accumulated so far, swallowing errors."""
