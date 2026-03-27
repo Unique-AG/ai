@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-import unique_toolkit.agentic.tools.todo  # noqa: F401 — registers with ToolFactory
+from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.todo.config import TodoConfig
 from unique_toolkit.agentic.tools.todo.schemas import (
     TodoItem,
@@ -33,6 +33,18 @@ from unique_toolkit.agentic.tools.todo.service import (
     TodoWriteTool,
     _chat_scoped_stm_service,
 )
+
+
+@pytest.fixture(autouse=True)
+def ensure_todo_tool_registered():
+    """Ensure TodoWriteTool is registered in ToolFactory before tests run.
+
+    Other test modules may clear the ToolFactory state, which removes the
+    registration that happened at module import time.
+    """
+    if "todo_write" not in ToolFactory.tool_config_map:
+        ToolFactory.register_tool(TodoWriteTool, TodoConfig)
+    yield
 
 
 class TestTodoList:
