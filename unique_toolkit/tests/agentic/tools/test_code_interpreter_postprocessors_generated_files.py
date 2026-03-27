@@ -270,26 +270,49 @@ def test_replace_container_html_citation__replaces_markdown__with_html_rendering
     None
 ):
     """
-    Purpose: Verify sandbox HTML link is replaced by HtmlRendering code block with content URL.
-    Why this matters: HTML files are rendered in chat via special block.
-    Setup summary: Text with link to .html file; assert ```HtmlRendering and unique://content in result.
+    Purpose: Verify sandbox HTML link replaced by HtmlRendering block with correct single blank line.
+    Why this matters: HTML files are rendered in chat via special block; exact format matters.
+    Setup summary: Link at start of line — no leading newline injected.
     """
-    # Arrange
-    text = "Report: [report](sandbox:/mnt/data/report.html)"
+    text = "[report](sandbox:/mnt/data/report.html)"
     content_id = "html-content-456"
 
-    # Act
     new_text, replaced = gen_mod._replace_container_html_citation(
         text, filename="report.html", content_id=content_id
     )
 
-    # Assert
     assert replaced is True
-    assert "HtmlRendering" in new_text
-    assert "800px" in new_text
-    assert "600px" in new_text
-    assert f"unique://content/{content_id}" in new_text
     assert "sandbox" not in new_text
+    expected_block = (
+        f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+    )
+    assert expected_block in new_text
+
+
+@pytest.mark.ai
+def test_replace_container_html_citation__inline_link__starts_on_new_line() -> None:
+    """
+    Purpose: Verify that when the sandbox link is mid-line (e.g. in a list item), the
+    HtmlRendering block is placed on a new line so the frontend parser can detect it.
+    Why this matters: LLMs often write "3. Dashboard: [link](sandbox://...)" — without
+    a leading newline the HtmlRendering fence is inline and fails to render.
+    """
+    text = (
+        "3. **HTML Dashboard**: [View the dashboard](sandbox:/mnt/data/dashboard.html) "
+    )
+    content_id = "cid-dash"
+
+    new_text, replaced = gen_mod._replace_container_html_citation(
+        text, filename="dashboard.html", content_id=content_id
+    )
+
+    assert replaced is True
+    assert "sandbox" not in new_text
+    # Block must be preceded by a newline (not inline after the label)
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+    assert "\n" + block in new_text
+    # Label is preserved before the block
+    assert "3. **HTML Dashboard**:" in new_text
 
 
 # ============================================================================
