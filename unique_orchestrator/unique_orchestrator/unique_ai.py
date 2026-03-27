@@ -219,7 +219,7 @@ class UniqueAI:
 
                 self._debug_info_manager.extract_builtin_tool_debug_info(
                     loop_response,
-                    tool_manager=self._tool_manager,  # TODO: fix type in toolkit
+                    tool_manager=self._tool_manager,  # type: ignore[arg-type] (ResponsesApiToolManager | ToolManager)
                     loop_iteration_index=self.current_iteration_index,
                 )
 
