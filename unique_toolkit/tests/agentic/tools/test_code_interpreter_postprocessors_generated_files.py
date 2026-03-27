@@ -315,6 +315,79 @@ def test_replace_container_html_citation__inline_link__starts_on_new_line() -> N
     assert "3. **HTML Dashboard**:" in new_text
 
 
+@pytest.mark.ai
+def test_replace_container_html_citation__indented_link_only_line__flushes_fence_left() -> (
+    None
+):
+    """
+    Purpose: List continuations often use two spaces then the sandbox link alone on
+    the line. Replacing only the link left `` ```HtmlRendering `` indented; parsers
+    require a column-0 fence. The full whitespace+link line must become the block.
+    """
+    text = (
+        "- 📊 HTML dashboard:\n\n"
+        "  [VIX Analytics Dashboard (HTML)](sandbox:/mnt/data/vix_dashboard.html)\n"
+    )
+    content_id = "cid-html"
+    new_text, replaced = gen_mod._replace_container_html_citation(
+        text, filename="vix_dashboard.html", content_id=content_id
+    )
+
+    assert replaced is True
+    assert "sandbox" not in new_text
+    assert "  ```HtmlRendering" not in new_text
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+    assert block in new_text
+
+
+@pytest.mark.ai
+def test_replace_container_html_citation__blank_lines_before_link__are_stripped() -> (
+    None
+):
+    """
+    Purpose: When the link is on its own indented line, any whitespace-only lines
+    immediately before it (common list separator lines like '  \\n') must also be
+    consumed so they don't appear as orphaned blank lines above the HtmlRendering block.
+    """
+    text = (
+        "- HTML dashboard (open in your browser):\n"
+        "  \n"
+        "  [Dashboard](sandbox:/mnt/data/dash.html)\n"
+        "- Next item\n"
+    )
+    content_id = "cid-blank"
+    new_text, replaced = gen_mod._replace_container_html_citation(
+        text, filename="dash.html", content_id=content_id
+    )
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+    assert replaced is True
+    assert "sandbox" not in new_text
+    assert "  ```HtmlRendering" not in new_text
+    assert block in new_text
+    # The orphaned '  \n' must not appear between the label and the block
+    assert "  \n" + block not in new_text
+
+
+@pytest.mark.ai
+def test_replace_container_html_citation__mid_line_followed_by_more_text__trailing_newline() -> (
+    None
+):
+    """
+    Purpose: When the link is mid-line and is followed immediately by more text
+    (no newline), the closing ``` must still be followed by a newline so subsequent
+    content starts on a fresh line.
+    """
+    text = "Dashboard: [d](sandbox:/mnt/data/d.html)More text here"
+    content_id = "cid-trail"
+    new_text, replaced = gen_mod._replace_container_html_citation(
+        text, filename="d.html", content_id=content_id
+    )
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+    assert replaced is True
+    assert "sandbox" not in new_text
+    assert block + "\n" in new_text or new_text.endswith(block)
+
+
 # ============================================================================
 # Tests for _build_code_blocks
 # ============================================================================
