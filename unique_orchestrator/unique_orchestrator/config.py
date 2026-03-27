@@ -311,6 +311,38 @@ class ResponsesApiConfig(BaseToolConfig):
     )
 
 
+class TodoTrackingConfig(BaseToolConfig):
+    """Persistent task tracking across agent loop iterations.
+
+    Fields mirror ``unique_toolkit.agentic.tools.todo.config.TodoConfig`` so
+    the admin UI can render them without importing the toolkit subpackage at
+    module level.  The builder bridges these values into a ``TodoConfig``
+    instance at runtime.
+
+    Prompt fields (``system_prompt``, ``execution_reminder``) default to
+    ``None`` — the built-in prompts in the toolkit are used.  Set a non-None
+    value to override them from the admin UI for experimentation.
+    """
+
+    memory_key: str = Field(
+        default="agent_todo_state",
+        description="ShortTermMemory key under which TODO state is stored. "
+        "Must match TodoConfig.memory_key in unique_toolkit.",
+    )
+
+    system_prompt: str | None = Field(
+        default=None,
+        description="Override the default system prompt injected for todo tracking. "
+        "None uses the built-in default. Supports experimentation.",
+    )
+
+    execution_reminder: str | None = Field(
+        default=None,
+        description="Override the execution-phase reminder appended to tool responses. "
+        "None uses the built-in default. Supports experimentation.",
+    )
+
+
 class ExperimentalConfig(BaseToolConfig):
     """Experimental features this part of the configuration might evolve in the future continuously"""
 
@@ -333,6 +365,10 @@ class ExperimentalConfig(BaseToolConfig):
     loop_configuration: LoopConfiguration = LoopConfiguration(
         max_tool_calls_per_iteration=10
     )
+
+    todo_tracking: (
+        Annotated[TodoTrackingConfig, Field(title="Active")] | DeactivatedNone
+    ) = Field(default=None, description="Persistent task tracking for the agent.")
 
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
 
