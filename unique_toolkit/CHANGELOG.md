@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.65.0] - 2026-03-26
 - Adding experimental open pdf tool
+## [1.64.5] - 2026-03-27
+- RJSF: Add `CustomWidgetName` values `folderScopePicker`, `selectionPolicy`, `toolIconSelect`, and `toggleSwitch` (aligned with TypeScript custom widgets).
+- RJSF: `RJSFMetaTag.custom()` accepts `name: CustomWidgetName | str` so callers can pass string widget identifiers (e.g. custom icons) in addition to enum members.
+
 ## [1.64.4] - 2026-03-26
 - Code interpreter (UN-17972): when fence FF is on, HTML artifacts use `HtmlRendering` blocks with `800px` / `600px` dimensions and `unique://content/...` (revert from `htmlWithSource` for product UX). Remove `htmlWithSource` from fence building and normalization regexes; skip HTML in unmatched-code-block warnings; update tests.
 
