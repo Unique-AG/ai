@@ -1731,7 +1731,7 @@ openai = [
 
 [[package]]
 name = "langchain-core"
-version = "1.2.17"
+version = "1.2.22"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jsonpatch" },
@@ -1743,9 +1743,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "uuid-utils" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1d/93/36226f593df52b871fc24d494c274f3a6b2ac76763a2806e7d35611634a1/langchain_core-1.2.17.tar.gz", hash = "sha256:54aa267f3311e347fb2e50951fe08e53761cebfb999ab80e6748d70525bbe872", size = 836130, upload-time = "2026-03-02T22:47:55.846Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b1/a3/c4cd6827a1df46c821e7214b7f7b7a28b189e6c9b84ef15c6d629c5e3179/langchain_core-1.2.22.tar.gz", hash = "sha256:8d8f726d03d3652d403da915126626bb6250747e8ba406537d849e68b9f5d058", size = 842487, upload-time = "2026-03-24T18:48:44.9Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/90/073f33ab383a62908eca7ea699586dfea280e77182176e33199c80ddf22a/langchain_core-1.2.17-py3-none-any.whl", hash = "sha256:bf6bd6ce503874e9c2da1669a69383e967c3de1ea808921d19a9a6bff1a9fbbe", size = 502727, upload-time = "2026-03-02T22:47:54.537Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/a6/2ffacf0f1a3788f250e75d0b52a24896c413be11be3a6d42bcdf46fbea48/langchain_core-1.2.22-py3-none-any.whl", hash = "sha256:7e30d586b75918e828833b9ec1efc25465723566845dd652c277baf751e9c04b", size = 506829, upload-time = "2026-03-24T18:48:43.286Z" },
 ]
 
 [[package]]
@@ -3827,11 +3827,12 @@ dev = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.84"
+version = "0.10.92"
 source = { editable = "../../unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
     { name = "anyio" },
+    { name = "click" },
     { name = "httpx" },
     { name = "regex" },
     { name = "requests" },
@@ -3843,6 +3844,7 @@ dependencies = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9.0,<4" },
     { name = "anyio", specifier = ">=4.0.0,<5" },
+    { name = "click", specifier = ">=8.1.0,<9" },
     { name = "httpx", specifier = ">=0.28.0,<0.29" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=1.105.0,<2" },
     { name = "regex", specifier = ">=2024.5.15" },
@@ -3857,10 +3859,12 @@ dev = [
     { name = "basedpyright", specifier = ">=1.35.0,<2" },
     { name = "deptry", specifier = ">=0.24.0,<0.25" },
     { name = "ipykernel", specifier = ">=7.1.0,<8" },
+    { name = "openai", specifier = ">=1.105.0,<2" },
     { name = "poethepoet", specifier = ">=0.32.0,<0.33" },
     { name = "pytest", specifier = ">=8.0,<9" },
     { name = "pytest-asyncio", specifier = ">=0.24.0,<0.25" },
     { name = "pytest-cov", specifier = ">=4.1.0,<5" },
+    { name = "pytest-mock", specifier = ">=3.14.0,<4" },
     { name = "python-dotenv", specifier = ">=1.1.0,<2" },
     { name = "ruff", specifier = "==0.11.7" },
     { name = "tox", specifier = ">=4.11.4,<5" },
@@ -3868,7 +3872,7 @@ dev = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.50.4"
+version = "1.64.7"
 source = { editable = "../../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -3885,12 +3889,14 @@ dependencies = [
     { name = "pillow" },
     { name = "platformdirs" },
     { name = "pydantic" },
+    { name = "pydantic-core" },
     { name = "pydantic-settings" },
     { name = "pyhumps" },
     { name = "pypandoc" },
     { name = "python-docx" },
     { name = "requests" },
     { name = "sseclient" },
+    { name = "tenacity" },
     { name = "tiktoken" },
     { name = "tokenizers" },
     { name = "typing-extensions" },
@@ -3918,6 +3924,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=12.1.1" },
     { name = "platformdirs", specifier = ">=4.0.0,<5" },
     { name = "pydantic", specifier = ">=2.11.0,<3" },
+    { name = "pydantic-core", specifier = ">=2.41.5" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
     { name = "pyhumps", specifier = ">=3.8.0,<4" },
     { name = "pypandoc", specifier = ">=1.16.2,<2" },
@@ -3925,10 +3932,11 @@ requires-dist = [
     { name = "requests", specifier = ">=2.32.0,<3" },
     { name = "sseclient", specifier = ">=0.0.27,<0.0.28" },
     { name = "starlette", marker = "extra == 'fastapi'", specifier = ">=0.49.1" },
+    { name = "tenacity", specifier = ">=9.1.4" },
     { name = "tiktoken", specifier = ">=0.12.0,<0.13" },
     { name = "tokenizers", specifier = ">=0.21.0,<0.22" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
-    { name = "unique-sdk", specifier = ">=0.10.80,<0.11" },
+    { name = "unique-sdk", specifier = ">=0.10.85,<0.11" },
     { name = "uvicorn", marker = "extra == 'fastapi'", specifier = ">=0.37.0,<0.38" },
 ]
 provides-extras = ["langchain", "fastapi"]
@@ -3953,7 +3961,7 @@ dev = [
 
 [[package]]
 name = "unique-web-search"
-version = "1.13.0"
+version = "1.14.3"
 source = { editable = "../unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },
@@ -3967,10 +3975,11 @@ dependencies = [
     { name = "google-cloud-aiplatform" },
     { name = "google-generativeai" },
     { name = "httpx" },
+    { name = "jinja2" },
     { name = "markdownify" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "pyhumps" },
+    { name = "rapidfuzz" },
     { name = "tavily-python" },
     { name = "timeout-decorator" },
     { name = "typing-extensions" },
@@ -3991,10 +4000,11 @@ requires-dist = [
     { name = "google-cloud-aiplatform", specifier = ">=1.128.0,<2" },
     { name = "google-generativeai", specifier = ">=0.8.5,<0.9" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "jinja2", specifier = ">=3.1.6" },
     { name = "markdownify", specifier = ">=0.14.1,<1" },
     { name = "pydantic", specifier = ">=2.12.3,<3" },
     { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
-    { name = "pyhumps", specifier = ">=3.8.0,<4" },
+    { name = "rapidfuzz", specifier = ">=3.0.0,<4" },
     { name = "tavily-python", specifier = ">=0.7.11,<1" },
     { name = "timeout-decorator", specifier = ">=0.5.0,<1" },
     { name = "typing-extensions", specifier = ">=4.14.1,<5" },
