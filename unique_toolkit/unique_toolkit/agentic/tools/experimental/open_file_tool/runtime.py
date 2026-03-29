@@ -304,6 +304,18 @@ class OpenFileToolRuntime:
 
         return file_parts
 
+    @staticmethod
+    def _is_empty_assistant_content(
+        content: str | list[dict[str, Any]] | None,
+    ) -> bool:
+        if content is None:
+            return True
+        if isinstance(content, str):
+            return not content.strip()
+        if isinstance(content, list):
+            return len(content) == 0
+        return False
+
     def _strip_open_file_messages(self, messages: LanguageModelMessages) -> None:
         open_file_call_ids: set[str] = set()
 
@@ -349,7 +361,7 @@ class OpenFileToolRuntime:
             if not (
                 isinstance(message, LanguageModelAssistantMessage)
                 and not message.tool_calls
-                and not (message.content or "").strip()
+                and self._is_empty_assistant_content(message.content)
             )
         ]
 

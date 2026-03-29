@@ -866,6 +866,53 @@ class TestPrepareRetryMessages:
             for message in result.root
         )
 
+    def test__preserves_list_content_assistant_message_when_stripping_open_file_calls(
+        self, logger, content_service, tool_manager, message_step_logger
+    ):
+        """
+        Purpose: List-typed assistant content survives OpenFile message stripping.
+        Why this matters: Responses-style assistant content can be a list and must not crash retry cleanup.
+        Setup summary: Build a retry payload with an OpenFile call plus a separate assistant message with list content, then verify prepare_retry_messages keeps that assistant message.
+        """
+        func = LanguageModelFunction(
+            name="OpenFile", arguments={"content_ids": ["cont_1"]}
+        )
+        assistant_msg = LanguageModelAssistantMessage.from_functions([func])
+        tool_call_id = assistant_msg.tool_calls[0].id
+        assert tool_call_id is not None
+        tool_msg = LanguageModelToolMessage(
+            content="Files opened",
+            name="OpenFile",
+            tool_call_id=tool_call_id,
+        )
+        list_content_assistant = LanguageModelAssistantMessage(
+            content=[{"type": "text", "text": "Kept assistant content"}]
+        )
+        messages = LanguageModelMessages(
+            root=[
+                LanguageModelUserMessage(content="hi"),
+                assistant_msg,
+                tool_msg,
+                list_content_assistant,
+            ]
+        )
+
+        rt = OpenFileToolRuntime(
+            logger=logger,
+            config=_make_config(send_files_in_payload=True),
+            content_service=content_service,
+            tool_manager=tool_manager,
+            message_step_logger=message_step_logger,
+            agent_file_registry=["cont_1"],
+        )
+
+        result = rt.prepare_retry_messages(messages)
+
+        assert list_content_assistant in result.root
+        assert result.root[-1].content == [
+            {"type": "text", "text": "Kept assistant content"}
+        ]
+
     def test__injects_uploaded_file_fallback__when_uploaded_enabled(
         self, logger, content_service, tool_manager, message_step_logger
     ):
