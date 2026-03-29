@@ -106,16 +106,12 @@ class OpenFileToolRuntime:
             if message.role != LanguageModelMessageRole.USER:
                 continue
 
-            content_parts: list[dict[str, str]] = []
+            content_parts: list[dict[str, Any]] = []
             if isinstance(message.content, str):
                 content_parts.append({"type": "text", "text": message.content})
             elif isinstance(message.content, list):
                 content_parts.extend(
-                    part
-                    for part in message.content
-                    if isinstance(part, dict)
-                    and part.get("type") in ("text", "input_text")
-                    and isinstance(part.get("text"), str)
+                    part for part in message.content if isinstance(part, dict)
                 )
 
             if not content_parts:
@@ -345,6 +341,18 @@ class OpenFileToolRuntime:
                 for tool_call in message.tool_calls
                 if tool_call.function.name != self._OPEN_FILE_TOOL_NAME
             ]
+            if not message.tool_calls:
+                message.tool_calls = None
+
+        messages.root[:] = [
+            message
+            for message in messages.root
+            if not (
+                isinstance(message, LanguageModelAssistantMessage)
+                and not message.tool_calls
+                and not (message.content or "").strip()
+            )
+        ]
 
     def _inject_uploaded_file_fallback_messages(
         self, messages: LanguageModelMessages

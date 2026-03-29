@@ -439,6 +439,48 @@ class TestInjectContentFilesIntoUserMessage:
         text_parts = [p for p in parts if p.get("type") == "text"]
         assert any("existing text" in p["text"] for p in text_parts)
 
+    def test__preserves_non_text_content_parts_in_list_message(
+        self, logger, content_service, tool_manager, message_step_logger
+    ):
+        """
+        Purpose: Non-text multimodal parts remain when file parts are injected.
+        Why this matters: Injecting file payloads must not drop existing image inputs.
+        Setup summary: Create a list-content user message with input_text and input_image,
+        inject file parts, and verify the image part is still present.
+        """
+        registry = ["cont_multimodal"]
+        rt = OpenFileToolRuntime(
+            logger=logger,
+            config=_make_config(send_files_in_payload=True),
+            content_service=content_service,
+            tool_manager=tool_manager,
+            message_step_logger=message_step_logger,
+            agent_file_registry=registry,
+        )
+        image_part = {
+            "type": "input_image",
+            "image_url": "https://example.com/chart.png",
+        }
+        messages = LanguageModelMessages(
+            root=[
+                LanguageModelUserMessage(
+                    content=[
+                        {"type": "input_text", "text": "describe this chart"},
+                        image_part,
+                    ]
+                )
+            ]
+        )
+
+        result = rt.inject_content_files_into_user_message(messages)
+
+        parts = result.root[0].content
+        assert isinstance(parts, list)
+        assert image_part in parts
+        assert any(
+            isinstance(part, dict) and part.get("type") == "file" for part in parts
+        )
+
 
 # ===================================================================
 # should_retry_without_files
@@ -727,6 +769,52 @@ class TestPrepareRetryMessages:
         for msg in remaining_assistant:
             assert msg.tool_calls is not None
             assert all(tc.function.name != "OpenFile" for tc in msg.tool_calls)
+
+    def test__removes_empty_assistant_message_after_stripping_open_file_calls(
+        self, logger, content_service, tool_manager, message_step_logger
+    ):
+        """
+        Purpose: Assistant messages left empty by OpenFile stripping are removed.
+        Why this matters: Empty assistant messages can serialize to invalid API payloads.
+        Setup summary: Build an assistant message containing only an OpenFile tool call,
+        trigger retry, and verify the empty assistant message is gone.
+        """
+        func = LanguageModelFunction(
+            name="OpenFile", arguments={"content_ids": ["cont_1"]}
+        )
+        assistant_msg = LanguageModelAssistantMessage.from_functions([func])
+        tool_call_id = assistant_msg.tool_calls[0].id
+        assert tool_call_id is not None
+        tool_msg = LanguageModelToolMessage(
+            content="Files opened",
+            name="OpenFile",
+            tool_call_id=tool_call_id,
+        )
+        messages = LanguageModelMessages(
+            root=[
+                LanguageModelUserMessage(content="hi"),
+                assistant_msg,
+                tool_msg,
+            ]
+        )
+
+        rt = OpenFileToolRuntime(
+            logger=logger,
+            config=_make_config(send_files_in_payload=True),
+            content_service=content_service,
+            tool_manager=tool_manager,
+            message_step_logger=message_step_logger,
+            agent_file_registry=["cont_1"],
+        )
+
+        result = rt.prepare_retry_messages(messages)
+
+        assert not any(
+            isinstance(message, LanguageModelAssistantMessage)
+            and message.content == ""
+            and not message.tool_calls
+            for message in result.root
+        )
 
     def test__injects_uploaded_file_fallback__when_uploaded_enabled(
         self, logger, content_service, tool_manager, message_step_logger
