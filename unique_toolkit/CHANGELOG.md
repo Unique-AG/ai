@@ -5,12 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.65.0] - 2026-03-26
+## [1.66.0] - 2026-03-26
 - Add `TodoWriteTool` and `TodoReadTool` for persistent task tracking across agent loop iterations (`unique_toolkit.agentic.tools.todo`)
 - Add `system_reminder` field on `ToolCallResponse` — enables tools to inject per-turn guidance into conversation history via `HistoryManager`
 - Add `debug_info` field on `ToolCallResponse` — enables tools to surface structured debug data to the UI debug panel
 - Add `TodoConfig`, `TodoItem`, `TodoList`, `TodoWriteInput` schemas with `BaseToolConfig` integration
 - Add prompt evaluation framework (`tests/agentic/tools/todo_prompt_eval/`) with 14 behavioral scenarios, mock work tools, LLM-as-judge scoring, and injection mode comparison
+## [1.65.0] - 2026-03-29
+- Adding experimental open pdf tool
 ## [1.64.7] - 2026-03-27
 - Code interpreter (UN-17972): when the sandbox HTML link is the only content on its line (including indented list continuations), replace the full line so the `HtmlRendering` opening fence starts at column 0; match is anchored to line start so mid-line links still use the separate mid-line path.
 - Code interpreter (UN-17972): strip runs of whitespace-only lines immediately preceding that link line so blank indented lines do not remain above the `HtmlRendering` block.
