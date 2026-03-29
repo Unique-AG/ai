@@ -405,6 +405,21 @@ class UniqueAIConfig(BaseToolConfig):
 
         return self
 
+    @model_validator(mode="after")
+    def validate_open_file_tool_requires_responses_api(self) -> "UniqueAIConfig":
+        uses_responses_api = (
+            self.agent.experimental.responses_api_config.use_responses_api
+            or self.agent.experimental.use_responses_api
+        )
+        if (
+            self.agent.experimental.open_file_tool_config.enabled
+            and not uses_responses_api
+        ):
+            raise ValueError(
+                "open_file_tool_config.enabled requires the Responses API to be enabled."
+            )
+        return self
+
     @property
     def effective_max_loop_iterations(self) -> int:
         """Effective max loop iterations, accounting for model-specific overrides."""

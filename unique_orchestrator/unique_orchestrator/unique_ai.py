@@ -2,7 +2,7 @@ import asyncio
 import time
 from datetime import datetime, timezone
 from logging import Logger
-from typing import Any, overload
+from typing import Any, cast, overload
 
 import jinja2
 from typing_extensions import deprecated
@@ -101,6 +101,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: ResponsesLoopIterationRunner,
+        agent_file_registry: list[str] | None = None,
     ) -> None: ...
 
     def __init__(
@@ -249,7 +250,7 @@ class UniqueAI:
 
                 self._debug_info_manager.extract_builtin_tool_debug_info(
                     loop_response,
-                    tool_manager=self._tool_manager,  # TODO: fix type in toolkit
+                    tool_manager=cast(ToolManager, self._tool_manager),
                     loop_iteration_index=self.current_iteration_index,
                 )
 

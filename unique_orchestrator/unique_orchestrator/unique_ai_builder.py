@@ -363,6 +363,8 @@ async def _build_responses(
         chat_service=common_components.chat_service,
     )
 
+    has_valid_uploaded_documents = False
+    has_tool_choices = False
     if config.agent.experimental.open_file_tool_config.enabled:
         handle_uploaded_file_tool_choices(
             config,

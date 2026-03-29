@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from logging import Logger
 from typing import TYPE_CHECKING
 
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager import (
     history_manager as history_manager_module,
 )
@@ -23,6 +24,7 @@ from unique_toolkit.agentic.tools.tool_manager import (
 )
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content import Content
+from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_orchestrator.config import UniqueAIConfig
 
@@ -78,7 +80,7 @@ def configure_file_payload(
     logger: Logger,
     history_manager: HistoryManager,
     reference_manager: ReferenceManager,
-    language_model: object,
+    language_model: LanguageModelInfo,
     tool_manager: ResponsesApiToolManager,
 ) -> tuple[HistoryManager, list[str]]:
     """Configure file-in-payload handling for the Responses API.
@@ -96,14 +98,17 @@ def configure_file_payload(
         upload_free_config = HistoryManagerConfig(
             experimental_features=history_manager_module.ExperimentalFeatures(),
             percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
-            language_model=config.space.language_model,
+            language_model=language_model,
             uploaded_content_config=None,
+            enable_tool_call_persistence=feature_flags.enable_tool_call_persistence_un_15977.is_enabled(
+                event.company_id
+            ),
         )
         history_manager = HistoryManager(
             logger,
             event,
             upload_free_config,
-            config.space.language_model,
+            language_model,
             reference_manager,
         )
 
