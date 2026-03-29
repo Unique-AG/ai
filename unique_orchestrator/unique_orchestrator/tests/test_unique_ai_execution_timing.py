@@ -354,6 +354,34 @@ class TestHandleToolCallsTiming:
         assert timing["search"] == 0.5
         assert timing["calculator"] == 0.1
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_handle_tool_calls__open_file_reminder__injected_before_history_add(
+        self, ua
+    ) -> None:
+        ua._config.agent.experimental.open_file_tool_config.enabled = True
+        ua._open_file_runtime = MagicMock()
+        ua._tool_manager.execute_selected_tools = AsyncMock(
+            return_value=[_make_tool_response("InternalSearch", execution_time_s=0.5)]
+        )
+
+        call_sequence: list[str] = []
+
+        def record_reminder_injection(tool_call_responses):
+            call_sequence.append("inject_reminder")
+
+        def record_history_add(tool_call_responses):
+            call_sequence.append("history_add")
+
+        ua._open_file_runtime.inject_open_file_reminder.side_effect = (
+            record_reminder_injection
+        )
+        ua._history_manager.add_tool_call_results.side_effect = record_history_add
+
+        await ua._handle_tool_calls(_make_loop_response([MagicMock()]))
+
+        assert call_sequence[:2] == ["inject_reminder", "history_add"]
+
 
 class TestHandleNoToolCallsTiming:
     """Tests that _handle_no_tool_calls populates post_processing and evaluation timing."""

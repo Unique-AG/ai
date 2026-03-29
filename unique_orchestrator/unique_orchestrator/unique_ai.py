@@ -664,6 +664,10 @@ class UniqueAI:
             **tool_times,
         }
 
+        # Inject reminders before persisting tool results into history.
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            self._open_file_runtime.inject_open_file_reminder(tool_call_responses)
+
         # Process results with error handling
         # Add tool call results to history first to stabilize source numbering,
         # then extract referenceable chunks and debug info
@@ -676,9 +680,6 @@ class UniqueAI:
         self._tool_took_control = self._tool_manager.does_a_tool_take_control(
             tool_calls
         )
-
-        if self._config.agent.experimental.open_file_tool_config.enabled:
-            self._open_file_runtime.inject_open_file_reminder(tool_call_responses)
 
         return self._tool_took_control
 
