@@ -345,6 +345,8 @@ class UniqueAI:
                 kwargs["messages"] = self._open_file_runtime.prepare_retry_messages(
                     messages=messages
                 )
+                kwargs["tools"] = self._tool_manager.get_tool_definitions()  # type: ignore (as above)
+                kwargs["tool_choices"] = self._tool_manager.get_forced_tools()  # type: ignore (as above)
                 return await self._loop_iteration_runner(**kwargs)
 
         return await self._loop_iteration_runner(**kwargs)

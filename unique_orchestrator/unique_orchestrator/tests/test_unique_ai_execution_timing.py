@@ -499,6 +499,52 @@ class TestHandleNoToolCallsTiming:
         assert "unselected_eval" not in ua._current_loop_timing["evaluation"]
 
 
+class TestPlanOrExecuteOpenFileRetry:
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_plan_or_execute__retry_refreshes_tools_and_tool_choices(
+        self,
+    ) -> None:
+        ua = _build_unique_ai()
+        ua._config.agent.experimental.open_file_tool_config.enabled = True
+
+        initial_messages = MagicMock(name="initial_messages")
+        retried_messages = MagicMock(name="retried_messages")
+        final_response = _make_loop_response()
+
+        ua._compose_message_plan_execution = AsyncMock(return_value=initial_messages)  # type: ignore[method-assign]
+        ua._tool_manager.get_tool_definitions.side_effect = [
+            ["OpenFile", "InternalSearch"],
+            ["InternalSearch"],
+        ]
+        ua._tool_manager.get_forced_tools.side_effect = [
+            ["OpenFile"],
+            [],
+        ]
+
+        retry_error = RuntimeError("payload too large")
+        ua._open_file_runtime = MagicMock()
+        ua._open_file_runtime.should_retry_without_files.return_value = True
+        ua._open_file_runtime.prepare_retry_messages.return_value = retried_messages
+
+        ua._loop_iteration_runner = AsyncMock(side_effect=[retry_error, final_response])
+
+        result = await ua._plan_or_execute()
+
+        assert result is final_response
+        assert ua._loop_iteration_runner.await_count == 2
+
+        first_call = ua._loop_iteration_runner.await_args_list[0].kwargs
+        second_call = ua._loop_iteration_runner.await_args_list[1].kwargs
+
+        assert first_call["messages"] is initial_messages
+        assert first_call["tools"] == ["OpenFile", "InternalSearch"]
+        assert first_call["tool_choices"] == ["OpenFile"]
+        assert second_call["messages"] is retried_messages
+        assert second_call["tools"] == ["InternalSearch"]
+        assert second_call["tool_choices"] == []
+
+
 class TestRunExecutionTimingIntegration:
     """Integration tests: run() persists execution_time in debug info correctly."""
 
