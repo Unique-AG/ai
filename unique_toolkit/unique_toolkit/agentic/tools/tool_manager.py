@@ -1,7 +1,7 @@
 import asyncio
 import time
 from logging import Logger, getLogger
-from typing import Generic, Literal, Protocol, Sequence, TypeVar, overload
+from typing import Generic, Literal, TypeVar, overload
 
 from openai.types.chat import (
     ChatCompletionNamedToolChoiceParam,
@@ -51,11 +51,6 @@ class ToolManagerConfig(BaseModel):
 
 
 _ApiMode = TypeVar("_ApiMode", Literal["completions"], Literal["responses"])
-_NamedToolT = TypeVar("_NamedToolT", bound="_NamedTool")
-
-
-class _NamedTool(Protocol):
-    name: str
 
 
 class _ToolManager(Generic[_ApiMode]):
@@ -228,13 +223,6 @@ class _ToolManager(Generic[_ApiMode]):
         self.available_tools.append(tool)
         self._tools.append(tool)
 
-    @staticmethod
-    def _filter_tools_by_name(
-        tools: Sequence[_NamedToolT], name: str
-    ) -> tuple[list[_NamedToolT], bool]:
-        filtered_tools = [tool for tool in tools if tool.name != name]
-        return filtered_tools, len(filtered_tools) != len(tools)
-
     def exclude_tool(self, name: str) -> bool:
         """Exclude a tool by name from the active tool set.
 
@@ -243,16 +231,37 @@ class _ToolManager(Generic[_ApiMode]):
         was present in at least one list.
         """
         found = False
-        self._tools, removed = self._filter_tools_by_name(self._tools, name)
-        found = found or removed
-        self._internal_tools, removed = self._filter_tools_by_name(
-            self._internal_tools, name
-        )
-        found = found or removed
-        self.available_tools, removed = self._filter_tools_by_name(
-            self.available_tools, name
-        )
-        found = found or removed
+
+        filtered_tools = [tool for tool in self._tools if tool.name != name]
+        found = found or len(filtered_tools) != len(self._tools)
+        self._tools = filtered_tools
+
+        filtered_internal_tools = [
+            tool for tool in self._internal_tools if tool.name != name
+        ]
+        found = found or len(filtered_internal_tools) != len(self._internal_tools)
+        self._internal_tools = filtered_internal_tools
+
+        filtered_mcp_tools = [tool for tool in self._mcp_tools if tool.name != name]
+        found = found or len(filtered_mcp_tools) != len(self._mcp_tools)
+        self._mcp_tools = filtered_mcp_tools
+
+        filtered_sub_agents = [tool for tool in self._sub_agents if tool.name != name]
+        found = found or len(filtered_sub_agents) != len(self._sub_agents)
+        self._sub_agents = filtered_sub_agents
+
+        filtered_builtin_tools = [
+            tool for tool in self._builtin_tools if tool.name != name
+        ]
+        found = found or len(filtered_builtin_tools) != len(self._builtin_tools)
+        self._builtin_tools = filtered_builtin_tools
+
+        filtered_available_tools = [
+            tool for tool in self.available_tools if tool.name != name
+        ]
+        found = found or len(filtered_available_tools) != len(self.available_tools)
+        self.available_tools = filtered_available_tools
+
         return found
 
     def add_forced_tool(self, name):

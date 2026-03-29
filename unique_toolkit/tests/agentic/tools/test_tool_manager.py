@@ -2314,3 +2314,14 @@ def test_responses_api_tool_manager__exclude_tool__removes_builtin_from_all_list
     assert OpenAIBuiltInToolName.CODE_INTERPRETER not in [
         tool.name for tool in tm.get_tools()
     ]
+    filtered = tm.filter_tool_calls(
+        [
+            LanguageModelFunction(
+                id="call_1",
+                name=OpenAIBuiltInToolName.CODE_INTERPRETER,
+                arguments={},
+            )
+        ],
+        ["openai_builtin"],
+    )
+    assert filtered == []
