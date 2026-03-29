@@ -196,11 +196,11 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # HTML rendered as legacy HtmlRendering block — only when fence FF is off
-            elif (
-                is_html
-                and not fence_ff_on
-                and feature_flags.enable_html_rendering_un_15131.is_enabled(
+            # HTML rendered as HtmlRendering block — when fence FF is on, or when
+            # the legacy HTML-rendering FF is on (fence FF off path).
+            elif is_html and (
+                fence_ff_on
+                or feature_flags.enable_html_rendering_un_15131.is_enabled(
                     self._company_id
                 )
             ):
@@ -211,7 +211,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # Files and HTML (fence FF on: HTML → htmlWithSource; others → fileWithSource)
+            # Non-HTML files
             else:
                 loop_response.message.text, replaced = _replace_container_file_citation(
                     text=loop_response.message.text,
@@ -222,21 +222,14 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            is_html_rendered = (
-                is_html
-                and not fence_ff_on
-                and feature_flags.enable_html_rendering_un_15131.is_enabled(
+            # HtmlRendering blocks carry contentId directly — no separate reference needed
+            is_html_rendered = is_html and (
+                fence_ff_on
+                or feature_flags.enable_html_rendering_un_15131.is_enabled(
                     self._company_id
                 )
             )
-            # htmlWithSource fences carry contentId directly — no separate reference needed
-            is_html_fenced = is_html and fence_ff_on
-            if (
-                replaced
-                and not is_image
-                and not is_html_rendered
-                and not is_html_fenced
-            ):
+            if replaced and not is_image and not is_html_rendered:
                 loop_response.message.references.append(
                     ContentReference(
                         sequence_number=ref_number,
@@ -520,6 +513,9 @@ def _build_file_fence(file: CodeInterpreterFile, code: str, fence_id: int) -> st
     content_id, a title derived from the filename, the type, and the
     escaped source code.
 
+    HTML files are handled separately via HtmlRendering blocks and never
+    reach this function.
+
     Format (4 backticks so inner code backticks never close the fence):
       ````imgWithSource(id='{n}', contentId='{id}', title="{title}", code="{escaped_code}")````
       ````fileWithSource(id='{n}', contentId='{id}', title="{title}", type="{type}", code="{escaped_code}")````
@@ -529,8 +525,6 @@ def _build_file_fence(file: CodeInterpreterFile, code: str, fence_id: int) -> st
     outer = "````"
     if file.type == "image":
         tag = f"imgWithSource(id='{fence_id}', contentId='{file.content_id}', title=\"{title}\", code=\"{escaped}\")"
-    elif file.type == "html":
-        tag = f"htmlWithSource(id='{fence_id}', contentId='{file.content_id}', title=\"{title}\", code=\"{escaped}\")"
     else:
         ftype = _file_frontend_type(file.filename)
         tag = f'fileWithSource(id=\'{fence_id}\', contentId=\'{file.content_id}\', title="{title}", type="{ftype}", code="{escaped}")'
@@ -554,7 +548,7 @@ def _inline_ref_pattern(file: CodeInterpreterFile) -> re.Pattern[str]:
 
 
 _FENCE_BLOCK_START = re.compile(
-    r"^[^\n`]+?(````(?:imgWithSource|fileWithSource|htmlWithSource)\()",
+    r"^[^\n`]+?(````(?:imgWithSource|fileWithSource)\()",
     re.MULTILINE,
 )
 
@@ -564,9 +558,9 @@ _FENCE_BLOCK_START = re.compile(
 #   - cross-line: 1 or 2 newlines optionally surrounded by horizontal whitespace
 #     (list-item linebreak, or blank-line paragraph gap)
 _CONSECUTIVE_FENCES_RE = re.compile(
-    r"(````(?:imgWithSource|fileWithSource|htmlWithSource)\([^\n]*\)````)"
+    r"(````(?:imgWithSource|fileWithSource)\([^\n]*\)````)"
     r"(?:[^\n`]*|[ \t]*\n{1,2}[ \t]*)"
-    r"(?=````(?:imgWithSource|fileWithSource|htmlWithSource)\()"
+    r"(?=````(?:imgWithSource|fileWithSource)\()"
 )
 
 
@@ -816,6 +810,9 @@ def _warn_unmatched_code_blocks(
     for filename, content_id in content_map.items():
         if content_id is None:
             continue
+        # HTML files are rendered via HtmlRendering blocks, not fence injection
+        if _get_file_type(filename) == "html":
+            continue
         if filename not in fenced_filenames:
             logger.warning(
                 "File '%s' (content_id=%s) could not be matched to any code block "
@@ -883,7 +880,8 @@ def _replace_container_image_citation(
 def _replace_container_html_citation(
     text: str, filename: str, content_id: str
 ) -> tuple[str, bool]:
-    html_markdown = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+    link_core = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+    html_markdown = link_core
 
     if not re.search(html_markdown, text):
         logger.warning(
@@ -895,18 +893,34 @@ def _replace_container_html_citation(
         return text, False
 
     logger.info("Inserting HTML rendering block for '%s'", filename)
-    html_rendering_block = f"""```HtmlRendering
-100%
-500px
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
 
-unique://content/{content_id}
+    # Pattern 1 — link is the only non-whitespace content on its line (the common case
+    # when the model writes the link as a list continuation on its own indented line).
+    # Replace the FULL line (including leading whitespace) so the opening fence is
+    # flush-left. Parsers require column-0 fences.
+    # Also consume any whitespace-only lines immediately before the match so we don't
+    # leave orphan indented blank lines above the block.
+    line_only_link = re.compile(
+        rf"(?m)^(?:[ \t]*\n)*[ \t]*{link_core}[ \t]*(?=\r?\n|$)"
+    )
+    if line_only_link.search(text):
+        result = line_only_link.sub(block, text)
+        return result, True
 
-```"""
-    return re.sub(
-        html_markdown,
-        html_rendering_block,
-        text,
-    ), True
+    # Pattern 2 — link shares a line with other content (e.g. "3. Dashboard: [link]").
+    # Keep the label, then start the block on the next line.
+    def _replace(m: re.Match[str]) -> str:
+        start = m.start()
+        line_start = text.rfind("\n", 0, start) + 1
+        prefix_on_line = text[line_start:start].strip()
+        leading = "\n" if prefix_on_line else ""
+        # Ensure one blank line after the closing fence when followed by more text.
+        end = m.end()
+        trailing = "\n" if end < len(text) and not text[end:].startswith("\n") else ""
+        return leading + block + trailing
+
+    return re.sub(html_markdown, _replace, text), True
 
 
 def _replace_container_file_citation(

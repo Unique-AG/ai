@@ -270,24 +270,122 @@ def test_replace_container_html_citation__replaces_markdown__with_html_rendering
     None
 ):
     """
-    Purpose: Verify sandbox HTML link is replaced by HtmlRendering code block with content URL.
-    Why this matters: HTML files are rendered in chat via special block.
-    Setup summary: Text with link to .html file; assert ```HtmlRendering and unique://content in result.
+    Purpose: Verify sandbox HTML link replaced by HtmlRendering block with correct single blank line.
+    Why this matters: HTML files are rendered in chat via special block; exact format matters.
+    Setup summary: Link at start of line — no leading newline injected.
     """
-    # Arrange
-    text = "Report: [report](sandbox:/mnt/data/report.html)"
+    text = "[report](sandbox:/mnt/data/report.html)"
     content_id = "html-content-456"
 
-    # Act
     new_text, replaced = gen_mod._replace_container_html_citation(
         text, filename="report.html", content_id=content_id
     )
 
-    # Assert
     assert replaced is True
-    assert "HtmlRendering" in new_text
-    assert f"unique://content/{content_id}" in new_text
     assert "sandbox" not in new_text
+    expected_block = (
+        f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+    )
+    assert expected_block in new_text
+
+
+@pytest.mark.ai
+def test_replace_container_html_citation__inline_link__starts_on_new_line() -> None:
+    """
+    Purpose: Verify that when the sandbox link is mid-line (e.g. in a list item), the
+    HtmlRendering block is placed on a new line so the frontend parser can detect it.
+    Why this matters: LLMs often write "3. Dashboard: [link](sandbox://...)" — without
+    a leading newline the HtmlRendering fence is inline and fails to render.
+    """
+    text = (
+        "3. **HTML Dashboard**: [View the dashboard](sandbox:/mnt/data/dashboard.html) "
+    )
+    content_id = "cid-dash"
+
+    new_text, replaced = gen_mod._replace_container_html_citation(
+        text, filename="dashboard.html", content_id=content_id
+    )
+
+    assert replaced is True
+    assert "sandbox" not in new_text
+    # Block must be preceded by a newline (not inline after the label)
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+    assert "\n" + block in new_text
+    # Label is preserved before the block
+    assert "3. **HTML Dashboard**:" in new_text
+
+
+@pytest.mark.ai
+def test_replace_container_html_citation__indented_link_only_line__flushes_fence_left() -> (
+    None
+):
+    """
+    Purpose: List continuations often use two spaces then the sandbox link alone on
+    the line. Replacing only the link left `` ```HtmlRendering `` indented; parsers
+    require a column-0 fence. The full whitespace+link line must become the block.
+    """
+    text = (
+        "- 📊 HTML dashboard:\n\n"
+        "  [VIX Analytics Dashboard (HTML)](sandbox:/mnt/data/vix_dashboard.html)\n"
+    )
+    content_id = "cid-html"
+    new_text, replaced = gen_mod._replace_container_html_citation(
+        text, filename="vix_dashboard.html", content_id=content_id
+    )
+
+    assert replaced is True
+    assert "sandbox" not in new_text
+    assert "  ```HtmlRendering" not in new_text
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+    assert block in new_text
+
+
+@pytest.mark.ai
+def test_replace_container_html_citation__blank_lines_before_link__are_stripped() -> (
+    None
+):
+    """
+    Purpose: When the link is on its own indented line, any whitespace-only lines
+    immediately before it (common list separator lines like '  \\n') must also be
+    consumed so they don't appear as orphaned blank lines above the HtmlRendering block.
+    """
+    text = (
+        "- HTML dashboard (open in your browser):\n"
+        "  \n"
+        "  [Dashboard](sandbox:/mnt/data/dash.html)\n"
+        "- Next item\n"
+    )
+    content_id = "cid-blank"
+    new_text, replaced = gen_mod._replace_container_html_citation(
+        text, filename="dash.html", content_id=content_id
+    )
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+    assert replaced is True
+    assert "sandbox" not in new_text
+    assert "  ```HtmlRendering" not in new_text
+    assert block in new_text
+    # The orphaned '  \n' must not appear between the label and the block
+    assert "  \n" + block not in new_text
+
+
+@pytest.mark.ai
+def test_replace_container_html_citation__mid_line_followed_by_more_text__trailing_newline() -> (
+    None
+):
+    """
+    Purpose: When the link is mid-line and is followed immediately by more text
+    (no newline), the closing ``` must still be followed by a newline so subsequent
+    content starts on a fresh line.
+    """
+    text = "Dashboard: [d](sandbox:/mnt/data/d.html)More text here"
+    content_id = "cid-trail"
+    new_text, replaced = gen_mod._replace_container_html_citation(
+        text, filename="d.html", content_id=content_id
+    )
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+    assert replaced is True
+    assert "sandbox" not in new_text
+    assert block + "\n" in new_text or new_text.endswith(block)
 
 
 # ============================================================================
@@ -747,9 +845,12 @@ def test_build_file_fence__document__uses_fileWithSource_tag() -> None:
 
 
 @pytest.mark.ai
-def test_build_file_fence__html__uses_htmlWithSource_tag() -> None:
+def test_build_file_fence__html__falls_through_to_fileWithSource() -> None:
     """
-    Purpose: Verify HTML files produce an htmlWithSource fence (no type= attribute).
+    Purpose: HTML files now fall through to fileWithSource in _build_file_fence.
+    Why this matters: HTML is rendered via HtmlRendering blocks (not fence injection),
+    so this function should never be called for HTML in practice, but if it is the
+    fallback is a fileWithSource fence rather than the removed htmlWithSource branch.
     """
     file = CodeInterpreterFile(
         filename="report.html", content_id="cont_html1", type="html"
@@ -757,10 +858,9 @@ def test_build_file_fence__html__uses_htmlWithSource_tag() -> None:
     fence = _build_file_fence(
         file, 'open("/mnt/data/report.html", "w").write("<html></html>")', fence_id=3
     )
-    assert fence.startswith("````htmlWithSource(")
-    assert "contentId='cont_html1'" in fence
-    assert 'title="Report"' in fence
-    assert "````fileWithSource(" not in fence
+    assert fence.startswith("````fileWithSource(")
+    assert "cont_html1" in fence
+    assert "htmlWithSource" not in fence
 
 
 @pytest.mark.ai
@@ -846,11 +946,12 @@ def test_inject_code_execution_fences__replaces_document_inline_ref__with_fileWi
 
 
 @pytest.mark.ai
-def test_inject_code_execution_fences__replaces_html_inline_ref__with_htmlWithSource() -> (
-    None
-):
+def test_inject_code_execution_fences__html_file__is_not_injected() -> None:
     """
-    Purpose: Verify an HTML file markdown link is replaced by an htmlWithSource fence.
+    Purpose: HTML files are rendered via HtmlRendering blocks (not fence injection),
+    so an HTML block passed to _inject_code_execution_fences leaves the text unchanged.
+    Why this matters: In normal flow HTML never reaches fence injection — this guards
+    against accidental regressions where an htmlWithSource fence is emitted.
     """
     block = CodeInterpreterBlock(
         code='open("/mnt/data/page.html", "w").write("<html></html>")',
@@ -860,13 +961,15 @@ def test_inject_code_execution_fences__replaces_html_inline_ref__with_htmlWithSo
             )
         ],
     )
-    text = "View: [page.html](unique://content/cont_html1)"
+    # HTML produces no unique://content inline ref (it was replaced by HtmlRendering),
+    # so there is nothing for the injector to match.
+    text = "```HtmlRendering\nunique://content/cont_html1\n```"
 
     result = _inject_code_execution_fences(text, [block])
 
-    assert "````htmlWithSource(" in result
+    assert "htmlWithSource" not in result
+    assert "HtmlRendering" in result
     assert "cont_html1" in result
-    assert "[page.html](unique://content/cont_html1)" not in result
 
 
 @pytest.mark.ai
@@ -1221,22 +1324,6 @@ def test_ensure_fences_are_standalone__strips_list_prefix__before_img_fence() ->
 
     assert "- Chart: " not in result
     assert result.startswith("````imgWithSource(")
-
-
-@pytest.mark.ai
-def test_ensure_fences_are_standalone__strips_list_prefix__before_html_fence() -> None:
-    """
-    Purpose: Verify a list-item prefix before an htmlWithSource fence is stripped.
-    """
-    text = (
-        "- Page: ````htmlWithSource(id='1', contentId='cid', title=\"Page\", "
-        'code="")````'
-    )
-
-    result = _ensure_fences_are_standalone(text)
-
-    assert "- Page: " not in result
-    assert result.startswith("````htmlWithSource(")
 
 
 @pytest.mark.ai
@@ -1936,13 +2023,14 @@ def test_apply_postprocessing_to_response__html_uses_legacy_HtmlRendering__when_
     "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
     return_value=True,
 )
-def test_apply_postprocessing_to_response__html_with_fence_ff_on__skips_reference_and_injects_fence(
+def test_apply_postprocessing_to_response__html_with_fence_ff_on__uses_HtmlRendering(
     _mock_fence_ff: MagicMock,
     _mock_html_ff: MagicMock,
 ) -> None:
     """
-    Purpose: HTML + fence FF uses file citation then htmlWithSource; no ContentReference row.
-    Why this matters: Covers is_html_fenced and fence injection paths for .html (UN-17972).
+    Purpose: HTML + fence FF on now emits a HtmlRendering block (not htmlWithSource).
+    Why this matters: Product revert — HTML always goes through _replace_container_html_citation
+    regardless of fence FF state; no ContentReference row is added.
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"page.html": "cid_page"}
@@ -1964,5 +2052,6 @@ def test_apply_postprocessing_to_response__html_with_fence_ff_on__skips_referenc
 
     assert changed is True
     assert len(refs) == 0
-    assert "````htmlWithSource(" in message.text
+    assert "HtmlRendering" in message.text
     assert "cid_page" in message.text
+    assert "htmlWithSource" not in message.text
