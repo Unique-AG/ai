@@ -2275,3 +2275,42 @@ def test_tool_manager__exclude_tool__returns_false_for_missing(
     result = tm.exclude_tool("nonexistent")
 
     assert result is False
+
+
+@pytest.mark.ai
+def test_responses_api_tool_manager__exclude_tool__removes_builtin_from_all_lists(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+):
+    mock_builtin_tool = mocker.Mock(spec=OpenAIBuiltInTool)
+    mock_builtin_tool.name = OpenAIBuiltInToolName.CODE_INTERPRETER
+    mock_builtin_tool.is_enabled.return_value = True
+    mock_builtin_tool.is_exclusive.return_value = False
+
+    mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_all_openai_builtin_tools.return_value = [mock_builtin_tool]
+
+    config = ToolManagerConfig(tools=[], max_tool_calls=10)
+    tm = ResponsesApiToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+        builtin_tool_manager=mock_builtin_manager,
+    )
+
+    assert tm.get_tool_by_name(OpenAIBuiltInToolName.CODE_INTERPRETER) is not None
+
+    result = tm.exclude_tool(OpenAIBuiltInToolName.CODE_INTERPRETER)
+
+    assert result is True
+    assert tm.get_tool_by_name(OpenAIBuiltInToolName.CODE_INTERPRETER) is None
+    assert OpenAIBuiltInToolName.CODE_INTERPRETER not in [
+        tool.name for tool in tm.get_tools()
+    ]
