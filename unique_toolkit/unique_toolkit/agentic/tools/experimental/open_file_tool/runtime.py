@@ -223,16 +223,15 @@ class OpenFileToolRuntime:
             if not isinstance(message.content, list):
                 continue
 
-            text_parts = [
+            content_parts = [
                 part
                 for part in message.content
-                if isinstance(part, dict) and part.get("type") in ("text", "input_text")
+                if not (isinstance(part, dict) and part.get("type") == "file")
             ]
-            if not text_parts:
+            if len(content_parts) == len(message.content):
                 continue
 
-            text = " ".join(part.get("text", "") for part in text_parts).strip()
-            messages.root[index] = LanguageModelUserMessage(content=text)
+            messages.root[index] = LanguageModelUserMessage(content=content_parts)
 
         return messages
 

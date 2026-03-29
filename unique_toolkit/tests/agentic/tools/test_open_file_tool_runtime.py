@@ -691,7 +691,8 @@ class TestPrepareRetryMessages:
         """
         Purpose: File parts in user messages are removed on retry.
         Why this matters: The retry must send a payload without the oversized files.
-        Setup summary: Create user message with file parts, trigger retry, verify stripped.
+        Setup summary: Create user message with text+file parts, trigger retry,
+        verify only the file part is stripped.
         """
         rt = OpenFileToolRuntime(
             logger=logger,
@@ -720,8 +721,57 @@ class TestPrepareRetryMessages:
 
         result = rt.prepare_retry_messages(messages)
 
-        assert isinstance(result.root[0].content, str)
-        assert "hello" in result.root[0].content
+        content = result.root[0].content
+        assert isinstance(content, list)
+        assert content == [{"type": "text", "text": "hello"}]
+
+    def test__preserves_multimodal_parts_when_retry_strips_files(
+        self, logger, content_service, tool_manager, message_step_logger
+    ):
+        """
+        Purpose: Retry stripping removes only file parts, not multimodal user input.
+        Why this matters: Images and other non-file parts must survive the retry path.
+        Setup summary: Create a multimodal user message with input_text, input_image,
+        and file parts, then verify retry keeps the non-file parts intact.
+        """
+        rt = OpenFileToolRuntime(
+            logger=logger,
+            config=_make_config(send_files_in_payload=True),
+            content_service=content_service,
+            tool_manager=tool_manager,
+            message_step_logger=message_step_logger,
+            agent_file_registry=["cont_1"],
+        )
+        image_part = {
+            "type": "input_image",
+            "image_url": "https://example.com/chart.png",
+        }
+        messages = LanguageModelMessages(
+            root=[
+                LanguageModelUserMessage(
+                    content=[
+                        {"type": "input_text", "text": "compare this chart"},
+                        image_part,
+                        {
+                            "type": "file",
+                            "file": {
+                                "filename": "cont_1",
+                                "file_data": "unique://content/cont_1",
+                            },
+                        },
+                    ]
+                )
+            ]
+        )
+
+        result = rt.prepare_retry_messages(messages)
+
+        content = result.root[0].content
+        assert isinstance(content, list)
+        assert content == [
+            {"type": "input_text", "text": "compare this chart"},
+            image_part,
+        ]
 
     def test__strips_open_file_tool_messages__when_kb_enabled(
         self, logger, content_service, tool_manager, message_step_logger
@@ -856,11 +906,11 @@ class TestPrepareRetryMessages:
 
 @pytest.mark.ai
 class TestStripFilePartsFromMessages:
-    def test__converts_list_content_to_text(self):
+    def test__removes_only_file_parts_from_list_content(self):
         """
-        Purpose: User messages with list content are collapsed to plain text.
-        Why this matters: After stripping files the user message must be a simple string.
-        Setup summary: Create user message with text+file parts, strip, verify string.
+        Purpose: User messages with list content lose only the file parts.
+        Why this matters: Retry payload cleanup must preserve all non-file content.
+        Setup summary: Create user message with text+file parts, strip, verify list.
         """
         messages = LanguageModelMessages(
             root=[
@@ -875,8 +925,9 @@ class TestStripFilePartsFromMessages:
 
         result = OpenFileToolRuntime.strip_file_parts_from_messages(messages)
 
-        assert isinstance(result.root[0].content, str)
-        assert "hello" in result.root[0].content
+        content = result.root[0].content
+        assert isinstance(content, list)
+        assert content == [{"type": "text", "text": "hello"}]
 
     def test__preserves_string_content(self):
         """
@@ -910,13 +961,14 @@ class TestStripFilePartsFromMessages:
 
         assert result.root[0].content == "system prompt"
         assert result.root[1].content == "response"
-        assert isinstance(result.root[2].content, str)
+        assert result.root[2].content == [{"type": "text", "text": "user"}]
 
-    def test__handles_input_text_type(self):
+    def test__preserves_input_text_parts(self):
         """
-        Purpose: Parts with type 'input_text' are also preserved in the join.
+        Purpose: Parts with type 'input_text' are preserved when file parts are stripped.
         Why this matters: The responses API uses 'input_text' instead of 'text'.
-        Setup summary: Create user message with input_text parts, strip, verify joined.
+        Setup summary: Create user message with input_text parts and a file part,
+        strip, and verify the input_text parts remain unchanged.
         """
         messages = LanguageModelMessages(
             root=[
@@ -924,6 +976,7 @@ class TestStripFilePartsFromMessages:
                     content=[
                         {"type": "input_text", "text": "part1"},
                         {"type": "input_text", "text": "part2"},
+                        {"type": "file", "file": {"filename": "a.pdf"}},
                     ]
                 )
             ]
@@ -932,9 +985,43 @@ class TestStripFilePartsFromMessages:
         result = OpenFileToolRuntime.strip_file_parts_from_messages(messages)
 
         content = result.root[0].content
-        assert isinstance(content, str)
-        assert "part1" in content
-        assert "part2" in content
+        assert isinstance(content, list)
+        assert content == [
+            {"type": "input_text", "text": "part1"},
+            {"type": "input_text", "text": "part2"},
+        ]
+
+    def test__preserves_non_file_multimodal_parts(self):
+        """
+        Purpose: Multimodal parts are preserved while file parts are removed.
+        Why this matters: Retry cleanup must not silently drop image inputs.
+        Setup summary: Create user message with input_text, image_url, and file parts,
+        strip, and verify only the file part is removed.
+        """
+        image_part = {
+            "type": "image_url",
+            "image_url": {"url": "https://example.com/image.png"},
+        }
+        messages = LanguageModelMessages(
+            root=[
+                LanguageModelUserMessage(
+                    content=[
+                        {"type": "input_text", "text": "what does this show?"},
+                        image_part,
+                        {"type": "file", "file": {"filename": "a.pdf"}},
+                    ]
+                )
+            ]
+        )
+
+        result = OpenFileToolRuntime.strip_file_parts_from_messages(messages)
+
+        content = result.root[0].content
+        assert isinstance(content, list)
+        assert content == [
+            {"type": "input_text", "text": "what does this show?"},
+            image_part,
+        ]
 
 
 # ===================================================================
