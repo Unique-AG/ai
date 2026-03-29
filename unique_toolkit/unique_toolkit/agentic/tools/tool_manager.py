@@ -1,7 +1,7 @@
 import asyncio
 import time
 from logging import Logger, getLogger
-from typing import Generic, Literal, Protocol, TypeVar, overload
+from typing import Generic, Literal, Protocol, Sequence, TypeVar, overload
 
 from openai.types.chat import (
     ChatCompletionNamedToolChoiceParam,
@@ -230,7 +230,7 @@ class _ToolManager(Generic[_ApiMode]):
 
     @staticmethod
     def _filter_tools_by_name(
-        tools: list[_NamedToolT], name: str
+        tools: Sequence[_NamedToolT], name: str
     ) -> tuple[list[_NamedToolT], bool]:
         filtered_tools = [tool for tool in tools if tool.name != name]
         return filtered_tools, len(filtered_tools) != len(tools)
