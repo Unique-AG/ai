@@ -427,7 +427,7 @@ async def _build_responses(
         debug_info_manager=debug_info_manager,
         message_step_logger=common_components.message_step_logger,
         mcp_servers=event.payload.mcp_servers,
-        loop_iteration_runner=loop_iteration_runner,agent_file_registry=agent_file_registry,
+        loop_iteration_runner=loop_iteration_runner,
     )
 
 
