@@ -7,7 +7,6 @@ from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags.feature_flags import (
-    FeatureFlag,
     feature_flags,
 )
 from unique_toolkit.agentic.tools.factory import ToolFactory
@@ -191,7 +190,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 content_chunks=content_chunks,
                 system_reminder=self.config.experimental_features.tool_response_system_reminder.get_reminder_prompt,
             )
-                
+
         except Exception as e:
             _LOGGER.exception(f"Error executing WebSearch tool: {e}")
 
@@ -270,7 +269,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 callbacks=callbacks,
                 tool_call=tool_call,
                 tool_parameters=parameters,
-                max_steps=self.config.web_search_mode_config.max_steps, 
+                max_steps=self.config.web_search_mode_config.max_steps,
             )
         elif isinstance(parameters, WebSearchToolParameters):
             assert self.config.web_search_mode_config.mode == WebSearchMode.V1

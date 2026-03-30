@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 from unique_web_search.services.argument_screening import (
     DEFAULT_GUIDELINES,
@@ -38,7 +39,10 @@ class TestArgumentScreeningConfig:
         )
         assert config.enabled is True
         assert config.system_prompt == "Custom system"
-        assert config.user_prompt_template == "Custom {{ arguments }} template {{ guidelines }}"
+        assert (
+            config.user_prompt_template
+            == "Custom {{ arguments }} template {{ guidelines }}"
+        )
         assert config.guidelines == "Custom guidelines"
 
 
