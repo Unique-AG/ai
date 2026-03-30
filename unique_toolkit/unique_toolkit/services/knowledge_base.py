@@ -182,6 +182,53 @@ class KnowledgeBaseService:
         reranker_config: ContentRerankerConfig | None = None,
     ) -> list[ContentChunk]: ...
 
+    @overload
+    def search_content_chunks(
+        self,
+        *,
+        search_string: str,
+        search_type: ContentSearchType,
+        limit: int,
+        scope_ids: list[str],
+        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        reranker_config: ContentRerankerConfig | None = None,
+        chat_id: str | None = None,
+        chat_only: bool = False,
+    ) -> list[ContentChunk]: ...
+
+    @overload
+    def search_content_chunks(
+        self,
+        *,
+        search_string: str,
+        search_type: ContentSearchType,
+        limit: int,
+        metadata_filter: dict,
+        scope_ids: list[str] | None = None,
+        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        reranker_config: ContentRerankerConfig | None = None,
+        chat_id: str | None = None,
+        chat_only: bool = False,
+    ) -> list[ContentChunk]: ...
+
+    @overload
+    def search_content_chunks(
+        self,
+        *,
+        search_string: str,
+        search_type: ContentSearchType,
+        limit: int,
+        metadata_filter: dict,
+        content_ids: list[str],
+        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        reranker_config: ContentRerankerConfig | None = None,
+        chat_id: str | None = None,
+        chat_only: bool = False,
+    ) -> list[ContentChunk]: ...
+
     def search_content_chunks(
         self,
         *,
@@ -194,6 +241,8 @@ class KnowledgeBaseService:
         metadata_filter: dict | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
+        chat_id: str | None = None,
+        chat_only: bool = False,
     ) -> list[ContentChunk]:
         """
         Performs a synchronous search for content chunks in the knowledge base.
@@ -208,6 +257,8 @@ class KnowledgeBaseService:
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
+            chat_id (str | None, optional): The chat ID for the search. Defaults to None.
+            chat_only (bool, optional): Whether to search only in chat-specific content. Defaults to False.
 
         Returns:
             list[ContentChunk]: The search results.
@@ -219,18 +270,21 @@ class KnowledgeBaseService:
         if metadata_filter is None:
             metadata_filter = self._metadata_filter
 
+        if chat_id is None:
+            chat_id = ""
+
         try:
             searches = search_content_chunks(
                 user_id=self._user_id,
                 company_id=self._company_id,
-                chat_id="",
+                chat_id=chat_id,
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
                 search_language=search_language,
                 reranker_config=reranker_config,
                 scope_ids=scope_ids,
-                chat_only=False,
+                chat_only=chat_only,
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
                 score_threshold=score_threshold,
@@ -281,6 +335,53 @@ class KnowledgeBaseService:
         reranker_config: ContentRerankerConfig | None = None,
     ) -> list[ContentChunk]: ...
 
+    @overload
+    async def search_content_chunks_async(
+        self,
+        *,
+        search_string: str,
+        search_type: ContentSearchType,
+        limit: int,
+        scope_ids: list[str],
+        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        reranker_config: ContentRerankerConfig | None = None,
+        chat_id: str | None = None,
+        chat_only: bool = False,
+    ) -> list[ContentChunk]: ...
+
+    @overload
+    async def search_content_chunks_async(
+        self,
+        *,
+        search_string: str,
+        search_type: ContentSearchType,
+        limit: int,
+        metadata_filter: dict,
+        scope_ids: list[str] | None = None,
+        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        reranker_config: ContentRerankerConfig | None = None,
+        chat_id: str | None = None,
+        chat_only: bool = False,
+    ) -> list[ContentChunk]: ...
+
+    @overload
+    async def search_content_chunks_async(
+        self,
+        *,
+        search_string: str,
+        search_type: ContentSearchType,
+        limit: int,
+        metadata_filter: dict,
+        content_ids: list[str],
+        score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        reranker_config: ContentRerankerConfig | None = None,
+        chat_id: str | None = None,
+        chat_only: bool = False,
+    ) -> list[ContentChunk]: ...
+
     async def search_content_chunks_async(
         self,
         *,
@@ -293,6 +394,8 @@ class KnowledgeBaseService:
         metadata_filter: dict | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
+        chat_id: str | None = None,
+        chat_only: bool = False,
     ):
         """
         Performs an asynchronous search for content chunks in the knowledge base.
@@ -307,6 +410,8 @@ class KnowledgeBaseService:
             metadata_filter (dict | None, optional): UniqueQL metadata filter. If unspecified/None, it tries to use the metadata filter from the event. Defaults to None.
             content_ids (list[str] | None, optional): The content IDs to search within. Defaults to None.
             score_threshold (float | None, optional): Sets the minimum similarity score for search results to be considered. Defaults to 0.
+            chat_id (str | None, optional): The chat ID for the search. Defaults to None.
+            chat_only (bool, optional): Whether to search only in chat-specific content. Defaults to False.
 
         Returns:
             list[ContentChunk]: The search results.
@@ -317,18 +422,21 @@ class KnowledgeBaseService:
         if metadata_filter is None:
             metadata_filter = self._metadata_filter
 
+        if chat_id is None:
+            chat_id = ""
+
         try:
             searches = await search_content_chunks_async(
                 user_id=self._user_id,
                 company_id=self._company_id,
-                chat_id="",
+                chat_id=chat_id,
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
                 search_language=search_language,
                 reranker_config=reranker_config,
                 scope_ids=scope_ids,
-                chat_only=False,
+                chat_only=chat_only,
                 metadata_filter=metadata_filter,
                 content_ids=content_ids,
                 score_threshold=score_threshold,
