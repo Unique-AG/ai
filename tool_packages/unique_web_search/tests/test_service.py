@@ -580,6 +580,7 @@ class TestWebSearchToolRun:
         tool.name = "WebSearch"
         tool.settings = Mock()
         tool.settings.display_name = "WebSearch"
+        tool._ff_screen_arguments = AsyncMock()
 
         tool_call = Mock()
         tool_call.id = "test-id"
@@ -671,6 +672,7 @@ class TestWebSearchToolRun:
         tool.name = "WebSearch"
         tool.settings = Mock()
         tool.settings.display_name = "WebSearch"
+        tool._ff_screen_arguments = AsyncMock()
 
         tool_call = Mock()
         tool_call.id = "test-id"
@@ -751,6 +753,7 @@ class TestWebSearchToolRun:
         tool.name = "WebSearch"
         tool.settings = Mock()
         tool.settings.display_name = "WebSearch"
+        tool._ff_screen_arguments = AsyncMock()
 
         tool_call = Mock()
         tool_call.id = "test-id"
@@ -819,6 +822,7 @@ class TestWebSearchToolRun:
         tool.name = "WebSearch"
         tool.settings = Mock()
         tool.settings.display_name = "WebSearch"
+        tool._ff_screen_arguments = AsyncMock()
 
         tool_call = Mock()
         tool_call.id = "test-id"
@@ -900,6 +904,7 @@ class TestWebSearchToolRun:
         tool.name = "WebSearch"
         tool.settings = Mock()
         tool.settings.display_name = "WebSearch"
+        tool._ff_screen_arguments = AsyncMock()
 
         # Mock feature_flags to ensure the progress reporter code path is taken
         mock_feature_flags = mocker.patch("unique_web_search.service.feature_flags")
