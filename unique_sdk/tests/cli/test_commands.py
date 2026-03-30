@@ -558,13 +558,26 @@ class TestParseAndValidate:
             _parse_and_validate('{"name": "tool", "arguments": "bad"}')
 
 
+def _mcp_response(
+    tool_name: str = "tool",
+    is_error: bool = False,
+    server_id: str = "srv_1",
+    content: list[dict[str, Any]] | None = None,
+) -> MagicMock:
+    resp = MagicMock()
+    resp.name = tool_name
+    resp.isError = is_error
+    resp.mcpServerId = server_id
+    resp.content = content if content is not None else []
+    return resp
+
+
 class TestCmdMcp:
     @patch("unique_sdk.MCP.call_tool")
     def test_success(self, mock: MagicMock) -> None:
-        mock.return_value = MagicMock(
-            name="search",
-            isError=False,
-            mcpServerId="mcp_srv_1",
+        mock.return_value = _mcp_response(
+            tool_name="search",
+            server_id="mcp_srv_1",
             content=[{"type": "text", "text": "result"}],
         )
         result = cmd_mcp(
@@ -573,7 +586,7 @@ class TestCmdMcp:
             message_id="msg_1",
             payload='{"name": "search", "arguments": {"q": "test"}}',
         )
-        assert "MCP tool call:" in result
+        assert "MCP tool call: search" in result
         assert "mcp_srv_1" in result
         assert "[text] result" in result
         mock.assert_called_once_with(
@@ -629,17 +642,21 @@ class TestCmdMcp:
     def test_file_input(self, mock: MagicMock, tmp_path: Any) -> None:
         f = tmp_path / "payload.json"
         f.write_text('{"name": "tool", "arguments": {"k": "v"}}')
-        mock.return_value = MagicMock(
-            name="tool",
-            isError=False,
-            mcpServerId="srv_1",
-            content=[{"type": "text", "text": "ok"}],
-        )
+        mock.return_value = _mcp_response(content=[{"type": "text", "text": "ok"}])
         result = cmd_mcp(
             _state(),
             chat_id="chat_1",
             message_id="msg_1",
             file=str(f),
         )
-        assert "MCP tool call:" in result
+        assert "MCP tool call: tool" in result
         mock.assert_called_once()
+
+    def test_file_not_found_error(self) -> None:
+        result = cmd_mcp(
+            _state(),
+            chat_id="chat_1",
+            message_id="msg_1",
+            file="/nonexistent/payload.json",
+        )
+        assert "mcp:" in result

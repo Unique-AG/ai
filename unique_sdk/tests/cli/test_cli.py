@@ -152,12 +152,12 @@ class TestClickCLI:
 
     @patch("unique_sdk.MCP.call_tool")
     def test_mcp(self, mock: MagicMock) -> None:
-        mock.return_value = MagicMock(
-            name="tool",
-            isError=False,
-            mcpServerId="srv_1",
-            content=[{"type": "text", "text": "result"}],
-        )
+        resp = MagicMock()
+        resp.name = "tool"
+        resp.isError = False
+        resp.mcpServerId = "srv_1"
+        resp.content = [{"type": "text", "text": "result"}]
+        mock.return_value = resp
         runner = CliRunner()
         result = runner.invoke(
             main,
@@ -171,7 +171,7 @@ class TestClickCLI:
             ],
         )
         assert result.exit_code == 0
-        assert "MCP tool call:" in result.output
+        assert "MCP tool call: tool" in result.output
 
     def test_mcp_missing_chat_id(self) -> None:
         runner = CliRunner()
@@ -191,12 +191,12 @@ class TestClickCLI:
 
     @patch("unique_sdk.MCP.call_tool")
     def test_mcp_file_input(self, mock: MagicMock) -> None:
-        mock.return_value = MagicMock(
-            name="tool",
-            isError=False,
-            mcpServerId="srv_1",
-            content=[{"type": "text", "text": "ok"}],
-        )
+        resp = MagicMock()
+        resp.name = "tool"
+        resp.isError = False
+        resp.mcpServerId = "srv_1"
+        resp.content = [{"type": "text", "text": "ok"}]
+        mock.return_value = resp
         runner = CliRunner()
         with runner.isolated_filesystem():
             with open("payload.json", "w") as f:
@@ -206,16 +206,16 @@ class TestClickCLI:
                 ["mcp", "-c", "chat_1", "-m", "msg_1", "-f", "payload.json"],
             )
         assert result.exit_code == 0
-        assert "MCP tool call:" in result.output
+        assert "MCP tool call: tool" in result.output
 
     @patch("unique_sdk.MCP.call_tool")
     def test_mcp_stdin_input(self, mock: MagicMock) -> None:
-        mock.return_value = MagicMock(
-            name="tool",
-            isError=False,
-            mcpServerId="srv_1",
-            content=[{"type": "text", "text": "ok"}],
-        )
+        resp = MagicMock()
+        resp.name = "tool"
+        resp.isError = False
+        resp.mcpServerId = "srv_1"
+        resp.content = [{"type": "text", "text": "ok"}]
+        mock.return_value = resp
         runner = CliRunner()
         result = runner.invoke(
             main,

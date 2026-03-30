@@ -323,6 +323,15 @@ class TestShellSearch:
         assert "Usage:" in out
 
 
+def _mcp_response() -> MagicMock:
+    resp = MagicMock()
+    resp.name = "tool"
+    resp.isError = False
+    resp.mcpServerId = "srv_1"
+    resp.content = [{"type": "text", "text": "ok"}]
+    return resp
+
+
 class TestShellMcp:
     def test_mcp_no_args(self) -> None:
         out = _capture(_shell(), "mcp")
@@ -338,32 +347,22 @@ class TestShellMcp:
 
     @patch("unique_sdk.MCP.call_tool")
     def test_mcp_inline_json(self, mock: MagicMock) -> None:
-        mock.return_value = MagicMock(
-            name="tool",
-            isError=False,
-            mcpServerId="srv_1",
-            content=[{"type": "text", "text": "ok"}],
-        )
+        mock.return_value = _mcp_response()
         out = _capture(
             _shell(),
             'mcp -c chat_1 -m msg_1 \'{"name": "tool", "arguments": {}}\'',
         )
-        assert "MCP tool call:" in out
+        assert "MCP tool call: tool" in out
         mock.assert_called_once()
 
     @patch("unique_sdk.MCP.call_tool")
     def test_mcp_long_flags(self, mock: MagicMock) -> None:
-        mock.return_value = MagicMock(
-            name="tool",
-            isError=False,
-            mcpServerId="srv_1",
-            content=[{"type": "text", "text": "ok"}],
-        )
+        mock.return_value = _mcp_response()
         out = _capture(
             _shell(),
             'mcp --chat-id chat_1 --message-id msg_1 \'{"name": "tool"}\'',
         )
-        assert "MCP tool call:" in out
+        assert "MCP tool call: tool" in out
 
     def test_mcp_invalid_json(self) -> None:
         out = _capture(_shell(), "mcp -c chat_1 -m msg_1 not_json")
@@ -373,11 +372,6 @@ class TestShellMcp:
     def test_mcp_file_flag(self, mock: MagicMock, tmp_path: MagicMock) -> None:
         f = tmp_path / "payload.json"
         f.write_text('{"name": "tool", "arguments": {}}')
-        mock.return_value = MagicMock(
-            name="tool",
-            isError=False,
-            mcpServerId="srv_1",
-            content=[{"type": "text", "text": "ok"}],
-        )
+        mock.return_value = _mcp_response()
         out = _capture(_shell(), f"mcp -c chat_1 -m msg_1 --file {f}")
-        assert "MCP tool call:" in out
+        assert "MCP tool call: tool" in out

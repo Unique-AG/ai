@@ -82,5 +82,5 @@ def cmd_mcp(
 
         return format_mcp_response(response)
 
-    except (ValueError, unique_sdk.APIError) as e:
+    except (ValueError, OSError, unique_sdk.APIError) as e:
         return f"mcp: {e}"
