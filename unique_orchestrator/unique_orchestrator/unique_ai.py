@@ -702,6 +702,7 @@ class UniqueAI:
             completed = state.get("completed", 0)
             in_progress = state.get("in_progress", 0)
             pending = state.get("pending", 0)
+            cancelled = state.get("cancelled", 0)
             parts = []
             if completed:
                 parts.append(f"{completed} completed")
@@ -709,6 +710,8 @@ class UniqueAI:
                 parts.append(f"{in_progress} in_progress")
             if pending:
                 parts.append(f"{pending} pending")
+            if cancelled:
+                parts.append(f"{cancelled} cancelled")
             detail = ", ".join(parts) if parts else "empty"
             return f"**todo_write** — {total} items ({detail})"
 

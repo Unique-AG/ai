@@ -182,7 +182,11 @@ def _serialize(obj: Any) -> Any:
     if isinstance(obj, list):
         return [_serialize(item) for item in obj]
     if isinstance(obj, dict):
-        return _strip_chunks(obj)
+        return {
+            k: _serialize(v)
+            for k, v in obj.items()
+            if k not in ("content_chunks", "contentChunks")
+        }
     return str(obj)
 
 

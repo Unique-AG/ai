@@ -198,3 +198,24 @@ class TestFormatToolResultSummary:
         assert result is not None
         assert "3 completed" in result
         assert "pending" not in result
+
+    @pytest.mark.ai
+    def test_todo_write_with_cancelled(self) -> None:
+        from unique_orchestrator.unique_ai import UniqueAI
+
+        result = UniqueAI._format_tool_result_summary(
+            "todo_write",
+            {
+                "state": {
+                    "total": 5,
+                    "completed": 3,
+                    "in_progress": 0,
+                    "pending": 0,
+                    "cancelled": 2,
+                }
+            },
+        )
+        assert result is not None
+        assert "5 items" in result
+        assert "3 completed" in result
+        assert "2 cancelled" in result

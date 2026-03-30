@@ -18,6 +18,16 @@ class TestSerialize:
         result = _serialize({"key": "value"})
         assert result == {"key": "value"}
 
+    def test_dict_with_nested_model(self) -> None:
+        model = MagicMock()
+        model.model_dump.return_value = {"field": "val"}
+        result = _serialize({"outer": model})
+        assert result == {"outer": {"field": "val"}}
+
+    def test_dict_strips_content_chunks(self) -> None:
+        result = _serialize({"key": "value", "content_chunks": [1, 2]})
+        assert result == {"key": "value"}
+
     def test_list(self) -> None:
         result = _serialize([1, 2, 3])
         assert result == ["1", "2", "3"]
