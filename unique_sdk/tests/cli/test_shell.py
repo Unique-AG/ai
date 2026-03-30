@@ -321,3 +321,63 @@ class TestShellSearch:
     def test_search_only_flags_no_query(self) -> None:
         out = _capture(_shell(), "search --folder scope_abc")
         assert "Usage:" in out
+
+
+class TestShellMcp:
+    def test_mcp_no_args(self) -> None:
+        out = _capture(_shell(), "mcp")
+        assert "Usage:" in out
+
+    def test_mcp_missing_chat_id(self) -> None:
+        out = _capture(_shell(), 'mcp -m msg_1 \'{"name": "tool"}\'')
+        assert "--chat-id" in out
+
+    def test_mcp_missing_message_id(self) -> None:
+        out = _capture(_shell(), 'mcp -c chat_1 \'{"name": "tool"}\'')
+        assert "--message-id" in out
+
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp_inline_json(self, mock: MagicMock) -> None:
+        mock.return_value = MagicMock(
+            name="tool",
+            isError=False,
+            mcpServerId="srv_1",
+            content=[{"type": "text", "text": "ok"}],
+        )
+        out = _capture(
+            _shell(),
+            'mcp -c chat_1 -m msg_1 \'{"name": "tool", "arguments": {}}\'',
+        )
+        assert "MCP tool call:" in out
+        mock.assert_called_once()
+
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp_long_flags(self, mock: MagicMock) -> None:
+        mock.return_value = MagicMock(
+            name="tool",
+            isError=False,
+            mcpServerId="srv_1",
+            content=[{"type": "text", "text": "ok"}],
+        )
+        out = _capture(
+            _shell(),
+            'mcp --chat-id chat_1 --message-id msg_1 \'{"name": "tool"}\'',
+        )
+        assert "MCP tool call:" in out
+
+    def test_mcp_invalid_json(self) -> None:
+        out = _capture(_shell(), "mcp -c chat_1 -m msg_1 not_json")
+        assert "mcp:" in out
+
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp_file_flag(self, mock: MagicMock, tmp_path: MagicMock) -> None:
+        f = tmp_path / "payload.json"
+        f.write_text('{"name": "tool", "arguments": {}}')
+        mock.return_value = MagicMock(
+            name="tool",
+            isError=False,
+            mcpServerId="srv_1",
+            content=[{"type": "text", "text": "ok"}],
+        )
+        out = _capture(_shell(), f"mcp -c chat_1 -m msg_1 --file {f}")
+        assert "MCP tool call:" in out

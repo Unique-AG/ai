@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     from unique_sdk.api_resources._mcp import MCP
 
 
-
 def _format_size(byte_size: int | None) -> str:
     if byte_size is None:
         return "-"

@@ -486,7 +486,6 @@ class UniqueShell(cmd.Cmd):
             )
         )
 
-
     # -- Shell control --
 
     def do_exit(self, _arg: str) -> bool:

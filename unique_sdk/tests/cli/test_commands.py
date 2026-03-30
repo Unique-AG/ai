@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import unique_sdk
 from unique_sdk.cli.commands.files import (
     _resolve_content_id,
     _resolve_upload_destination,
@@ -16,6 +17,7 @@ from unique_sdk.cli.commands.files import (
     cmd_upload,
 )
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
+from unique_sdk.cli.commands.mcp import _parse_and_validate, _read_payload, cmd_mcp
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
 from unique_sdk.cli.commands.search import (
     _build_metadata_filter,
@@ -500,3 +502,144 @@ class TestSearch:
         mock.side_effect = ValueError("fail")
         result = cmd_search(_state(), "query")
         assert "search:" in result
+
+
+class TestReadPayload:
+    def test_inline_payload(self) -> None:
+        result = _read_payload('{"name": "tool"}', None, False)
+        assert result == '{"name": "tool"}'
+
+    def test_no_source_raises(self) -> None:
+        with pytest.raises(ValueError, match="No payload provided"):
+            _read_payload(None, None, False)
+
+    def test_multiple_sources_raises(self) -> None:
+        with pytest.raises(ValueError, match="Ambiguous input"):
+            _read_payload('{"name": "tool"}', "file.json", False)
+
+    def test_file_source(self, tmp_path: Any) -> None:
+        f = tmp_path / "payload.json"
+        f.write_text('{"name": "tool"}')
+        result = _read_payload(None, str(f), False)
+        assert result == '{"name": "tool"}'
+
+    def test_stdin_source(self) -> None:
+        with patch("unique_sdk.cli.commands.mcp.sys.stdin") as mock_stdin:
+            mock_stdin.read.return_value = '{"name": "tool"}'
+            result = _read_payload(None, None, True)
+            assert result == '{"name": "tool"}'
+
+
+class TestParseAndValidate:
+    def test_valid_payload(self) -> None:
+        name, args = _parse_and_validate('{"name": "search", "arguments": {"q": "x"}}')
+        assert name == "search"
+        assert args == {"q": "x"}
+
+    def test_missing_arguments_defaults_empty(self) -> None:
+        name, args = _parse_and_validate('{"name": "tool"}')
+        assert name == "tool"
+        assert args == {}
+
+    def test_invalid_json(self) -> None:
+        with pytest.raises(ValueError, match="Invalid JSON"):
+            _parse_and_validate("not json")
+
+    def test_not_object(self) -> None:
+        with pytest.raises(ValueError, match="must be a JSON object"):
+            _parse_and_validate("[1, 2, 3]")
+
+    def test_missing_name(self) -> None:
+        with pytest.raises(ValueError, match='Missing required field "name"'):
+            _parse_and_validate('{"arguments": {}}')
+
+    def test_arguments_not_object(self) -> None:
+        with pytest.raises(ValueError, match='"arguments" must be a JSON object'):
+            _parse_and_validate('{"name": "tool", "arguments": "bad"}')
+
+
+class TestCmdMcp:
+    @patch("unique_sdk.MCP.call_tool")
+    def test_success(self, mock: MagicMock) -> None:
+        mock.return_value = MagicMock(
+            name="search",
+            isError=False,
+            mcpServerId="mcp_srv_1",
+            content=[{"type": "text", "text": "result"}],
+        )
+        result = cmd_mcp(
+            _state(),
+            chat_id="chat_1",
+            message_id="msg_1",
+            payload='{"name": "search", "arguments": {"q": "test"}}',
+        )
+        assert "MCP tool call:" in result
+        assert "mcp_srv_1" in result
+        assert "[text] result" in result
+        mock.assert_called_once_with(
+            user_id="u1",
+            company_id="c1",
+            name="search",
+            chatId="chat_1",
+            messageId="msg_1",
+            arguments={"q": "test"},
+        )
+
+    def test_invalid_json_error(self) -> None:
+        result = cmd_mcp(
+            _state(),
+            chat_id="chat_1",
+            message_id="msg_1",
+            payload="not json",
+        )
+        assert "mcp:" in result
+        assert "Invalid JSON" in result
+
+    def test_missing_name_error(self) -> None:
+        result = cmd_mcp(
+            _state(),
+            chat_id="chat_1",
+            message_id="msg_1",
+            payload='{"arguments": {}}',
+        )
+        assert "mcp:" in result
+        assert "name" in result
+
+    def test_no_payload_error(self) -> None:
+        result = cmd_mcp(
+            _state(),
+            chat_id="chat_1",
+            message_id="msg_1",
+        )
+        assert "mcp:" in result
+        assert "No payload" in result
+
+    @patch("unique_sdk.MCP.call_tool")
+    def test_api_error(self, mock: MagicMock) -> None:
+        mock.side_effect = unique_sdk.APIError("API failed")
+        result = cmd_mcp(
+            _state(),
+            chat_id="chat_1",
+            message_id="msg_1",
+            payload='{"name": "tool", "arguments": {}}',
+        )
+        assert "mcp:" in result
+
+    @patch("unique_sdk.MCP.call_tool")
+    def test_file_input(self, mock: MagicMock, tmp_path: Any) -> None:
+        f = tmp_path / "payload.json"
+        f.write_text('{"name": "tool", "arguments": {"k": "v"}}')
+        mock.return_value = MagicMock(
+            name="tool",
+            isError=False,
+            mcpServerId="srv_1",
+            content=[{"type": "text", "text": "ok"}],
+        )
+        result = cmd_mcp(
+            _state(),
+            chat_id="chat_1",
+            message_id="msg_1",
+            file=str(f),
+        )
+        assert "MCP tool call:" in result
+        mock.assert_called_once()

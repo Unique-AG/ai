@@ -149,3 +149,86 @@ class TestClickCLI:
         runner = CliRunner()
         result = runner.invoke(main, ["download", "cont_abc"])
         assert result.exit_code == 0
+
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp(self, mock: MagicMock) -> None:
+        mock.return_value = MagicMock(
+            name="tool",
+            isError=False,
+            mcpServerId="srv_1",
+            content=[{"type": "text", "text": "result"}],
+        )
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "mcp",
+                "-c",
+                "chat_1",
+                "-m",
+                "msg_1",
+                '{"name": "tool", "arguments": {}}',
+            ],
+        )
+        assert result.exit_code == 0
+        assert "MCP tool call:" in result.output
+
+    def test_mcp_missing_chat_id(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["mcp", "-m", "msg_1", '{"name": "tool"}'],
+        )
+        assert result.exit_code != 0
+
+    def test_mcp_missing_message_id(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["mcp", "-c", "chat_1", '{"name": "tool"}'],
+        )
+        assert result.exit_code != 0
+
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp_file_input(self, mock: MagicMock) -> None:
+        mock.return_value = MagicMock(
+            name="tool",
+            isError=False,
+            mcpServerId="srv_1",
+            content=[{"type": "text", "text": "ok"}],
+        )
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            with open("payload.json", "w") as f:
+                f.write('{"name": "tool", "arguments": {}}')
+            result = runner.invoke(
+                main,
+                ["mcp", "-c", "chat_1", "-m", "msg_1", "-f", "payload.json"],
+            )
+        assert result.exit_code == 0
+        assert "MCP tool call:" in result.output
+
+    @patch("unique_sdk.MCP.call_tool")
+    def test_mcp_stdin_input(self, mock: MagicMock) -> None:
+        mock.return_value = MagicMock(
+            name="tool",
+            isError=False,
+            mcpServerId="srv_1",
+            content=[{"type": "text", "text": "ok"}],
+        )
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["mcp", "-c", "chat_1", "-m", "msg_1", "--stdin"],
+            input='{"name": "tool", "arguments": {}}',
+        )
+        assert result.exit_code == 0
+
+    def test_mcp_invalid_json(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["mcp", "-c", "chat_1", "-m", "msg_1", "not json"],
+        )
+        assert result.exit_code == 0
+        assert "mcp:" in result.output
