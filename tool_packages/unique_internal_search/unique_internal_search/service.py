@@ -317,25 +317,6 @@ class InternalSearchService:
         finally:
             return found_chunks
 
-    def _get_max_tokens(self) -> int:
-        if self.config.language_model_max_input_tokens is not None:
-            max_tokens = int(
-                self.config.language_model_max_input_tokens
-                * self.config.percentage_of_input_tokens_for_sources
-            )
-            self.logger.debug(
-                "Using %s of max tokens %s as token limit: %s",
-                self.config.percentage_of_input_tokens_for_sources,
-                self.config.language_model_max_input_tokens,
-                max_tokens,
-            )
-            return max_tokens
-        else:
-            self.logger.debug(
-                "language model input context size is not set, using default max tokens"
-            )
-            return self.config.max_tokens_for_sources
-
     async def _create_or_update_active_message_log(
         self,
         *,
@@ -348,67 +329,33 @@ class InternalSearchService:
             return None
         message_log_reference_list = []
         if chunks is not None:
-            message_log_reference_list = (
-                await self._define_reference_list_for_message_log(
-                    content_chunks=chunks,
-                )
-            )
-        details = await self._prepare_message_log_details(
-            query_list=search_strings_list
-        )
-        return self._message_step_logger.create_or_update_message_log(
-            active_message_log=self._active_message_log,
-            header=self._display_name,
-            progress_message=progress_message,
-            details=details,
-            references=message_log_reference_list,
-            **({"status": status} if status is not None else {}),
-        )
-
-    async def _define_reference_list_for_message_log(
-        self,
-        *,
-        content_chunks: list[ContentChunk],
-    ) -> list[ContentReference]:
-        """
-        Create a reference list for internal search content chunks.
-
-        Args:
-            content_chunks: List of ContentChunk objects to convert
-        Returns:
-            List of ContentReference objects
-        """
-        data: list[ContentReference] = []
-        for count, content_chunk in enumerate(content_chunks):
-            reference_name: str = content_chunk.title or content_chunk.key or ""
-
-            data.append(
+            message_log_reference_list = [
                 ContentReference(
-                    name=reference_name,
+                    name=content_chunk.title or content_chunk.key or "",
                     sequence_number=count,
                     source="internal",
                     source_id=content_chunk.id,
                     url=f"unique://content/{content_chunk.id}",
                 )
-            )
-            count += 1
-
-        return data
-
-    async def _prepare_message_log_details(
-        self, *, query_list: list[str]
-    ) -> MessageLogDetails:
-        details = MessageLogDetails(
-            data=[
-                MessageLogEvent(
-                    type="InternalSearch",
-                    text=query_for_log,
-                )
-                for query_for_log in query_list
+                for count, content_chunk in enumerate(chunks)
             ]
-        )
 
-        return details
+        return self._message_step_logger.create_or_update_message_log(
+            active_message_log=self._active_message_log,
+            header=self._display_name,
+            progress_message=progress_message,
+            details=MessageLogDetails(
+                data=[
+                    MessageLogEvent(
+                        type="InternalSearch",
+                        text=query_for_log,
+                    )
+                    for query_for_log in search_strings_list
+                ]
+            ),
+            references=message_log_reference_list,
+            **({"status": status} if status is not None else {}),
+        )
 
 
 class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
