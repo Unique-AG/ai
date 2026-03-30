@@ -7,7 +7,6 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelFunction,
     LanguageModelFunctionCall,
-    LanguageModelMessage,
     LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelResponse,
@@ -67,9 +66,7 @@ class TestLanguageModelSchemas:
     def test_can_serialize_messages(self):
         messages = LanguageModelMessages(
             [
-                LanguageModelMessage(
-                    role=LanguageModelMessageRole.SYSTEM, content="blah"
-                ),
+                LanguageModelSystemMessage(content="blah"),
                 LanguageModelSystemMessage(content="blah"),
                 LanguageModelUserMessage(content="blah"),
             ]
@@ -559,28 +556,23 @@ class TestLanguageModelMessagesModelValidator:
         assert isinstance(messages.root[3], LanguageModelToolMessage)
 
     def test_fallback_to_base_message_for_unknown_role(self):
-        """Test that unknown roles fallback to base LanguageModelMessage."""
-        # Note: This test demonstrates that unknown roles will fail validation
-        # because LanguageModelMessageRole enum only accepts specific values
+        """Test that unknown roles raise ValueError."""
         messages_data = [
             {"role": "unknown", "content": "Unknown role message"},
             {"role": "custom", "content": "Custom role message"},
         ]
 
-        # This should raise a ValidationError because the enum doesn't accept unknown roles
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValueError, match="Unknown message role"):
             LanguageModelMessages.load_messages_to_root(messages_data)  # type: ignore
 
     def test_empty_role_handling(self):
         """Test handling of messages with empty or missing role."""
-        # Note: Empty roles will fail validation because they don't match the enum
         messages_data = [
             {"role": "", "content": "Empty role message"},
             {"content": "No role message"},
         ]
 
-        # This should raise a ValidationError because empty string is not a valid enum value
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValueError, match="Unknown message role"):
             LanguageModelMessages.load_messages_to_root(messages_data)  # type: ignore
 
     def test_return_data_as_is_for_non_list_non_dict(self):

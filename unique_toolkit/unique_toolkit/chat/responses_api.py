@@ -34,7 +34,6 @@ from unique_toolkit.language_model.constants import (
 from unique_toolkit.language_model.functions import (
     SearchContext,
     _clamp_temperature,
-    _to_search_context,
 )
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
@@ -147,7 +146,9 @@ def _prepare_responses_params_util(
     other_options: dict | None = None,
 ) -> _ResponsesParams:
     search_context = (
-        _to_search_context(content_chunks) if content_chunks is not None else None
+        [chunk.to_search_result() for chunk in content_chunks]
+        if content_chunks is not None
+        else None
     )
 
     model = model_name.name if isinstance(model_name, LanguageModelName) else model_name

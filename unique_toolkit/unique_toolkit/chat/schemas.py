@@ -185,7 +185,7 @@ class ChatMessage(BaseModel):
     # Ensure tool_call_id is required if role is 'tool'
     @model_validator(mode="after")
     def check_tool_call_ids_for_tool_role(self):
-        if self.role == ChatMessageRole.TOOL and not self.tool_call_id:
+        if self.role == ChatMessageRole.TOOL and not self.tool_calls:
             raise ValueError("tool_call_id is required when role is 'tool'")
         return self
 
