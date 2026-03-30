@@ -37,8 +37,6 @@ def main() -> None:
     UniqueKnowledgeBaseTools().register(mcp=mcp)
     MCPBaseRoutes().register(mcp=mcp)
 
-    mcp.auth = None
-
     mcp.run(
         transport=server_settings.transport_scheme,
         host=server_settings.local_base_url.host,
