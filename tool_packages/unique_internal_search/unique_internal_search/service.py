@@ -41,7 +41,10 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolMessage,
 )
 
-from unique_internal_search.config import InternalSearchConfig
+from unique_internal_search.config import (
+    InternalSearchConfig,
+    InternalSearchServiceConfig,
+)
 from unique_internal_search.utils import (
     SearchStringResult,
     append_metadata_in_chunks,
@@ -53,7 +56,7 @@ from unique_internal_search.utils import (
 class InternalSearchService:
     def __init__(
         self,
-        config: InternalSearchConfig,
+        config: InternalSearchServiceConfig,
         content_service: ContentService,
         chunk_relevancy_sorter: ChunkRelevancySorter,
         chat_id: str | None,

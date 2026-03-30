@@ -88,7 +88,11 @@ _FIELD_ALIASES: dict[str, str] = {
 
 # TODO [UN-17521] @klcd: Check if a migration script is required to remove the legacy key `ftsSearchLanguage`
 # Then remove the remapping logic
-class InternalSearchConfig(BaseToolConfig):
+class InternalSearchServiceConfig(BaseModel):
+    """Configuration for search execution (vector DB, chunking, limits). Not tied to tool UI or prompts."""
+
+    model_config = get_configuration_dict()
+
     @model_validator(mode="before")
     @classmethod
     def _remap_legacy_fields(cls, data: Any) -> Any:
@@ -140,7 +144,6 @@ class InternalSearchConfig(BaseToolConfig):
         default="english",
         description="The language to use for the search.",
     )
-    # evaluation_config: EvaluationMetricConfig = EvaluationMetricConfig()
     chunk_relevancy_sort_config: ChunkRelevancySortConfig = Field(
         default_factory=ChunkRelevancySortConfig,
         description="The chunk relevancy sort config to use for the search.",
@@ -153,6 +156,49 @@ class InternalSearchConfig(BaseToolConfig):
         default=False,
         description="Whether to only chat on the upload.",
     )
+    enable_multiple_search_strings_execution: bool = Field(
+        default=True,
+        description="Allow execution of multiple search strings in one call. When set to True, each string is searched individually and results are merged into a single response.",
+    )
+    score_threshold: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="The score threshold to use for the search to filter chunks on relevancy.",
+    )
+    exclude_uploaded_files: SkipJsonSchema[bool] = Field(
+        default=False,
+        description="Whether to exclude uploaded files from the search. Overrides the `chat_only` parameter as it removes the `chat_id` from the search.",
+    )
+    max_search_strings: int = Field(
+        default=10,
+        ge=1,
+        description="The maximum number of search strings to perform in a single tool call.",
+    )
+
+    @property
+    def get_max_tokens(self) -> int:
+        if self.language_model_max_input_tokens is not None:
+            max_tokens = int(
+                self.language_model_max_input_tokens
+                * self.percentage_of_input_tokens_for_sources
+            )
+            _LOGGER.debug(
+                "Using %s of max tokens %s as token limit: %s",
+                self.percentage_of_input_tokens_for_sources,
+                self.language_model_max_input_tokens,
+                max_tokens,
+            )
+            return max_tokens
+        else:
+            _LOGGER.debug(
+                "language model input context size is not set, using default max tokens"
+            )
+            return self.max_tokens_for_sources
+
+
+class InternalSearchConfig(InternalSearchServiceConfig, BaseToolConfig):
+    """Full tool configuration: service behavior plus LLM tool schema strings, evaluation, and experiments."""
 
     tool_description: Annotated[
         str,
@@ -206,11 +252,6 @@ class InternalSearchConfig(BaseToolConfig):
         description="The list of evaluation metrics to check.",
     )
 
-    enable_multiple_search_strings_execution: bool = Field(
-        default=True,
-        description="Allow execution of multiple search strings in one call. When set to True, each string is searched individually and results are merged into a single response.",
-    )
-
     metadata_chunk_sections: dict[str, str] = Field(
         default={},
         description=(
@@ -218,43 +259,7 @@ class InternalSearchConfig(BaseToolConfig):
         ),
     )
 
-    score_threshold: float = Field(
-        default=0.0,
-        ge=0.0,
-        le=1.0,
-        description="The score threshold to use for the search to filter chunks on relevancy.",
-    )
-    exclude_uploaded_files: SkipJsonSchema[bool] = Field(
-        default=False,
-        description="Whether to exclude uploaded files from the search. Overrides the `chat_only` parameter as it removes the `chat_id` from the search.",
-    )
-    max_search_strings: int = Field(
-        default=10,
-        ge=1,
-        description="The maximum number of search strings to perform in a single tool call.",
-    )
-
     experimental_features: ExperimentalFeatures = Field(
         default_factory=ExperimentalFeatures,
         description="Experimental features.",
     )
-
-    @property
-    def get_max_tokens(self) -> int:
-        if self.language_model_max_input_tokens is not None:
-            max_tokens = int(
-                self.language_model_max_input_tokens
-                * self.percentage_of_input_tokens_for_sources
-            )
-            _LOGGER.debug(
-                "Using %s of max tokens %s as token limit: %s",
-                self.percentage_of_input_tokens_for_sources,
-                self.language_model_max_input_tokens,
-                max_tokens,
-            )
-            return max_tokens
-        else:
-            _LOGGER.debug(
-                "language model input context size is not set, using default max tokens"
-            )
-            return self.max_tokens_for_sources
