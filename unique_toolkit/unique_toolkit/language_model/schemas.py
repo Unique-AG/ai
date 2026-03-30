@@ -265,10 +265,7 @@ class LanguageModelMessage(BaseModel, ABC):
     @abstractmethod
     def to_openai(
         self, mode: Literal["completions", "responses"] = "completions"
-    ) -> ChatCompletionMessageParam | ResponseInputItemParam:
-        raise NotImplementedError(
-            "Subclasses must implement this. This class should not be used directly"
-        )
+    ) -> ChatCompletionMessageParam | ResponseInputItemParam: ...
 
 
 class LanguageModelSystemMessage(LanguageModelMessage):
@@ -284,12 +281,12 @@ class LanguageModelSystemMessage(LanguageModelMessage):
     ) -> ChatCompletionSystemMessageParam: ...
 
     @overload
-    def to_openai(self, mode: Literal["responses"]) -> EasyInputMessageParam: ...
+    def to_openai(self, mode: Literal["responses"]) -> ResponseInputItemParam: ...
 
     @override
     def to_openai(
         self, mode: Literal["completions", "responses"] = "completions"
-    ) -> ChatCompletionSystemMessageParam | EasyInputMessageParam:
+    ) -> ChatCompletionSystemMessageParam | ResponseInputItemParam:
         content = self.content or ""
         if not isinstance(content, str):
             raise ValueError("Content must be a string")
@@ -390,12 +387,12 @@ class LanguageModelAssistantMessage(LanguageModelMessage):
     ) -> ChatCompletionAssistantMessageParam: ...
 
     @overload
-    def to_openai(self, mode: Literal["responses"]) -> EasyInputMessageParam: ...
+    def to_openai(self, mode: Literal["responses"]) -> ResponseInputItemParam: ...
 
     @override
     def to_openai(
         self, mode: Literal["completions", "responses"] = "completions"
-    ) -> ChatCompletionAssistantMessageParam | EasyInputMessageParam:
+    ) -> ChatCompletionAssistantMessageParam | ResponseInputItemParam:
         content = self.content or ""
         if not isinstance(content, str):
             raise ValueError("Content must be a string")
