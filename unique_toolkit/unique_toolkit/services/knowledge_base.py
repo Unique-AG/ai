@@ -10,6 +10,7 @@ import humps
 import unique_sdk
 from typing_extensions import deprecated
 
+from unique_toolkit._common.utils.files import is_file_content, is_image_content
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -240,7 +241,7 @@ class KnowledgeBaseService:
             searches = search_content_chunks(
                 user_id=self._user_id,
                 company_id=self._company_id,
-                chat_id=chat_id if chat_id is not None else self._chat_id,
+                chat_id=chat_id or self._chat_id,
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
@@ -346,7 +347,7 @@ class KnowledgeBaseService:
             searches = await search_content_chunks_async(
                 user_id=self._user_id,
                 company_id=self._company_id,
-                chat_id=chat_id if chat_id is not None else self._chat_id,
+                chat_id=chat_id or self._chat_id,
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
@@ -368,6 +369,7 @@ class KnowledgeBaseService:
         *,
         where: dict,
         include_failed_content: bool = False,
+        chat_id: str | None = None,
     ) -> list[Content]:
         """
         Performs a search in the knowledge base by filter (and not a smilarity search)
@@ -375,6 +377,8 @@ class KnowledgeBaseService:
 
         Args:
             where (dict): The search criteria.
+            include_failed_content (bool): Whether to include failed content. Defaults to False.
+            chat_id (str | None): Override the chat ID for this call. Falls back to the instance chat_id. Defaults to None.
 
         Returns:
             list[Content]: The search results.
@@ -383,7 +387,7 @@ class KnowledgeBaseService:
         return search_contents(
             user_id=self._user_id,
             company_id=self._company_id,
-            chat_id=self._chat_id,
+            chat_id=chat_id or self._chat_id,
             where=where,
             include_failed_content=include_failed_content,
         )
@@ -393,12 +397,15 @@ class KnowledgeBaseService:
         *,
         where: dict,
         include_failed_content: bool = False,
+        chat_id: str | None = None,
     ) -> list[Content]:
         """
         Performs an asynchronous search for content files in the knowledge base by filter.
 
         Args:
             where (dict): The search criteria.
+            include_failed_content (bool): Whether to include failed content. Defaults to False.
+            chat_id (str | None): Override the chat ID for this call. Falls back to the instance chat_id. Defaults to None.
 
         Returns:
             list[Content]: The search results.
@@ -407,10 +414,38 @@ class KnowledgeBaseService:
         return await search_contents_async(
             user_id=self._user_id,
             company_id=self._company_id,
-            chat_id=self._chat_id,
+            chat_id=chat_id or self._chat_id,
             where=where,
             include_failed_content=include_failed_content,
         )
+
+    def get_documents_uploaded_to_chat(self) -> list[Content]:
+        """Return all non-image files uploaded to the current chat session.
+
+        Searches for content owned by the instance chat_id and filters to
+        file (non-image) content only.  Mirrors :meth:`ContentService.get_documents_uploaded_to_chat`.
+
+        Returns:
+            list[Content]: File content items uploaded to the chat.
+        """
+        chat_contents = self.search_contents(
+            where={"ownerId": {"equals": self._chat_id}},
+        )
+        return [c for c in chat_contents if is_file_content(c.key)]
+
+    def get_images_uploaded_to_chat(self) -> list[Content]:
+        """Return all image files uploaded to the current chat session.
+
+        Searches for content owned by the instance chat_id and filters to
+        image content only.  Mirrors :meth:`ContentService.get_images_uploaded_to_chat`.
+
+        Returns:
+            list[Content]: Image content items uploaded to the chat.
+        """
+        chat_contents = self.search_contents(
+            where={"ownerId": {"equals": self._chat_id}},
+        )
+        return [c for c in chat_contents if is_image_content(c.key)]
 
     # Content Management
     # ------------------------------------------------------------------------------------------------

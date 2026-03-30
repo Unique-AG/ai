@@ -2363,3 +2363,235 @@ class TestKnowledgeBaseServiceFromContext:
         """
         svc = KnowledgeBaseService.from_context(auth_only_context)
         assert isinstance(svc, KnowledgeBaseService)
+
+
+class TestKnowledgeBaseServiceChatId:
+    """Tests for chat_id propagation through KnowledgeBaseService."""
+
+    @pytest.mark.ai
+    def test_init__stores_chat_id(self) -> None:
+        """
+        Purpose: Verify chat_id is stored on the instance when provided.
+        Why this matters: Downstream search calls rely on self._chat_id; a missing value silently
+        falls back to empty string and breaks chat-scoped searches.
+        Setup summary: Construct with chat_id="chat-abc"; assert _chat_id matches.
+        """
+        svc = KnowledgeBaseService(company_id="co", user_id="usr", chat_id="chat-abc")
+        assert svc._chat_id == "chat-abc"
+
+    @pytest.mark.ai
+    def test_init__defaults_chat_id_to_empty_string(self) -> None:
+        """
+        Purpose: Verify _chat_id defaults to "" when not provided.
+        Why this matters: Ensures backward compatibility for callers that don't pass chat_id.
+        Setup summary: Construct without chat_id; assert _chat_id is "".
+        """
+        svc = KnowledgeBaseService(company_id="co", user_id="usr")
+        assert svc._chat_id == ""
+
+    @pytest.mark.ai
+    def test_from_event__extracts_chat_id_from_chat_event(
+        self, mock_chat_event: ChatEvent
+    ) -> None:
+        """
+        Purpose: Verify from_event extracts chat_id from ChatEvent.payload.
+        Why this matters: chat_id is required for chat-scoped content searches in the internal
+        search tool; missing it silently searches the wrong scope.
+        Setup summary: ChatEvent with chat_id="test_chat"; assert _chat_id matches.
+        """
+        svc = KnowledgeBaseService.from_event(mock_chat_event)
+        assert svc._chat_id == "test_chat"
+
+    @pytest.mark.ai
+    def test_from_event__chat_id_is_empty_for_base_event(self) -> None:
+        """
+        Purpose: Verify from_event sets chat_id to "" for a plain BaseEvent.
+        Why this matters: BaseEvent has no chat payload; code must not raise AttributeError.
+        Setup summary: BaseEvent; assert _chat_id is "".
+        """
+        event = BaseEvent(
+            id="e1",
+            company_id="co",
+            user_id="usr",
+            event=EventName.EXTERNAL_MODULE_CHOSEN,
+        )
+        svc = KnowledgeBaseService.from_event(event)
+        assert svc._chat_id == ""
+
+    @pytest.mark.ai
+    @patch("unique_toolkit.services.knowledge_base.search_content_chunks")
+    def test_search_content_chunks__uses_instance_chat_id_by_default(
+        self, mock_search: Mock, mock_content_chunk: ContentChunk
+    ) -> None:
+        """
+        Purpose: Verify search_content_chunks falls back to self._chat_id when no chat_id arg given.
+        Why this matters: Instance-level chat_id must propagate without callers having to pass it
+        on every call.
+        Setup summary: Service with chat_id="chat-1"; call without chat_id arg; assert call used "chat-1".
+        """
+        mock_search.return_value = [mock_content_chunk]
+        svc = KnowledgeBaseService(company_id="co", user_id="usr", chat_id="chat-1")
+
+        svc.search_content_chunks(
+            search_string="test",
+            search_type=ContentSearchType.VECTOR,
+            limit=5,
+            scope_ids=["scope-1"],
+        )
+
+        call_kwargs = mock_search.call_args[1]
+        assert call_kwargs["chat_id"] == "chat-1"
+
+    @pytest.mark.ai
+    @patch("unique_toolkit.services.knowledge_base.search_content_chunks")
+    def test_search_content_chunks__override_chat_id_takes_precedence(
+        self, mock_search: Mock, mock_content_chunk: ContentChunk
+    ) -> None:
+        """
+        Purpose: Verify an explicit chat_id kwarg overrides the instance-level _chat_id.
+        Why this matters: Internal search passes "NO_CHAT" to bypass chat-scoped uploads; this
+        must override whatever the instance was constructed with.
+        Setup summary: Service with chat_id="chat-1"; call with chat_id="NO_CHAT"; assert "NO_CHAT" used.
+        """
+        mock_search.return_value = [mock_content_chunk]
+        svc = KnowledgeBaseService(company_id="co", user_id="usr", chat_id="chat-1")
+
+        svc.search_content_chunks(
+            search_string="test",
+            search_type=ContentSearchType.VECTOR,
+            limit=5,
+            scope_ids=["scope-1"],
+            chat_id="NO_CHAT",
+        )
+
+        call_kwargs = mock_search.call_args[1]
+        assert call_kwargs["chat_id"] == "NO_CHAT"
+
+    @pytest.mark.ai
+    @patch("unique_toolkit.services.knowledge_base.search_content_chunks")
+    def test_search_content_chunks__passes_chat_only_flag(
+        self, mock_search: Mock, mock_content_chunk: ContentChunk
+    ) -> None:
+        """
+        Purpose: Verify chat_only=True is forwarded to the underlying search call.
+        Why this matters: chat_only=True restricts results to chat-uploaded files; passing False
+        would silently return broader results than the user configured.
+        Setup summary: Call with chat_only=True; assert underlying call received chat_only=True.
+        """
+        mock_search.return_value = [mock_content_chunk]
+        svc = KnowledgeBaseService(company_id="co", user_id="usr", chat_id="chat-1")
+
+        svc.search_content_chunks(
+            search_string="test",
+            search_type=ContentSearchType.VECTOR,
+            limit=5,
+            scope_ids=["scope-1"],
+            chat_only=True,
+        )
+
+        call_kwargs = mock_search.call_args[1]
+        assert call_kwargs["chat_only"] is True
+
+    @pytest.mark.ai
+    @patch("unique_toolkit.services.knowledge_base.search_contents")
+    def test_search_contents__uses_instance_chat_id_by_default(
+        self, mock_search: Mock, mock_content: Content
+    ) -> None:
+        """
+        Purpose: Verify search_contents falls back to self._chat_id when no chat_id arg given.
+        Why this matters: Internal search calls search_contents without chat_id arg and expects
+        the instance-level value to be used.
+        Setup summary: Service with chat_id="chat-1"; call without chat_id; assert "chat-1" used.
+        """
+        mock_search.return_value = [mock_content]
+        svc = KnowledgeBaseService(company_id="co", user_id="usr", chat_id="chat-1")
+
+        svc.search_contents(where={"contentId": {"equals": "chat-1"}})
+
+        call_kwargs = mock_search.call_args[1]
+        assert call_kwargs["chat_id"] == "chat-1"
+
+    @pytest.mark.ai
+    @patch("unique_toolkit.services.knowledge_base.search_contents")
+    def test_search_contents__override_chat_id_takes_precedence(
+        self, mock_search: Mock, mock_content: Content
+    ) -> None:
+        """
+        Purpose: Verify an explicit chat_id kwarg overrides the instance-level _chat_id.
+        Why this matters: Callers may need to query with a different chat scope than the
+        instance was constructed with (e.g. parent-chat searches).
+        Setup summary: Service with chat_id="chat-1"; call with chat_id="chat-2"; assert "chat-2" used.
+        """
+        mock_search.return_value = [mock_content]
+        svc = KnowledgeBaseService(company_id="co", user_id="usr", chat_id="chat-1")
+
+        svc.search_contents(where={"ownerId": {"equals": "chat-2"}}, chat_id="chat-2")
+
+        call_kwargs = mock_search.call_args[1]
+        assert call_kwargs["chat_id"] == "chat-2"
+
+
+class TestKnowledgeBaseServiceChatDocuments:
+    """Tests for get_documents_uploaded_to_chat and get_images_uploaded_to_chat."""
+
+    @pytest.mark.ai
+    @patch("unique_toolkit.services.knowledge_base.search_contents")
+    def test_get_documents_uploaded_to_chat__returns_only_file_content(
+        self, mock_search: Mock
+    ) -> None:
+        """
+        Purpose: Verify only non-image files are returned by get_documents_uploaded_to_chat.
+        Why this matters: The internal search tool uses this to list chat-uploaded documents;
+        including images would produce wrong results.
+        Setup summary: Mock search returns pdf + png; assert only pdf is returned.
+        """
+        pdf = Content(id="c1", key="report.pdf", title="Report", chunks=[])
+        img = Content(id="c2", key="photo.png", title="Photo", chunks=[])
+        mock_search.return_value = [pdf, img]
+
+        svc = KnowledgeBaseService(company_id="co", user_id="usr", chat_id="chat-1")
+        result = svc.get_documents_uploaded_to_chat()
+
+        assert len(result) == 1
+        assert result[0].id == "c1"
+        mock_search.assert_called_once_with(
+            user_id="usr",
+            company_id="co",
+            chat_id="chat-1",
+            where={"ownerId": {"equals": "chat-1"}},
+            include_failed_content=False,
+        )
+
+    @pytest.mark.ai
+    @patch("unique_toolkit.services.knowledge_base.search_contents")
+    def test_get_documents_uploaded_to_chat__returns_empty__when_no_files(
+        self, mock_search: Mock
+    ) -> None:
+        """
+        Purpose: Verify empty list is returned when chat has no document uploads.
+        Why this matters: Callers must handle an empty list without errors; None would raise.
+        Setup summary: Mock search returns []; assert result is [].
+        """
+        mock_search.return_value = []
+        svc = KnowledgeBaseService(company_id="co", user_id="usr", chat_id="chat-1")
+        assert svc.get_documents_uploaded_to_chat() == []
+
+    @pytest.mark.ai
+    @patch("unique_toolkit.services.knowledge_base.search_contents")
+    def test_get_images_uploaded_to_chat__returns_only_images(
+        self, mock_search: Mock
+    ) -> None:
+        """
+        Purpose: Verify only image files are returned by get_images_uploaded_to_chat.
+        Why this matters: Image-specific workflows must not receive non-image content.
+        Setup summary: Mock search returns pdf + png; assert only png is returned.
+        """
+        pdf = Content(id="c1", key="report.pdf", title="Report", chunks=[])
+        img = Content(id="c2", key="photo.png", title="Photo", chunks=[])
+        mock_search.return_value = [pdf, img]
+
+        svc = KnowledgeBaseService(company_id="co", user_id="usr", chat_id="chat-1")
+        result = svc.get_images_uploaded_to_chat()
+
+        assert len(result) == 1
+        assert result[0].id == "c2"
