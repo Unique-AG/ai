@@ -1,10 +1,15 @@
-"""Tests for OpenAICodeInterpreterTool.get_debug_info."""
+"""Tests for OpenAICodeInterpreterTool (get_debug_info, get_required_include_params, get_tool_prompts)."""
 
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
 
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
+    OpenAICodeInterpreterConfig,
+)
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service import (
     OpenAICodeInterpreterTool,
 )
@@ -88,3 +93,99 @@ def test_get_debug_info__reflects_call_fields__for_different_calls(
     # Assert
     assert result["id"] == call_id
     assert result["container_id"] == container_id
+
+
+# ============================================================================
+# Tests for get_required_include_params
+# ============================================================================
+
+_SERVICE_FF_PATH = (
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service.feature_flags"
+)
+
+
+def _make_tool(company_id: str = "company-1") -> OpenAICodeInterpreterTool:
+    """Construct a minimal OpenAICodeInterpreterTool instance (auto container, no container_id needed)."""
+    config = MagicMock()
+    config.use_auto_container = True
+    return OpenAICodeInterpreterTool(
+        config=config, container_id=None, company_id=company_id
+    )
+
+
+def _auto_container_tool(
+    config: OpenAICodeInterpreterConfig,
+    company_id: str = "company-1",
+) -> OpenAICodeInterpreterTool:
+    cfg = config.model_copy(update={"use_auto_container": True})
+    return OpenAICodeInterpreterTool(
+        config=cfg,
+        container_id=None,
+        company_id=company_id,
+    )
+
+
+@pytest.mark.ai
+def test_get_required_include_params__returns_code_interpreter_outputs__when_ff_on() -> (
+    None
+):
+    """
+    Purpose: Verify get_required_include_params returns ["code_interpreter_call.outputs"] when
+    enable_code_execution_fence_un_17972 is on for the tool's company.
+    Why this matters: The include param is what causes OpenAI to attach execution logs to the
+    response; without it the postprocessor falls back to source code only.
+    """
+    mock_ff = MagicMock()
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
+
+    with patch(_SERVICE_FF_PATH, mock_ff):
+        tool = _make_tool(company_id="company-ff-on")
+        result = tool.get_required_include_params()
+
+    assert result == ["code_interpreter_call.outputs"]
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.assert_called_once_with(
+        "company-ff-on"
+    )
+
+
+@pytest.mark.ai
+def test_get_tool_prompts__uses_config_system_prompt__when_uncustomised() -> None:
+    """Purpose: Effective system prompt is always the stored config value (fence default)."""
+    config = OpenAICodeInterpreterConfig()
+    tool = _auto_container_tool(config)
+
+    prompts = tool.get_tool_prompts()
+
+    assert (
+        prompts.tool_system_prompt == DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE
+    )
+    assert "NO internet access" in prompts.tool_system_prompt
+
+
+@pytest.mark.ai
+def test_get_tool_prompts__uses_config_system_prompt__when_customised() -> None:
+    """Purpose: Operator-customised text is returned as-is."""
+    custom = "CUSTOM OPERATOR PROMPT — DO NOT REPLACE"
+    config = OpenAICodeInterpreterConfig(tool_description_for_system_prompt=custom)
+    tool = _auto_container_tool(config)
+
+    prompts = tool.get_tool_prompts()
+
+    assert prompts.tool_system_prompt == custom
+
+
+@pytest.mark.ai
+def test_get_required_include_params__returns_empty_list__when_ff_off() -> None:
+    """
+    Purpose: Verify get_required_include_params returns [] when the fence FF is off.
+    Why this matters: When FF is off, no extra include should be forwarded to the Responses API,
+    preserving legacy behaviour exactly.
+    """
+    mock_ff = MagicMock()
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
+
+    with patch(_SERVICE_FF_PATH, mock_ff):
+        tool = _make_tool(company_id="company-ff-off")
+        result = tool.get_required_include_params()
+
+    assert result == []

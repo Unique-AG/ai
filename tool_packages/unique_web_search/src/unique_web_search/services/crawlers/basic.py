@@ -4,7 +4,6 @@ import re
 from typing import Literal
 
 import timeout_decorator
-from fake_useragent import UserAgent
 from httpx import AsyncClient, Timeout
 from markdownify import markdownify
 from pydantic import Field
@@ -15,6 +14,7 @@ from unique_web_search.services.crawlers.base import (
     BaseCrawlerConfig,
     CrawlerType,
 )
+from unique_web_search.services.crawlers.utils import get_random_user_agent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ class BasicCrawler(BaseCrawler[BasicCrawlerConfig]):
             return markdowns
 
     async def _crawl_url_with_client(self, client: AsyncClient, url: str) -> str:
-        headers = {"User-Agent": UserAgent().random}
+        headers = {"User-Agent": get_random_user_agent()}
 
         if self._is_url_blacklisted(url):
             return "Unable to crawl URL due to blacklisted pattern"

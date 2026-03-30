@@ -264,7 +264,10 @@ class UniqueAI:
                 await self._chat_service.update_debug_info_async(debug_info=debug_info)
 
             if not self._chat_service.cancellation.is_cancelled:
-                await self._persist_tool_calls()
+                if feature_flags.enable_tool_call_persistence_un_15977.is_enabled(
+                    self._event.company_id
+                ):
+                    await self._persist_tool_calls()
                 await self._chat_service.modify_assistant_message_async(
                     set_completed_at=not self._tool_took_control,
                 )
@@ -278,7 +281,7 @@ class UniqueAI:
 
         self._logger.info("Done composing message plan execution.")
 
-        return await self._loop_iteration_runner(
+        kwargs: dict = dict(
             messages=messages,
             iteration_index=self.current_iteration_index,
             streaming_handler=self._streaming_handler,  # type: ignore (constructor accepts only compatible arguments)
@@ -291,6 +294,8 @@ class UniqueAI:
             tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
             other_options=self._config.agent.experimental.additional_llm_options,
         )
+
+        return await self._loop_iteration_runner(**kwargs)
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
         self._logger.info(

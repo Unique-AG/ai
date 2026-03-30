@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.65.2] - 2026-03-30
+- Remove experimental open pdf tool
+
+## [1.65.1] - 2026-03-30
+- Code interpreter (UN-17972): `get_tool_prompts()` now always uses the stored `tool_description_for_system_prompt` (no feature-flag substitution); UI and backend stay aligned when the config default is the fence prompt.
+- Code interpreter (UN-18561): extend `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` — sandbox has no internet; do not use `requests` / `httpx` / `urllib` for web fetches; use the web search tool first, then code interpreter.
+- Code interpreter: RJSF textarea `rows` for `tool_description_for_system_prompt` is derived from `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` so the widget height matches the default body (fixes undersized editor).
+
+## [1.65.0] - 2026-03-29
+- Adding experimental open pdf tool
+
+## [1.64.7] - 2026-03-27
+- Code interpreter (UN-17972): when the sandbox HTML link is the only content on its line (including indented list continuations), replace the full line so the `HtmlRendering` opening fence starts at column 0; match is anchored to line start so mid-line links still use the separate mid-line path.
+- Code interpreter (UN-17972): strip runs of whitespace-only lines immediately preceding that link line so blank indented lines do not remain above the `HtmlRendering` block.
+- Code interpreter (UN-17972): when the link is mid-line and the response continues immediately after the closing parenthesis with no newline, append a newline after the closing fence so following text does not adjoin the fence.
+
+## [1.64.6] - 2026-03-27
+- Code interpreter (UN-17972): fix `HtmlRendering` block format for fenced code-interpreter HTML — remove an extra blank line before the `unique://content/...` URL (template had `\n\n\n`, parser expected a single blank line; broke rendering when images/PDFs were in the same message).
+- Code interpreter (UN-17972): when the model places the sandbox link mid-line (e.g. numbered list item), insert a leading newline before the `HtmlRendering` fence so it starts on its own line (same requirement as `imgWithSource` / `fileWithSource` standalone fences).
+
+## [1.64.5] - 2026-03-27
+- RJSF: Add `CustomWidgetName` values `folderScopePicker`, `selectionPolicy`, `toolIconSelect`, and `toggleSwitch` (aligned with TypeScript custom widgets).
+- RJSF: `RJSFMetaTag.custom()` accepts `name: CustomWidgetName | str` so callers can pass string widget identifiers (e.g. custom icons) in addition to enum members.
+
+## [1.64.4] - 2026-03-26
+- Code interpreter (UN-17972): when fence FF is on, HTML artifacts use `HtmlRendering` blocks with `800px` / `600px` dimensions and `unique://content/...` (revert from `htmlWithSource` for product UX). Remove `htmlWithSource` from fence building and normalization regexes; skip HTML in unmatched-code-block warnings; update tests.
+
+## [1.64.3] - 2026-03-26
+- Config checker: CLI and validator improvements
+
+## [1.64.2] - 2026-03-26
+- Add `UniqueSettings.with_auth` to return a new settings instance with a given auth context while preserving app, api, chat, filter options, and env file reference (UN-18484)
+- Add tests for `UniqueSettings`
+
+## [1.64.1] - 2026-03-26
+- Add `enable_tool_call_persistence_un_15977` feature flag; when disabled (default), `get_full_history_with_contents` is used instead of `get_full_history_with_contents_and_tool_calls` and `enable_tool_call_persistence` is threaded through `HistoryManagerConfig` and `LoopTokenReducer` (UN-15977)
+
+## [1.64.0] - 2026-03-25
+- Code interpreter (UN-17972): orphan code runs — synthesise a `.txt` artifact and `fileWithSource` fence when code produces no container files, gated on `enable_code_execution_fence_un_17972` (replaces legacy `<details>` for that case)
+- Code interpreter (UN-17972): `OpenAICodeInterpreterTool.get_required_include_params()` returns `["code_interpreter_call.outputs"]` when the fence FF is on; add `OpenAIBuiltInTool.get_required_include_params()`, `OpenAIBuiltInToolManager.get_required_include_params()`, and `ResponsesApiToolManager.get_required_include_params()`; add `_collect_stdout` for `ResponseCodeInterpreterToolCall.outputs` (end-to-end `include` requires orchestrator PR)
+- Code interpreter (UN-17972): when fence FF is on, `ShowExecutedCodePostprocessor` is a no-op; remove `strip_executed_code_blocks` and its use in `DisplayCodeInterpreterFilesPostProcessor`; add optional `company_id` on `ShowExecutedCodePostprocessor` (orchestrator should pass company id alongside generated-files postprocessor)
+- Add unit test for `message.text is None` handling in `DisplayCodeInterpreterFilesPostProcessor.apply_postprocessing_to_response`
+
+## [1.63.2] - 2026-03-25
+- Code interpreter (UN-17972): emit `htmlWithSource` fences for `.html` artifacts when `enable_code_execution_fence_un_17972` is on; HTML uses the same sandbox-link → fence injection path as other files. Legacy `HtmlRendering` block is used only when the fence FF is off and `enable_html_rendering_un_15131` is on.
+- Fence-mode system prompt (`DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): require HTML only as saved files under `/mnt/data/`, not inline in the assistant text; add UI-oriented best practices (HTML5 shell, self-contained CSS/JS, fluid layout, contrast, semantic elements, no parent-frame access).
+- `get_tool_prompts()`: treat stored `tool_description_for_system_prompt` as the unmodified default when it equals either `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT` or `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`, so spaces created across toolkit versions still receive the fence prompt when the FF is on.
+
 ## [1.63.1] - 2026-03-25
 - Broaden internal API URL matching to include hostnames that contain `.svc.` or end with `.svc`
 
