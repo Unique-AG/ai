@@ -412,6 +412,7 @@ class UniqueAIConfig(BaseToolConfig):
             self.space.tools.append(
                 ToolBuildConfig(
                     name=RetrieveSearchScopeTool.name,
+                    display_name=RetrieveSearchScopeTool.default_display_name,
                     configuration=RetrieveSearchScopeConfig(),
                 )
             )
