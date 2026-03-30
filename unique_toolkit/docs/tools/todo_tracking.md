@@ -52,10 +52,10 @@ When all items are terminal (completed/cancelled), the `system_reminder` is set 
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| `TodoStatus` | `unique_toolkit/agentic/tools/todo/schemas.py` | StrEnum: `pending`, `in_progress`, `completed`, `cancelled` |
-| `TodoItem`, `TodoList`, `TodoWriteInput` | `unique_toolkit/agentic/tools/todo/schemas.py` | Pydantic data models |
-| `TodoConfig` | `unique_toolkit/agentic/tools/todo/config.py` | Per-tool configuration with prompt overrides |
-| `TodoWriteTool` | `unique_toolkit/agentic/tools/todo/service.py` | Tool implementation |
+| `TodoStatus` | `unique_toolkit/agentic/tools/experimental/todo/schemas.py` | StrEnum: `pending`, `in_progress`, `completed`, `cancelled` |
+| `TodoItem`, `TodoList`, `TodoWriteInput` | `unique_toolkit/agentic/tools/experimental/todo/schemas.py` | Pydantic data models |
+| `TodoConfig` | `unique_toolkit/agentic/tools/experimental/todo/config.py` | Per-tool configuration with prompt defaults and overrides |
+| `TodoWriteTool` | `unique_toolkit/agentic/tools/experimental/todo/service.py` | Tool implementation |
 | `_inject_todo_tools` | `unique_orchestrator/unique_ai_builder.py` | Adds `todo_write` to space tools when enabled |
 | `TraceLogger` | `unique_orchestrator/trace_logger.py` | Per-iteration trace logging for debugging |
 
@@ -65,8 +65,10 @@ Enable via the Experimental config in the admin UI (Loop Agent Configuration > T
 
 ```python
 # In ExperimentalConfig
+from unique_toolkit.agentic.tools.experimental.todo.config import TodoConfig
+
 experimental = ExperimentalConfig(
-    todo_tracking=TodoTrackingConfig()  # uses defaults
+    todo_tracking=TodoConfig()  # uses built-in prompt defaults
 )
 ```
 
@@ -74,13 +76,13 @@ The tool is dynamically injected at runtime when `todo_tracking` is active. If n
 
 ## Configuration
 
-`TodoConfig` (and its mirror `TodoTrackingConfig` in the orchestrator) extends `BaseToolConfig`:
+`TodoConfig` (defined in the toolkit, imported directly by the orchestrator) extends `BaseToolConfig`:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `memory_key` | `str` | `"agent_todo_state"` | ShortTermMemory key for persisting state |
-| `system_prompt` | `str` | `""` | Override the default system prompt injected for todo tracking. Leave empty to use the built-in default. |
-| `execution_reminder` | `str` | `""` | Override the execution-phase reminder appended to tool responses. Leave empty to use the built-in default. |
+| `system_prompt` | `str` | Built-in prompt | System prompt injected for todo tracking. Edit to customize the agent's task tracking behavior. |
+| `execution_reminder` | `str` | Built-in prompt | Execution-phase reminder appended to tool responses. Keeps the agent working autonomously until all items are done. |
 
 There is no artificial limit on the number of todo items. Multi-step workflows and batch operations may have 50+ items, and all are preserved.
 
@@ -91,7 +93,7 @@ Both the system prompt (injected into the system message) and the execution remi
 Example: to make todo usage mandatory for batch tasks:
 
 ```python
-TodoTrackingConfig(
+TodoConfig(
     system_prompt="You MUST use todo_write for ANY task. No exceptions.",
     execution_reminder="Continue working. Do not stop.",
 )
@@ -200,8 +202,8 @@ Additionally, after tool execution, tools with `debug_info` get a summary entry 
 `unique_orchestrator/tests/test_todo_injection.py` -- tests covering:
 - `_inject_todo_tools` adds `todo_write` when enabled, skips when disabled
 - No duplicate injection when tool already present
-- Config overrides (prompts) passed through to tool
-- Field parity between `TodoTrackingConfig` and `TodoConfig`
+- Config passed directly (same instance) to tool
+- `TodoConfig` defaults and overrides
 
 `unique_orchestrator/tests/test_unique_ai_update_debug_info_for_tool_control.py` -- tests covering:
 - `_persist_debug_info` always runs (not gated by tool-took-control)
@@ -231,9 +233,13 @@ Each agent run creates a timestamped session directory with:
 
 ## Design Decisions
 
-### Config mirroring with parity test
+### Single config, imported directly
 
-`TodoTrackingConfig` (orchestrator) mirrors `TodoConfig` (toolkit) to avoid importing the toolkit's todo subpackage at config import time. A test asserts field parity between the two configs to catch drift.
+`TodoConfig` is defined in the toolkit (`unique_toolkit/agentic/tools/experimental/todo/config.py`) and imported directly by the orchestrator's `ExperimentalConfig`. This follows the same pattern established by the OpenFile tool — one source of truth for configuration, no mirroring.
+
+### Prompt defaults on config
+
+The built-in system prompt and execution reminder live as field defaults on `TodoConfig`. This means the admin UI shows the actual prompt text by default (editable), and the service code simply reads `self.config.system_prompt` without fallback logic.
 
 ### ShortTermMemory persistence (best-effort)
 

@@ -19,20 +19,22 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from unique_toolkit.agentic.tools.factory import ToolFactory
-from unique_toolkit.agentic.tools.todo.config import TodoConfig
-from unique_toolkit.agentic.tools.todo.schemas import (
+from unique_toolkit.agentic.tools.experimental.todo.config import (
+    _DEFAULT_SYSTEM_PROMPT,
+    TodoConfig,
+)
+from unique_toolkit.agentic.tools.experimental.todo.schemas import (
     TodoItem,
     TodoItemInput,
     TodoList,
     TodoStatus,
     TodoWriteInput,
 )
-from unique_toolkit.agentic.tools.todo.service import (
-    _DEFAULT_SYSTEM_PROMPT,
+from unique_toolkit.agentic.tools.experimental.todo.service import (
     TodoWriteTool,
     _chat_scoped_stm_service,
 )
+from unique_toolkit.agentic.tools.factory import ToolFactory
 
 
 @pytest.fixture(autouse=True)
@@ -406,9 +408,9 @@ class TestTodoWriteToolConfig:
         assert tool.tool_description_for_system_prompt() == "Custom system prompt here"
 
     def test_default_execution_reminder(self) -> None:
-        """Default execution reminder is used when config doesn't override."""
+        """Default execution reminder is the built-in prompt."""
         tool = _make_tool()
-        assert tool.config.execution_reminder == ""
+        assert "EXECUTION PHASE" in tool.config.execution_reminder
 
     @pytest.mark.asyncio
     async def test_custom_execution_reminder(self) -> None:
