@@ -2595,3 +2595,43 @@ class TestKnowledgeBaseServiceChatDocuments:
 
         assert len(result) == 1
         assert result[0].id == "c2"
+
+    @pytest.mark.ai
+    def test_search_content_chunks__raises__when_chat_only_without_chat_id(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify ValueError is raised when chat_only=True but no chat_id is available.
+        Why this matters: Without a chat_id, chat_only silently searches an empty scope;
+        ContentService raises here and KnowledgeBaseService must match that contract.
+        Setup summary: Service with no chat_id; call with chat_only=True; assert ValueError.
+        """
+        svc = KnowledgeBaseService(company_id="co", user_id="usr")
+        with pytest.raises(ValueError, match="chat_id"):
+            svc.search_content_chunks(
+                search_string="test",
+                search_type=ContentSearchType.VECTOR,
+                limit=5,
+                scope_ids=["scope-1"],
+                chat_only=True,
+            )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search_content_chunks_async__raises__when_chat_only_without_chat_id(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify ValueError is raised in the async path when chat_only=True but no chat_id.
+        Why this matters: Same contract as the sync method must hold in async callers.
+        Setup summary: Service with no chat_id; await with chat_only=True; assert ValueError.
+        """
+        svc = KnowledgeBaseService(company_id="co", user_id="usr")
+        with pytest.raises(ValueError, match="chat_id"):
+            await svc.search_content_chunks_async(
+                search_string="test",
+                search_type=ContentSearchType.VECTOR,
+                limit=5,
+                scope_ids=["scope-1"],
+                chat_only=True,
+            )

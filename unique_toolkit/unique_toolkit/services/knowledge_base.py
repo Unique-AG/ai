@@ -237,11 +237,15 @@ class KnowledgeBaseService:
         if metadata_filter is None:
             metadata_filter = self._metadata_filter
 
+        resolved_chat_id = chat_id or self._chat_id
+        if chat_only and not resolved_chat_id:
+            raise ValueError("Please provide chat_id when limiting with chat_only")
+
         try:
             searches = search_content_chunks(
                 user_id=self._user_id,
                 company_id=self._company_id,
-                chat_id=chat_id or self._chat_id,
+                chat_id=resolved_chat_id,
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
@@ -343,11 +347,15 @@ class KnowledgeBaseService:
         if metadata_filter is None:
             metadata_filter = self._metadata_filter
 
+        resolved_chat_id = chat_id or self._chat_id
+        if chat_only and not resolved_chat_id:
+            raise ValueError("Please provide chat_id when limiting with chat_only")
+
         try:
             searches = await search_content_chunks_async(
                 user_id=self._user_id,
                 company_id=self._company_id,
-                chat_id=chat_id or self._chat_id,
+                chat_id=resolved_chat_id,
                 search_string=search_string,
                 search_type=search_type,
                 limit=limit,
