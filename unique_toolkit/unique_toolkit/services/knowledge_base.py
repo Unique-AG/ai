@@ -161,6 +161,8 @@ class KnowledgeBaseService:
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
+        chat_id: str | None = None,
+        chat_only: bool = False,
     ) -> list[ContentChunk]: ...
 
     @overload
@@ -175,6 +177,8 @@ class KnowledgeBaseService:
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
+        chat_id: str | None = None,
+        chat_only: bool = False,
     ) -> list[ContentChunk]: ...
 
     @overload
@@ -189,6 +193,8 @@ class KnowledgeBaseService:
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
+        chat_id: str | None = None,
+        chat_only: bool = False,
     ) -> list[ContentChunk]: ...
 
     def search_content_chunks(
@@ -262,6 +268,8 @@ class KnowledgeBaseService:
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
+        chat_id: str | None = None,
+        chat_only: bool = False,
     ) -> list[ContentChunk]: ...
 
     @overload
@@ -276,6 +284,8 @@ class KnowledgeBaseService:
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
+        chat_id: str | None = None,
+        chat_only: bool = False,
     ) -> list[ContentChunk]: ...
 
     @overload
@@ -290,6 +300,8 @@ class KnowledgeBaseService:
         score_threshold: float = _DEFAULT_SCORE_THRESHOLD,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
+        chat_id: str | None = None,
+        chat_only: bool = False,
     ) -> list[ContentChunk]: ...
 
     async def search_content_chunks_async(
