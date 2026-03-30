@@ -10,6 +10,12 @@ from openai.types.responses import ResponseCodeInterpreterToolCall
 from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 from pydantic import BaseModel, Field, RootModel
 from pydantic.json_schema import SkipJsonSchema
+from tenacity import (
+    AsyncRetrying,
+    before_sleep_log,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from unique_toolkit import ChatService
 from unique_toolkit._common.execution import failsafe_async
@@ -53,6 +59,14 @@ class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
     max_concurrent_file_downloads: int = Field(
         default=10,
         description="The maximum number of concurrent file downloads.",
+    )
+    max_download_retries: int = Field(
+        default=2,
+        description="Maximum number of additional download attempts per container file after the first try (0 = no retries).",
+    )
+    download_retry_base_delay: float = Field(
+        default=0.5,
+        description="Base delay in seconds for exponential backoff between download/upload retries.",
     )
 
 
@@ -293,9 +307,18 @@ class DisplayCodeInterpreterFilesPostProcessor(
         semaphore: asyncio.Semaphore,
     ) -> _ContentInfo | None:
         async with semaphore:
-            logger.info("Fetching file content for %s", container_file.filename)
-            file_content = await self._client.containers.files.content.retrieve(
-                container_id=container_file.container_id, file_id=container_file.file_id
+            retry = AsyncRetrying(
+                stop=stop_after_attempt(1 + self._config.max_download_retries),
+                wait=wait_exponential(
+                    multiplier=self._config.download_retry_base_delay
+                ),
+                before_sleep=before_sleep_log(logger, logging.WARNING),
+                reraise=True,
+            )
+            file_content = await retry(
+                self._client.containers.files.content.retrieve,
+                container_id=container_file.container_id,
+                file_id=container_file.file_id,
             )
 
             logger.info(
