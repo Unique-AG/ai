@@ -328,6 +328,32 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     )
     ```
 
+??? example "`unique_sdk.Space.create_chat` - Create a chat"
+
+    Create a chat linked to an assistant without sending a message. Corresponds to `POST /public/space/chat` on the node-chat public API.
+
+    **Parameters:**
+
+    - `title` (str, required) - Chat title
+    - `assistantId` (str, required) - Assistant (space) ID to attach the chat to
+
+    **Returns:**
+
+    Returns a [`ChatResult`](#chatresult) object.
+
+    **Example:**
+
+    ```python
+    chat = unique_sdk.Space.create_chat(
+        user_id=user_id,
+        company_id=company_id,
+        title="Support thread",
+        assistantId="assistant_abc123",
+    )
+
+    print(chat["id"], chat["createdAt"])
+    ```
+
 ??? example "`unique_sdk.Space.get_chat_messages` - Get paginated messages"
 
     !!! info "Compatibility"
@@ -761,6 +787,19 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     - `parentAssistantId` (str, required) - The ID of the parent assistant
 
     **Used in:** `Space.create_message()`
+
+#### ChatResult {#chatresult}
+
+??? note "The `ChatResult` object is returned when creating a chat via the space API"
+
+    **Fields:**
+
+    - `id` (str) - Chat identifier
+    - `title` (str | None) - Chat title
+    - `createdAt` (str) - Creation timestamp (ISO 8601)
+    - `object` (Literal["chat"]) - Object type discriminator
+
+    **Returned by:** `Space.create_chat()`, `Space.create_chat_async()`
 
 #### DeleteChatResponse {#deletechatresponse}
 
