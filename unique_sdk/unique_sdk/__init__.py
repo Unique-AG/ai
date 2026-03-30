@@ -97,6 +97,9 @@ from unique_sdk.api_resources._message_execution import (
 from unique_sdk.api_resources._message_log import MessageLog as MessageLog
 from unique_sdk.api_resources._message_tool import MessageTool as MessageTool
 from unique_sdk.api_resources._elicitation import Elicitation as Elicitation
+from unique_sdk.api_resources._benchmarking import (
+    Benchmarking as Benchmarking,
+)
 
 # Unique QL
 from unique_sdk._unique_ql import UQLOperator as UQLOperator
