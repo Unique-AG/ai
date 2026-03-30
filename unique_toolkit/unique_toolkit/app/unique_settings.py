@@ -657,6 +657,11 @@ class UniqueSettings:
     @property
     @deprecated("Use authcontext instead")
     def auth(self) -> UniqueAuth:
+        if isinstance(self._context.auth, AuthContext):
+            return UniqueAuth(
+                company_id=SecretStr(self._context.auth.get_confidential_company_id()),
+                user_id=SecretStr(self._context.auth.get_confidential_user_id()),
+            )
         if not isinstance(self._context.auth, UniqueAuth):
             raise ValueError("Auth context is not a UniqueAuth instance")
         return self._context.auth
