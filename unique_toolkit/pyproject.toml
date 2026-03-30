@@ -48,9 +48,11 @@ dependencies = [
 [project.optional-dependencies]
 langchain = [
     "openai>=1.105.0,<2",
-    "langchain>=1.0.0,<2",
-    "langchain-openai>=0.3.28",
-    "langchain-core>=1.0.0,<2",
+    "langchain>=1.2.10,<2",
+    "langchain-openai>=1.0.0,<2",
+    "langchain-core>=1.2.18,<2",
+    "langgraph>=0.2.0,<2",
+    "deepagents>=0.4.0,<0.5",
 ]
 fastapi = [
     "fastapi>=0.121.0,<0.122",
@@ -96,6 +98,7 @@ ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/
 ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
 [tool.pytest.ini_options]
+testpaths = ["tests", "unique_toolkit"]
 addopts = "--strict-markers"
 asyncio_mode = "auto"
 markers = [
@@ -125,3 +128,6 @@ pythonVersion = "3.12"
 typeCheckingMode = "standard"
 include = ["unique_toolkit"]
 exclude = ["**/tests/**", "**/test_*.py"]
+# Resolve third-party stubs (e.g. openai) from the project venv.
+venvPath = "."
+venv = ".venv"

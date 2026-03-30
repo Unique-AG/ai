@@ -435,6 +435,208 @@ def _prepare_all_completions_params_util(
     return options, model, integrated_messages, search_context
 
 
+def _prepare_all_completions_params_util_v2(
+    messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+    model_name: LanguageModelName | str,
+    temperature: float,
+    tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    other_options: dict | None = None,
+    content_chunks: list[ContentChunk] | None = None,
+    tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
+    structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
+    structured_output_enforce_schema: bool = False,
+) -> tuple[
+    dict,
+    str,
+    list[unique_sdk.Integrated.ChatCompletionRequestMessage],
+    SearchContext | None,
+]:
+    other_options = copy.deepcopy(other_options) or {}
+
+    if tool_choice is not None and "toolChoice" not in other_options:
+        other_options["toolChoice"] = tool_choice
+
+    # --- resolve model info & merge default options ---
+    model_info: LanguageModelInfo | None = None
+    if isinstance(model_name, LanguageModelName):
+        model_info = LanguageModelInfo.from_name(model_name)
+        merged = dict(model_info.default_options)
+        merged.update(other_options)
+        other_options = merged
+
+    # --- resolve model name string ---
+    model = (
+        model_name.value if isinstance(model_name, LanguageModelName) else model_name
+    )
+
+    # --- build options ---
+    options: dict[str, Any] = {}
+
+    if tools:
+        options["tools"] = [
+            {
+                "type": "function",
+                "function": tool.model_dump(exclude_none=True),
+            }
+            for tool in tools
+        ]
+
+    if structured_output_model is not None:
+        if isinstance(structured_output_model, dict):
+            name = structured_output_model.get("title", "DefaultName")
+            schema = structured_output_model
+        else:
+            name = structured_output_model.__name__
+            schema = structured_output_model.model_json_schema()
+
+        options["responseFormat"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": name,
+                "strict": structured_output_enforce_schema,
+                "schema": schema,
+            },
+        }
+
+    options["temperature"] = temperature
+    options.update(other_options)
+
+    # --- clamp temperature if the model declares bounds ---
+    if model_info is not None and model_info.temperature_bounds is not None:
+        t = options["temperature"]
+        bounds = model_info.temperature_bounds
+        t = max(bounds.min_temperature, t)
+        t = min(bounds.max_temperature, t)
+        options["temperature"] = round(t, 2)
+
+    # --- serialize messages ---
+    if isinstance(messages, LanguageModelMessages):
+        messages_dict = messages.model_dump(exclude_none=True, by_alias=True)
+    else:
+        messages_dict = humps.camelize(copy.deepcopy(messages))
+
+    integrated_messages = cast(
+        "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
+        messages_dict,
+    )
+
+    # --- search context from content chunks ---
+    search_context: SearchContext | None = None
+    if content_chunks:
+        search_context = [
+            unique_sdk.Integrated.SearchResult(
+                id=chunk.id,
+                chunkId=chunk.chunk_id,
+                key=chunk.key,
+                title=chunk.title,
+                url=chunk.url,
+                startPage=chunk.start_page,
+                endPage=chunk.end_page,
+                order=chunk.order,
+                object=chunk.object,
+            )
+            for chunk in content_chunks
+        ]
+
+    return options, model, integrated_messages, search_context
+
+
+def _prepare_all_completions_params_util_v3(
+    messages: LanguageModelMessages | list[ChatCompletionMessageParam],
+    model_name: LanguageModelName | str,
+    temperature: float,
+    tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
+    other_options: dict | None = None,
+    content_chunks: list[ContentChunk] | None = None,
+    tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
+    structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
+    structured_output_enforce_schema: bool = False,
+) -> tuple[
+    dict,
+    str,
+    list[unique_sdk.Integrated.ChatCompletionRequestMessage],
+    SearchContext | None,
+]:
+    model_info = (
+        LanguageModelInfo.from_name(model_name)
+        if isinstance(model_name, LanguageModelName)
+        else None
+    )
+    model = (
+        model_name.value if isinstance(model_name, LanguageModelName) else model_name
+    )
+
+    extras: dict[str, Any] = {
+        **(model_info.default_options if model_info else {}),
+        **(copy.deepcopy(other_options) or {}),
+    }
+    if tool_choice is not None:
+        extras.setdefault("toolChoice", tool_choice)
+
+    options: dict[str, Any] = {"temperature": temperature}
+
+    if tools:
+        options["tools"] = [
+            {"type": "function", "function": t.model_dump(exclude_none=True)}
+            for t in tools
+        ]
+
+    if structured_output_model is not None:
+        is_dict = isinstance(structured_output_model, dict)
+        options["responseFormat"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": (
+                    structured_output_model.get("title", "DefaultName")
+                    if is_dict
+                    else structured_output_model.__name__
+                ),
+                "strict": structured_output_enforce_schema,
+                "schema": (
+                    structured_output_model
+                    if is_dict
+                    else structured_output_model.model_json_schema()
+                ),
+            },
+        }
+
+    options |= extras
+
+    if model_info and model_info.temperature_bounds:
+        b = model_info.temperature_bounds
+        options["temperature"] = round(
+            max(b.min_temperature, min(b.max_temperature, options["temperature"])), 2
+        )
+
+    messages_dict = (
+        messages.model_dump(exclude_none=True, by_alias=True)
+        if isinstance(messages, LanguageModelMessages)
+        else humps.camelize(copy.deepcopy(messages))
+    )
+
+    search_context = (
+        [
+            unique_sdk.Integrated.SearchResult(
+                id=c.id,
+                chunkId=c.chunk_id,
+                key=c.key,
+                title=c.title,
+                url=c.url,
+            )
+            for c in content_chunks
+        ]
+        if content_chunks
+        else None
+    )
+
+    return (
+        options,
+        model,
+        cast("list[unique_sdk.Integrated.ChatCompletionRequestMessage]", messages_dict),
+        search_context,
+    )
+
+
 def complete_with_references(
     company_id: str,
     messages: LanguageModelMessages,
