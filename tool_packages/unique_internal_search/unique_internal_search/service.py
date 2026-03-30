@@ -228,7 +228,7 @@ class InternalSearchService:
         ]
         selected_chunks = pick_content_chunks_for_token_window(
             found_chunks,
-            self._get_max_tokens(),
+            self.config.get_max_tokens,
             model_info=self.language_model_orchestrator,
         )
 

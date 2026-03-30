@@ -1,3 +1,4 @@
+from logging import getLogger
 from typing import Annotated, Any
 
 from pydantic import (
@@ -34,6 +35,7 @@ from unique_internal_search.validators import get_string_field_with_pattern_vali
 
 DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED = 200
 DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED = 1000
+_LOGGER = getLogger(__name__)
 
 
 class ToolResponseSystemReminderConfig(BaseModel):
@@ -236,3 +238,23 @@ class InternalSearchConfig(BaseToolConfig):
         default_factory=ExperimentalFeatures,
         description="Experimental features.",
     )
+
+    @property
+    def get_max_tokens(self) -> int:
+        if self.language_model_max_input_tokens is not None:
+            max_tokens = int(
+                self.language_model_max_input_tokens
+                * self.percentage_of_input_tokens_for_sources
+            )
+            _LOGGER.debug(
+                "Using %s of max tokens %s as token limit: %s",
+                self.percentage_of_input_tokens_for_sources,
+                self.language_model_max_input_tokens,
+                max_tokens,
+            )
+            return max_tokens
+        else:
+            _LOGGER.debug(
+                "language model input context size is not set, using default max tokens"
+            )
+            return self.max_tokens_for_sources
