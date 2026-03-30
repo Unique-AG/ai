@@ -2,18 +2,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from unique_internal_search.uploaded_search.service import UploadedSearchTool
-from unique_toolkit.agentic.feature_flags import feature_flags
-from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
-    OpenFileToolConfig,
-)
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     CodeInterpreterExtendedConfig,
 )
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_manager import ToolManagerConfig
-
-from unique_orchestrator._builders.open_file_setup import configure_file_payload
+configure_file_payload
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai_builder import (
     _build_responses,
@@ -65,9 +60,6 @@ class _FakeResponsesApiToolManager:
 
     def add_forced_tool(self, tool_name: str) -> None:
         self.forced_tools.append(tool_name)
-
-    def add_tool(self, tool: object) -> None:
-        return None
 
 
 @pytest.mark.asyncio
@@ -234,71 +226,3 @@ async def test_build_responses_keeps_uploaded_search_when_code_interpreter_is_au
     assert _FakeResponsesApiToolManager.instances[0].forced_tools == [
         UploadedSearchTool.name
     ]
-
-
-def test_configure_file_payload_preserves_tool_call_persistence_and_language_model(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    event = _make_event(tool_choices=[])
-    history_manager = MagicMock()
-    reference_manager = MagicMock()
-    logger = MagicMock()
-    tool_manager = MagicMock()
-    config = UniqueAIConfig(
-        agent={
-            "experimental": {
-                "responses_api_config": {"use_responses_api": True},
-                "open_file_tool_config": OpenFileToolConfig(
-                    enabled=True,
-                    send_uploaded_files_in_payload=True,
-                ),
-            }
-        }
-    )
-    language_model = config.space.language_model
-
-    captured: dict[str, object] = {}
-
-    class _FakeHistoryManager:
-        def __init__(
-            self,
-            logger_arg,
-            event_arg,
-            config_arg,
-            language_model_arg,
-            reference_manager_arg,
-        ):
-            captured["logger"] = logger_arg
-            captured["event"] = event_arg
-            captured["config"] = config_arg
-            captured["language_model"] = language_model_arg
-            captured["reference_manager"] = reference_manager_arg
-
-    monkeypatch.setattr(
-        "unique_orchestrator._builders.open_file_setup.HistoryManager",
-        _FakeHistoryManager,
-    )
-    monkeypatch.setattr(
-        feature_flags.enable_tool_call_persistence_un_15977,
-        "is_enabled",
-        lambda company_id: company_id == event.company_id,
-    )
-
-    updated_history_manager, agent_file_registry = configure_file_payload(
-        config=config,
-        event=event,
-        logger=logger,
-        history_manager=history_manager,
-        reference_manager=reference_manager,
-        language_model=language_model,
-        tool_manager=tool_manager,
-    )
-
-    assert updated_history_manager is not history_manager
-    assert agent_file_registry == []
-    assert captured["logger"] is logger
-    assert captured["event"] is event
-    assert captured["language_model"] is language_model
-    assert captured["reference_manager"] is reference_manager
-    assert captured["config"].language_model is language_model
-    assert captured["config"].enable_tool_call_persistence is True

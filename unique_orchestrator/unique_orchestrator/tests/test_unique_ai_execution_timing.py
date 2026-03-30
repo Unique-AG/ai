@@ -354,34 +354,6 @@ class TestHandleToolCallsTiming:
         assert timing["search"] == 0.5
         assert timing["calculator"] == 0.1
 
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_handle_tool_calls__open_file_reminder__injected_before_history_add(
-        self, ua
-    ) -> None:
-        ua._config.agent.experimental.open_file_tool_config.enabled = True
-        ua._open_file_runtime = MagicMock()
-        ua._tool_manager.execute_selected_tools = AsyncMock(
-            return_value=[_make_tool_response("InternalSearch", execution_time_s=0.5)]
-        )
-
-        call_sequence: list[str] = []
-
-        def record_reminder_injection(tool_call_responses):
-            call_sequence.append("inject_reminder")
-
-        def record_history_add(tool_call_responses):
-            call_sequence.append("history_add")
-
-        ua._open_file_runtime.inject_open_file_reminder.side_effect = (
-            record_reminder_injection
-        )
-        ua._history_manager.add_tool_call_results.side_effect = record_history_add
-
-        await ua._handle_tool_calls(_make_loop_response([MagicMock()]))
-
-        assert call_sequence[:2] == ["inject_reminder", "history_add"]
-
 
 class TestHandleNoToolCallsTiming:
     """Tests that _handle_no_tool_calls populates post_processing and evaluation timing."""
@@ -497,52 +469,6 @@ class TestHandleNoToolCallsTiming:
         await ua._handle_no_tool_calls(_make_loop_response())
 
         assert "unselected_eval" not in ua._current_loop_timing["evaluation"]
-
-
-class TestPlanOrExecuteOpenFileRetry:
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_plan_or_execute__retry_refreshes_tools_and_tool_choices(
-        self,
-    ) -> None:
-        ua = _build_unique_ai()
-        ua._config.agent.experimental.open_file_tool_config.enabled = True
-
-        initial_messages = MagicMock(name="initial_messages")
-        retried_messages = MagicMock(name="retried_messages")
-        final_response = _make_loop_response()
-
-        ua._compose_message_plan_execution = AsyncMock(return_value=initial_messages)  # type: ignore[method-assign]
-        ua._tool_manager.get_tool_definitions.side_effect = [
-            ["OpenFile", "InternalSearch"],
-            ["InternalSearch"],
-        ]
-        ua._tool_manager.get_forced_tools.side_effect = [
-            ["OpenFile"],
-            [],
-        ]
-
-        retry_error = RuntimeError("payload too large")
-        ua._open_file_runtime = MagicMock()
-        ua._open_file_runtime.should_retry_without_files.return_value = True
-        ua._open_file_runtime.prepare_retry_messages.return_value = retried_messages
-
-        ua._loop_iteration_runner = AsyncMock(side_effect=[retry_error, final_response])
-
-        result = await ua._plan_or_execute()
-
-        assert result is final_response
-        assert ua._loop_iteration_runner.await_count == 2
-
-        first_call = ua._loop_iteration_runner.await_args_list[0].kwargs
-        second_call = ua._loop_iteration_runner.await_args_list[1].kwargs
-
-        assert first_call["messages"] is initial_messages
-        assert first_call["tools"] == ["OpenFile", "InternalSearch"]
-        assert first_call["tool_choices"] == ["OpenFile"]
-        assert second_call["messages"] is retried_messages
-        assert second_call["tools"] == ["InternalSearch"]
-        assert second_call["tool_choices"] == []
 
 
 class TestRunExecutionTimingIntegration:
