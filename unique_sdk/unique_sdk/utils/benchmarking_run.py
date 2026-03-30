@@ -83,7 +83,8 @@ async def run_benchmarking_from_file(
         "status": final_status,
     }
 
-    if save_result_to:
+    has_results = final_status["done"] > 0
+    if save_result_to and has_results:
         tmp_path = await Benchmarking.download_processed_async(
             user_id=user_id,
             company_id=company_id,
