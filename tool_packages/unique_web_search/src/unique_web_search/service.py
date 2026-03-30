@@ -6,7 +6,10 @@ import jinja2
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit.agentic.feature_flags.feature_flags import (
+    FeatureFlag,
+    feature_flags,
+)
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import (
@@ -25,6 +28,7 @@ from unique_web_search.schema import (
     WebSearchPlan,
     WebSearchToolParameters,
 )
+from unique_web_search.services.argument_screening import ArgumentScreeningService
 from unique_web_search.services.content_processing import ContentProcessor
 from unique_web_search.services.crawlers import get_crawler_service
 from unique_web_search.services.executors import (
@@ -152,6 +156,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
             tool_call.arguments,
         )
 
+        await self._ff_screen_arguments(tool_call.arguments)
+
         debug_info = WebSearchDebugInfo(parameters=parameters.model_dump())
 
         web_search_message_logger = WebSearchMessageLogger(
@@ -185,6 +191,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 content_chunks=content_chunks,
                 system_reminder=self.config.experimental_features.tool_response_system_reminder.get_reminder_prompt,
             )
+                
         except Exception as e:
             _LOGGER.exception(f"Error executing WebSearch tool: {e}")
 
@@ -263,7 +270,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 callbacks=callbacks,
                 tool_call=tool_call,
                 tool_parameters=parameters,
-                max_steps=self.config.web_search_mode_config.max_steps,
+                max_steps=self.config.web_search_mode_config.max_steps, 
             )
         elif isinstance(parameters, WebSearchToolParameters):
             assert self.config.web_search_mode_config.mode == WebSearchMode.V1
@@ -290,6 +297,15 @@ class WebSearchTool(Tool[WebSearchConfig]):
         if not tool_response.content_chunks:
             return []
         return evaluation_check_list
+
+    async def _ff_screen_arguments(self, arguments: dict) -> None:
+        # TODO: Use feature flag once toolkit is updated UN-18741
+        screening_service = ArgumentScreeningService(
+            language_model_service=self.language_model_service,
+            language_model=self.config.language_model,
+            config=self.config.experimental_features.argument_screening_config,
+        )
+        await screening_service(arguments)
 
     def _ff_tool_progress_reporter(self):
         if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):

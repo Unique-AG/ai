@@ -1,0 +1,8 @@
+Flag the request as 'no-go' if the arguments contain any of the following:
+- Personally identifiable information (PII): full names combined with addresses, phone numbers, social security numbers, national ID numbers, or dates of birth
+- Authentication credentials: passwords, API keys, tokens, secrets, or private keys
+- Financial information: credit card numbers, bank account numbers, or routing numbers
+- Health information: medical record numbers, diagnoses, or treatment details
+- Internal or private URLs, IP addresses, or infrastructure details that should not be exposed
+
+If the arguments are benign search queries or general information requests, mark them as 'go'.
