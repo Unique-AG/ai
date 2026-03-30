@@ -13,6 +13,10 @@ from starlette.requests import Request
 
 from mcp_sql_demo.db_tool_pm.service import PMPositionsTool
 from unique_mcp import get_unique_settings, get_unique_userinfo
+from unique_mcp.auth.zitadel.oauth_proxy import (
+    ZitadelOAuthProxySettings,
+    create_zitadel_oauth_proxy,
+)
 from unique_mcp.settings import ServerSettings
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.app.schemas import (
@@ -56,7 +60,15 @@ _METADATA_TOOL = ToolFactory.build_tool("PM_Positions", {}, _PLACEHOLDER_EVENT)
 
 
 def main() -> None:
-    mcp = FastMCP("Demo 🚀")
+    server_settings = ServerSettings()
+    zitadel_settings = ZitadelOAuthProxySettings()
+
+    oauth_proxy = create_zitadel_oauth_proxy(
+        mcp_server_base_url=server_settings.base_url.encoded_string(),
+        zitadel_oauth_proxy_settings=zitadel_settings,
+    )
+
+    mcp = FastMCP("Demo 🚀", auth=oauth_proxy)
 
     custom_middleware = [
         Middleware(
@@ -113,6 +125,7 @@ def main() -> None:
         )
 
         result = await tool.run(tool_call)
+        await http_client.aclose()
         return result.content
 
     @mcp.custom_route("/", methods=["GET"])
@@ -124,7 +137,6 @@ def main() -> None:
         FAVICON_PATH = Path(__file__).parent / "favicon.ico"
         return FileResponse(FAVICON_PATH)
 
-    server_settings = ServerSettings()
     mcp.run(
         transport=server_settings.transport_scheme,
         host=server_settings.local_base_url.host,
