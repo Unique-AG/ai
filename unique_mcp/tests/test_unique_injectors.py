@@ -1,0 +1,417 @@
+"""Tests for unique_mcp.unique_injectors (auth resolution helpers and getters)."""
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import httpx
+import pytest
+from pydantic import SecretStr
+from unique_toolkit.app.unique_settings import (
+    AuthContext,
+    UniqueApi,
+    UniqueApp,
+    UniqueSettings,
+)
+
+from unique_mcp.auth.zitadel.oauth_proxy import ZitadelOAuthProxySettings
+from unique_mcp.unique_injectors import (
+    _CLAIM_COMPANY_ID,
+    _CLAIM_USER_ID,
+    UniqueUserInfo,
+    _userinfo_to_auth_context,
+    get_unique_service_factory,
+    get_unique_settings,
+    get_unique_userinfo,
+    get_zitadel_settings,
+)
+
+_MOD = "unique_mcp.unique_injectors"
+
+
+@pytest.fixture
+def base_settings() -> UniqueSettings:
+    """Base UniqueSettings returned by ``from_env_auto_with_sdk_init`` when patched."""
+    return UniqueSettings(
+        auth=AuthContext(
+            user_id=SecretStr("dummy_user"),
+            company_id=SecretStr("dummy_company"),
+        ),
+        app=UniqueApp(),
+        api=UniqueApi(),
+    )
+
+
+@pytest.fixture
+def zitadel_settings() -> ZitadelOAuthProxySettings:
+    return ZitadelOAuthProxySettings()
+
+
+def _token(claims: dict) -> MagicMock:
+    t = MagicMock()
+    t.claims = claims
+    t.token = "mock-bearer"
+    return t
+
+
+def _userinfo_response(data: dict) -> MagicMock:
+    r = MagicMock()
+    r.json.return_value = data
+    r.raise_for_status = MagicMock()
+    return r
+
+
+@pytest.mark.ai
+def test_unique_injectors__claim_constants__match_zitadel_oidc() -> None:
+    """
+    Purpose: Document expected JWT / OIDC claim names used across the module.
+    Why this matters: Tests guard against accidental renames that break token parsing.
+    Setup summary: Assert module-level claim string constants.
+    """
+    assert _CLAIM_USER_ID == "sub"
+    assert _CLAIM_COMPANY_ID == "urn:zitadel:iam:user:resourceowner:id"
+
+
+@pytest.mark.ai
+def test_get_zitadel_settings__returns_settings_instance() -> None:
+    """
+    Purpose: Verify get_zitadel_settings returns a ZitadelOAuthProxySettings instance.
+    Why this matters: Callers rely on this for userinfo / OAuth URLs.
+    Setup summary: Call get_zitadel_settings without env side effects beyond defaults.
+    """
+    s = get_zitadel_settings()
+    assert isinstance(s, ZitadelOAuthProxySettings)
+
+
+@pytest.mark.ai
+def test_get_unique_settings__uses_meta_auth__when_present(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: _meta-derived auth overrides env when FastMCP request carries both IDs.
+    Why this matters: Internal callers can override identity via MCP _meta.
+    Setup summary: Patch from_env and _fastmcp_context_to_auth_context.
+    """
+    with (
+        patch(
+            f"{_MOD}.UniqueSettings.from_env_auto_with_sdk_init",
+            return_value=base_settings,
+        ),
+        patch(
+            f"{_MOD}._fastmcp_context_to_auth_context",
+            return_value=AuthContext(
+                user_id=SecretStr("mu"),
+                company_id=SecretStr("mc"),
+            ),
+        ),
+    ):
+        s = get_unique_settings()
+    assert s.authcontext.get_confidential_user_id() == "mu"
+    assert s.authcontext.get_confidential_company_id() == "mc"
+
+
+@pytest.mark.ai
+def test_get_unique_settings__uses_jwt_claims__when_meta_absent(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: Full JWT claims replace env auth when _meta does not supply identity.
+    Why this matters: Normal OAuth tool calls use the swapped Zitadel token claims.
+    Setup summary: Meta None, access-token helper returns AuthContext from JWT.
+    """
+    with (
+        patch(
+            f"{_MOD}.UniqueSettings.from_env_auto_with_sdk_init",
+            return_value=base_settings,
+        ),
+        patch(f"{_MOD}._fastmcp_context_to_auth_context", return_value=None),
+        patch(
+            f"{_MOD}._fastmcp_access_token_to_auth_context",
+            return_value=AuthContext(
+                user_id=SecretStr("u1"),
+                company_id=SecretStr("c1"),
+            ),
+        ),
+    ):
+        s = get_unique_settings()
+    assert s.authcontext.get_confidential_user_id() == "u1"
+    assert s.authcontext.get_confidential_company_id() == "c1"
+
+
+@pytest.mark.ai
+def test_get_unique_settings__meta_wins_over_jwt(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: Meta is checked before JWT; meta identity must win when both exist.
+    Why this matters: Matches documented priority for trusted internal overrides.
+    Setup summary: Both meta and JWT helpers return auth; expect meta values.
+    """
+    with (
+        patch(
+            f"{_MOD}.UniqueSettings.from_env_auto_with_sdk_init",
+            return_value=base_settings,
+        ),
+        patch(
+            f"{_MOD}._fastmcp_context_to_auth_context",
+            return_value=AuthContext(
+                user_id=SecretStr("meta-u"),
+                company_id=SecretStr("meta-c"),
+            ),
+        ),
+        patch(
+            f"{_MOD}._fastmcp_access_token_to_auth_context",
+            return_value=AuthContext(
+                user_id=SecretStr("jwt-u"),
+                company_id=SecretStr("jwt-c"),
+            ),
+        ),
+    ):
+        s = get_unique_settings()
+    assert s.authcontext.get_confidential_user_id() == "meta-u"
+    assert s.authcontext.get_confidential_company_id() == "meta-c"
+
+
+@pytest.mark.ai
+def test_get_unique_settings__uses_jwt_when_meta_partial_or_absent(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: When _meta does not yield both IDs, JWT claims are used if complete.
+    Why this matters: Partial _meta must not block a valid OAuth JWT.
+    Setup summary: Meta None; JWT helper returns full claims.
+    """
+    with (
+        patch(
+            f"{_MOD}.UniqueSettings.from_env_auto_with_sdk_init",
+            return_value=base_settings,
+        ),
+        patch(f"{_MOD}._fastmcp_context_to_auth_context", return_value=None),
+        patch(
+            f"{_MOD}._fastmcp_access_token_to_auth_context",
+            return_value=AuthContext(
+                user_id=SecretStr("jwt-u"),
+                company_id=SecretStr("jwt-c"),
+            ),
+        ),
+    ):
+        s = get_unique_settings()
+    assert s.authcontext.get_confidential_user_id() == "jwt-u"
+    assert s.authcontext.get_confidential_company_id() == "jwt-c"
+
+
+@pytest.mark.ai
+def test_get_unique_settings__falls_back_to_env__when_no_meta_no_jwt(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: With no request meta and no usable JWT claims, env-loaded auth is kept.
+    Why this matters: Local/dev uses UNIQUE_AUTH_* from environment.
+    Setup summary: Both resolution helpers return None; expect base_settings auth.
+    """
+    with (
+        patch(
+            f"{_MOD}.UniqueSettings.from_env_auto_with_sdk_init",
+            return_value=base_settings,
+        ),
+        patch(f"{_MOD}._fastmcp_context_to_auth_context", return_value=None),
+        patch(f"{_MOD}._fastmcp_access_token_to_auth_context", return_value=None),
+    ):
+        s = get_unique_settings()
+    assert s.authcontext.get_confidential_user_id() == "dummy_user"
+    assert s.authcontext.get_confidential_company_id() == "dummy_company"
+
+
+@pytest.mark.ai
+def test_get_unique_settings__jwt_incomplete_falls_back_to_env(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: Incomplete JWT (missing company claim) does not apply; env auth remains.
+    Why this matters: get_unique_settings does not call userinfo; partial JWT → env.
+    Setup summary: JWT helper returns None (simulating incomplete claims).
+    """
+    with (
+        patch(
+            f"{_MOD}.UniqueSettings.from_env_auto_with_sdk_init",
+            return_value=base_settings,
+        ),
+        patch(f"{_MOD}._fastmcp_context_to_auth_context", return_value=None),
+        patch(f"{_MOD}._fastmcp_access_token_to_auth_context", return_value=None),
+    ):
+        s = get_unique_settings()
+    assert s.authcontext.get_confidential_user_id() == "dummy_user"
+
+
+@pytest.mark.ai
+def test_get_unique_settings__reuses_app_and_api_from_base(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: with_auth preserves app/api references from the env base settings.
+    Why this matters: Callers expect stable app/api when only auth changes.
+    Setup summary: Patch JWT path; compare app/api identity to base_settings.
+    """
+    with (
+        patch(
+            f"{_MOD}.UniqueSettings.from_env_auto_with_sdk_init",
+            return_value=base_settings,
+        ),
+        patch(f"{_MOD}._fastmcp_context_to_auth_context", return_value=None),
+        patch(
+            f"{_MOD}._fastmcp_access_token_to_auth_context",
+            return_value=AuthContext(
+                user_id=SecretStr("u"),
+                company_id=SecretStr("c"),
+            ),
+        ),
+    ):
+        s = get_unique_settings()
+    assert s.app is base_settings.app
+    assert s.api is base_settings.api
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_userinfo__returns_model__when_response_complete(
+    zitadel_settings: ZitadelOAuthProxySettings,
+) -> None:
+    """
+    Purpose: get_unique_userinfo maps Zitadel userinfo JSON to UniqueUserInfo.
+    Why this matters: Email and IDs must match OIDC userinfo shape.
+    Setup summary: Mock httpx client GET; patch token and zitadel settings.
+    """
+    tok = _token({})
+    data = {
+        "sub": "u1",
+        "email": "u@example.com",
+        _CLAIM_COMPANY_ID: "c1",
+    }
+    resp = _userinfo_response(data)
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=resp)
+
+    with (
+        patch(f"{_MOD}.get_access_token", return_value=tok),
+        patch(f"{_MOD}.get_zitadel_settings", return_value=zitadel_settings),
+    ):
+        info = await get_unique_userinfo(http_client=mock_client)
+
+    assert info == UniqueUserInfo(
+        user_id="u1",
+        company_id="c1",
+        email="u@example.com",
+    )
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_userinfo__returns_none__when_no_token() -> None:
+    """
+    Purpose: Without an access token, userinfo is not fetched.
+    Why this matters: Avoids calling Zitadel without a bearer token.
+    Setup summary: Patch get_access_token to None.
+    """
+    mock_client = AsyncMock()
+    with patch(f"{_MOD}.get_access_token", return_value=None):
+        assert await get_unique_userinfo(http_client=mock_client) is None
+    mock_client.get.assert_not_called()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_userinfo__raises__when_userinfo_incomplete(
+    zitadel_settings: ZitadelOAuthProxySettings,
+) -> None:
+    """
+    Purpose: Incomplete userinfo JSON raises ValueError (sub/company required).
+    Why this matters: Prevents silent partial identity.
+    Setup summary: Mock JSON missing company claim.
+    """
+    tok = _token({})
+    resp = _userinfo_response({"sub": "u1"})
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=resp)
+
+    with (
+        patch(f"{_MOD}.get_access_token", return_value=tok),
+        patch(f"{_MOD}.get_zitadel_settings", return_value=zitadel_settings),
+        pytest.raises(ValueError, match="incomplete"),
+    ):
+        await get_unique_userinfo(http_client=mock_client)
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_get_unique_userinfo__timeout_propagates(
+    zitadel_settings: ZitadelOAuthProxySettings,
+) -> None:
+    """
+    Purpose: httpx timeout from userinfo GET propagates to callers.
+    Why this matters: Callers can handle retries or surface transport errors.
+    Setup summary: Mock client.get raises TimeoutException.
+    """
+    tok = _token({})
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(side_effect=httpx.TimeoutException("timed out"))
+
+    with (
+        patch(f"{_MOD}.get_access_token", return_value=tok),
+        patch(f"{_MOD}.get_zitadel_settings", return_value=zitadel_settings),
+        pytest.raises(httpx.TimeoutException),
+    ):
+        await get_unique_userinfo(http_client=mock_client)
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_userinfo_to_auth_context__returns_auth__when_userinfo_ok() -> None:
+    """
+    Purpose: _userinfo_to_auth_context converts UniqueUserInfo to AuthContext.
+    Why this matters: Bridge for code that needs AuthContext from userinfo.
+    Setup summary: Patch get_unique_userinfo to return a model.
+    """
+    with patch(
+        f"{_MOD}.get_unique_userinfo",
+        return_value=UniqueUserInfo(user_id="a", company_id="b", email=None),
+    ):
+        auth = await _userinfo_to_auth_context(http_client=AsyncMock())
+
+    assert auth is not None
+    assert auth.get_confidential_user_id() == "a"
+    assert auth.get_confidential_company_id() == "b"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_userinfo_to_auth_context__returns_none__when_no_userinfo() -> None:
+    """
+    Purpose: When get_unique_userinfo returns None, auth context is None.
+    Why this matters: Distinguishes missing token from failed fetch.
+    Setup summary: Patch get_unique_userinfo to None.
+    """
+    with patch(f"{_MOD}.get_unique_userinfo", return_value=None):
+        auth = await _userinfo_to_auth_context(http_client=AsyncMock())
+    assert auth is None
+
+
+@pytest.mark.ai
+@patch(f"{_MOD}.get_unique_settings")
+@patch(f"{_MOD}.UniqueServiceFactory")
+def test_get_unique_service_factory__builds_factory_with_resolved_settings(
+    mock_factory_cls: MagicMock,
+    mock_get_settings: MagicMock,
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: get_unique_service_factory uses get_unique_settings for the factory.
+    Why this matters: Services see the same auth resolution as get_unique_settings.
+    Setup summary: Patch get_unique_settings and UniqueServiceFactory; assert call.
+    """
+    mock_get_settings.return_value = base_settings
+    mock_instance = MagicMock()
+    mock_factory_cls.return_value = mock_instance
+
+    result = get_unique_service_factory()
+
+    mock_get_settings.assert_called_once()
+    mock_factory_cls.assert_called_once_with(settings=base_settings)
+    assert result is mock_instance
