@@ -9,6 +9,7 @@ import textwrap
 from unique_sdk.cli import __version__
 from unique_sdk.cli.commands.files import cmd_download, cmd_mv_file, cmd_rm, cmd_upload
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
+from unique_sdk.cli.commands.mcp import cmd_mcp
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
 from unique_sdk.cli.commands.search import cmd_search
 from unique_sdk.cli.state import ShellState
@@ -41,6 +42,13 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --folder <path|id>        Restrict to a folder
         --metadata <key=value>    Filter by metadata (repeatable)
         --limit <N>               Max results (default: 200)
+
+    MCP:
+      mcp [options] <json>      Call an MCP server tool
+        --chat-id / -c <id>       Chat ID (required)
+        --message-id / -m <id>    Message ID (required)
+        --file / -f <path>        Read JSON from file instead
+        --stdin                   Read JSON from stdin
 
     Shell:
       help [command]            Show help (for a specific command)
@@ -398,6 +406,82 @@ class UniqueShell(cmd.Cmd):
                 folder=folder,
                 metadata=metadata if metadata else None,
                 limit=limit,
+            )
+        )
+
+    # -- MCP --
+
+    def do_mcp(self, arg: str) -> None:
+        """Call an MCP server tool with a JSON payload.
+
+        Usage: mcp -c <chat_id> -m <message_id> '<json>'
+               mcp -c <chat_id> -m <message_id> --file <path>
+               mcp -c <chat_id> -m <message_id> --stdin
+
+        Calls an MCP tool via the Unique platform. The JSON payload
+        must contain "name" and (optionally) "arguments":
+
+          {"name": "tool_name", "arguments": {"param": "value"}}
+
+        Options:
+          -c / --chat-id <id>      Chat ID (required)
+          -m / --message-id <id>   Message ID (required)
+          -f / --file <path>       Read JSON payload from a file
+          --stdin                  Read JSON payload from stdin
+
+        Examples:
+          /> mcp -c chat_123 -m msg_456 '{"name": "search", "arguments": {"q": "test"}}'
+          /> mcp -c chat_123 -m msg_456 --file payload.json
+        """
+        parts = shlex.split(arg)
+        if not parts:
+            self._print(
+                "Usage: mcp -c <chat_id> -m <message_id> '<json>'\n"
+                "       mcp -c <chat_id> -m <message_id> --file <path>"
+            )
+            return
+
+        chat_id: str | None = None
+        message_id: str | None = None
+        file_path: str | None = None
+        use_stdin = False
+        positional: list[str] = []
+
+        i = 0
+        while i < len(parts):
+            if parts[i] in ("--chat-id", "-c") and i + 1 < len(parts):
+                chat_id = parts[i + 1]
+                i += 2
+            elif parts[i] in ("--message-id", "-m") and i + 1 < len(parts):
+                message_id = parts[i + 1]
+                i += 2
+            elif parts[i] in ("--file", "-f") and i + 1 < len(parts):
+                file_path = parts[i + 1]
+                i += 2
+            elif parts[i] == "--stdin":
+                use_stdin = True
+                i += 1
+            else:
+                positional.append(parts[i])
+                i += 1
+
+        if not chat_id:
+            self._print("Error: --chat-id / -c is required.")
+            return
+        if not message_id:
+            self._print("Error: --message-id / -m is required.")
+            return
+
+        payload = " ".join(positional) if positional else None
+
+        self._print(
+            cmd_mcp(
+                self.state,
+                chat_id=chat_id,
+                message_id=message_id,
+                payload=payload,
+                file=file_path,
+                stdin=use_stdin,
             )
         )
 
