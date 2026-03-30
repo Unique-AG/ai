@@ -14,9 +14,7 @@ from unique_retrieve_search_scope.service import RetrieveSearchScopeTool
 _KB_SERVICE_PATCH = (
     "unique_retrieve_search_scope.service.UniqueServiceFactory.knowledge_base_service"
 )
-_SETTINGS_PATCH = (
-    "unique_retrieve_search_scope.service.UniqueSettings.from_chat_event"
-)
+_SETTINGS_PATCH = "unique_retrieve_search_scope.service.UniqueSettings.from_chat_event"
 
 
 def _make_content_info(key: str, **kwargs) -> ContentInfo:
@@ -57,9 +55,7 @@ def tool(mock_chat_event: ChatEvent) -> RetrieveSearchScopeTool:
         setattr(self, "config", configuration)
         setattr(self, "debug_info", {})
 
-    with patch(
-        "unique_retrieve_search_scope.service.Tool.__init__", setup_tool
-    ):
+    with patch("unique_retrieve_search_scope.service.Tool.__init__", setup_tool):
         return RetrieveSearchScopeTool(config, mock_chat_event)
 
 
@@ -80,7 +76,11 @@ def _patch_kb(content_infos=None, side_effect=None, space_metadata_filter=None):
         mock_kb.get_content_infos_async = AsyncMock(
             return_value=content_infos if content_infos is not None else []
         )
-    return patch(_SETTINGS_PATCH), patch(_KB_SERVICE_PATCH, return_value=mock_kb), mock_kb
+    return (
+        patch(_SETTINGS_PATCH),
+        patch(_KB_SERVICE_PATCH, return_value=mock_kb),
+        mock_kb,
+    )
 
 
 @pytest.mark.unit
@@ -161,7 +161,11 @@ class TestRetrieveSearchScopeToolRun:
         self, tool: RetrieveSearchScopeTool, mock_tool_call: LanguageModelFunction
     ):
         mock_tool_call.arguments = {}
-        space_filter = {"operator": "equals", "value": "finance", "path": ["department"]}
+        space_filter = {
+            "operator": "equals",
+            "value": "finance",
+            "path": ["department"],
+        }
 
         settings_patch, kb_patch, mock_kb = _patch_kb(
             [], space_metadata_filter=space_filter
@@ -178,7 +182,11 @@ class TestRetrieveSearchScopeToolRun:
     ):
         agent_filter = {"operator": "equals", "value": "prod", "path": ["env"]}
         mock_tool_call.arguments = {"metadata_filter": agent_filter}
-        space_filter = {"operator": "equals", "value": "finance", "path": ["department"]}
+        space_filter = {
+            "operator": "equals",
+            "value": "finance",
+            "path": ["department"],
+        }
 
         settings_patch, kb_patch, mock_kb = _patch_kb(
             [], space_metadata_filter=space_filter
