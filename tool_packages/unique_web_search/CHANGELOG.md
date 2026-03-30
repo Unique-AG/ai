@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.3] - 2026-03-25
+### Fixed
+- Replace direct `UserAgent` usage in crawlers with `get_random_user_agent()` utility that appends a randomized email to the Chrome user agent, reducing the likelihood of crawl requests being blocked
+
+## [1.14.2] - 2026-03-25
+### Added
+- Experimental **Tool Response Reminder**: `enable_system_reminder` (default off) and `system_reminder_prompt` (defaults to the standard source citation template) under Experimental Features.
+- Explicit V3 prompts
+
 ## [1.14.1] - 2026-03-19
 ### Added
 - `WebSearchV3Executor` for snippet-based relevance filtering before crawling.

@@ -590,6 +590,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             name=self.name,
             content_chunks=selected_chunks,
             debug_info=self.debug_info,
+            system_reminder=self.config.experimental_features.tool_response_system_reminder.get_reminder_prompt,
         )
 
         if (
@@ -630,15 +631,15 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         # Get the maximum source number in the loop history
         max_source_number = len(agent_chunks_handler.chunks)
 
-        # Transform content chunks into sources to be appended to tool result
-        sources, _ = transform_chunks_to_string(
+        # Tool-role content must stay a JSON string, but should preserve readable Unicode.
+        serialized_sources, _ = transform_chunks_to_string(
             content_chunks,
             max_source_number,
         )
 
         # Append the result to the history
         return LanguageModelToolMessage(
-            content=sources,
+            content=serialized_sources,
             tool_call_id=tool_response.id,  # type: ignore
             name=tool_response.name,
         )

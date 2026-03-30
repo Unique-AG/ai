@@ -1,14 +1,16 @@
 """Tests for code interpreter ShowExecutedCode postprocessor (config and behavior)."""
 
 from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
     ShowExecutedCodePostprocessor,
     ShowExecutedCodePostprocessorConfig,
-    strip_executed_code_blocks,
 )
+
+CODE_DISPLAY_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display.feature_flags"
 
 
 @pytest.mark.ai
@@ -132,16 +134,59 @@ async def test_show_executed_code_postprocessor__remove_from_text__leaves_text_u
 
 
 @pytest.mark.ai
-def test_strip_executed_code_blocks__removes_details_and_trailing_br() -> None:
+def test_show_executed_code_postprocessor__apply_postprocessing_to_response__no_op__when_fence_ff_on() -> (
+    None
+):
     """
-    Purpose: Verify strip_executed_code_blocks removes the block emitted by this
-    postprocessor (including trailing </br>) so other postprocessors can supersede it.
+    Purpose: Verify postprocessor is a no-op when the code execution fence FF is on.
+    Why this matters: When the fence FF is on, fences in generated_files carry the code —
+    adding <details> blocks here would duplicate content and could leak into the message.
+    Setup summary: Patch FF to return True; assert changed=False and text unchanged.
     """
-    text = (
-        "<details><summary>Code Interpreter Call</summary>\n"
-        "```python\nx = 1\n```\n</details>    \n</br>\n\nKeep this."
+    # Arrange
+    config = ShowExecutedCodePostprocessorConfig()
+    postprocessor = ShowExecutedCodePostprocessor(
+        config=config, company_id="company-123"
     )
-    result = strip_executed_code_blocks(text)
-    assert "<details>" not in result
-    assert "</br>" not in result
-    assert result.strip() == "Keep this."
+    message = SimpleNamespace(text="Existing answer.")
+    code_call = SimpleNamespace(code="print(1)")
+    loop_response = SimpleNamespace(
+        code_interpreter_calls=[code_call],
+        message=message,
+    )
+
+    mock_ff = MagicMock()
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
+
+    with patch(CODE_DISPLAY_FF, mock_ff):
+        changed = postprocessor.apply_postprocessing_to_response(loop_response)
+
+    # Assert
+    assert changed is False
+    assert loop_response.message.text == "Existing answer."
+    assert "<details>" not in loop_response.message.text
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_show_executed_code_postprocessor__run__no_op__when_fence_ff_on() -> None:
+    """
+    Purpose: Verify run() skips the display sleep when FF is on.
+    Why this matters: Avoids unnecessary delay when the postprocessor is a no-op.
+    Setup summary: Patch FF on, asyncio.sleep; assert sleep not called.
+    """
+    import asyncio
+
+    config = ShowExecutedCodePostprocessorConfig()
+    postprocessor = ShowExecutedCodePostprocessor(
+        config=config, company_id="company-123"
+    )
+    loop_response = SimpleNamespace(code_interpreter_calls=[])
+
+    mock_ff = MagicMock()
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
+
+    with patch(CODE_DISPLAY_FF, mock_ff), patch.object(asyncio, "sleep") as mock_sleep:
+        await postprocessor.run(loop_response)
+
+    mock_sleep.assert_not_called()

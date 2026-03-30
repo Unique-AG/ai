@@ -218,6 +218,27 @@ class TestConfigPassthrough:
         assert postprocessor._config is custom_code_display_config
 
     @pytest.mark.ai
+    def test_show_executed_code_postprocessor_receives_company_id(self):
+        """ShowExecutedCodePostprocessor must receive company_id for fence FF checks (UN-17972)."""
+        mgr = _make_postprocessor_manager()
+
+        _register_code_interpreter_postprocessors(
+            tools=[_make_code_interpreter_tool()],
+            postprocessor_manager=mgr,
+            client=MagicMock(),
+            content_service=MagicMock(),
+            user_id="u1",
+            company_id="company-fence",
+            chat_id="ch1",
+            chat_service=MagicMock(),
+        )
+
+        postprocessor: ShowExecutedCodePostprocessor = (
+            mgr.add_postprocessor.call_args_list[0][0][0]
+        )
+        assert postprocessor._company_id == "company-fence"
+
+    @pytest.mark.ai
     def test_display_files_postprocessor_receives_client_and_company_id(self):
         """DisplayCodeInterpreterFilesPostProcessor must receive the client and company_id."""
         mgr = _make_postprocessor_manager()

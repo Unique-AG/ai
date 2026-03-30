@@ -1,7 +1,16 @@
+from __future__ import annotations
+
 import base64
+import logging
 import mimetypes
 from datetime import datetime
 from enum import StrEnum
+from itertools import groupby
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from unique_toolkit.content.schemas import ContentChunk
+    from unique_toolkit.language_model.builder import MessagesBuilder
 
 import numpy as np
 from pydantic import RootModel
@@ -11,16 +20,21 @@ from unique_toolkit._common.token.token_counting import (
 )
 from unique_toolkit._common.utils import files as FileUtils
 from unique_toolkit.app import ChatEventUserMessage
-from unique_toolkit.chat.schemas import ChatMessage
+from unique_toolkit.chat.schemas import ChatMessage, ChatMessageTool
 from unique_toolkit.chat.schemas import ChatMessageRole as ChatRole
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content.schemas import Content
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model import LanguageModelMessageRole as LLMRole
 from unique_toolkit.language_model.infos import EncoderName, LanguageModelInfo
-from unique_toolkit.language_model.schemas import LanguageModelMessages
+from unique_toolkit.language_model.schemas import (
+    LanguageModelAssistantMessage,
+    LanguageModelFunction,
+    LanguageModelMessages,
+    LanguageModelToolMessage,
+)
 
-# TODO: Test this once it moves into the unique toolkit
+_LOGGER = logging.getLogger(__name__)
 
 map_chat_llm_message_role = {
     ChatRole.USER: LLMRole.USER,
@@ -156,6 +170,48 @@ def file_content_serialization(
             )
 
 
+def _append_element_to_builder(
+    builder: MessagesBuilder,
+    c: ChatMessageWithContents,
+    text: str,
+    include_images: ImageContentInclusion,
+    file_content_serialization_type: FileContentSerialization,
+    content_service: ContentService,
+    chat_id: str,
+) -> None:
+    if len(c.contents) > 0:
+        file_contents = [co for co in c.contents if FileUtils.is_file_content(co.key)]
+        image_contents = [co for co in c.contents if FileUtils.is_image_content(co.key)]
+        content = (
+            text
+            + "\n\n"
+            + file_content_serialization(
+                file_contents,
+                file_content_serialization_type,
+            )
+        ).strip()
+        if include_images and len(image_contents) > 0:
+            builder.image_message_append(
+                content=content,
+                images=download_encoded_images(
+                    contents=image_contents,
+                    content_service=content_service,
+                    chat_id=chat_id,
+                ),
+                role=map_chat_llm_message_role[c.role],
+            )
+        else:
+            builder.message_append(
+                role=map_chat_llm_message_role[c.role],
+                content=content,
+            )
+    else:
+        builder.message_append(
+            role=map_chat_llm_message_role[c.role],
+            content=text,
+        )
+
+
 def get_full_history_with_contents(
     user_message: ChatEventUserMessage,
     chat_id: str,
@@ -173,7 +229,85 @@ def get_full_history_with_contents(
 
     builder = LanguageModelMessages([]).builder()
     for c in grouped_elements:
-        # LanguageModelUserMessage has not field original_text
+        # LanguageModelUserMessage has no field original_text
+        text = c.original_text if c.original_text else c.content
+        if text is None:
+            if c.role == ChatRole.USER:
+                raise ValueError(
+                    "Content or original_text of LanguageModelMessages should exist.",
+                )
+            text = ""
+        _append_element_to_builder(
+            builder=builder,
+            c=c,
+            text=text,
+            include_images=include_images,
+            file_content_serialization_type=file_content_serialization_type,
+            content_service=content_service,
+            chat_id=chat_id,
+        )
+    return builder.build()
+
+
+def get_full_history_with_contents_and_tool_calls(
+    *,
+    user_message: ChatEventUserMessage,
+    chat_id: str,
+    chat_service: ChatService,
+    content_service: ContentService,
+    include_images: ImageContentInclusion = ImageContentInclusion.ALL,
+    file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+) -> tuple[LanguageModelMessages, int, dict[int, "ContentChunk"]]:
+    """Build the full LLM message history, including persisted tool call rounds.
+
+    Returns:
+        A triple of (messages, max_source_number, source_map) where
+        *max_source_number* is the highest ``source_number`` found in any
+        persisted tool response (``-1`` when none exist) and *source_map*
+        maps each ``source_number`` to a ``ContentChunk`` reconstructed from
+        the persisted response content.
+    """
+    from unique_toolkit.agentic.history_manager.utils import (
+        build_source_map_from_tool_calls,
+        compute_max_source_number_from_tool_calls,
+    )
+    from unique_toolkit.content.schemas import (
+        ContentChunk as ContentChunk,  # noqa: F811
+    )
+
+    chat_history = chat_service.get_full_history()
+
+    assistant_message_ids = [
+        msg.id for msg in chat_history if msg.role == ChatRole.ASSISTANT and msg.id
+    ]
+    all_tool_calls: list[ChatMessageTool] = []
+    tool_calls_by_message: dict[str, list[ChatMessageTool]] = {}
+    if assistant_message_ids:
+        try:
+            all_tool_calls = chat_service.get_message_tools(
+                message_ids=assistant_message_ids,
+            )
+            for tc in all_tool_calls:
+                if tc.message_id:
+                    tool_calls_by_message.setdefault(tc.message_id, []).append(tc)
+        except Exception:
+            _LOGGER.warning(
+                "Failed to batch-load tool calls, falling back to empty", exc_info=True
+            )
+    max_source_number = compute_max_source_number_from_tool_calls(all_tool_calls)
+    source_map: dict[int, ContentChunk] = build_source_map_from_tool_calls(
+        all_tool_calls
+    )
+
+    grouped_elements = get_chat_history_with_contents(
+        user_message=user_message,
+        chat_id=chat_id,
+        chat_history=chat_history,
+        content_service=content_service,
+    )
+
+    builder = LanguageModelMessages([]).builder()
+    for c in grouped_elements:
         text = c.original_text if c.original_text else c.content
         if text is None:
             if c.role == ChatRole.USER:
@@ -182,45 +316,79 @@ def get_full_history_with_contents(
                 )
             text = ""
 
-        if len(c.contents) > 0:
-            file_contents = [
-                co for co in c.contents if FileUtils.is_file_content(co.key)
-            ]
-            image_contents = [
-                co for co in c.contents if FileUtils.is_image_content(co.key)
-            ]
-
-            content = (
-                text
-                + "\n\n"
-                + file_content_serialization(
-                    file_contents,
-                    file_content_serialization_type,
-                )
+        if c.role == ChatRole.ASSISTANT and c.id and c.id in tool_calls_by_message:
+            tc_records = sorted(
+                tool_calls_by_message[c.id],
+                key=lambda tc: (tc.round_index, tc.sequence_index),
             )
-            content = content.strip()
+            if tc_records:
+                for _round, round_group in groupby(
+                    tc_records, key=lambda tc: tc.round_index
+                ):
+                    round_tcs = list(round_group)
+                    # Only include tool calls that have a response; without a
+                    # matching LanguageModelToolMessage the assistant message
+                    # would reference a tool_call_id that never gets a reply,
+                    # which LLM APIs (e.g. OpenAI) reject.
+                    round_tcs_with_response = [
+                        tc
+                        for tc in round_tcs
+                        if tc.response and tc.response.content is not None
+                    ]
+                    if not round_tcs_with_response:
+                        continue
+                    # Build LanguageModelFunction objects first so we can read
+                    # back the post-validator id: the randomize_id validator
+                    # replaces an empty string with a UUID, and we must use
+                    # the same id in the LanguageModelToolMessage so the
+                    # tool_call_id references match.
+                    fns = [
+                        LanguageModelFunction(
+                            id=tc.external_tool_call_id,
+                            name=tc.function_name,
+                            arguments=tc.arguments,
+                        )
+                        for tc in round_tcs_with_response
+                    ]
+                    builder.messages.append(
+                        LanguageModelAssistantMessage.from_functions(tool_calls=fns)
+                    )
+                    for fn, tc in zip(fns, round_tcs_with_response):
+                        builder.messages.append(
+                            LanguageModelToolMessage(
+                                tool_call_id=fn.id,
+                                content=tc.response.content,  # type: ignore[union-attr]
+                                name=tc.function_name,
+                            )
+                        )
 
-            if include_images and len(image_contents) > 0:
-                builder.image_message_append(
-                    content=content,
-                    images=download_encoded_images(
-                        contents=image_contents,
-                        content_service=content_service,
-                        chat_id=chat_id,
-                    ),
-                    role=map_chat_llm_message_role[c.role],
-                )
-            else:
-                builder.message_append(
-                    role=map_chat_llm_message_role[c.role],
-                    content=content,
-                )
-        else:
-            builder.message_append(
-                role=map_chat_llm_message_role[c.role],
-                content=text,
-            )
-    return builder.build()
+        # Drop empty assistant messages that had tool calls.
+        # When a turn consists only of tool-call rounds (e.g. the loop was
+        # cancelled before producing a final prose response), the DB message
+        # ends up with text == "". The full turn is already captured by the
+        # interleaved ASSISTANT(tool_calls) + TOOL messages emitted above, so
+        # appending an empty ASSISTANT message here would waste tokens and can
+        # be misread by LLM APIs as a conversation boundary.
+        # Note: get_full_history_with_contents does NOT drop this message — it
+        # has no tool-call context and treats the empty message as benign.
+        had_tool_calls = (
+            c.role == ChatRole.ASSISTANT
+            and c.id is not None
+            and c.id in tool_calls_by_message
+        )
+        if had_tool_calls and not text:
+            continue
+
+        _append_element_to_builder(
+            builder=builder,
+            c=c,
+            text=text,
+            include_images=include_images,
+            file_content_serialization_type=file_content_serialization_type,
+            content_service=content_service,
+            chat_id=chat_id,
+        )
+    return builder.build(), max_source_number, source_map
 
 
 def get_full_history_as_llm_messages(

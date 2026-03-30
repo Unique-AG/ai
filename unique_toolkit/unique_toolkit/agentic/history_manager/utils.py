@@ -14,6 +14,11 @@ from unique_toolkit.language_model.schemas import (
 logger = logging.getLogger(__name__)
 
 
+def serialize_tool_content_json(value: Any) -> str:
+    """Serialize tool-role JSON text while preserving readable Unicode."""
+    return json.dumps(value, ensure_ascii=False)
+
+
 def convert_tool_interactions_to_content_messages(
     loop_history: list[LanguageModelMessage],
 ) -> list[LanguageModelMessage]:
@@ -75,11 +80,12 @@ def transform_chunks_to_string(
     sources: list[dict[str, Any]] = [
         {
             "source_number": max_source_number + i,
+            "content_id": chunk.id,
             "content": chunk.text,
         }
         for i, chunk in enumerate(content_chunks)
     ]
-    return json.dumps(sources), sources
+    return serialize_tool_content_json(sources), sources
 
 
 def load_sources_from_string(
@@ -94,3 +100,70 @@ def load_sources_from_string(
     except (json.JSONDecodeError, ValueError):
         logger.warning("Failed to parse source string")
         return None
+
+
+def _parse_sources_from_response(content: str) -> list[dict[str, Any]]:
+    """Parse the JSON source array from a persisted tool response content string.
+
+    Returns an empty list when the content is not valid JSON or not a list.
+    """
+    try:
+        data = json.loads(content)
+        if isinstance(data, list):
+            return data
+        return []
+    except (json.JSONDecodeError, ValueError) as exc:
+        logger.warning(
+            "_parse_sources_from_response: JSON parse failed (content_len=%d): %s",
+            len(content),
+            exc,
+        )
+        return []
+
+
+def compute_max_source_number_from_tool_calls(
+    tool_calls: list[Any],
+) -> int:
+    """Find the highest ``source_number`` across all persisted tool-call responses.
+
+    Returns ``-1`` when no source numbers are found.
+    """
+    from unique_toolkit.chat.schemas import ChatMessageTool
+
+    max_num = -1
+    for tc in tool_calls:
+        if not isinstance(tc, ChatMessageTool):
+            continue
+        if not tc.response or not tc.response.content:
+            continue
+        for entry in _parse_sources_from_response(tc.response.content):
+            sn = entry.get("source_number")
+            if isinstance(sn, int) and sn > max_num:
+                max_num = sn
+    return max_num
+
+
+def build_source_map_from_tool_calls(
+    tool_calls: list[Any],
+) -> dict[int, ContentChunk]:
+    """Build a mapping ``{source_number: ContentChunk}`` from persisted tool responses.
+
+    Only entries that have both a valid ``source_number`` and ``content`` are included.
+    """
+    from unique_toolkit.chat.schemas import ChatMessageTool
+
+    source_map: dict[int, ContentChunk] = {}
+    for tc in tool_calls:
+        if not isinstance(tc, ChatMessageTool):
+            continue
+        if not tc.response or not tc.response.content:
+            continue
+        for entry in _parse_sources_from_response(tc.response.content):
+            sn = entry.get("source_number")
+            text = entry.get("content")
+            if isinstance(sn, int) and isinstance(text, str):
+                content_id = entry.get("content_id") or ""
+                source_map[sn] = ContentChunk(
+                    id=content_id, text=text, key="", chunk_id=""
+                )
+    return source_map

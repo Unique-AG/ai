@@ -5,12 +5,99 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.65.2] - 2026-03-30
+- Remove experimental open pdf tool
+
+## [1.65.1] - 2026-03-30
+- Code interpreter (UN-17972): `get_tool_prompts()` now always uses the stored `tool_description_for_system_prompt` (no feature-flag substitution); UI and backend stay aligned when the config default is the fence prompt.
+- Code interpreter (UN-18561): extend `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` — sandbox has no internet; do not use `requests` / `httpx` / `urllib` for web fetches; use the web search tool first, then code interpreter.
+- Code interpreter: RJSF textarea `rows` for `tool_description_for_system_prompt` is derived from `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` so the widget height matches the default body (fixes undersized editor).
+
+## [1.65.0] - 2026-03-29
+- Adding experimental open pdf tool
+
+## [1.64.7] - 2026-03-27
+- Code interpreter (UN-17972): when the sandbox HTML link is the only content on its line (including indented list continuations), replace the full line so the `HtmlRendering` opening fence starts at column 0; match is anchored to line start so mid-line links still use the separate mid-line path.
+- Code interpreter (UN-17972): strip runs of whitespace-only lines immediately preceding that link line so blank indented lines do not remain above the `HtmlRendering` block.
+- Code interpreter (UN-17972): when the link is mid-line and the response continues immediately after the closing parenthesis with no newline, append a newline after the closing fence so following text does not adjoin the fence.
+
+## [1.64.6] - 2026-03-27
+- Code interpreter (UN-17972): fix `HtmlRendering` block format for fenced code-interpreter HTML — remove an extra blank line before the `unique://content/...` URL (template had `\n\n\n`, parser expected a single blank line; broke rendering when images/PDFs were in the same message).
+- Code interpreter (UN-17972): when the model places the sandbox link mid-line (e.g. numbered list item), insert a leading newline before the `HtmlRendering` fence so it starts on its own line (same requirement as `imgWithSource` / `fileWithSource` standalone fences).
+
+## [1.64.5] - 2026-03-27
+- RJSF: Add `CustomWidgetName` values `folderScopePicker`, `selectionPolicy`, `toolIconSelect`, and `toggleSwitch` (aligned with TypeScript custom widgets).
+- RJSF: `RJSFMetaTag.custom()` accepts `name: CustomWidgetName | str` so callers can pass string widget identifiers (e.g. custom icons) in addition to enum members.
+
+## [1.64.4] - 2026-03-26
+- Code interpreter (UN-17972): when fence FF is on, HTML artifacts use `HtmlRendering` blocks with `800px` / `600px` dimensions and `unique://content/...` (revert from `htmlWithSource` for product UX). Remove `htmlWithSource` from fence building and normalization regexes; skip HTML in unmatched-code-block warnings; update tests.
+
+## [1.64.3] - 2026-03-26
+- Config checker: CLI and validator improvements
+
+## [1.64.2] - 2026-03-26
+- Add `UniqueSettings.with_auth` to return a new settings instance with a given auth context while preserving app, api, chat, filter options, and env file reference (UN-18484)
+- Add tests for `UniqueSettings`
+
+## [1.64.1] - 2026-03-26
+- Add `enable_tool_call_persistence_un_15977` feature flag; when disabled (default), `get_full_history_with_contents` is used instead of `get_full_history_with_contents_and_tool_calls` and `enable_tool_call_persistence` is threaded through `HistoryManagerConfig` and `LoopTokenReducer` (UN-15977)
+
+## [1.64.0] - 2026-03-25
+- Code interpreter (UN-17972): orphan code runs — synthesise a `.txt` artifact and `fileWithSource` fence when code produces no container files, gated on `enable_code_execution_fence_un_17972` (replaces legacy `<details>` for that case)
+- Code interpreter (UN-17972): `OpenAICodeInterpreterTool.get_required_include_params()` returns `["code_interpreter_call.outputs"]` when the fence FF is on; add `OpenAIBuiltInTool.get_required_include_params()`, `OpenAIBuiltInToolManager.get_required_include_params()`, and `ResponsesApiToolManager.get_required_include_params()`; add `_collect_stdout` for `ResponseCodeInterpreterToolCall.outputs` (end-to-end `include` requires orchestrator PR)
+- Code interpreter (UN-17972): when fence FF is on, `ShowExecutedCodePostprocessor` is a no-op; remove `strip_executed_code_blocks` and its use in `DisplayCodeInterpreterFilesPostProcessor`; add optional `company_id` on `ShowExecutedCodePostprocessor` (orchestrator should pass company id alongside generated-files postprocessor)
+- Add unit test for `message.text is None` handling in `DisplayCodeInterpreterFilesPostProcessor.apply_postprocessing_to_response`
+
+## [1.63.2] - 2026-03-25
+- Code interpreter (UN-17972): emit `htmlWithSource` fences for `.html` artifacts when `enable_code_execution_fence_un_17972` is on; HTML uses the same sandbox-link → fence injection path as other files. Legacy `HtmlRendering` block is used only when the fence FF is off and `enable_html_rendering_un_15131` is on.
+- Fence-mode system prompt (`DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): require HTML only as saved files under `/mnt/data/`, not inline in the assistant text; add UI-oriented best practices (HTML5 shell, self-contained CSS/JS, fluid layout, contrast, semantic elements, no parent-frame access).
+- `get_tool_prompts()`: treat stored `tool_description_for_system_prompt` as the unmodified default when it equals either `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT` or `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`, so spaces created across toolkit versions still receive the fence prompt when the FF is on.
+
+## [1.63.1] - 2026-03-25
+- Broaden internal API URL matching to include hostnames that contain `.svc.` or end with `.svc`
+
+## [1.63.0] - 2026-03-24
+- Globally unique source numbering across chat turns (UN-15977): source numbers now continue from the highest index persisted in the database, ensuring `[sourceN]` citations remain unique and stable across the entire conversation
+- Add `get_content_chunks_for_backend()` to `HistoryManager`: builds a positional content-chunk list where `result[N]` contains the chunk for `[sourceN]`, including prior-turn sources reconstructed from the database
+- Remove `percent_for_tool_call_history` from `HistoryManagerConfig` and `_limit_tool_call_tokens` from `LoopTokenReducer`; history truncation now relies solely on `percent_of_max_tokens_for_history` with whole-turn dropping
+- Add `compute_max_source_number_from_tool_calls` and `build_source_map_from_tool_calls` utilities
+- `get_full_history_with_contents_and_tool_calls` now returns `(messages, max_source_number, source_map)` tuple
+
+## [1.62.4] - 2026-03-24
+- Fix tool-history source serialization to preserve readable Unicode in LLM-facing JSON payloads
+- Fix reduced tool responses to keep readable Unicode for standard source reduction and `TableSearch`
+
+## [1.62.3] - 2026-03-24
+- Add `content_id` to search result source dicts in tool call responses (`transform_chunks_to_string` and `_create_reduced_standard_sources_message`) so the LLM can associate each source with its content object
+
+## [1.62.2] - 2026-03-24
+- Code interpreter (UN-18375): harden `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT` and `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` — require `plt.savefig` + `plt.close` for plots, forbid `sandbox:/mnt/data/` links unless the file was created by executed code in the same response, and use `<filename>` (not a literal `filename.png`) in savefig examples so multiple plots do not overwrite the same path
+
+## [1.62.1] - 2026-03-23
+- Base `Tool.__init__` accepts config only; optional overload for backward compatibility
+- Tools not tied to chat can use `Tool(config)`; legacy tools use `Tool(config, event, tool_progress_reporter)`
+- `MCPToolWrapper`, `SubAgentTool`, `DeepResearchTool`, `PMPositionsTool` create their own services when needed
+
+## [1.62.0] - 2026-03-23
+- Add `tool_manager` parameter to `DebugInfoManager.extract_builtin_tool_debug_info` and `_extract_tool_calls_from_stream_response`; each code interpreter call entry now includes `is_exclusive` and `is_forced` flags derived from the tool manager
+## [1.61.0] - 2026-03-23
+- Add option to include Code Execution in tool analytics (Debug Info)
+
+## [1.60.0] - 2026-03-20
+- Add `MessageTool` persistence and history reconstruction (UN-15977): after each agentic loop, tool calls and their responses are persisted to the database via `unique_sdk.MessageTool`. On subsequent turns, the full tool-call history is batch-loaded and interleaved into the LLM message history (parallel calls grouped into a single assistant message per round). New `ChatService` methods: `create_message_tools`, `create_message_tools_async`, `get_message_tools`, `get_message_tools_async`. New schema types: `ChatMessageTool`, `ChatMessageToolResponse`. New `HistoryManager` methods: `extract_message_tools`, `compact_message_tools`. Requires `unique-sdk>=0.10.85`.
+
+## [1.59.1] - 2026-03-19
+- Add `UniqueServiceFactory` for registry-based service creation via `UniqueContext` (UN-18236)
+- Add `UniqueContext` with `from_chat_event` / `from_event` / `from_settings` factory methods
+- Add `AuthContext`, `AuthContextProtocol`, `ChatContext`, `ChatContextProtocol` to `unique_settings`
+- Add `ChatService.from_context` and `KnowledgeBaseService.from_context` constructors; deprecate old event-based constructors
+- Deprecate `UniqueSettings.auth` property in favour of `UniqueSettings.authcontext`
 
 ## [1.59.0] - 2026-03-19
 - Introduce `AuthContextProtocol` and `AuthContext` (Pydantic `BaseModel`) for unified auth typing across MCP services and apps (UN-18234)
 - Add `ChatContextProtocol` and `ChatContext` (Pydantic `BaseModel`) for chat context (UN-18234)
 - Add `UniqueEnvironment` class grouping env-only settings (`app` + `api`) (UN-18234)
-- Add `UniqueRequestContext` class grouping request/env context (`auth` + `chat`) (UN-18234)
+- Add `UniqueContext` class grouping request/env context (`auth` + `chat`) (UN-18234)
 - Enhance `UniqueAuth` with `get_confidential_company_id()`, `get_confidential_user_id()`, and `to_auth_context()` methods (UN-18234)
 - Add `authcontext: AuthContextProtocol` property to `UniqueSettings`; deprecate `auth` (still returns `UniqueAuth`) (UN-18234)
 
@@ -47,11 +134,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add reusable `NoneToDefault` `BeforeValidator` that replaces incoming `None` values with the field's declared default via `PydanticUseDefault`, enabling backward-compatible migration from nullable fields to non-nullable fields with defaults
 - Apply `NoneToDefault` validator to `DocxGeneratorConfig.template_content_id`
 
+
 ## [1.54.0] - 2026-03-16
 - Code interpreter (UN-17972 review fix): `get_tool_prompts()` now respects operator-customised `tool_description_for_system_prompt` when the fence FF is on. Previously the fence-aware prompt was applied unconditionally when the FF was enabled, silently ignoring any custom prompt. Now `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` is only substituted when the operator is still using the unmodified default; a customised prompt is always used regardless of the FF.
 
 ## [1.53.4] - 2026-03-13
 - Code interpreter (UN-17972 review fixes): `_warn_missing_content_ids` downgraded from WARNING to INFO. Dangling `sandbox:/mnt/data/` links are now replaced with the configured error message in addition to logging a warning. Fence prompt updated (example blank lines, component description, "files" not "images"). Consecutive fences normalised to exactly one newline between them (same-line, list-item, and blank-line cases).
+
 
 ## [1.53.3] - 2026-03-12
 - Code interpreter (UN-17972 follow-up): prompt update — `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` variant removes the "Descriptive Title" instruction; selected automatically in `get_tool_prompts()` when `FEATURE_FLAG_ENABLE_CODE_EXECUTION_FENCE_UN_17972` is on; legacy prompt (with title) used when flag is off, preserving exact pre-fence behaviour. `company_id` stored on `OpenAICodeInterpreterTool` to enable per-company FF evaluation at prompt-render time.

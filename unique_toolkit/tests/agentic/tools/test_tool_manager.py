@@ -49,8 +49,8 @@ class MockTool(Tool[MockToolConfig]):
 
     name = "mock_tool"
 
-    def __init__(self, config, event, tool_progress_reporter=None):
-        super().__init__(config, event, tool_progress_reporter)
+    def __init__(self, config, event=None, tool_progress_reporter=None):
+        super().__init__(config)
 
     def tool_description(self):
         from unique_toolkit.language_model.schemas import LanguageModelToolDescription
@@ -80,8 +80,8 @@ class MockExclusiveTool(Tool[MockToolConfig]):
 
     name = "exclusive_tool"
 
-    def __init__(self, config, event, tool_progress_reporter=None):
-        super().__init__(config, event, tool_progress_reporter)
+    def __init__(self, config, event=None, tool_progress_reporter=None):
+        super().__init__(config)
 
     def tool_description(self):
         from unique_toolkit.language_model.schemas import LanguageModelToolDescription
@@ -111,8 +111,8 @@ class MockControlTool(Tool[MockToolConfig]):
 
     name = "control_tool"
 
-    def __init__(self, config, event, tool_progress_reporter=None):
-        super().__init__(config, event, tool_progress_reporter)
+    def __init__(self, config, event=None, tool_progress_reporter=None):
+        super().__init__(config)
 
     def tool_description(self):
         from unique_toolkit.language_model.schemas import LanguageModelToolDescription
@@ -286,6 +286,37 @@ def test_responses_api_tool_manager__initializes__with_builtin_tools(
     assert tool_manager is not None
     assert tool_manager._api_mode == "responses"
     mock_builtin_manager.get_all_openai_builtin_tools.assert_called_once()
+
+
+@pytest.mark.ai
+def test_responses_api_tool_manager__get_required_include_params__delegates_to_builtin_manager(
+    logger,
+    tool_manager_config,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+) -> None:
+    """ResponsesApiToolManager forwards include params from OpenAIBuiltInToolManager."""
+    mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_all_openai_builtin_tools.return_value = []
+    mock_builtin_manager.get_required_include_params.return_value = [
+        "code_interpreter_call.outputs",
+    ]
+    tool_manager = ResponsesApiToolManager(
+        logger=logger,
+        config=tool_manager_config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+        builtin_tool_manager=mock_builtin_manager,
+    )
+    assert tool_manager.get_required_include_params() == [
+        "code_interpreter_call.outputs",
+    ]
+    mock_builtin_manager.get_required_include_params.assert_called_once()
 
 
 @pytest.mark.ai

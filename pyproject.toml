@@ -32,3 +32,8 @@ dev = [
 
 [tool.uv.sources]
 unique-toolkit = { path = "./unique_toolkit", editable = true }
+
+[tool.uv.workspace]
+members = [
+    "tutorials/mcp/mcp_test",
+]

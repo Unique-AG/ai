@@ -362,6 +362,7 @@ def search(
     )
 
 
+
 @main.command()
 @click.argument("payload", required=False, default=None)
 @click.option(

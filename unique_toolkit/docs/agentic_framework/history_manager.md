@@ -53,7 +53,7 @@ The `HistoryManager` is a critical component responsible for managing the conver
 
    - **Temporary and Persistent Storage**:  
      - Tool call queries and results are temporarily stored during the current conversation loop.  
-     - Persistent storage of tool call data is not yet implemented but is a planned improvement.  
+     - At the end of each turn they are persisted to the database via `extract_message_tools` + `ChatService.create_message_tools` and replayed on subsequent turns — see [Tool Call Persistence](tool_call_persistence.md).  
 
    - **Context for Subsequent Interactions**:  
      By integrating tool call queries and results into the history, the `HistoryManager` ensures that the LLM has the necessary context for follow-up interactions.
@@ -132,6 +132,23 @@ The `HistoryManager` is a critical component responsible for managing the conver
              loop_history=self._loop_history,
              remove_from_text=remove_from_text,
          )
+
+         # On the first iteration, initialize the global source offset
+         # from the highest source number persisted in prior turns.
+         if not self._source_offset_initialized:
+             offset = max(0, self._token_reducer.max_db_source_number + 1)
+             self._source_enumerator = offset
+             self._initial_source_offset = offset
+             self._db_source_map = self._token_reducer.db_source_map
+             self._source_offset_initialized = True
+
+         # Keep enumerator in sync after potential source reduction so new
+         # tool results continue contiguously from the (possibly compacted)
+         # reference manager state.
+         self._source_enumerator = self._initial_source_offset + len(
+             self._reference_manager.get_chunks()
+         )
+
          return messages
      ```
 
@@ -161,12 +178,28 @@ The `HistoryManager` is a critical component responsible for managing the conver
          self._loop_history.append(message)
      ```
 
+#### 6. **Tool Call Persistence**
+   - **`extract_message_tools()`**  
+     Walks the in-memory `_loop_history` and converts every `LanguageModelAssistantMessage` with tool calls (and its matching `LanguageModelToolMessage` responses) into a flat `list[ChatMessageTool]`. The list is ready to be passed to `ChatService.create_message_tools` at the end of a turn.  
+     ```python
+     records = history_manager.extract_message_tools()
+     ```
+     `round_index` increments for each sequential assistant message that carries tool calls; `sequence_index` is the position within a parallel batch. Tool calls with no matching response are included with `response=None`.
+
+   - **`compact_message_tools(*, records, assistant_text)`**  
+     Strips uncited source items from the tool response content before persistence. Tools that perform searches often return many result chunks, but the assistant only cites a few. Compaction keeps the replayed history lean without invalidating any existing citations (source numbers are not renumbered).  
+     ```python
+     records = HistoryManager.compact_message_tools(records=records, assistant_text=final_answer)
+     ```
+
+   See [Tool Call Persistence](tool_call_persistence.md) for the full workflow including how to replay tool call history on subsequent turns.
+
 ---
 
 ### 🛠️ Areas for Improvement
 
 1. **Tool Call and Tool Message Persistence**  
-   - Currently, tool calls and tool messages are not saved in the database. This limits the ability to reconstruct past interactions fully.
+   - Basic persistence of tool calls and responses is now implemented. Multi-turn history replay via `get_full_history_with_contents_and_tool_calls` is available — see [Tool Call Persistence](tool_call_persistence.md).
 
 2. **Uploaded Content Correlation**  
    - Uploaded images and files are not directly linked to user messages in the history. This makes it difficult to reconstruct the context of uploaded content.

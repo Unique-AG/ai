@@ -17,6 +17,7 @@ Search the Unique knowledge base using combined vector + full-text search via th
 
 > **Limitation:** Excel (`.xlsx`/`.xls`), CSV (`.csv`), and image files are **not** full-text indexed. They will not appear in search results. To find these files, use the `unique-cli-file-management` skill and browse folders with `unique-cli ls` to locate them by name.
 
+
 ## Basic Search
 
 ```bash

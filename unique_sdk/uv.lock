@@ -2045,7 +2045,7 @@ wheels = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.93"
+version = "0.10.95"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },

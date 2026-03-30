@@ -21,6 +21,7 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentStatus,
     ChatMessageAssessmentType,
     ChatMessageRole,
+    ChatMessageTool,
     MessageExecution,
     MessageExecutionType,
     MessageExecutionUpdateStatus,
@@ -48,7 +49,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelToolDescription,
 )
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 def modify_message(
@@ -109,7 +110,7 @@ def modify_message(
         message = unique_sdk.Message.modify(**params)
         return ChatMessage(**message)
     except Exception as e:
-        logger.error(f"Failed to modify user message: {e}")
+        _LOGGER.error(f"Failed to modify user message: {e}")
         raise e
 
 
@@ -171,7 +172,7 @@ async def modify_message_async(
         message = await unique_sdk.Message.modify_async(**params)
         return ChatMessage(**message)
     except Exception as e:
-        logger.error(f"Failed to modify user message: {e}")
+        _LOGGER.error(f"Failed to modify user message: {e}")
         raise e
 
 
@@ -306,7 +307,7 @@ def create_message(
         message = unique_sdk.Message.create(**params)
         return ChatMessage(**message)
     except Exception as e:
-        logger.error(f"Failed to create assistant message: {e}")
+        _LOGGER.error(f"Failed to create assistant message: {e}")
         raise e
 
 
@@ -363,7 +364,7 @@ async def create_message_async(
         message = await unique_sdk.Message.create_async(**params)
         return ChatMessage(**message)
     except Exception as e:
-        logger.error(f"Failed to create assistant message: {e}")
+        _LOGGER.error(f"Failed to create assistant message: {e}")
         raise e
 
 
@@ -382,11 +383,13 @@ def _construct_message_create_params(
     if original_content is None:
         original_content = content
 
-    return {
+    role_value = role.value.upper()
+
+    params: dict[str, Any] = {
         "user_id": user_id,
         "company_id": company_id,
         "assistantId": assistant_id,
-        "role": role.value.upper(),
+        "role": role_value,
         "chatId": chat_id,
         "text": content,
         "originalText": original_content,
@@ -394,6 +397,7 @@ def _construct_message_create_params(
         "debugInfo": debug_info or {},
         "completedAt": _time_utils.get_datetime_now() if set_completed_at else None,
     }
+    return params
 
 
 def get_selection_from_history(
@@ -437,7 +441,7 @@ def pick_messages_in_reverse_for_token_window(
     last_index = len(messages) - 1
     token_count = count_tokens(messages[last_index].content or "", model=model_info)
     while token_count > limit:
-        logger.debug(
+        _LOGGER.debug(
             f"Limit too low for the initial message. Last message TokenCount {token_count} available tokens {limit} - cutting message in half until it fits",
         )
         content = messages[last_index].content or ""
@@ -469,7 +473,7 @@ def list_messages(
         )
         return messages
     except Exception as e:
-        logger.error(f"Failed to list chat history: {e}")
+        _LOGGER.error(f"Failed to list chat history: {e}")
         raise e
 
 
@@ -486,7 +490,7 @@ async def list_messages_async(
         )
         return messages
     except Exception as e:
-        logger.error(f"Failed to list chat history: {e}")
+        _LOGGER.error(f"Failed to list chat history: {e}")
         raise e
 
 
@@ -520,7 +524,9 @@ def filter_valid_messages(
     messages: ListObject[unique_sdk.Message],
 ) -> list[dict[str, Any]]:
     SYSTEM_MESSAGE_PREFIX = "[SYSTEM] "
-    roles_to_filter = [ChatMessageRole.SYSTEM.value.lower()]
+    roles_to_filter = [
+        ChatMessageRole.SYSTEM.value.lower(),
+    ]
 
     # Remove the last two messages
     messages = messages["data"][:-2]  # type: ignore
@@ -582,7 +588,7 @@ def create_message_assessment(
         )
         return ChatMessageAssessment(**assessment)
     except Exception as e:
-        logger.error(f"Failed to create message assessment: {e}")
+        _LOGGER.error(f"Failed to create message assessment: {e}")
         raise e
 
 
@@ -631,7 +637,7 @@ async def create_message_assessment_async(
         )
         return ChatMessageAssessment(**assessment)
     except Exception as e:
-        logger.error(f"Failed to create message assessment: {e}")
+        _LOGGER.error(f"Failed to create message assessment: {e}")
         raise e
 
 
@@ -677,7 +683,7 @@ def modify_message_assessment(
         )
         return ChatMessageAssessment(**assessment)
     except Exception as e:
-        logger.error(f"Failed to modify message assessment: {e}")
+        _LOGGER.error(f"Failed to modify message assessment: {e}")
         raise e
 
 
@@ -723,7 +729,7 @@ async def modify_message_assessment_async(
         )
         return ChatMessageAssessment(**assessment)
     except Exception as e:
-        logger.error(f"Failed to modify message assessment: {e}")
+        _LOGGER.error(f"Failed to modify message assessment: {e}")
         raise e
 
 
@@ -835,7 +841,7 @@ def stream_complete_with_references(
         )
         return LanguageModelStreamResponse(**response)
     except Exception as e:
-        logger.error(f"Error streaming completion: {e}")
+        _LOGGER.error(f"Error streaming completion: {e}")
         raise e
 
 
@@ -932,7 +938,7 @@ async def stream_complete_with_references_async(
         )
         return LanguageModelStreamResponse(**response)
     except Exception as e:
-        logger.error(f"Error streaming completion: {e}")
+        _LOGGER.error(f"Error streaming completion: {e}")
         raise e
 
 
@@ -990,7 +996,7 @@ def create_message_log(
         )
         return MessageLog(**message_log)
     except Exception as e:
-        logger.error(f"Failed to create message log: {e}")
+        _LOGGER.error(f"Failed to create message log: {e}")
         raise e
 
 
@@ -1042,7 +1048,7 @@ async def create_message_log_async(
         )
         return MessageLog(**message_log)
     except Exception as e:
-        logger.error(f"Failed to create message log: {e}")
+        _LOGGER.error(f"Failed to create message log: {e}")
         raise e
 
 
@@ -1094,7 +1100,7 @@ def update_message_log(
         )
         return MessageLog(**message_log)
     except Exception as e:
-        logger.error(f"Failed to update message log: {e}")
+        _LOGGER.error(f"Failed to update message log: {e}")
         raise e
 
 
@@ -1146,7 +1152,7 @@ async def update_message_log_async(
         )
         return MessageLog(**message_log)
     except Exception as e:
-        logger.error(f"Failed to update message log: {e}")
+        _LOGGER.error(f"Failed to update message log: {e}")
         raise e
 
 
@@ -1198,7 +1204,7 @@ def create_message_execution(
         )
         return MessageExecution(**message_execution)
     except Exception as e:
-        logger.error(f"Failed to create message execution: {e}")
+        _LOGGER.error(f"Failed to create message execution: {e}")
         raise e
 
 
@@ -1250,7 +1256,7 @@ async def create_message_execution_async(
         )
         return MessageExecution(**message_execution)
     except Exception as e:
-        logger.error(f"Failed to create message execution: {e}")
+        _LOGGER.error(f"Failed to create message execution: {e}")
         raise e
 
 
@@ -1281,7 +1287,7 @@ def get_message_execution(
         )
         return MessageExecution(**message_execution)
     except Exception as e:
-        logger.error(f"Failed to get message execution: {e}")
+        _LOGGER.error(f"Failed to get message execution: {e}")
         raise e
 
 
@@ -1312,7 +1318,7 @@ async def get_message_execution_async(
         )
         return MessageExecution(**message_execution)
     except Exception as e:
-        logger.error(f"Failed to get message execution: {e}")
+        _LOGGER.error(f"Failed to get message execution: {e}")
         raise e
 
 
@@ -1356,7 +1362,7 @@ def update_message_execution(
         )
         return MessageExecution(**message_execution)
     except Exception as e:
-        logger.error(f"Failed to update message execution: {e}")
+        _LOGGER.error(f"Failed to update message execution: {e}")
         raise e
 
 
@@ -1400,5 +1406,122 @@ async def update_message_execution_async(
         )
         return MessageExecution(**message_execution)
     except Exception as e:
-        logger.error(f"Failed to update message execution: {e}")
+        _LOGGER.error(f"Failed to update message execution: {e}")
+        raise e
+
+
+def _build_tool_call_items(
+    tool_calls: list[ChatMessageTool],
+) -> list[dict[str, object]]:
+    return [
+        {
+            "externalToolCallId": tc.external_tool_call_id,
+            "functionName": tc.function_name,
+            "arguments": tc.arguments,
+            "roundIndex": tc.round_index,
+            "sequenceIndex": tc.sequence_index,
+            **({"response": {"content": tc.response.content}} if tc.response else {}),
+        }
+        for tc in tool_calls
+    ]
+
+
+def _resolve_message_ids(
+    message_id: str | None,
+    message_ids: list[str] | None,
+) -> str | None:
+    """Return a comma-joined id string, or None when the input is empty."""
+    if message_ids is not None and not message_ids:
+        return None
+    ids = ",".join(message_ids) if message_ids else (message_id or "")
+    return ids or None
+
+
+def create_message_tools(
+    *,
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    tool_calls: list[ChatMessageTool],
+) -> list[ChatMessageTool]:
+    """Persist tool call records for an assistant message."""
+    try:
+        result = unique_sdk.MessageTool.create_many(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            tools=_build_tool_call_items(tool_calls),  # type: ignore
+        )
+        return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
+    except Exception as e:
+        _LOGGER.error(f"Failed to create message tools: {e}")
+        raise e
+
+
+async def create_message_tools_async(
+    *,
+    user_id: str,
+    company_id: str,
+    message_id: str,
+    tool_calls: list[ChatMessageTool],
+) -> list[ChatMessageTool]:
+    """Async variant of create_message_tools."""
+    try:
+        result = await unique_sdk.MessageTool.create_many_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageId=message_id,
+            tools=_build_tool_call_items(tool_calls),  # type: ignore
+        )
+        tools = [ChatMessageTool.model_validate(dict(item)) for item in result.data]
+        return tools
+    except Exception as e:
+        _LOGGER.error(f"Failed to create message tools: {e}")
+        raise e
+
+
+def get_message_tools(
+    *,
+    user_id: str,
+    company_id: str,
+    message_id: str | None = None,
+    message_ids: list[str] | None = None,
+) -> list[ChatMessageTool]:
+    """Fetch persisted tool call records for one or more assistant messages."""
+    ids = _resolve_message_ids(message_id, message_ids)
+    if ids is None:
+        return []
+    try:
+        result = unique_sdk.MessageTool.get_message_tools(
+            user_id=user_id,
+            company_id=company_id,
+            messageIds=ids,
+        )
+        tools = [ChatMessageTool.model_validate(dict(item)) for item in result.data]
+        return tools
+    except Exception as e:
+        _LOGGER.error(f"Failed to get message tools: {e}")
+        raise e
+
+
+async def get_message_tools_async(
+    *,
+    user_id: str,
+    company_id: str,
+    message_id: str | None = None,
+    message_ids: list[str] | None = None,
+) -> list[ChatMessageTool]:
+    """Async variant of get_message_tools."""
+    ids = _resolve_message_ids(message_id, message_ids)
+    if ids is None:
+        return []
+    try:
+        result = await unique_sdk.MessageTool.get_message_tools_async(
+            user_id=user_id,
+            company_id=company_id,
+            messageIds=ids,
+        )
+        return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
+    except Exception as e:
+        _LOGGER.error(f"Failed to get message tools: {e}")
         raise e

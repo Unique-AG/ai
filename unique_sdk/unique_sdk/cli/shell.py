@@ -50,6 +50,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --file / -f <path>        Read JSON from file instead
         --stdin                   Read JSON from stdin
 
+
     Shell:
       help [command]            Show help (for a specific command)
       exit / quit               Exit the shell
@@ -484,6 +485,7 @@ class UniqueShell(cmd.Cmd):
                 stdin=use_stdin,
             )
         )
+
 
     # -- Shell control --
 

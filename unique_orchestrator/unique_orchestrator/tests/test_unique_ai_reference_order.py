@@ -44,6 +44,7 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
     mock_history_manager = MagicMock()
     mock_history_manager._append_tool_calls_to_history = MagicMock()
     mock_history_manager.add_tool_call_results = MagicMock()
+    mock_history_manager.extract_message_tools.return_value = []
 
     mock_reference_manager = MagicMock()
     mock_reference_manager.extract_referenceable_chunks = MagicMock()
@@ -51,7 +52,7 @@ async def test_history_updated_before_reference_extraction(monkeypatch):
 
     mock_thinking_manager = MagicMock()
     mock_debug_info_manager = MagicMock()
-    mock_debug_info_manager.get.return_value = {}
+    mock_debug_info_manager.get.return_value = {"tools": []}
     mock_debug_info_manager.extract_tool_debug_info = MagicMock()
 
     mock_tool_manager = MagicMock()

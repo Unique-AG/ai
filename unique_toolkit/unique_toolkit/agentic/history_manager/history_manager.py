@@ -1,3 +1,5 @@
+import json
+import re
 from logging import Logger
 from typing import Annotated, Awaitable, Callable
 
@@ -8,11 +10,16 @@ from unique_toolkit._common.feature_flags.schema import (
 )
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.history_manager.loop_token_reducer import LoopTokenReducer
-from unique_toolkit.agentic.history_manager.utils import transform_chunks_to_string
+from unique_toolkit.agentic.history_manager.utils import (
+    serialize_tool_content_json,
+    transform_chunks_to_string,
+)
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.schemas import ChatMessageTool, ChatMessageToolResponse
+from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
@@ -70,6 +77,11 @@ class HistoryManagerConfig(BaseModel):
             * self.percent_of_max_tokens_for_history,
         )
 
+    enable_tool_call_persistence: bool = Field(
+        default=False,
+        description="When True, tool calls are persisted to the database and reconstructed from prior turns.",
+    )
+
     uploaded_content_config: (
         Annotated[
             UploadedContentConfig,
@@ -118,14 +130,17 @@ class HistoryManager:
             has_uploaded_content_config=bool(self._config.uploaded_content_config),
             language_model=self._language_model,
             reference_manager=reference_manager,
+            enable_tool_call_persistence=self._config.enable_tool_call_persistence,
         )
+        self._reference_manager = reference_manager
         self._tool_call_result_history: list[ToolCallResponse] = []
         self._tool_calls: list[LanguageModelFunction] = []
         self._loop_history: list[LanguageModelMessage] = []
         self._source_enumerator = 0
-        self._collected_tool_response_image_urls: list[
-            tuple[str, str]
-        ] = []  # (url, tool_call_id)
+        self._initial_source_offset = 0
+        self._db_source_map: dict[int, ContentChunk] = {}
+        self._source_offset_initialized = False
+        self._collected_tool_response_image_urls: list[tuple[str, str]] = []
 
     def add_tool_call(self, tool_call: LanguageModelFunction) -> None:
         self._tool_calls.append(tool_call)
@@ -177,23 +192,18 @@ class HistoryManager:
                 tool_response.content_chunks or []
             )  # it can be that the tool response does not have content chunks
 
-            # Transform content chunks into sources to be appended to tool result
             stringified_sources, sources = transform_chunks_to_string(
                 content_chunks,
                 self._source_enumerator,
             )
             content = stringified_sources
 
-            self._source_enumerator += len(
-                sources
-            )  # To make sure all sources have unique source numbers
+            self._source_enumerator += len(sources)
 
         if tool_response.system_reminder:
             content += f"\n\n{tool_response.system_reminder}"
 
-        # Tool message content must be string (API rejects array content for tool role).
-        # Tool result images are attached to the user message so the model sees them. This is the only way to get the images from tool to the model as of 17.2.26.
-
+        # Append the result to the history
         return LanguageModelToolMessage(
             content=content,
             tool_call_id=tool_response.id,  # type: ignore
@@ -229,6 +239,18 @@ class HistoryManager:
             image_data_urls_from_tools=image_data_from_tools,
         )
         self._collected_tool_response_image_urls = []
+
+        if not self._source_offset_initialized:
+            offset = max(0, self._token_reducer.max_db_source_number + 1)
+            self._source_enumerator = offset
+            self._initial_source_offset = offset
+            self._db_source_map = self._token_reducer.db_source_map
+            self._source_offset_initialized = True
+
+        self._source_enumerator = self._initial_source_offset + len(
+            self._reference_manager.get_chunks()
+        )
+
         return messages
 
     async def get_user_visible_chat_history(
@@ -252,3 +274,121 @@ class HistoryManager:
                 LanguageModelAssistantMessage(content=assistant_message_text)
             )
         return LanguageModelMessages(history)
+
+    @staticmethod
+    def _placeholder_chunk() -> ContentChunk:
+        """An empty but backend-valid placeholder for gap positions."""
+        return ContentChunk(key="", chunk_id="")
+
+    def get_content_chunks_for_backend(self) -> list[ContentChunk]:
+        """Build a positional list where ``result[N]`` is the chunk for ``[sourceN]``.
+
+        Positions ``0..K-1`` are filled from ``_db_source_map`` (prior turns).
+        Gaps get placeholder ``ContentChunk`` instances with empty-string
+        ``key`` / ``chunk_id`` so the backend doesn't reject the payload.
+        Positions ``K..`` are the current turn's chunks from the reference
+        manager.
+        """
+        current_chunks = self._reference_manager.get_chunks()
+        total_size = self._initial_source_offset + len(current_chunks)
+        result: list[ContentChunk] = [
+            self._placeholder_chunk() for _ in range(total_size)
+        ]
+        for source_number, chunk in self._db_source_map.items():
+            if source_number < self._initial_source_offset:
+                result[source_number] = chunk
+        for i, chunk in enumerate(current_chunks):
+            result[self._initial_source_offset + i] = chunk
+        return result
+
+    def extract_message_tools(self) -> list[ChatMessageTool]:
+        """Convert the in-memory loop history into persistable ChatMessageTool records."""
+        # Build a map of tool_call_id -> response_content in O(T) time
+        tool_responses: dict[str, str | None] = {}
+        for msg in self._loop_history:
+            if isinstance(msg, LanguageModelToolMessage):
+                response_content = msg.content if isinstance(msg.content, str) else None
+                tool_responses[msg.tool_call_id] = response_content
+
+        records: list[ChatMessageTool] = []
+        round_index = 0
+        for msg in self._loop_history:
+            if isinstance(msg, LanguageModelAssistantMessage) and msg.tool_calls:
+                for seq_index, tc in enumerate(msg.tool_calls):
+                    response_content = tool_responses.get(tc.id) if tc.id else None
+                    response = (
+                        ChatMessageToolResponse(content=response_content)
+                        if response_content is not None
+                        else None
+                    )
+                    records.append(
+                        ChatMessageTool(
+                            external_tool_call_id=tc.id or "",
+                            function_name=tc.function.name,
+                            arguments=tc.function.arguments,
+                            round_index=round_index,
+                            sequence_index=seq_index,
+                            response=response,
+                        )
+                    )
+                round_index += 1
+        return records
+
+    @staticmethod
+    def compact_message_tools(
+        *,
+        records: list[ChatMessageTool],
+        assistant_text: str | None,
+    ) -> list[ChatMessageTool]:
+        """Strip uncited source items from tool response content before persistence."""
+        if not assistant_text:
+            return records
+
+        cited: set[int] = {
+            int(m)
+            for m in re.findall(r"\[source(\d+)\]", assistant_text, re.IGNORECASE)
+        }
+        if not cited:
+            return records
+
+        return [
+            record.model_copy(
+                update={
+                    "response": record.response.model_copy(
+                        update={
+                            "content": _strip_uncited_sources_from_content(
+                                record.response.content, cited
+                            )
+                        }
+                    )
+                }
+            )
+            if record.response and record.response.content
+            else record
+            for record in records
+        ]
+
+
+def _strip_uncited_sources_from_content(content: str, cited: set[int]) -> str:
+    """Filter a tool response content string to only keep cited source items.
+
+    The content is expected to be a JSON array of dicts containing at least
+    a "source_number" key.  Items whose "source_number" is not in *cited*
+    are removed.  If the content is not valid JSON or not in the expected
+    format it is returned unchanged.
+    """
+    try:
+        data = json.loads(content)
+    except (json.JSONDecodeError, TypeError):
+        return content
+
+    if not isinstance(data, list):
+        return content
+
+    if not data or not any(
+        isinstance(item, dict) and "source_number" in item for item in data
+    ):
+        return content
+
+    filtered = [item for item in data if item.get("source_number") in cited]
+    return serialize_tool_content_json(filtered)

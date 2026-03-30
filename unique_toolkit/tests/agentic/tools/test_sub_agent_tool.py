@@ -40,8 +40,13 @@ def mock_chat_event() -> ChatEvent:
     # Mock the payload structure
     mock_payload = Mock()
     mock_payload.chat_id = "chat_789"
+    mock_payload.assistant_id = "assistant_101"
     mock_payload.assistant_message = Mock()
     mock_payload.assistant_message.id = "assistant_message_202"
+    mock_payload.user_message = Mock()
+    mock_payload.user_message.id = "user_message_303"
+    mock_payload.metadata_filter = None
+    mock_payload.correlation = None
     event.payload = mock_payload
 
     return event
@@ -127,7 +132,7 @@ class TestSubAgentToolInitialization:
         )
 
         # Assert
-        assert tool.tool_progress_reporter == mock_progress_reporter
+        assert tool._tool_progress_reporter == mock_progress_reporter
 
 
 class TestSubAgentToolDescription:
