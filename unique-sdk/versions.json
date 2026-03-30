@@ -1,5 +1,6 @@
 [
-  {"version": "0.10.93", "title": "0.10.93", "aliases": ["latest"]},
+  {"version": "0.10.94", "title": "0.10.94", "aliases": ["latest"]},
+  {"version": "0.10.93", "title": "0.10.93", "aliases": []},
   {"version": "0.10.92", "title": "0.10.92", "aliases": []},
   {"version": "0.10.91", "title": "0.10.91", "aliases": []},
   {"version": "0.10.90", "title": "0.10.90", "aliases": []},
