@@ -117,7 +117,7 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
 
         display_entries: list[str] = []
         for ci in content_infos:
-            if ci.mime_type.startswith(openable_mime_prefixes):
+            if ci.mime_type.startswith(openable_mime_prefixes) and ci.id:
                 display_entries.append(f"{ci.key} ({ci.id})")
             else:
                 display_entries.append(ci.key)
