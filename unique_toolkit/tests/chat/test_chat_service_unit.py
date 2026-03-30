@@ -27,13 +27,13 @@ from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
-    LanguageModelMessage,
     LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelStreamResponse,
     LanguageModelTool,
     LanguageModelToolParameterProperty,
     LanguageModelToolParameters,
+    LanguageModelUserMessage,
 )
 
 mocked_datetime = "2024-08-08 12:00:00.000000"
@@ -1131,8 +1131,7 @@ class TestChatServiceUnit:
     def test_stream_complete_with_tool(self, mock_stream):
         messages = LanguageModelMessages(
             [
-                LanguageModelMessage(
-                    role=LanguageModelMessageRole.USER,
+                LanguageModelUserMessage(
                     content="What's the weather in New York?",
                 )
             ]
@@ -1247,8 +1246,7 @@ class TestChatServiceUnit:
     async def test_stream_complete_with_tool_async(self, mock_stream):
         messages = LanguageModelMessages(
             [
-                LanguageModelMessage(
-                    role=LanguageModelMessageRole.USER,
+                LanguageModelUserMessage(
                     content="What's the weather in New York?",
                 )
             ]

@@ -22,7 +22,16 @@ class MessagesBuilder:
         return self
 
     def message_append(self, role: LanguageModelMessageRole, content: str):
-        message = LanguageModelMessage(role=role, content=content)
+        match role:
+            case LanguageModelMessageRole.SYSTEM:
+                message = LanguageModelSystemMessage(content=content)
+            case LanguageModelMessageRole.USER:
+                message = LanguageModelUserMessage(content=content)
+            case LanguageModelMessageRole.ASSISTANT:
+                message = LanguageModelAssistantMessage(content=content)
+            case LanguageModelMessageRole.TOOL:
+                raise ValueError("Tool messages are not supported in the builder")
+
         self.messages.append(message)
         return self
 
@@ -54,11 +63,15 @@ class MessagesBuilder:
                 for image in images
             ],
         )
-
-        message = LanguageModelMessage(
-            role=role,
-            content=final_content,
-        )
+        match role:
+            case LanguageModelMessageRole.SYSTEM:
+                message = LanguageModelSystemMessage(content=final_content)
+            case LanguageModelMessageRole.USER:
+                message = LanguageModelUserMessage(content=final_content)
+            case LanguageModelMessageRole.ASSISTANT:
+                message = LanguageModelAssistantMessage(content=final_content)
+            case LanguageModelMessageRole.TOOL:
+                raise ValueError("Tool messages are not supported in the builder")
         self.messages.append(message)
         return self
 

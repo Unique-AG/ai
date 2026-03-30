@@ -3,12 +3,10 @@ from unittest.mock import patch
 import pytest
 import unique_sdk
 
-from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.functions import (
     _add_tools_to_options,
     _clamp_temperature,
     _prepare_completion_params_util,
-    _to_search_context,
     complete,
     complete_async,
 )
@@ -97,20 +95,6 @@ def test_add_tools_to_options():
     assert len(result["tools"]) == 1
     assert result["tools"][0]["type"] == "function"
     assert result["tools"][0]["function"]["name"] == "get_weather"
-
-
-def test_to_search_context():
-    chunks = [
-        ContentChunk(id="1", chunk_id="1", key="test", order=1, text="test"),
-        ContentChunk(id="2", chunk_id="2", key="test2", order=2, text="test2"),
-    ]
-
-    result = _to_search_context(chunks)
-
-    assert result is not None
-    assert len(result) == 2
-    assert result[0]["id"] == "1"
-    assert result[1]["id"] == "2"
 
 
 @patch.object(unique_sdk.ChatCompletion, "create")
