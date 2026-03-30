@@ -38,10 +38,10 @@ module-root = ""
 
 [tool.uv]
 exclude-newer = "2 weeks"
+constraint-dependencies = ["lxml>=5.0.0"]
 
 [tool.uv.exclude-newer-package]
 "unique-toolkit" = false
-constraint-dependencies = ["lxml>=5.0.0"]
 
 [tool.uv.sources]
 unique-toolkit = { path = "../../unique_toolkit", editable = true }
