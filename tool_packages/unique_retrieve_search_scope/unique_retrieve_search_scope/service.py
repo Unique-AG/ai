@@ -3,13 +3,14 @@ from typing import Any
 
 from pydantic import Field, create_model
 from typing_extensions import override
-
+from unique_toolkit._common.token import count_tokens
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.chat.service import LanguageModelToolDescription
+from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 from unique_toolkit.services.factory import UniqueServiceFactory
 
@@ -20,6 +21,11 @@ _LOGGER = getLogger(__name__)
 
 class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
     name = "RetrieveSearchScope"
+    default_display_name = "Retrieve Search Scope"
+
+    @override
+    def display_name(self) -> str:
+        return self.settings.display_name or self.default_display_name
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
@@ -50,15 +56,38 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
     ) -> list[EvaluationMetricName]:
         return []
 
+    async def _has_prior_response_in_history(self) -> bool:
+        """Check chat history for an existing RetrieveSearchScope tool call with a response."""
+        try:
+            history = await self._chat_service.get_full_history_async()
+            for msg in history:
+                if msg.role.value == "assistant" and msg.tool_calls:
+                    for tc in msg.tool_calls:
+                        if tc.function.name == self.name:
+                            return True
+        except Exception:
+            _LOGGER.debug("Could not check history for prior tool calls", exc_info=True)
+        return False
+
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        if await self._has_prior_response_in_history():
+            return ToolCallResponse(
+                id=tool_call.id or "unknown_id",
+                name=self.name,
+                content="RetrieveSearchScope has already been called in this conversation. "
+                "Refer to the earlier result.",
+            )
+
         metadata_filter: dict[str, Any] | None = None
         if isinstance(tool_call.arguments, dict):
             metadata_filter = tool_call.arguments.get("metadata_filter")
 
         try:
-            settings = UniqueSettings.from_chat_event(self.event)
-            kb_service = UniqueServiceFactory(settings=settings).knowledge_base_service()
+            settings = UniqueSettings.from_chat_event(self._event)
+            kb_service = UniqueServiceFactory(
+                settings=settings
+            ).knowledge_base_service()
 
             space_filter = kb_service._metadata_filter
             if space_filter and metadata_filter:
@@ -77,13 +106,54 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
                 error_message="Failed to retrieve file list from the knowledge base.",
             )
 
-        file_names = sorted({ci.key for ci in content_infos})
+        openable_mime_prefixes = (
+            "application/pdf",
+            "application/msword",
+            "application/vnd.ms-word",
+            "application/vnd.ms-powerpoint",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml",
+            "application/vnd.openxmlformats-officedocument.presentationml",
+        )
+
+        display_entries: list[str] = []
+        for ci in content_infos:
+            if ci.mime_type.startswith(openable_mime_prefixes):
+                display_entries.append(f"{ci.key} ({ci.id})")
+            else:
+                display_entries.append(ci.key)
+        total_files = len(display_entries)
+
+        model_name = self._event.payload.configuration.get("space", {}).get(
+            "languageModel"
+        )
+        file_names: list[str] = []
+        if model_name is not None:
+            model_info = LanguageModelInfo.from_name(model_name)
+            token_budget = int(
+                model_info.token_limits.token_limit_input
+                * self.config.context_window_fraction_for_file_list
+            )
+            token_count = 0
+            for entry in display_entries:
+                entry_tokens = count_tokens(entry)
+                if token_count + entry_tokens > token_budget:
+                    break
+                file_names.append(entry)
+                token_count += entry_tokens
+        else:
+            file_names = display_entries
 
         if not file_names:
             content = "No files found in the search scope."
         else:
+            omitted = total_files - len(file_names)
             file_list = "\n".join(file_names)
-            content = f"Found {len(file_names)} files in search scope:\n\n{file_list}"
+            content = (
+                f"Listing {len(file_names)} of {total_files} files in search scope"
+            )
+            if omitted > 0:
+                content += f" ({omitted} omitted due to token budget)"
+            content += f":\n\n{file_list}"
 
         return ToolCallResponse(
             id=tool_call.id or "unknown_id",

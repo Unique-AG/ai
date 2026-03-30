@@ -417,6 +417,28 @@ class UniqueAIConfig(BaseToolConfig):
 
         return self
 
+    @model_validator(mode="after")
+    def inject_retrieve_search_scope_tool(self) -> "UniqueAIConfig":
+        tool_names = [t.name for t in self.space.tools]
+        has_tool = RetrieveSearchScopeTool.name in tool_names
+        enabled = self.agent.experimental.enable_retrieve_search_scope
+
+        if enabled and not has_tool:
+            self.space.tools.append(
+                ToolBuildConfig(
+                    name=RetrieveSearchScopeTool.name,
+                    display_name=RetrieveSearchScopeTool.default_display_name,
+                    configuration=RetrieveSearchScopeConfig(),
+                )
+            )
+        elif not enabled and has_tool:
+            self.space.tools = [
+                t for t in self.space.tools
+                if t.name != RetrieveSearchScopeTool.name
+            ]
+
+        return self
+
     @property
     def effective_max_loop_iterations(self) -> int:
         """Effective max loop iterations, accounting for model-specific overrides."""
