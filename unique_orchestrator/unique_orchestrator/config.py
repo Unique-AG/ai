@@ -33,7 +33,11 @@ from unique_toolkit.agentic.tools.a2a import (
     REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
+from unique_toolkit.agentic.tools.experimental.todo.config import TodoConfig
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
+    CodeInterpreterExtendedConfig,
+)
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
@@ -305,6 +309,14 @@ class SubAgentsConfig(BaseToolConfig):
 
 
 class ResponsesApiConfig(BaseToolConfig):
+    code_interpreter: (
+        Annotated[CodeInterpreterExtendedConfig, Field(title="Active")]
+        | DeactivatedNone
+    ) = Field(
+        default=None,
+        description="If active, the main agent will have access to the OpenAI Code Interpreter tool",
+    )
+
     use_responses_api: bool = Field(
         default=False,
         description="If set, the main agent will use the Responses API from OpenAI",
@@ -332,6 +344,10 @@ class ExperimentalConfig(BaseToolConfig):
 
     loop_configuration: LoopConfiguration = LoopConfiguration(
         max_tool_calls_per_iteration=10
+    )
+
+    todo_tracking: Annotated[TodoConfig, Field(title="Active")] | DeactivatedNone = (
+        Field(default=None, description="Persistent task tracking for the agent.")
     )
 
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()

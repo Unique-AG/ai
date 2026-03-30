@@ -112,6 +112,23 @@ class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
         )
 
 
+def _inject_todo_tools(config: UniqueAIConfig) -> list[ToolBuildConfig]:
+    """Return space tools with todo_write appended when todo tracking is active."""
+    todo_cfg = config.agent.experimental.todo_tracking
+    if todo_cfg is None:
+        return config.space.tools
+
+    import unique_toolkit.agentic.tools.experimental.todo  # noqa: F401 — registers with ToolFactory
+
+    tools = list(config.space.tools)
+    existing_names = {t.name for t in tools}
+    if "todo_write" not in existing_names:
+        tools.append(
+            ToolBuildConfig(name="todo_write", configuration=todo_cfg, is_enabled=True)
+        )
+    return tools
+
+
 async def build_unique_ai(
     event: ChatEvent,
     logger: Logger,
@@ -228,7 +245,7 @@ def _build_common(
     )
 
     tool_manager_config = ToolManagerConfig(
-        tools=config.space.tools,
+        tools=_inject_todo_tools(config),
         max_tool_calls=config.agent.experimental.loop_configuration.max_tool_calls_per_iteration,
     )
 
