@@ -167,6 +167,63 @@ class TestContentChunkUtils:
         assert len(result.chunks) == 1
         assert result.chunks[0].chunk_id == "chunk_1"
 
+    @pytest.mark.ai
+    def test_map_content__ingestion_config_and_applied_ingestion_config__mapped_when_present(
+        self,
+    ):
+        """
+        Purpose: Verifies that map_content correctly maps ingestionConfig and
+        appliedIngestionConfig from the source dict to Content model fields.
+        Why this matters: Missing these fields would cause ingestion configuration
+        to be silently dropped, breaking features that rely on knowing how content
+        was ingested.
+        Setup summary: Provide a content dict with both ingestionConfig and
+        appliedIngestionConfig; assert both are present on the result.
+        """
+        content_dict = {
+            "id": "cont_abc",
+            "key": "file.pdf",
+            "title": "File",
+            "url": "https://example.com/file.pdf",
+            "chunks": [],
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z",
+            "ingestionConfig": {"chunkSize": 512, "overlap": 64},
+            "appliedIngestionConfig": {"chunkSize": 256, "overlap": 32},
+        }
+
+        result = map_content(content_dict)
+
+        assert result.ingestion_config == {"chunkSize": 512, "overlap": 64}
+        assert result.applied_ingestion_config == {"chunkSize": 256, "overlap": 32}
+
+    @pytest.mark.ai
+    def test_map_content__ingestion_config_and_applied_ingestion_config__none_when_absent(
+        self,
+    ):
+        """
+        Purpose: Verifies that map_content defaults ingestion_config and
+        applied_ingestion_config to None when absent from the source dict.
+        Why this matters: The fields are optional; code that checks for None must
+        not break when the API omits them.
+        Setup summary: Provide a content dict without ingestionConfig or
+        appliedIngestionConfig; assert both fields on the result are None.
+        """
+        content_dict = {
+            "id": "cont_xyz",
+            "key": "doc.pdf",
+            "title": "Doc",
+            "url": "https://example.com/doc.pdf",
+            "chunks": [],
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z",
+        }
+
+        result = map_content(content_dict)
+
+        assert result.ingestion_config is None
+        assert result.applied_ingestion_config is None
+
 
 class TestApplyIngestionUploadUrlOverride:
     def test_returns_original_url_when_env_unset(self):
