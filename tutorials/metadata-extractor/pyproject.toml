@@ -1,6 +1,6 @@
 [project]
 name = "metadata-extractor"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = [{ name = "Martin Fadler", email = "martin.fadler@unique.ai" }]
 readme = "README.md"

@@ -1,6 +1,6 @@
 [project]
 name = "unique-mcp"
-version = "0.2.1"
+version = "0.2.2"
 description = "Add your description here"
 readme = "README.md"
 authors = [
@@ -64,6 +64,9 @@ ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/d
 
 [tool.uv]
 exclude-newer = "2 weeks"
+
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
 
 [tool.ruff.lint]
 select = ["E"]

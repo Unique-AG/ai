@@ -1,6 +1,6 @@
 [project]
 name = "unique_web_search"
-version = "1.14.3"
+version = "1.14.4"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
@@ -52,7 +52,9 @@ dev = [
 
 [tool.uv]
 exclude-newer = "2 weeks"
-exclude-newer-package = { "unique-toolkit" = false }
+
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
 
 [tool.poe.tasks]
 lint = "ruff check ."

@@ -32,7 +32,9 @@ dev = [
 
 [tool.uv]
 exclude-newer = "2 weeks"
-exclude-newer-package = { "unique-toolkit" = false }
+
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
 
 [tool.uv.sources]
 unique-toolkit = { path = "./unique_toolkit", editable = true }

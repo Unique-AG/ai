@@ -1,6 +1,6 @@
 [project]
 name = "mcp-server-multiplexer"
-version = "0.1.0"
+version = "0.1.1"
 description = "Dynamic MCP server multiplexer — host multiple MCP servers under one process with modular routing"
 readme = "README.md"
 requires-python = ">=3.12"

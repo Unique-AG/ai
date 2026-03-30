@@ -1,6 +1,6 @@
 [project]
 name = "tutorials"
-version = "0.0.1"
+version = "0.0.2"
 description = ""
 authors = [{ name = "Cedric Klinkert", email = "cedric@unique.ai" }]
 readme = "README.md"
@@ -29,4 +29,6 @@ build-backend = "uv_build"
 
 [tool.uv]
 exclude-newer = "2 weeks"
-exclude-newer-package = { "unique-toolkit" = false }
+
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false

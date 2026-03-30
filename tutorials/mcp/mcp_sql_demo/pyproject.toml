@@ -1,6 +1,6 @@
 [project]
 name = "mcp-sql-demo"
-version = "0.1.0"
+version = "0.1.1"
 description = "Add your description here"
 readme = "README.md"
 authors = [{ name = "Cedric Klinkert", email = "cedric@unique.ch" }]
@@ -27,4 +27,6 @@ build-backend = "uv_build"
 
 [tool.uv]
 exclude-newer = "2 weeks"
-exclude-newer-package = { "unique-toolkit" = false }
+
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
