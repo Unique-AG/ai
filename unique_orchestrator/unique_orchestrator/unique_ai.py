@@ -292,6 +292,7 @@ class UniqueAI:
             tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
             other_options=self._config.agent.experimental.additional_llm_options,
         )
+
         return await self._loop_iteration_runner(**kwargs)
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:

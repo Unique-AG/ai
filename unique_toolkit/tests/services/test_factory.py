@@ -138,8 +138,8 @@ class TestUniqueServiceFactoryRegistration:
         Setup summary: Register _SimpleService; override via register again with a lambda; assert the new creator is used.
         """
         UniqueServiceFactory.register(_SimpleService)
-        UniqueServiceFactory._registry["_SimpleService"] = lambda s, **kw: (
-            _SimpleService(
+        UniqueServiceFactory._registry["_SimpleService"] = (
+            lambda s, **kw: _SimpleService(
                 company_id="overwritten",
                 user_id="overwritten",  # type: ignore
             )
