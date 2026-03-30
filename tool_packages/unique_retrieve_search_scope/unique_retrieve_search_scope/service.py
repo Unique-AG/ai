@@ -106,41 +106,40 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
                 error_message="Failed to retrieve file list from the knowledge base.",
             )
 
-        openable_mime_prefixes = (
-            "application/pdf",
-            "application/msword",
-            "application/vnd.ms-word",
-            "application/vnd.ms-powerpoint",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml",
-            "application/vnd.openxmlformats-officedocument.presentationml",
-        )
-
-        display_entries: list[str] = []
+        seen_keys: set[str] = set()
+        unique_keys: list[str] = []
         for ci in content_infos:
-            if ci.mime_type.startswith(openable_mime_prefixes):
-                display_entries.append(f"{ci.key} ({ci.id})")
-            else:
-                display_entries.append(ci.key)
+            if ci.key not in seen_keys:
+                seen_keys.add(ci.key)
+                unique_keys.append(ci.key)
+
+        display_entries = sorted(unique_keys)
         total_files = len(display_entries)
 
-        model_name = self._event.payload.configuration.get("space", {}).get(
-            "languageModel"
-        )
-        file_names: list[str] = []
-        if model_name is not None:
-            model_info = LanguageModelInfo.from_name(model_name)
-            token_budget = int(
-                model_info.token_limits.token_limit_input
-                * self.config.context_window_fraction_for_file_list
+        try:
+            model_name = self._event.payload.configuration.get("space", {}).get(
+                "languageModel"
             )
-            token_count = 0
-            for entry in display_entries:
-                entry_tokens = count_tokens(entry)
-                if token_count + entry_tokens > token_budget:
-                    break
-                file_names.append(entry)
-                token_count += entry_tokens
-        else:
+            file_names: list[str] = []
+            if model_name is not None:
+                model_info = LanguageModelInfo.from_name(model_name)
+                token_budget = int(
+                    model_info.token_limits.token_limit_input
+                    * self.config.context_window_fraction_for_file_list
+                )
+                token_count = 0
+                for entry in display_entries:
+                    entry_tokens = count_tokens(entry)
+                    if token_count + entry_tokens > token_budget:
+                        break
+                    file_names.append(entry)
+                    token_count += entry_tokens
+            else:
+                file_names = display_entries
+        except Exception:
+            _LOGGER.debug(
+                "Token budget calculation failed, using full list", exc_info=True
+            )
             file_names = display_entries
 
         if not file_names:

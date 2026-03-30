@@ -102,7 +102,7 @@ class TestRetrieveSearchScopeToolRun:
         assert response.successful
         assert "3 files" in response.content
         lines = response.content.strip().split("\n")
-        file_lines = [l for l in lines if l and not l.startswith("Found")]
+        file_lines = [line for line in lines if line and not line.startswith("Listing")]
         assert file_lines == ["alpha.docx", "middle.txt", "zebra.pdf"]
 
     async def test_returns_empty_message_when_no_files(
