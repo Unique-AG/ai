@@ -2850,7 +2850,7 @@ wheels = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.63.1"
+version = "1.65.2"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -2885,15 +2885,17 @@ dependencies = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.12.0,<4" },
     { name = "click", specifier = ">=8.1.0,<9" },
+    { name = "deepagents", marker = "extra == 'langchain'", specifier = ">=0.4.0,<0.5" },
     { name = "deepdiff", specifier = ">=8.6.1,<9" },
     { name = "docxtpl", specifier = ">=0.20.1,<0.21" },
     { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.121.0,<0.122" },
     { name = "httpx", specifier = ">=0.28.0,<0.29" },
     { name = "jambo", specifier = ">=0.1.2,<0.2" },
     { name = "jinja2", specifier = ">=3.1.6,<4" },
-    { name = "langchain", marker = "extra == 'langchain'", specifier = ">=0.3.27,<0.4" },
-    { name = "langchain-core", marker = "extra == 'langchain'", specifier = ">=0.3.0,<0.4" },
-    { name = "langchain-openai", marker = "extra == 'langchain'", specifier = ">=0.3.28,<0.4" },
+    { name = "langchain", marker = "extra == 'langchain'", specifier = ">=1.2.10,<2" },
+    { name = "langchain-core", marker = "extra == 'langchain'", specifier = ">=1.2.18,<2" },
+    { name = "langchain-openai", marker = "extra == 'langchain'", specifier = ">=1.0.0,<2" },
+    { name = "langgraph", marker = "extra == 'langchain'", specifier = ">=0.2.0,<2" },
     { name = "markdown-it-py", specifier = ">=4.0.0,<5" },
     { name = "numpy", specifier = ">=2.4.2,<3" },
     { name = "openai", specifier = ">=1.105.0,<2" },

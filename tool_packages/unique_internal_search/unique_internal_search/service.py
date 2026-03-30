@@ -7,6 +7,9 @@ from typing_extensions import override
 
 if TYPE_CHECKING:
     from unique_toolkit.language_model.infos import LanguageModelInfo
+from enum import StrEnum
+
+from pydantic import BaseModel
 from unique_toolkit._common.chunk_relevancy_sorter.exception import (
     ChunkRelevancySorterException,
 )
@@ -48,6 +51,16 @@ from unique_internal_search.utils import (
     clean_search_string,
     interleave_search_results_round_robin,
 )
+
+
+class PublisherEvent(StrEnum):
+    POSTPROCESSING_SEARCH_RESULTS = "postprocessing_search_results"
+
+
+class PublisherData(BaseModel):
+    event: PublisherEvent
+    progress_message: str
+    search_strings_list: list[str]
 
 
 class InternalSearchService:
@@ -211,9 +224,8 @@ class InternalSearchService:
             )
 
         if feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
-            progress_message = "_Postprocessing search results_"
             self._active_message_log = await self._create_or_update_active_message_log(
-                progress_message=progress_message,
+                progress_message="_Postprocessing search results_",
                 search_strings_list=search_strings,
             )
         else:
@@ -221,6 +233,7 @@ class InternalSearchService:
                 f"{', '.join(search_strings)} (_Postprocessing search results_)",
                 **kwargs,
             )
+
         found_chunks = [
             chunk
             for result in found_chunks_per_search_string
