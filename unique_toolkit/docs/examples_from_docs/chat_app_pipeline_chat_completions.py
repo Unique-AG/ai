@@ -4,8 +4,8 @@
 # Tokens stream directly through the OpenAI proxy to the client, which:
 #   - Normalises model-emitted citation patterns (e.g. "[source0]" → "[0]") live
 #   - Emits incremental Unique Message updates so the user sees text appear word-by-word
-#   - Resolves [N] markers to <sup>N</sup> footnotes and attaches ContentReference objects
-#     at flush time via the ReferenceResolutionReplacer (no separate post-processing step)
+#   - Resolves [N] markers to <sup>N</sup> footnotes during streaming (pattern replacer);
+#     structured ContentReference objects require Integrated server-side streaming or a post-stream pass.
 #
 # Sources are serialised using the same JSON format as the history manager's
 # transform_chunks_to_string, so multi-turn conversations stay consistent.
@@ -135,7 +135,7 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     # PipelineChatCompletionsStreamingHandler handles:
     #   • Live token emission to the Unique platform (users see text stream in)
     #   • Citation normalisation ("source0" → "[0]") across chunk boundaries
-    #   • Reference resolution at flush time (ReferenceResolutionReplacer)
+    #   • Citation normalisation during streaming (StreamingPatternReplacer)
     
     streaming_handler = ChatCompletionsCompleteWithReferences(
         settings=event_settings,

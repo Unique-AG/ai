@@ -339,14 +339,15 @@ async def test_AI_handler__sends_references__when_content_chunks_provided(
 @pytest.mark.ai
 @pytest.mark.asyncio
 @patch("unique_sdk.Message.modify_async", new_callable=AsyncMock)
-async def test_AI_handler__message_references_empty__when_pipeline_has_no_reference_replacer(
+async def test_AI_handler__message_references_empty__when_pipeline_has_pattern_replacers_only(
     mock_modify: AsyncMock,
     test_settings: UniqueSettings,
 ) -> None:
     """
     Purpose: Verify result message references stay empty when only normalisation replacers run.
-    Why this matters: ReferenceResolutionReplacer is optional; without it the toolkit
-        response does not carry resolved ContentReference objects on the message.
+    Why this matters: Pattern replacers do not attach structured ContentReference objects;
+        the streamed toolkit response therefore has empty message references unless another
+        path (e.g. Integrated) resolves them.
     Setup summary: Default pipeline (pattern replacer only) with chunks provided.
     """
     text = "No refs."
