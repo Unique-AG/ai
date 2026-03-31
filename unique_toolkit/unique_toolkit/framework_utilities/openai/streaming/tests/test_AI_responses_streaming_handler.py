@@ -27,23 +27,23 @@ from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
     StreamingReplacerProtocol,
 )
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_code_interpreter_handler import (
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.code_interpreter_handler import (
     ResponsesCodeInterpreterHandler,
 )
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_completed_handler import (
-    ResponsesCompletedHandler,
-)
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_pipeline import (
-    ResponsesStreamPipeline,
-)
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_streaming_handler import (
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.complete_with_references import (
     ResponsesCompleteWithReferences,
     _convert_tools,
 )
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_text_delta_handler import (
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.completed_handler import (
+    ResponsesCompletedHandler,
+)
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.stream_pipeline import (
+    ResponsesStreamPipeline,
+)
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.text_delta_handler import (
     ResponsesTextDeltaHandler,
 )
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_tool_call_handler import (
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.tool_call_handler import (
     ResponsesToolCallHandler,
 )
 from unique_toolkit.language_model.schemas import (

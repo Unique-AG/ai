@@ -22,9 +22,11 @@ from unique_toolkit.framework_utilities.openai.streaming.pipeline import (
     ChatCompletionsCompleteWithReferences,
     ChatCompletionStreamPipeline,
 )
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.chat_completion_tool_call_handler import ChatCompletionToolCallHandler
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.chat_completions import (
+    ChatCompletionTextHandler,
+    ChatCompletionToolCallHandler,
+)
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import StreamingReplacerProtocol, StreamingPatternReplacer
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.chat_completion_text_handler import ChatCompletionTextHandler
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import NORMALIZATION_PATTERNS, NORMALIZATION_MAX_MATCH_LENGTH
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,

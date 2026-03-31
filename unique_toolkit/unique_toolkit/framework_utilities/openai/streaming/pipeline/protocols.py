@@ -18,7 +18,7 @@ if TYPE_CHECKING:
         ResponseTextDeltaEvent,
     )
 
-    from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_code_interpreter_handler import (
+    from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.code_interpreter_handler import (
         CodeInterpreterCallEvent,
     )
     from unique_toolkit.language_model.schemas import (

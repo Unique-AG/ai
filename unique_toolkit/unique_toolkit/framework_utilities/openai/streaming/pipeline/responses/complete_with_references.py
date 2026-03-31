@@ -20,12 +20,11 @@ from unique_toolkit.framework_utilities.openai.client import get_async_openai_cl
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
     chunks_to_sdk_references,
 )
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_pipeline import (
-    ResponsesStreamPipeline,
-)
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import LanguageModelMessages
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
+
+from .stream_pipeline import ResponsesStreamPipeline
 
 if TYPE_CHECKING:
     from openai.types.responses import (
