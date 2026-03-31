@@ -374,13 +374,13 @@ class LanguageModelInfo(BaseModel):
             return clamped_temperature, reasoning_effort
 
         model_info = cls.from_name(model_name)
-        model_supports_reasoning = model_info.supported_reasoning_efforts is not None
-        model_provides_temperature_bounds = model_info.temperature_bounds is not None
+        supported_efforts = model_info.supported_reasoning_efforts
+        temperature_bounds = model_info.temperature_bounds
 
         # --- Scenario 2: model has no reasoning_effort concept ---
         # supported_reasoning_efforts=None means reasoning is not applicable for this
         # model; drop any caller-provided effort so the API doesn't reject the call.
-        if not model_supports_reasoning:
+        if supported_efforts is None:
             if is_reasoning_effort_set:
                 _LOGGER.warning(
                     "reasoning_effort '%s' was provided but model %s does not "
@@ -390,24 +390,17 @@ class LanguageModelInfo(BaseModel):
                 )
                 reasoning_effort = None
                 wants_active_reasoning = False
-        else:  # model_supports_reasoning
+        else:
             # --- Scenario 3: effort not in the model's declared list ---
             # Warn and fallback to first (i.e. lightest) supported effort level.
-
-            valid_reasoning_effort_set = True
-            if is_reasoning_effort_set:
-                valid_reasoning_effort_set = (
-                    reasoning_effort in model_info.supported_reasoning_efforts
-                )
-
-            if not valid_reasoning_effort_set:
-                fallback_effort = model_info.supported_reasoning_efforts[0]
+            if is_reasoning_effort_set and reasoning_effort not in supported_efforts:
+                fallback_effort = supported_efforts[0]
                 _LOGGER.warning(
                     "reasoning_effort '%s' is not supported by %s "
                     "(supported: %s). falling back to '%s'.",
                     reasoning_effort,
                     model_name,
-                    model_info.supported_reasoning_efforts,
+                    supported_efforts,
                     fallback_effort,
                 )
                 reasoning_effort = fallback_effort
@@ -419,9 +412,9 @@ class LanguageModelInfo(BaseModel):
 
         # --- No reasoning: clamp temperature to model bounds ---
         lo, hi = 0.0, 1.0
-        if model_provides_temperature_bounds:
-            lo = model_info.temperature_bounds.min_temperature
-            hi = model_info.temperature_bounds.max_temperature
+        if temperature_bounds is not None:
+            lo = temperature_bounds.min_temperature
+            hi = temperature_bounds.max_temperature
 
         if temperature < lo or temperature > hi:
             _LOGGER.warning(
