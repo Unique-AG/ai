@@ -238,7 +238,12 @@ def test_resolve_temp_and_reasoning_forces_1_when_reasoning_active():
 
 
 def test_resolve_temp_and_reasoning_fixes_thinking_only_model_with_none_effort():
-    """Test that thinking-only models have reasoning_effort='none' corrected to their default."""
+    """Test that thinking-only models have reasoning_effort='none' corrected to their default.
+
+    reasoning_effort=None means "not provided" (e.g. Chat Completions path) and must
+    NOT trigger the fallback. Only the explicit string "none" (caller actively disabled
+    reasoning) should be corrected.
+    """
     # AZURE_GPT_54_PRO has temperature_bounds=(1.0, 1.0) and default reasoning_effort="medium"
     thinking_model = LanguageModelName.AZURE_GPT_54_PRO_2026_0305
 
@@ -249,12 +254,12 @@ def test_resolve_temp_and_reasoning_fixes_thinking_only_model_with_none_effort()
     assert temp == 1.0
     assert effort == "medium"
 
-    # Passing None → same correction
+    # Passing None → not provided; temperature is clamped to 1.0 but effort stays None
     temp, effort = LanguageModelInfo.resolve_temp_and_reasoning(
         thinking_model, 0.5, None
     )
     assert temp == 1.0
-    assert effort == "medium"
+    assert effort is None
 
 
 def test_resolve_temp_and_reasoning_warns_on_unsupported_effort(caplog):

@@ -378,10 +378,13 @@ class LanguageModelInfo(BaseModel):
             )
 
         # Thinking-only models must have active reasoning.
+        # Only intervene when reasoning_effort was explicitly set to "none" by the
+        # caller; None means "not provided" (e.g. Chat Completions path) and should
+        # not trigger the fallback or the warning.
         if (
             model_info.temperature_bounds is not None
             and model_info.temperature_bounds.min_temperature == 1.0
-            and (reasoning_effort is None or reasoning_effort == "none")
+            and reasoning_effort == "none"
         ):
             fallback_effort = model_info.default_options.get(
                 "reasoning_effort", "medium"
