@@ -512,3 +512,122 @@ def test_new_answers_ui_flag__has_empty_list_default__field_definition() -> None
     assert flags.enable_new_answers_ui_un_14411.value == []
     assert flags.enable_new_answers_ui_un_14411.is_enabled() is False
     assert flags.enable_new_answers_ui_un_14411.is_enabled("any_company") is False
+
+
+# ============================================================================
+# enable_web_search_argument_screening_un_18741 Tests
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_enable_web_search_argument_screening_flag__uses_featureflag_type__field_definition() -> None:
+    """
+    Purpose: Verify enable_web_search_argument_screening_un_18741 uses FeatureFlag type.
+    Why this matters: All feature flags must use the FeatureFlag class.
+    Setup summary: Create flags without env var, verify field is FeatureFlag instance.
+    """
+    # Arrange & Act
+    with patch.dict(os.environ, {}, clear=True):
+        flags = FeatureFlags()
+
+    # Assert
+    assert isinstance(flags.enable_web_search_argument_screening_un_18741, FeatureFlag)
+
+
+@pytest.mark.ai
+def test_enable_web_search_argument_screening_flag__has_false_default__field_definition() -> None:
+    """
+    Purpose: Verify enable_web_search_argument_screening_un_18741 defaults to False.
+    Why this matters: New features should be disabled by default.
+    Setup summary: Create flags without env var, verify False default.
+    """
+    # Arrange & Act
+    with patch.dict(os.environ, {}, clear=True):
+        flags = FeatureFlags()
+
+    # Assert
+    assert flags.enable_web_search_argument_screening_un_18741.value is False
+    assert flags.enable_web_search_argument_screening_un_18741.is_enabled() is False
+
+
+@pytest.mark.ai
+def test_enable_web_search_argument_screening_flag__enabled_globally__env_var_true() -> None:
+    """
+    Purpose: Verify flag enables globally when env var is set to "true".
+    Why this matters: Global enablement must work via environment variable.
+    Setup summary: Set env var to "true", verify is_enabled returns True for any company.
+    """
+    # Arrange & Act
+    with patch.dict(
+        os.environ,
+        {"FEATURE_FLAG_ENABLE_WEB_SEARCH_ARGUMENT_SCREENING_UN_18741": "true"},
+        clear=True,
+    ):
+        flags = FeatureFlags()
+
+    # Assert
+    assert flags.enable_web_search_argument_screening_un_18741.value is True
+    assert flags.enable_web_search_argument_screening_un_18741.is_enabled("company1") is True
+    assert flags.enable_web_search_argument_screening_un_18741.is_enabled() is True
+
+
+@pytest.mark.ai
+def test_enable_web_search_argument_screening_flag__disabled_globally__env_var_false() -> None:
+    """
+    Purpose: Verify flag stays disabled when env var is explicitly "false".
+    Why this matters: Explicit disablement via env var must be respected.
+    Setup summary: Set env var to "false", verify is_enabled returns False.
+    """
+    # Arrange & Act
+    with patch.dict(
+        os.environ,
+        {"FEATURE_FLAG_ENABLE_WEB_SEARCH_ARGUMENT_SCREENING_UN_18741": "false"},
+        clear=True,
+    ):
+        flags = FeatureFlags()
+
+    # Assert
+    assert flags.enable_web_search_argument_screening_un_18741.value is False
+    assert flags.enable_web_search_argument_screening_un_18741.is_enabled("company1") is False
+    assert flags.enable_web_search_argument_screening_un_18741.is_enabled() is False
+
+
+@pytest.mark.ai
+def test_enable_web_search_argument_screening_flag__enabled_for_specific_companies__env_var_list() -> None:
+    """
+    Purpose: Verify flag enables only for listed companies when env var contains company IDs.
+    Why this matters: Selective rollout per company is a core feature flag capability.
+    Setup summary: Set env var to comma-separated company IDs, verify only those are enabled.
+    """
+    # Arrange & Act
+    with patch.dict(
+        os.environ,
+        {"FEATURE_FLAG_ENABLE_WEB_SEARCH_ARGUMENT_SCREENING_UN_18741": "company1,company2"},
+        clear=True,
+    ):
+        flags = FeatureFlags()
+
+    # Assert
+    assert flags.enable_web_search_argument_screening_un_18741.is_enabled("company1") is True
+    assert flags.enable_web_search_argument_screening_un_18741.is_enabled("company2") is True
+    assert flags.enable_web_search_argument_screening_un_18741.is_enabled("company3") is False
+    assert flags.enable_web_search_argument_screening_un_18741.is_enabled() is False
+
+
+@pytest.mark.ai
+def test_enable_web_search_argument_screening_flag__not_enabled_for_unlisted_company__env_var_list() -> None:
+    """
+    Purpose: Verify flag returns False for companies not in the allowed list.
+    Why this matters: Companies outside the list must not gain access to screened search.
+    Setup summary: Set env var to one company, verify a different company is not enabled.
+    """
+    # Arrange & Act
+    with patch.dict(
+        os.environ,
+        {"FEATURE_FLAG_ENABLE_WEB_SEARCH_ARGUMENT_SCREENING_UN_18741": "allowed_company"},
+        clear=True,
+    ):
+        flags = FeatureFlags()
+
+    # Assert
+    assert flags.enable_web_search_argument_screening_un_18741.is_enabled("other_company") is False

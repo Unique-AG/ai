@@ -87,6 +87,11 @@ class FeatureFlags(BaseSettings):
         description="Persist tool calls and reconstruct tool call history across turns (UN-15977). Can be 'true' or comma-separated company IDs.",
     )
 
+    enable_web_search_argument_screening_un_18741: FeatureFlag = Field(
+        default=FeatureFlag(False),
+        description="Enable argument screening agent for web search tool calls (UN-18741). Can be 'true' or comma-separated company IDs.",
+    )
+
     model_config = SettingsConfigDict(
         extra="ignore",
         env_prefix="FEATURE_FLAG_",
