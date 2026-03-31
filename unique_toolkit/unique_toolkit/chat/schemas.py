@@ -47,6 +47,16 @@ class Function(BaseModel):
         )
 
 
+class ToolCall(BaseModel):
+    """A tool call issued by the model."""
+
+    model_config = model_config
+
+    id: str
+    type: Literal["function"] = "function"
+    function: Function
+
+
 class ChatMessageToolResponse(BaseModel):
     """Persisted response for a single tool call."""
 
@@ -137,6 +147,8 @@ class ChatMessage(BaseModel):
     role: ChatMessageRole
     previous_message_id: str | None = None
     gpt_request: list[dict] | dict | None = None
+    tool_calls: list[ToolCall] | None = None
+    tool_call_id: str | None = None
     debug_info: dict | None = {}
     created_at: datetime | None = None
     completed_at: datetime | None = None
