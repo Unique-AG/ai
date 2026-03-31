@@ -38,9 +38,6 @@ from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
 )
 from unique_toolkit.agentic.tools.experimental.todo.config import TodoConfig
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
-    CodeInterpreterExtendedConfig,
-)
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
@@ -317,14 +314,6 @@ class SubAgentsConfig(BaseToolConfig):
 
 
 class ResponsesApiConfig(BaseToolConfig):
-    code_interpreter: (
-        Annotated[CodeInterpreterExtendedConfig, Field(title="Active")]
-        | DeactivatedNone
-    ) = Field(
-        default=None,
-        description="If active, the main agent will have access to the OpenAI Code Interpreter tool",
-    )
-
     use_responses_api: bool = Field(
         default=False,
         description="If set, the main agent will use the Responses API from OpenAI",
