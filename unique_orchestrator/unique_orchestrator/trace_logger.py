@@ -6,9 +6,9 @@ loop iteration writes JSON files containing:
 
 - ``iter-NNN-llm.json``: messages sent to the LLM and its response
 - ``iter-NNN-tools.json``: tool calls, tool responses, system_reminders,
-  and todo state snapshots
+  and per-tool debug_info snapshots
 - ``session-summary.json``: written at end-of-run with iteration count,
-  tools used, todo progression, timing, and model
+  tools used, per-tool state progression, timing, and model
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ class TraceLogger:
         self._run_start = time.perf_counter()
         self._iteration_count = 0
         self._tools_used: list[str] = []
-        self._todo_progression: list[dict[str, int]] = []
+        self._tool_state_progression: dict[str, list[dict[str, Any]]] = {}
         self._model: str | None = None
 
         trace_root = os.environ.get(_TRACE_DIR_ENV)
@@ -94,12 +94,12 @@ class TraceLogger:
         tool_calls: list[Any],
         tool_responses: list[Any],
     ) -> None:
-        """Log tool calls and their responses, extracting system_reminders and todo state."""
+        """Log tool calls and their responses, extracting system_reminders and debug_info."""
         if not self._session_dir:
             return
 
         system_reminders: list[dict[str, str]] = []
-        todo_state: dict[str, Any] | None = None
+        tool_debug: dict[str, Any] = {}
 
         for resp in tool_responses:
             name = getattr(resp, "name", None) or ""
@@ -110,15 +110,12 @@ class TraceLogger:
                 system_reminders.append({"tool": name, "reminder": reminder})
 
             debug = getattr(resp, "debug_info", None)
-            if debug and isinstance(debug, dict) and "state" in debug:
-                todo_state = debug["state"]
-
-        if todo_state:
-            snapshot = {
-                k: todo_state.get(k, 0)
-                for k in ("total", "completed", "in_progress", "pending")
-            }
-            self._todo_progression.append({"iteration": iteration, **snapshot})
+            if debug and isinstance(debug, dict):
+                tool_debug[name] = debug
+                if "state" in debug:
+                    self._tool_state_progression.setdefault(name, []).append(
+                        {"iteration": iteration, **debug["state"]}
+                    )
 
         payload: dict[str, Any] = {
             "iteration": iteration,
@@ -130,8 +127,8 @@ class TraceLogger:
 
         if system_reminders:
             payload["system_reminders"] = system_reminders
-        if todo_state:
-            payload["todo_state"] = todo_state
+        if tool_debug:
+            payload["tool_debug_info"] = tool_debug
 
         self._write(f"iter-{iteration:03d}-tools.json", payload)
 
@@ -152,8 +149,8 @@ class TraceLogger:
         }
         if self._model:
             summary["model"] = self._model
-        if self._todo_progression:
-            summary["todo_progression"] = self._todo_progression
+        if self._tool_state_progression:
+            summary["tool_state_progression"] = self._tool_state_progression
 
         self._write("session-summary.json", summary)
 
