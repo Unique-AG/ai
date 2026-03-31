@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-18T13:50:16.62065Z"
+exclude-newer = "2026-03-19T07:06:33.931757Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -3756,7 +3756,7 @@ wheels = [
 
 [[package]]
 name = "unique-deep-research"
-version = "3.5.3"
+version = "3.5.4"
 source = { editable = "../tool_packages/unique_deep_research" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -3839,7 +3839,7 @@ dev = [
 
 [[package]]
 name = "unique-internal-search"
-version = "1.2.35"
+version = "1.2.36"
 source = { editable = "../tool_packages/unique_internal_search" }
 dependencies = [
     { name = "pydantic" },
@@ -3867,7 +3867,7 @@ dev = [
 
 [[package]]
 name = "unique-orchestrator"
-version = "1.20.1"
+version = "1.20.2"
 source = { editable = "." }
 dependencies = [
     { name = "jinja2" },
@@ -3928,7 +3928,7 @@ dev = [
 
 [[package]]
 name = "unique-quartr"
-version = "0.2.7"
+version = "0.2.8"
 source = { editable = "../connectors/unique_quartr" }
 dependencies = [
     { name = "httpx" },
@@ -4007,7 +4007,7 @@ dev = [
 
 [[package]]
 name = "unique-six"
-version = "0.1.4"
+version = "0.1.5"
 source = { editable = "../connectors/unique_six" }
 dependencies = [
     { name = "cryptography" },
@@ -4118,7 +4118,7 @@ dev = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.68.2"
+version = "1.68.4"
 source = { editable = "../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -4207,7 +4207,7 @@ dev = [
 
 [[package]]
 name = "unique-web-search"
-version = "1.14.4"
+version = "1.15.0"
 source = { editable = "../tool_packages/unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },
@@ -4255,7 +4255,7 @@ requires-dist = [
     { name = "timeout-decorator", specifier = ">=0.5.0,<1" },
     { name = "typing-extensions", specifier = ">=4.14.1,<5" },
     { name = "unidecode", specifier = ">=1.4.0,<2" },
-    { name = "unique-toolkit", specifier = ">=1.46.13,<2" },
+    { name = "unique-toolkit", specifier = ">=1.66.1,<2" },
 ]
 
 [package.metadata.requires-dev]
