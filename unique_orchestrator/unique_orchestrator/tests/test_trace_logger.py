@@ -131,7 +131,7 @@ class TestTraceLoggerEnabled:
             assert len(files) == 1
             data = json.loads(files[0].read_text())
             assert data["system_reminders"][0]["tool"] == "todo_write"
-            assert data["todo_state"]["total"] == 3
+            assert data["tool_debug_info"]["todo_write"]["state"]["total"] == 3
 
     def test_writes_session_summary(self, tmp_path: Path) -> None:
         with patch.dict(os.environ, {"UNIQUE_AI_TRACE_DIR": str(tmp_path)}):
@@ -149,7 +149,7 @@ class TestTraceLoggerEnabled:
             assert data["model"] == "gpt-5.4"
             assert set(data["tools_used"]) == {"search", "todo_write"}
 
-    def test_todo_progression_tracking(self, tmp_path: Path) -> None:
+    def test_tool_state_progression_tracking(self, tmp_path: Path) -> None:
         with patch.dict(os.environ, {"UNIQUE_AI_TRACE_DIR": str(tmp_path)}):
             tl = TraceLogger()
 
@@ -169,6 +169,30 @@ class TestTraceLoggerEnabled:
             }
             tl.log_tool_execution(1, tool_calls=[], tool_responses=[resp2])
 
-            assert len(tl._todo_progression) == 2
-            assert tl._todo_progression[0]["pending"] == 2
-            assert tl._todo_progression[1]["completed"] == 2
+            assert "todo_write" in tl._tool_state_progression
+            progression = tl._tool_state_progression["todo_write"]
+            assert len(progression) == 2
+            assert progression[0]["pending"] == 2
+            assert progression[1]["completed"] == 2
+
+    def test_tool_state_progression_multiple_tools(self, tmp_path: Path) -> None:
+        with patch.dict(os.environ, {"UNIQUE_AI_TRACE_DIR": str(tmp_path)}):
+            tl = TraceLogger()
+
+            resp_todo = MagicMock()
+            resp_todo.name = "todo_write"
+            resp_todo.system_reminder = ""
+            resp_todo.debug_info = {"state": {"total": 2, "completed": 1}}
+
+            resp_other = MagicMock()
+            resp_other.name = "some_tool"
+            resp_other.system_reminder = None
+            resp_other.debug_info = {"state": {"processed": 5, "errors": 0}}
+
+            tl.log_tool_execution(
+                0, tool_calls=[], tool_responses=[resp_todo, resp_other]
+            )
+
+            assert "todo_write" in tl._tool_state_progression
+            assert "some_tool" in tl._tool_state_progression
+            assert tl._tool_state_progression["some_tool"][0]["processed"] == 5
