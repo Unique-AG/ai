@@ -119,8 +119,7 @@ class ResponsesCodeInterpreterHandler:
                 user_id=self._settings.context.auth.user_id.get_secret_value(),
                 **unique_sdk.Message.ModifyParams(
                     chatId=self._settings.context.chat.chat_id,
-                    text=message.text
-                    or ""
+                    text=(message.text or "")
                     + "\n used the following code to generate the response: ```\n"
                     + self._code
                     + "\n```",
