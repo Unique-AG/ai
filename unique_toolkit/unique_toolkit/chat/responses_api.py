@@ -166,11 +166,9 @@ def _prepare_responses_params_util(
             requested_effort,
         )
         if resolved_effort is not None:
-            reasoning = Reasoning(
-                **{
-                    **(reasoning or {}),
-                    "effort": cast(ReasoningEffort, resolved_effort),
-                }
+            reasoning = cast(
+                Reasoning,
+                {**(reasoning or {}), "effort": cast(ReasoningEffort, resolved_effort)},
             )
         elif reasoning is None:
             model_info = LanguageModelInfo.from_name(model_name)
