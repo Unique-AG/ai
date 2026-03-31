@@ -5,11 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.67.0] - 2026-03-30
+## [1.68.0] - 2026-03-30
 - Add `chat_id` param to `KnowledgeBaseService.__init__` (stored as `_chat_id`); expose on `search_contents`/`search_contents_async` with `chat_id or self._chat_id` fallback for ContentService parity (UN-18568)
 - Add `chat_id`/`chat_only` params to `search_content_chunks`/`search_content_chunks_async`; align fallback to `chat_id or self._chat_id` (UN-18568)
 - Add `KnowledgeBaseService.get_documents_uploaded_to_chat()` and `get_images_uploaded_to_chat()` — enables full ContentService replacement for the internal search tool (UN-18568)
 - Add `UniqueSettings.from_event(event: BaseEvent)` — auth-only settings factory for non-chat events, mirroring `from_chat_event` (UN-18568)
+## [1.67.1] - 2026-03-31
+- Appending `chat_id`, `assistant_id`, and `display_name` to debug info for sub agent tool calls
+
+## [1.67.0] - 2026-03-31
+- Add `AUTO_CONTAINER_ONLY` model capability for models that require `container: {"type": "auto"}` instead of explicit container IDs (GPT-5.4 Pro)
+- Add `force_auto_container` parameter to `OpenAICodeInterpreterTool.build_tool` and `OpenAIBuiltInToolManager.build_manager`/`_build_tool`
+- Fix auto-container path dropping `is_exclusive` flag — now correctly forwarded to the constructor
 
 ## [1.66.1] - 2026-03-31
 - Add Feature Flag `enable_web_search_argument_screening_un_18741`
