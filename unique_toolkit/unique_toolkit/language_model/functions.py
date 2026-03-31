@@ -203,14 +203,12 @@ def _to_search_context(
     return [
         unique_sdk.Integrated.SearchResult(
             id=chunk.id,
-            chunkId=chunk.chunk_id,
-            key=chunk.key,
-            title=chunk.title,
-            url=chunk.url,
-            startPage=chunk.start_page,
-            endPage=chunk.end_page,
-            order=chunk.order,
-            object=chunk.object,
+            chunkId=chunk.chunk_id
+            if chunk.chunk_id is not None
+            else "unknown_chunk_id",
+            key=chunk.key if chunk.key is not None else "unknown_key",
+            title=chunk.title or "",
+            url=chunk.url or "",
         )
         for chunk in chunks
     ]
@@ -526,14 +524,12 @@ def _prepare_all_completions_params_util_v2(
         search_context = [
             unique_sdk.Integrated.SearchResult(
                 id=chunk.id,
-                chunkId=chunk.chunk_id,
-                key=chunk.key,
-                title=chunk.title,
-                url=chunk.url,
-                startPage=chunk.start_page,
-                endPage=chunk.end_page,
-                order=chunk.order,
-                object=chunk.object,
+                chunkId=chunk.chunk_id
+                if chunk.chunk_id is not None
+                else "unknown_chunk_id",
+                key=chunk.key if chunk.key is not None else "unknown_key",
+                title=chunk.title or "",
+                url=chunk.url or "",
             )
             for chunk in content_chunks
         ]
@@ -618,10 +614,10 @@ def _prepare_all_completions_params_util_v3(
         [
             unique_sdk.Integrated.SearchResult(
                 id=c.id,
-                chunkId=c.chunk_id,
-                key=c.key,
-                title=c.title,
-                url=c.url,
+                chunkId=c.chunk_id if c.chunk_id is not None else "unknown_chunk_id",
+                key=c.key if c.key is not None else "unknown_key",
+                title=c.title or "",
+                url=c.url or "",
             )
             for c in content_chunks
         ]
