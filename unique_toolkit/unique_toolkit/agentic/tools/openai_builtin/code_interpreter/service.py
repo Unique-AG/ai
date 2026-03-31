@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from typing import Any, override
 
@@ -197,10 +199,19 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         user_id: str,
         chat_id: str,
         is_exclusive: bool = False,
-    ) -> "OpenAICodeInterpreterTool":
+        force_auto_container: bool = False,
+    ) -> OpenAICodeInterpreterTool:
+        if force_auto_container:
+            config = config.model_copy(update={"use_auto_container": True})
+
         if config.use_auto_container:
             logger.info("Using `auto` container setting")
-            return cls(config=config, container_id=None, company_id=company_id)
+            return cls(
+                config=config,
+                container_id=None,
+                company_id=company_id,
+                is_exclusive=is_exclusive,
+            )
 
         memory_manager = _get_container_code_execution_short_term_memory_manager(
             company_id=company_id,

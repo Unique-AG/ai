@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from openai import AsyncOpenAI
 from openai.types.responses import ResponseIncludable
 
@@ -33,6 +35,7 @@ class OpenAIBuiltInToolManager:
         chat_id: str,
         client: AsyncOpenAI,
         tool_config: ToolBuildConfig,
+        force_auto_container: bool = False,
     ) -> OpenAIBuiltInTool:
         if tool_config.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
             assert isinstance(tool_config.configuration, CodeInterpreterExtendedConfig)
@@ -45,6 +48,7 @@ class OpenAIBuiltInToolManager:
                 user_id=user_id,
                 chat_id=chat_id,
                 is_exclusive=tool_config.is_exclusive,
+                force_auto_container=force_auto_container,
             )
             return tool
         else:
@@ -60,7 +64,8 @@ class OpenAIBuiltInToolManager:
         chat_id: str,
         client: AsyncOpenAI,
         tool_configs: list[ToolBuildConfig],
-    ) -> "OpenAIBuiltInToolManager":
+        force_auto_container: bool = False,
+    ) -> OpenAIBuiltInToolManager:
         builtin_tools = []
         for tool_config in tool_configs:
             if tool_config.name in OpenAIBuiltInToolName and tool_config.is_enabled:
@@ -73,6 +78,7 @@ class OpenAIBuiltInToolManager:
                         chat_id,
                         client,
                         tool_config,
+                        force_auto_container,
                     )
                 )
 
