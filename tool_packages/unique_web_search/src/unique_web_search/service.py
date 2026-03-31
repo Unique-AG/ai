@@ -155,9 +155,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
             tool_call.arguments,
         )
 
-        await self._ff_screen_arguments(tool_call.arguments)
-
         debug_info = WebSearchDebugInfo(parameters=parameters.model_dump())
+
+        await self._ff_screen_arguments(parameters.model_dump(), debug_info)
 
         web_search_message_logger = WebSearchMessageLogger(
             message_step_logger=self._message_step_logger,
@@ -297,12 +297,19 @@ class WebSearchTool(Tool[WebSearchConfig]):
             return []
         return evaluation_check_list
 
-    async def _ff_screen_arguments(self, arguments: dict) -> None:
-        # TODO: Use feature flag once toolkit is updated UN-18741
+    async def _ff_screen_arguments(
+        self, arguments: dict, debug_info: WebSearchDebugInfo
+    ) -> None:
+        if not feature_flags.enable_web_search_argument_screening_un_18741.is_enabled(
+            self.company_id
+        ):
+            return
+
         screening_service = ArgumentScreeningService(
             language_model_service=self.language_model_service,
             language_model=self.config.language_model,
             config=self.config.experimental_features.argument_screening_config,
+            debug_info=debug_info,
         )
         await screening_service(arguments)
 
