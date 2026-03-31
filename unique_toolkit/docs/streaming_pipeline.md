@@ -98,7 +98,7 @@ flowchart LR
 
 ## Architecture
 
-The implementation is a **handler pipeline**: `ResponsesStreamPipeline` or `ChatCompletionStreamPipeline` routes each stream event to small typed handlers (text, tools, completed, code interpreter). Handlers implement structural protocols in `pipeline/protocols.py`, call the Unique SDK where needed, and expose `get_text()` / `get_tool_calls()` / etc. The top-level classes `ResponsesCompleteWithReferences` and `ChatCompletionsCompleteWithReferences` open the async stream from the OpenAI proxy, forward events to the pipeline, and build `LanguageModelStreamResponse` / `ResponsesLanguageModelStreamResponse` after `on_stream_end()`.
+The implementation is a **handler pipeline**: `ResponsesStreamPipeline` or `ChatCompletionStreamPipeline` routes each stream event to small typed handlers (text, tools, completed, code interpreter). Handlers implement structural protocols in `pipeline/protocols/` (`common`, `responses`, `chat_completions`), call the Unique SDK where needed, and expose `get_text()` / `get_tool_calls()` / etc. The top-level classes `ResponsesCompleteWithReferences` and `ChatCompletionsCompleteWithReferences` open the async stream from the OpenAI proxy, forward events to the pipeline, and build `LanguageModelStreamResponse` / `ResponsesLanguageModelStreamResponse` after `on_stream_end()`.
 
 ```mermaid
 flowchart LR
@@ -135,7 +135,11 @@ They run their own `async for` loops (not a shared generic runner) so they can c
 streaming/
 ├── pipeline/
 │   ├── __init__.py                               # Public API surface (re-exports)
-│   ├── protocols.py                              # Shared handler protocols (both APIs)
+│   ├── protocols/                                # Handler protocols (by API + shared base)
+│   │   ├── common.py                             # TextState, StreamHandlerProtocol
+│   │   ├── responses.py                          # Responses*HandlerProtocol
+│   │   ├── chat_completions.py                   # ChatCompletion*HandlerProtocol
+│   │   └── __init__.py                           # Flat re-exports
 │   ├── responses/                                # OpenAI Responses API (responses.create stream)
 │   │   ├── stream_pipeline.py                    # ResponsesStreamPipeline
 │   │   ├── complete_with_references.py           # ResponsesCompleteWithReferences
@@ -156,7 +160,7 @@ streaming/
 
 ## Protocols
 
-Handler protocols live in `pipeline/protocols.py`. All extend `StreamHandlerProtocol` (`reset`, `on_stream_end`).
+Handler protocols live under `pipeline/protocols/`: shared `StreamHandlerProtocol` and `TextState` in `common.py`; Responses-specific and Chat-Completions-specific protocols in `responses.py` and `chat_completions.py`. The package `__init__.py` re-exports the same flat names as before. All extend `StreamHandlerProtocol` (`reset`, `on_stream_end`).
 
 | Protocol | Role |
 |----------|------|
@@ -327,7 +331,7 @@ Adding a new wire format means a new pipeline class (or extending an existing on
 
 | Deleted module | Replacement |
 |----------------|-------------|
-| `streaming/base.py` (`StreamPartHandler` protocol) | `pipeline/protocols.py` |
+| `streaming/base.py` (`StreamPartHandler` protocol) | `pipeline/protocols/` |
 | `streaming/responses/text_delta.py` (`TextDeltaStreamPartHandler`) | Handler pipeline (`responses/text_delta_handler.py`, etc.) |
 | `streaming/responses/codeinterpreter.py` (`ResponseCodeInterpreterCallStreamPartHandler`) | `responses/code_interpreter_handler.py` |
 | `streaming/chat_completion_chunk.py` (`CompletionChunkStreamPartHandler`) | `chat_completions/text_handler.py` |

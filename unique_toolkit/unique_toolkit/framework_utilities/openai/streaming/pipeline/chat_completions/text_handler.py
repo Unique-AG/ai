@@ -10,6 +10,9 @@ import unique_sdk
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
     StreamingReplacerProtocol,
 )
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.protocols import (
+    TextState,
+)
 
 if TYPE_CHECKING:
     from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
@@ -21,7 +24,7 @@ class ChatCompletionTextHandler:
     """Processes text content from ``ChatCompletionChunk``: applies replacers,
     accumulates both original and normalized text, emits SDK events.
 
-    Private state: replacer chain, ``_full_text`` (normalized), ``_original_text`` (raw).
+    Private state: replacer chain and ``TextState`` (normalised vs raw).
     """
 
     def __init__(
@@ -34,20 +37,19 @@ class ChatCompletionTextHandler:
         self._settings = settings
         self._replacers = replacers
         self._send_every_n_events = max(1, send_every_n_events)
-        self._full_text = ""
-        self._original_text = ""
+        self._state = TextState(full_text="", original_text="")
 
     async def on_chunk(self, event: ChatCompletionChunk, *, index: int) -> None:
         if len(event.choices) == 0 or self._settings.context.chat is None:
             return
 
         content = event.choices[0].delta.content or ""
-        self._original_text += content
+        self._state.original_text += content
 
         delta = content
         for replacer in self._replacers:
             delta = replacer.process(delta)
-        self._full_text += delta
+        self._state.full_text += delta
 
         if (index + 1) % self._send_every_n_events == 0:
             await self._emit_message_event()
@@ -59,19 +61,18 @@ class ChatCompletionTextHandler:
                 remaining = replacer.process(remaining)
             remaining += replacer.flush()
         if remaining:
-            self._full_text += remaining
+            self._state.full_text += remaining
             await self._emit_message_event()
 
         if self._settings.context.chat is not None:
             await self._persist_final_message()
 
-    def get_text(self) -> tuple[str, str]:
-        """Return ``(full_text, original_text)``."""
-        return self._full_text, self._original_text
+    def get_text(self) -> TextState:
+        """Return accumulated normalised and original text."""
+        return self._state
 
     def reset(self) -> None:
-        self._full_text = ""
-        self._original_text = ""
+        self._state = TextState(full_text="", original_text="")
         for replacer in self._replacers:
             replacer.flush()
 
@@ -85,8 +86,8 @@ class ChatCompletionTextHandler:
         #    **unique_sdk.Message.CreateEventParams(
         #        chatId=chat.chat_id,
         #        messageId=chat.last_assistant_message_id,
-        #        text=self._full_text,
-        #        originalText=self._original_text,
+        #        text=self._state.full_text,
+        #        originalText=self._state.original_text,
         #    ),
         # )
 
@@ -96,8 +97,8 @@ class ChatCompletionTextHandler:
             company_id=self._settings.context.auth.company_id.get_secret_value(),
             id=chat.last_assistant_message_id,
             chatId=chat.chat_id,
-            text=self._full_text or None,
-            originalText=self._original_text or None,
+            text=self._state.full_text or None,
+            originalText=self._state.original_text,
         )
 
     async def _persist_final_message(self) -> None:
@@ -108,10 +109,9 @@ class ChatCompletionTextHandler:
             company_id=self._settings.context.auth.company_id.get_secret_value(),
             id=chat.last_assistant_message_id,
             chatId=chat.chat_id,
-            text=self._full_text or None,
-            originalText=self._original_text or None,
+            text=self._state.full_text or None,
+            originalText=self._state.original_text or None,
             stoppedStreamingAt=datetime.now(timezone.utc).strftime(
                 "%Y-%m-%dT%H:%M:%S.%fZ"
             ),  # type: ignore
-            completedAt=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),  # type: ignore
         )
