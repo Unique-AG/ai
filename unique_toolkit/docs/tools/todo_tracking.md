@@ -196,7 +196,6 @@ Additionally, after tool execution, tools with `debug_info` get a summary entry 
 - `system_reminder` set when active items, empty when all terminal
 - Tool registration, config validation
 - Configurable prompts (system_prompt, execution_reminder overrides)
-- `_chat_scoped_stm_service` helper (asserts `message_id=None`)
 - Multi-step workflow simulation (full lifecycle, mid-conversation additions)
 
 `unique_orchestrator/tests/test_todo_injection.py` -- tests covering:

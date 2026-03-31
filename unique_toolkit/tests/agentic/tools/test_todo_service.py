@@ -9,7 +9,6 @@ Covers:
 - debug_info structure on tool response
 - system_reminder set when active items, empty when all terminal
 - Tool registration, config validation
-- _chat_scoped_stm_service helper (message_id=None)
 - Configurable prompts via TodoConfig
 """
 
@@ -32,7 +31,6 @@ from unique_toolkit.agentic.tools.experimental.todo.schemas import (
 )
 from unique_toolkit.agentic.tools.experimental.todo.service import (
     TodoWriteTool,
-    _chat_scoped_stm_service,
 )
 from unique_toolkit.agentic.tools.factory import ToolFactory
 
@@ -177,27 +175,6 @@ class TestTodoWriteInput:
             todos=[TodoItemInput(id="a", content="x", status=TodoStatus.PENDING)]
         )
         assert inp.merge is True
-
-
-class TestChatScopedStmService:
-    """Focused test for the _chat_scoped_stm_service helper.
-
-    Verifies that message_id=None is passed to ShortTermMemoryService.
-    Catches regressions if the helper is modified.
-    """
-
-    def test_message_id_is_none(self) -> None:
-        event = MagicMock()
-        event.company_id = "company-1"
-        event.user_id = "user-1"
-        event.payload.chat_id = "chat-1"
-
-        svc = _chat_scoped_stm_service(event)
-
-        assert svc._company_id == "company-1"
-        assert svc._user_id == "user-1"
-        assert svc._chat_id == "chat-1"
-        assert svc._message_id is None
 
 
 def _make_tool(
