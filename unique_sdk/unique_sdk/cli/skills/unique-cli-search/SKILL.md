@@ -2,13 +2,21 @@
 name: unique-cli-search
 description: >-
   Search the Unique AI Platform knowledge base using the unique-cli search
-  command. Use when the user asks to find, search, or query documents,
-  files, or content on Unique, including filtering by folder or metadata.
+  command. Use when the user asks to find, search, or query documents
+  or content on Unique, including filtering by folder or metadata.
+  NOTE: This search uses combined vector + full-text indexing. Excel
+  (.xlsx/.xls), CSV (.csv), and image files are NOT full-text indexed,
+  so they will not appear in search results. To locate these file types,
+  use the unique-cli-file-management skill instead (browse folders with
+  `unique-cli ls` to find them by name).
 ---
 
 # Unique CLI -- Knowledge Base Search
 
 Search the Unique knowledge base using combined vector + full-text search via the `unique-cli search` command.
+
+> **Limitation:** Excel (`.xlsx`/`.xls`), CSV (`.csv`), and image files are **not** full-text indexed. They will not appear in search results. To find these files, use the `unique-cli-file-management` skill and browse folders with `unique-cli ls` to locate them by name.
+
 
 ## Basic Search
 
