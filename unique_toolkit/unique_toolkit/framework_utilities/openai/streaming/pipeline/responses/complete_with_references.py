@@ -167,7 +167,9 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
             raise ValueError("Chat context is not set")
 
         model: str = (
-            model_name.name if isinstance(model_name, LanguageModelName) else model_name
+            model_name.value
+            if isinstance(model_name, LanguageModelName)
+            else model_name
         )
 
         # -- Build the OpenAI request ----------------------------------------
@@ -195,7 +197,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
 
             return converted_messages
 
-        # TODO: Talk to Ahmed about this
+        # TODO(UN-15891): confirm Responses input shape for mixed message types
         converted_messages = input_messages(messages)  # type: ignore
 
         converted_tools = _convert_tools(tools)
@@ -207,7 +209,9 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
             user_id=settings.context.auth.user_id.get_secret_value(),
             company_id=settings.context.auth.company_id.get_secret_value(),
             references=chunks_to_sdk_references(content_chunks or []),
-            startedStreamingAt=datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),  # type: ignore
+            startedStreamingAt=datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%S.%fZ"
+            ),  # type: ignore
         )
 
         self._pipeline.reset()
