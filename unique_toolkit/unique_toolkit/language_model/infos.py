@@ -212,6 +212,7 @@ class LanguageModelProvider(StrEnum):
 
 
 class ModelCapabilities(StrEnum):
+    AUTO_CONTAINER_ONLY = "auto_container_only"
     CHAT_COMPLETIONS_API = "chat_completions_api"
     FUNCTION_CALLING = "function_calling"
     PARALLEL_FUNCTION_CALLING = "parallel_function_calling"
@@ -804,6 +805,7 @@ class LanguageModelInfo(BaseModel):
                     version="2026-03-05",
                     encoder_name=EncoderName.O200K_BASE,
                     capabilities=[
+                        ModelCapabilities.AUTO_CONTAINER_ONLY,
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.PARALLEL_FUNCTION_CALLING,
                         ModelCapabilities.REASONING,
