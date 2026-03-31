@@ -377,12 +377,6 @@ class LanguageModelInfo(BaseModel):
         model_supports_reasoning = model_info.supported_reasoning_efforts is not None
         model_provides_temperature_bounds = model_info.temperature_bounds is not None
 
-        valid_reasoning_effort_set = True
-        if is_reasoning_effort_set and model_supports_reasoning:
-            valid_reasoning_effort_set = (
-                reasoning_effort in model_info.supported_reasoning_efforts
-            )
-
         # --- Scenario 2: model has no reasoning_effort concept ---
         # supported_reasoning_efforts=None means reasoning is not applicable for this
         # model; drop any caller-provided effort so the API doesn't reject the call.
@@ -396,9 +390,16 @@ class LanguageModelInfo(BaseModel):
                 )
                 reasoning_effort = None
                 wants_active_reasoning = False
-        else:
+        else:  # model_supports_reasoning
             # --- Scenario 3: effort not in the model's declared list ---
             # Warn and fallback to first (i.e. lightest) supported effort level.
+
+            valid_reasoning_effort_set = True
+            if is_reasoning_effort_set:
+                valid_reasoning_effort_set = (
+                    reasoning_effort in model_info.supported_reasoning_efforts
+                )
+
             if not valid_reasoning_effort_set:
                 fallback_effort = model_info.supported_reasoning_efforts[0]
                 _LOGGER.warning(
