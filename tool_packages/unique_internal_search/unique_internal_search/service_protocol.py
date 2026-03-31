@@ -11,7 +11,9 @@
 
 
 # All methods asynd or not? MCP is all async, maybe run method should be async?
-from typing import Generic, Protocol, TypeVar
+from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings
@@ -23,7 +25,8 @@ from unique_toolkit.content.smart_rules import UniqueQL
 RunResult = TypeVar("RunResult", bound=BaseModel, covariant=True)
 
 
-class _ServiceBaseProtocol(Protocol, Generic[RunResult]):
+class _RunMixing(ABC, Generic[RunResult]):
+    @abstractmethod
     async def run(self) -> RunResult: ...
 
     """Runs the service with the prepared parameters."""
@@ -33,62 +36,69 @@ class _ServiceBaseProtocol(Protocol, Generic[RunResult]):
 Config = TypeVar("Config", bound=BaseModel)
 
 
-class _ConfigMixingProtocol(Protocol, Generic[Config]):
-    _config: Config
+class _ConfigMixing(ABC, Generic[Config]):
+    """Subclasses must set ``_config_model_cls`` to the concrete Pydantic model type."""
+
+    # TODO: Talk to Ahmed about this
+    _config_model_cls: type[Config]
 
     @classmethod
+    @abstractmethod
     def from_config(cls, config: Config) -> Self: ...
+
+    @property
+    @abstractmethod
+    def config(self) -> Config: ...
+
+    @classmethod
+    def from_json(cls, file_path: Path) -> Self:
+        parsed = cls._config_model_cls.model_validate_json(file_path.read_text())
+        return cls.from_config(parsed)
 
 
 # What can be changed via environment variables by admin
 Settings = TypeVar("Settings", bound=BaseSettings, covariant=True)
 
 
-class _SettingsMixingProtocol(Protocol, Generic[Settings]):
-    _settings: Settings
+class _SettingsMixing(ABC, Generic[Settings]):
+    @property
+    @abstractmethod
+    def settings(self) -> Settings: ...
 
 
 Context = TypeVar("Context", bound=BaseModel)
 
 
-class _ContextMixingProtocol(Protocol, Generic[Context]):
-    _context: Context
-
+class _ContextMixing(ABC, Generic[Context]):
     @property
+    @abstractmethod
     def context(self) -> Context: ...
 
     @context.setter
+    @abstractmethod
     def context(self, context: Context) -> None: ...
 
-
-PrepareParameter = TypeVar("PrepareParameter", bound=BaseModel, contravariant=True)
-
-
-# class PrepareMixingProtocol(Protocol, Generic[PrepareParameter]):
-#    def prepare(self, parameter: PrepareParameter | dict) -> None: ...
-#
-#    """Prepares the service to be ran, resets the service to a clean state and inits parameters for run."""
-#
 
 ServiceState = TypeVar("ServiceState", bound=BaseModel)
 
 
-class _StateMixingProtocol(Protocol, Generic[ServiceState]):
-    _state: ServiceState
-
+class _StateMixing(ABC, Generic[ServiceState]):
     @property
+    @abstractmethod
     def state(self) -> ServiceState: ...
 
     @state.setter
+    @abstractmethod
     def state(self, state: ServiceState) -> None: ...
 
+    @abstractmethod
     def reset_state(self) -> None: ...
 
 
 ProgressMessage = TypeVar("ProgressMessage", bound=BaseModel | str)
 
 
-class _ProgressMixingProtocol(Protocol, Generic[ProgressMessage]):
+class _ProgressMixing(ABC, Generic[ProgressMessage]):
     _progress_publisher: TypedEventBus[ProgressMessage]
 
     @property
@@ -97,13 +107,12 @@ class _ProgressMixingProtocol(Protocol, Generic[ProgressMessage]):
     async def post_progress_message(self, message: ProgressMessage) -> None: ...
 
 
-class PerfectServiceProtocol(
-    _ServiceBaseProtocol, _StateMixingProtocol, _ProgressMixingProtocol
+class BaseService(
+    _RunMixing, _SettingsMixing, _ConfigMixing, _StateMixing, _ProgressMixing
 ):
     pass
 
     # ------------------------------------------------------------ NEW File ------------------------------------------------------------
-    pass
 
 
 class InternalSearchSettings(BaseSettings):
@@ -125,26 +134,32 @@ class InternalSearchState(BaseModel):
     metadata_filter_override: UniqueQL | None = Field(default=None)
 
 
-class InternalSearchServiceProtocol(
-    _ServiceBaseProtocol[InternalSearchResult],
-    _ConfigMixingProtocol[InternalSearchConfig],
-    _StateMixingProtocol[InternalSearchState],
-): ...
+class InternalSearchServiceAbstract(
+    _RunMixing[InternalSearchResult],
+    _SettingsMixing[InternalSearchSettings],
+    _ConfigMixing[InternalSearchConfig],
+    _StateMixing[InternalSearchState],
+):
+    _config_model_cls: type[InternalSearchConfig] = InternalSearchConfig
 
 
-class InternalSearchService(InternalSearchServiceProtocol):
+class InternalSearchService(InternalSearchServiceAbstract):
     def __init__(self, config: InternalSearchConfig, state: InternalSearchState):
         self._config = config
         self._state = state
         self._settings = InternalSearchSettings()
 
-    @classmethod
-    def from_config(
-        cls, config: InternalSearchConfig, *, state: InternalSearchState | None = None
-    ) -> Self:
-        if state is None:
-            state = InternalSearchState()
+    @property
+    def config(self) -> InternalSearchConfig:
+        return self._config
 
+    @property
+    def settings(self) -> InternalSearchSettings:
+        return self._settings
+
+    @classmethod
+    def from_config(cls, config: InternalSearchConfig) -> Self:
+        state = InternalSearchState()
         return cls(config=config, state=state)
 
     @property
@@ -155,14 +170,20 @@ class InternalSearchService(InternalSearchServiceProtocol):
     def state(self, state: InternalSearchState) -> None:
         self._state = state
 
+    def reset_state(self) -> None:
+        self._state = InternalSearchState()
+
     async def run(self) -> InternalSearchResult:
         return InternalSearchResult()
 
 
-def usage_example(internal_search_service: InternalSearchServiceProtocol) -> int:
-    internal_search_service.state.search_queries.append("test")
-    return 0
+if __name__ == "__main__":
+    import asyncio
 
+    async def main():
+        service = InternalSearchService(
+            config=InternalSearchConfig(), state=InternalSearchState()
+        )
+        await service.run()
 
-service = InternalSearchService.from_config(InternalSearchConfig())
-usage_example(service)
+    asyncio.run(main())
