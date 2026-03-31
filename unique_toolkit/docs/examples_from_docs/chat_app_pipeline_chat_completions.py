@@ -128,21 +128,21 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
 
 
     tool_call_handler = ChatCompletionToolCallHandler()
-    pipeline = ChatCompletionStreamPipeline(text_handler=text_handler, tool_call_handler=tool_call_handler)
-    
-    
+    pipeline = ChatCompletionStreamPipeline(
+        settings=event_settings,
+        text_handler=text_handler,
+        tool_call_handler=tool_call_handler,
+    )
+
     # --- Stream via the Chat Completions pipeline ---------------------------
     # PipelineChatCompletionsStreamingHandler handles:
     #   • Live token emission to the Unique platform (users see text stream in)
     #   • Citation normalisation ("source0" → "[0]") across chunk boundaries
     #   • Citation normalisation during streaming (StreamingPatternReplacer)
-    
+
     streaming_handler = ChatCompletionsCompleteWithReferences(
         settings=event_settings,
-        pipeline=ChatCompletionStreamPipeline(
-            text_handler=text_handler,
-            tool_call_handler=tool_call_handler,
-        ),
+        pipeline=pipeline,
     )
 
     result = streaming_handler.complete_with_references(
