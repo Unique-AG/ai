@@ -1,7 +1,7 @@
 """Streaming pipeline primitives (protocols, handlers, pipelines).
 
 Layout:
-- :mod:`protocols` — shared handler protocols (Chat Completions + Responses).
+- :mod:`protocols` — package: ``common`` (``TextState``, base protocol), ``chat_completions``, ``responses``.
 - :mod:`chat_completions` — Chat Completions stream (``chat.completions.create``).
 - :mod:`responses` — Responses API stream (``responses.create``).
 """
@@ -22,6 +22,7 @@ from .protocols import (
     ResponsesTextDeltaHandlerProtocol,
     ResponsesToolCallHandlerProtocol,
     StreamHandlerProtocol,
+    TextState,
 )
 from .responses import (
     ResponsesCodeInterpreterHandler,
@@ -36,6 +37,8 @@ __all__ = [
     # --- Pipeline classes ---
     "ChatCompletionStreamPipeline",
     "ResponsesStreamPipeline",
+    # --- Shared types ---
+    "TextState",
     # --- Handler protocols ---
     "StreamHandlerProtocol",
     "ChatCompletionTextHandlerProtocol",

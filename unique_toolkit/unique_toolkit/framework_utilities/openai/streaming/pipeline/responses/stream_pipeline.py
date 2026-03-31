@@ -93,7 +93,7 @@ class ResponsesStreamPipeline:
         chat_id: str,
         created_at: datetime,
     ) -> ResponsesLanguageModelStreamResponse:
-        full_text, original_text = self._text.get_text()
+        text_state = self._text.get_text()
         tool_calls = self._tools.get_tool_calls() if self._tools else None
         usage = self._completed.get_usage() if self._completed else None
         output = self._completed.get_output() if self._completed else []
@@ -102,8 +102,8 @@ class ResponsesStreamPipeline:
             id=message_id,
             chat_id=chat_id,
             role=ChatMessageRole.ASSISTANT,
-            text=full_text,
-            original_text=original_text,
+            text=text_state.full_text,
+            original_text=text_state.original_text,
             created_at=created_at,
         )
 
