@@ -5,18 +5,10 @@ inputs:
   package_dir:
     description: 'Path to the package directory'
     required: true
-  package_manager:
-    description: 'Package manager (kept for compatibility, always uv)'
-    required: false
-    default: 'uv'
   python_version:
     description: 'Python version to use'
     required: false
     default: '3.11'
-  package_manager_version:
-    description: 'Unused, kept for interface compatibility'
-    required: false
-    default: ''
   baseline_file:
     description: 'Path to baseline JSON file (optional)'
     required: false
@@ -28,14 +20,11 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Install package manager
-      id: install_pm
-      uses: ./.github/actions/install-package-manager
+    - name: Setup uv
+      uses: ./.github/actions/setup-uv
       with:
         package_dir: ${{ inputs.package_dir }}
-        package_manager: ${{ inputs.package_manager }}
         python_version: ${{ inputs.python_version }}
-        package_manager_version: ${{ inputs.package_manager_version }}
 
     - name: Apply baseline
       if: inputs.baseline_file != ''
@@ -56,6 +45,6 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       run: |
         bash ${{ github.workspace }}/.github/scripts/run-basedpyright.sh \
-          -r "${{ steps.install_pm.outputs.run_cmd }}" \
+          -r "uv run" \
           -o "${{ inputs.output_file }}" \
           ${{ github.workspace }}/${{ inputs.package_dir }}

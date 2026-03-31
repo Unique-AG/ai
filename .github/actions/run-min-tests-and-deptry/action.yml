@@ -21,9 +21,8 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Install package manager
-      id: pm
-      uses: ./.github/actions/install-package-manager
+    - name: Setup uv
+      uses: ./.github/actions/setup-uv
       with:
         package_dir: ${{ inputs.package_dir }}
         python_version: ${{ inputs.python_version }}

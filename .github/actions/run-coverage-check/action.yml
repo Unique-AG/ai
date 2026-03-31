@@ -5,18 +5,10 @@ inputs:
   package_dir:
     description: 'Path to the package directory'
     required: true
-  package_manager:
-    description: 'Package manager (kept for compatibility, always uv)'
-    required: false
-    default: 'uv'
   python_version:
     description: 'Python version to use'
     required: false
     default: '3.11'
-  package_manager_version:
-    description: 'Unused, kept for interface compatibility'
-    required: false
-    default: ''
   base_ref:
     description: 'Base branch/ref for comparison'
     required: false
@@ -29,14 +21,11 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Install package manager
-      id: install_pm
-      uses: ./.github/actions/install-package-manager
+    - name: Setup uv
+      uses: ./.github/actions/setup-uv
       with:
         package_dir: ${{ inputs.package_dir }}
-        package_manager: ${{ inputs.package_manager }}
         python_version: ${{ inputs.python_version }}
-        package_manager_version: ${{ inputs.package_manager_version }}
 
     - name: Fetch base branch
       if: inputs.base_ref != ''
@@ -53,10 +42,9 @@ runs:
         ARGS=(
           "${{ inputs.package_dir }}"
           --min-coverage "${{ inputs.min_coverage }}"
-              --runner "${{ steps.install_pm.outputs.run_cmd }}"
+          --runner "uv run"
         )
         if [ -n "${{ inputs.base_ref }}" ]; then
           ARGS+=(--base-ref "${{ inputs.base_ref }}")
         fi
         bash ${{ github.workspace }}/.github/scripts/check-coverage.sh "${ARGS[@]}"
-
