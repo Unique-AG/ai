@@ -26,6 +26,11 @@ from unique_mcp.unique_injectors import (
 
 _MOD = "unique_mcp.unique_injectors"
 
+# Fixed ZitadelOAuthProxySettings fields — tests do not depend on repo .env.
+_ZITADEL_FIXTURE_BASE_URL = "http://zitadel.test.local"
+_ZITADEL_FIXTURE_CLIENT_ID = "fixture_client_id"
+_ZITADEL_FIXTURE_CLIENT_SECRET = "fixture_client_secret"
+
 
 @pytest.fixture
 def base_settings() -> UniqueSettings:
@@ -42,7 +47,12 @@ def base_settings() -> UniqueSettings:
 
 @pytest.fixture
 def zitadel_settings() -> ZitadelOAuthProxySettings:
-    return ZitadelOAuthProxySettings()
+    """Zitadel settings with fixed fields; ignores .env and shell env."""
+    return ZitadelOAuthProxySettings(
+        base_url=_ZITADEL_FIXTURE_BASE_URL,
+        client_id=_ZITADEL_FIXTURE_CLIENT_ID,
+        client_secret=_ZITADEL_FIXTURE_CLIENT_SECRET,
+    )
 
 
 def _token(claims: dict) -> MagicMock:
@@ -71,14 +81,22 @@ def test_unique_injectors__claim_constants__match_zitadel_oidc() -> None:
 
 
 @pytest.mark.ai
-def test_get_zitadel_settings__returns_settings_instance() -> None:
+def test_get_zitadel_settings__returns_settings_instance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """
-    Purpose: Verify get_zitadel_settings returns a ZitadelOAuthProxySettings instance.
-    Why this matters: Callers rely on this for userinfo / OAuth URLs.
-    Setup summary: Call get_zitadel_settings without env side effects beyond defaults.
+    Purpose: Verify get_zitadel_settings returns settings reflecting ZITADEL_* env.
+    Why this matters: Production uses env; tests must pin expected values.
+    Setup summary: monkeypatch ZITADEL_*, call get_zitadel_settings, assert fields.
     """
+    monkeypatch.setenv("ZITADEL_BASE_URL", "http://env.test")
+    monkeypatch.setenv("ZITADEL_CLIENT_ID", "from_env_client")
+    monkeypatch.setenv("ZITADEL_CLIENT_SECRET", "from_env_secret")
     s = get_zitadel_settings()
     assert isinstance(s, ZitadelOAuthProxySettings)
+    assert s.base_url == "http://env.test"
+    assert s.client_id == "from_env_client"
+    assert s.client_secret == "from_env_secret"
 
 
 @pytest.mark.ai
@@ -295,6 +313,10 @@ async def test_get_unique_userinfo__returns_model__when_response_complete(
     ):
         info = await get_unique_userinfo(http_client=mock_client)
 
+    mock_client.get.assert_called_once_with(
+        zitadel_settings.userinfo_endpoint,
+        headers={"Authorization": "Bearer mock-bearer"},
+    )
     assert info == UniqueUserInfo(
         user_id="u1",
         company_id="c1",
@@ -338,6 +360,11 @@ async def test_get_unique_userinfo__raises__when_userinfo_incomplete(
     ):
         await get_unique_userinfo(http_client=mock_client)
 
+    mock_client.get.assert_called_once_with(
+        zitadel_settings.userinfo_endpoint,
+        headers={"Authorization": "Bearer mock-bearer"},
+    )
+
 
 @pytest.mark.ai
 @pytest.mark.asyncio
@@ -359,6 +386,11 @@ async def test_get_unique_userinfo__timeout_propagates(
         pytest.raises(httpx.TimeoutException),
     ):
         await get_unique_userinfo(http_client=mock_client)
+
+    mock_client.get.assert_called_once_with(
+        zitadel_settings.userinfo_endpoint,
+        headers={"Authorization": "Bearer mock-bearer"},
+    )
 
 
 @pytest.mark.ai

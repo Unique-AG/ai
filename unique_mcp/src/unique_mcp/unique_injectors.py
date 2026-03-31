@@ -3,7 +3,18 @@ from __future__ import annotations
 import logging
 
 import httpx
-from fastmcp.server.dependencies import get_access_token, get_context
+
+try:
+    from fastmcp.server.dependencies import get_access_token, get_context
+except ImportError:
+
+    def return_none():
+        return None
+
+    get_access_token = return_none
+    get_context = return_none
+
+
 from pydantic import BaseModel, SecretStr
 from unique_toolkit.app.unique_settings import (
     AuthContext,
@@ -83,6 +94,8 @@ async def get_unique_userinfo(
             )
         _LOGGER.debug("Auth from userinfo (user=%s)", uid)
         return UniqueUserInfo(email=info.get("email"), user_id=uid, company_id=cid)
+
+    return None
 
 
 async def _userinfo_to_auth_context(

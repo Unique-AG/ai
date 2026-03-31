@@ -31,6 +31,7 @@ from unique_toolkit.language_model.schemas import LanguageModelFunction
 # Load environment variables from .env file
 load_dotenv()
 
+_HTTP_CLIENT = httpx.AsyncClient(timeout=10.0)
 print("position", PMPositionsTool.name)
 
 # Module-level tool object for decorator metadata only.
@@ -104,9 +105,7 @@ def main() -> None:
         user_id = settings.authcontext.get_confidential_user_id()
         company_id = settings.authcontext.get_confidential_company_id()
 
-        http_client = httpx.AsyncClient(timeout=10.0)
-
-        userinfo = await get_unique_userinfo(http_client)
+        userinfo = await get_unique_userinfo(_HTTP_CLIENT)
         email = userinfo.email if userinfo else "alice@alphabet.example"
 
         per_request_event = ChatEvent(
@@ -125,7 +124,6 @@ def main() -> None:
         )
 
         result = await tool.run(tool_call)
-        await http_client.aclose()
         return result.content
 
     @mcp.custom_route("/", methods=["GET"])
