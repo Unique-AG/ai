@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.67.2] - 2026-03-31
+- `forced_tools` and `tool_input_json_schema` were changed from their default values `None` to [] and "" respectively, to enable proper rendering in Space 2.0. Backwards compatibility is ensured.
+
 ## [1.67.1] - 2026-03-31
 - Appending `chat_id`, `assistant_id`, and `display_name` to debug info for sub agent tool calls
 
