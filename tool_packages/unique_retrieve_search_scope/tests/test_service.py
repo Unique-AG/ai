@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from logging import getLogger
 from unittest.mock import AsyncMock, Mock
@@ -15,7 +16,7 @@ _KB_SERVICE_PATH = (
     "unique_retrieve_search_scope.service.UniqueServiceFactory.knowledge_base_service"
 )
 _SETTINGS_PATH = "unique_retrieve_search_scope.service.UniqueSettings.from_chat_event"
-_MODEL_INFO_PATH = "unique_retrieve_search_scope.service.LanguageModelInfo.from_name"
+_DEFAULT_TOKEN_LIMIT = 100_000
 
 
 def _make_content_info(key: str, **kwargs) -> ContentInfo:
@@ -40,14 +41,13 @@ def mock_chat_event() -> ChatEvent:
     event.user_id = "user_123"
     payload = Mock()
     payload.chat_id = "chat_123"
-    payload.configuration = {}
     event.payload = payload
     return event
 
 
 @pytest.fixture
 def tool(mock_chat_event: ChatEvent, mocker: MockerFixture) -> RetrieveSearchScopeTool:
-    config = RetrieveSearchScopeConfig()
+    config = RetrieveSearchScopeConfig(language_model_max_input_tokens=_DEFAULT_TOKEN_LIMIT)
 
     def setup_tool(self, configuration, event, *args, **kwargs):
         setattr(self, "_event", event)
@@ -124,42 +124,12 @@ class TestRetrieveSearchScopeToolRun:
         assert "report.pdf (id_2)" in response.content
         assert "other.pdf (id_other.pdf)" in response.content
 
-    async def test_passes_metadata_filter(
+    async def test_passes_space_metadata_filter(
         self,
         tool: RetrieveSearchScopeTool,
         mock_tool_call: LanguageModelFunction,
         mocker: MockerFixture,
     ):
-        mock_tool_call.arguments = {"metadata_filter": {"env": "prod"}}
-        mock_kb = _stub_kb(mocker, [])
-        await tool.run(mock_tool_call)
-
-        mock_kb.get_content_infos_async.assert_called_once_with(
-            metadata_filter={"env": "prod"},
-        )
-
-    async def test_handles_no_arguments(
-        self,
-        tool: RetrieveSearchScopeTool,
-        mock_tool_call: LanguageModelFunction,
-        mocker: MockerFixture,
-    ):
-        mock_tool_call.arguments = None
-        mock_kb = _stub_kb(mocker, [])
-        response = await tool.run(mock_tool_call)
-
-        mock_kb.get_content_infos_async.assert_called_once_with(
-            metadata_filter=None,
-        )
-        assert response.successful
-
-    async def test_uses_space_filter_when_no_agent_filter(
-        self,
-        tool: RetrieveSearchScopeTool,
-        mock_tool_call: LanguageModelFunction,
-        mocker: MockerFixture,
-    ):
-        mock_tool_call.arguments = {}
         space_filter = {
             "operator": "equals",
             "value": "finance",
@@ -172,40 +142,37 @@ class TestRetrieveSearchScopeToolRun:
             metadata_filter=space_filter,
         )
 
-    async def test_combines_space_and_agent_filters_with_and(
+    async def test_same_filename_same_content_id_deduplicated(
         self,
         tool: RetrieveSearchScopeTool,
         mock_tool_call: LanguageModelFunction,
         mocker: MockerFixture,
     ):
-        agent_filter = {"operator": "equals", "value": "prod", "path": ["env"]}
-        mock_tool_call.arguments = {"metadata_filter": agent_filter}
-        space_filter = {
-            "operator": "equals",
-            "value": "finance",
-            "path": ["department"],
-        }
-        mock_kb = _stub_kb(mocker, [], space_metadata_filter=space_filter)
-        await tool.run(mock_tool_call)
+        content_infos = [
+            _make_content_info("report.pdf", id="cont_1"),
+            _make_content_info("report.pdf", id="cont_1"),
+        ]
+        _stub_kb(mocker, content_infos)
+        response = await tool.run(mock_tool_call)
 
-        mock_kb.get_content_infos_async.assert_called_once_with(
-            metadata_filter={"and": [space_filter, agent_filter]},
-        )
+        assert response.content.count("report.pdf (cont_1)") == 1
+        assert "Listing 1 of 2" in response.content
 
-    async def test_uses_only_agent_filter_when_no_space_filter(
+    async def test_non_openable_same_name_deduplicated(
         self,
         tool: RetrieveSearchScopeTool,
         mock_tool_call: LanguageModelFunction,
         mocker: MockerFixture,
     ):
-        agent_filter = {"operator": "equals", "value": "prod", "path": ["env"]}
-        mock_tool_call.arguments = {"metadata_filter": agent_filter}
-        mock_kb = _stub_kb(mocker, [])
-        await tool.run(mock_tool_call)
+        content_infos = [
+            _make_content_info("page.html", mime_type="text/html", id="cont_3"),
+            _make_content_info("page.html", mime_type="text/html", id="cont_4"),
+        ]
+        _stub_kb(mocker, content_infos)
+        response = await tool.run(mock_tool_call)
 
-        mock_kb.get_content_infos_async.assert_called_once_with(
-            metadata_filter=agent_filter,
-        )
+        assert response.content.count("page.html") == 1
+        assert "Listing 1 of 2" in response.content
 
     async def test_returns_error_on_kb_failure(
         self,
@@ -304,12 +271,8 @@ class TestTokenTruncation:
         mock_tool_call: LanguageModelFunction,
         mocker: MockerFixture,
     ):
-        tool._event.payload.configuration = {"space": {"languageModel": "any-model"}}
+        tool.config.language_model_max_input_tokens = 20
         tool.config.context_window_fraction_for_file_list = 0.5
-
-        model_info = Mock()
-        model_info.token_limits.token_limit_input = 20
-        mocker.patch(_MODEL_INFO_PATH, return_value=model_info)
 
         content_infos = [
             _make_content_info(f"file_{i}.txt", mime_type="text/plain")
@@ -322,24 +285,34 @@ class TestTokenTruncation:
         assert "omitted due to token budget" in response.content
         assert "100 files in search scope" in response.content
 
-    async def test_returns_all_files_when_no_model_name(
+    async def test_max_input_tokens_none_returns_error(
         self,
         tool: RetrieveSearchScopeTool,
         mock_tool_call: LanguageModelFunction,
         mocker: MockerFixture,
     ):
-        tool._event.payload.configuration = {}
+        tool.config.language_model_max_input_tokens = None
+        _stub_kb(mocker, [_make_content_info("file.txt", mime_type="text/plain")])
+        response = await tool.run(mock_tool_call)
 
-        content_infos = [
-            _make_content_info(f"file_{i}.txt", mime_type="text/plain")
-            for i in range(50)
-        ]
-        _stub_kb(mocker, content_infos)
+        assert not response.successful
+        assert "Max_input_tokens not set" in response.error_message
+
+    async def test_extreme_truncation_returns_no_files(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.language_model_max_input_tokens = 1
+        _stub_kb(
+            mocker,
+            [_make_content_info("some_file.docx", mime_type="application/msword", id="cont_1")],
+        )
         response = await tool.run(mock_tool_call)
 
         assert response.successful
-        assert "50 of 50 files" in response.content
-        assert "omitted" not in response.content
+        assert "No files found" in response.content
 
     async def test_no_truncation_when_within_budget(
         self,
@@ -347,13 +320,6 @@ class TestTokenTruncation:
         mock_tool_call: LanguageModelFunction,
         mocker: MockerFixture,
     ):
-        tool._event.payload.configuration = {"space": {"languageModel": "any-model"}}
-        tool.config.context_window_fraction_for_file_list = 1.0
-
-        model_info = Mock()
-        model_info.token_limits.token_limit_input = 100_000
-        mocker.patch(_MODEL_INFO_PATH, return_value=model_info)
-
         content_infos = [
             _make_content_info("small.txt", mime_type="text/plain"),
         ]
@@ -423,6 +389,25 @@ class TestHistoryGuard:
         assert response.successful
         assert "No files found" in response.content
 
+    async def test_history_check_failure_logs_warning(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        mock_chat_service = Mock()
+        mock_chat_service.get_full_history_async = AsyncMock(
+            side_effect=RuntimeError("service unavailable")
+        )
+        tool._chat_service = mock_chat_service
+
+        _stub_kb(mocker, [])
+        with caplog.at_level(logging.DEBUG, logger="unique_retrieve_search_scope.service"):
+            await tool.run(mock_tool_call)
+
+        assert "Could not check history for prior tool calls" in caplog.text
+
 
 @pytest.mark.unit
 class TestDisplayName:
@@ -440,14 +425,3 @@ class TestDisplayName:
 
     def test_default_display_name_class_attribute(self):
         assert RetrieveSearchScopeTool.default_display_name == "Retrieve Search Scope"
-
-
-@pytest.mark.unit
-class TestRetrieveSearchScopeToolDescription:
-    def test_tool_description_has_metadata_filter_param(
-        self, tool: RetrieveSearchScopeTool
-    ):
-        desc = tool.tool_description()
-        assert not isinstance(desc.parameters, dict)
-        schema = desc.parameters.model_json_schema()
-        assert "metadata_filter" in schema["properties"]

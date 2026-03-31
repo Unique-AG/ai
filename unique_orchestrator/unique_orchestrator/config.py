@@ -116,11 +116,11 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
         cls, tools: list[ToolBuildConfig], info: ValidationInfo
     ) -> list[ToolBuildConfig]:
         for tool in tools:
-            if tool.name == InternalSearchTool.name:
-                tool.configuration.language_model_max_input_tokens = (  # type: ignore
-                    info.data["language_model"].token_limits.token_limit_input
-                )
-            elif tool.name == WebSearchTool.name:
+            if tool.name in (
+                InternalSearchTool.name,
+                WebSearchTool.name,
+                RetrieveSearchScopeTool.name,
+            ):
                 tool.configuration.language_model_max_input_tokens = (  # type: ignore
                     info.data["language_model"].token_limits.token_limit_input
                 )
@@ -421,17 +421,17 @@ class UniqueAIConfig(BaseToolConfig):
     def inject_retrieve_search_scope_tool(self) -> "UniqueAIConfig":
         tool_names = [t.name for t in self.space.tools]
         has_tool = RetrieveSearchScopeTool.name in tool_names
-        enabled = self.agent.experimental.enable_retrieve_search_scope
+        config = self.agent.experimental.retrieve_search_scope_config
 
-        if enabled and not has_tool:
+        if config.enabled and not has_tool:
             self.space.tools.append(
                 ToolBuildConfig(
                     name=RetrieveSearchScopeTool.name,
                     display_name=RetrieveSearchScopeTool.default_display_name,
-                    configuration=RetrieveSearchScopeConfig(),
+                    configuration=config,
                 )
             )
-        elif not enabled and has_tool:
+        elif not config.enabled and has_tool:
             self.space.tools = [
                 t for t in self.space.tools
                 if t.name != RetrieveSearchScopeTool.name
