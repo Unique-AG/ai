@@ -172,7 +172,9 @@ class SubAgentToolConfig(BaseToolConfig):
         description="The condition that will be used to stop the polling for the sub-agent response.",
     )
 
-    tool_input_json_schema: Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=5)] = Field(
+    tool_input_json_schema: Annotated[
+        str, RJSFMetaTag.StringWidget.textarea(rows=5)
+    ] = Field(
         default="",
         description="Optional: A custom JSON schema to send to the llm as the tool input schema.",
     )
