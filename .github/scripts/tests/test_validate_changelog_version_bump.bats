@@ -79,7 +79,7 @@ load test_helper
     setup_test_repo
     
     # Make changes only to lock files
-    echo "new lock content" >> "$TEST_PACKAGE/poetry.lock"
+    echo "new lock content" >> "$TEST_PACKAGE/uv.lock"
     git add .
     git commit -m "Update lock file"
     
