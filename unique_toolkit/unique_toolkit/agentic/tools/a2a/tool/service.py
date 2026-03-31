@@ -283,6 +283,11 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                         system_reminders=system_reminders,
                     ),
                     content_chunks=content_chunks,
+                    debug_info={
+                        "chat_id": response["chatId"],
+                        "assistant_id": self.config.assistant_id,
+                        "display_name": self._display_name,
+                    },
                 )
         except TimeoutError as e:
             raise e
