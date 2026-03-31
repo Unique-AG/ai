@@ -15,12 +15,12 @@ from openai.types.responses import (
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 
-from .protocols import StreamHandlerProtocol
+from ..protocols import StreamHandlerProtocol
 
 if TYPE_CHECKING:
     from openai.types.responses import ResponseStreamEvent
 
-    from .protocols import (
+    from ..protocols import (
         ResponsesCodeInterpreterHandlerProtocol,
         ResponsesCompletedHandlerProtocol,
         ResponsesTextDeltaHandlerProtocol,
@@ -116,6 +116,6 @@ class ResponsesStreamPipeline:
 
 
 def _is_code_interpreter_event(event: ResponseStreamEvent) -> bool:
-    from .responses_code_interpreter_handler import CodeInterpreterCallEvent
+    from .code_interpreter_handler import CodeInterpreterCallEvent
 
     return isinstance(event, CodeInterpreterCallEvent)

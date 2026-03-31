@@ -134,18 +134,20 @@ They run their own `async for` loops (not a shared generic runner) so they can c
 ```
 streaming/
 ├── pipeline/
-│   ├── __init__.py                               # Public API surface
-│   ├── protocols.py                              # Handler protocols (StreamHandlerProtocol, …)
-│   ├── responses_pipeline.py                     # ResponsesStreamPipeline
-│   ├── responses_streaming_handler.py            # ResponsesCompleteWithReferences
-│   ├── responses_text_delta_handler.py
-│   ├── responses_tool_call_handler.py
-│   ├── responses_completed_handler.py
-│   ├── responses_code_interpreter_handler.py
-│   ├── chat_completion_pipeline.py               # ChatCompletionStreamPipeline
-│   ├── chat_completion_streaming_handler.py      # ChatCompletionsCompleteWithReferences
-│   ├── chat_completion_text_handler.py
-│   └── chat_completion_tool_call_handler.py
+│   ├── __init__.py                               # Public API surface (re-exports)
+│   ├── protocols.py                              # Shared handler protocols (both APIs)
+│   ├── responses/                                # OpenAI Responses API (responses.create stream)
+│   │   ├── stream_pipeline.py                    # ResponsesStreamPipeline
+│   │   ├── complete_with_references.py           # ResponsesCompleteWithReferences
+│   │   ├── text_delta_handler.py
+│   │   ├── tool_call_handler.py
+│   │   ├── completed_handler.py
+│   │   └── code_interpreter_handler.py
+│   └── chat_completions/                         # Chat Completions API (chat.completions.create stream)
+│       ├── stream_pipeline.py                    # ChatCompletionStreamPipeline
+│       ├── complete_with_references.py           # ChatCompletionsCompleteWithReferences
+│       ├── text_handler.py
+│       └── tool_call_handler.py
 ├── pattern_replacer.py                           # NORMALIZATION_PATTERNS, NORMALIZATION_MAX_MATCH_LENGTH
 │                                                 # StreamingReplacerProtocol, StreamingPatternReplacer
 └── reference_replacer.py                         # ReferenceResolutionReplacer
@@ -340,9 +342,9 @@ Adding a new wire format means a new pipeline class (or extending an existing on
 | Deleted module | Replacement |
 |----------------|-------------|
 | `streaming/base.py` (`StreamPartHandler` protocol) | `pipeline/protocols.py` |
-| `streaming/responses/text_delta.py` (`TextDeltaStreamPartHandler`) | Handler pipeline (`responses_text_delta_handler`, etc.) |
-| `streaming/responses/codeinterpreter.py` (`ResponseCodeInterpreterCallStreamPartHandler`) | `responses_code_interpreter_handler.py` |
-| `streaming/chat_completion_chunk.py` (`CompletionChunkStreamPartHandler`) | `chat_completion_text_handler.py` |
+| `streaming/responses/text_delta.py` (`TextDeltaStreamPartHandler`) | Handler pipeline (`responses/text_delta_handler.py`, etc.) |
+| `streaming/responses/codeinterpreter.py` (`ResponseCodeInterpreterCallStreamPartHandler`) | `responses/code_interpreter_handler.py` |
+| `streaming/chat_completion_chunk.py` (`CompletionChunkStreamPartHandler`) | `chat_completions/text_handler.py` |
 | `streaming/stream_to_message.py` (raw pipeline bridge) | `ResponsesCompleteWithReferences` / `ChatCompletionsCompleteWithReferences` |
 
 Earlier experimental modules (`run.py`, `*SdkPersistence`, `*accumulator`) were removed in favour of the handler pipeline only.

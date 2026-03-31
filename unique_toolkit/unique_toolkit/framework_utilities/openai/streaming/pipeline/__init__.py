@@ -1,4 +1,10 @@
-"""Streaming pipeline primitives (protocols, handlers, pipelines)."""
+"""Streaming pipeline primitives (protocols, handlers, pipelines).
+
+Layout:
+- :mod:`protocols` — shared handler protocols (Chat Completions + Responses).
+- :mod:`chat_completions` — Chat Completions stream (``chat.completions.create``).
+- :mod:`responses` — Responses API stream (``responses.create``).
+"""
 
 from __future__ import annotations
 
@@ -6,10 +12,12 @@ from unique_toolkit.framework_utilities.openai.streaming.reference_replacer impo
     ReferenceResolutionReplacer,
 )
 
-from .chat_completion_pipeline import ChatCompletionStreamPipeline
-from .chat_completion_streaming_handler import ChatCompletionsCompleteWithReferences
-from .chat_completion_text_handler import ChatCompletionTextHandler
-from .chat_completion_tool_call_handler import ChatCompletionToolCallHandler
+from .chat_completions import (
+    ChatCompletionsCompleteWithReferences,
+    ChatCompletionStreamPipeline,
+    ChatCompletionTextHandler,
+    ChatCompletionToolCallHandler,
+)
 from .protocols import (
     ChatCompletionTextHandlerProtocol,
     ChatCompletionToolCallHandlerProtocol,
@@ -19,12 +27,14 @@ from .protocols import (
     ResponsesToolCallHandlerProtocol,
     StreamHandlerProtocol,
 )
-from .responses_code_interpreter_handler import ResponsesCodeInterpreterHandler
-from .responses_completed_handler import ResponsesCompletedHandler
-from .responses_pipeline import ResponsesStreamPipeline
-from .responses_streaming_handler import ResponsesCompleteWithReferences
-from .responses_text_delta_handler import ResponsesTextDeltaHandler
-from .responses_tool_call_handler import ResponsesToolCallHandler
+from .responses import (
+    ResponsesCodeInterpreterHandler,
+    ResponsesCompletedHandler,
+    ResponsesCompleteWithReferences,
+    ResponsesStreamPipeline,
+    ResponsesTextDeltaHandler,
+    ResponsesToolCallHandler,
+)
 
 __all__ = [
     # --- Pipeline classes ---

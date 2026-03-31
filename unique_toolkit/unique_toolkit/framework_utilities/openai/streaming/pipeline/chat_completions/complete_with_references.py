@@ -21,18 +21,15 @@ from unique_toolkit.framework_utilities.openai.client import get_async_openai_cl
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
     chunks_to_sdk_references,
 )
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.chat_completion_pipeline import (
-    ChatCompletionStreamPipeline,
-)
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.chat_completion_text_handler import (
-    ChatCompletionTextHandler,
-)
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelToolDescription,
 )
 from unique_toolkit.protocols.support import SupportCompleteWithReferences
+
+from .stream_pipeline import ChatCompletionStreamPipeline
+from .text_handler import ChatCompletionTextHandler
 
 if TYPE_CHECKING:
     from openai.types.chat import (
