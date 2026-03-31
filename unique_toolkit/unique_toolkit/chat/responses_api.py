@@ -2,7 +2,7 @@ import json
 import logging
 import random
 from collections.abc import Awaitable, Callable
-from typing import Any, NamedTuple, Sequence
+from typing import Any, NamedTuple, Sequence, cast
 
 import unique_sdk
 from openai.types.responses import (
@@ -14,7 +14,7 @@ from openai.types.responses import (
     ToolParam,
     response_create_params,
 )
-from openai.types.shared_params import Metadata, Reasoning
+from openai.types.shared_params import Metadata, Reasoning, ReasoningEffort
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from tenacity import (
@@ -166,7 +166,10 @@ def _prepare_responses_params_util(
             requested_effort,
         )
         if resolved_effort is not None:
-            reasoning = Reasoning(effort=resolved_effort)
+            reasoning = Reasoning(
+                **(reasoning or {}),
+                effort=cast(ReasoningEffort, resolved_effort),
+            )
         elif reasoning is None:
             model_info = LanguageModelInfo.from_name(model_name)
             if "reasoning_effort" in model_info.default_options:

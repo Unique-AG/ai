@@ -409,6 +409,8 @@ def _prepare_all_completions_params_util(
         messages_dict = __camelize_keys(messages.copy())
 
     if model_info is not None and "temperature" in options:
+        # Chat Completions API does not accept reasoning_effort; pass None intentionally
+        # so only temperature bounds are enforced here.
         options["temperature"], _ = LanguageModelInfo.resolve_temp_and_reasoning(
             model_info.name, temperature, reasoning_effort=None
         )

@@ -681,6 +681,9 @@ class LanguageModelInfo(BaseModel):
                     temperature_bounds=TemperatureBounds(
                         min_temperature=1.0, max_temperature=1.0
                     ),
+                    default_options={
+                        "reasoning_effort": "high",
+                    },
                     supported_reasoning_efforts=_EFFORTS_GPT5_PRO,
                 )
             case LanguageModelName.AZURE_GPT_51_2025_1113:
@@ -1844,6 +1847,9 @@ class LanguageModelInfo(BaseModel):
                     temperature_bounds=TemperatureBounds(
                         min_temperature=1.0, max_temperature=1.0
                     ),
+                    default_options={
+                        "reasoning_effort": "high",
+                    },
                     supported_reasoning_efforts=_EFFORTS_GPT5_PRO,
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_51:
