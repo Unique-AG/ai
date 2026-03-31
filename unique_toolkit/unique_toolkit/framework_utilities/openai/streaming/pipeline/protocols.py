@@ -3,21 +3,11 @@
 :class:`StreamHandlerProtocol` provides lifecycle methods shared by every
 event handler.  Per-event-group protocols inherit from it and add typed
 event methods and result getters.
-
-Legacy protocols (:class:`StreamAccumulatorProtocol`, :class:`StreamPersistenceProtocol`,
-:class:`StreamSource`) are retained for backward compatibility with
-:func:`~unique_toolkit.framework_utilities.openai.streaming.pipeline.run.run_stream_pipeline`.
 """
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterable
-from datetime import datetime
-from typing import TYPE_CHECKING, Protocol, TypeAlias, TypeVar
-
-from openai.types.responses import ResponseStreamEvent
-
-from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
@@ -39,7 +29,7 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
-# Handler protocols (new architecture)
+# Handler protocols
 # ---------------------------------------------------------------------------
 
 
@@ -112,49 +102,3 @@ class ChatCompletionToolCallHandlerProtocol(StreamHandlerProtocol, Protocol):
 
     async def on_chunk(self, event: ChatCompletionChunk) -> None: ...
     def get_tool_calls(self) -> list[LanguageModelFunction]: ...
-
-
-# ---------------------------------------------------------------------------
-# Legacy protocols (backward compatibility with run.py)
-# ---------------------------------------------------------------------------
-
-TStreamEvent = TypeVar("TStreamEvent", contravariant=True)
-TStreamResult = TypeVar("TStreamResult", covariant=True)
-
-type StreamSource[T] = AsyncIterable[T]
-
-
-class StreamAccumulatorProtocol(Protocol[TStreamEvent, TStreamResult]):
-    """Fold over ``TStreamEvent`` and produce ``TStreamResult`` when the stream ends."""
-
-    def reset(self) -> None: ...
-    def apply(self, event: TStreamEvent) -> None: ...
-    def build_stream_result(
-        self,
-        *,
-        message_id: str,
-        chat_id: str,
-        created_at: datetime,
-    ) -> TStreamResult: ...
-
-
-class StreamPersistenceProtocol(Protocol[TStreamEvent]):
-    """Optional side effects while streaming (e.g. Unique SDK)."""
-
-    def reset(self) -> None: ...
-    async def on_event(self, event: TStreamEvent, *, index: int) -> None: ...
-    async def on_stream_end(self) -> None: ...
-
-
-# --- OpenAI Responses API aliases ---
-
-ResponseStreamSource: TypeAlias = StreamSource[ResponseStreamEvent]
-
-ResponsesStreamAccumulatorProtocol: TypeAlias = StreamAccumulatorProtocol[
-    ResponseStreamEvent,
-    LanguageModelStreamResponse,
-]
-
-ResponseStreamPersistenceProtocol: TypeAlias = StreamPersistenceProtocol[
-    ResponseStreamEvent
-]

@@ -1,6 +1,6 @@
 # Streaming pipeline — architecture & implementation
 
-> **Status:** Pipeline implemented (March 2026). `PipelineResponsesStreamingHandler` and `PipelineChatCompletionsStreamingHandler` implemented.
+> **Status:** Pipeline implemented (March 2026). `ResponsesCompleteWithReferences` and `ChatCompletionsCompleteWithReferences` implemented.
 > **Package:** `unique_toolkit.framework_utilities.openai.streaming.pipeline`
 > **Supersedes:** `openai_streaming_pipeline_architecture.md`, `responses_stream_pipeline_implementation.md`
 
@@ -11,7 +11,7 @@
 The Unique toolkit must consume token streams from LLM providers and produce two independent outputs from the same async iterator:
 
 1. **Live platform updates** — persist streaming progress via the Unique SDK (`Message`, `MessageLog`, events) so the UI can show incremental text, code-interpreter status, and similar feedback while the model is still generating.
-2. **Toolkit contract** — assemble a `LanguageModelStreamResponse` (assistant text, tool calls, usage) that downstream code already depends on.
+2. **Toolkit contract** — assemble a `LanguageModelStreamResponse` or `ResponsesLanguageModelStreamResponse` (assistant text, tool calls; usage and structured output on the Responses path when handlers provide them) for downstream code.
 
 Those two concerns cut across every supported wire format today (OpenAI Responses API, OpenAI Chat Completions) and every format we may add later (LangChain, Pydantic AI, Anthropic, bare `AsyncIterator`).
 
@@ -21,7 +21,7 @@ Those two concerns cut across every supported wire format today (OpenAI Response
 
 ### 1. Citation detection and normalisation
 
-LLMs must be instructed (via system prompt or injected context) to cite sources using a recognisable pattern such as `[source N]`. In practice, models do not follow the instruction exactly -- they produce a wide range of variants (`[<source 1>]`, `source_number="3"`, `[**2**]`, `SOURCE n°5`, `[source: 1, 2, 3]`, etc.) depending on the model family, temperature, and context length. The pipeline must detect all of these variants in the streaming output and normalise them to the stable intermediate `[N]` format before the text reaches the frontend, so that post-processing can resolve each `[N]` to its corresponding `ContentChunk` and produce the final `<sup>N</sup>` footnote.
+LLMs must be instructed (via system prompt or injected context) to cite sources using a recognisable pattern such as `[source N]`. In practice, models do not follow the instruction exactly — they emit a wide range of variants (`[<source 1>]`, `source_number="3"`, `[**2**]`, `SOURCE n°5`, `[source: 1, 2, 3]`, etc.) depending on the model family, temperature, and context length. `NORMALIZATION_PATTERNS` in `StreamingPatternReplacer` **directly** rewrite those variants to canonical **`<sup>N</sup>`** superscripts (multi-source callables emit a run of `<sup>…</sup>` tags). That is the form users see during streaming; separate steps (below) attach `ContentReference` objects and reconcile numbering where needed.
 
 ### 2. Cross-chunk pattern matching
 
@@ -29,33 +29,33 @@ Tokens arrive incrementally, so a regex pattern can straddle two deltas (e.g. `[
 
 ### 3. Lifecycle safety
 
-Accumulators and persistence objects are stateful. Without explicit lifecycle management, sequential reuse could carry over stale state and concurrent sharing would corrupt both outputs. The pipeline enforces safety through `reset()` at the start of each run, a finalized guard after `build_stream_result`, and a documented no-concurrent-sharing rule.
+Handlers are stateful. Without explicit lifecycle management, sequential reuse could carry over stale state and concurrent sharing would corrupt streaming buffers and replacers. Each run starts with `pipeline.reset()` on the handler pipeline; streaming ends with `on_stream_end()` on each handler (cascade flush, final SDK calls). Do not share one pipeline instance across concurrent streams.
 
 ### 4. Source reference handling is a fragile, multi-stage chain *(partial)*
 
 The Unique frontend renders source citations as `<sup>N</sup>` footnotes. Producing those from raw model output requires three stages that must stay in sync:
 
 1. **Model instruction** — the system prompt or backend-injected context that tells the model *how* to cite (e.g. "cite as `[source N]`") and *what* to cite (numbered `ContentChunk` entries presented in 1-based order).
-2. **Streaming normalisation** — pattern replacers that convert the many formats models actually produce into the stable intermediate `[N]` during streaming.
-3. **Post-stream reference resolution** — `language_model/reference.py` matches each `[N]` to its `ContentChunk` by position, assigns deduplicated sequence numbers, and converts `[N]` → `<sup>sequence_number</sup>`.
+2. **Streaming normalisation** — `StreamingPatternReplacer` applies `NORMALIZATION_PATTERNS` so model-specific citation shapes are replaced **directly** with **`<sup>N</sup>`** (see `pattern_replacer.py`; non-source tokens like `[user]` are stripped).
+3. **Post-stream reference resolution** — `language_model/reference.py` links citations to `ContentChunk` entries (including where bracket-style `[N]` still appears), assigns deduplicated sequence numbers, and cleans up hallucinated or leftover markers — using the **same** pattern list in `_preprocess_message` for parity with streaming.
 
 These three stages are maintained in separate locations. If a new model variant emits a format that the replacer patterns do not cover, or if the numbering convention between chunk presentation and post-processing drifts, references silently break.
 
 ### 5. Citation pattern duplication *(resolved)*
 
-The 18 normalisation patterns that convert model-emitted citation formats to `[N]` previously existed in two separate locations. `NORMALIZATION_PATTERNS` in `streaming/pattern_replacer.py` is now the **single source of truth**. Both `StreamingPatternReplacer` (streaming) and `reference.py:_preprocess_message` (post-processing) import from there. A parametrised parity test guards against future drift.
+The normalisation patterns that convert model-emitted citation formats **directly to `<sup>N</sup>`** previously existed in two separate locations. `NORMALIZATION_PATTERNS` in `streaming/pattern_replacer.py` is now the **single source of truth**. Both `StreamingPatternReplacer` (streaming) and `reference.py:_preprocess_message` (post-processing) import from there. A parametrised parity test guards against future drift.
 
 > **`CitationConfig` abandoned:** An earlier design proposed a `CitationConfig` dataclass in `language_model/citation.py` that would co-locate the model instruction, patterns, and a `requires_reference_resolution` flag. This was abandoned because the history manager (`agentic/history_manager/`) is responsible for presenting messages and chunks consistently to the model — the citation instruction belongs there, not in a separate config object in `language_model/`. The current solution (`NORMALIZATION_PATTERNS` in `pattern_replacer.py` as shared truth, no instruction coupling) is sufficient.
 
 ### 6. Reference resolution *(resolved)*
 
-After streaming completes, the persisted message must carry `ContentReference` objects that link each `[N]` back to the `ContentChunk` it was derived from.
+Downstream UIs typically need `ContentReference` objects (or equivalent) linking each citation to a `ContentChunk`. How that is produced depends on the integration path:
 
 | Path | Who resolves references | How |
 |------|------------------------|-----|
 | `Integrated.*` via `ChatService` | **Server-side** (Integrated backend) | `content_chunks` sent as `searchContext`; backend resolves and returns references. |
-| `PipelineResponsesStreamingHandler` | **Client-side via replacer** | `ReferenceResolutionReplacer` converts `[N]` → `<sup>N</sup>` at flush time; handler reads `resolved_text` + `references`. |
-| `PipelineChatCompletionsStreamingHandler` | **Client-side via replacer** | Same replacer approach. |
+| `ResponsesCompleteWithReferences` | **Client-side via replacer (optional)** | If you add `ReferenceResolutionReplacer` to the text handler’s replacer chain, its `flush()` runs full reference resolution; `resolved_text` and `references` are available on that replacer after `on_stream_end()`. SDK updates during streaming use `Message.modify_async` from the text handler. |
+| `ChatCompletionsCompleteWithReferences` | **Client-side via replacer (optional)** | Same pattern as Responses: optional `ReferenceResolutionReplacer` in `ChatCompletionTextHandler`’s replacers; SDK updates use `Message.modify_async`. |
 
 ### 7. Caller protocol convergence *(resolved)*
 
@@ -78,9 +78,9 @@ flowchart LR
     subgraph components [Where addressed]
         PatternReplacer["StreamingPatternReplacer"]
         RefPatterns["pattern_replacer.py"]
-        ResetGuard["reset + finalized guard"]
+        ResetGuard["pipeline.reset() +<br/>on_stream_end()"]
         ReferenceProcessing["pattern_replacer.py + reference.py"]
-        PipelineHandlers["PipelineResponsesStreamingHandler\nPipelineChatCompletionsStreamingHandler"]
+        PipelineHandlers["ResponsesCompleteWithReferences\nChatCompletionsCompleteWithReferences"]
     end
 
     C1 --> RefPatterns
@@ -98,29 +98,23 @@ flowchart LR
 
 ## Architecture
 
-The pipeline replaces the handler list with a single-pass **fold + optional persistence + result** model.
+The implementation is a **handler pipeline**: `ResponsesStreamPipeline` or `ChatCompletionStreamPipeline` routes each stream event to small typed handlers (text, tools, completed, code interpreter). Handlers implement structural protocols in `pipeline/protocols.py`, call the Unique SDK where needed, and expose `get_text()` / `get_tool_calls()` / etc. The top-level classes `ResponsesCompleteWithReferences` and `ChatCompletionsCompleteWithReferences` open the async stream from the OpenAI proxy, forward events to the pipeline, and build `LanguageModelStreamResponse` / `ResponsesLanguageModelStreamResponse` after `on_stream_end()`.
 
 ```mermaid
 flowchart LR
-    SRC["StreamSource&lt;TEvent&gt;<br/>(async iterator)"]
-    RUN["run_stream_pipeline"]
-    ACC["Accumulator<br/>.apply(event)"]
-    PER["Persistence<br/>.on_event(event, index)<br/>(optional)"]
-    RES["TResult<br/>(LanguageModelStreamResponse)"]
+    H["CompleteWithReferences\n(async for over stream)"]
+    PL["ResponsesStreamPipeline\nor ChatCompletionStreamPipeline"]
+    TH["Text / tool / completed /\ncode-interpreter handlers"]
+    SDK["Unique SDK\n(Message, MessageLog)"]
+    RES["Toolkit result"]
 
-    SRC --> RUN
-    RUN --> ACC
-    RUN --> PER
-    ACC --> RES
+    H --> PL
+    PL --> TH
+    TH --> SDK
+    PL --> RES
 ```
 
-For every event in the stream:
-
-1. The **accumulator** folds the event into mutable state (text, tool calls, usage).
-2. The **persistence sink** (when provided) fires Unique SDK side effects (message events, log entries) — it runs *after* the accumulator so it can read consistent folded state.
-3. After the stream ends, the accumulator **materialises** the result via `build_stream_result`.
-
-Each component is defined by a **protocol** (PEP 544 structural typing), so implementations can be swapped, composed, or faked in tests without inheritance.
+They run their own `async for` loops (not a shared generic runner) so they can catch `httpx.RemoteProtocolError` mid-stream and finalise with whatever content was received.
 
 ---
 
@@ -128,15 +122,10 @@ Each component is defined by a **protocol** (PEP 544 structural typing), so impl
 
 | # | Decision | Rationale |
 |---|----------|-----------|
-| 1 | **Protocols over abstract base classes** | Structural typing lets any class with the right methods plug in. No forced inheritance, easy fakes in tests, and `run_stream_pipeline` stays free of Unique SDK imports. |
-| 2 | **Generic protocols with variance annotations** | `TStreamEvent` is **contravariant** (input to `apply`/`on_event`), `TStreamResult` is **covariant** (output of `build_stream_result`). This follows PEP 544 and satisfies strict type checkers (basedpyright). |
-| 3 | **Persistence is optional** | The same accumulator works in production (with SDK persistence) and in unit tests (without). No mocking of SDK calls needed to test fold logic. |
-| 4 | **One accumulator per wire format** | `ResponsesStreamAccumulator` handles `ResponseStreamEvent`; `ChatCompletionStreamAccumulator` handles `ChatCompletionChunk`. They share no inheritance — only the protocol shape. This avoids a fragile "universal" accumulator that tries to understand every event family. |
-| 5 | **Explicit `reset()` + finalized guard** | The runner calls `reset()` before consuming the stream, enabling safe sequential reuse. After `build_stream_result`, further `apply` or `build_stream_result` calls raise `RuntimeError` until `reset()`. This catches accidental interleaving without runtime surprises. |
-| 6 | **Typed `isinstance` dispatch inside accumulators** | One event → one code path. The accumulator's `apply` method uses `isinstance` checks on concrete OpenAI SDK types, replacing the boolean-guard fan-out. Unknown event types are silently ignored for forward compatibility. |
-| 7 | **Vendor types stay at the boundary** | OpenAI SDK types are imported only inside accumulators, persistence implementations, and the handler classes. The generic runner and protocols know nothing about OpenAI. |
-| 8 | **Separate persistence for separate SDK surfaces** | `ResponsesSdkPersistence` handles both `Message` events (text deltas) and `MessageLog` entries (code interpreter lifecycle). `ChatCompletionSdkPersistence` handles `Message` events with pattern replacement and throttling. Each is a small, focused class. |
-| 9 | **`NORMALIZATION_PATTERNS` as single source of truth in `pattern_replacer.py`** | Both the streaming replacer and `reference.py:_preprocess_message` import the same pattern list from `pattern_replacer.py`. A parity test ensures both paths produce identical output. |
+| 1 | **Protocols over abstract base classes** | Structural typing lets any class with the right methods plug in. No forced inheritance; easy fakes in tests. |
+| 2 | **Explicit `reset()` on handlers** | `CompleteWithReferences` calls `pipeline.reset()` before each run so sequential reuse does not leak state. |
+| 3 | **Typed dispatch inside pipelines** | `ResponsesStreamPipeline` / `ChatCompletionStreamPipeline` use `isinstance` on concrete OpenAI SDK event types. Unknown events are ignored for forward compatibility. |
+| 4 | **`NORMALIZATION_PATTERNS` as single source of truth in `pattern_replacer.py`** | Both the streaming replacer and `reference.py:_preprocess_message` import the same pattern list. A parity test ensures both paths produce identical output. |
 
 ---
 
@@ -146,148 +135,58 @@ Each component is defined by a **protocol** (PEP 544 structural typing), so impl
 streaming/
 ├── pipeline/
 │   ├── __init__.py                               # Public API surface
-│   ├── protocols.py                              # Generic + Responses type aliases
-│   ├── run.py                                    # run_stream_pipeline (generic)
-│   │                                             # run_responses_stream_pipeline
-│   │                                             # run_chat_completions_stream_pipeline
-│   ├── responses_accumulator.py                  # Fold: ResponseStreamEvent → LanguageModelStreamResponse
-│   ├── responses_sdk_persistence.py              # Unique SDK: Message events + MessageLog (code interpreter)
-│   ├── responses_streaming_handler.py            # PipelineResponsesStreamingHandler
-│   │                                             #   (ResponsesSupportCompleteWithReferences impl)
-│   ├── chat_completion_accumulator.py            # Fold: ChatCompletionChunk → LanguageModelStreamResponse
-│   ├── chat_completion_sdk_persistence.py        # Unique SDK: Message events (with replacers + throttle)
-│   └── chat_completion_streaming_handler.py      # PipelineChatCompletionsStreamingHandler
-│                                                 #   (SupportCompleteWithReferences impl)
+│   ├── protocols.py                              # Handler protocols (StreamHandlerProtocol, …)
+│   ├── responses_pipeline.py                     # ResponsesStreamPipeline
+│   ├── responses_streaming_handler.py            # ResponsesCompleteWithReferences
+│   ├── responses_text_delta_handler.py
+│   ├── responses_tool_call_handler.py
+│   ├── responses_completed_handler.py
+│   ├── responses_code_interpreter_handler.py
+│   ├── chat_completion_pipeline.py               # ChatCompletionStreamPipeline
+│   ├── chat_completion_streaming_handler.py      # ChatCompletionsCompleteWithReferences
+│   ├── chat_completion_text_handler.py
+│   └── chat_completion_tool_call_handler.py
 ├── pattern_replacer.py                           # NORMALIZATION_PATTERNS, NORMALIZATION_MAX_MATCH_LENGTH
 │                                                 # StreamingReplacerProtocol, StreamingPatternReplacer
 └── reference_replacer.py                         # ReferenceResolutionReplacer
-                                                  # ([N] → <sup>N</sup> + ContentReference at flush time)
+                                                  # (flush: full reference.py pipeline → ContentReference + resolved_text)
 ```
 
 ---
 
 ## Protocols
 
-All protocols live in `pipeline/protocols.py`.
+Handler protocols live in `pipeline/protocols.py`. All extend `StreamHandlerProtocol` (`reset`, `on_stream_end`).
 
-### `StreamSource[T]`
-
-```python
-type StreamSource[T] = AsyncIterable[T]
-```
-
-Any async iterable of your event type. OpenAI SDK streams, LangChain iterators, or a hand-rolled `async def` generator all satisfy this.
-
-### `StreamAccumulatorProtocol[TEvent, TResult]`
-
-| Method | Purpose |
-|--------|---------|
-| `reset()` | Clear all state and the finalized guard for a new stream. |
-| `apply(event: TEvent)` | Fold one stream element into internal state. |
-| `build_stream_result(*, message_id, chat_id, created_at) → TResult` | Materialise the final result. Marks the fold as finished. |
-
-### `StreamPersistenceProtocol[TEvent]`
-
-| Method | Purpose |
-|--------|---------|
-| `reset()` | Clear per-run counters and buffers. |
-| `on_event(event: TEvent, *, index: int)` | Fire side effects for one element (called after `accumulator.apply`). |
-| `on_stream_end()` | Final side effects after the stream is exhausted. |
-
-### Responses-specific aliases
-
-| Alias | Expands to |
-|-------|------------|
-| `ResponseStreamSource` | `StreamSource[ResponseStreamEvent]` |
-| `ResponsesStreamAccumulatorProtocol` | `StreamAccumulatorProtocol[ResponseStreamEvent, LanguageModelStreamResponse]` |
-| `ResponseStreamPersistenceProtocol` | `StreamPersistenceProtocol[ResponseStreamEvent]` |
+| Protocol | Role |
+|----------|------|
+| `ResponsesTextDeltaHandlerProtocol` | Text deltas + SDK streaming events |
+| `ResponsesToolCallHandlerProtocol` | Function tool calls from Responses events |
+| `ResponsesCompletedHandlerProtocol` | Usage + output from `ResponseCompletedEvent` |
+| `ResponsesCodeInterpreterHandlerProtocol` | `MessageLog` lifecycle for code interpreter |
+| `ChatCompletionTextHandlerProtocol` | Chat completion chunks (text + replacers) |
+| `ChatCompletionToolCallHandlerProtocol` | Tool calls from chat completion chunks |
 
 ---
 
-## The generic runner
-
-`run_stream_pipeline` is the core loop. It is fully generic — it knows nothing about OpenAI, Unique, or `LanguageModelStreamResponse`.
-
-```mermaid
-sequenceDiagram
-    participant Src as StreamSource
-    participant Run as run_stream_pipeline
-    participant Acc as Accumulator
-    participant Per as Persistence (optional)
-    participant Out as TResult
-
-    Run->>Acc: reset()
-    Run->>Per: reset()
-    loop async for event in stream
-        Run->>Acc: apply(event)
-        opt persistence configured
-            Run->>Per: on_event(event, index)
-        end
-    end
-    Run->>Per: on_stream_end()
-    Run->>Acc: build_stream_result(...)
-    Acc-->>Out: TResult
-```
-
-`run_responses_stream_pipeline` and `run_chat_completions_stream_pipeline` are thin typed wrappers that pin `TEvent`/`TResult` so callers get better autocomplete and type safety without casting.
-
-> **Note:** Both `PipelineResponsesStreamingHandler` and `PipelineChatCompletionsStreamingHandler` run their own `async for` loops (rather than delegating to `run_stream_pipeline`) so they can catch `httpx.RemoteProtocolError` mid-stream and finalise gracefully with whatever content was received.
-
----
-
-## Implemented pipelines
+## Implemented handlers (summary)
 
 ### OpenAI Responses API
 
-**Accumulator: `ResponsesStreamAccumulator`**
-
-Handles a focused subset of `ResponseStreamEvent`:
-
-| Event type | Action |
-|------------|--------|
-| `ResponseTextDeltaEvent` | Append `delta` to aggregated text. |
-| `ResponseOutputItemAddedEvent` (with `ResponseFunctionToolCallItem`) | Record `item.id → name` for later name resolution. |
-| `ResponseFunctionCallArgumentsDoneEvent` | Build `LanguageModelFunction` from final arguments + resolved name. |
-| `ResponseCompletedEvent` | Extract `LanguageModelTokenUsage` from `response.usage`. |
-| Everything else | Silently ignored (forward-compatible). |
-
-**Name resolution for function tools:** Older OpenAI Python SDK versions omit `name` on `ResponseFunctionCallArgumentsDoneEvent`. The accumulator first checks `getattr(event, "name", None)`, then falls back to the `item_id → name` map built from `ResponseOutputItemAddedEvent`.
-
-**Additional alias:** `build_responses_stream_result` is a descriptive alias for `build_stream_result` on `ResponsesStreamAccumulator`, returning `ResponsesLanguageModelStreamResponse` (which includes `output` from the completed response).
-
-**Persistence: `ResponsesSdkPersistence`**
-
-| Concern | SDK surface | Behaviour |
-|---------|-------------|-----------|
-| Assistant text deltas | `Message.create_event_async` | Applies pattern replacers to each delta, accumulates full text (`_full_text`), emits an event per delta. |
-| Stream completed | `Message.create_event_async` | Flushes remaining replacer buffers then emits final text. |
-| Code interpreter lifecycle | `MessageLog.create_async` / `MessageLog.update_async` | Creates a `MessageLog` entry on first event per `item_id`; updates status (`RUNNING` → `COMPLETED`) on state transitions. Tracks per-call state via `CodeInterpreterLogState`. |
+`ResponsesTextDeltaHandler` applies replacers per delta and updates the assistant message via `Message.modify_async` (incremental text and final `stoppedStreamingAt` / `completedAt`). `ResponsesToolCallHandler` assembles function calls. `ResponsesCompletedHandler` captures usage and structured output. `ResponsesCodeInterpreterHandler` manages `MessageLog` for code interpreter runs.
 
 ### OpenAI Chat Completions
 
-**Accumulator: `ChatCompletionStreamAccumulator`**
-
-| Field | Source |
-|-------|--------|
-| Assistant text | `choice.delta.content` (concatenated) |
-| Tool calls | `choice.delta.tool_calls` — assembled incrementally by `tc.index`, merging `id`, `function.name`, and `function.arguments` across chunks. |
-
-`build_stream_result` converts raw `ChatCompletionMessageFunctionToolCall` objects into `LanguageModelFunction` instances, parsing JSON arguments and handling decode failures gracefully (logs a warning, sets `arguments = None`).
-
-**Early termination helper:** `iter_chat_completion_chunks_until_tool_calls` wraps a raw stream and stops yielding after the first chunk with `finish_reason == "tool_calls"`. This is provided for callers that need the legacy break-early behaviour; `PipelineChatCompletionsStreamingHandler` does **not** use it — it consumes the full stream.
-
-**Persistence: `ChatCompletionSdkPersistence`**
-
-Applies pattern replacers to each chunk's content and emits `Message.create_event_async` every `send_every_n_events` chunks (configurable throttle). Maintains both `_original_text` (pre-replacement) and `_full_text` (post-replacement); both are sent in the SDK event payload (`text` and `originalText` fields).
+`ChatCompletionTextHandler` applies replacers per chunk (with optional throttling via `send_every_n_events`) and updates the assistant message via `Message.modify_async`. `ChatCompletionToolCallHandler` assembles tool calls from chunks.
 
 ---
 
 ## Pattern replacers *(Concerns 1, 2, 4)*
 
-The Unique frontend renders source references as `<sup>N</sup>` footnotes. Producing those from raw LLM output is a **two-stage** process:
+The Unique frontend renders source references as `<sup>N</sup>` footnotes. In practice this is a **two-stage** process:
 
-1. **During streaming (replacers):** Normalise the many formats LLMs emit — `[<source 1>]`, `source_number="3"`, `[**2**]`, `[source: 1, 2, 3]`, `[<[1]>]`, etc. — into the stable intermediate `[N]` bracket format. Strip non-source references like `[user]`, `[conversation]`, or `[none]`.
-2. **After streaming (`language_model/reference.py`):** Match each `[N]` to a `ContentChunk` from the search context, assign deduplicated sequence numbers, and convert `[N]` → `<sup>sequence_number</sup>`. Remove any remaining `[N]` brackets that could not be matched (hallucinated references).
+1. **During streaming (replacers):** `StreamingPatternReplacer` applies `NORMALIZATION_PATTERNS` so model variants — `[<source 1>]`, `source_number="3"`, `[**2**]`, `[source: 1, 2, 3]`, etc. — are **directly** rewritten to **`<sup>N</sup>`** (multi-source patterns emit a sequence of `<sup>…</sup>` tags). Strip non-source references like `[user]`, `[conversation]`, or `[none]`.
+2. **After streaming (`language_model/reference.py`):** Build `ContentReference` objects, map citations to `ContentChunk`s, renumber/dedupe footnotes where the batch pipeline applies, and remove leftover hallucinated bracket markers. `_preprocess_message` repeats the same pattern list so batch and streaming stay aligned.
 
 ### `StreamingReplacerProtocol`
 
@@ -297,7 +196,7 @@ class StreamingReplacerProtocol(Protocol):
     def flush(self) -> str: ...
 ```
 
-Any object satisfying this protocol can be injected into the persistence layer. Both `ResponsesSdkPersistence` and `ChatCompletionSdkPersistence` accept a `replacers: list[StreamingReplacerProtocol]` and apply them sequentially to each delta before emitting SDK events.
+Text handlers accept a `replacers: list[StreamingReplacerProtocol]` and apply them sequentially to each delta before emitting SDK events.
 
 ### `StreamingPatternReplacer`
 
@@ -313,29 +212,28 @@ The default implementation. Holds back up to `max_match_length` trailing charact
 The canonical pattern list (`NORMALIZATION_PATTERNS`) and buffer size (`NORMALIZATION_MAX_MATCH_LENGTH = 80`) live in `streaming/pattern_replacer.py` and cover:
 
 - **Stripping** non-source references: `[user]`, `[assistant]`, `[conversation]`, `[none]`, `[previous_answer]`, etc.
-- **Normalising** source formats to `[N]`: `[<source 1>]` → `[1]`, `source_number="3"` → `[3]`, `[**2**]` → `[2]`, `SOURCE n°5` → `[5]`.
-- **Expanding** multi-source references: `[source: 1, 2, 3]` → `[1][2][3]`, `[[1], [2], [3]]` → `[1][2][3]`.
+- **Normalising** source formats **directly to `<sup>N</sup>`**: e.g. `[<source 1>]` → `<sup>1</sup>`, `[source 0]` → `<sup>0</sup>`, `source_number="3"` → `<sup>3</sup>`, `[**2**]` → `<sup>2</sup>`, `SOURCE n°5` → `<sup>5</sup>`.
+- **Expanding** multi-source references to a run of superscripts: `[source: 1, 2, 3]` → `<sup>1</sup><sup>2</sup><sup>3</sup>` (same idea for bracket-list variants).
 
 Both the streaming replacer and `language_model.reference._preprocess_message` import from here — single source of truth. A parametrised parity test guards against future drift.
 
 ### `ReferenceResolutionReplacer`
 
-Placed **after** `StreamingPatternReplacer` in the chain. During streaming it is a transparent pass-through (`process()` accumulates text and returns it unchanged for live `[N]` preview). At flush time it converts the full accumulated text to `<sup>N</sup>` and attaches `ContentReference` objects.
+Placed **after** `StreamingPatternReplacer` in the chain. `process()` forwards deltas unchanged while accumulating the full string for a final pass. `flush()` runs the same **reference pipeline** as `language_model/reference.py` (`_preprocess_message` → `_add_references` → `_postprocess_message`), producing `resolved_text` and `ContentReference` objects. Upstream patterns have usually **already** turned citations into `<sup>N</sup>` during streaming; the flush step still applies shared preprocessing and attaches structured references.
 
 ```
 StreamingPatternReplacer          ReferenceResolutionReplacer
-  process(): [source N] → [N]  →  process(): [N] (pass-through, accumulates)
-  flush():   buffered tail      →  (cascade) process(tail) → accumulated += tail
-                                   flush():  runs _preprocess + _add_references + _postprocess
-                                             stores resolved_text + references
-                                             returns ""
+  process(): variants → <sup>N</sup>  →  process(): pass-through (accumulates)
+  flush():   buffered tail           →  (cascade) … then flush():
+                                        preprocess + add_references + postprocess
+                                        → resolved_text, references
 ```
 
-The handler reads `ref_replacer.resolved_text` and `ref_replacer.references` after `on_stream_end()` and applies them to `result.message`, replacing the raw accumulator text with the fully resolved version.
+`Pipeline.build_result()` builds the returned `ChatMessage` from the text handler’s `get_text()` (streaming accumulation through each replacer’s `process()`). If you use `ReferenceResolutionReplacer`, read `resolved_text` and `references` after `on_stream_end()` when you need the fully resolved batch output; they are not wired automatically into `build_result()` today.
 
 ### Cascade flush in `on_stream_end()`
 
-The persistence layer's `on_stream_end()` uses a **cascade flush** so that upstream replacers' buffered tails reach downstream replacers:
+Text handlers' `on_stream_end()` uses a **cascade flush** so that upstream replacers' buffered tails reach downstream replacers:
 
 ```python
 remaining = ""
@@ -347,12 +245,10 @@ for replacer in self._replacers:
 
 Without cascade, the pattern replacer's 80-char buffer tail would bypass the `ReferenceResolutionReplacer`, leaving the last references unresolved.
 
-### How replacers integrate with persistence
+### How replacers integrate with handlers
 
-- **`ResponsesSdkPersistence`** — on each `ResponseTextDeltaEvent`, runs `replacer.process(delta)`, accumulates replaced text, emits `Message.create_event_async`. At `on_stream_end()`, cascade-flushes all replacers.
-- **`ChatCompletionSdkPersistence`** — on each `ChatCompletionChunk`, runs content through replacers, accumulates both original and replaced text, emits `Message.create_event_async` (throttled). At `on_stream_end()`, cascade-flushes all replacers.
-
-The **accumulators** do not use replacers — they fold raw, unmodified event data. Replacement is purely a presentation concern for the SDK event stream.
+- **`ResponsesTextDeltaHandler`** — on each `ResponseTextDeltaEvent`, runs replacers on the delta, then `Message.modify_async`. At `on_stream_end()`, cascade-flushes all replacers.
+- **`ChatCompletionTextHandler`** — on each chunk with content, runs replacers (with optional throttle), then `Message.modify_async`. At `on_stream_end()`, cascade-flushes all replacers.
 
 ---
 
@@ -360,9 +256,8 @@ The **accumulators** do not use replacers — they fold raw, unmodified event da
 
 | Rule | Enforcement |
 |------|-------------|
-| **Sequential reuse is safe.** | `run_stream_pipeline` calls `reset()` on both accumulator and persistence at the start of each run. The handler classes call `reset()` manually before starting their loops. |
-| **Post-build is guarded.** | `ResponsesStreamAccumulator` raises `RuntimeError` on `apply` or `build_stream_result` after the fold is finalised, until `reset()`. |
-| **No concurrent sharing.** | One accumulator + one persistence instance per in-flight stream. Sharing across concurrent tasks will corrupt state. |
+| **Sequential reuse is safe.** | `CompleteWithReferences` calls `pipeline.reset()` before each stream. |
+| **No concurrent sharing.** | One pipeline instance per in-flight stream. Sharing across concurrent tasks will corrupt handler state. |
 
 ---
 
@@ -385,49 +280,47 @@ Both accept `content_chunks: list[ContentChunk]` — the search results the mode
 | **`ChatService`** Responses path | `unique_sdk.Integrated.responses_stream_async` with `search_context`. | **Server-side.** |
 | **`LanguageModelService`** | Non-streaming `complete_async`, then `add_references_to_message`. | **Client-side, non-streaming.** |
 | **`ResponsesStreamingHandler`** | Delegates to `ChatService.complete_responses_with_references_async`. | Inherits from `ChatService`. |
-| **`PipelineResponsesStreamingHandler`** | OpenAI Responses API via proxy, own `async for` loop, accumulator + SDK persistence. | **Via replacer:** `ReferenceResolutionReplacer` at flush time; handler reads result. Returns `ResponsesLanguageModelStreamResponse` with `output`. |
-| **`PipelineChatCompletionsStreamingHandler`** | OpenAI Chat Completions API via proxy, own `async for` loop, accumulator + SDK persistence. | **Via replacer:** same `ReferenceResolutionReplacer` approach. Returns `LanguageModelStreamResponse`. |
+| **`ResponsesCompleteWithReferences`** | OpenAI Responses API via proxy, own `async for` loop, `ResponsesStreamPipeline`. | Optional `ReferenceResolutionReplacer` in the text handler’s replacers; see §6. Returns `ResponsesLanguageModelStreamResponse` with `output` from the completed event when present. |
+| **`ChatCompletionsCompleteWithReferences`** | OpenAI Chat Completions API via proxy, own `async for` loop, `ChatCompletionStreamPipeline`. | Optional `ReferenceResolutionReplacer` in the text handler’s replacers; see §6. Returns `LanguageModelStreamResponse`. |
 
-### `PipelineResponsesStreamingHandler` constructor parameters
-
-| Parameter | Default | Purpose |
-|-----------|---------|---------|
-| `normalization_patterns` | `NORMALIZATION_PATTERNS` | Pattern list for `StreamingPatternReplacer`. Pass `[]` to disable. |
-| `max_match_length` | `NORMALIZATION_MAX_MATCH_LENGTH` (80) | Buffer size for cross-chunk matches. |
-| `resolve_references` | `True` | Whether to run `add_references_to_message` after streaming. |
-| `extra_replacers` | `None` | Additional `StreamingReplacerProtocol` instances applied after the normalisation replacer. |
-| `additional_headers` | `None` | Extra HTTP headers forwarded to the OpenAI proxy client. |
-
-### `PipelineChatCompletionsStreamingHandler` constructor parameters
+### `ResponsesCompleteWithReferences` constructor parameters
 
 | Parameter | Default | Purpose |
 |-----------|---------|---------|
-| `normalization_patterns` | `NORMALIZATION_PATTERNS` | Pattern list for `StreamingPatternReplacer`. Pass `[]` to disable. |
-| `max_match_length` | `NORMALIZATION_MAX_MATCH_LENGTH` (80) | Buffer size for cross-chunk matches. |
-| `resolve_references` | `True` | Whether to run `add_references_to_message` after streaming. |
-| `send_every_n_events` | `1` | Throttle: emit a `Message.create_event_async` every N chunks. |
-| `extra_replacers` | `None` | Additional `StreamingReplacerProtocol` instances applied after the normalisation replacer. |
-| `additional_headers` | `None` | Extra HTTP headers forwarded to the OpenAI proxy client. |
+| `settings` | *(required)* | `UniqueSettings` with auth and chat context. |
+| `pipeline` | *(required)* | Pre-built `ResponsesStreamPipeline` with handlers and replacers configured externally. |
+| `client` | `None` | Optional pre-built `AsyncOpenAI` client. If `None`, one is created via `get_async_openai_client`. |
+| `additional_headers` | `None` | Extra HTTP headers forwarded to the OpenAI proxy client (only used when `client` is `None`). |
+
+### `ChatCompletionsCompleteWithReferences` constructor parameters
+
+| Parameter | Default | Purpose |
+|-----------|---------|---------|
+| `settings` | *(required)* | `UniqueSettings` with auth and chat context. |
+| `pipeline` | *(required)* | Pre-built `ChatCompletionStreamPipeline` with handlers and replacers configured externally. |
+| `client` | `None` | Optional pre-built `AsyncOpenAI` client. If `None`, one is created via `get_async_openai_client`. |
+| `additional_headers` | `None` | Extra HTTP headers forwarded to the OpenAI proxy client (only used when `client` is `None`). |
 
 ### Source reference handling
 
 For reference detection to work end-to-end:
 
 ```
-┌──────────────────────┐     ┌──────────────────────┐     ┌──────────────────────┐
-│  1. Model instruction │ ──► │  2. Replacer patterns │ ──► │  3. Post-processing   │
-│  (history manager /   │     │  pattern_replacer.py   │     │  reference.py          │
-│   caller-provided)    │     │  normalise → [N]      │     │  [N] → <sup>N</sup>   │
-└──────────────────────┘     └──────────────────────┘     └──────────────────────┘
+┌──────────────────────┐     ┌───────────────────────────┐     ┌──────────────────────┐
+│  1. Model instruction │ ──► │  2. Replacer patterns     │ ──► │  3. Post-processing   │
+│  (history manager /   │     │  pattern_replacer.py      │     │  reference.py          │
+│   caller-provided)    │     │  → `<sup>N</sup>` directly │     │  ContentReference,   │
+│                       │     │    (NORMALIZATION_PATTERNS) │     │  dedupe, cleanup      │
+└──────────────────────┘     └───────────────────────────┘     └──────────────────────┘
 ```
 
-The model instruction (how the system prompt tells the model to cite) is provided by the caller or injected by the history manager — it is not the pipeline's responsibility. The patterns and post-processing are handled by the pipeline and share the same `NORMALIZATION_PATTERNS` source.
+The model instruction (how the system prompt tells the model to cite) is provided by the caller or injected by the history manager — it is not the pipeline's responsibility. Streaming normalisation (`NORMALIZATION_PATTERNS` in `pattern_replacer.py`) and batch post-processing (`language_model/reference.py`) share the same pattern list for parity.
 
 Two distinct citation families:
 
 | Family | How the model cites | Normalisation | Post-processing | Instruction location |
 |--------|---------------------|---------------|-----------------|---------------------|
-| **RAG** (standard) | `[source N]`, `[N]`, or many variants | 18 patterns → `[N]` | `[N]` → `<sup>N</sup>` via `ContentChunk` index | Caller or Integrated backend |
+| **RAG** (standard) | `[source N]`, `[N]`, or many variants | 18 patterns → **`<sup>N</sup>`** directly | `reference.py`: link to `ContentChunk`, dedupe / cleanup | Caller or Integrated backend |
 | **A2A** (sub-agents) | `<sup><name>SubAgent N</name>N</sup>` copied verbatim | None | Renumbering in `agentic/tools/a2a/postprocessing/` | `agentic/tools/a2a/prompts.py` |
 
 ### Parity guarantee
@@ -438,13 +331,7 @@ A parametrised test feeds a corpus of examples (covering all 18 pattern variants
 
 ## Extensibility: future stream sources
 
-The generic runner and protocols are not tied to OpenAI. Adding a new provider requires:
-
-1. **A new accumulator** implementing `StreamAccumulatorProtocol[VendorEvent, LanguageModelStreamResponse]`.
-2. **A new persistence class** (optional) implementing `StreamPersistenceProtocol[VendorEvent]`.
-3. **A typed runner wrapper** (optional) for better call-site ergonomics.
-
-What does **not** change: `run_stream_pipeline`, `LanguageModelStreamResponse`, Unique SDK persistence patterns.
+Adding a new wire format means a new pipeline class (or extending an existing one) with handlers that implement the appropriate protocols, plus a `CompleteWithReferences`-style entry point if you need the same toolkit contract.
 
 ---
 
@@ -453,10 +340,12 @@ What does **not** change: `run_stream_pipeline`, `LanguageModelStreamResponse`, 
 | Deleted module | Replacement |
 |----------------|-------------|
 | `streaming/base.py` (`StreamPartHandler` protocol) | `pipeline/protocols.py` |
-| `streaming/responses/text_delta.py` (`TextDeltaStreamPartHandler`) | `pipeline/responses_sdk_persistence.py` |
-| `streaming/responses/codeinterpreter.py` (`ResponseCodeInterpreterCallStreamPartHandler`) | `pipeline/responses_sdk_persistence.py` |
-| `streaming/chat_completion_chunk.py` (`CompletionChunkStreamPartHandler`) | `pipeline/chat_completion_sdk_persistence.py` |
-| `streaming/stream_to_message.py` (raw pipeline bridge) | `PipelineResponsesStreamingHandler` / `PipelineChatCompletionsStreamingHandler` |
+| `streaming/responses/text_delta.py` (`TextDeltaStreamPartHandler`) | Handler pipeline (`responses_text_delta_handler`, etc.) |
+| `streaming/responses/codeinterpreter.py` (`ResponseCodeInterpreterCallStreamPartHandler`) | `responses_code_interpreter_handler.py` |
+| `streaming/chat_completion_chunk.py` (`CompletionChunkStreamPartHandler`) | `chat_completion_text_handler.py` |
+| `streaming/stream_to_message.py` (raw pipeline bridge) | `ResponsesCompleteWithReferences` / `ChatCompletionsCompleteWithReferences` |
+
+Earlier experimental modules (`run.py`, `*SdkPersistence`, `*accumulator`) were removed in favour of the handler pipeline only.
 
 ---
 

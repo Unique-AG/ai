@@ -14,27 +14,14 @@ from typing import TYPE_CHECKING
 
 import httpx
 import unique_sdk
+from openai import AsyncOpenAI
 
 from unique_toolkit.framework_utilities.openai.client import get_async_openai_client
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
-    NORMALIZATION_MAX_MATCH_LENGTH,
-    NORMALIZATION_PATTERNS,
-    StreamingPatternReplacer,
-)
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_code_interpreter_handler import (
-    ResponsesCodeInterpreterHandler,
-)
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_completed_handler import (
-    ResponsesCompletedHandler,
+    chunks_to_sdk_references,
 )
 from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_pipeline import (
     ResponsesStreamPipeline,
-)
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_text_delta_handler import (
-    ResponsesTextDeltaHandler,
-)
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_tool_call_handler import (
-    ResponsesToolCallHandler,
 )
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import LanguageModelMessages
@@ -44,6 +31,7 @@ if TYPE_CHECKING:
     from openai.types.responses import (
         ResponseIncludable,
         ResponseInputItemParam,
+        ResponseInputParam,
         ResponseOutputItem,
         ResponseTextConfigParam,
         ToolParam,
@@ -53,40 +41,18 @@ if TYPE_CHECKING:
 
     from unique_toolkit.app.unique_settings import UniqueSettings
     from unique_toolkit.content.schemas import ContentChunk
-    from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
-        NormalizationPattern,
-        StreamingReplacerProtocol,
-    )
     from unique_toolkit.language_model.schemas import (
         LanguageModelMessageOptions,
         LanguageModelToolDescription,
         ResponsesLanguageModelStreamResponse,
     )
 
+from unique_toolkit.chat.responses_api import (
+    _convert_language_model_message_to_openai_responses_api,
+    _convert_messages_to_openai,
+)
+
 _LOGGER = logging.getLogger(__name__)
-
-
-def _convert_messages(
-    messages: str
-    | LanguageModelMessages
-    | Sequence[
-        ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
-    ],
-) -> (
-    str
-    | Sequence[
-        ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
-    ]
-):
-    """Normalise the union of accepted message types into what the SDK expects."""
-    if isinstance(messages, str):
-        return messages
-    from unique_toolkit.chat.responses_api import _convert_messages_to_openai
-
-    seq: Sequence[
-        ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
-    ] = messages.root if isinstance(messages, LanguageModelMessages) else messages
-    return _convert_messages_to_openai(seq)
 
 
 def _convert_tools(
@@ -99,7 +65,7 @@ def _convert_tools(
     return _convert_tools_to_openai(tools)
 
 
-class PipelineResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
+class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
     """``ResponsesSupportCompleteWithReferences`` backed by the handler pipeline.
 
     Creates a ``ResponsesStreamPipeline`` with typed handlers for text deltas,
@@ -111,18 +77,16 @@ class PipelineResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
         self,
         settings: UniqueSettings,
         *,
-        normalization_patterns: list[NormalizationPattern] = NORMALIZATION_PATTERNS,
-        max_match_length: int = NORMALIZATION_MAX_MATCH_LENGTH,
-        resolve_references: bool = True,
-        extra_replacers: Sequence[StreamingReplacerProtocol] | None = None,
+        pipeline: ResponsesStreamPipeline,
+        client: AsyncOpenAI | None = None,
         additional_headers: dict[str, str] | None = None,
     ) -> None:
         self._settings = settings
-        self._normalization_patterns = normalization_patterns
-        self._max_match_length = max_match_length
-        self._resolve_references = resolve_references
-        self._extra_replacers = extra_replacers
-        self._additional_headers = additional_headers
+        self._pipeline = pipeline
+        self._client = client or get_async_openai_client(
+            unique_settings=settings,
+            additional_headers=additional_headers,
+        )
 
     def complete_with_references(  # noqa: PLR0913
         self,
@@ -208,38 +172,34 @@ class PipelineResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
         )
 
         # -- Build the OpenAI request ----------------------------------------
-        converted_messages = _convert_messages(messages)
-        converted_tools = _convert_tools(tools)
 
-        create_kwargs: dict = {
-            "model": model,
-            "input": converted_messages,
-            "stream": True,
-            "temperature": temperature,
-        }
-        if converted_tools:
-            create_kwargs["tools"] = converted_tools
-        if instructions is not None:
-            create_kwargs["instructions"] = instructions
-        if include is not None:
-            create_kwargs["include"] = include
-        if max_output_tokens is not None:
-            create_kwargs["max_output_tokens"] = max_output_tokens
-        if metadata is not None:
-            create_kwargs["metadata"] = metadata
-        if parallel_tool_calls is not None:
-            create_kwargs["parallel_tool_calls"] = parallel_tool_calls
-        if text is not None:
-            create_kwargs["text"] = text
-        if tool_choice is not None:
-            create_kwargs["tool_choice"] = tool_choice
-        if top_p is not None:
-            create_kwargs["top_p"] = top_p
-        if reasoning is not None:
-            create_kwargs["reasoning"] = reasoning
-        if other_options:
-            for k, v in other_options.items():
-                create_kwargs.setdefault(k, v)
+        def input_messages(
+            messages: str
+            | LanguageModelMessages
+            | Sequence[ResponseInputItemParam | LanguageModelMessageOptions],
+        ) -> ResponseInputParam | str:
+            if isinstance(messages, str):
+                return messages
+
+            if isinstance(messages, LanguageModelMessages):
+                return _convert_messages_to_openai(messages.root)
+
+            converted_messages: list[ResponseInputItemParam] = []
+
+            for message in messages:
+                if isinstance(message, LanguageModelMessageOptions):
+                    converted_messages.append(
+                        _convert_language_model_message_to_openai_responses_api(message)
+                    )
+                else:
+                    converted_messages.append(message)
+
+            return converted_messages
+
+        # TODO: Talk to Ahmed about this
+        converted_messages = input_messages(messages)  # type: ignore
+
+        converted_tools = _convert_tools(tools)
 
         # -- Mark message as streaming ---------------------------------------
         await unique_sdk.Message.modify_async(
@@ -247,45 +207,46 @@ class PipelineResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
             chatId=chat.chat_id,
             user_id=settings.context.auth.user_id.get_secret_value(),
             company_id=settings.context.auth.company_id.get_secret_value(),
+            references=chunks_to_sdk_references(content_chunks or []),
             startedStreamingAt=datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),  # type: ignore
         )
 
-        # -- Build replacer chain --------------------------------------------
-        replacers: list[StreamingReplacerProtocol] = []
-        if self._normalization_patterns:
-            replacers.append(
-                StreamingPatternReplacer(
-                    self._normalization_patterns,
-                    max_match_length=self._max_match_length,
-                )
-            )
-        if self._extra_replacers:
-            replacers.extend(self._extra_replacers)
-
-        # -- Build pipeline --------------------------------------------------
-        pipeline = ResponsesStreamPipeline(
-            text_handler=ResponsesTextDeltaHandler(
-                settings,
-                replacers=replacers,
-                content_chunks=content_chunks,
-                resolve_references=self._resolve_references,
-            ),
-            tool_call_handler=ResponsesToolCallHandler(),
-            completed_handler=ResponsesCompletedHandler(),
-            code_interpreter_handler=ResponsesCodeInterpreterHandler(settings),
-        )
-
-        client = get_async_openai_client(
-            unique_settings=settings,
-            additional_headers=self._additional_headers,
-        )
-
-        pipeline.reset()
-
+        self._pipeline.reset()
         try:
-            stream = await client.responses.create(**create_kwargs)
+            create_kwargs: dict = {}
+            if converted_tools:
+                create_kwargs["tools"] = converted_tools
+            if instructions is not None:
+                create_kwargs["instructions"] = instructions
+            if include is not None:
+                create_kwargs["include"] = include
+            if max_output_tokens is not None:
+                create_kwargs["max_output_tokens"] = max_output_tokens
+            if metadata is not None:
+                create_kwargs["metadata"] = metadata
+            if parallel_tool_calls is not None:
+                create_kwargs["parallel_tool_calls"] = parallel_tool_calls
+            if text is not None:
+                create_kwargs["text"] = text
+            if tool_choice is not None:
+                create_kwargs["tool_choice"] = tool_choice
+            if top_p is not None:
+                create_kwargs["top_p"] = top_p
+            if reasoning is not None:
+                create_kwargs["reasoning"] = reasoning
+            if other_options:
+                for k, v in other_options.items():
+                    create_kwargs.setdefault(k, v)
+
+            stream = await self._client.responses.create(
+                model=model,
+                input=converted_messages,
+                stream=True,
+                temperature=temperature,
+                **create_kwargs,
+            )
             async for event in stream:
-                await pipeline.on_event(event)
+                await self._pipeline.on_event(event)
         except httpx.RemoteProtocolError as exc:
             _LOGGER.warning(
                 "Stream connection closed prematurely (incomplete chunked read). "
@@ -293,9 +254,9 @@ class PipelineResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
                 exc,
             )
         finally:
-            await pipeline.on_stream_end()
+            await self._pipeline.on_stream_end()
 
-        return pipeline.build_result(
+        return self._pipeline.build_result(
             message_id=chat.last_assistant_message_id,
             chat_id=chat.chat_id,
             created_at=datetime.now(timezone.utc),

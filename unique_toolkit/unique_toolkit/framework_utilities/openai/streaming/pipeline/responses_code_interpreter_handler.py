@@ -100,7 +100,32 @@ class ResponsesCodeInterpreterHandler:
         )
 
     async def on_stream_end(self) -> None:
-        pass
+        if self._code:
+            assert self._settings.context.chat is not None, (
+                "Chat is required to retrieve the message"
+            )
+            message = unique_sdk.Message.retrieve(
+                id=self._settings.context.chat.last_assistant_message_id,
+                company_id=self._settings.context.auth.company_id.get_secret_value(),
+                user_id=self._settings.context.auth.user_id.get_secret_value(),
+                **unique_sdk.Message.RetrieveParams(
+                    chatId=self._settings.context.chat.chat_id,
+                ),
+            )
+
+            await unique_sdk.Message.modify_async(
+                id=self._settings.context.chat.last_assistant_message_id,
+                company_id=self._settings.context.auth.company_id.get_secret_value(),
+                user_id=self._settings.context.auth.user_id.get_secret_value(),
+                **unique_sdk.Message.ModifyParams(
+                    chatId=self._settings.context.chat.chat_id,
+                    text=message.text
+                    or ""
+                    + "\n used the following code to generate the response: ```\n"
+                    + self._code
+                    + "\n```",
+                ),
+            )
 
     def reset(self) -> None:
         self._message_logs = {}

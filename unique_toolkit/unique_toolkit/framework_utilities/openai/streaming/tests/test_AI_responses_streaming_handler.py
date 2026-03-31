@@ -1,4 +1,4 @@
-"""Tests for PipelineResponsesStreamingHandler."""
+"""Tests for ResponsesCompleteWithReferences."""
 
 from __future__ import annotations
 
@@ -22,14 +22,29 @@ from openai.types.responses.response_usage import (
 )
 
 from unique_toolkit.app.unique_settings import UniqueSettings
+from unique_toolkit.chat.responses_api import _convert_messages_to_openai
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
     StreamingReplacerProtocol,
 )
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_code_interpreter_handler import (
+    ResponsesCodeInterpreterHandler,
+)
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_completed_handler import (
+    ResponsesCompletedHandler,
+)
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_pipeline import (
+    ResponsesStreamPipeline,
+)
 from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_streaming_handler import (
-    PipelineResponsesStreamingHandler,
-    _convert_messages,
+    ResponsesCompleteWithReferences,
     _convert_tools,
+)
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_text_delta_handler import (
+    ResponsesTextDeltaHandler,
+)
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_tool_call_handler import (
+    ResponsesToolCallHandler,
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
@@ -86,12 +101,26 @@ async def _fake_stream(
         yield e
 
 
+def _build_pipeline(
+    settings: UniqueSettings,
+    *,
+    replacers: list[StreamingReplacerProtocol] | None = None,
+) -> ResponsesStreamPipeline:
+    return ResponsesStreamPipeline(
+        text_handler=ResponsesTextDeltaHandler(
+            settings,
+            replacers=replacers or [],
+        ),
+        tool_call_handler=ResponsesToolCallHandler(),
+        completed_handler=ResponsesCompletedHandler(),
+        code_interpreter_handler=ResponsesCodeInterpreterHandler(settings),
+    )
+
+
 @pytest.mark.ai
 @pytest.mark.asyncio
 @patch("unique_sdk.Message.modify_async", new_callable=AsyncMock)
-@patch("unique_sdk.Message.create_event_async", new_callable=AsyncMock)
 async def test_AI_handler__streams_text_and_returns_result__happy_path(
-    mock_create_event: AsyncMock,
     mock_modify: AsyncMock,
     test_settings: UniqueSettings,
 ) -> None:
@@ -110,18 +139,18 @@ async def test_AI_handler__streams_text_and_returns_result__happy_path(
     mock_client = AsyncMock()
     mock_client.responses.create = AsyncMock(return_value=_fake_stream(events))
 
-    handler = PipelineResponsesStreamingHandler(test_settings)
+    pipeline = _build_pipeline(test_settings)
+    handler = ResponsesCompleteWithReferences(
+        test_settings,
+        pipeline=pipeline,
+        client=mock_client,
+    )
 
-    with patch(
-        "unique_toolkit.framework_utilities.openai.streaming.pipeline."
-        "responses_streaming_handler.get_async_openai_client",
-        return_value=mock_client,
-    ):
-        # Act
-        result = await handler.complete_with_references_async(
-            model_name="test-model",
-            messages="Hello",
-        )
+    # Act
+    result = await handler.complete_with_references_async(
+        model_name="test-model",
+        messages="Hello",
+    )
 
     # Assert
     assert isinstance(result, ResponsesLanguageModelStreamResponse)
@@ -129,26 +158,23 @@ async def test_AI_handler__streams_text_and_returns_result__happy_path(
     assert result.usage is not None
     assert result.usage.total_tokens == 15
     assert len(result.output) == 1
-    mock_modify.assert_awaited_once()
-    assert mock_create_event.await_count >= 1
+    assert mock_modify.await_count >= 1
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
 @patch("unique_sdk.Message.modify_async", new_callable=AsyncMock)
-@patch("unique_sdk.Message.create_event_async", new_callable=AsyncMock)
-async def test_AI_handler__resolves_references__when_chunks_provided(
-    mock_create_event: AsyncMock,
+async def test_AI_handler__sends_references__when_chunks_provided(
     mock_modify: AsyncMock,
     test_settings: UniqueSettings,
 ) -> None:
     """
-    Purpose: Verify post-stream reference resolution runs when content_chunks are given.
+    Purpose: Verify references are sent via chunks_to_sdk_references in the startedStreamingAt call.
     Why this matters: References must be attached to the message for the frontend to render footnotes.
-    Setup summary: Stream text containing [1], provide a content chunk, assert references are set.
+    Setup summary: Stream text, provide a content chunk, assert references are passed to modify_async.
     """
     # Arrange
-    streamed_text = "Answer is here [source 1]."
+    streamed_text = "Answer is here."
     events = [
         _text_delta(streamed_text, 0),
         _completed_event(streamed_text, 1),
@@ -161,39 +187,37 @@ async def test_AI_handler__resolves_references__when_chunks_provided(
     mock_client = AsyncMock()
     mock_client.responses.create = AsyncMock(return_value=_fake_stream(events))
 
-    handler = PipelineResponsesStreamingHandler(test_settings)
+    pipeline = _build_pipeline(test_settings)
+    handler = ResponsesCompleteWithReferences(
+        test_settings,
+        pipeline=pipeline,
+        client=mock_client,
+    )
 
-    with patch(
-        "unique_toolkit.framework_utilities.openai.streaming.pipeline."
-        "responses_streaming_handler.get_async_openai_client",
-        return_value=mock_client,
-    ):
-        # Act
-        result = await handler.complete_with_references_async(
-            model_name="test-model",
-            messages="What is the answer?",
-            content_chunks=chunks,
-        )
+    # Act
+    await handler.complete_with_references_async(
+        model_name="test-model",
+        messages="What is the answer?",
+        content_chunks=chunks,
+    )
 
-    # Assert
-    assert result.message.references is not None
-    assert len(result.message.references) > 0
-    assert "[1]" not in (result.message.content or "")
+    # Assert — first modify_async call (startedStreamingAt) should include references
+    first_call_kwargs = mock_modify.call_args_list[0].kwargs
+    assert "references" in first_call_kwargs
+    assert len(first_call_kwargs["references"]) == 1
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
 @patch("unique_sdk.Message.modify_async", new_callable=AsyncMock)
-@patch("unique_sdk.Message.create_event_async", new_callable=AsyncMock)
-async def test_AI_handler__skips_references__when_config_disables_resolution(
-    mock_create_event: AsyncMock,
+async def test_AI_handler__no_references_in_modify__when_no_chunks(
     mock_modify: AsyncMock,
     test_settings: UniqueSettings,
 ) -> None:
     """
-    Purpose: Verify no reference resolution when requires_reference_resolution is False.
-    Why this matters: A2A and other paths do not need post-stream resolution.
-    Setup summary: Use a config with requires_reference_resolution=False, assert no references.
+    Purpose: Verify no references are sent when content_chunks is empty.
+    Why this matters: A2A and other paths do not need references attached.
+    Setup summary: Stream without content_chunks, assert references is empty in modify call.
     """
     # Arrange
     events = [
@@ -204,29 +228,22 @@ async def test_AI_handler__skips_references__when_config_disables_resolution(
     mock_client = AsyncMock()
     mock_client.responses.create = AsyncMock(return_value=_fake_stream(events))
 
-    handler = PipelineResponsesStreamingHandler(
+    pipeline = _build_pipeline(test_settings)
+    handler = ResponsesCompleteWithReferences(
         test_settings,
-        normalization_patterns=[],
-        resolve_references=False,
+        pipeline=pipeline,
+        client=mock_client,
     )
 
-    chunks = [
-        ContentChunk(id="chunk-1", text="Unused", key="k1", chunk_id="c1"),
-    ]
+    # Act
+    result = await handler.complete_with_references_async(
+        model_name="test-model",
+        messages="Hello",
+    )
 
-    with patch(
-        "unique_toolkit.framework_utilities.openai.streaming.pipeline."
-        "responses_streaming_handler.get_async_openai_client",
-        return_value=mock_client,
-    ):
-        # Act
-        result = await handler.complete_with_references_async(
-            model_name="test-model",
-            messages="Hello",
-            content_chunks=chunks,
-        )
-
-    # Assert — references should be empty (default) since resolution was skipped
+    # Assert — first modify call should have empty references list
+    first_call_kwargs = mock_modify.call_args_list[0].kwargs
+    assert first_call_kwargs["references"] == []
     assert result.message.references == []
 
 
@@ -241,7 +258,13 @@ async def test_AI_handler__raises__when_no_chat_context(
     Setup summary: Create settings with chat=None, assert ValueError.
     """
     # Arrange
-    handler = PipelineResponsesStreamingHandler(test_settings_no_chat)
+    pipeline = _build_pipeline(test_settings_no_chat)
+    mock_client = AsyncMock()
+    handler = ResponsesCompleteWithReferences(
+        test_settings_no_chat,
+        pipeline=pipeline,
+        client=mock_client,
+    )
 
     # Act & Assert
     with pytest.raises(ValueError, match="Chat context is not set"):
@@ -251,39 +274,25 @@ async def test_AI_handler__raises__when_no_chat_context(
         )
 
 
-_HANDLER_PATH = (
-    "unique_toolkit.framework_utilities.openai.streaming.pipeline."
-    "responses_streaming_handler"
-)
-
 # ---------------------------------------------------------------------------
-# _convert_messages() helper
+# Message conversion (shared with ResponsesCompleteWithReferences input path)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.ai
-def test_AI_convert_messages__returns_string_unchanged() -> None:
+def test_AI_convert_messages_to_openai__converts_language_model_messages__to_sequence() -> (
+    None
+):
     """
-    Purpose: Verify _convert_messages passes a plain string through without conversion.
-    Why this matters: The Responses API accepts strings directly; wrapping them would
-        break the API call.
-    Setup summary: Pass a string, assert the same string is returned.
-    """
-    assert _convert_messages("Hello") == "Hello"
-
-
-@pytest.mark.ai
-def test_AI_convert_messages__converts_language_model_messages__to_sequence() -> None:
-    """
-    Purpose: Verify _convert_messages converts LanguageModelMessages to the Responses
-        API sequence format.
+    Purpose: Verify _convert_messages_to_openai converts LanguageModelMessages to the
+        Responses API sequence format.
     Why this matters: The Responses API requires a specific message format; passing the
         Pydantic wrapper directly would raise a type error in the SDK.
     Setup summary: One user message wrapped in LanguageModelMessages, convert, assert list.
     """
     messages = LanguageModelMessages([LanguageModelUserMessage(content="Hi")])
 
-    result = _convert_messages(messages)
+    result = _convert_messages_to_openai(messages.root)
 
     assert isinstance(result, list)
     assert len(result) == 1
@@ -334,9 +343,7 @@ def test_AI_convert_tools__converts_tool_description__using_completions_mode() -
 @pytest.mark.ai
 @pytest.mark.asyncio
 @patch("unique_sdk.Message.modify_async", new_callable=AsyncMock)
-@patch("unique_sdk.Message.create_event_async", new_callable=AsyncMock)
 async def test_AI_handler__forwards_instructions_and_max_output_tokens__to_client(
-    mock_create_event: AsyncMock,
     mock_modify: AsyncMock,
     test_settings: UniqueSettings,
 ) -> None:
@@ -350,15 +357,19 @@ async def test_AI_handler__forwards_instructions_and_max_output_tokens__to_clien
     mock_client = AsyncMock()
     mock_client.responses.create = AsyncMock(return_value=_fake_stream(stream_events))
 
-    handler = PipelineResponsesStreamingHandler(test_settings)
+    pipeline = _build_pipeline(test_settings)
+    handler = ResponsesCompleteWithReferences(
+        test_settings,
+        pipeline=pipeline,
+        client=mock_client,
+    )
 
-    with patch(f"{_HANDLER_PATH}.get_async_openai_client", return_value=mock_client):
-        await handler.complete_with_references_async(
-            model_name="test-model",
-            messages="Hi",
-            instructions="You are helpful.",
-            max_output_tokens=512,
-        )
+    await handler.complete_with_references_async(
+        model_name="test-model",
+        messages="Hi",
+        instructions="You are helpful.",
+        max_output_tokens=512,
+    )
 
     call_kwargs = mock_client.responses.create.call_args.kwargs
     assert call_kwargs["instructions"] == "You are helpful."
@@ -368,9 +379,7 @@ async def test_AI_handler__forwards_instructions_and_max_output_tokens__to_clien
 @pytest.mark.ai
 @pytest.mark.asyncio
 @patch("unique_sdk.Message.modify_async", new_callable=AsyncMock)
-@patch("unique_sdk.Message.create_event_async", new_callable=AsyncMock)
 async def test_AI_handler__forwards_other_options__to_client(
-    mock_create_event: AsyncMock,
     mock_modify: AsyncMock,
     test_settings: UniqueSettings,
 ) -> None:
@@ -384,14 +393,18 @@ async def test_AI_handler__forwards_other_options__to_client(
     mock_client = AsyncMock()
     mock_client.responses.create = AsyncMock(return_value=_fake_stream(stream_events))
 
-    handler = PipelineResponsesStreamingHandler(test_settings)
+    pipeline = _build_pipeline(test_settings)
+    handler = ResponsesCompleteWithReferences(
+        test_settings,
+        pipeline=pipeline,
+        client=mock_client,
+    )
 
-    with patch(f"{_HANDLER_PATH}.get_async_openai_client", return_value=mock_client):
-        await handler.complete_with_references_async(
-            model_name="test-model",
-            messages="Hi",
-            other_options={"top_logprobs": 3},
-        )
+    await handler.complete_with_references_async(
+        model_name="test-model",
+        messages="Hi",
+        other_options={"top_logprobs": 3},
+    )
 
     call_kwargs = mock_client.responses.create.call_args.kwargs
     assert call_kwargs.get("top_logprobs") == 3
@@ -405,17 +418,15 @@ async def test_AI_handler__forwards_other_options__to_client(
 @pytest.mark.ai
 @pytest.mark.asyncio
 @patch("unique_sdk.Message.modify_async", new_callable=AsyncMock)
-@patch("unique_sdk.Message.create_event_async", new_callable=AsyncMock)
 async def test_AI_handler__calls_extra_replacers__when_provided(
-    mock_create_event: AsyncMock,
     mock_modify: AsyncMock,
     test_settings: UniqueSettings,
 ) -> None:
     """
-    Purpose: Verify extra_replacers are included in the replacer chain.
+    Purpose: Verify custom replacers are invoked when injected into the pipeline's text handler.
     Why this matters: Callers can inject custom replacers (e.g. for PII redaction);
         if they are not wired into the chain their transformations are silently skipped.
-    Setup summary: Provide a recording replacer via extra_replacers, stream a token,
+    Setup summary: Provide a recording replacer to the text handler, stream a token,
         assert the replacer's process() was called.
     """
 
@@ -436,15 +447,17 @@ async def test_AI_handler__calls_extra_replacers__when_provided(
     mock_client = AsyncMock()
     mock_client.responses.create = AsyncMock(return_value=_fake_stream(stream_events))
 
-    handler = PipelineResponsesStreamingHandler(
-        test_settings, extra_replacers=[recording]
+    pipeline = _build_pipeline(test_settings, replacers=[recording])
+    handler = ResponsesCompleteWithReferences(
+        test_settings,
+        pipeline=pipeline,
+        client=mock_client,
     )
 
-    with patch(f"{_HANDLER_PATH}.get_async_openai_client", return_value=mock_client):
-        await handler.complete_with_references_async(
-            model_name="test-model",
-            messages="Hi",
-        )
+    await handler.complete_with_references_async(
+        model_name="test-model",
+        messages="Hi",
+    )
 
     assert recording.processed != []
 
@@ -457,9 +470,7 @@ async def test_AI_handler__calls_extra_replacers__when_provided(
 @pytest.mark.ai
 @pytest.mark.asyncio
 @patch("unique_sdk.Message.modify_async", new_callable=AsyncMock)
-@patch("unique_sdk.Message.create_event_async", new_callable=AsyncMock)
 async def test_AI_handler__finalises_gracefully__when_remote_protocol_error(
-    mock_create_event: AsyncMock,
     mock_modify: AsyncMock,
     test_settings: UniqueSettings,
 ) -> None:
@@ -479,12 +490,16 @@ async def test_AI_handler__finalises_gracefully__when_remote_protocol_error(
     mock_client = AsyncMock()
     mock_client.responses.create = AsyncMock(return_value=_failing_stream())
 
-    handler = PipelineResponsesStreamingHandler(test_settings)
+    pipeline = _build_pipeline(test_settings)
+    handler = ResponsesCompleteWithReferences(
+        test_settings,
+        pipeline=pipeline,
+        client=mock_client,
+    )
 
-    with patch(f"{_HANDLER_PATH}.get_async_openai_client", return_value=mock_client):
-        result = await handler.complete_with_references_async(
-            model_name="test-model",
-            messages="Hi",
-        )
+    result = await handler.complete_with_references_async(
+        model_name="test-model",
+        messages="Hi",
+    )
 
     assert result.message.text == "Partial"
