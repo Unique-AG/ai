@@ -187,30 +187,29 @@ def test_resolve_temp_and_reasoning_clamps_temperature():
     )
 
 
-def test_resolve_temp_and_reasoning_unknown_model_fallback():
-    """Unknown model names: pass temperature through (clamped to [0,2]); active reasoning → 1.0."""
-    # No reasoning → caller temperature is respected, clamped to [0, 2]
+def test_resolve_temp_and_reasoning_unknown_model_passthrough():
+    """Unknown model names: both temperature and reasoning_effort are returned unchanged."""
     assert LanguageModelInfo.resolve_temp_and_reasoning(
         "some-custom-model", 0.7, None
     ) == (0.7, None)
     assert LanguageModelInfo.resolve_temp_and_reasoning(
         "some-custom-model", 0.7, "none"
     ) == (0.7, "none")
-    # temperature in (1, 2] is now valid (OpenAI allows up to 2.0)
+    # temperature > 1 passes through (no clamping for unknown models)
     assert LanguageModelInfo.resolve_temp_and_reasoning(
         "some-custom-model", 1.5, None
     ) == (1.5, None)
-    # Out-of-range (> 2) is clamped to 2.0
+    # even out-of-range values pass through unchanged
     assert LanguageModelInfo.resolve_temp_and_reasoning(
         "some-custom-model", 2.5, None
-    ) == (2.0, None)
+    ) == (2.5, None)
     assert LanguageModelInfo.resolve_temp_and_reasoning(
         "some-custom-model", -0.1, None
-    ) == (0.0, None)
-    # Active reasoning → temperature forced to 1.0 regardless of input
+    ) == (-0.1, None)
+    # active reasoning also passes through unchanged
     assert LanguageModelInfo.resolve_temp_and_reasoning(
         "some-custom-model", 0.0, "medium"
-    ) == (1.0, "medium")
+    ) == (0.0, "medium")
 
 
 def test_resolve_temp_and_reasoning_boundless_known_model_allows_up_to_2():

@@ -338,8 +338,8 @@ class LanguageModelInfo(BaseModel):
         Scenarios handled in order:
 
         1. Unknown model (not a LanguageModelName):
-           - Active reasoning (effort not None / not "none") → temperature = 1.0.
-           - No reasoning → temperature passed through, clamped to [0, 1].
+           - No metadata is available; both temperature and reasoning_effort are
+             returned unchanged. The caller or API is responsible for validation.
 
         2. Model does not participate in reasoning_effort
            (supported_reasoning_efforts is None):
@@ -352,7 +352,7 @@ class LanguageModelInfo(BaseModel):
 
         4. Active reasoning forces temperature to 1.0 (API requirement).
 
-        After scenarios 1–4, temperature is clamped to the model's declared bounds.
+        After scenarios 2–4, temperature is clamped to the model's declared bounds.
         Models without declared bounds fall back to the OpenAI-documented global range
         [0, 2]. Invalid declared bounds are intentionally NOT corrected here —
         a misconfigured model definition should surface as a visible bug.
@@ -367,12 +367,9 @@ class LanguageModelInfo(BaseModel):
         )
 
         # --- Scenario 1: unknown / custom model ---
-        # No bounds metadata available; use the OpenAI global range [0, 2].
+        # No metadata available; pass both parameters through as-is.
         if is_model_unknown:
-            if wants_active_reasoning:
-                return 1.0, reasoning_effort
-            clamped_temperature = round(max(0.0, min(2.0, temperature)), 2)
-            return clamped_temperature, reasoning_effort
+            return temperature, reasoning_effort
 
         model_info = cls.from_name(model_name)
         supported_efforts = model_info.supported_reasoning_efforts
