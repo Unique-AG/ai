@@ -154,7 +154,9 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
             user_id=settings.context.auth.user_id.get_secret_value(),
             company_id=settings.context.auth.company_id.get_secret_value(),
             references=chunks_to_sdk_references(content_chunks or []),
-            startedStreamingAt=datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),  # type: ignore
+            startedStreamingAt=datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%S.%fZ"
+            ),  # type: ignore
         )
 
         self._pipeline.reset()
