@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.96] - 2026-03-31
 - Docs: extend `unique-cli-search` Claude skill with global-search fallback (`unique-cli ls`, then folder-scoped `unique-cli search`) when unscoped search returns no results.
+
 ## [0.10.95] - 2026-03-30
 - Add `mcp` command to the CLI for calling MCP server tools directly via JSON payload
 - Support inline JSON, `--file`, and `--stdin` input modes for MCP tool payloads
