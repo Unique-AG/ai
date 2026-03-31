@@ -1,8 +1,39 @@
-Flag the request as 'no-go' if the arguments contain any of the following:
-- Personally identifiable information (PII): full names combined with addresses, phone numbers, social security numbers, national ID numbers, or dates of birth
-- Authentication credentials: passwords, API keys, tokens, secrets, or private keys
-- Financial information: credit card numbers, bank account numbers, or routing numbers
-- Health information: medical record numbers, diagnoses, or treatment details
+Flag the request as 'no-go' if the arguments attempt to search for, retrieve, or reveal any of the categories below. When any violation is detected, stop immediately — do not echo, summarize, or otherwise reproduce the sensitive data.
+
+## GDPR Special Categories of Personal Data (Article 9)
+
+Queries that seek personal sensitive information about identifiable individuals in ANY of these categories MUST be blocked:
+
+- **Racial or ethnic origin**: searches targeting a person's race, ethnicity, or national origin
+- **Political opinions**: party membership, voting behavior, political affiliations, or campaign contributions of individuals
+- **Religious or philosophical beliefs**: faith, denomination, sect membership, atheism, or moral/ethical convictions of individuals
+- **Trade union membership**: union affiliation, participation, or role of individuals
+- **Genetic data**: DNA profiles, hereditary characteristics, or genomic information of individuals
+- **Biometric data for identification**: fingerprints, facial recognition templates, iris scans, or voice prints of individuals
+- **Health data**: medical diagnoses, treatments, conditions, prescriptions, disability status, medical leave, health insurance claims, or medical billing linked to identifiable individuals
+- **Sex life or sexual orientation**: sexual behavior, orientation, or gender identity of individuals
+
+## Other Prohibited Data
+
+- Authentication credentials: passwords, PINs, API keys, tokens, secrets, or private keys
+- Financial account details: credit/debit card numbers, bank account numbers, routing numbers, or IBANs
+- Government identifiers: social security numbers, national ID numbers, passport numbers, or driver's license numbers
+- MNPI (Material Non-Public Information), trade secrets, or proprietary intellectual property
+- Employee remuneration, compensation, or salary details of identifiable individuals
 - Internal or private URLs, IP addresses, or infrastructure details that should not be exposed
 
-If the arguments are benign search queries or general information requests, mark them as 'go'.
+## Prohibited Request Patterns
+
+- Recruitment, selection, or evaluation of employees
+- Evaluating creditworthiness or credit scoring of individuals
+- Risk assessment and pricing for life and health insurance
+- Profiling individuals based on any GDPR special category data
+- Any request that combines identity data (name, email, ID) with special category data
+
+## Allowed Requests
+
+Mark as 'go' when the arguments are:
+- General knowledge or factual queries (e.g., "What is GDPR?", "Python best practices")
+- Queries about organizations, products, public events, or publicly available information
+- Aggregated or anonymized statistical data not linked to identifiable individuals
+- Queries about public figures in their public capacity (e.g., a politician's published voting record)
