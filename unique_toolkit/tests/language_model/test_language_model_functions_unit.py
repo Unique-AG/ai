@@ -188,16 +188,22 @@ def test_resolve_temp_and_reasoning_clamps_temperature():
 
 
 def test_resolve_temp_and_reasoning_unknown_model_fallback():
-    """Test that unknown (custom) model names use safe defaults."""
+    """Unknown model names: pass temperature through (clamped to [0,1]); active reasoning → 1.0."""
+    # No reasoning → caller temperature is respected, clamped to [0, 1]
     assert LanguageModelInfo.resolve_temp_and_reasoning(
         "some-custom-model", 0.7, None
-    ) == (
-        0.0,
-        None,
-    )
+    ) == (0.7, None)
     assert LanguageModelInfo.resolve_temp_and_reasoning(
         "some-custom-model", 0.7, "none"
-    ) == (0.0, "none")
+    ) == (0.7, "none")
+    # Out-of-range is clamped to the global boundary
+    assert LanguageModelInfo.resolve_temp_and_reasoning(
+        "some-custom-model", 1.5, None
+    ) == (1.0, None)
+    assert LanguageModelInfo.resolve_temp_and_reasoning(
+        "some-custom-model", -0.1, None
+    ) == (0.0, None)
+    # Active reasoning → temperature forced to 1.0 regardless of input
     assert LanguageModelInfo.resolve_temp_and_reasoning(
         "some-custom-model", 0.0, "medium"
     ) == (1.0, "medium")
@@ -260,6 +266,21 @@ def test_resolve_temp_and_reasoning_fixes_thinking_only_model_with_none_effort()
     )
     assert temp == 1.0
     assert effort is None
+
+
+def test_resolve_temp_and_reasoning_drops_effort_for_non_reasoning_model(caplog):
+    """Scenario 2: model with supported_reasoning_efforts=None warns and drops the effort."""
+    # GPT-4o does not participate in the reasoning_effort paradigm
+    model = LanguageModelName.AZURE_GPT_4o_2024_1120
+
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit.language_model.infos"):
+        temp, effort = LanguageModelInfo.resolve_temp_and_reasoning(
+            model, 0.7, "medium"
+        )
+
+    assert "does not support reasoning_effort" in caplog.text
+    assert effort is None
+    assert temp == 0.7
 
 
 def test_resolve_temp_and_reasoning_warns_on_unsupported_effort(caplog):
