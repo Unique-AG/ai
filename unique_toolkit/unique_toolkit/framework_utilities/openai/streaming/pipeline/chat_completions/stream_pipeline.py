@@ -9,6 +9,9 @@ import unique_sdk
 
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.chat_completions.text_handler import (
+    ChatCompletionTextHandler,
+)
 from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
 
 from ..protocols import StreamHandlerProtocol
@@ -33,11 +36,18 @@ class ChatCompletionStreamPipeline:
     def __init__(
         self,
         *,
-        settings: UniqueSettings,
         text_handler: ChatCompletionTextHandlerProtocol,
         tool_call_handler: ChatCompletionToolCallHandlerProtocol | None = None,
+        settings: UniqueSettings | None = None,
     ) -> None:
-        self._settings = settings
+        if settings is not None:
+            self._settings = settings
+        elif isinstance(text_handler, ChatCompletionTextHandler):
+            self._settings = text_handler._settings
+        else:
+            raise TypeError(
+                "settings is required when text_handler is not ChatCompletionTextHandler"
+            )
         self._text = text_handler
         self._tools = tool_call_handler
 
