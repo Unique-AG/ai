@@ -73,26 +73,12 @@ from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
-from unique_toolkit.language_model.infos import (
-    LanguageModelInfo,
-    LanguageModelName,
-    ModelCapabilities,
-)
+from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
 from unique_orchestrator._builders import build_loop_iteration_runner
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
-
-
-def _requires_auto_container(model_name: str) -> bool:
-    """Check whether the model requires auto-container mode for Code Interpreter."""
-    try:
-        lm_name = LanguageModelName(model_name)
-        model_info = LanguageModelInfo.from_name(lm_name)
-        return ModelCapabilities.AUTO_CONTAINER_ONLY in model_info.capabilities
-    except (ValueError, KeyError):
-        return False
 
 
 class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
@@ -377,7 +363,10 @@ async def _build_responses(
         common_components=common_components,
     )
 
-    force_auto_container = _requires_auto_container(config.space.language_model.name)
+    force_auto_container = (
+        ModelCapabilities.AUTO_CONTAINER_ONLY
+        in config.space.language_model.capabilities
+    )
 
     builtin_tool_manager = await OpenAIBuiltInToolManager.build_manager(
         uploaded_files=common_components.uploaded_documents,
