@@ -1,5 +1,5 @@
 name: 'Create Type Baseline'
-description: 'Creates a type checking baseline from a specified branch, supporting both Poetry and uv'
+description: 'Creates a type checking baseline from a specified branch using uv'
 
 inputs:
   package_dir:
@@ -10,17 +10,17 @@ inputs:
     required: false
     default: 'main'
   package_manager:
-    description: 'Package manager to use: auto (detect), poetry, or uv'
+    description: 'Package manager (kept for compatibility, always uv)'
     required: false
-    default: 'auto'
+    default: 'uv'
   python_version:
     description: 'Python version to use'
     required: false
     default: '3.11'
   package_manager_version:
-    description: 'Package manager version to install (e.g., "1.8.3" for Poetry, ignored for uv)'
+    description: 'Unused, kept for interface compatibility'
     required: false
-    default: '1.8.3'
+    default: ''
   output_file:
     description: 'Output file for baseline'
     required: false
@@ -54,7 +54,6 @@ runs:
       shell: bash
       run: |
         git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
-        git restore "${{ inputs.package_dir }}/poetry.lock" 2>/dev/null || true
 
     - name: Checkout base branch
       shell: bash
@@ -81,10 +80,8 @@ runs:
         # Discard any changes to lock files from dependency installation
         # This prevents checkout errors when the script switches back to the PR branch
         # Restore tracked lock files
-        git restore "${{ inputs.package_dir }}/poetry.lock" 2>/dev/null || true
         git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
-        # Remove untracked lock files (e.g., uv.lock created by uv on a poetry-based branch)
-        git clean -f -- "${{ inputs.package_dir }}/poetry.lock" "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
+        git clean -f -- "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
 
     - name: Create baseline
       shell: bash

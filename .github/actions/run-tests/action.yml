@@ -1,24 +1,24 @@
 name: 'Run Tests'
-description: 'Runs pytest tests, supporting both Poetry and uv'
+description: 'Runs pytest tests using uv'
 
 inputs:
   package_dir:
     description: 'Path to the package directory'
     required: true
   package_manager:
-    description: 'Package manager to use: auto (detect), poetry, or uv'
+    description: 'Package manager (kept for compatibility, always uv)'
     required: false
-    default: 'auto'
+    default: 'uv'
   python_version:
     description: 'Python version to use'
     required: false
     default: '3.11'
   package_manager_version:
-    description: 'Package manager version to install (e.g., "1.8.3" for Poetry, ignored for uv)'
+    description: 'Unused, kept for interface compatibility'
     required: false
-    default: '1.8.3'
+    default: ''
   install_args:
-    description: 'Additional arguments for install command (e.g., "--with fastapi" for poetry)'
+    description: 'Additional arguments for install command'
     required: false
     default: ''
   test_args:

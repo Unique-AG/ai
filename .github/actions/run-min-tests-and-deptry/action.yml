@@ -1,5 +1,5 @@
 name: 'Run Min Tests and Deptry'
-description: 'Runs deptry on all packages, and min-deps pytest tests for uv packages only'
+description: 'Runs deptry and min-deps pytest tests using uv'
 
 inputs:
   package_dir:
@@ -28,9 +28,7 @@ runs:
         package_dir: ${{ inputs.package_dir }}
         python_version: ${{ inputs.python_version }}
 
-    # uv: Install with min deps
-    - name: Install package (min deps - uv)
-      if: startsWith(steps.pm.outputs.run_cmd, 'uv')
+    - name: Install package (min deps)
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
@@ -47,29 +45,14 @@ runs:
         uv pip install -e "$PKG_SPEC" --resolution=lowest-direct
         uv export --only-group dev --no-hashes | uv pip install -r -
 
-    # Poetry: Normal install (deptry is in dev dependencies)
-    - name: Install package (poetry)
-      if: steps.pm.outputs.run_cmd == 'poetry run'
-      shell: bash
-      working-directory: ${{ inputs.package_dir }}
-      run: poetry install
-
-    - name: Run deptry (uv)
-      if: startsWith(steps.pm.outputs.run_cmd, 'uv')
+    - name: Run deptry
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
       run: uv run --no-sync deptry .
 
-    - name: Run deptry (poetry)
-      if: steps.pm.outputs.run_cmd == 'poetry run'
-      shell: bash
-      working-directory: ${{ inputs.package_dir }}
-      run: poetry run deptry .
-
-    - name: Run tests with min dependencies (uv only)
-      if: startsWith(steps.pm.outputs.run_cmd, 'uv')
+    - name: Run tests with min dependencies
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:

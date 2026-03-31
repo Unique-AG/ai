@@ -210,7 +210,7 @@ build_project_site() {
     # Create temporary config with updated site_url
     sed "s|site_url:.*|site_url: $site_url|g" "$project_dir/mkdocs.yaml" > "$temp_config"
     
-    # Build from repo root so root's poetry (with mkdocs) is used.
+    # Build from repo root so root's uv environment (with mkdocs) is used.
     # Suppress SyntaxWarning from mkdocs-include-dir-to-nav (invalid escape sequence in its code).
     (
         cd "$REPO_ROOT"

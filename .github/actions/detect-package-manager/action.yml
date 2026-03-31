@@ -1,5 +1,5 @@
 name: 'Detect Package Manager'
-description: 'Detects whether a package uses Poetry or uv based on lock files'
+description: 'Returns uv as the package manager (all packages use uv)'
 
 inputs:
   package_dir:
@@ -8,7 +8,7 @@ inputs:
 
 outputs:
   package_manager:
-    description: 'Detected package manager: poetry or uv'
+    description: 'Detected package manager: uv'
     value: ${{ steps.detect.outputs.manager }}
 
 runs:
@@ -17,16 +17,6 @@ runs:
     - name: Detect package manager
       id: detect
       shell: bash
-      working-directory: ${{ inputs.package_dir }}
       run: |
-        if [ -f "poetry.lock" ]; then
-          echo "manager=poetry" >> $GITHUB_OUTPUT
-          echo "Detected: Poetry"
-        elif [ -f "uv.lock" ]; then
-          echo "manager=uv" >> $GITHUB_OUTPUT
-          echo "Detected: uv"
-        else
-          echo "manager=poetry" >> $GITHUB_OUTPUT
-          echo "No lock file found, defaulting to Poetry"
-        fi
-
+        echo "manager=uv" >> $GITHUB_OUTPUT
+        echo "Detected: uv"

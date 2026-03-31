@@ -67,8 +67,7 @@ OPTIONS:
     -b, --base-ref REF   Base branch/ref for comparison
                          (default: auto-detect from GITHUB_BASE_REF or origin/main/master)
     -m, --min-coverage N Minimum coverage percentage (default: 60)
-    -r, --runner CMD     Command runner prefix (e.g., "poetry run" or "uv run")
-                         (default: "poetry run" for backward compatibility)
+    -r, --runner CMD     Command runner prefix (default: "uv run")
     --skip-tests         Skip running tests (assume coverage.xml already exists)
     --no-install-deps    Skip installing diff-cover (assume already installed)
 
@@ -244,12 +243,8 @@ fi
 
 # Auto-detect runner if not provided
 if [ -z "$RUNNER" ]; then
-    if [ -f "$PACKAGE/uv.lock" ] || grep -q '\[tool\.uv\]' "$PACKAGE/pyproject.toml" 2>/dev/null; then
-        RUNNER="uv run"
-    else
-        RUNNER="poetry run"
-    fi
-    print_info "Auto-detected runner: $RUNNER"
+    RUNNER="uv run"
+    print_info "Using default runner: $RUNNER"
 fi
 
 # Validate min_coverage is a number
@@ -297,7 +292,7 @@ if [ ! -d "$PACKAGE" ]; then
     exit 1
 fi
 
-# Change to package directory for poetry operations
+# Change to package directory
 cd "$PACKAGE" || {
     print_error "Failed to change to package directory: $PACKAGE"
     exit 1
