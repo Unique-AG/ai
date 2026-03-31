@@ -8,10 +8,6 @@ Layout:
 
 from __future__ import annotations
 
-from unique_toolkit.framework_utilities.openai.streaming.reference_replacer import (
-    ReferenceResolutionReplacer,
-)
-
 from .chat_completions import (
     ChatCompletionsCompleteWithReferences,
     ChatCompletionStreamPipeline,
@@ -58,6 +54,4 @@ __all__ = [
     # --- Streaming handlers (public API) ---
     "ChatCompletionsCompleteWithReferences",
     "ResponsesCompleteWithReferences",
-    # --- Replacers ---
-    "ReferenceResolutionReplacer",
 ]

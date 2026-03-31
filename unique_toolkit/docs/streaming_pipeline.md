@@ -54,8 +54,8 @@ Downstream UIs typically need `ContentReference` objects (or equivalent) linking
 | Path | Who resolves references | How |
 |------|------------------------|-----|
 | `Integrated.*` via `ChatService` | **Server-side** (Integrated backend) | `content_chunks` sent as `searchContext`; backend resolves and returns references. |
-| `ResponsesCompleteWithReferences` | **Client-side via replacer (optional)** | If you add `ReferenceResolutionReplacer` to the text handler’s replacer chain, its `flush()` runs full reference resolution; `resolved_text` and `references` are available on that replacer after `on_stream_end()`. SDK updates during streaming use `Message.modify_async` from the text handler. |
-| `ChatCompletionsCompleteWithReferences` | **Client-side via replacer (optional)** | Same pattern as Responses: optional `ReferenceResolutionReplacer` in `ChatCompletionTextHandler`’s replacers; SDK updates use `Message.modify_async`. |
+| `ResponsesCompleteWithReferences` | **Streaming normalisation only** | `StreamingPatternReplacer` turns citation variants into `<sup>N</sup>` during the stream; SDK updates use `Message.modify_async` from the text handler. Structured `ContentReference` objects are not produced by this path — use Integrated server-side streaming or a post-stream pass with `language_model.reference` if you need them. |
+| `ChatCompletionsCompleteWithReferences` | **Streaming normalisation only** | Same as Responses: pattern replacers on deltas; `Message.modify_async` for live text. Structured references require Integrated or post-stream processing. |
 
 ### 7. Caller protocol convergence *(resolved)*
 
@@ -148,10 +148,8 @@ streaming/
 │       ├── complete_with_references.py           # ChatCompletionsCompleteWithReferences
 │       ├── text_handler.py
 │       └── tool_call_handler.py
-├── pattern_replacer.py                           # NORMALIZATION_PATTERNS, NORMALIZATION_MAX_MATCH_LENGTH
-│                                                 # StreamingReplacerProtocol, StreamingPatternReplacer
-└── reference_replacer.py                         # ReferenceResolutionReplacer
-                                                  # (flush: full reference.py pipeline → ContentReference + resolved_text)
+└── pattern_replacer.py                           # NORMALIZATION_PATTERNS, NORMALIZATION_MAX_MATCH_LENGTH
+                                                  # StreamingReplacerProtocol, StreamingPatternReplacer
 ```
 
 ---
@@ -219,19 +217,7 @@ The canonical pattern list (`NORMALIZATION_PATTERNS`) and buffer size (`NORMALIZ
 
 Both the streaming replacer and `language_model.reference._preprocess_message` import from here — single source of truth. A parametrised parity test guards against future drift.
 
-### `ReferenceResolutionReplacer`
-
-Placed **after** `StreamingPatternReplacer` in the chain. `process()` forwards deltas unchanged while accumulating the full string for a final pass. `flush()` runs the same **reference pipeline** as `language_model/reference.py` (`_preprocess_message` → `_add_references` → `_postprocess_message`), producing `resolved_text` and `ContentReference` objects. Upstream patterns have usually **already** turned citations into `<sup>N</sup>` during streaming; the flush step still applies shared preprocessing and attaches structured references.
-
-```
-StreamingPatternReplacer          ReferenceResolutionReplacer
-  process(): variants → <sup>N</sup>  →  process(): pass-through (accumulates)
-  flush():   buffered tail           →  (cascade) … then flush():
-                                        preprocess + add_references + postprocess
-                                        → resolved_text, references
-```
-
-`Pipeline.build_result()` builds the returned `ChatMessage` from the text handler’s `get_text()` (streaming accumulation through each replacer’s `process()`). If you use `ReferenceResolutionReplacer`, read `resolved_text` and `references` after `on_stream_end()` when you need the fully resolved batch output; they are not wired automatically into `build_result()` today.
+`Pipeline.build_result()` builds the returned `ChatMessage` from the text handler’s `get_text()` (streaming accumulation through each replacer’s `process()`).
 
 ### Cascade flush in `on_stream_end()`
 
@@ -245,7 +231,7 @@ for replacer in self._replacers:
     remaining += replacer.flush()
 ```
 
-Without cascade, the pattern replacer's 80-char buffer tail would bypass the `ReferenceResolutionReplacer`, leaving the last references unresolved.
+Without cascade, an upstream replacer’s buffered tail (for example the pattern replacer’s trailing `max_match_length` window) would not be fed through downstream replacers’ `process()` before their `flush()`, which can leave partial matches unresolved at the end of the stream.
 
 ### How replacers integrate with handlers
 
@@ -282,8 +268,8 @@ Both accept `content_chunks: list[ContentChunk]` — the search results the mode
 | **`ChatService`** Responses path | `unique_sdk.Integrated.responses_stream_async` with `search_context`. | **Server-side.** |
 | **`LanguageModelService`** | Non-streaming `complete_async`, then `add_references_to_message`. | **Client-side, non-streaming.** |
 | **`ResponsesStreamingHandler`** | Delegates to `ChatService.complete_responses_with_references_async`. | Inherits from `ChatService`. |
-| **`ResponsesCompleteWithReferences`** | OpenAI Responses API via proxy, own `async for` loop, `ResponsesStreamPipeline`. | Optional `ReferenceResolutionReplacer` in the text handler’s replacers; see §6. Returns `ResponsesLanguageModelStreamResponse` with `output` from the completed event when present. |
-| **`ChatCompletionsCompleteWithReferences`** | OpenAI Chat Completions API via proxy, own `async for` loop, `ChatCompletionStreamPipeline`. | Optional `ReferenceResolutionReplacer` in the text handler’s replacers; see §6. Returns `LanguageModelStreamResponse`. |
+| **`ResponsesCompleteWithReferences`** | OpenAI Responses API via proxy, own `async for` loop, `ResponsesStreamPipeline`. | Streaming citation normalisation via replacers; see §6. Returns `ResponsesLanguageModelStreamResponse` with `output` from the completed event when present. |
+| **`ChatCompletionsCompleteWithReferences`** | OpenAI Chat Completions API via proxy, own `async for` loop, `ChatCompletionStreamPipeline`. | Streaming citation normalisation via replacers; see §6. Returns `LanguageModelStreamResponse`. |
 
 ### `ResponsesCompleteWithReferences` constructor parameters
 

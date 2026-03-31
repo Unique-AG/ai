@@ -9,7 +9,7 @@
 #
 # The handler streams tokens directly through the OpenAI proxy, normalises
 # citation patterns, emits incremental Unique Message updates, and resolves
-# [N] markers to <sup>N</sup> footnotes via ReferenceResolutionReplacer at flush time.
+# [N] markers to <sup>N</sup> footnotes during streaming via StreamingPatternReplacer.
 #
 # Sources are serialised using the same JSON format as the history manager's
 # transform_chunks_to_string, so multi-turn conversations stay consistent.
@@ -145,7 +145,7 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     # ResponsesCompleteWithReferences handles:
     #   • Live token emission to the Unique platform (users see text stream in)
     #   • Citation normalisation ("source0" → "[0]") across chunk boundaries
-    #   • Reference resolution at flush time (ReferenceResolutionReplacer)
+    #   • Citation normalisation during streaming (StreamingPatternReplacer)
     #
     # The `instructions` parameter maps to the Responses API's top-level system
     # prompt field, keeping it separate from the conversation input.
