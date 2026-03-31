@@ -1,5 +1,10 @@
+from typing import Annotated
+
 from pydantic import Field
+from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
+
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 DEFAULT_TOOL_DESCRIPTION = (
     "Retrieves the list of all file names that are currently searchable "
@@ -36,17 +41,47 @@ DEFAULT_TOOL_SYSTEM_PROMPT = (
 
 
 class RetrieveSearchScopeConfig(BaseToolConfig):
-    tool_description: str = Field(
-        default=DEFAULT_TOOL_DESCRIPTION,
-        description="Tool description shown to the language model.",
+    """Configuration for the RetrieveSearchScope tool."""
+
+    enabled: Annotated[
+        bool,
+        RJSFMetaTag.BooleanWidget.checkbox(
+            help=(
+                "Enable the RetrieveSearchScope tool. When enabled, the agent "
+                "can list all files available in the knowledge base before searching."
+            ),
+        ),
+    ] = Field(
+        default=False,
+        description="Enable the RetrieveSearchScope tool.",
     )
-    tool_description_for_system_prompt: str = Field(
+
+    tool_description: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=3),
+    ] = Field(
+        default=DEFAULT_TOOL_DESCRIPTION,
+        description="The tool description shown to the language model.",
+    )
+
+    tool_description_for_system_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=len(DEFAULT_TOOL_SYSTEM_PROMPT.split("\n"))
+        ),
+    ] = Field(
         default=DEFAULT_TOOL_SYSTEM_PROMPT,
         description="Instructions injected into the system prompt to guide when the agent should call this tool.",
     )
+
     context_window_fraction_for_file_list: float = Field(
         default=0.05,
         ge=0.0,
         le=1.0,
         description="Fraction of the context window reserved for the file list (default 5%).",
+    )
+
+    language_model_max_input_tokens: SkipJsonSchema[int | None] = Field(
+        default=None,
+        description="Language model maximum input tokens. Injected by the orchestrator at validation time.",
     )

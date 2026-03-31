@@ -1,7 +1,5 @@
 from logging import getLogger
-from typing import Any
 
-from pydantic import Field, create_model
 from typing_extensions import override
 from unique_toolkit._common.token import count_tokens
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -10,7 +8,6 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.chat.service import LanguageModelToolDescription
-from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 from unique_toolkit.services.factory import UniqueServiceFactory
 
@@ -29,20 +26,10 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
-        parameters = create_model(
-            "RetrieveSearchScopeInput",
-            metadata_filter=(
-                dict[str, Any] | None,
-                Field(
-                    default=None,
-                    description="Optional metadata filter to narrow the search scope.",
-                ),
-            ),
-        )
         return LanguageModelToolDescription(
             name=self.name,
             description=self.config.tool_description,
-            parameters=parameters,
+            parameters={"type": "object", "properties": {}},
         )
 
     def tool_description_for_system_prompt(self) -> str:
@@ -71,6 +58,8 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
+        # TODO: Replace with tool_manager.exclude_tool() once available to
+        # prevent the LLM from seeing the tool after the first call entirely.
         if await self._has_prior_response_in_history():
             return ToolCallResponse(
                 id=tool_call.id or "unknown_id",
@@ -79,24 +68,14 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
                 "Refer to the earlier result.",
             )
 
-        metadata_filter: dict[str, Any] | None = None
-        if isinstance(tool_call.arguments, dict):
-            metadata_filter = tool_call.arguments.get("metadata_filter")
-
         try:
             settings = UniqueSettings.from_chat_event(self._event)
             kb_service = UniqueServiceFactory(
                 settings=settings
             ).knowledge_base_service()
 
-            space_filter = kb_service._metadata_filter
-            if space_filter and metadata_filter:
-                metadata_filter = {"and": [space_filter, metadata_filter]}
-            elif space_filter:
-                metadata_filter = space_filter
-
             content_infos = await kb_service.get_content_infos_async(
-                metadata_filter=metadata_filter,
+                metadata_filter=kb_service._metadata_filter,
             )
         except Exception:
             _LOGGER.exception("Failed to retrieve content infos from knowledge base")
@@ -115,50 +94,53 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
             "application/vnd.openxmlformats-officedocument.presentationml",
         )
 
-        display_entries: list[str] = []
-        for ci in content_infos:
-            if ci.mime_type.startswith(openable_mime_prefixes) and ci.id:
-                display_entries.append(f"{ci.key} ({ci.id})")
-            else:
-                display_entries.append(ci.key)
-        total_files = len(display_entries)
+        total_files = len(content_infos)
 
-        model_name = self._event.payload.configuration.get("space", {}).get(
-            "languageModel"
-        )
-        try:
-            model_info = LanguageModelInfo.from_name(model_name)
-        except Exception:
-            _LOGGER.warning("Could not resolve model name '%s', skipping token budget", model_name)
+        max_input_tokens = self.config.language_model_max_input_tokens
+
+
+        if max_input_tokens is None:
+            _LOGGER.warning("language_model_max_input_tokens not set, returning full file list")
             return ToolCallResponse(
                 id=tool_call.id or "unknown_id",
                 name=self.name,
-                error_message=f"Could not resolve model '{model_name}' — token budget calculation failed.",
+                error_message="Max_input_tokens not set.",
             )
 
         token_budget = int(
-            model_info.token_limits.token_limit_input
-            * self.config.context_window_fraction_for_file_list
+            max_input_tokens * self.config.context_window_fraction_for_file_list
         )
         token_count = 0
-        file_names: list[str] = []
-        for entry in display_entries:
-            entry_tokens = count_tokens(entry)
+        seen: set[str] = set()
+        display_entries: list[str] = []
+        for ci in content_infos:
+            if ci.mime_type.startswith(openable_mime_prefixes) and ci.id:
+                display_entry = f"{ci.key} ({ci.id})"
+            else:
+                display_entry = ci.key
+
+            if display_entry in seen:
+                continue
+            seen.add(display_entry)
+
+            # Uses default cl100k_base tokenizer (not model-specific). Acceptable
+            # for short file names where the difference is negligible.
+            entry_tokens = count_tokens(display_entry)
             if token_count + entry_tokens > token_budget:
                 break
-            file_names.append(entry)
+            display_entries.append(display_entry)
             token_count += entry_tokens
 
-        if not file_names:
+        if not display_entries:
             content = "No files found in the search scope."
         else:
-            omitted = total_files - len(file_names)
-            file_list = "\n".join(file_names)
+            omitted = total_files - len(display_entries)
+            file_list = "\n".join(display_entries)
             content = (
-                f"Listing {len(file_names)} of {total_files} files in search scope"
+                f"Listing {len(display_entries)} of {total_files} files in search scope"
             )
             if omitted > 0:
-                content += f" ({omitted} omitted due to token budget)"
+                content += f" ({omitted} omitted due to token budget or deduplication)"
             content += f":\n\n{file_list}"
 
         return ToolCallResponse(
