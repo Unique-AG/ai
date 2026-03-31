@@ -337,9 +337,6 @@ class LanguageModelInfo(BaseModel):
 
         Scenarios handled in order:
 
-        0. Caller temperature is always clamped to the global [0, 1] range first.
-           Model-declared bounds can only tighten this range, never widen it.
-
         1. Unknown model (not a LanguageModelName):
            - Active reasoning (effort not None / not "none") → temperature = 1.0.
            - No reasoning → temperature passed through, clamped to [0, 1].
@@ -350,88 +347,80 @@ class LanguageModelInfo(BaseModel):
            - Temperature is clamped to declared bounds.
 
         3. Effort not in the model's supported_reasoning_efforts list:
-           - Warn, but pass the effort through (the downstream API will surface the
-             error and the caller may have a deliberate reason for the override).
+           - Warn and fall back to the first (lightest) supported effort.
+           - Temperature is forced to 1.0 via scenario 4.
 
-        4. Temperature / reasoning_effort mismatch:
-           - Active reasoning → temperature must be 1.0 (API requirement).
-           - Thinking-only model (min_temperature == 1.0) with reasoning_effort
-             explicitly set to "none" → warn and replace with the model's declared
-             default effort. (effort=None means "not provided" and is left alone.)
+        4. Active reasoning forces temperature to 1.0 (API requirement).
+
+        After scenarios 1–4, temperature is clamped to the model's declared bounds.
+        Invalid bounds (e.g. max > 1.0) are intentionally NOT corrected here —
+        a misconfigured model definition should surface as a visible bug.
 
         Returns (resolved_temperature, resolved_reasoning_effort).
         """
-        active_reasoning = reasoning_effort is not None and reasoning_effort != "none"
+
+        is_model_unknown: bool = not isinstance(model_name, LanguageModelName)
+        is_reasoning_effort_set = reasoning_effort is not None
+        wants_active_reasoning = (
+            reasoning_effort is not None and reasoning_effort != "none"
+        )
 
         # --- Scenario 1: unknown / custom model ---
-        # No bounds metadata available; apply the universal [0, 1] range.
-        if not isinstance(model_name, LanguageModelName):
-            if active_reasoning:
+        # No bounds metadata available; apply the universal [0, 1] range unless reasoning.
+        if is_model_unknown:
+            if wants_active_reasoning:
                 return 1.0, reasoning_effort
-            return round(max(0.0, min(1.0, temperature)), 2), reasoning_effort
+            clamped_temperature = round(max(0.0, min(1.0, temperature)), 2)
+            return clamped_temperature, reasoning_effort
 
         model_info = cls.from_name(model_name)
+        model_supports_reasoning = model_info.supported_reasoning_efforts is not None
+        model_provides_temperature_bounds = model_info.temperature_bounds is not None
+
+        valid_reasoning_effort_set = True
+        if is_reasoning_effort_set and model_supports_reasoning:
+            valid_reasoning_effort_set = (
+                reasoning_effort in model_info.supported_reasoning_efforts
+            )
 
         # --- Scenario 2: model has no reasoning_effort concept ---
         # supported_reasoning_efforts=None means reasoning is not applicable for this
         # model; drop any caller-provided effort so the API doesn't reject the call.
-        if model_info.supported_reasoning_efforts is None:
-            if reasoning_effort is not None:
+        if not model_supports_reasoning:
+            if is_reasoning_effort_set:
                 _LOGGER.warning(
                     "reasoning_effort '%s' was provided but model %s does not "
-                    "support reasoning_effort; it will be ignored.",
+                    "support reasoning_effort; reasoning_effort will be ignored.",
                     reasoning_effort,
                     model_name,
                 )
                 reasoning_effort = None
-                active_reasoning = False
+                wants_active_reasoning = False
         else:
             # --- Scenario 3: effort not in the model's declared list ---
-            # Warn but continue — the caller may have a deliberate reason for the
-            # override, and the API will surface a proper error if it truly rejects it.
-            if (
-                reasoning_effort is not None
-                and reasoning_effort not in model_info.supported_reasoning_efforts
-            ):
+            # Warn and fallback to first (i.e. lightest) supported effort level.
+            if not valid_reasoning_effort_set:
+                fallback_effort = model_info.supported_reasoning_efforts[0]
                 _LOGGER.warning(
                     "reasoning_effort '%s' is not supported by %s "
-                    "(supported: %s). Proceeding anyway.",
+                    "(supported: %s). falling back to '%s'.",
                     reasoning_effort,
                     model_name,
                     model_info.supported_reasoning_efforts,
+                    fallback_effort,
                 )
+                reasoning_effort = fallback_effort
+                wants_active_reasoning = True
 
-        # --- Scenario 4a: thinking-only model with reasoning explicitly disabled ---
-        # Only fires when the caller passes "none"; effort=None means "not provided"
-        # (e.g. Chat Completions path) and is intentionally left alone.
-        if (
-            model_info.temperature_bounds is not None
-            and model_info.temperature_bounds.min_temperature == 1.0
-            and reasoning_effort == "none"
-        ):
-            fallback_effort = model_info.default_options.get(
-                "reasoning_effort", "medium"
-            )
-            _LOGGER.warning(
-                "reasoning_effort 'none' is invalid for thinking-only model %s; "
-                "falling back to '%s'.",
-                model_name,
-                fallback_effort,
-            )
-            return 1.0, fallback_effort
-
-        # --- Scenario 4b: active reasoning forces temperature to 1.0 ---
-        if active_reasoning:
+        # --- Scenario 4: active reasoning forces temperature to 1.0 ---
+        if wants_active_reasoning:
             return 1.0, reasoning_effort
 
-        # --- No reasoning: clamp temperature to [0, 1], then tighten to model bounds ---
-        # Scenario 0: model-declared bounds can only tighten [0, 1], never exceed it,
-        # so cap lo/hi before applying them.
-        if model_info.temperature_bounds is not None:
-            lo = max(0.0, model_info.temperature_bounds.min_temperature)
-            hi = min(1.0, model_info.temperature_bounds.max_temperature)
-        else:
-            lo, hi = 0.0, 1.0
+        # --- No reasoning: clamp temperature to model bounds ---
+        lo, hi = 0.0, 1.0
+        if model_provides_temperature_bounds:
+            lo = model_info.temperature_bounds.min_temperature
+            hi = model_info.temperature_bounds.max_temperature
 
         if temperature < lo or temperature > hi:
             _LOGGER.warning(

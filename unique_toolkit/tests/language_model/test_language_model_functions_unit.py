@@ -244,23 +244,22 @@ def test_resolve_temp_and_reasoning_forces_1_when_reasoning_active():
 
 
 def test_resolve_temp_and_reasoning_fixes_thinking_only_model_with_none_effort():
-    """Test that thinking-only models have reasoning_effort='none' corrected to their default.
+    """Scenario 3 catches 'none' for thinking-only models and falls back to first supported effort.
 
     reasoning_effort=None means "not provided" (e.g. Chat Completions path) and must
-    NOT trigger the fallback. Only the explicit string "none" (caller actively disabled
-    reasoning) should be corrected.
+    NOT trigger the fallback.
     """
-    # AZURE_GPT_54_PRO has temperature_bounds=(1.0, 1.0) and default reasoning_effort="medium"
+    # AZURE_GPT_54_PRO supports ["low", "medium", "high"] — "none" is not in the list
     thinking_model = LanguageModelName.AZURE_GPT_54_PRO_2026_0305
 
-    # Passing "none" → should be corrected to the model's default ("medium")
+    # Passing "none" → not in supported list, falls back to first supported effort ("low")
     temp, effort = LanguageModelInfo.resolve_temp_and_reasoning(
         thinking_model, 0.0, "none"
     )
     assert temp == 1.0
-    assert effort == "medium"
+    assert effort == "low"
 
-    # Passing None → not provided; temperature is clamped to 1.0 but effort stays None
+    # Passing None → not provided; temperature is clamped to 1.0 by bounds but effort stays None
     temp, effort = LanguageModelInfo.resolve_temp_and_reasoning(
         thinking_model, 0.5, None
     )
@@ -284,19 +283,19 @@ def test_resolve_temp_and_reasoning_drops_effort_for_non_reasoning_model(caplog)
 
 
 def test_resolve_temp_and_reasoning_warns_on_unsupported_effort(caplog):
-    """Warning is logged when reasoning_effort is not in supported_reasoning_efforts."""
+    """Scenario 3: unsupported effort is warned about and corrected to first supported effort."""
     # gpt-5.4-pro supports ["low", "medium", "high"] — "minimal" is not in the list
     thinking_model = LanguageModelName.AZURE_GPT_54_PRO_2026_0305
 
     with caplog.at_level(logging.WARNING, logger="unique_toolkit.language_model.infos"):
         temp, effort = LanguageModelInfo.resolve_temp_and_reasoning(
-            thinking_model, 1.0, "minimal"
+            thinking_model, 0.5, "minimal"
         )
 
     assert "not supported" in caplog.text
-    # The effort is still passed through (not corrected) since it is active reasoning
+    # Falls back to the first (lightest) supported effort; active reasoning forces temp to 1.0
     assert temp == 1.0
-    assert effort == "minimal"
+    assert effort == "low"
 
 
 def test_resolve_temp_and_reasoning_warns_on_out_of_bounds_temperature(caplog):
