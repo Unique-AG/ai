@@ -353,7 +353,8 @@ class LanguageModelInfo(BaseModel):
         4. Active reasoning forces temperature to 1.0 (API requirement).
 
         After scenarios 1–4, temperature is clamped to the model's declared bounds.
-        Invalid bounds (e.g. max > 1.0) are intentionally NOT corrected here —
+        Models without declared bounds fall back to the OpenAI-documented global range
+        [0, 2]. Invalid declared bounds are intentionally NOT corrected here —
         a misconfigured model definition should surface as a visible bug.
 
         Returns (resolved_temperature, resolved_reasoning_effort).
@@ -366,11 +367,11 @@ class LanguageModelInfo(BaseModel):
         )
 
         # --- Scenario 1: unknown / custom model ---
-        # No bounds metadata available; apply the universal [0, 1] range unless reasoning.
+        # No bounds metadata available; use the OpenAI global range [0, 2].
         if is_model_unknown:
             if wants_active_reasoning:
                 return 1.0, reasoning_effort
-            clamped_temperature = round(max(0.0, min(1.0, temperature)), 2)
+            clamped_temperature = round(max(0.0, min(2.0, temperature)), 2)
             return clamped_temperature, reasoning_effort
 
         model_info = cls.from_name(model_name)
@@ -411,7 +412,10 @@ class LanguageModelInfo(BaseModel):
             return 1.0, reasoning_effort
 
         # --- No reasoning: clamp temperature to model bounds ---
-        lo, hi = 0.0, 1.0
+        # Fall back to the OpenAI-documented global range [0, 2] for models without
+        # declared bounds (e.g. GPT-4o, GPT-4 Turbo). This catches clearly invalid
+        # values while still allowing temperature > 1.0 where the API accepts it.
+        lo, hi = 0.0, 2.0
         if temperature_bounds is not None:
             lo = temperature_bounds.min_temperature
             hi = temperature_bounds.max_temperature

@@ -188,18 +188,22 @@ def test_resolve_temp_and_reasoning_clamps_temperature():
 
 
 def test_resolve_temp_and_reasoning_unknown_model_fallback():
-    """Unknown model names: pass temperature through (clamped to [0,1]); active reasoning → 1.0."""
-    # No reasoning → caller temperature is respected, clamped to [0, 1]
+    """Unknown model names: pass temperature through (clamped to [0,2]); active reasoning → 1.0."""
+    # No reasoning → caller temperature is respected, clamped to [0, 2]
     assert LanguageModelInfo.resolve_temp_and_reasoning(
         "some-custom-model", 0.7, None
     ) == (0.7, None)
     assert LanguageModelInfo.resolve_temp_and_reasoning(
         "some-custom-model", 0.7, "none"
     ) == (0.7, "none")
-    # Out-of-range is clamped to the global boundary
+    # temperature in (1, 2] is now valid (OpenAI allows up to 2.0)
     assert LanguageModelInfo.resolve_temp_and_reasoning(
         "some-custom-model", 1.5, None
-    ) == (1.0, None)
+    ) == (1.5, None)
+    # Out-of-range (> 2) is clamped to 2.0
+    assert LanguageModelInfo.resolve_temp_and_reasoning(
+        "some-custom-model", 2.5, None
+    ) == (2.0, None)
     assert LanguageModelInfo.resolve_temp_and_reasoning(
         "some-custom-model", -0.1, None
     ) == (0.0, None)
@@ -207,6 +211,25 @@ def test_resolve_temp_and_reasoning_unknown_model_fallback():
     assert LanguageModelInfo.resolve_temp_and_reasoning(
         "some-custom-model", 0.0, "medium"
     ) == (1.0, "medium")
+
+
+def test_resolve_temp_and_reasoning_boundless_known_model_allows_up_to_2():
+    """Models without declared temperature_bounds fall back to [0, 2], not [0, 1]."""
+    boundless_model = LanguageModelName.AZURE_GPT_4o_2024_1120
+    # temperature in (1, 2] should pass through unchanged
+    assert LanguageModelInfo.resolve_temp_and_reasoning(boundless_model, 1.5, None) == (
+        1.5,
+        None,
+    )
+    # temperature > 2 is clamped to 2.0 with a warning
+    assert LanguageModelInfo.resolve_temp_and_reasoning(boundless_model, 2.5, None) == (
+        2.0,
+        None,
+    )
+    # temperature < 0 is clamped to 0.0
+    assert LanguageModelInfo.resolve_temp_and_reasoning(
+        boundless_model, -0.1, None
+    ) == (0.0, None)
 
 
 def test_resolve_temp_and_reasoning_forces_1_when_reasoning_active():

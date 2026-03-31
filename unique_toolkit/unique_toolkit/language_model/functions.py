@@ -410,11 +410,20 @@ def _prepare_all_completions_params_util(
         messages_dict = __camelize_keys(messages.copy())
 
     if model_info is not None and "temperature" in options:
-        # Chat Completions API does not accept reasoning_effort; pass None intentionally
-        # so only temperature bounds are enforced here.
-        options["temperature"], _ = LanguageModelInfo.resolve_temp_and_reasoning(
-            model_info.name, temperature, reasoning_effort=None
+        reasoning_effort = options.get("reasoning_effort")
+        options["temperature"], resolved_effort = (
+            LanguageModelInfo.resolve_temp_and_reasoning(
+                model_info.name, temperature, reasoning_effort=reasoning_effort
+            )
         )
+        if resolved_effort is not None:
+            options["reasoning_effort"] = resolved_effort
+        elif (
+            "reasoning_effort" not in options
+            and resolved_effort is None
+            and reasoning_effort is not None
+        ):
+            options.pop("reasoning_effort", None)
 
     integrated_messages = cast(
         "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
