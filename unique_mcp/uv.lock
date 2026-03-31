@@ -2612,7 +2612,7 @@ wheels = [
 
 [[package]]
 name = "unique-mcp"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },
@@ -2643,7 +2643,7 @@ requires-dist = [
     { name = "platformdirs", specifier = ">=4.0.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
-    { name = "unique-toolkit", specifier = ">=1.61.0" },
+    { name = "unique-toolkit", editable = "../unique_toolkit" },
 ]
 
 [package.metadata.requires-dev]
@@ -2680,8 +2680,8 @@ wheels = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.61.0"
-source = { registry = "https://pypi.org/simple" }
+version = "1.67.2"
+source = { editable = "../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
     { name = "click" },
@@ -2710,9 +2710,61 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "unique-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0d/1f/be37acc4d8545339ccc9ece478f6c96142f0ade6d40f80d2464f0fb1296c/unique_toolkit-1.61.0.tar.gz", hash = "sha256:97087e28a0b994109aac4e13f56acf8b12917153201b604ee2b69ff4dcf087d3", size = 4349548, upload-time = "2026-03-23T09:32:36.46Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/31/83f2f348ce20c6df3c5da2decad73a1d1634a3a4ccfdf9960fc7db7ebfed/unique_toolkit-1.61.0-py3-none-any.whl", hash = "sha256:db9054a059bd6b2cd69b38496f5972193b48cc79fb9f7dac59df0ad41330097a", size = 4473660, upload-time = "2026-03-23T09:32:38.143Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "aiohttp", specifier = ">=3.12.0,<4" },
+    { name = "click", specifier = ">=8.1.0,<9" },
+    { name = "deepdiff", specifier = ">=8.6.1,<9" },
+    { name = "docxtpl", specifier = ">=0.20.1,<0.21" },
+    { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.121.0,<0.122" },
+    { name = "httpx", specifier = ">=0.28.0,<0.29" },
+    { name = "jambo", specifier = ">=0.1.2,<0.2" },
+    { name = "jinja2", specifier = ">=3.1.6,<4" },
+    { name = "langchain", marker = "extra == 'langchain'", specifier = ">=0.3.27,<0.4" },
+    { name = "langchain-core", marker = "extra == 'langchain'", specifier = ">=0.3.0,<0.4" },
+    { name = "langchain-openai", marker = "extra == 'langchain'", specifier = ">=0.3.28,<0.4" },
+    { name = "markdown-it-py", specifier = ">=4.0.0,<5" },
+    { name = "numpy", specifier = ">=2.4.2,<3" },
+    { name = "openai", specifier = ">=1.105.0,<2" },
+    { name = "openai", marker = "extra == 'langchain'", specifier = ">=1.105.0,<2" },
+    { name = "pandas", specifier = ">=2.3.0,<3" },
+    { name = "pillow", specifier = ">=12.1.1" },
+    { name = "platformdirs", specifier = ">=4.0.0,<5" },
+    { name = "pydantic", specifier = ">=2.11.0,<3" },
+    { name = "pydantic-core", specifier = ">=2.41.5" },
+    { name = "pydantic-settings", specifier = ">=2.10.1,<3" },
+    { name = "pyhumps", specifier = ">=3.8.0,<4" },
+    { name = "pypandoc", specifier = ">=1.16.2,<2" },
+    { name = "python-docx", specifier = ">=1.1.0,<2" },
+    { name = "requests", specifier = ">=2.32.0,<3" },
+    { name = "sseclient", specifier = ">=0.0.27,<0.0.28" },
+    { name = "starlette", marker = "extra == 'fastapi'", specifier = ">=0.49.1" },
+    { name = "tenacity", specifier = ">=9.1.4" },
+    { name = "tiktoken", specifier = ">=0.12.0,<0.13" },
+    { name = "tokenizers", specifier = ">=0.21.0,<0.22" },
+    { name = "typing-extensions", specifier = ">=4.9.0,<5" },
+    { name = "unique-sdk", specifier = ">=0.10.85,<0.11" },
+    { name = "uvicorn", marker = "extra == 'fastapi'", specifier = ">=0.37.0,<0.38" },
+]
+provides-extras = ["langchain", "fastapi"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "basedpyright", specifier = ">=1.33.0,<2" },
+    { name = "deptry", specifier = ">=0.24.0,<0.25" },
+    { name = "entangled-cli", specifier = ">=2.4.0,<3" },
+    { name = "ipykernel", specifier = ">=6.29.5,<7" },
+    { name = "isort", specifier = ">=6.0.1,<7" },
+    { name = "poethepoet", specifier = ">=0.32.0,<0.33" },
+    { name = "pre-commit", specifier = ">=3.7.1,<4" },
+    { name = "pyright", specifier = ">=1.1.341,<2" },
+    { name = "pytest", specifier = ">=7.4.3,<8" },
+    { name = "pytest-asyncio", specifier = ">=0.23.8,<0.24" },
+    { name = "pytest-cov", specifier = ">=4.1.0,<5" },
+    { name = "pytest-mock", specifier = ">=3.14.0,<4" },
+    { name = "ruff", specifier = "==0.12.10" },
+    { name = "tox", specifier = ">=4.11.4,<5" },
 ]
 
 [[package]]

@@ -2376,7 +2376,7 @@ wheels = [
 
 [[package]]
 name = "unique-mcp"
-version = "0.1.4"
+version = "0.2.1"
 source = { editable = "../../../unique_mcp" }
 dependencies = [
     { name = "fastmcp" },
@@ -2394,7 +2394,7 @@ requires-dist = [
     { name = "platformdirs", specifier = ">=4.0.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
-    { name = "unique-toolkit", specifier = ">=1.61.0" },
+    { name = "unique-toolkit", editable = "../../../unique_toolkit" },
 ]
 
 [package.metadata.requires-dev]
@@ -2431,7 +2431,7 @@ wheels = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.61.0"
+version = "1.65.2"
 source = { editable = "../../../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
