@@ -23,21 +23,6 @@ from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 logger = getLogger(__name__)
 
 
-def _chat_scoped_stm_service(event: ChatEvent) -> ShortTermMemoryService:
-    """Build an STM service scoped to chat only (no messageId).
-
-    The backend rejects create requests when all three of chatId, messageId,
-    and companyId are present (companyId is always injected from auth).
-    Todo state is chat-scoped anyway, so omitting messageId is correct.
-    """
-    return ShortTermMemoryService(
-        company_id=event.company_id,
-        user_id=event.user_id,
-        chat_id=event.payload.chat_id,
-        message_id=None,
-    )
-
-
 class TodoWriteTool(Tool[TodoConfig]):
     name: str = "todo_write"
 
@@ -48,9 +33,15 @@ class TodoWriteTool(Tool[TodoConfig]):
         tool_progress_reporter: ToolProgressReporter | None = None,
     ) -> None:
         super().__init__(config, event, tool_progress_reporter)
+        stm_service = ShortTermMemoryService(
+            company_id=event.company_id,
+            user_id=event.user_id,
+            chat_id=event.payload.chat_id,
+            message_id=None,
+        )
         self._memory_manager: PersistentShortMemoryManager[TodoList] = (
             PersistentShortMemoryManager(
-                short_term_memory_service=_chat_scoped_stm_service(event),
+                short_term_memory_service=stm_service,
                 short_term_memory_schema=TodoList,
                 short_term_memory_name=config.memory_key,
             )
