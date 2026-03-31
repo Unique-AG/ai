@@ -158,6 +158,7 @@ class ChatMessage(BaseModel):
     previous_message_id: str | None = None
     gpt_request: list[dict] | dict | None = None
     tool_calls: list[ToolCall] | None = None
+    tool_call_id: str | None = None
     debug_info: dict | None = {}
     created_at: datetime | None = None
     completed_at: datetime | None = None
@@ -185,7 +186,7 @@ class ChatMessage(BaseModel):
     # Ensure tool_call_id is required if role is 'tool'
     @model_validator(mode="after")
     def check_tool_call_ids_for_tool_role(self):
-        if self.role == ChatMessageRole.TOOL and not self.tool_calls:
+        if self.role == ChatMessageRole.TOOL and not self.tool_call_id:
             raise ValueError("tool_call_id is required when role is 'tool'")
         return self
 
