@@ -5,9 +5,8 @@ by upstream ``StreamingPatternReplacer`` instances and converts it to ``<sup>N</
 footnotes at flush time, so reference resolution is part of the replacer pipeline
 rather than a separate post-stream step in the handler.
 
-The persistence layer's ``on_stream_end`` must use a *cascade flush* (see
-``responses_sdk_persistence`` / ``chat_completion_sdk_persistence``) so that the
-pattern replacer's buffered tail is fed into this replacer's ``process()`` before
+Text handlers cascade-flush replacers in ``on_stream_end`` so the pattern
+replacer's buffered tail is fed into this replacer's ``process()`` before
 ``flush()`` is called.
 """
 

@@ -9,14 +9,12 @@ import unique_sdk
 
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
     StreamingReplacerProtocol,
-    chunks_to_sdk_references,
 )
 
 if TYPE_CHECKING:
     from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
     from unique_toolkit.app.unique_settings import UniqueSettings
-    from unique_toolkit.content.schemas import ContentChunk
 
 
 class ChatCompletionTextHandler:
@@ -31,14 +29,10 @@ class ChatCompletionTextHandler:
         settings: UniqueSettings,
         *,
         replacers: list[StreamingReplacerProtocol],
-        content_chunks: list[ContentChunk] | None = None,
-        resolve_references: bool = False,
         send_every_n_events: int = 1,
     ) -> None:
         self._settings = settings
         self._replacers = replacers
-        self._content_chunks = content_chunks
-        self._resolve_references = resolve_references
         self._send_every_n_events = max(1, send_every_n_events)
         self._full_text = ""
         self._original_text = ""
@@ -68,7 +62,7 @@ class ChatCompletionTextHandler:
             self._full_text += remaining
             await self._emit_message_event()
 
-        if self._resolve_references and self._settings.context.chat is not None:
+        if self._settings.context.chat is not None:
             await self._persist_final_message()
 
     def get_text(self) -> tuple[str, str]:
@@ -84,15 +78,26 @@ class ChatCompletionTextHandler:
     async def _emit_message_event(self) -> None:
         chat = self._settings.context.chat
         assert chat is not None
-        await unique_sdk.Message.create_event_async(
+
+        # await unique_sdk.Message.create_event_async(
+        #    user_id=self._settings.context.auth.user_id.get_secret_value(),
+        #    company_id=self._settings.context.auth.company_id.get_secret_value(),
+        #    **unique_sdk.Message.CreateEventParams(
+        #        chatId=chat.chat_id,
+        #        messageId=chat.last_assistant_message_id,
+        #        text=self._full_text,
+        #        originalText=self._original_text,
+        #    ),
+        # )
+
+        # Using modify as it renders the references correctly while create event does not
+        await unique_sdk.Message.modify_async(
             user_id=self._settings.context.auth.user_id.get_secret_value(),
             company_id=self._settings.context.auth.company_id.get_secret_value(),
-            **unique_sdk.Message.CreateEventParams(
-                chatId=chat.chat_id,
-                messageId=chat.last_assistant_message_id,
-                text=self._full_text,
-                originalText=self._original_text,
-            ),
+            id=chat.last_assistant_message_id,
+            chatId=chat.chat_id,
+            text=self._full_text or None,
+            originalText=self._original_text or None,
         )
 
     async def _persist_final_message(self) -> None:
@@ -104,7 +109,7 @@ class ChatCompletionTextHandler:
             id=chat.last_assistant_message_id,
             chatId=chat.chat_id,
             text=self._full_text or None,
-            references=chunks_to_sdk_references(self._content_chunks or []),
+            originalText=self._original_text or None,
             stoppedStreamingAt=datetime.now(timezone.utc).strftime(
                 "%Y-%m-%dT%H:%M:%S.%fZ"
             ),  # type: ignore

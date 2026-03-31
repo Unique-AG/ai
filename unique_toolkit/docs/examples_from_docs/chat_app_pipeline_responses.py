@@ -1,5 +1,5 @@
 # %%
-# Example: Streaming chat with references via PipelineResponsesStreamingHandler
+# Example: Streaming chat with references via ResponsesCompleteWithReferences
 #
 # This demonstrates the Python-side streaming pipeline for the OpenAI Responses API.
 # Compared to the Chat Completions variant, the Responses API supports:
@@ -15,15 +15,39 @@
 # transform_chunks_to_string, so multi-turn conversations stay consistent.
 import json
 
+from openai.types.responses.tool import CodeInterpreter
+
 from unique_toolkit import (
     LanguageModelName,
 )
+
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service import OpenAICodeInterpreterTool
+from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import OpenAICodeInterpreterConfig
 from unique_toolkit.app.dev_util import get_event_generator
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.framework_utilities.openai.streaming.pipeline import (
-    PipelineResponsesStreamingHandler,
+    ResponsesCompleteWithReferences,
+    ResponsesStreamPipeline,
+)
+from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
+    NORMALIZATION_MAX_MATCH_LENGTH,
+    NORMALIZATION_PATTERNS,
+    StreamingPatternReplacer,
+    StreamingReplacerProtocol,
+)
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_code_interpreter_handler import (
+    ResponsesCodeInterpreterHandler,
+)
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_completed_handler import (
+    ResponsesCompletedHandler,
+)
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_text_delta_handler import (
+    ResponsesTextDeltaHandler,
+)
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses_tool_call_handler import (
+    ResponsesToolCallHandler,
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
@@ -99,17 +123,49 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
         ]
     )
 
+    # --- Build handlers and pipeline ----------------------------------------
+    replacers: list[StreamingReplacerProtocol] = [
+        StreamingPatternReplacer(
+            replacements=NORMALIZATION_PATTERNS,
+            max_match_length=NORMALIZATION_MAX_MATCH_LENGTH,
+        )
+    ]
+
+    text_handler = ResponsesTextDeltaHandler(
+        settings=event_settings,
+        replacers=replacers,
+    )
+
+    tool_call_handler = ResponsesToolCallHandler()
+
+    completed_handler = ResponsesCompletedHandler()
+
+    pipeline = ResponsesStreamPipeline(
+        text_handler=text_handler,
+        tool_call_handler=tool_call_handler,
+        completed_handler=completed_handler,
+        code_interpreter_handler=ResponsesCodeInterpreterHandler(event_settings),
+    )
+
     # --- Stream via the Responses API pipeline ------------------------------
-    # PipelineResponsesStreamingHandler handles:
+    # ResponsesCompleteWithReferences handles:
     #   • Live token emission to the Unique platform (users see text stream in)
     #   • Citation normalisation ("source0" → "[0]") across chunk boundaries
     #   • Reference resolution at flush time (ReferenceResolutionReplacer)
     #
     # The `instructions` parameter maps to the Responses API's top-level system
     # prompt field, keeping it separate from the conversation input.
-    handler = PipelineResponsesStreamingHandler(
+    handler = ResponsesCompleteWithReferences(
         event_settings,
-        resolve_references=True,  # attach ContentReferences + render <sup> footnotes
+        pipeline=pipeline,
+    )
+
+    code_interpreter_tool = OpenAICodeInterpreterTool(
+        config=OpenAICodeInterpreterConfig(
+            use_auto_container=True,
+        ),
+        container_id=None,
+        company_id=event_settings.authcontext.get_confidential_company_id()
     )
 
     result = handler.complete_with_references(
@@ -118,6 +174,8 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
         content_chunks=chunks,
         temperature=0.0,
         instructions=f"You are a helpful assistant.\n{reference_guidelines}",
+        tools=[code_interpreter_tool.tool_description()]
+            
     )
 
     # result.message.content  → final text with <sup>N</sup> footnotes

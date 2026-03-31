@@ -55,6 +55,21 @@ from unique_toolkit.language_model.schemas import (
 logger = logging.getLogger(__name__)
 
 
+def _convert_language_model_message_to_openai_responses_api(
+    message: LanguageModelMessage,
+) -> ResponseInputItemParam:
+    if isinstance(message, LanguageModelAssistantMessage):
+        return message.to_openai(mode="responses")
+    elif isinstance(message, LanguageModelUserMessage):
+        return message.to_openai(mode="responses")
+    elif isinstance(message, LanguageModelSystemMessage):
+        return message.to_openai(mode="responses")
+    elif isinstance(message, LanguageModelToolMessage):
+        return message.to_openai(mode="responses")
+
+    raise ValueError(f"Unsupported message type: {type(message)}")
+
+
 def _convert_tools_to_openai(
     tools: Sequence[LanguageModelToolDescription | ToolParam],
 ) -> list[ToolParam]:

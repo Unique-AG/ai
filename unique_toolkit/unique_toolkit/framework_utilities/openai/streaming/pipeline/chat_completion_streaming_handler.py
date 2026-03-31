@@ -15,21 +15,17 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 import unique_sdk
+from openai import AsyncOpenAI
 
 from unique_toolkit.framework_utilities.openai.client import get_async_openai_client
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
-    NORMALIZATION_MAX_MATCH_LENGTH,
-    NORMALIZATION_PATTERNS,
-    StreamingPatternReplacer,
+    chunks_to_sdk_references,
 )
 from unique_toolkit.framework_utilities.openai.streaming.pipeline.chat_completion_pipeline import (
     ChatCompletionStreamPipeline,
 )
 from unique_toolkit.framework_utilities.openai.streaming.pipeline.chat_completion_text_handler import (
     ChatCompletionTextHandler,
-)
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.chat_completion_tool_call_handler import (
-    ChatCompletionToolCallHandler,
 )
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
@@ -46,10 +42,6 @@ if TYPE_CHECKING:
 
     from unique_toolkit.app.unique_settings import UniqueSettings
     from unique_toolkit.content.schemas import ContentChunk
-    from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
-        NormalizationPattern,
-        StreamingReplacerProtocol,
-    )
     from unique_toolkit.language_model.schemas import (
         LanguageModelStreamResponse,
         LanguageModelTool,
@@ -82,7 +74,7 @@ def _convert_tools(
     return result or None
 
 
-class PipelineChatCompletionsStreamingHandler(SupportCompleteWithReferences):
+class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
     """``SupportCompleteWithReferences`` backed by the Chat Completions handler pipeline.
 
     Creates a ``ChatCompletionStreamPipeline`` with typed handlers for text
@@ -93,20 +85,16 @@ class PipelineChatCompletionsStreamingHandler(SupportCompleteWithReferences):
         self,
         settings: UniqueSettings,
         *,
-        normalization_patterns: list[NormalizationPattern] = NORMALIZATION_PATTERNS,
-        max_match_length: int = NORMALIZATION_MAX_MATCH_LENGTH,
-        resolve_references: bool = True,
-        send_every_n_events: int = 1,
-        extra_replacers: Sequence[StreamingReplacerProtocol] | None = None,
+        pipeline: ChatCompletionStreamPipeline,
+        client: AsyncOpenAI | None = None,
         additional_headers: dict[str, str] | None = None,
     ) -> None:
         self._settings = settings
-        self._normalization_patterns = normalization_patterns
-        self._max_match_length = max_match_length
-        self._resolve_references = resolve_references
-        self._send_every_n_events = send_every_n_events
-        self._extra_replacers = extra_replacers
-        self._additional_headers = additional_headers
+        self._pipeline = pipeline
+        self._client = client or get_async_openai_client(
+            unique_settings=settings,
+            additional_headers=additional_headers,
+        )
 
     def complete_with_references(
         self,
@@ -120,6 +108,8 @@ class PipelineChatCompletionsStreamingHandler(SupportCompleteWithReferences):
         start_text: str | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         other_options: dict | None = None,
+        *,
+        text_handler: ChatCompletionTextHandler | None = None,
     ) -> LanguageModelStreamResponse:
         return asyncio.get_event_loop().run_until_complete(
             self.complete_with_references_async(
@@ -166,39 +156,11 @@ class PipelineChatCompletionsStreamingHandler(SupportCompleteWithReferences):
             chatId=chat.chat_id,
             user_id=settings.context.auth.user_id.get_secret_value(),
             company_id=settings.context.auth.company_id.get_secret_value(),
+            references=chunks_to_sdk_references(content_chunks or []),
             startedStreamingAt=datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),  # type: ignore
         )
 
-        # -- Build replacer chain --------------------------------------------
-        replacers: list[StreamingReplacerProtocol] = []
-        if self._normalization_patterns:
-            replacers.append(
-                StreamingPatternReplacer(
-                    self._normalization_patterns,
-                    max_match_length=self._max_match_length,
-                )
-            )
-        if self._extra_replacers:
-            replacers.extend(self._extra_replacers)
-
-        # -- Build pipeline --------------------------------------------------
-        pipeline = ChatCompletionStreamPipeline(
-            text_handler=ChatCompletionTextHandler(
-                settings,
-                replacers=replacers,
-                content_chunks=content_chunks,
-                resolve_references=self._resolve_references,
-                send_every_n_events=self._send_every_n_events,
-            ),
-            tool_call_handler=ChatCompletionToolCallHandler(),
-        )
-
-        client = get_async_openai_client(
-            unique_settings=settings,
-            additional_headers=self._additional_headers,
-        )
-
-        pipeline.reset()
+        self._pipeline.reset()
 
         try:
             # -- Convert messages and tools to OpenAI format ----------------------
@@ -215,7 +177,7 @@ class PipelineChatCompletionsStreamingHandler(SupportCompleteWithReferences):
                     optional_create_kwargs.setdefault(k, v)
 
             # -- Stream the completion --------------------------------------------
-            stream = await client.chat.completions.create(
+            stream = await self._client.chat.completions.create(
                 model=model,
                 messages=converted_messages,
                 stream=True,
@@ -225,7 +187,7 @@ class PipelineChatCompletionsStreamingHandler(SupportCompleteWithReferences):
 
             index = 0
             async for chunk in stream:
-                await pipeline.on_event(chunk, index=index)
+                await self._pipeline.on_event(chunk, index=index)
                 index += 1
         except httpx.RemoteProtocolError as exc:
             _LOGGER.warning(
@@ -234,9 +196,9 @@ class PipelineChatCompletionsStreamingHandler(SupportCompleteWithReferences):
                 exc,
             )
         finally:
-            await pipeline.on_stream_end()
+            await self._pipeline.on_stream_end()
 
-        return pipeline.build_result(
+        return self._pipeline.build_result(
             message_id=chat.last_assistant_message_id,
             chat_id=chat.chat_id,
             created_at=datetime.now(timezone.utc),
