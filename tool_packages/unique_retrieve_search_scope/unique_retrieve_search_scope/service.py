@@ -126,22 +126,28 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
         model_name = self._event.payload.configuration.get("space", {}).get(
             "languageModel"
         )
-        file_names: list[str] = []
-        if model_name is not None:
+        try:
             model_info = LanguageModelInfo.from_name(model_name)
-            token_budget = int(
-                model_info.token_limits.token_limit_input
-                * self.config.context_window_fraction_for_file_list
+        except Exception:
+            _LOGGER.warning("Could not resolve model name '%s', skipping token budget", model_name)
+            return ToolCallResponse(
+                id=tool_call.id or "unknown_id",
+                name=self.name,
+                error_message=f"Could not resolve model '{model_name}' — token budget calculation failed.",
             )
-            token_count = 0
-            for entry in display_entries:
-                entry_tokens = count_tokens(entry)
-                if token_count + entry_tokens > token_budget:
-                    break
-                file_names.append(entry)
-                token_count += entry_tokens
-        else:
-            file_names = display_entries
+
+        token_budget = int(
+            model_info.token_limits.token_limit_input
+            * self.config.context_window_fraction_for_file_list
+        )
+        token_count = 0
+        file_names: list[str] = []
+        for entry in display_entries:
+            entry_tokens = count_tokens(entry)
+            if token_count + entry_tokens > token_budget:
+                break
+            file_names.append(entry)
+            token_count += entry_tokens
 
         if not file_names:
             content = "No files found in the search scope."
