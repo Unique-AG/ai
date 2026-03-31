@@ -110,7 +110,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
-        if self.config.tool_input_json_schema is not None:
+        if self.config.tool_input_json_schema:
             return LanguageModelToolDescription(
                 name=self.name,
                 description=self.config.tool_description,
@@ -163,7 +163,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         active_message_log: MessageLog | None = None
 
         try:
-            if self.config.tool_input_json_schema is not None:
+            if self.config.tool_input_json_schema:
                 tool_input = json.dumps(tool_call.arguments)
             else:
                 tool_input = SubAgentToolInput.model_validate(
@@ -396,7 +396,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 text=tool_user_message,
                 chat_id=chat_id,
                 poll_interval=self.config.poll_interval,
-                tool_choices=self.config.forced_tools,
+                tool_choices=self.config.forced_tools or None,
                 max_wait=self.config.max_wait,
                 stop_condition=self.config.stop_condition,
                 correlation=Space.Correlation(
