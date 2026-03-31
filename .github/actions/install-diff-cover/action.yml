@@ -15,5 +15,5 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: |
         if ! uv run diff-cover --version >/dev/null 2>&1; then
-          uv run pip install diff-cover
+          uv pip install diff-cover
         fi
