@@ -174,7 +174,7 @@ class SubAgentToolConfig(BaseToolConfig):
 
     tool_input_json_schema: Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=5)] = Field(
         default="",
-        description="A custom JSON schema to send to the llm as the tool input schema.",
+        description="Optional: A custom JSON schema to send to the llm as the tool input schema.",
     )
 
     @field_validator("tool_input_json_schema", mode="before")
