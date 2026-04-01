@@ -1,5 +1,6 @@
 [
-  {"version": "1.65.2", "title": "1.65.2", "aliases": ["latest"]},
+  {"version": "1.68.1", "title": "1.68.1", "aliases": ["latest"]},
+  {"version": "1.65.2", "title": "1.65.2", "aliases": []},
   {"version": "1.63.0", "title": "1.63.0", "aliases": []},
   {"version": "1.62.1", "title": "1.62.1", "aliases": []},
   {"version": "1.61.0", "title": "1.61.0", "aliases": []},
