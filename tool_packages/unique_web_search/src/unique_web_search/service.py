@@ -23,14 +23,12 @@ from unique_toolkit.language_model.schemas import (
 
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.schema import (
-    StepDebugInfo,
     WebSearchDebugInfo,
     WebSearchPlan,
     WebSearchToolParameters,
 )
-from unique_web_search.services.argument_screening import ArgumentScreeningService
-from unique_web_search.services.argument_screening.exceptions import (
-    ArgumentScreeningException,
+from unique_web_search.services.argument_screening import (
+    ArgumentScreeningService,
 )
 from unique_web_search.services.content_processing import ContentProcessor
 from unique_web_search.services.crawlers import get_crawler_service
@@ -159,9 +157,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
             tool_call.arguments,
         )
 
-        debug_info = WebSearchDebugInfo(parameters=parameters.model_dump())
+        screening_service = await self._get_screen_arguments_service_if_ff_enabled()
 
-        await self._ff_screen_arguments(parameters.model_dump(), debug_info)
+        debug_info = WebSearchDebugInfo(parameters=parameters.model_dump())
 
         web_search_message_logger = WebSearchMessageLogger(
             message_step_logger=self._message_step_logger,
@@ -174,8 +172,28 @@ class WebSearchTool(Tool[WebSearchConfig]):
         notify_from_tool_call = self._ff_tool_progress_reporter_callback()
 
         try:
+            if screening_service is not None:
+                screening_result = await screening_service(parameters.model_dump())
+                debug_info.steps.append(
+                    screening_service.build_step_debug_info_from_result(
+                        screening_result
+                    )
+                )
+
+                if not screening_result.go:
+                    return ToolCallResponse(
+                        id=tool_call.id,  # type: ignore
+                        name=self.name,
+                        debug_info=debug_info.model_dump(with_debug_details=self.debug),
+                        content=screening_service.build_rejection_response(
+                            screening_result
+                        ),
+                    )
+
             content_chunks = await executor.run()
+
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
+
             debug_info.execution_time = time() - start_time
 
             await web_search_message_logger.finished()
@@ -301,33 +319,19 @@ class WebSearchTool(Tool[WebSearchConfig]):
             return []
         return evaluation_check_list
 
-    async def _ff_screen_arguments(
-        self, arguments: dict, debug_info: WebSearchDebugInfo
-    ) -> None:
+    async def _get_screen_arguments_service_if_ff_enabled(
+        self,
+    ) -> ArgumentScreeningService | None:
         if not feature_flags.enable_web_search_argument_screening_un_18741.is_enabled(
             self.company_id
         ):
-            return
+            return None
 
-        screening_service = ArgumentScreeningService(
+        return ArgumentScreeningService(
             language_model_service=self.language_model_service,
             language_model=self.config.language_model,
             config=self.config.experimental_features.argument_screening_config,
         )
-        start_time = time()
-
-        result = await screening_service(arguments)
-
-        debug_info.steps.append(
-            StepDebugInfo(
-                step_name="argument_screening",
-                execution_time=time() - start_time,
-                config=f"Enabled: {self.config.experimental_features.argument_screening_config.enabled}",
-                extra={"compliant": result.go, "reason": result.reason},
-            )
-        )
-        if not result.go:
-            raise ArgumentScreeningException(reason=result.reason)
 
     def _ff_tool_progress_reporter(self):
         if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):

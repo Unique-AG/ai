@@ -6,6 +6,7 @@ from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 
 from unique_web_search.services.argument_screening.prompts import (
     DEFAULT_GUIDELINES,
+    DEFAULT_REJECTION_RESPONSE_TEMPLATE,
     DEFAULT_SYSTEM_PROMPT,
     DEFAULT_USER_PROMPT_TEMPLATE,
 )
@@ -49,5 +50,16 @@ class ArgumentScreeningConfig(BaseModel):
             "Template for the user message sent to the screening agent. "
             "Use {{ arguments }} for the serialized tool call arguments "
             "and {{ guidelines }} for the guidelines text."
+        ),
+    )
+    rejection_response_template: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=4),
+    ] = Field(
+        default=DEFAULT_REJECTION_RESPONSE_TEMPLATE,
+        title="Rejection Response Template",
+        description=(
+            "Template for the tool response content when arguments are blocked. "
+            "Use {{ reason }} for the screening agent's verdict reason."
         ),
     )

@@ -4,10 +4,10 @@ import pytest
 
 from unique_web_search.services.argument_screening import (
     DEFAULT_GUIDELINES,
+    DEFAULT_REJECTION_RESPONSE_TEMPLATE,
     DEFAULT_SYSTEM_PROMPT,
     DEFAULT_USER_PROMPT_TEMPLATE,
     ArgumentScreeningConfig,
-    ArgumentScreeningException,
     ArgumentScreeningResult,
     ArgumentScreeningService,
 )
@@ -32,6 +32,10 @@ class TestArgumentScreeningConfig:
     def test_defaults_guidelines(self):
         config = ArgumentScreeningConfig()
         assert config.guidelines == DEFAULT_GUIDELINES
+
+    def test_defaults_rejection_response_template(self):
+        config = ArgumentScreeningConfig()
+        assert config.rejection_response_template == DEFAULT_REJECTION_RESPONSE_TEMPLATE
 
     def test_accepts_custom_values(self):
         config = ArgumentScreeningConfig(
@@ -66,25 +70,6 @@ class TestArgumentScreeningResult:
         )
         assert result.go is False
         assert result.reason == "Sensitive data detected"
-
-
-class TestArgumentScreeningException:
-    def test_default_instruction(self):
-        exc = ArgumentScreeningException(reason="Contains PII")
-        assert "Contains PII" in str(exc)
-        assert "Instruction:" in str(exc)
-        assert "argument screening agent" in str(exc)
-
-    def test_custom_instruction(self):
-        exc = ArgumentScreeningException(
-            reason="Bad input", instruction="Custom instruction text"
-        )
-        assert "Bad input" in str(exc)
-        assert "Custom instruction text" in str(exc)
-
-    def test_is_exception(self):
-        exc = ArgumentScreeningException(reason="test")
-        assert isinstance(exc, Exception)
 
 
 class TestArgumentScreeningService:
@@ -232,3 +217,33 @@ class TestArgumentScreeningService:
         assert call_kwargs["structured_output_model"] is ArgumentScreeningResult
         assert call_kwargs["structured_output_enforce_schema"] is True
         assert call_kwargs["model_name"] == "test-model"
+
+    def test_build_rejection_response_contains_reason(
+        self, enabled_config, mock_language_model_service, mock_language_model
+    ):
+        service = ArgumentScreeningService(
+            language_model_service=mock_language_model_service,
+            language_model=mock_language_model,
+            config=enabled_config,
+        )
+        result = ArgumentScreeningResult(go=False, reason="Contains credit card number")
+        response = service.build_rejection_response(result)
+
+        assert "Contains credit card number" in response
+
+    def test_build_rejection_response_uses_custom_template(
+        self, mock_language_model_service, mock_language_model
+    ):
+        config = ArgumentScreeningConfig(
+            enabled=True,
+            rejection_response_template="Blocked: {{ reason }}",
+        )
+        service = ArgumentScreeningService(
+            language_model_service=mock_language_model_service,
+            language_model=mock_language_model,
+            config=config,
+        )
+        result = ArgumentScreeningResult(go=False, reason="Sensitive data")
+        response = service.build_rejection_response(result)
+
+        assert response == "Blocked: Sensitive data"

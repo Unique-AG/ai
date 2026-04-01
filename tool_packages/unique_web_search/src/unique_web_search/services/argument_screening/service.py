@@ -7,14 +7,16 @@ arguments are unsafe, it raises an exception to block the tool call.
 
 import json
 import logging
+from time import time
 
 from jinja2 import Template
-from pydantic import Field
+from pydantic import Field, PrivateAttr
 from unique_toolkit._common.utils.structured_output.schema import StructuredOutputModel
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model import LanguageModelService
 from unique_toolkit.language_model.builder import MessagesBuilder
 
+from unique_web_search.schema import StepDebugInfo
 from unique_web_search.services.argument_screening.config import (
     ArgumentScreeningConfig,
 )
@@ -32,6 +34,12 @@ class ArgumentScreeningResult(StructuredOutputModel):
         description="True if the arguments are safe to proceed, False if they should be blocked."
     )
     reason: str = Field(description="A concise one-liner explaining the verdict.")
+
+    _execution_time: float = PrivateAttr(default=0)
+
+    @property
+    def execution_time(self) -> float:
+        return self._execution_time
 
 
 class ArgumentScreeningService:
@@ -61,8 +69,9 @@ class ArgumentScreeningService:
                 go=True, reason="Argument screening disabled"
             )
 
+        start_time = time()
         result = await self._screen_arguments(arguments)
-
+        result._execution_time = time() - start_time
         return result
 
     async def _screen_arguments(self, arguments: dict) -> ArgumentScreeningResult:
@@ -98,7 +107,20 @@ class ArgumentScreeningService:
             )
 
         result = ArgumentScreeningResult.model_validate(parsed)
-        _LOGGER.debug(
-            f"Argument screening verdict: go={result.go}, reason={result.reason}"
-        )
+        _LOGGER.info(f"Argument screening verdict: go={result.go}")
         return result
+
+    def build_step_debug_info_from_result(
+        self, result: ArgumentScreeningResult
+    ) -> StepDebugInfo:
+        return StepDebugInfo(
+            step_name="argument_screening",
+            execution_time=result.execution_time,
+            config=f"Enabled: {self._config.enabled}",
+            extra={"compliant": result.go, "reason": result.reason},
+        )
+
+    def build_rejection_response(self, result: ArgumentScreeningResult) -> str:
+        return Template(self._config.rejection_response_template).render(
+            reason=result.reason
+        )
