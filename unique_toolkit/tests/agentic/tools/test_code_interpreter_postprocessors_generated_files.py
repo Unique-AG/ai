@@ -2181,3 +2181,167 @@ def test_apply_postprocessing_to_response__html_with_fence_ff_on__uses_HtmlRende
     assert "HtmlRendering" in message.text
     assert "cid_page" in message.text
     assert "htmlWithSource" not in message.text
+
+
+# ---------------------------------------------------------------------------
+# _download_and_upload_container_files_to_knowledge_base — retry behaviour
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+def test_download_retry_config__has_defaults__when_constructed_with_no_args() -> None:
+    """
+    Purpose: Verify new retry config fields have correct default values.
+    Why this matters: Defaults encode the agreed "3 total attempts, 1 s base" policy.
+    Setup summary: Instantiate config with no args; assert retry defaults.
+    """
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+
+    assert config.max_download_retries == 2
+    assert config.download_retry_base_delay == 0.5
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_and_upload__returns_content_info__when_download_succeeds_after_transient_failure() -> (
+    None
+):
+    """
+    Purpose: Verify that a transient download failure is retried and the method returns _ContentInfo.
+    Why this matters: Exactly the scenario described in UN-18531 — concurrent pulls can fail once.
+    Setup summary: retrieve raises on call 1, succeeds on call 2; upload always succeeds.
+    """
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        max_download_retries=2,
+        download_retry_base_delay=0,  # no real sleep in tests
+    )
+    annotation = _make_annotation("chart.png")
+    semaphore = asyncio.Semaphore(10)
+
+    mock_file_content = MagicMock()
+    mock_file_content.content = b"png-bytes"
+
+    proc._client.containers.files.content.retrieve = AsyncMock(
+        side_effect=[ConnectionError("transient"), mock_file_content]
+    )
+    mock_upload_result = MagicMock()
+    mock_upload_result.id = "cid_123"
+    proc._chat_service.upload_to_chat_from_bytes_async = AsyncMock(
+        return_value=mock_upload_result
+    )
+
+    result = await proc._download_and_upload_container_files_to_knowledge_base(
+        annotation, semaphore
+    )
+
+    assert result is not None
+    assert result.filename == "chart.png"
+    assert result.content_id == "cid_123"
+    assert proc._client.containers.files.content.retrieve.call_count == 2
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_and_upload__returns_none__when_all_download_attempts_exhausted() -> (
+    None
+):
+    """
+    Purpose: Verify that after all download retries are exhausted, failsafe_async returns None.
+    Why this matters: Pipeline must not crash — None triggers the file_download_failed_message path.
+    Setup summary: retrieve always raises; assert None returned and upload never called.
+    """
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        max_download_retries=1,
+        download_retry_base_delay=0,
+    )
+    annotation = _make_annotation("report.pdf")
+    semaphore = asyncio.Semaphore(10)
+
+    proc._client.containers.files.content.retrieve = AsyncMock(
+        side_effect=RuntimeError("permanent failure")
+    )
+
+    result = await proc._download_and_upload_container_files_to_knowledge_base(
+        annotation, semaphore
+    )
+
+    assert result is None
+    assert (
+        proc._client.containers.files.content.retrieve.call_count == 2
+    )  # 1 + max_download_retries
+    proc._chat_service.upload_to_chat_from_bytes_async.assert_not_called()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_and_upload__returns_none__when_zero_retries_and_download_fails() -> (
+    None
+):
+    """
+    Purpose: Verify max_download_retries=0 means exactly 1 total download attempt.
+    Why this matters: Operators can disable retries; must behave like the old single-attempt path.
+    Setup summary: retrieve fails once; max_download_retries=0; assert only 1 call.
+    """
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        max_download_retries=0,
+        download_retry_base_delay=0,
+    )
+    annotation = _make_annotation("data.csv")
+    semaphore = asyncio.Semaphore(10)
+
+    proc._client.containers.files.content.retrieve = AsyncMock(
+        side_effect=ValueError("fail")
+    )
+
+    result = await proc._download_and_upload_container_files_to_knowledge_base(
+        annotation, semaphore
+    )
+
+    assert result is None
+    assert proc._client.containers.files.content.retrieve.call_count == 1
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_and_upload__returns_none__when_upload_fails_after_successful_download() -> (
+    None
+):
+    """
+    Purpose: Verify upload is not retried — a single upload failure returns None.
+    Why this matters: Retry scope is intentionally limited to the download step only.
+    Setup summary: retrieve succeeds once; upload raises; assert retrieve called exactly once.
+    """
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        max_download_retries=2,
+        download_retry_base_delay=0,
+    )
+    annotation = _make_annotation("data.xlsx")
+    semaphore = asyncio.Semaphore(10)
+
+    mock_file_content = MagicMock()
+    mock_file_content.content = b"xlsx-bytes"
+    proc._client.containers.files.content.retrieve = AsyncMock(
+        return_value=mock_file_content
+    )
+    proc._chat_service.upload_to_chat_from_bytes_async = AsyncMock(
+        side_effect=RuntimeError("upload failed")
+    )
+
+    result = await proc._download_and_upload_container_files_to_knowledge_base(
+        annotation, semaphore
+    )
+
+    assert result is None
+    assert proc._client.containers.files.content.retrieve.call_count == 1

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.69.0] - 2026-04-01
 ### Added
 - Hallucination evaluation (UN-18759): pass OpenAI code interpreter code and stdout into the judge as grounding when Responses API is used, so Internal Search + code execution no longer false-positives when the model omits `[sourceN]` citations
+## [1.68.1] - 2026-04-01
+- Add retry on error when downloading code execution generated files
 
 ## [1.68.0] - 2026-04-01
 - Adding experimental open pdf tool
