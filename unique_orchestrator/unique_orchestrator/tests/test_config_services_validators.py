@@ -1,5 +1,9 @@
+import pytest
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_stock_ticker.config import StockTickerConfig
+from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
+    OpenFileToolConfig,
+)
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import (
     CodeInterpreterExtendedConfig,
@@ -173,6 +177,34 @@ class TestUniqueAIConfigCodeInterpreterValidator:
             tools=[CODE_INTERPRETER_TOOL], supports_responses_api=True
         )
 
+        assert config.agent.experimental.responses_api_config.use_responses_api is True
+
+
+class TestUniqueAIConfigOpenFileValidator:
+    def test_requires_responses_api_when_open_file_tool_is_enabled(self):
+        with pytest.raises(
+            ValueError,
+            match="open_file_tool_config.enabled requires the Responses API",
+        ):
+            UniqueAIConfig(
+                agent={
+                    "experimental": {
+                        "open_file_tool_config": OpenFileToolConfig(enabled=True)
+                    }
+                }
+            )
+
+    def test_allows_open_file_tool_when_responses_api_is_enabled(self):
+        config = UniqueAIConfig(
+            agent={
+                "experimental": {
+                    "responses_api_config": {"use_responses_api": True},
+                    "open_file_tool_config": OpenFileToolConfig(enabled=True),
+                }
+            }
+        )
+
+        assert config.agent.experimental.open_file_tool_config.enabled is True
         assert config.agent.experimental.responses_api_config.use_responses_api is True
 
     def test_does_not_enable_responses_api_when_model_does_not_support_it(self):

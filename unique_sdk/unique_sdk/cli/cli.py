@@ -7,6 +7,7 @@ import click
 from unique_sdk.cli import __version__
 from unique_sdk.cli.commands.files import cmd_download, cmd_mv_file, cmd_rm, cmd_upload
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
+from unique_sdk.cli.commands.mcp import cmd_mcp
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
 from unique_sdk.cli.commands.search import cmd_search
 from unique_sdk.cli.config import load_config
@@ -358,4 +359,79 @@ def search(
 
     click.echo(
         cmd_search(state, query, folder=folder, metadata=parsed_metadata, limit=limit)
+    )
+
+
+@main.command()
+@click.argument("payload", required=False, default=None)
+@click.option(
+    "--chat-id",
+    "-c",
+    required=True,
+    help="Chat ID for the MCP tool call context.",
+)
+@click.option(
+    "--message-id",
+    "-m",
+    required=True,
+    help="Message ID for the MCP tool call context.",
+)
+@click.option(
+    "--file",
+    "-f",
+    "file_path",
+    default=None,
+    type=click.Path(exists=True),
+    help="Read JSON payload from a file instead of a positional argument.",
+)
+@click.option(
+    "--stdin",
+    "use_stdin",
+    is_flag=True,
+    help="Read JSON payload from stdin.",
+)
+@click.pass_context
+def mcp(
+    ctx: click.Context,
+    payload: str | None,
+    chat_id: str,
+    message_id: str,
+    file_path: str | None,
+    use_stdin: bool,
+) -> None:
+    """Call an MCP server tool with a JSON payload.
+
+    \b
+    PAYLOAD is a JSON string containing the tool name and arguments:
+      {"name": "tool_name", "arguments": {"param": "value"}}
+
+    \b
+    The JSON is forwarded 1:1 to the MCP call-tool API. Chat ID and
+    message ID are provided as separate flags to identify the
+    conversation context.
+
+    \b
+    Input sources (exactly one required):
+      PAYLOAD              Inline JSON string
+      --file / -f PATH     Read JSON from a file
+      --stdin              Read JSON from stdin
+
+    \b
+    Examples:
+      unique-cli mcp -c chat_123 -m msg_456 \\
+        '{"name": "search", "arguments": {"query": "test"}}'
+
+      unique-cli mcp -c chat_123 -m msg_456 --file payload.json
+
+      cat payload.json | unique-cli mcp -c chat_123 -m msg_456 --stdin
+    """
+    click.echo(
+        cmd_mcp(
+            LazyState.get(ctx),
+            chat_id=chat_id,
+            message_id=message_id,
+            payload=payload,
+            file=file_path,
+            stdin=use_stdin,
+        )
     )

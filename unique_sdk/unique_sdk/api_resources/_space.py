@@ -159,6 +159,15 @@ class Space(APIResource["Space"]):
 
         chat_id: str
 
+    class CreateChatParams(RequestOptions):
+        title: str
+        assistantId: str
+
+    class ChatResult(TypedDict):
+        id: str
+        title: str | None
+        createdAt: str
+
     class GetAllMessagesResponse(TypedDict):
         """
         Response for getting all messages in a chat.
@@ -290,6 +299,42 @@ class Space(APIResource["Space"]):
             await cls._static_request_async(
                 "post",
                 "/space/message",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    def create_chat(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Space.CreateChatParams"],
+    ) -> "Space.ChatResult":
+        return cast(
+            "Space.ChatResult",
+            cls._static_request(
+                "post",
+                "/space/chat",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def create_chat_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Space.CreateChatParams"],
+    ) -> "Space.ChatResult":
+        return cast(
+            "Space.ChatResult",
+            await cls._static_request_async(
+                "post",
+                "/space/chat",
                 user_id,
                 company_id,
                 params=params,

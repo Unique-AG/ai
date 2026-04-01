@@ -2,7 +2,7 @@ import re
 from enum import StrEnum
 from typing import Annotated, Generic, Literal, TypeVar
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic.main import BaseModel
 
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
@@ -114,10 +114,15 @@ class SubAgentToolConfig(BaseToolConfig):
         default=True,
         description="Whether this sub agent's references should be used in the main agent's response.",
     )
-    forced_tools: list[str] | None = Field(
-        default=None,
+    forced_tools: list[str] = Field(
+        default=[],
         description="The list of tool names that will be forced to be called for this sub-agent.",
     )
+
+    @field_validator("forced_tools", mode="before")
+    @classmethod
+    def _coerce_forced_tools_none(cls, v: list[str] | None) -> list[str]:
+        return v if v is not None else []
 
     tool_description_for_system_prompt: Annotated[
         str, RJSFMetaTag.StringWidget.textarea(rows=5)
@@ -167,12 +172,18 @@ class SubAgentToolConfig(BaseToolConfig):
         description="The condition that will be used to stop the polling for the sub-agent response.",
     )
 
-    tool_input_json_schema: (
-        Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=5)] | None
-    ) = Field(
-        default=None,
-        description="A custom JSON schema to send to the llm as the tool input schema.",
+    tool_input_json_schema: Annotated[
+        str, RJSFMetaTag.StringWidget.textarea(rows=5)
+    ] = Field(
+        default="",
+        description="Optional: A custom JSON schema to send to the llm as the tool input schema.",
     )
+
+    @field_validator("tool_input_json_schema", mode="before")
+    @classmethod
+    def _coerce_tool_input_json_schema_none(cls, v: str | None) -> str:
+        return v if v is not None else ""
+
     returns_content_chunks: bool = Field(
         default=False,
         description="If set, the sub-agent response will be interpreted as a list of content chunks.",

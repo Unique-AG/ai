@@ -5,8 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.66.0] - 2026-03-30
+## [1.68.1] - 2026-04-01
 - Add retry on error when downloading code execution generated files
+
+## [1.68.0] - 2026-04-01
+- Adding experimental open pdf tool
+
+## [1.67.3] - 2026-04-01
+- Remove adding of extra references when Code Execution Fence FF is on
+
+## [1.67.2] - 2026-03-31
+- `forced_tools` and `tool_input_json_schema` were changed from their default values `None` to [] and "" respectively, to enable proper rendering in Space 2.0. Backwards compatibility is ensured.
+
+## [1.67.1] - 2026-03-31
+- Appending `chat_id`, `assistant_id`, and `display_name` to debug info for sub agent tool calls
+
+## [1.67.0] - 2026-03-31
+- Add `AUTO_CONTAINER_ONLY` model capability for models that require `container: {"type": "auto"}` instead of explicit container IDs (GPT-5.4 Pro)
+- Add `force_auto_container` parameter to `OpenAICodeInterpreterTool.build_tool` and `OpenAIBuiltInToolManager.build_manager`/`_build_tool`
+- Fix auto-container path dropping `is_exclusive` flag — now correctly forwarded to the constructor
+
+## [1.66.1] - 2026-03-31
+- Add Feature Flag `enable_web_search_argument_screening_un_18741`
+
+## [1.66.0] - 2026-03-30
+- Add `applied_ingestion_config` to `Content` schema
 
 ## [1.65.2] - 2026-03-30
 - Remove experimental open pdf tool
