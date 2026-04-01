@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Annotated, Any, Callable, ClassVar, Optional, Self
 
 import tiktoken
+from openai.types.shared_params import ReasoningEffort
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from tokenizers import Tokenizer
@@ -321,8 +322,8 @@ class LanguageModelInfo(BaseModel):
     def resolve_temp_and_reasoning(
         self,
         temperature: float,
-        reasoning_effort: str | None,
-    ) -> tuple[float, str | None]:
+        reasoning_effort: ReasoningEffort | None,
+    ) -> tuple[float, ReasoningEffort | None]:
         """Resolve temperature and reasoning_effort together for this model.
 
         Scenarios handled in order:
