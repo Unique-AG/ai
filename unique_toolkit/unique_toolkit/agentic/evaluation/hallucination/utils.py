@@ -116,7 +116,9 @@ def _get_msgs(
     Returns:
         The composed messages as per the provided input and configuration.
     """
-    has_context = bool(input.context_texts or input.history_messages)
+    has_context = bool(
+        input.context_texts or input.history_messages or input.code_execution_contexts
+    )
 
     if has_context:
         _LOGGER.debug("Using context / history for hallucination evaluation.")
@@ -146,10 +148,13 @@ def _compose_msgs(
     system_template = config.prompts_config.system_prompt_template
     user_template = config.prompts_config.user_prompt_template
 
+    has_code_execution = bool(input.code_execution_contexts)
+
     # Render system message
     system_msg_content = render_template(
         system_template,
         has_context=has_context,
+        has_code_execution=has_code_execution,
     )
     system_msg = LanguageModelSystemMessage(content=system_msg_content)
 
@@ -162,6 +167,11 @@ def _compose_msgs(
         else None,
         history_messages_text=input.get_joined_history_texts(tag_name="conversation")
         if has_context
+        else None,
+        code_execution_contexts_text=input.get_joined_code_contexts(
+            tag_name="code-execution"
+        )
+        if has_code_execution
         else None,
         output_text=input.output_text,
     )

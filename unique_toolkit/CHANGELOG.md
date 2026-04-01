@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.69.0] - 2026-04-01
+### Added
+- Hallucination evaluation (UN-18759): pass OpenAI code interpreter code and stdout into the judge as grounding when Responses API is used, so Internal Search + code execution no longer false-positives when the model omits `[sourceN]` citations
 ## [1.68.1] - 2026-04-01
 - Add retry on error when downloading code execution generated files
 

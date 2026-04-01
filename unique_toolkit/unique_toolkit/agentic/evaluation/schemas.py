@@ -11,6 +11,16 @@ from unique_toolkit.chat.schemas import (
     ChatMessageAssessmentType,
 )
 
+_MAX_CODE_CHARS = 4000
+_MAX_STDOUT_CHARS = 3000
+
+
+class CodeExecutionContext(BaseModel):
+    """Code and stdout from a single code interpreter call, used as grounding for hallucination evaluation."""
+
+    code: str
+    stdout: str = ""
+
 
 class EvaluationMetricName(StrEnum):
     HALLUCINATION = "hallucination"
@@ -34,6 +44,7 @@ class EvaluationMetricInput(BaseModel):
     context_texts: Optional[list[str]] = None
     history_messages: Optional[list[ChatMessage]] = None
     output_text: Optional[str] = None
+    code_execution_contexts: Optional[list[CodeExecutionContext]] = None
 
     def get_joined_context_texts(self, tag_name: str = "reference") -> str:
         """
@@ -65,6 +76,40 @@ class EvaluationMetricInput(BaseModel):
             return f"<No {tag_name} texts provided>"
 
         return "\n".join(self.get_history_message_texts())
+
+    def get_joined_code_contexts(self, tag_name: str = "code-execution") -> str:
+        """
+        Renders code execution contexts as tagged blocks for the hallucination judge.
+
+        Each block contains the Python code that was executed and the captured stdout.
+        Both are truncated if unusually long to stay within LLM context limits.
+        """
+        if not self.code_execution_contexts:
+            return f"<No {tag_name} provided>"
+
+        parts: list[str] = []
+        for i, ctx in enumerate(self.code_execution_contexts):
+            code = ctx.code
+            if len(code) > _MAX_CODE_CHARS:
+                code = (
+                    code[:_MAX_CODE_CHARS]
+                    + f"\n... [truncated — {len(ctx.code) - _MAX_CODE_CHARS} chars omitted]"
+                )
+
+            stdout = ctx.stdout if ctx.stdout else "(no output captured)"
+            if len(stdout) > _MAX_STDOUT_CHARS:
+                stdout = (
+                    stdout[:_MAX_STDOUT_CHARS]
+                    + f"\n... [truncated — {len(ctx.stdout) - _MAX_STDOUT_CHARS} chars omitted]"
+                )
+
+            code_block = f"```python\n{code}\n```"
+            stdout_block = f"<stdout>\n{stdout}\n</stdout>"
+            parts.append(
+                f"<{tag_name}-{i + 1}>\n{code_block}\n{stdout_block}\n</{tag_name}-{i + 1}>"
+            )
+
+        return "\n".join(parts)
 
     def validate_required_fields(
         self, required_fields: list[EvaluationMetricInputFieldName]
