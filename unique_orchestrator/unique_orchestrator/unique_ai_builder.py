@@ -73,6 +73,7 @@ from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
 from unique_orchestrator._builders import build_loop_iteration_runner
@@ -363,6 +364,11 @@ async def _build_responses(
         chat_service=common_components.chat_service,
     )
 
+    force_auto_container = (
+        ModelCapabilities.AUTO_CONTAINER_ONLY
+        in config.space.language_model.capabilities
+    )
+
     has_valid_uploaded_documents = False
     has_tool_choices = False
     if config.agent.experimental.open_file_tool_config.enabled:
@@ -389,6 +395,7 @@ async def _build_responses(
         chat_id=event.payload.chat_id,
         client=client,
         tool_configs=config.space.tools,
+        force_auto_container=force_auto_container,
     )
 
     tool_manager = ResponsesApiToolManager(
