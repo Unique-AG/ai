@@ -265,22 +265,19 @@ class UniqueApp(BaseSettings):
         validation_alias=AliasChoices(
             "unique_app_id", "app_id", "UNIQUE_APP_ID", "APP_ID"
         ),
-        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
     key: SecretStr = Field(
         default=SecretStr("dummy_key"),
         validation_alias=AliasChoices(
             "unique_app_key", "key", "UNIQUE_APP_KEY", "KEY", "API_KEY", "api_key"
         ),
-        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
     base_url: str = Field(
         default="http://localhost:8092/",
         deprecated="Use UniqueApi.base_url instead",
-        frozen=True,
     )
 
-    endpoint: str = Field(default="dummy", frozen=True)
+    endpoint: str = Field(default="dummy")
 
     endpoint_secret: SecretStr = Field(
         default=SecretStr("dummy_secret"),
@@ -290,7 +287,6 @@ class UniqueApp(BaseSettings):
             "UNIQUE_APP_ENDPOINT_SECRET",
             "ENDPOINT_SECRET",
         ),
-        frozen=True,
     )
 
     @model_validator(mode="after")
@@ -304,6 +300,7 @@ class UniqueApp(BaseSettings):
         extra="ignore",
         validate_by_name=True,
         validate_by_alias=True,
+        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
 
 
@@ -323,14 +320,12 @@ class UniqueApi(BaseSettings):
             "BASE_URL",
             "API_BASE",
         ),
-        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
     version: str = Field(
         default="2023-12-06",
         validation_alias=AliasChoices(
             "unique_api_version", "version", "UNIQUE_API_VERSION", "VERSION"
         ),
-        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
 
     model_config = SettingsConfigDict(
@@ -338,6 +333,7 @@ class UniqueApi(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
 
     @model_validator(mode="after")
