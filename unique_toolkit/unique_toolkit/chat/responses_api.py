@@ -159,9 +159,9 @@ def _prepare_responses_params_util(
         text = text or _attempt_extract_verbosity_from_options(other_options)
 
     if isinstance(model_name, LanguageModelName):
+        model_info = LanguageModelInfo.from_name(model_name)
         requested_effort = reasoning.get("effort") if reasoning is not None else None
-        temperature, resolved_effort = LanguageModelInfo.resolve_temp_and_reasoning(
-            model_name,
+        temperature, resolved_effort = model_info.resolve_temp_and_reasoning(
             temperature,
             requested_effort,
         )
@@ -171,7 +171,6 @@ def _prepare_responses_params_util(
                 {**(reasoning or {}), "effort": cast(ReasoningEffort, resolved_effort)},
             )
         elif reasoning is None:
-            model_info = LanguageModelInfo.from_name(model_name)
             if "reasoning_effort" in model_info.default_options:
                 reasoning = Reasoning(
                     effort=model_info.default_options["reasoning_effort"]
