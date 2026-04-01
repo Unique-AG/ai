@@ -6,11 +6,13 @@ from typing import Any, Generic, Optional, TypeVar, override
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import deprecated
 
 from unique_toolkit._common.exception import ConfigurationException
-from unique_toolkit.app.unique_settings import UniqueChatEventFilterOptions
+from unique_toolkit.app.unique_settings import (
+    UniqueChatEventFilterOptions,
+)
 from unique_toolkit.smart_rules.compile import UniqueQL, parse_uniqueql
 
 FilterOptionsT = TypeVar("FilterOptionsT", bound=BaseSettings)
@@ -258,6 +260,15 @@ class EventPayload(ChatEventPayload):
     # additional_parameters: Optional[EventAdditionalParameters] = None
 
 
+# Shared with ChatEvent.FilterOptions so both read UNIQUE_CHAT_EVENT_FILTER_OPTIONS_* env vars.
+CHAT_EVENT_FILTER_OPTIONS_SETTINGS = SettingsConfigDict(
+    env_prefix="unique_chat_event_filter_options_",
+    env_file_encoding="utf-8",
+    case_sensitive=False,
+    extra="ignore",
+)
+
+
 class ChatEvent(BaseEvent):
     model_config = model_config
 
@@ -274,6 +285,8 @@ class ChatEvent(BaseEvent):
             default=[],
             description="The module (reference) names in code to filter by. Default is all modules.",
         )
+
+        model_config = CHAT_EVENT_FILTER_OPTIONS_SETTINGS
 
     @classmethod
     def from_json_file(cls, file_path: Path) -> "ChatEvent":

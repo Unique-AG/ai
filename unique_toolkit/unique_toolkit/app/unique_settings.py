@@ -18,8 +18,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Protocol, deprecated
 
 from unique_toolkit._common.config_checker import register_config
-from unique_toolkit.app import EnvFileNotFoundError, find_env_file
 from unique_toolkit.app.feature_flags import UNIQUE_TOOLKIT_FEATURE_FLAGS
+from unique_toolkit.app.find_env_file import EnvFileNotFoundError, find_env_file
+from unique_toolkit.app.schemas import CHAT_EVENT_FILTER_OPTIONS_SETTINGS
 
 if TYPE_CHECKING:
     from unique_toolkit.app.schemas import BaseEvent, ChatEvent
@@ -394,12 +395,7 @@ class UniqueChatEventFilterOptions(BaseSettings):
         description="The module (reference) names in code to filter by. Default is all modules.",
     )
 
-    model_config = SettingsConfigDict(
-        env_prefix="unique_chat_event_filter_options_",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
+    model_config = CHAT_EVENT_FILTER_OPTIONS_SETTINGS
 
     @model_validator(mode="after")
     def _warn_about_defaults(self) -> Self:

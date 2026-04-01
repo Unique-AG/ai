@@ -118,6 +118,50 @@ class TestChatEventFiltering:
         chat_event = ChatEvent.model_validate(event_data)
         assert chat_event.filter() is False
 
+    @pytest.mark.ai
+    def test_AI_chat_event_filter_reads_unique_prefixed_env_vars(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """
+        Purpose: Ensure ChatEvent.filter() loads the same UNIQUE_CHAT_EVENT_FILTER_OPTIONS_* vars as UniqueChatEventFilterOptions.
+        Why this matters: filter() must not use bare ASSISTANT_IDS / REFERENCES_IN_CODE, which collide with other apps.
+        Setup summary: prefixed env lists exclude the event's assistant and module; filter() returns True.
+        """
+        monkeypatch.setenv(
+            "UNIQUE_CHAT_EVENT_FILTER_OPTIONS_ASSISTANT_IDS", '["other-assistant"]'
+        )
+        monkeypatch.setenv(
+            "UNIQUE_CHAT_EVENT_FILTER_OPTIONS_REFERENCES_IN_CODE", '["other_module"]'
+        )
+        monkeypatch.setenv("ASSISTANT_IDS", '["test-assistant"]')
+        monkeypatch.setenv("REFERENCES_IN_CODE", '["test_module"]')
+
+        event_data = {
+            "id": "test-event",
+            "event": "unique.chat.external-module.chosen",
+            "userId": "test-user",
+            "companyId": "test-company",
+            "payload": {
+                "name": "test_module",
+                "description": "Test description",
+                "configuration": {},
+                "chatId": "test-chat",
+                "assistantId": "test-assistant",
+                "userMessage": {
+                    "id": "msg1",
+                    "text": "Hello",
+                    "createdAt": "2023-01-01T00:00:00Z",
+                    "originalText": "Hello",
+                    "language": "en",
+                },
+                "assistantMessage": {"id": "msg2", "createdAt": "2023-01-01T00:01:00Z"},
+            },
+            "createdAt": 1672531200,
+            "version": "1.0",
+        }
+        chat_event = ChatEvent.model_validate(event_data)
+        assert chat_event.filter() is True
+
     def test_chat_event_filter_by_assistant_id_included(self):
         """Test that ChatEvent.filter_event returns False when assistant_id is in the filter list."""
         event_data = {
