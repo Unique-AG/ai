@@ -409,13 +409,13 @@ def _prepare_all_completions_params_util(
         )
         messages_dict = __camelize_keys(messages.copy())
 
-    if model_info is not None and "temperature" in options:
+    if model_info is not None:
         reasoning_effort = options.get("reasoning_effort")
-        options["temperature"], resolved_effort = (
-            LanguageModelInfo.resolve_temp_and_reasoning(
-                model_info.name, temperature, reasoning_effort=reasoning_effort
-            )
+        resolved_temp, resolved_effort = LanguageModelInfo.resolve_temp_and_reasoning(
+            model_info.name, temperature, reasoning_effort=reasoning_effort
         )
+        if "temperature" in options:
+            options["temperature"] = resolved_temp
         if resolved_effort is not None:
             options["reasoning_effort"] = resolved_effort
         elif (
