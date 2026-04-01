@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.69.0] - 2026-04-01
+- Add `supported_reasoning_efforts: list[str] | None` field to `LanguageModelInfo` listing valid `reasoning_effort` values per model; `None` for third-party models (DeepSeek, Qwen, Grok) and `o1-mini` where validation is not applicable.
+- Add `xhigh` reasoning effort support for `AZURE_GPT_52_2025_1211`, `AZURE_GPT_54_2026_0305`, `AZURE_GPT_54_PRO_2026_0305`, and their LiteLLM counterparts; `GPT-5.4 Pro` supports `medium`/`high`/`xhigh` only.
+- `LanguageModelInfo.resolve_temp_and_reasoning`: log a warning instead of raising when `reasoning_effort` is not in `supported_reasoning_efforts`, or when `temperature` is outside declared bounds before clamping.
+- `resolve_temp_and_reasoning`: pass `temperature` and `reasoning_effort` through unchanged for unknown (unrecognised) models.
+- `resolve_temp_and_reasoning`: use `[0, 2]` fallback temperature bounds for models without declared bounds (previously clamped to `[0, 1]`).
+- Fix `resolve_temp_and_reasoning` default for thinking-only models: `AZURE_GPT_5_PRO_2025_1006` and `LITELLM_OPENAI_GPT_5_PRO` now carry `default_options={"reasoning_effort": "high"}` to avoid falling back to `"medium"`.
+- Fix `responses_api`: preserve all fields on an existing `Reasoning` object (`summary`, `generate_summary`) when updating `reasoning_effort` instead of replacing the whole object.
+
 ## [1.68.4] - 2026-04-01
 - Removing feature flag for tool call persistence (`FEATURE_FLAG_ENABLE_TOOL_CALL_PERSISTENCE_UN_15977`)
 
