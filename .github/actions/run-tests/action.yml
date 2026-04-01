@@ -10,7 +10,8 @@ inputs:
     required: false
     default: '3.11'
   install_args:
-    description: 'Additional arguments for uv sync (e.g., --with fastapi)'    required: false
+    description: 'Additional arguments for uv sync (e.g., --with fastapi)'
+    required: false
     default: ''
   test_args:
     description: 'Additional arguments to pass to pytest'
@@ -32,7 +33,9 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
-      run: uv sync --locked ${{ inputs.install_args }}    - name: Run pytest
+      run: uv sync --locked ${{ inputs.install_args }}
+
+    - name: Run pytest
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:

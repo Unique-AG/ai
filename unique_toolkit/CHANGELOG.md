@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.68.2] - 2026-03-24
+## [1.68.2] - 2026-03-31
 - Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
 - Update `langchain` optional extra to `>=1.0.0,<2` (was `>=0.3.27,<0.4`) and `langchain-core` to `>=1.0.0,<2`
 

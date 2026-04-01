@@ -242,7 +242,8 @@ fi
 
 if [ -z "$RUNNER" ]; then
     RUNNER="uv run"
-    print_info "Using default runner: $RUNNER"fi
+    print_info "Using default runner: $RUNNER"
+fi
 
 # Validate min_coverage is a number
 if ! [[ "$MIN_COVERAGE" =~ ^[0-9]+$ ]] || [ "$MIN_COVERAGE" -lt 0 ] || [ "$MIN_COVERAGE" -gt 100 ]; then
