@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, Optional
@@ -25,6 +26,9 @@ class ContentMetadata(BaseModel):
     )
     key: str
     mime_type: str
+
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @register_config()
@@ -71,6 +75,25 @@ class ContentChunk(BaseModel):
     internally_stored_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    def to_search_result(self) -> unique_sdk.Integrated.SearchResult:
+        if self.chunk_id is None:
+            _LOGGER.warning("Chunk ID is required, setting to unknown_chunk_id")
+        if self.key is None:
+            _LOGGER.warning("Key is required, setting to unknown_key")
+
+        result = unique_sdk.Integrated.SearchResult(
+            id=self.id,
+            chunkId=self.chunk_id if self.chunk_id is not None else "unknown_chunk_id",
+            key=self.key if self.key is not None else "unknown_key",
+        )
+
+        if self.title is not None:
+            result["title"] = self.title
+        if self.url is not None:
+            result["url"] = self.url
+
+        return result
 
 
 class Content(BaseModel):

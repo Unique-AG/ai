@@ -94,7 +94,7 @@ def get_chat_history_with_contents(
         id=user_message.id,
         chat_id=chat_id,
         text=user_message.text,
-        originalText=user_message.original_text,
+        original_text=user_message.original_text,
         role=ChatRole.USER,
         gpt_request=None,
         created_at=datetime.fromisoformat(user_message.created_at),

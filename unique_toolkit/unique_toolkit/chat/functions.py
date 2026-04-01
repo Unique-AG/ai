@@ -426,6 +426,7 @@ def get_selection_from_history(
     )
 
 
+@deprecated("Use ChatMessage directly")
 def map_to_chat_messages(messages: list[dict]) -> list[ChatMessage]:
     return [ChatMessage(**msg) for msg in messages]
 
@@ -502,7 +503,7 @@ def get_full_history(
     messages = list_messages(event_user_id, event_company_id, event_payload_chat_id)
     messages = filter_valid_messages(messages)
 
-    return map_to_chat_messages(messages)
+    return [ChatMessage.model_validate(msg) for msg in messages]
 
 
 async def get_full_history_async(
@@ -517,7 +518,7 @@ async def get_full_history_async(
     )
     messages = filter_valid_messages(messages)
 
-    return map_to_chat_messages(messages)
+    return [ChatMessage.model_validate(msg) for msg in messages]
 
 
 def filter_valid_messages(

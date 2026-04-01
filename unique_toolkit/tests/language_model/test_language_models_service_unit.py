@@ -13,13 +13,12 @@ from unique_toolkit.language_model.functions import (
 )
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
-    LanguageModelMessage,
-    LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelTool,
     LanguageModelToolParameterProperty,
     LanguageModelToolParameters,
+    LanguageModelUserMessage,
 )
 from unique_toolkit.language_model.service import LanguageModelService
 
@@ -128,8 +127,7 @@ class TestLanguageModelServiceUnit:
     def test_complete_with_tool(self, mock_create):
         messages = LanguageModelMessages(
             [
-                LanguageModelMessage(
-                    role=LanguageModelMessageRole.USER,
+                LanguageModelUserMessage(
                     content="What's the weather in New York?",
                 )
             ]
@@ -253,8 +251,7 @@ class TestLanguageModelServiceUnit:
     async def test_complete_with_tool_async(self, mock_create):
         messages = LanguageModelMessages(
             [
-                LanguageModelMessage(
-                    role=LanguageModelMessageRole.USER,
+                LanguageModelUserMessage(
                     content="What's the weather in New York?",
                 )
             ]
