@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `chat_id`/`chat_only` params to `search_content_chunks`/`search_content_chunks_async`; align fallback to `chat_id or self._chat_id` (UN-18568)
 - Add `KnowledgeBaseService.get_documents_uploaded_to_chat()` and `get_images_uploaded_to_chat()` — enables full ContentService replacement for the internal search tool (UN-18568)
 - Add `UniqueSettings.from_event(event: BaseEvent)` — auth-only settings factory for non-chat events, mirroring `from_chat_event` (UN-18568)
+## [1.67.3] - 2026-04-01
+- Remove adding of extra references when Code Execution Fence FF is on
+
 ## [1.67.2] - 2026-03-31
 - `forced_tools` and `tool_input_json_schema` were changed from their default values `None` to [] and "" respectively, to enable proper rendering in Space 2.0. Backwards compatibility is ensured.
 
