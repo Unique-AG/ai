@@ -17,37 +17,32 @@ def unique_settings():
     """
     Create UniqueSettings for testing.
 
-    Note: We cannot use the normal constructor approach like:
-    UniqueApp(id=SecretStr("test-app-id"), key=SecretStr("test-api-key"), ...)
-
-    This is because when UniqueApp uses validation_alias=AliasChoices(...),
-    pydantic BaseSettings prioritizes environment variable lookup over constructor
-    arguments. Even when no matching environment variables exist, it falls back
-    to default values instead of using the provided constructor arguments.
-
-    To work around this, we create the objects with default constructors (which
-    triggers environment loading and warnings) and then directly set the field
-    values afterwards to override them with our test values.
+    For :class:`UniqueApp`, the ``id`` field uses ``validation_alias`` with
+    ``unique_app_id`` / ``app_id`` / env names — it does **not** list ``id``.
+    Without ``populate_by_name=True``, Pydantic ignores the ``id=`` keyword; use
+    ``unique_app_id=`` (or ``app_id=``) so the value is applied. The ``key`` field
+    includes ``"key"`` in its aliases, so ``key=`` works as expected.
     """
-    # Create settings objects and then directly set the field values
-
     # Create app settings
-    app = UniqueApp()
-    app.id = SecretStr("test-app-id")
-    app.key = SecretStr("test-api-key")
-    app.base_url = "https://api.example.com"
-    app.endpoint = "test-endpoint"
-    app.endpoint_secret = SecretStr("test-endpoint-secret")
+    app = UniqueApp(
+        id=SecretStr("test-app-id"),
+        key=SecretStr("test-api-key"),
+        base_url="https://api.example.com",
+        endpoint="test-endpoint",
+        endpoint_secret=SecretStr("test-endpoint-secret"),
+    )
 
     # Create auth settings
-    auth = UniqueAuth()
-    auth.company_id = SecretStr("test-company-id")
-    auth.user_id = SecretStr("test-user-id")
+    auth = UniqueAuth(
+        company_id=SecretStr("test-company-id"),
+        user_id=SecretStr("test-user-id"),
+    )
 
     # Create api settings
-    api = UniqueApi()
-    api.base_url = "https://api.example.com"
-    api.version = "2023-12-06"
+    api = UniqueApi(
+        base_url="https://api.example.com",
+        version="2023-12-06",
+    )
 
     return UniqueSettings(auth=auth, app=app, api=api)
 
