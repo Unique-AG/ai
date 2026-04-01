@@ -8,7 +8,8 @@ inputs:
   python_version:
     description: 'Python version to use'
     required: false
-    default: '3.11'  base_ref:
+    default: '3.11'
+  base_ref:
     description: 'Base branch/ref for comparison'
     required: false
     default: ''

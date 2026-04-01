@@ -12,7 +12,8 @@ inputs:
   python_version:
     description: 'Python version to use'
     required: false
-    default: '3.11'  output_file:
+    default: '3.11'
+  output_file:
     description: 'Output file for baseline'
     required: false
     default: '/tmp/baseline.json'
