@@ -2210,3 +2210,118 @@ async def test_tool_manager__execute_tool_call__rounds_execution_time_to_three_d
     parts = str(time_value).split(".")
     if len(parts) == 2:
         assert len(parts[1]) <= 3
+
+
+# --- Tests for add_tool, exclude_tool ---
+
+
+def test_tool_manager__add_tool__injects_external_tool(
+    logger, base_event, tool_progress_reporter, mcp_manager, a2a_manager
+):
+    config = ToolManagerConfig(tools=[], max_tool_calls=10)
+    tm = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    assert tm.get_tool_by_name("mock_tool") is None
+
+    tool = MockTool(MockToolConfig(), base_event, tool_progress_reporter)
+    tm.add_tool(tool)
+
+    assert tm.get_tool_by_name("mock_tool") is not None
+    assert any(td.name == "mock_tool" for td in tm.get_tool_definitions())
+
+
+def test_tool_manager__exclude_tool__excludes_from_all_lists(
+    logger, base_event, tool_config, tool_progress_reporter, mcp_manager, a2a_manager
+):
+    config = ToolManagerConfig(tools=[tool_config], max_tool_calls=10)
+    tm = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    assert tm.get_tool_by_name("mock_tool") is not None
+
+    result = tm.exclude_tool("mock_tool")
+
+    assert result is True
+    assert tm.get_tool_by_name("mock_tool") is None
+    assert not any(td.name == "mock_tool" for td in tm.get_tool_definitions())
+
+
+def test_tool_manager__exclude_tool__returns_false_for_missing(
+    logger, base_event, tool_progress_reporter, mcp_manager, a2a_manager
+):
+    config = ToolManagerConfig(tools=[], max_tool_calls=10)
+    tm = ToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+    )
+
+    result = tm.exclude_tool("nonexistent")
+
+    assert result is False
+
+
+@pytest.mark.ai
+def test_responses_api_tool_manager__exclude_tool__removes_builtin_from_all_lists(
+    logger,
+    base_event,
+    tool_progress_reporter,
+    mcp_manager,
+    a2a_manager,
+    mocker,
+):
+    mock_builtin_tool = mocker.Mock(spec=OpenAIBuiltInTool)
+    mock_builtin_tool.name = OpenAIBuiltInToolName.CODE_INTERPRETER
+    mock_builtin_tool.is_enabled.return_value = True
+    mock_builtin_tool.is_exclusive.return_value = False
+
+    mock_builtin_manager = mocker.Mock(spec=OpenAIBuiltInToolManager)
+    mock_builtin_manager.get_all_openai_builtin_tools.return_value = [mock_builtin_tool]
+
+    config = ToolManagerConfig(tools=[], max_tool_calls=10)
+    tm = ResponsesApiToolManager(
+        logger=logger,
+        config=config,
+        event=base_event,
+        tool_progress_reporter=tool_progress_reporter,
+        mcp_manager=mcp_manager,
+        a2a_manager=a2a_manager,
+        builtin_tool_manager=mock_builtin_manager,
+    )
+
+    assert tm.get_tool_by_name(OpenAIBuiltInToolName.CODE_INTERPRETER) is not None
+
+    result = tm.exclude_tool(OpenAIBuiltInToolName.CODE_INTERPRETER)
+
+    assert result is True
+    assert tm.get_tool_by_name(OpenAIBuiltInToolName.CODE_INTERPRETER) is None
+    assert OpenAIBuiltInToolName.CODE_INTERPRETER not in [
+        tool.name for tool in tm.get_tools()
+    ]
+    filtered = tm.filter_tool_calls(
+        [
+            LanguageModelFunction(
+                id="call_1",
+                name=OpenAIBuiltInToolName.CODE_INTERPRETER,
+                arguments={},
+            )
+        ],
+        ["openai_builtin"],
+    )
+    assert filtered == []
