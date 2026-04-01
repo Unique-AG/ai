@@ -16,6 +16,14 @@ Rules:
 - DO penalize when the output states facts that are not found in the sources (unsupported claims)
 - DO penalize when the output contradicts what the sources say
 - Ignore references to plots, charts, or visual elements in your evaluation
+{% if has_code_execution %}
+Additional rules when code execution context is provided:
+- The executed code and its stdout output are valid grounding sources alongside the references.
+- Computed values (sums, averages, derived statistics) that are consistent with what the code would produce from the references are NOT hallucinations — do not penalize them even if they are not literally present in the reference text.
+- Descriptions of charts, plots, or visual outputs (axes labels, series names, value ranges) are acceptable if the code would generate such a visualization from the provided data — you cannot verify the exact visual, so give the benefit of the doubt.
+- DO penalize if the output states specific numerical values that directly contradict the stdout, or describes outputs that the code clearly would not have produced.
+- DO penalize if the code operates on data that is inconsistent with or absent from the provided references (suggesting the LLM invented its input data).
+{% endif %}
 {% else %}
 You will receive a question and an output.
 The situation is that NO references were found to answer the question. Your task is to evaluate if the output inappropriately provides factual information despite having no sources to ground it in. Provide your reasoning in 2 sentences, mentioning that no references were provided.

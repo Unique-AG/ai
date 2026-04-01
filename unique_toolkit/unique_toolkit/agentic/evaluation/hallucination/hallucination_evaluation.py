@@ -7,6 +7,7 @@ from unique_toolkit.agentic.evaluation.hallucination.utils import (
     context_text_from_stream_response,
 )
 from unique_toolkit.agentic.evaluation.schemas import (
+    CodeExecutionContext,
     EvaluationAssessmentMessage,
     EvaluationMetricInput,
     EvaluationMetricName,
@@ -23,6 +24,7 @@ from unique_toolkit.chat.schemas import (
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelStreamResponse,
+    ResponsesLanguageModelStreamResponse,
 )
 
 
@@ -54,6 +56,8 @@ class HallucinationEvaluation(Evaluation):
             reference_pattern=self.config.reference_pattern,
         )
 
+        code_execution_contexts = _extract_code_execution_contexts(loop_response)
+
         evaluation_result: EvaluationMetricResult = await check_hallucination(
             company_id=self._company_id,
             user_id=self._user_id,
@@ -62,6 +66,7 @@ class HallucinationEvaluation(Evaluation):
                 context_texts=context_texts,
                 history_messages=[],  # TODO include loop_history messages
                 output_text=loop_response.message.text,
+                code_execution_contexts=code_execution_contexts or None,
             ),
             config=self.config,
         )
@@ -107,3 +112,35 @@ class HallucinationEvaluation(Evaluation):
             label=label,
             type=self.get_assessment_type(),
         )
+
+
+def _extract_code_execution_contexts(
+    loop_response: LanguageModelStreamResponse,
+) -> list[CodeExecutionContext]:
+    """Extract code and stdout from code interpreter calls on the response.
+
+    Returns an empty list when the response is not a ResponsesLanguageModelStreamResponse
+    (e.g. the classic completions API path) or when no code interpreter calls are present.
+
+    Stdout is only available when the fence feature flag is on
+    (include=["code_interpreter_call.outputs"] is requested). When outputs are absent,
+    code-only grounding is still useful for verifying the response is consistent with
+    what was computed.
+    """
+    if not isinstance(loop_response, ResponsesLanguageModelStreamResponse):
+        return []
+
+    contexts: list[CodeExecutionContext] = []
+    for call in loop_response.code_interpreter_calls:
+        if not call.code:
+            continue
+
+        stdout = ""
+        if call.outputs:
+            stdout = "\n".join(
+                output.logs for output in call.outputs if output.type == "logs"
+            )
+
+        contexts.append(CodeExecutionContext(code=call.code, stdout=stdout))
+
+    return contexts
