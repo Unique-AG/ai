@@ -166,8 +166,12 @@ class DisplayCodeInterpreterFilesPostProcessor(
             loop_response.message.references = []
         if loop_response.message.text is None:
             loop_response.message.text = ""
+
         ref_number = _get_next_ref_number(loop_response.message.references)
         changed = False
+        fence_ff_on = feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+            self._company_id
+        )
 
         for filename, content_id in self._content_map.items():
             if content_id is None:
@@ -181,9 +185,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
             is_image = (guess_type(filename)[0] or "").startswith("image/")
             is_html = (guess_type(filename)[0] or "") == "text/html"
-            fence_ff_on = feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-                self._company_id
-            )
 
             # Images
             if is_image:
@@ -229,7 +230,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                     self._company_id
                 )
             )
-            if replaced and not is_image and not is_html_rendered:
+            if replaced and not (is_image or is_html_rendered or fence_ff_on):
                 loop_response.message.references.append(
                     ContentReference(
                         sequence_number=ref_number,
@@ -241,9 +242,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 ref_number += 1
 
-        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-            self._company_id
-        ):
+        if fence_ff_on:
             code_blocks = _build_code_blocks(loop_response, self._content_map)
             _warn_unmatched_code_blocks(self._content_map, code_blocks)
             text_before = loop_response.message.text
@@ -259,19 +258,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 loop_response.message.text = (
                     loop_response.message.text.rstrip() + "\n\n" + orphan_fences
                 )
-                ref_number = _get_next_ref_number(loop_response.message.references)
-                for block in self._orphan_code_blocks:
-                    for file in block.files:
-                        loop_response.message.references.append(
-                            ContentReference(
-                                sequence_number=ref_number,
-                                source_id=file.content_id,
-                                source="node-ingestion-chunks",
-                                url=f"unique://content/{file.content_id}",
-                                name=file.filename,
-                            )
-                        )
-                        ref_number += 1
                 changed = True
 
         _warn_missing_content_ids(loop_response.message.text, self._content_map)
