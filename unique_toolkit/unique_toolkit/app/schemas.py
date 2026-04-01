@@ -55,6 +55,9 @@ class BaseEvent(BaseModel, Generic[FilterOptionsT]):
             data = json.load(f)
         return cls.model_validate(data)
 
+    def filter(self) -> bool:
+        return False
+
     def filter_event(self, *, filter_options: FilterOptionsT | None = None) -> bool:
         """Determine if event should be filtered out and be neglected."""
         return False
@@ -284,6 +287,16 @@ class ChatEvent(BaseEvent):
     created_at: Optional[int] = None
     version: Optional[str] = None
 
+    class FilterOptions(BaseSettings):
+        assistant_ids: list[str] = Field(
+            default=[],
+            description="The assistant ids (space) to filter by. Default is all assistants.",
+        )
+        references_in_code: list[str] = Field(
+            default=[],
+            description="The module (reference) names in code to filter by. Default is all modules.",
+        )
+
     @classmethod
     def from_json_file(cls, file_path: Path) -> ChatEvent:
         if not file_path.exists():
@@ -302,6 +315,20 @@ class ChatEvent(BaseEvent):
             "chosen_module": self.payload.name,
             "assistant": {"id": self.payload.assistant_id},
         }
+
+    @override
+    def filter(self) -> bool:
+        """Filter the chat event based on the assistant id and reference in code."""
+
+        options = ChatEvent.FilterOptions()
+
+        if self.payload.assistant_id not in options.assistant_ids:
+            return True
+
+        if self.payload.name not in options.references_in_code:
+            return True
+
+        return False
 
     @override
     def filter_event(
