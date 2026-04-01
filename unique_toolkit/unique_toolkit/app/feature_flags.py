@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from pydantic import BeforeValidator, Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class FeatureFlag:
@@ -19,10 +19,10 @@ class FeatureFlag:
         False
     """
 
-    def __init__(self, value: list[str] | bool):
+    def __init__(self, *, value: list[str] | bool):
         self._value = value
 
-    def is_enabled(self, company_id: str | None = None) -> bool:
+    def is_enabled(self, *, company_id: str | None = None) -> bool:
         """Check if the feature is enabled for the given company.
 
         Args:
@@ -60,21 +60,21 @@ def parse_feature_flag(v: FeatureFlag | str | bool | list[str]) -> FeatureFlag:
     if isinstance(v, str):
         v_lower = v.lower().strip()
         if v_lower in ("true", "1", "yes"):
-            return FeatureFlag(True)
+            return FeatureFlag(value=True)
         elif v_lower in ("false", "0", "no", ""):
-            return FeatureFlag(False)
+            return FeatureFlag(value=False)
         else:
             # Comma-separated company IDs
-            return FeatureFlag([id.strip() for id in v.split(",") if id.strip()])
+            return FeatureFlag(value=[id.strip() for id in v.split(",") if id.strip()])
 
     if isinstance(v, bool):
-        return FeatureFlag(v)
+        return FeatureFlag(value=v)
 
     if isinstance(v, list):
-        return FeatureFlag(v)
+        return FeatureFlag(value=v)
 
     # Default to disabled (this handles default factory functions too)
-    return FeatureFlag(False)
+    return FeatureFlag(value=False)
 
 
 ValidatedFeatureFlag = Annotated[FeatureFlag, BeforeValidator(parse_feature_flag)]
@@ -82,9 +82,18 @@ ValidatedFeatureFlag = Annotated[FeatureFlag, BeforeValidator(parse_feature_flag
 
 class _UniqueToolkitFeatureFlags(BaseSettings):
     un_18894_freeze_unique_settings: ValidatedFeatureFlag = Field(
-        default=FeatureFlag(False),
+        default=FeatureFlag(value=False),
         frozen=True,
         description="Freeze unique settings (UN-18894)",
+    )
+
+    model_config = SettingsConfigDict(
+        extra="ignore",
+        env_prefix="FEATURE_FLAG_",
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        frozen=True,
     )
 
 

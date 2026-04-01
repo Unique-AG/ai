@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import os
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self, TypeVar
 from urllib.parse import ParseResult, urlparse, urlunparse
 
 import unique_sdk
-from platformdirs import user_config_dir
 from pydantic import (
     AliasChoices,
     BaseModel,
@@ -20,7 +18,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Protocol, deprecated
 
 from unique_toolkit._common.config_checker import register_config
+from unique_toolkit.app.chat_event_filter_options_settings import (
+    CHAT_EVENT_FILTER_OPTIONS_SETTINGS,
+)
 from unique_toolkit.app.feature_flags import UNIQUE_TOOLKIT_FEATURE_FLAGS
+from unique_toolkit.app.find_env_file import EnvFileNotFoundError, find_env_file
 
 if TYPE_CHECKING:
     from unique_toolkit.app.schemas import BaseEvent, ChatEvent
@@ -113,6 +115,7 @@ class UniqueAuth(BaseSettings):
         case_sensitive=False,
         extra="ignore",
         frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
+        env_file=find_env_file("unique.env", ".env", required=False),
     )
 
     def get_confidential_company_id(self) -> str:
@@ -263,22 +266,19 @@ class UniqueApp(BaseSettings):
         validation_alias=AliasChoices(
             "unique_app_id", "app_id", "UNIQUE_APP_ID", "APP_ID"
         ),
-        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
     key: SecretStr = Field(
         default=SecretStr("dummy_key"),
         validation_alias=AliasChoices(
             "unique_app_key", "key", "UNIQUE_APP_KEY", "KEY", "API_KEY", "api_key"
         ),
-        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
     base_url: str = Field(
         default="http://localhost:8092/",
         deprecated="Use UniqueApi.base_url instead",
-        frozen=True,
     )
 
-    endpoint: str = Field(default="dummy", frozen=True)
+    endpoint: str = Field(default="dummy")
 
     endpoint_secret: SecretStr = Field(
         default=SecretStr("dummy_secret"),
@@ -288,7 +288,6 @@ class UniqueApp(BaseSettings):
             "UNIQUE_APP_ENDPOINT_SECRET",
             "ENDPOINT_SECRET",
         ),
-        frozen=True,
     )
 
     @model_validator(mode="after")
@@ -298,10 +297,12 @@ class UniqueApp(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="unique_app_",
         env_file_encoding="utf-8",
+        env_file=find_env_file("unique.env", ".env", required=False),
         case_sensitive=False,
         extra="ignore",
         validate_by_name=True,
         validate_by_alias=True,
+        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
 
 
@@ -321,21 +322,21 @@ class UniqueApi(BaseSettings):
             "BASE_URL",
             "API_BASE",
         ),
-        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
     version: str = Field(
         default="2023-12-06",
         validation_alias=AliasChoices(
             "unique_api_version", "version", "UNIQUE_API_VERSION", "VERSION"
         ),
-        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
 
     model_config = SettingsConfigDict(
         env_prefix="unique_api_",
         env_file_encoding="utf-8",
+        env_file=find_env_file("unique.env", ".env", required=False),
         case_sensitive=False,
         extra="ignore",
+        frozen=UNIQUE_TOOLKIT_FEATURE_FLAGS.un_18894_freeze_unique_settings.is_enabled(),
     )
 
     @model_validator(mode="after")
@@ -395,20 +396,11 @@ class UniqueChatEventFilterOptions(BaseSettings):
         description="The module (reference) names in code to filter by. Default is all modules.",
     )
 
-    model_config = SettingsConfigDict(
-        env_prefix="unique_chat_event_filter_options_",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
+    model_config = CHAT_EVENT_FILTER_OPTIONS_SETTINGS
 
     @model_validator(mode="after")
     def _warn_about_defaults(self) -> Self:
         return warn_about_defaults(self)
-
-
-class EnvFileNotFoundError(FileNotFoundError):
-    """Raised when no environment file can be found in any of the expected locations."""
 
 
 class UniqueEnvironment:
@@ -504,47 +496,6 @@ class UniqueSettings:
         )
 
     @classmethod
-    def _find_env_file(cls, filename: str = "unique.env") -> Path:
-        """Find environment file using cross-platform fallback locations.
-
-        Search order:
-        1. UNIQUE_ENV_FILE environment variable
-        2. Current working directory
-        3. User config directory (cross-platform via platformdirs)
-
-        Args:
-            filename: Name of the environment file (default: 'unique.env')
-
-        Returns:
-            Path to the environment file.
-
-        Raises:
-            EnvFileNotFoundError: If no environment file is found in any location.
-        """
-        locations = [
-            # 1. Explicit environment variable
-            Path(env_path) if (env_path := os.environ.get("UNIQUE_ENV_FILE")) else None,
-            # 2. Current working directory
-            Path.cwd() / filename,
-            # 3. User config directory (cross-platform)
-            Path(user_config_dir("unique", "unique-toolkit")) / filename,
-        ]
-
-        for location in locations:
-            if location and location.exists() and location.is_file():
-                return location
-
-        # If no file found, provide helpful error message
-        searched_locations = [str(loc) for loc in locations if loc is not None]
-        raise EnvFileNotFoundError(
-            f"Environment file '{filename}' not found. Searched locations:\n"
-            + "\n".join(f"  - {loc}" for loc in searched_locations)
-            + "\n\nTo fix this:\n"
-            + f"  1. Create {filename} in one of the above locations, or\n"
-            + f"  2. Set UNIQUE_ENV_FILE environment variable to point to your {filename} file"
-        )
-
-    @classmethod
     def from_env(
         cls,
         env_file: Path | None = None,
@@ -592,7 +543,7 @@ class UniqueSettings:
             UniqueSettings instance with values loaded from found env file or environment variables.
         """
         try:
-            env_file = cls._find_env_file(filename)
+            env_file = find_env_file(filename)
             logger.info(f"Environment file found at {env_file}")
             return cls.from_env(env_file=env_file)
         except EnvFileNotFoundError:

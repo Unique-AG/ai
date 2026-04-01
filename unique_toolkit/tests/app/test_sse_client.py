@@ -17,11 +17,10 @@ def unique_settings():
     """
     Create UniqueSettings for testing.
 
-    For :class:`UniqueApp`, the ``id`` field uses ``validation_alias`` with
-    ``unique_app_id`` / ``app_id`` / env names — it does **not** list ``id``.
-    Without ``populate_by_name=True``, Pydantic ignores the ``id=`` keyword; use
-    ``unique_app_id=`` (or ``app_id=``) so the value is applied. The ``key`` field
-    includes ``"key"`` in its aliases, so ``key=`` works as expected.
+    :class:`UniqueApp` sets ``validate_by_name=True`` and ``validate_by_alias=True``
+    so ``id=`` works alongside aliases such as ``unique_app_id`` / ``app_id`` and
+    env-based loading. The ``key`` field lists ``"key"`` in its aliases, so ``key=``
+    works without extra model config.
     """
     # Create app settings
     app = UniqueApp(
