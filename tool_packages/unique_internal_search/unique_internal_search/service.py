@@ -1,12 +1,8 @@
 import asyncio
 from logging import Logger
-from typing import TYPE_CHECKING
 
 from pydantic import Field, create_model
 from typing_extensions import override
-
-if TYPE_CHECKING:
-    from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit._common.chunk_relevancy_sorter.exception import (
     ChunkRelevancySorterException,
 )
@@ -33,6 +29,7 @@ from unique_toolkit.content.utils import (
     pick_content_chunks_for_token_window,
     sort_content_chunks,
 )
+from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
