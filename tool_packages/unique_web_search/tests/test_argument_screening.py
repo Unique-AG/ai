@@ -11,6 +11,9 @@ from unique_web_search.services.argument_screening import (
     ArgumentScreeningResult,
     ArgumentScreeningService,
 )
+from unique_web_search.services.argument_screening.exceptions import (
+    ArgumentScreeningUnparseableResponseException,
+)
 
 
 class TestArgumentScreeningConfig:
@@ -136,7 +139,7 @@ class TestArgumentScreeningService:
         mock_language_model_service.complete_async.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_raises_when_no_go(
+    async def test_returns_no_go_result(
         self, enabled_config, mock_language_model_service, mock_language_model
     ):
         mock_response = Mock()
@@ -154,13 +157,13 @@ class TestArgumentScreeningService:
             language_model=mock_language_model,
             config=enabled_config,
         )
-        with pytest.raises(ArgumentScreeningException) as exc_info:
-            await service({"query": "my card is 4111-1111-1111-1111"})
+        result = await service({"query": "my card is 4111-1111-1111-1111"})
 
-        assert "credit card number" in str(exc_info.value)
+        assert result.go is False
+        assert "credit card number" in result.reason
 
     @pytest.mark.asyncio
-    async def test_allows_when_response_unparseable(
+    async def test_raises_when_response_unparseable(
         self, enabled_config, mock_language_model_service, mock_language_model
     ):
         mock_response = Mock()
@@ -172,7 +175,8 @@ class TestArgumentScreeningService:
             language_model=mock_language_model,
             config=enabled_config,
         )
-        await service({"query": "test query"})
+        with pytest.raises(ArgumentScreeningUnparseableResponseException):
+            await service({"query": "test query"})
 
     @pytest.mark.asyncio
     async def test_passes_correct_messages(

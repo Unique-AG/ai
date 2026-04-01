@@ -121,7 +121,7 @@ class ExperimentalFeatures(FeatureExtendedSourceSerialization):
     argument_screening_config: ArgumentScreeningConfig = Field(
         default_factory=ArgumentScreeningConfig,
         title="Argument Screening",
-        description="LLM-based screening of tool call arguments for sensitive information before execution.",
+        description="LLM-based screening of tool call arguments for sensitive information before execution. Requires the feature flag FEATURE_FLAG_ENABLE_WEB_SEARCH_ARGUMENT_SCREENING_UN_18741 to be activated.",
     )
 
 
