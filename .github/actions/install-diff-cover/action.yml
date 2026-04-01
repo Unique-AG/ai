@@ -3,7 +3,7 @@ description: 'Installs diff-cover for coverage comparison'
 
 inputs:
   working-directory:
-    description: 'Working directory where poetry is available'
+    description: 'Working directory where uv is available'
     required: false
     default: '.'
 
@@ -14,7 +14,6 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        if ! poetry run diff-cover --version >/dev/null 2>&1; then
-          poetry run pip install diff-cover
+        if ! uv run diff-cover --version >/dev/null 2>&1; then
+          uv pip install diff-cover
         fi
-

@@ -234,7 +234,7 @@ Location: `pyproject.toml`
 Increment the patch version:
 
 ```toml
-[tool.poetry]
+[project]
 version = "0.10.75"  # Was 0.10.74
 ```
 
@@ -355,17 +355,17 @@ Run tests before submitting:
 
 ```bash
 # Run all tests
-poetry run poe test
+uv run poe test
 
 # Run linting
-poetry run poe lint
+uv run poe lint
 
 # Run type checking
-poetry run poe typecheck
+uv run poe typecheck
 
 # Run full CI checks
-poetry run poe ci-typecheck
-poetry run poe ci-coverage
+uv run poe ci-typecheck
+uv run poe ci-coverage
 ```
 
 ## Review Process

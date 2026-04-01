@@ -33,14 +33,11 @@ OPTIONS:
     -v, --version        Show version information and exit
     -c, --ci             CI mode - use git checkout instead of stash/restore
     -o, --output FILE    Output file for baseline (default: /tmp/baseline.json)
-    -r, --runner CMD     Command executor prefix (e.g., "poetry run" or "uv run", default: "poetry run")
+    -r, --runner CMD     Command executor prefix (default: "uv run")
 
 EXAMPLES:
-    # Basic usage (with Poetry)
+    # Basic usage
     ${SCRIPT_NAME} unique_toolkit
-
-    # With uv
-    ${SCRIPT_NAME} -r "uv run" -c unique_mcp main
 
     # CI mode with custom output
     ${SCRIPT_NAME} -c -o /tmp/my-baseline.json unique_toolkit main
@@ -79,7 +76,7 @@ PACKAGE_DIR=""
 BRANCH="main"
 CI_MODE=false
 OUTPUT_FILE="/tmp/baseline.json"
-RUNNER="poetry run"
+RUNNER="uv run"
 
 # Convert long options to short options for getopts
 ARGS=()
@@ -266,7 +263,7 @@ if [ "$CI_MODE" = true ]; then
     print_info "Switching back to PR branch..."
     # Reset tracked changes and clean untracked lock files from uv run/sync
     git reset --hard HEAD --quiet
-    git clean -f -- uv.lock poetry.lock 2>/dev/null || true
+    git clean -f -- uv.lock 2>/dev/null || true
     git checkout - --quiet
 else
     print_info "Switching back to $CURRENT_BRANCH..."
