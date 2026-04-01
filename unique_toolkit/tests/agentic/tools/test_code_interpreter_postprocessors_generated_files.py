@@ -1729,6 +1729,7 @@ def test_apply_postprocessing__normalizes_none_message_text__to_empty_string(
     proc._content_map = {}
     proc._orphan_code_blocks = []
     msg = ChatMessage(
+        id="test-msg-null-text",
         chat_id="c1",
         role=ChatMessageRole.ASSISTANT,
         content=None,
@@ -1762,6 +1763,7 @@ def test_apply_postprocessing__orphan_path_appends_fence_and_references__when_ff
         CodeInterpreterBlock(code="print('hi')", files=[orphan_file]),
     ]
     msg = ChatMessage(
+        id="test-msg-orphan",
         chat_id="c1",
         role=ChatMessageRole.ASSISTANT,
         content="Hello",
@@ -1791,6 +1793,7 @@ async def test_run__populates_orphan_blocks__when_ff_on_and_no_container_files(
         code="print(42)",
     )
     msg = ChatMessage(
+        id="test-msg-orphan-pop",
         chat_id="c1",
         role=ChatMessageRole.ASSISTANT,
         content="Hi",
@@ -1825,7 +1828,9 @@ async def test_run__clears_orphan_blocks__when_fence_ff_off(mock_ff: MagicMock) 
         type="code_interpreter_call",
         code="print(1)",
     )
-    msg = ChatMessage(chat_id="c1", role=ChatMessageRole.ASSISTANT, content="Hi")
+    msg = ChatMessage(
+        id="test-msg-fence-off", chat_id="c1", role=ChatMessageRole.ASSISTANT, text="Hi"
+    )
     loop = ResponsesLanguageModelStreamResponse(message=msg, output=[call])
     proc = DisplayCodeInterpreterFilesPostProcessor(
         client=MagicMock(),
@@ -1855,7 +1860,12 @@ async def test_run__orphan_upload_skips_calls_when_upload_fails(
         type="code_interpreter_call",
         code="print(1)",
     )
-    msg = ChatMessage(chat_id="c1", role=ChatMessageRole.ASSISTANT, content="Hi")
+    msg = ChatMessage(
+        id="test-msg-upload-fail",
+        chat_id="c1",
+        role=ChatMessageRole.ASSISTANT,
+        content="Hi",
+    )
     loop = ResponsesLanguageModelStreamResponse(message=msg, output=[call])
     chat = AsyncMock()
     chat.upload_to_chat_from_bytes_async = AsyncMock(
