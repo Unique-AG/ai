@@ -99,11 +99,8 @@ class ArgumentScreeningService:
 
         parsed = response.choices[0].message.parsed
         if parsed is None:
-            _LOGGER.warning(
-                "Argument screening returned unparseable response, allowing execution."
-            )
             raise ArgumentScreeningUnparseableResponseException(
-                reason="Unparseable response"
+                reason="Argument screening agent failed to return a valid response"
             )
 
         result = ArgumentScreeningResult.model_validate(parsed)

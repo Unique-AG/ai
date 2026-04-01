@@ -157,7 +157,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             tool_call.arguments,
         )
 
-        screening_service = await self._get_screen_arguments_service_if_ff_enabled()
+        screening_service = await self._get_argument_screening_service_if_ff_enabled()
 
         debug_info = WebSearchDebugInfo(parameters=parameters.model_dump())
 
@@ -319,7 +319,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
             return []
         return evaluation_check_list
 
-    async def _get_screen_arguments_service_if_ff_enabled(
+    async def _get_argument_screening_service_if_ff_enabled(
         self,
     ) -> ArgumentScreeningService | None:
         if not feature_flags.enable_web_search_argument_screening_un_18741.is_enabled(
