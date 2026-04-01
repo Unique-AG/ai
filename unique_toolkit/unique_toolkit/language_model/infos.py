@@ -5,7 +5,7 @@ from datetime import date
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Any, Callable, ClassVar, Optional, Self
+from typing import Annotated, Any, Callable, ClassVar, Optional, Self, cast
 
 import tiktoken
 from openai.types.shared_params import ReasoningEffort
@@ -322,7 +322,7 @@ class LanguageModelInfo(BaseModel):
     def resolve_temp_and_reasoning(
         self,
         temperature: float,
-        reasoning_effort: ReasoningEffort | None,
+        reasoning_effort: str | None,
     ) -> tuple[float, ReasoningEffort | None]:
         """Resolve temperature and reasoning_effort together for this model.
 
@@ -386,7 +386,7 @@ class LanguageModelInfo(BaseModel):
 
         # --- Scenario 3: active reasoning forces temperature to 1.0 ---
         if wants_active_reasoning:
-            return 1.0, reasoning_effort
+            return 1.0, cast(ReasoningEffort, reasoning_effort)
 
         # --- No reasoning: clamp temperature to model bounds ---
         # Fall back to the OpenAI-documented global range [0, 2] for models without
@@ -406,7 +406,9 @@ class LanguageModelInfo(BaseModel):
                 hi,
                 self.name,
             )
-        return round(max(lo, min(hi, temperature)), 2), reasoning_effort
+        return round(max(lo, min(hi, temperature)), 2), cast(
+            ReasoningEffort, reasoning_effort
+        ) if reasoning_effort is not None else None
 
     @classmethod
     @lru_cache(maxsize=1)
