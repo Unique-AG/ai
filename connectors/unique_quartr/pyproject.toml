@@ -1,6 +1,6 @@
 [project]
 name = "unique_quartr"
-version = "0.2.7"
+version = "0.2.8"
 description = "Unique Quartr API client"
 authors = [
     { name = "Rami Azouz", email = "rami.ext@unique.ch" },
@@ -36,7 +36,11 @@ build-backend = "uv_build"
 module-root = ""
 
 [tool.uv]
+exclude-newer = "2 weeks"
 constraint-dependencies = ["lxml>=5.0.0"]
+
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
 
 [tool.uv.sources]
 unique-toolkit = { path = "../../unique_toolkit", editable = true }

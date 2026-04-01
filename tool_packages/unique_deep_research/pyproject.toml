@@ -1,6 +1,6 @@
 [project]
 name = "unique_deep_research"
-version = "3.5.3"
+version = "3.5.4"
 description = "Deep Research Tool for complex research tasks"
 readme = "README.md"
 license = { text = "Proprietary" }
@@ -49,6 +49,14 @@ dev = [
     "google>=3.0.0,<4",
     "google-genai>=1.46.0,<2",
 ]
+
+[tool.uv]
+exclude-newer = "2 weeks"
+
+[tool.uv.exclude-newer-package]
+"unique-sdk" = false
+"unique-toolkit" = false
+"unique-web-search" = false
 
 [tool.uv.sources]
 unique-sdk = { path = "../../unique_sdk", editable = true }

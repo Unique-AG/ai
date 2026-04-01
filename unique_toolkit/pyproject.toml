@@ -1,6 +1,6 @@
 [project]
 name = "unique_toolkit"
-version = "1.68.1"
+version = "1.68.2"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12"
@@ -84,10 +84,14 @@ dev = [
 ]
 
 [tool.uv]
+exclude-newer = "2 weeks"
 constraint-dependencies = [
     "starlette>=0.49.1",
     "lxml>=5.0.0",
 ]
+
+[tool.uv.exclude-newer-package]
+"unique-sdk" = false
 
 [tool.poe.tasks]
 lint = "ruff check ."

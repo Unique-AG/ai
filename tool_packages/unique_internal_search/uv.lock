@@ -1,6 +1,13 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12, <4"
+
+[options]
+exclude-newer = "2026-03-18T13:54:31.441505Z"
+exclude-newer-span = "P2W"
+
+[options.exclude-newer-package]
+unique-toolkit = false
 
 [manifest]
 constraints = [{ name = "lxml", specifier = ">=5.0.0" }]
@@ -2000,7 +2007,7 @@ wheels = [
 
 [[package]]
 name = "unique-internal-search"
-version = "1.2.34"
+version = "1.2.36"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
@@ -2039,26 +2046,25 @@ dev = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.92"
+version = "0.10.90"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "anyio" },
-    { name = "click" },
     { name = "httpx" },
     { name = "regex" },
     { name = "requests" },
     { name = "tiktoken" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4d/e1/38d41387b2de9e314b7587e5ba5044f425bb2d3860f76a325850dfceb0f4/unique_sdk-0.10.92.tar.gz", hash = "sha256:ddb458b2aa3e66e4b073fe118917b4b6feb925e48bded2d269a720137e1e3608", size = 55696, upload-time = "2026-03-21T14:22:46.092Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/20/cf/ca3dee417cc6b878424012b0e8bdc4bdffe85c94df5043c88a5e4f90e9a0/unique_sdk-0.10.90.tar.gz", hash = "sha256:56f1523157c69870c4be91de9025771ed317d7293bc5a0a9ef890f5631ff2adc", size = 40837, upload-time = "2026-03-17T12:17:35.352Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/85/33/376d8648c3684dfae325230b14b6aa14195619a8c5bce58d549c9645794e/unique_sdk-0.10.92-py3-none-any.whl", hash = "sha256:45c7d67809e4f49fe3592a7df4e4acd2032aa1aa6ac75756c55fab90ca93cf3c", size = 80138, upload-time = "2026-03-21T14:22:44.766Z" },
+    { url = "https://files.pythonhosted.org/packages/10/24/0e48e9082d1466d0cc9c99bdefc7e6608fa62fc8cc036e2fb577ddf46d59/unique_sdk-0.10.90-py3-none-any.whl", hash = "sha256:dcfdd86e95ed5f7af0b53820563690e15abaa67cb54cfd565bb198f8f7127137", size = 59071, upload-time = "2026-03-17T12:17:36.131Z" },
 ]
 
 [[package]]
 name = "unique-toolkit"
-version = "1.64.0"
+version = "1.68.2"
 source = { editable = "../../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
