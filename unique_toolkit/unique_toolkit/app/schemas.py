@@ -300,10 +300,17 @@ class ChatEvent(BaseEvent):
 
         options = ChatEvent.FilterOptions()
 
-        if self.payload.assistant_id not in options.assistant_ids:
+        # Empty lists mean "do not filter by this criterion" (same as filter_event).
+        if (
+            options.assistant_ids
+            and self.payload.assistant_id not in options.assistant_ids
+        ):
             return True
 
-        if self.payload.name not in options.references_in_code:
+        if (
+            options.references_in_code
+            and self.payload.name not in options.references_in_code
+        ):
             return True
 
         return False

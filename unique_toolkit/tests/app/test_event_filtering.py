@@ -83,6 +83,41 @@ class TestChatEventFiltering:
         with pytest.raises(ConfigurationException, match="No filter options provided"):
             chat_event.filter_event(filter_options=filter_options)
 
+    @pytest.mark.ai
+    def test_AI_chat_event_filter__does_not_filter_out__when_default_empty_lists(
+        self,
+    ) -> None:
+        """
+        Purpose: Verify filter() treats empty assistant_ids / references_in_code as no criterion.
+        Why this matters: Without truthiness guards, `x not in []` is always True and every event is filtered out.
+        Setup summary: ChatEvent with default FilterOptions (empty lists); filter() returns False.
+        """
+        event_data = {
+            "id": "test-event",
+            "event": "unique.chat.external-module.chosen",
+            "userId": "test-user",
+            "companyId": "test-company",
+            "payload": {
+                "name": "test_module",
+                "description": "Test description",
+                "configuration": {},
+                "chatId": "test-chat",
+                "assistantId": "test-assistant",
+                "userMessage": {
+                    "id": "msg1",
+                    "text": "Hello",
+                    "createdAt": "2023-01-01T00:00:00Z",
+                    "originalText": "Hello",
+                    "language": "en",
+                },
+                "assistantMessage": {"id": "msg2", "createdAt": "2023-01-01T00:01:00Z"},
+            },
+            "createdAt": 1672531200,
+            "version": "1.0",
+        }
+        chat_event = ChatEvent.model_validate(event_data)
+        assert chat_event.filter() is False
+
     def test_chat_event_filter_by_assistant_id_included(self):
         """Test that ChatEvent.filter_event returns False when assistant_id is in the filter list."""
         event_data = {

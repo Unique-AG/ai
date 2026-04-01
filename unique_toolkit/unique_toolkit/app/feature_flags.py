@@ -81,8 +81,6 @@ ValidatedFeatureFlag = Annotated[FeatureFlag, BeforeValidator(parse_feature_flag
 
 
 class _UniqueToolkitFeatureFlags(BaseSettings):
-    model_config = SettingsConfigDict(frozen=True)
-
     un_18894_freeze_unique_settings: ValidatedFeatureFlag = Field(
         default=FeatureFlag(value=False),
         frozen=True,
