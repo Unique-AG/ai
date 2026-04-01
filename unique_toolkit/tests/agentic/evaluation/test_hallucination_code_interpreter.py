@@ -2,6 +2,10 @@
 
 Relates to BugBash UN-18562.
 
+These tests live under ``tests/agentic/evaluation/`` so CI ``check-coverage.sh``
+(which runs ``pytest tests/`` only) exercises them and diff-coverage sees
+``schemas.EvaluationMetricInput.get_joined_code_contexts``.
+
 Scenario
 --------
 When code interpreter is combined with a search tool (which triggers the hallucination
@@ -322,7 +326,7 @@ def test_extract_code_execution_contexts__returns_empty__for_non_responses_api()
 
 
 # ---------------------------------------------------------------------------
-# get_joined_code_contexts rendering
+# get_joined_code_contexts rendering (schemas.py — must run under CI tests/)
 # ---------------------------------------------------------------------------
 
 
@@ -392,6 +396,57 @@ def test_get_joined_code_contexts__truncates_long_code_and_stdout() -> None:
     rendered = metric_input.get_joined_code_contexts()
 
     assert "truncated" in rendered
+
+
+def test_get_joined_code_contexts__empty_list_returns_placeholder() -> None:
+    """Explicit list with no calls hits the early return (diff-coverage on schemas.py)."""
+    metric_input = EvaluationMetricInput(
+        input_text="q",
+        output_text="o",
+        code_execution_contexts=[],
+    )
+    assert metric_input.get_joined_code_contexts() == "<No code-execution provided>"
+
+
+def test_get_joined_code_contexts__unset_returns_placeholder() -> None:
+    """Missing field behaves like no CI contexts (diff-coverage on schemas.py)."""
+    metric_input = EvaluationMetricInput(input_text="q", output_text="o")
+    assert metric_input.get_joined_code_contexts() == "<No code-execution provided>"
+
+
+def test_get_joined_code_contexts__custom_tag_name_placeholder_and_blocks() -> None:
+    """Custom tag_name flows into placeholder and per-block tags."""
+    empty = EvaluationMetricInput(input_text="q", output_text="o")
+    assert empty.get_joined_code_contexts(tag_name="ci") == "<No ci provided>"
+
+    ctx = CodeExecutionContext(code="pass", stdout="ok")
+    filled = EvaluationMetricInput(
+        input_text="q", output_text="o", code_execution_contexts=[ctx]
+    )
+    rendered = filled.get_joined_code_contexts(tag_name="ci")
+    assert "<ci-1>" in rendered
+    assert "</ci-1>" in rendered
+    assert "pass" in rendered
+    assert "ok" in rendered
+
+
+def test_get_joined_code_contexts__multiple_calls_get_numbered_blocks() -> None:
+    """Second iteration of the loop must emit tag index 2 (diff-coverage on schemas.py)."""
+    metric_input = EvaluationMetricInput(
+        input_text="q",
+        output_text="o",
+        code_execution_contexts=[
+            CodeExecutionContext(code="a = 1", stdout="one"),
+            CodeExecutionContext(code="b = 2", stdout="two"),
+        ],
+    )
+    rendered = metric_input.get_joined_code_contexts()
+    assert "<code-execution-1>" in rendered
+    assert "<code-execution-2>" in rendered
+    assert "a = 1" in rendered
+    assert "b = 2" in rendered
+    assert "one" in rendered
+    assert "two" in rendered
 
 
 # ---------------------------------------------------------------------------
