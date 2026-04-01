@@ -12,6 +12,7 @@ import humps
 import unique_sdk
 from openai.types.chat import ChatCompletionToolChoiceOptionParam
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
+from openai.types.shared_params import ReasoningEffort
 from pydantic import BaseModel
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
@@ -410,7 +411,7 @@ def _prepare_all_completions_params_util(
         messages_dict = __camelize_keys(messages.copy())
 
     if model_info is not None:
-        reasoning_effort = options.get("reasoning_effort")
+        reasoning_effort = cast(ReasoningEffort | None, options.get("reasoning_effort"))
         resolved_temp, resolved_effort = model_info.resolve_temp_and_reasoning(
             temperature, reasoning_effort=reasoning_effort
         )
