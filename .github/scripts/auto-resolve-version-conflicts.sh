@@ -266,6 +266,7 @@ resolve_pr() {
 
   # Only now touch the working tree: checkout PR branch and merge main once
   git checkout "origin/$pr_branch" --detach -q
+  git reset --hard HEAD 2>/dev/null || true
   git merge origin/main --no-commit --no-ff -q 2>/dev/null || true
 
   local version_summary=""
@@ -304,7 +305,8 @@ resolve_pr() {
       echo "Non-version conflict within $pyproject — skipping PR"
       rm -f "${pyproject}.tmp"
       git merge --abort 2>/dev/null || true
-      git checkout - -q 2>/dev/null || true
+      git reset --hard 2>/dev/null || true
+      git clean -fdq 2>/dev/null || true
       echo "::endgroup::"
       return 0
     fi
@@ -315,7 +317,8 @@ resolve_pr() {
       echo "Non-version conflict within $changelog — skipping PR"
       rm -f "${changelog}.tmp"
       git merge --abort 2>/dev/null || true
-      git checkout - -q 2>/dev/null || true
+      git reset --hard 2>/dev/null || true
+      git clean -fdq 2>/dev/null || true
       echo "::endgroup::"
       return 0
     fi
@@ -326,7 +329,8 @@ resolve_pr() {
   if git diff --name-only --diff-filter=U 2>/dev/null | grep -q .; then
     echo "Unresolved files remain after version resolution — aborting"
     git merge --abort 2>/dev/null || true
-    git checkout - -q 2>/dev/null || true
+    git reset --hard 2>/dev/null || true
+    git clean -fdq 2>/dev/null || true
     echo "::endgroup::"
     return 0
   fi
@@ -334,7 +338,8 @@ resolve_pr() {
   if git diff --cached --quiet; then
     echo "No changes to commit after resolution"
     git merge --abort 2>/dev/null || true
-    git checkout - -q 2>/dev/null || true
+    git reset --hard 2>/dev/null || true
+    git clean -fdq 2>/dev/null || true
     echo "::endgroup::"
     return 0
   fi
@@ -361,7 +366,8 @@ COMMENT
     FAILED_PUSHES+=("$pr_number $pr_branch")
   fi
 
-  git checkout - -q 2>/dev/null || true
+  git reset --hard 2>/dev/null || true
+  git clean -fdq 2>/dev/null || true
   echo "::endgroup::"
 }
 
