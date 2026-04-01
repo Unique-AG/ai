@@ -29,8 +29,6 @@ class MessagesBuilder:
                 message = LanguageModelUserMessage(content=content)
             case LanguageModelMessageRole.ASSISTANT:
                 message = LanguageModelAssistantMessage(content=content)
-            case LanguageModelMessageRole.TOOL:
-                raise ValueError("Tool messages are not supported in the builder")
 
         self.messages.append(message)
         return self
