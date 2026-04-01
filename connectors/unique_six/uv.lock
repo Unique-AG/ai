@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.12, <4"
 
 [options]
-exclude-newer = "2026-03-11T10:27:21.573285Z"
+exclude-newer = "2026-03-18T13:54:30.549039Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -2120,7 +2120,7 @@ wheels = [
 
 [[package]]
 name = "unique-six"
-version = "0.1.4"
+version = "0.1.5"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },
@@ -2165,7 +2165,7 @@ dev = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.63.2"
+version = "1.68.2"
 source = { editable = "../../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },

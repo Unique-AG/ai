@@ -6,9 +6,16 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 
+[options]
+exclude-newer = "2026-03-18T13:54:31.542794Z"
+exclude-newer-span = "P2W"
+
+[options.exclude-newer-package]
+unique-toolkit = false
+
 [[package]]
 name = "ai-monorepo"
-version = "0.1.0"
+version = "0.1.1"
 source = { virtual = "." }
 dependencies = [
     { name = "griffe-pydantic" },
@@ -2850,7 +2857,7 @@ wheels = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.63.1"
+version = "1.68.2"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },

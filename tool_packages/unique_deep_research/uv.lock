@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-11T10:27:21.002725Z"
+exclude-newer = "2026-03-18T13:54:31.061697Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -3767,7 +3767,7 @@ wheels = [
 
 [[package]]
 name = "unique-deep-research"
-version = "3.5.3"
+version = "3.5.4"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -3836,7 +3836,7 @@ dev = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.93"
+version = "0.10.97"
 source = { editable = "../../unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
@@ -3881,7 +3881,7 @@ dev = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.63.2"
+version = "1.68.2"
 source = { editable = "../../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -3970,7 +3970,7 @@ dev = [
 
 [[package]]
 name = "unique-web-search"
-version = "1.14.2"
+version = "1.14.4"
 source = { editable = "../unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },

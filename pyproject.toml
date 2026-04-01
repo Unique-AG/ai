@@ -1,6 +1,6 @@
 [project]
 name = "ai-monorepo"
-version = "0.1.0"
+version = "0.1.1"
 description = "AI Monorepo Documentation"
 authors = [{ name = "Unique Team" }]
 readme = "README.md"
