@@ -6,13 +6,14 @@ from typing import Any, Generic, Optional, TypeVar, override
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 from typing_extensions import deprecated
 
 from unique_toolkit._common.exception import ConfigurationException
-from unique_toolkit.app.unique_settings import (
-    UniqueChatEventFilterOptions,
+from unique_toolkit.app.chat_event_filter_options_settings import (
+    CHAT_EVENT_FILTER_OPTIONS_SETTINGS,
 )
+from unique_toolkit.app.unique_settings import UniqueChatEventFilterOptions
 from unique_toolkit.smart_rules.compile import UniqueQL, parse_uniqueql
 
 FilterOptionsT = TypeVar("FilterOptionsT", bound=BaseSettings)
@@ -258,15 +259,6 @@ class EventPayload(ChatEventPayload):
     # user_message: EventUserMessage
     # assistant_message: EventAssistantMessage
     # additional_parameters: Optional[EventAdditionalParameters] = None
-
-
-# Shared with ChatEvent.FilterOptions so both read UNIQUE_CHAT_EVENT_FILTER_OPTIONS_* env vars.
-CHAT_EVENT_FILTER_OPTIONS_SETTINGS = SettingsConfigDict(
-    env_prefix="unique_chat_event_filter_options_",
-    env_file_encoding="utf-8",
-    case_sensitive=False,
-    extra="ignore",
-)
 
 
 class ChatEvent(BaseEvent):
