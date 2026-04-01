@@ -2,7 +2,7 @@ import asyncio
 import time
 from datetime import datetime, timezone
 from logging import Logger
-from typing import Any, overload
+from typing import Any, cast, overload
 
 import jinja2
 from typing_extensions import deprecated
@@ -22,6 +22,10 @@ from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.thinking_manager.thinking_manager import ThinkingManager
+from unique_toolkit.agentic.tools.experimental.open_file_tool import (
+    OpenFileToolRuntime,
+    OpenFileToolRuntimeConfig,
+)
 from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
     SafeTaskExecutor,
@@ -97,6 +101,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: ResponsesLoopIterationRunner,
+        agent_file_registry: list[str] | None = None,
     ) -> None: ...
 
     def __init__(
@@ -118,6 +123,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner | ResponsesLoopIterationRunner,
+        agent_file_registry: list[str] | None = None,
     ) -> None:
         self._logger = logger
         self._event = event
@@ -139,6 +145,28 @@ class UniqueAI:
         self._streaming_handler = streaming_handler
 
         self._message_step_logger = message_step_logger
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            self._agent_file_registry: list[str] = (
+                agent_file_registry if agent_file_registry is not None else []
+            )
+            file_cfg = self._config.agent.experimental.open_file_tool_config
+            self._open_file_runtime = OpenFileToolRuntime(
+                logger=logger,
+                config=OpenFileToolRuntimeConfig(
+                    enabled=file_cfg.enabled,
+                    send_files_in_payload=file_cfg.send_files_in_payload,
+                    send_uploaded_files_in_payload=file_cfg.send_uploaded_files_in_payload,
+                    use_responses_api=(
+                        self._config.agent.experimental.responses_api_config.use_responses_api
+                        or self._config.agent.experimental.use_responses_api
+                    ),
+                ),
+                content_service=content_service,
+                tool_manager=tool_manager,
+                message_step_logger=message_step_logger,
+                agent_file_registry=self._agent_file_registry,
+            )
+        self._file_fallback_occurred = False
         # Helper variable to support control loop
         self._tool_took_control = False
         self._loop_iteration_runner = loop_iteration_runner
@@ -213,9 +241,16 @@ class UniqueAI:
 
                 self._thinking_manager.update_tool_progress_reporter(loop_response)
 
+                if (
+                    self._config.agent.experimental.open_file_tool_config.enabled
+                    and self._file_fallback_occurred
+                ):
+                    await self._open_file_runtime.report_file_fallback_step()
+                    self._file_fallback_occurred = False
+
                 self._debug_info_manager.extract_builtin_tool_debug_info(
                     loop_response,
-                    tool_manager=self._tool_manager,  # TODO: fix type in toolkit
+                    tool_manager=cast(ToolManager, self._tool_manager),
                     loop_iteration_index=self.current_iteration_index,
                 )
 
@@ -295,6 +330,25 @@ class UniqueAI:
             other_options=self._config.agent.experimental.additional_llm_options,
         )
 
+        # Experimental Feature UN-17905
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            try:
+                return await self._loop_iteration_runner(**kwargs)
+            except Exception as exc:
+                if not self._open_file_runtime.should_retry_without_files(exc):
+                    raise
+                self._logger.warning(
+                    "LLM call failed (likely payload too large). "
+                    "Retrying without attached files."
+                )
+                self._file_fallback_occurred = True
+                kwargs["messages"] = self._open_file_runtime.prepare_retry_messages(
+                    messages=messages
+                )
+                kwargs["tools"] = self._tool_manager.get_tool_definitions()  # type: ignore (as above)
+                kwargs["tool_choices"] = self._tool_manager.get_forced_tools()  # type: ignore (as above)
+                return await self._loop_iteration_runner(**kwargs)
+
         return await self._loop_iteration_runner(**kwargs)
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
@@ -333,6 +387,14 @@ class UniqueAI:
             rendered_system_message_string,
             self._postprocessor_manager.remove_from_text,
         )
+
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            if self._open_file_runtime.should_attach_content_files():
+                messages = (
+                    self._open_file_runtime.inject_content_files_into_user_message(
+                        messages
+                    )
+                )
         return messages
 
     async def _render_user_prompt(self) -> str:
@@ -463,7 +525,13 @@ class UniqueAI:
             logger=self._logger,
         )
 
-        selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            selected_evaluation_names = self._open_file_runtime.filter_evaluation_names(
+                self._tool_manager.get_evaluation_check_list()
+            )
+        else:
+            selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
+
         evaluation_results = task_executor.execute_async(
             self._evaluation_manager.run_evaluations,
             selected_evaluation_names,
@@ -598,6 +666,10 @@ class UniqueAI:
             **tool_times,
         }
 
+        # Inject reminders before persisting tool results into history.
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            self._open_file_runtime.inject_open_file_reminder(tool_call_responses)
+
         # Process results with error handling
         # Add tool call results to history first to stabilize source numbering,
         # then extract referenceable chunks and debug info
@@ -610,6 +682,7 @@ class UniqueAI:
         self._tool_took_control = self._tool_manager.does_a_tool_take_control(
             tool_calls
         )
+
         return self._tool_took_control
 
     async def _create_new_assistant_message_if_loop_response_contains_content(
