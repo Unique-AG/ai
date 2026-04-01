@@ -1,13 +1,19 @@
+from __future__ import annotations
+
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Callable, ClassVar, Protocol, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Protocol, overload
 
 from typing_extensions import Self, TypeVar
 
-from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
+
+if TYPE_CHECKING:
+    from unique_toolkit._common.chunk_relevancy_sorter.service import (
+        ChunkRelevancySorter,
+    )
 
 
 class ServiceProtocol(Protocol):
@@ -96,9 +102,13 @@ class UniqueServiceFactory:
         """Create a :class:`KnowledgeBaseService` using the pre-bound context."""
         return self.get(KnowledgeBaseService, **kwargs)
 
-    def chunk_relevancy_sorter(self, **kwargs: Any) -> ChunkRelevancySorter:
+    def chunk_relevancy_sorter(self) -> ChunkRelevancySorter:
         """Create a :class:`ChunkRelevancySorter` using the pre-bound context."""
-        return self.get(ChunkRelevancySorter, **kwargs)
+        from unique_toolkit._common.chunk_relevancy_sorter.service import (
+            ChunkRelevancySorter,
+        )
+
+        return ChunkRelevancySorter.from_settings(self._settings)
 
     # ── Class-level registry operations ──────────────────────────────────────
 
@@ -131,7 +141,7 @@ class UniqueServiceFactory:
         from unique_toolkit.services.chat_service import ChatService
         from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
-        for service_class in [KnowledgeBaseService, ChatService, ChunkRelevancySorter]:
+        for service_class in [KnowledgeBaseService, ChatService]:
             if service_class.__name__ not in cls._registry:
                 cls.register(service_class=service_class)
 
