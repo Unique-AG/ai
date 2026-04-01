@@ -175,6 +175,61 @@ def test_get_tool_prompts__uses_config_system_prompt__when_customised() -> None:
 
 
 @pytest.mark.ai
+@pytest.mark.asyncio
+async def test_build_tool__force_auto_container__sets_use_auto_container_and_returns_tool() -> (
+    None
+):
+    """
+    Purpose: Verify that force_auto_container=True mutates the config to use_auto_container=True
+    and returns a tool with container_id=None, bypassing any container-creation side effects.
+    Why this matters: This is the primary path for GPT-5.4 Pro which requires auto container mode
+    but does not have use_auto_container set in its default config.
+    """
+    config = OpenAICodeInterpreterConfig(use_auto_container=False)
+    tool = await OpenAICodeInterpreterTool.build_tool(
+        config=config,
+        uploaded_files=[],
+        client=MagicMock(),
+        content_service=MagicMock(),
+        company_id="company-1",
+        user_id="user-1",
+        chat_id="chat-1",
+        is_exclusive=True,
+        force_auto_container=True,
+    )
+
+    assert tool._container_id is None
+    assert tool.is_exclusive() is True
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_build_tool__use_auto_container_in_config__returns_tool_without_container() -> (
+    None
+):
+    """
+    Purpose: Verify that use_auto_container=True in the config (without force_auto_container)
+    also returns a tool with container_id=None.
+    Why this matters: Covers the existing config-driven auto-container path and ensures
+    is_exclusive is correctly forwarded.
+    """
+    config = OpenAICodeInterpreterConfig(use_auto_container=True)
+    tool = await OpenAICodeInterpreterTool.build_tool(
+        config=config,
+        uploaded_files=[],
+        client=MagicMock(),
+        content_service=MagicMock(),
+        company_id="company-2",
+        user_id="user-2",
+        chat_id="chat-2",
+        is_exclusive=False,
+    )
+
+    assert tool._container_id is None
+    assert tool.is_exclusive() is False
+
+
+@pytest.mark.ai
 def test_get_required_include_params__returns_empty_list__when_ff_off() -> None:
     """
     Purpose: Verify get_required_include_params returns [] when the fence FF is off.

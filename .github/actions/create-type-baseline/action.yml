@@ -1,5 +1,5 @@
 name: 'Create Type Baseline'
-description: 'Creates a type checking baseline from a specified branch, supporting both Poetry and uv'
+description: 'Creates a type checking baseline from a specified branch using uv'
 
 inputs:
   package_dir:
@@ -9,18 +9,10 @@ inputs:
     description: 'Branch/ref to create baseline from'
     required: false
     default: 'main'
-  package_manager:
-    description: 'Package manager to use: auto (detect), poetry, or uv'
-    required: false
-    default: 'auto'
   python_version:
     description: 'Python version to use'
     required: false
     default: '3.11'
-  package_manager_version:
-    description: 'Package manager version to install (e.g., "1.8.3" for Poetry, ignored for uv)'
-    required: false
-    default: '1.8.3'
   output_file:
     description: 'Output file for baseline'
     required: false
@@ -29,20 +21,15 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Setup package manager
-      id: setup_pm
-      uses: ./.github/actions/install-package-manager
+    - name: Setup uv
+      uses: ./.github/actions/setup-uv
       with:
         package_dir: ${{ inputs.package_dir }}
-        package_manager: ${{ inputs.package_manager }}
         python_version: ${{ inputs.python_version }}
-        package_manager_version: ${{ inputs.package_manager_version }}
 
     - name: Save script before checkout
       shell: bash
       run: |
-        # Copy script and lib to /tmp before checking out base branch
-        # (otherwise we'd run main's version of the script, not the PR's)
         cp ${{ github.workspace }}/.github/scripts/create-type-baseline.sh /tmp/create-type-baseline.sh
         cp -r ${{ github.workspace }}/.github/scripts/lib /tmp/lib
 
@@ -50,11 +37,10 @@ runs:
       shell: bash
       run: git fetch origin ${{ inputs.branch }}:${{ inputs.branch }}
 
-    - name: Restore lock files before checkout
+    - name: Restore lock file before checkout
       shell: bash
       run: |
         git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
-        git restore "${{ inputs.package_dir }}/poetry.lock" 2>/dev/null || true
 
     - name: Checkout base branch
       shell: bash
@@ -65,37 +51,21 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
-      run: |
-        # Don't use --locked for base branch since older branches may not have
-        # lock files that pass --locked validation
-        INSTALL_CMD="${{ steps.setup_pm.outputs.install_cmd }}"
-        if [[ "$INSTALL_CMD" == uv* ]]; then
-          uv sync
-        else
-          $INSTALL_CMD
-        fi
+      run: uv sync
 
     - name: Discard lock file changes
       shell: bash
       run: |
-        # Discard any changes to lock files from dependency installation
-        # This prevents checkout errors when the script switches back to the PR branch
-        # Restore tracked lock files
-        git restore "${{ inputs.package_dir }}/poetry.lock" 2>/dev/null || true
         git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
-        # Remove untracked lock files (e.g., uv.lock created by uv on a poetry-based branch)
-        git clean -f -- "${{ inputs.package_dir }}/poetry.lock" "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
+        git clean -f -- "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
 
     - name: Create baseline
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       run: |
-        # Use -c flag for CI mode. The script will checkout the base branch again
-        # (redundant since we're already there), run basedpyright, then checkout back.
-        # Lock files have been discarded, so checkout back should succeed.
         bash /tmp/create-type-baseline.sh \
           -c \
-          -r "${{ steps.setup_pm.outputs.run_cmd }}" \
+          -r "uv run" \
           -o "${{ inputs.output_file }}" \
           ${{ github.workspace }}/${{ inputs.package_dir }} \
           ${{ inputs.branch }}

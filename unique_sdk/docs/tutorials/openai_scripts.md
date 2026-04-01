@@ -46,9 +46,9 @@ This script demonstrates how to use the OpenAI SDK with Unique API proxy for:
 Make sure to adjust the model based on the API used and your needs.
 
 Usage:
-    poetry run python sdk_examples/openai_scripts.py chat
-    poetry run python sdk_examples/openai_scripts.py assistants
-    poetry run python sdk_examples/openai_scripts.py responses
+    uv run python sdk_examples/openai_scripts.py chat
+    uv run python sdk_examples/openai_scripts.py assistants
+    uv run python sdk_examples/openai_scripts.py responses
 """
 
 import logging
@@ -209,13 +209,13 @@ Run the script with different commands:
 
 ```bash
 # Chat completions
-poetry run python sdk_examples/openai_scripts.py chat
+uv run python sdk_examples/openai_scripts.py chat
 
 # Assistants
-poetry run python sdk_examples/openai_scripts.py assistants
+uv run python sdk_examples/openai_scripts.py assistants
 
 # Responses
-poetry run python sdk_examples/openai_scripts.py responses
+uv run python sdk_examples/openai_scripts.py responses
 ```
 
 ## Important Notes

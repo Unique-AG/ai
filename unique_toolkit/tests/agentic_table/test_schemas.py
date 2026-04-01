@@ -4,6 +4,7 @@ from unique_toolkit.agentic_table.schemas import (
     ArtifactData,
     ArtifactType,
     BaseMetadata,
+    DDMetadata,
     MagicTableGenerateArtifactPayload,
     MagicTableRerunRowPayload,
     RerunRowMetadata,
@@ -154,6 +155,20 @@ class TestMagicTableGenerateArtifactPayload:
         )
         serialized = payload.model_dump()
         assert serialized["data"]["artifact_type"] == "AGENTIC_REPORT"
+
+
+class TestDDMetadata:
+    def test_rerun_defaults_false(self):
+        meta = DDMetadata()
+        assert meta.rerun is False
+
+    def test_rerun_from_camel_case_json(self):
+        meta = DDMetadata.model_validate_json('{"rerun": true}')
+        assert meta.rerun is True
+
+    def test_rerun_from_legacy_rerun_key(self):
+        meta = DDMetadata.model_validate({"Rerun": True})
+        assert meta.rerun is True
 
 
 class TestBaseMetadata:

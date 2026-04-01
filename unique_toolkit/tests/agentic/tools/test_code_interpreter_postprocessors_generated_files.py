@@ -1741,10 +1741,16 @@ def test_apply_postprocessing__normalizes_none_message_text__to_empty_string(
 
 @pytest.mark.ai
 @patch(GEN_FILES_FF)
-def test_apply_postprocessing__orphan_path_appends_fence_and_references__when_ff_on(
+def test_apply_postprocessing__orphan_path_appends_fence_but_not_references__when_ff_on(
     mock_ff: MagicMock,
 ) -> None:
-    """Orphan blocks get appended fences and ContentReference rows when fence FF is on."""
+    """
+    Purpose: Orphan blocks get fence text but NO ContentReference entries when fence FF is on.
+    Why this matters: Orphan artifacts are rendered via fences in message.text; adding them
+    to references would surface them as source citations, which is semantically wrong.
+    Setup summary: One orphan block with a document file, fence FF ON; assert fence text
+    added and references remain empty.
+    """
     mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
     proc = DisplayCodeInterpreterFilesPostProcessor(
@@ -1770,10 +1776,130 @@ def test_apply_postprocessing__orphan_path_appends_fence_and_references__when_ff
     loop = ResponsesLanguageModelStreamResponse(message=msg, output=[])
     changed = proc.apply_postprocessing_to_response(loop)
     assert changed is True
-    assert msg.references is not None
-    assert any(r.source_id == "cont_orphan" for r in msg.references)
     assert msg.text is not None
     assert "fileWithSource" in msg.text
+    assert msg.references == []
+
+
+@pytest.mark.ai
+@patch(GEN_FILES_FF)
+def test_apply_postprocessing__ff_on__does_not_append_reference_for_non_image_file(
+    mock_ff: MagicMock,
+) -> None:
+    """
+    Purpose: When fence FF is ON, non-image files must NOT be added to message.references.
+    Why this matters: Files are rendered as fence blocks in message.text; references entries
+    would incorrectly surface them as source citations in the references panel.
+    Setup summary: One .pdf with sandbox link, fence FF ON; assert references stays empty.
+    """
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
+    mock_ff.enable_html_rendering_un_15131.is_enabled.return_value = False
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id="company-fence-on",
+    )
+    proc._content_map = {"report.pdf": "cid-pdf-1"}
+    proc._orphan_code_blocks = []
+    message = SimpleNamespace(
+        text="See [report.pdf](sandbox:/mnt/data/report.pdf) for details.",
+        references=[],
+    )
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[],
+        code_interpreter_calls=[],
+    )
+    proc.apply_postprocessing_to_response(loop_response)
+    assert message.references == []
+
+
+@pytest.mark.ai
+@patch(GEN_FILES_FF)
+def test_apply_postprocessing__ff_off__appends_reference_for_non_image_file(
+    mock_ff: MagicMock,
+) -> None:
+    """
+    Purpose: When fence FF is OFF, non-image files must still be added to message.references.
+    Why this matters: The legacy references UI uses these entries for download/open actions.
+    Setup summary: One .pdf with sandbox link, fence FF OFF; assert one ContentReference appended.
+    """
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
+    mock_ff.enable_html_rendering_un_15131.is_enabled.return_value = False
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id="company-fence-off",
+    )
+    proc._content_map = {"report.pdf": "cid-pdf-1"}
+    proc._orphan_code_blocks = []
+    message = SimpleNamespace(
+        text="See [report.pdf](sandbox:/mnt/data/report.pdf) for details.",
+        references=[],
+    )
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[],
+        code_interpreter_calls=[],
+    )
+    proc.apply_postprocessing_to_response(loop_response)
+    assert len(message.references) == 1
+    ref = message.references[0]
+    assert ref.source_id == "cid-pdf-1"
+    assert ref.name == "report.pdf"
+
+
+@pytest.mark.ai
+@patch(GEN_FILES_FF)
+def test_apply_postprocessing__ff_off__existing_citation_refs_preserved(
+    mock_ff: MagicMock,
+) -> None:
+    """
+    Purpose: Pre-existing (ingestion/citation) references are preserved when fence FF is OFF
+    and a new artifact reference is appended alongside them.
+    Why this matters: Regression check — the fix must not disturb existing non-artifact refs.
+    Setup summary: One pre-existing ContentReference; one .xlsx with sandbox link; FF OFF.
+    Assert both refs present after postprocessing.
+    """
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
+    mock_ff.enable_html_rendering_un_15131.is_enabled.return_value = False
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id="company-existing-refs",
+    )
+    proc._content_map = {"data.xlsx": "cid-xls-1"}
+    proc._orphan_code_blocks = []
+    existing_ref = ContentReference(
+        name="source-doc",
+        sequence_number=3,
+        source="ingestion",
+        source_id="existing-sid",
+        url="unique://content/existing-sid",
+    )
+    message = SimpleNamespace(
+        text="See [data.xlsx](sandbox:/mnt/data/data.xlsx).",
+        references=[existing_ref],
+    )
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[],
+        code_interpreter_calls=[],
+    )
+    proc.apply_postprocessing_to_response(loop_response)
+    assert len(message.references) == 2
+    source_ids = {r.source_id for r in message.references}
+    assert "existing-sid" in source_ids
+    assert "cid-xls-1" in source_ids
 
 
 @pytest.mark.ai
@@ -2055,3 +2181,167 @@ def test_apply_postprocessing_to_response__html_with_fence_ff_on__uses_HtmlRende
     assert "HtmlRendering" in message.text
     assert "cid_page" in message.text
     assert "htmlWithSource" not in message.text
+
+
+# ---------------------------------------------------------------------------
+# _download_and_upload_container_files_to_knowledge_base — retry behaviour
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+def test_download_retry_config__has_defaults__when_constructed_with_no_args() -> None:
+    """
+    Purpose: Verify new retry config fields have correct default values.
+    Why this matters: Defaults encode the agreed "3 total attempts, 1 s base" policy.
+    Setup summary: Instantiate config with no args; assert retry defaults.
+    """
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+
+    assert config.max_download_retries == 2
+    assert config.download_retry_base_delay == 0.5
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_and_upload__returns_content_info__when_download_succeeds_after_transient_failure() -> (
+    None
+):
+    """
+    Purpose: Verify that a transient download failure is retried and the method returns _ContentInfo.
+    Why this matters: Exactly the scenario described in UN-18531 — concurrent pulls can fail once.
+    Setup summary: retrieve raises on call 1, succeeds on call 2; upload always succeeds.
+    """
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        max_download_retries=2,
+        download_retry_base_delay=0,  # no real sleep in tests
+    )
+    annotation = _make_annotation("chart.png")
+    semaphore = asyncio.Semaphore(10)
+
+    mock_file_content = MagicMock()
+    mock_file_content.content = b"png-bytes"
+
+    proc._client.containers.files.content.retrieve = AsyncMock(
+        side_effect=[ConnectionError("transient"), mock_file_content]
+    )
+    mock_upload_result = MagicMock()
+    mock_upload_result.id = "cid_123"
+    proc._chat_service.upload_to_chat_from_bytes_async = AsyncMock(
+        return_value=mock_upload_result
+    )
+
+    result = await proc._download_and_upload_container_files_to_knowledge_base(
+        annotation, semaphore
+    )
+
+    assert result is not None
+    assert result.filename == "chart.png"
+    assert result.content_id == "cid_123"
+    assert proc._client.containers.files.content.retrieve.call_count == 2
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_and_upload__returns_none__when_all_download_attempts_exhausted() -> (
+    None
+):
+    """
+    Purpose: Verify that after all download retries are exhausted, failsafe_async returns None.
+    Why this matters: Pipeline must not crash — None triggers the file_download_failed_message path.
+    Setup summary: retrieve always raises; assert None returned and upload never called.
+    """
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        max_download_retries=1,
+        download_retry_base_delay=0,
+    )
+    annotation = _make_annotation("report.pdf")
+    semaphore = asyncio.Semaphore(10)
+
+    proc._client.containers.files.content.retrieve = AsyncMock(
+        side_effect=RuntimeError("permanent failure")
+    )
+
+    result = await proc._download_and_upload_container_files_to_knowledge_base(
+        annotation, semaphore
+    )
+
+    assert result is None
+    assert (
+        proc._client.containers.files.content.retrieve.call_count == 2
+    )  # 1 + max_download_retries
+    proc._chat_service.upload_to_chat_from_bytes_async.assert_not_called()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_and_upload__returns_none__when_zero_retries_and_download_fails() -> (
+    None
+):
+    """
+    Purpose: Verify max_download_retries=0 means exactly 1 total download attempt.
+    Why this matters: Operators can disable retries; must behave like the old single-attempt path.
+    Setup summary: retrieve fails once; max_download_retries=0; assert only 1 call.
+    """
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        max_download_retries=0,
+        download_retry_base_delay=0,
+    )
+    annotation = _make_annotation("data.csv")
+    semaphore = asyncio.Semaphore(10)
+
+    proc._client.containers.files.content.retrieve = AsyncMock(
+        side_effect=ValueError("fail")
+    )
+
+    result = await proc._download_and_upload_container_files_to_knowledge_base(
+        annotation, semaphore
+    )
+
+    assert result is None
+    assert proc._client.containers.files.content.retrieve.call_count == 1
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_and_upload__returns_none__when_upload_fails_after_successful_download() -> (
+    None
+):
+    """
+    Purpose: Verify upload is not retried — a single upload failure returns None.
+    Why this matters: Retry scope is intentionally limited to the download step only.
+    Setup summary: retrieve succeeds once; upload raises; assert retrieve called exactly once.
+    """
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        max_download_retries=2,
+        download_retry_base_delay=0,
+    )
+    annotation = _make_annotation("data.xlsx")
+    semaphore = asyncio.Semaphore(10)
+
+    mock_file_content = MagicMock()
+    mock_file_content.content = b"xlsx-bytes"
+    proc._client.containers.files.content.retrieve = AsyncMock(
+        return_value=mock_file_content
+    )
+    proc._chat_service.upload_to_chat_from_bytes_async = AsyncMock(
+        side_effect=RuntimeError("upload failed")
+    )
+
+    result = await proc._download_and_upload_container_files_to_knowledge_base(
+        annotation, semaphore
+    )
+
+    assert result is None
+    assert proc._client.containers.files.content.retrieve.call_count == 1

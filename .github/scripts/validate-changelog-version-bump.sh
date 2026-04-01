@@ -62,7 +62,7 @@ OPTIONS:
                          (default: auto-detect from GITHUB_BASE_REF or origin/main/master)
     --no-fetch           Skip fetching the base branch (useful if already fetched)
     --exclude PATTERNS   Comma-separated list of patterns to exclude from "meaningful changes"
-                         (e.g., "poetry.lock,uv.lock,docs/,CHANGELOG.md")
+                         (e.g., "uv.lock,docs/,CHANGELOG.md")
 
 EXAMPLES:
     # CI usage (GitHub Actions)
@@ -78,7 +78,7 @@ EXAMPLES:
     ${SCRIPT_NAME} unique_toolkit --base-ref main --no-fetch
 
     # With custom exclusions
-    ${SCRIPT_NAME} unique_toolkit main --exclude "poetry.lock,uv.lock,docs/"
+    ${SCRIPT_NAME} unique_toolkit main --exclude "uv.lock,docs/"
 
 EXIT CODES:
     0    Validation passed
@@ -105,7 +105,7 @@ NO_FETCH=false
 EXCLUDE_ARG=""
 
 # Default exclusion patterns (used if --exclude not provided)
-DEFAULT_EXCLUDES="poetry.lock,uv.lock,CHANGELOG.md,docs/,mkdocs.yaml,.entangled/"
+DEFAULT_EXCLUDES="uv.lock,CHANGELOG.md,docs/,mkdocs.yaml,.entangled/"
 
 # Parse long options first (--help, --version, --base-ref, --no-fetch)
 while [[ $# -gt 0 ]]; do
@@ -327,7 +327,7 @@ for pattern in "${EXCLUDED_PATTERNS[@]}"; do
         EXCLUDE_REGEX_PARTS+=("(^|/)${escaped}")
     else
         # File pattern: match exact filename at end of path
-        # e.g., "poetry.lock" should match "foo/poetry.lock" but not "foo/my-poetry.lock"
+        # e.g., "uv.lock" should match "foo/uv.lock" but not "foo/my-uv.lock"
         EXCLUDE_REGEX_PARTS+=("(^|/)${escaped}$")
     fi
 done

@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.68.3] - 2026-04-01
+- `DDMetadata`: add `rerun` (optional bool, default false), aligned with `MagicTableMetadata` in node-chat; accepts legacy `Rerun` key via `validation_alias`
+
+## [1.68.2] - 2026-04-01
+- Chore: uv `exclude-newer` (2 weeks) and lockfile refresh
+
+## [1.68.1] - 2026-04-01
+- Add retry on error when downloading code execution generated files
+
+## [1.68.0] - 2026-04-01
+- Adding experimental open pdf tool
+
+## [1.67.3] - 2026-04-01
+- Remove adding of extra references when Code Execution Fence FF is on
+
+## [1.67.2] - 2026-03-31
+- `forced_tools` and `tool_input_json_schema` were changed from their default values `None` to [] and "" respectively, to enable proper rendering in Space 2.0. Backwards compatibility is ensured.
+
+## [1.67.1] - 2026-03-31
+- Appending `chat_id`, `assistant_id`, and `display_name` to debug info for sub agent tool calls
+
+## [1.67.0] - 2026-03-31
+- Add `AUTO_CONTAINER_ONLY` model capability for models that require `container: {"type": "auto"}` instead of explicit container IDs (GPT-5.4 Pro)
+- Add `force_auto_container` parameter to `OpenAICodeInterpreterTool.build_tool` and `OpenAIBuiltInToolManager.build_manager`/`_build_tool`
+- Fix auto-container path dropping `is_exclusive` flag — now correctly forwarded to the constructor
 
 ## [1.66.1] - 2026-03-31
 - Add Feature Flag `enable_web_search_argument_screening_un_18741`
@@ -141,13 +166,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add reusable `NoneToDefault` `BeforeValidator` that replaces incoming `None` values with the field's declared default via `PydanticUseDefault`, enabling backward-compatible migration from nullable fields to non-nullable fields with defaults
 - Apply `NoneToDefault` validator to `DocxGeneratorConfig.template_content_id`
 
-
 ## [1.54.0] - 2026-03-16
 - Code interpreter (UN-17972 review fix): `get_tool_prompts()` now respects operator-customised `tool_description_for_system_prompt` when the fence FF is on. Previously the fence-aware prompt was applied unconditionally when the FF was enabled, silently ignoring any custom prompt. Now `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` is only substituted when the operator is still using the unmodified default; a customised prompt is always used regardless of the FF.
 
 ## [1.53.4] - 2026-03-13
 - Code interpreter (UN-17972 review fixes): `_warn_missing_content_ids` downgraded from WARNING to INFO. Dangling `sandbox:/mnt/data/` links are now replaced with the configured error message in addition to logging a warning. Fence prompt updated (example blank lines, component description, "files" not "images"). Consecutive fences normalised to exactly one newline between them (same-line, list-item, and blank-line cases).
-
 
 ## [1.53.3] - 2026-03-12
 - Code interpreter (UN-17972 follow-up): prompt update — `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE` variant removes the "Descriptive Title" instruction; selected automatically in `get_tool_prompts()` when `FEATURE_FLAG_ENABLE_CODE_EXECUTION_FENCE_UN_17972` is on; legacy prompt (with title) used when flag is off, preserving exact pre-fence behaviour. `company_id` stored on `OpenAICodeInterpreterTool` to enable per-company FF evaluation at prompt-render time.
@@ -689,7 +712,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.19.0] - 2025-10-28
 - Enable additional headers on openai and langchain client
 
-
 ## [1.18.1] - 2025-10-28
 
 - Fix bug where sub agent references were not properly displayed in the main agent response when the sub agent response
@@ -811,7 +833,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.9.1] - 2025-10-06
 - Switch default model used in evaluation service from `GPT-3.5-turbo (0125)` to `GPT-4o (1120)`
-
 
 ## [1.9.0] - 2025-10-04
 - Define the RequestContext and add aihttp/httpx requestors
@@ -1040,7 +1061,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.23] - 2025-08-27
 - Add MCP manager that handles MCP related logic
-
 
 ## [0.8.22] - 2025-08-26
 - Add DeepSeek-R1, DeepSeek-V3.1, Qwen3-235B-A22B and Qwen3-235B-A22B-Thinking-2507 to supported model list

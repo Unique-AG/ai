@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.15.0] - 2026-03-30
@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ArgumentScreeningService` with structured output (`ArgumentScreeningResult`) and configurable Jinja2 prompt templates (system, user, guidelines)
 - `ArgumentScreeningConfig` under `ExperimentalFeatures` with `enabled` flag (default off), customizable `guidelines`, `system_prompt`, and `user_prompt_template`
 - Comprehensive test suite for argument screening config, result model, exception, and service behavior
+## [1.14.4] - 2026-03-30
+- Chore: uv `exclude-newer` (2 weeks) and lockfile refresh
 
 ## [1.14.3] - 2026-03-25
 ### Fixed

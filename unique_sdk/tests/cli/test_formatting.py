@@ -9,6 +9,7 @@ from unique_sdk.cli.formatting import (
     format_content_info,
     format_folder_info,
     format_ls,
+    format_mcp_response,
     format_search_results,
 )
 
@@ -177,3 +178,142 @@ class TestFormatFolderInfo:
     def test_root_parent(self) -> None:
         result = format_folder_info(_folder(parent=None))
         assert "(root)" in result
+
+
+def _mcp_response(
+    name: str = "search",
+    is_error: bool = False,
+    server_id: str = "mcp_srv_1",
+    content: list[dict[str, Any]] | None = None,
+) -> MagicMock:
+    resp = MagicMock()
+    resp.name = name
+    resp.isError = is_error
+    resp.mcpServerId = server_id
+    resp.content = content if content is not None else []
+    return resp
+
+
+class TestFormatMcpResponse:
+    def test_basic_text(self) -> None:
+        resp = _mcp_response(content=[{"type": "text", "text": "hello world"}])
+        result = format_mcp_response(resp)
+        assert "MCP tool call: search" in result
+        assert "Server: mcp_srv_1" in result
+        assert "[text] hello world" in result
+
+    def test_error_flag(self) -> None:
+        resp = _mcp_response(is_error=True, content=[{"type": "text", "text": "fail"}])
+        result = format_mcp_response(resp)
+        assert "(ERROR)" in result
+
+    def test_no_error_flag(self) -> None:
+        resp = _mcp_response(content=[])
+        result = format_mcp_response(resp)
+        assert "(ERROR)" not in result
+
+    def test_multiline_text(self) -> None:
+        resp = _mcp_response(content=[{"type": "text", "text": "line1\nline2\nline3"}])
+        result = format_mcp_response(resp)
+        assert "[text] line1" in result
+        assert "[text] line2" in result
+        assert "[text] line3" in result
+
+    def test_image_content(self) -> None:
+        resp = _mcp_response(
+            content=[{"type": "image", "mimeType": "image/png", "data": "base64data"}]
+        )
+        result = format_mcp_response(resp)
+        assert "[image]" in result
+        assert "image/png" in result
+
+    def test_audio_content(self) -> None:
+        resp = _mcp_response(
+            content=[{"type": "audio", "mimeType": "audio/mp3", "data": "base64data"}]
+        )
+        result = format_mcp_response(resp)
+        assert "[audio]" in result
+        assert "audio/mp3" in result
+
+    def test_resource_link(self) -> None:
+        resp = _mcp_response(
+            content=[
+                {
+                    "type": "resource_link",
+                    "name": "doc",
+                    "uri": "https://example.com",
+                    "description": "A doc",
+                }
+            ]
+        )
+        result = format_mcp_response(resp)
+        assert "[resource_link] doc: https://example.com" in result
+        assert "A doc" in result
+
+    def test_resource_link_no_description(self) -> None:
+        resp = _mcp_response(
+            content=[
+                {"type": "resource_link", "name": "doc", "uri": "https://example.com"}
+            ]
+        )
+        result = format_mcp_response(resp)
+        assert "[resource_link] doc: https://example.com" in result
+
+    def test_text_resource(self) -> None:
+        resp = _mcp_response(
+            content=[
+                {
+                    "type": "resource",
+                    "resource": {
+                        "uri": "file:///data.txt",
+                        "text": "content here",
+                    },
+                }
+            ]
+        )
+        result = format_mcp_response(resp)
+        assert "[resource] file:///data.txt" in result
+        assert "content here" in result
+
+    def test_blob_resource(self) -> None:
+        resp = _mcp_response(
+            content=[
+                {
+                    "type": "resource",
+                    "resource": {
+                        "uri": "file:///img.png",
+                        "mimeType": "image/png",
+                        "blob": "base64data",
+                    },
+                }
+            ]
+        )
+        result = format_mcp_response(resp)
+        assert "[resource] file:///img.png" in result
+        assert "image/png" in result
+
+    def test_empty_resource(self) -> None:
+        resp = _mcp_response(content=[{"type": "resource", "resource": None}])
+        result = format_mcp_response(resp)
+        assert "[resource] (empty)" in result
+
+    def test_unsupported_type(self) -> None:
+        resp = _mcp_response(content=[{"type": "video"}])
+        result = format_mcp_response(resp)
+        assert "[video] (unsupported content type)" in result
+
+    def test_empty_content(self) -> None:
+        resp = _mcp_response(content=[])
+        result = format_mcp_response(resp)
+        assert "MCP tool call: search" in result
+        assert "Server: mcp_srv_1" in result
+
+    def test_image_no_mime(self) -> None:
+        resp = _mcp_response(content=[{"type": "image", "data": "base64data"}])
+        result = format_mcp_response(resp)
+        assert "image/*" in result
+
+    def test_audio_no_mime(self) -> None:
+        resp = _mcp_response(content=[{"type": "audio", "data": "base64data"}])
+        result = format_mcp_response(resp)
+        assert "audio/*" in result
