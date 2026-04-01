@@ -10,9 +10,6 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
 )
 from openai.types.chat.chat_completion_message_function_tool_call_param import (
-    ChatCompletionMessageFunctionToolCallParam,
-)
-from openai.types.chat.chat_completion_message_function_tool_call_param import (
     Function as OpenAIFunction,
 )
 from pydantic import (
@@ -20,7 +17,6 @@ from pydantic import (
     ConfigDict,
     Field,
     field_validator,
-    model_validator,
 )
 
 from unique_toolkit.content.schemas import ContentReference
@@ -35,7 +31,6 @@ model_config = ConfigDict(
 class ChatMessageRole(StrEnum):
     USER = "user"
     ASSISTANT = "assistant"
-    TOOL = "tool"
     SYSTEM = "system"  # Note: These messages are appended by the backend and should not be confused with the LLM's system message.
 
 
@@ -49,21 +44,6 @@ class Function(BaseModel):
         return OpenAIFunction(
             arguments=self.arguments,
             name=self.name,
-        )
-
-
-class ToolCall(BaseModel):
-    model_config = model_config
-
-    id: str
-    type: str
-    function: Function
-
-    def to_openai_param(self) -> ChatCompletionMessageFunctionToolCallParam:
-        return ChatCompletionMessageFunctionToolCallParam(
-            id=self.id,
-            function=self.function.to_openai(),
-            type="function",
         )
 
 
@@ -146,9 +126,9 @@ class ChatMessage(BaseModel):
     # Fields previous_message_id, tool_calls, tool_call_id are internal extensions not in the DTO.
     model_config = model_config
 
-    id: str | None = None
+    id: str
     chat_id: str
-    object: str | None = None
+    object: Literal["message"] = "message"
     # alias="text" applies only to construction (model_validate / __init__).
     # model_dump() uses the field name "content", not "text". Use model_dump(by_alias=True)
     # to get "text" as the key, or access via the .text property.
@@ -157,7 +137,6 @@ class ChatMessage(BaseModel):
     role: ChatMessageRole
     previous_message_id: str | None = None
     gpt_request: list[dict] | dict | None = None
-    tool_calls: list[ToolCall] | None = None
     debug_info: dict | None = {}
     created_at: datetime | None = None
     completed_at: datetime | None = None
@@ -182,13 +161,6 @@ class ChatMessage(BaseModel):
     def text(self, value: str | None) -> None:
         self.content = value
 
-    # Ensure tool_call_id is required if role is 'tool'
-    @model_validator(mode="after")
-    def check_tool_call_ids_for_tool_role(self):
-        if self.role == ChatMessageRole.TOOL and not self.tool_calls:
-            raise ValueError("tool_call_id is required when role is 'tool'")
-        return self
-
     def to_openai_param(self) -> ChatCompletionMessageParam:
         match self.role:
             case ChatMessageRole.USER:
@@ -198,25 +170,13 @@ class ChatMessage(BaseModel):
                 )
 
             case ChatMessageRole.ASSISTANT:
-                if self.tool_calls:
-                    assistant_message = ChatCompletionAssistantMessageParam(
-                        role="assistant",
-                        audio=None,
-                        content=self.content or "",
-                        function_call=None,
-                        refusal=None,
-                        tool_calls=[t.to_openai_param() for t in self.tool_calls],
-                    )
-                else:
-                    assistant_message = ChatCompletionAssistantMessageParam(
-                        role="assistant",
-                        audio=None,
-                        content=self.content or "",
-                        function_call=None,
-                        refusal=None,
-                    )
-
-                return assistant_message
+                return ChatCompletionAssistantMessageParam(
+                    role="assistant",
+                    audio=None,
+                    content=self.content or "",
+                    function_call=None,
+                    refusal=None,
+                )
 
             case _:
                 raise NotImplementedError(

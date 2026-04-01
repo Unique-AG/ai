@@ -1,6 +1,7 @@
 import json
 import math
 from abc import ABC, abstractmethod
+from enum import StrEnum
 from typing import Any, Literal, Self, TypeVar, override
 from uuid import uuid4
 
@@ -43,7 +44,6 @@ from pydantic import (
 from typing_extensions import deprecated, overload
 
 from unique_toolkit.chat.schemas import ChatMessage
-from unique_toolkit.chat.schemas import ChatMessageRole as LanguageModelMessageRole
 from unique_toolkit.language_model._responses_api_utils import (
     convert_user_message_content_to_responses_api,
 )
@@ -55,6 +55,13 @@ model_config = ConfigDict(
     populate_by_name=True,
     arbitrary_types_allowed=True,
 )
+
+
+class LanguageModelMessageRole(StrEnum):
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
+    USER = "user"
+    TOOL = "tool"
 
 
 # Backward compatibility alias — use ChatMessage directly.
