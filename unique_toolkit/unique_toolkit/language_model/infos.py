@@ -318,33 +318,27 @@ class LanguageModelInfo(BaseModel):
             return self.encoder_name.get_decoder()
         return _load_custom_decoder(self.encoder_name)
 
-    @classmethod
     def resolve_temp_and_reasoning(
-        cls,
-        model_name: "LanguageModelName | str",
+        self,
         temperature: float,
         reasoning_effort: str | None,
     ) -> tuple[float, str | None]:
-        """Resolve temperature and reasoning_effort together for a model.
+        """Resolve temperature and reasoning_effort together for this model.
 
         Scenarios handled in order:
 
-        1. Unknown model (not a LanguageModelName):
-           - No metadata is available; both temperature and reasoning_effort are
-             returned unchanged. The caller or API is responsible for validation.
-
-        2. Model does not participate in reasoning_effort
+        1. Model does not participate in reasoning_effort
            (supported_reasoning_efforts is None):
            - If the caller provided an effort, warn and drop it (return None).
            - Temperature is clamped to declared bounds.
 
-        3. Effort not in the model's supported_reasoning_efforts list:
+        2. Effort not in the model's supported_reasoning_efforts list:
            - Warn and fall back to the first (lightest) supported effort.
-           - Temperature is forced to 1.0 via scenario 4.
+           - Temperature is forced to 1.0 via scenario 3.
 
-        4. Active reasoning forces temperature to 1.0 (API requirement).
+        3. Active reasoning forces temperature to 1.0 (API requirement).
 
-        After scenarios 2–4, temperature is clamped to the model's declared bounds.
+        After scenarios 1–3, temperature is clamped to the model's declared bounds.
         Models without declared bounds fall back to the OpenAI-documented global range
         [0, 2]. Invalid declared bounds are intentionally NOT corrected here —
         a misconfigured model definition should surface as a visible bug.
@@ -352,22 +346,15 @@ class LanguageModelInfo(BaseModel):
         Returns (resolved_temperature, resolved_reasoning_effort).
         """
 
-        is_model_unknown: bool = not isinstance(model_name, LanguageModelName)
         is_reasoning_effort_set = reasoning_effort is not None
         wants_active_reasoning = (
             reasoning_effort is not None and reasoning_effort != "none"
         )
 
-        # --- Scenario 1: unknown / custom model ---
-        # No metadata available; pass both parameters through as-is.
-        if is_model_unknown:
-            return temperature, reasoning_effort
+        supported_efforts = self.supported_reasoning_efforts
+        temperature_bounds = self.temperature_bounds
 
-        model_info = cls.from_name(model_name)
-        supported_efforts = model_info.supported_reasoning_efforts
-        temperature_bounds = model_info.temperature_bounds
-
-        # --- Scenario 2: model has no reasoning_effort concept ---
+        # --- Scenario 1: model has no reasoning_effort concept ---
         # supported_reasoning_efforts=None means reasoning is not applicable for this
         # model; drop any caller-provided effort so the API doesn't reject the call.
         if supported_efforts is None:
@@ -376,12 +363,12 @@ class LanguageModelInfo(BaseModel):
                     "reasoning_effort '%s' was provided but model %s does not "
                     "support reasoning_effort; reasoning_effort will be ignored.",
                     reasoning_effort,
-                    model_name,
+                    self.name,
                 )
                 reasoning_effort = None
                 wants_active_reasoning = False
         else:
-            # --- Scenario 3: effort not in the model's declared list ---
+            # --- Scenario 2: effort not in the model's declared list ---
             # Warn and fallback to first (i.e. lightest) supported effort level.
             if is_reasoning_effort_set and reasoning_effort not in supported_efforts:
                 fallback_effort = supported_efforts[0]
@@ -389,14 +376,14 @@ class LanguageModelInfo(BaseModel):
                     "reasoning_effort '%s' is not supported by %s "
                     "(supported: %s). falling back to '%s'.",
                     reasoning_effort,
-                    model_name,
+                    self.name,
                     supported_efforts,
                     fallback_effort,
                 )
                 reasoning_effort = fallback_effort
                 wants_active_reasoning = True
 
-        # --- Scenario 4: active reasoning forces temperature to 1.0 ---
+        # --- Scenario 3: active reasoning forces temperature to 1.0 ---
         if wants_active_reasoning:
             return 1.0, reasoning_effort
 
@@ -416,7 +403,7 @@ class LanguageModelInfo(BaseModel):
                 temperature,
                 lo,
                 hi,
-                model_name,
+                self.name,
             )
         return round(max(lo, min(hi, temperature)), 2), reasoning_effort
 
