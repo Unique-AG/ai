@@ -381,7 +381,7 @@ class LanguageModelInfo(BaseModel):
                     supported_efforts,
                     fallback_effort,
                 )
-                reasoning_effort = fallback_effort
+                reasoning_effort = cast(ReasoningEffort, fallback_effort)
                 wants_active_reasoning = True
 
         # --- Scenario 3: active reasoning forces temperature to 1.0 ---
