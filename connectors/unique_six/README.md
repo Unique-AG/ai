@@ -6,7 +6,7 @@ A Python connector library for the [Six API](https://api.six-group.com/web/), pr
 ## Installation
 
 ```bash
-poetry add unique_six
+uv add unique_six
 ```
 
 Or using pip:
@@ -21,13 +21,13 @@ git clone <repository_url>
 cd unique_six
 
 # Install dependencies
-poetry install
+uv sync
 
 # Run linting
-poetry run ruff check .
+uv run ruff check .
 
 # Run formatting
-poetry run ruff format .
+uv run ruff format .
 ```
 
 
