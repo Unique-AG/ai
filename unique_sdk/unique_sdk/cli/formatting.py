@@ -1,12 +1,15 @@
-"""Tabular output formatting for ls, search results, and file info."""
+"""Tabular output formatting for ls, search results, file info, and MCP responses."""
 
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from unique_sdk.api_resources._content import Content
 from unique_sdk.api_resources._folder import Folder
+
+if TYPE_CHECKING:
+    from unique_sdk.api_resources._mcp import MCP
 
 
 def _format_size(byte_size: int | None) -> str:
@@ -132,3 +135,55 @@ def format_folder_info(info: Folder.FolderInfo) -> str:
         ["Updated:", _format_date(info.get("updatedAt"))],
     ]
     return "\n".join(_pad_columns(rows))
+
+
+def format_mcp_response(response: MCP) -> str:
+    """Format an MCP tool call response for terminal display."""
+    error_tag = " (ERROR)" if response.isError else ""
+    header = f"MCP tool call: {response.name}{error_tag}"
+    server_line = f"Server: {response.mcpServerId}"
+
+    lines: list[str] = [header, server_line, ""]
+
+    for item in response.content:
+        content_type = item.get("type", "unknown")
+
+        if content_type == "text":
+            text = item.get("text") or ""
+            for text_line in text.splitlines():
+                lines.append(f"[text] {text_line}")
+
+        elif content_type == "image":
+            mime = item.get("mimeType") or "image/*"
+            lines.append(f"[image] ({mime}, base64-encoded data)")
+
+        elif content_type == "audio":
+            mime = item.get("mimeType") or "audio/*"
+            lines.append(f"[audio] ({mime}, base64-encoded data)")
+
+        elif content_type == "resource_link":
+            name = item.get("name") or "?"
+            uri = item.get("uri") or "?"
+            desc = item.get("description") or ""
+            lines.append(f"[resource_link] {name}: {uri}")
+            if desc:
+                lines.append(f"  {desc}")
+
+        elif content_type == "resource":
+            resource = item.get("resource")
+            if resource and "text" in resource:
+                uri = resource.get("uri", "?")
+                lines.append(f"[resource] {uri}")
+                for res_line in (resource.get("text") or "").splitlines():
+                    lines.append(f"  {res_line}")
+            elif resource and "blob" in resource:
+                uri = resource.get("uri", "?")
+                mime = resource.get("mimeType") or "application/octet-stream"
+                lines.append(f"[resource] {uri} ({mime}, base64-encoded)")
+            else:
+                lines.append("[resource] (empty)")
+
+        else:
+            lines.append(f"[{content_type}] (unsupported content type)")
+
+    return "\n".join(lines)

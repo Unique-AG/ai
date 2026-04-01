@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.95] - 2026-03-30
+- Add `mcp` command to the CLI for calling MCP server tools directly via JSON payload
+- Support inline JSON, `--file`, and `--stdin` input modes for MCP tool payloads
+- Add Claude Code skill for CLI MCP tool calls (`unique-cli-mcp`)
+
+## [0.10.94] - 2026-03-30
+- Add `Benchmarking` functions and script.
+
+## [0.10.93] - 2026-03-25
+- Add `Space.create_chat`
+
 ## [0.10.92] - 2026-03-19
 - Add experimental CLI (`unique-cli`) for interactive file exploration of the Unique knowledge base
 - Add `click` as a required dependency for the CLI

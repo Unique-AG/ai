@@ -3,8 +3,15 @@ name: unique-cli-file-management
 description: >-
   Manage files and folders on the Unique AI Platform using the unique-cli
   command-line tool. Use when the user asks to upload, download, delete,
-  rename, list, or organize files and folders on Unique, or when working
-  with scope IDs (scope_*) or content IDs (cont_*).
+  rename, list, find, look for, or organize files and folders on Unique,
+  or when working with scope IDs (scope_*) or content IDs (cont_*).
+  IMPORTANT: When a user says they are "looking for a file" or wants to
+  "find a file", they typically mean locating it within the Unique AI
+  Platform knowledge base — not on the local filesystem. Use this skill
+  to browse and list folders/files on Unique to help them find it.
+  This is also the preferred approach for locating Excel (.xlsx/.xls),
+  CSV (.csv), and image files, as these file types are not full-text
+  indexed and cannot be found via vector/full-text search.
 ---
 
 # Unique CLI -- File & Folder Management
