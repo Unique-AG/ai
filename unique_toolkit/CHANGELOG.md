@@ -137,13 +137,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `ChatService.from_context` and `KnowledgeBaseService.from_context` constructors; deprecate old event-based constructors
 - Deprecate `UniqueSettings.auth` property in favour of `UniqueSettings.authcontext`
 
-## [1.67.0] - 2026-03-31
-- Add `supported_reasoning_efforts: list[str] | None` field to `LanguageModelInfo` listing the valid `reasoning_effort` values per model, based on Azure/OpenAI documentation. `None` for third-party models (DeepSeek, Qwen, Grok) and `o1-mini` where validation is not applicable.
-- Add module-level constants `_EFFORTS_GPT5_BASE` (`["minimal", "low", "medium", "high"]`), `_EFFORTS_GPT5_PRO` (`["high"]`), `_EFFORTS_GPT51_PLUS_SWITCHABLE` (`["none", "low", "medium", "high"]`), `_EFFORTS_THINKING_ONLY` (`["low", "medium", "high"]`) documenting effort sets per model family.
-- `LanguageModelInfo.resolve_temp_and_reasoning`: log a warning (not raise) when `reasoning_effort` is not in `supported_reasoning_efforts`, or when `temperature` is outside declared bounds before clamping.
-- Fix `resolve_temp_and_reasoning` fallback for thinking-only models: `AZURE_GPT_5_PRO_2025_1006` and `LITELLM_OPENAI_GPT_5_PRO` now have `default_options={"reasoning_effort": "high"}` so the auto-correction always picks the one effort level these models support instead of the generic `"medium"` fallback.
-- Fix `responses_api`: when updating `reasoning_effort` on an existing `Reasoning` object, preserve all other fields (`summary`, `generate_summary`) instead of replacing the whole object. Cast resolved effort to `ReasoningEffort` to satisfy the type checker.
-
 ## [1.59.0] - 2026-03-19
 - Introduce `AuthContextProtocol` and `AuthContext` (Pydantic `BaseModel`) for unified auth typing across MCP services and apps (UN-18234)
 - Add `ChatContextProtocol` and `ChatContext` (Pydantic `BaseModel`) for chat context (UN-18234)
