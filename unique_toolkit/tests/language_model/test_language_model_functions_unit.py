@@ -1,3 +1,4 @@
+import logging
 from unittest.mock import patch
 
 import pytest
@@ -230,7 +231,7 @@ def test_resolve_temp_and_reasoning_drops_effort_for_non_reasoning_model(caplog)
     # GPT-4o does not participate in the reasoning_effort paradigm
     model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120)
 
-    with caplog.at_level("WARNING", logger="unique_toolkit.language_model.infos"):
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit.language_model.infos"):
         temp, effort = model.resolve_temp_and_reasoning(0.7, "medium")
 
     assert "does not support reasoning_effort" in caplog.text
@@ -245,7 +246,7 @@ def test_resolve_temp_and_reasoning_warns_on_unsupported_effort(caplog):
         LanguageModelName.AZURE_GPT_54_PRO_2026_0305
     )
 
-    with caplog.at_level("WARNING", logger="unique_toolkit.language_model.infos"):
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit.language_model.infos"):
         temp, effort = thinking_model.resolve_temp_and_reasoning(0.5, "minimal")
 
     assert "not supported" in caplog.text
@@ -259,7 +260,7 @@ def test_resolve_temp_and_reasoning_warns_on_out_of_bounds_temperature(caplog):
     # AZURE_GPT_51 has temperature_bounds [0.0, 1.0]
     model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_51_2025_1113)
 
-    with caplog.at_level("WARNING", logger="unique_toolkit.language_model.infos"):
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit.language_model.infos"):
         temp, effort = model.resolve_temp_and_reasoning(2.5, None)
 
     assert "out of bounds" in caplog.text
@@ -274,7 +275,7 @@ def test_resolve_temp_and_reasoning_no_warning_for_valid_effort(caplog):
         LanguageModelName.AZURE_GPT_54_PRO_2026_0305
     )
 
-    with caplog.at_level("WARNING", logger="unique_toolkit.language_model.infos"):
+    with caplog.at_level(logging.WARNING, logger="unique_toolkit.language_model.infos"):
         temp, effort = thinking_model.resolve_temp_and_reasoning(0.0, "high")
 
     assert "not supported" not in caplog.text
