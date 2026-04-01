@@ -845,12 +845,11 @@ def test_build_file_fence__document__uses_fileWithSource_tag() -> None:
 
 
 @pytest.mark.ai
-def test_build_file_fence__html__falls_through_to_fileWithSource() -> None:
+def test_build_file_fence__html__produces_htmlWithSource() -> None:
     """
-    Purpose: HTML files now fall through to fileWithSource in _build_file_fence.
-    Why this matters: HTML is rendered via HtmlRendering blocks (not fence injection),
-    so this function should never be called for HTML in practice, but if it is the
-    fallback is a fileWithSource fence rather than the removed htmlWithSource branch.
+    Purpose: HTML files produce an htmlWithSource fence (not fileWithSource).
+    Why this matters: When the fence FF is on, HTML is injected as htmlWithSource
+    so the frontend can render it in-place rather than as a download link.
     """
     file = CodeInterpreterFile(
         filename="report.html", content_id="cont_html1", type="html"
@@ -858,9 +857,9 @@ def test_build_file_fence__html__falls_through_to_fileWithSource() -> None:
     fence = _build_file_fence(
         file, 'open("/mnt/data/report.html", "w").write("<html></html>")', fence_id=3
     )
-    assert fence.startswith("````fileWithSource(")
+    assert fence.startswith("````htmlWithSource(")
     assert "cont_html1" in fence
-    assert "htmlWithSource" not in fence
+    assert "fileWithSource" not in fence
 
 
 @pytest.mark.ai
@@ -2149,14 +2148,14 @@ def test_apply_postprocessing_to_response__html_uses_legacy_HtmlRendering__when_
     "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
     return_value=True,
 )
-def test_apply_postprocessing_to_response__html_with_fence_ff_on__uses_HtmlRendering(
+def test_apply_postprocessing_to_response__html_with_fence_ff_on__uses_htmlWithSource(
     _mock_fence_ff: MagicMock,
     _mock_html_ff: MagicMock,
 ) -> None:
     """
-    Purpose: HTML + fence FF on now emits a HtmlRendering block (not htmlWithSource).
-    Why this matters: Product revert — HTML always goes through _replace_container_html_citation
-    regardless of fence FF state; no ContentReference row is added.
+    Purpose: HTML + fence FF on emits an htmlWithSource fence (not HtmlRendering).
+    Why this matters: htmlWithSource lets the frontend render HTML in-place with full
+    code context; no ContentReference row is added (fence carries contentId directly).
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"page.html": "cid_page"}
@@ -2178,6 +2177,6 @@ def test_apply_postprocessing_to_response__html_with_fence_ff_on__uses_HtmlRende
 
     assert changed is True
     assert len(refs) == 0
-    assert "HtmlRendering" in message.text
+    assert "htmlWithSource" in message.text
     assert "cid_page" in message.text
-    assert "htmlWithSource" not in message.text
+    assert "HtmlRendering" not in message.text

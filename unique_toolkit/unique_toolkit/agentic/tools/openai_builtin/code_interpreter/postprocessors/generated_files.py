@@ -197,11 +197,11 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # HTML rendered as HtmlRendering block — when fence FF is on, or when
-            # the legacy HTML-rendering FF is on (fence FF off path).
-            elif is_html and (
-                fence_ff_on
-                or feature_flags.enable_html_rendering_un_15131.is_enabled(
+            # HTML rendered as legacy HtmlRendering block — only when fence FF is off
+            elif (
+                is_html
+                and not fence_ff_on
+                and feature_flags.enable_html_rendering_un_15131.is_enabled(
                     self._company_id
                 )
             ):
@@ -212,7 +212,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # Non-HTML files
+            # Files and HTML (fence FF on: HTML → htmlWithSource; others → fileWithSource)
             else:
                 loop_response.message.text, replaced = _replace_container_file_citation(
                     text=loop_response.message.text,
@@ -223,7 +223,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # HtmlRendering blocks carry contentId directly — no separate reference needed
+            # htmlWithSource / HtmlRendering blocks carry contentId directly — no separate reference needed
             is_html_rendered = is_html and (
                 fence_ff_on
                 or feature_flags.enable_html_rendering_un_15131.is_enabled(
@@ -411,7 +411,9 @@ def _collect_stdout(call: ResponseCodeInterpreterToolCall) -> str:
 
 def _get_next_fence_id(text: str) -> int:
     """Return the next available fence id by scanning existing fences in the text."""
-    existing = re.findall(r"````(?:imgWithSource|fileWithSource)\(id='(\d+)'", text)
+    existing = re.findall(
+        r"````(?:imgWithSource|fileWithSource|htmlWithSource)\(id='(\d+)'", text
+    )
     if not existing:
         return 1
     return max(int(fid) for fid in existing) + 1
@@ -499,11 +501,9 @@ def _build_file_fence(file: CodeInterpreterFile, code: str, fence_id: int) -> st
     content_id, a title derived from the filename, the type, and the
     escaped source code.
 
-    HTML files are handled separately via HtmlRendering blocks and never
-    reach this function.
-
     Format (4 backticks so inner code backticks never close the fence):
       ````imgWithSource(id='{n}', contentId='{id}', title="{title}", code="{escaped_code}")````
+      ````htmlWithSource(id='{n}', contentId='{id}', title="{title}", code="{escaped_code}")````
       ````fileWithSource(id='{n}', contentId='{id}', title="{title}", type="{type}", code="{escaped_code}")````
     """
     title = _file_title(file.filename)
@@ -511,6 +511,8 @@ def _build_file_fence(file: CodeInterpreterFile, code: str, fence_id: int) -> st
     outer = "````"
     if file.type == "image":
         tag = f"imgWithSource(id='{fence_id}', contentId='{file.content_id}', title=\"{title}\", code=\"{escaped}\")"
+    elif file.type == "html":
+        tag = f"htmlWithSource(id='{fence_id}', contentId='{file.content_id}', title=\"{title}\", code=\"{escaped}\")"
     else:
         ftype = _file_frontend_type(file.filename)
         tag = f'fileWithSource(id=\'{fence_id}\', contentId=\'{file.content_id}\', title="{title}", type="{ftype}", code="{escaped}")'
@@ -534,7 +536,7 @@ def _inline_ref_pattern(file: CodeInterpreterFile) -> re.Pattern[str]:
 
 
 _FENCE_BLOCK_START = re.compile(
-    r"^[^\n`]+?(````(?:imgWithSource|fileWithSource)\()",
+    r"^[^\n`]+?(````(?:imgWithSource|fileWithSource|htmlWithSource)\()",
     re.MULTILINE,
 )
 
@@ -544,9 +546,9 @@ _FENCE_BLOCK_START = re.compile(
 #   - cross-line: 1 or 2 newlines optionally surrounded by horizontal whitespace
 #     (list-item linebreak, or blank-line paragraph gap)
 _CONSECUTIVE_FENCES_RE = re.compile(
-    r"(````(?:imgWithSource|fileWithSource)\([^\n]*\)````)"
+    r"(````(?:imgWithSource|fileWithSource|htmlWithSource)\([^\n]*\)````)"
     r"(?:[^\n`]*|[ \t]*\n{1,2}[ \t]*)"
-    r"(?=````(?:imgWithSource|fileWithSource)\()"
+    r"(?=````(?:imgWithSource|fileWithSource|htmlWithSource)\()"
 )
 
 
@@ -795,9 +797,6 @@ def _warn_unmatched_code_blocks(
     fenced_filenames = {f.filename for block in code_blocks for f in block.files}
     for filename, content_id in content_map.items():
         if content_id is None:
-            continue
-        # HTML files are rendered via HtmlRendering blocks, not fence injection
-        if _get_file_type(filename) == "html":
             continue
         if filename not in fenced_filenames:
             logger.warning(
