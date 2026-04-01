@@ -4,6 +4,7 @@ from typing import Any, Callable, ClassVar, Protocol, overload
 
 from typing_extensions import Self, TypeVar
 
+from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
@@ -95,6 +96,10 @@ class UniqueServiceFactory:
         """Create a :class:`KnowledgeBaseService` using the pre-bound context."""
         return self.get(KnowledgeBaseService, **kwargs)
 
+    def chunk_relevancy_sorter(self, **kwargs: Any) -> ChunkRelevancySorter:
+        """Create a :class:`ChunkRelevancySorter` using the pre-bound context."""
+        return self.get(ChunkRelevancySorter, **kwargs)
+
     # ── Class-level registry operations ──────────────────────────────────────
 
     @classmethod
@@ -126,7 +131,7 @@ class UniqueServiceFactory:
         from unique_toolkit.services.chat_service import ChatService
         from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
-        for service_class in [KnowledgeBaseService, ChatService]:
+        for service_class in [KnowledgeBaseService, ChatService, ChunkRelevancySorter]:
             if service_class.__name__ not in cls._registry:
                 cls.register(service_class=service_class)
 
