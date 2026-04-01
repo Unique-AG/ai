@@ -303,7 +303,7 @@ class LanguageModelInfo(BaseModel):
 
     default_options: dict[str, Any] = {}
 
-    supported_reasoning_efforts: list[str] | None = None
+    supported_reasoning_efforts: list[str] = []
 
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
 
@@ -328,7 +328,7 @@ class LanguageModelInfo(BaseModel):
         Scenarios handled in order:
 
         1. Model does not participate in reasoning_effort
-           (supported_reasoning_efforts is None):
+           (supported_reasoning_efforts is empty):
            - If the caller provided an effort, warn and drop it (return None).
            - Temperature is clamped to declared bounds.
 
@@ -355,9 +355,9 @@ class LanguageModelInfo(BaseModel):
         temperature_bounds = self.temperature_bounds
 
         # --- Scenario 1: model has no reasoning_effort concept ---
-        # supported_reasoning_efforts=None means reasoning is not applicable for this
+        # Empty supported_reasoning_efforts means reasoning is not applicable for this
         # model; drop any caller-provided effort so the API doesn't reject the call.
-        if supported_efforts is None:
+        if not supported_efforts:
             if is_reasoning_effort_set:
                 _LOGGER.warning(
                     "reasoning_effort '%s' was provided but model %s does not "

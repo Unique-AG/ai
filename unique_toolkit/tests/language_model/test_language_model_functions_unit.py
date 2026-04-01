@@ -310,10 +310,10 @@ def test_supported_reasoning_efforts_set_correctly():
     o3 = LanguageModelInfo.from_name(LanguageModelName.AZURE_o3_2025_0416)
     assert o3.supported_reasoning_efforts == ["low", "medium", "high"]
 
-    # o1-mini has no reasoning_effort support (None)
+    # o1-mini has no reasoning_effort support
     o1_mini = LanguageModelInfo.from_name(LanguageModelName.AZURE_o1_MINI_2024_0912)
-    assert o1_mini.supported_reasoning_efforts is None
+    assert o1_mini.supported_reasoning_efforts == []
 
-    # Third-party models (DeepSeek, Qwen) have None
+    # Third-party models (DeepSeek, Qwen) have no reasoning_effort support
     deepseek = LanguageModelInfo.from_name(LanguageModelName.LITELLM_DEEPSEEK_R1)
-    assert deepseek.supported_reasoning_efforts is None
+    assert deepseek.supported_reasoning_efforts == []
