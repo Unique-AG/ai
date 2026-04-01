@@ -2,6 +2,7 @@ from enum import StrEnum
 from typing import Annotated, Any, Generic, Literal, TypeVar
 
 from pydantic import (
+    AliasChoices,
     BaseModel,
     Field,
     field_validator,
@@ -87,6 +88,15 @@ class DDMetadata(BaseMetadata):
         default_factory=list, description="The texts of the questions"
     )
     context: str = Field(default="", description="The context text for the table.")
+
+    rerun: bool = Field(
+        default=False,
+        description=(
+            "Explicit re-run when sources change; bypasses auto_reprocess_on_source_add "
+            "when true."
+        ),
+        validation_alias=AliasChoices("rerun", "Rerun"),
+    )
 
     @field_validator("context", mode="before")
     @classmethod
