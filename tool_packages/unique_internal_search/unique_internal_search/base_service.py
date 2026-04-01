@@ -12,37 +12,22 @@ from typing_extensions import Self
 from unique_toolkit._common.event_bus import TypedEventBus
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 
-# ---------------------------------------------------------------------------
-# Type variables
-# ---------------------------------------------------------------------------
-
 RunResult = TypeVar("RunResult", bound=BaseModel)
 Config = TypeVar("Config", bound=BaseModel)
 Settings = TypeVar("Settings", bound=BaseSettings)
-Context = TypeVar("Context", bound=BaseModel)
+Context = TypeVar("Context")
 ServiceState = TypeVar("ServiceState", bound=BaseModel)
 ProgressMessage = TypeVar("ProgressMessage", bound=BaseModel | str)
 Deps = TypeVar("Deps")
 
 
-# ---------------------------------------------------------------------------
-# Mixins
-# ---------------------------------------------------------------------------
-
-
 class _RunMixin(ABC, Generic[RunResult]):
-    """Service has a single entry point that returns a typed result."""
-
     @abstractmethod
     async def run(self) -> RunResult: ...
 
 
 class _ConfigMixin(ABC, Generic[Config]):
-    """Service is configurable from a space-owner Pydantic model.
-
-    Subclasses must set ``_config_model_cls`` to the concrete Config type
-    so that ``from_json`` can deserialize without requiring a subclass override.
-    """
+    """Subclasses must set ``_config_model_cls`` so ``from_json`` can deserialize."""
 
     _config_model_cls: type[Config]
 
@@ -61,7 +46,7 @@ class _ConfigMixin(ABC, Generic[Config]):
 
 
 class _SettingsMixin(ABC, Generic[Settings]):
-    """Service has immutable environment-variable settings loaded once at init."""
+    """Implement if the service needs immutable env-var settings loaded at init."""
 
     @property
     @abstractmethod
@@ -69,12 +54,6 @@ class _SettingsMixin(ABC, Generic[Settings]):
 
 
 class _ContextMixin(ABC, Generic[Context]):
-    """Service holds a swappable request-scoped context (auth + optional chat).
-
-    The context is set after construction (via ``bind_settings``) and can be
-    replaced per request without rebuilding the service from scratch.
-    """
-
     @property
     @abstractmethod
     def context(self) -> Context: ...
@@ -85,8 +64,6 @@ class _ContextMixin(ABC, Generic[Context]):
 
 
 class _StateMixin(ABC, Generic[ServiceState]):
-    """Service accumulates per-invocation state that is set before each ``run()``."""
-
     @property
     @abstractmethod
     def state(self) -> ServiceState: ...
@@ -100,12 +77,7 @@ class _StateMixin(ABC, Generic[ServiceState]):
 
 
 class _ProgressMixin(Generic[ProgressMessage]):
-    """Optional progress reporting via a typed event bus.
-
-    Concrete by default — services that don't need progress reporting get a
-    no-op bus without having to implement anything. Override
-    ``post_progress_message`` for custom behaviour.
-    """
+    """Concrete by default — no-op bus unless something subscribes."""
 
     _progress_publisher: TypedEventBus[ProgressMessage]
 
@@ -120,12 +92,6 @@ class _ProgressMixin(Generic[ProgressMessage]):
 
 
 class _DependenciesMixin(ABC, Generic[Deps]):
-    """Service has injected services/deps
-
-    Dependencies are set during ``bind_settings`` so the service doesn't
-    construct them internally — making them easily replaceable in tests.
-    """
-
     @property
     @abstractmethod
     def dependencies(self) -> Deps: ...
@@ -133,11 +99,6 @@ class _DependenciesMixin(ABC, Generic[Deps]):
     @dependencies.setter
     @abstractmethod
     def dependencies(self, deps: Deps) -> None: ...
-
-
-# ---------------------------------------------------------------------------
-# BaseService
-# ---------------------------------------------------------------------------
 
 
 class BaseService(
@@ -149,51 +110,60 @@ class BaseService(
     _DependenciesMixin[Deps],
     Generic[RunResult, Config, ServiceState, ProgressMessage, Deps],
 ):
-    """Convenience base that wires all mixins together.
-
-    Initialization follows a two-step pattern that separates deployment-time
-    config from request-time wiring:
-
-     code-block:: python
-
-        # Option A — one-shot (most common):
-        service = MyService.from_settings(settings, config=my_config)
-
-        # Option B — template pattern (startup once, bind per request):
-        template = MyService.from_config(my_config)   # at startup
-        service  = template.bind_settings(settings)   # per request
-
-        # Option C — chatless (MCP, batch, no chat session):
-        settings = UniqueSettings.from_env_auto_with_sdk_init()
-        service  = MyService.from_settings(settings, config=my_config)
-        # context.chat is None → no file scoping, no metadata filter from chat
-
-    Subclasses must implement ``from_config`` and ``bind_settings``.
-    ``from_settings`` is provided as a default that chains both.
     """
+    Two-step init: from_config() at startup, bind_settings() per request.
+
+        service = MyService.from_config(config)      # startup
+        service = service.bind_settings(settings)    # per request
+        # or in one shot:
+        service = MyService.from_settings(settings, config=config)
+    """
+
+    _config: Config
+    _context: UniqueContext
+    _state: ServiceState
+    _dependencies: Deps
 
     @classmethod
     @abstractmethod
-    def from_config(cls, config: Config) -> Self:
-        """Config-only init (deployment-time). Call ``bind_settings`` before ``run``."""
-        ...
+    def from_config(cls, config: Config) -> Self: ...
 
     @abstractmethod
-    def bind_settings(self, settings: UniqueSettings) -> Self:
-        """Bind deps + context from settings (request-time). Returns self for chaining."""
-        ...
+    def bind_settings(self, settings: UniqueSettings) -> Self: ...
 
     @classmethod
     def from_settings(cls, settings: UniqueSettings, **kwargs) -> Self:
-        """Convenience: ``from_config(config).bind_settings(settings)``.
-
-        Pass ``config`` as a keyword argument:
-        ``MyService.from_settings(settings, config=my_config)``
-        """
         config = kwargs.pop("config")
         return cls.from_config(config).bind_settings(settings)
 
+    @property
+    def config(self) -> Config:
+        return self._config  # type: ignore[attr-defined]
+
+    @property
+    def context(self) -> UniqueContext:
+        return self._context  # type: ignore[attr-defined]
+
+    @context.setter
+    def context(self, value: UniqueContext) -> None:
+        self._context = value
+
+    @property
+    def state(self) -> ServiceState:
+        return self._state  # type: ignore[attr-defined]
+
+    @state.setter
+    def state(self, value: ServiceState) -> None:
+        self._state = value
+
+    @property
+    def dependencies(self) -> Deps:
+        return self._dependencies  # type: ignore[attr-defined]
+
+    @dependencies.setter
+    def dependencies(self, value: Deps) -> None:
+        self._dependencies = value
+
     @cached_property
     def logger(self) -> logging.Logger:
-        """Logger scoped to the concrete service class (e.g. ``unique_internal_search.service_v2.InternalSearchService``)."""
         return logging.getLogger(f"{type(self).__module__}.{type(self).__qualname__}")
