@@ -5,7 +5,7 @@ description = "AI Monorepo Documentation"
 authors = [{ name = "Unique Team" }]
 readme = "README.md"
 license = "Proprietary"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 dependencies = [
     "unique-toolkit",
     "griffe-pydantic>=1.1.8",
