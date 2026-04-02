@@ -5,8 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.10.98] - 2026-03-31
+## [0.10.99] - 2026-03-31
 - Docs: extend `unique-cli-search` Claude skill with global-search fallback (`unique-cli ls`, then folder-scoped `unique-cli search`) when unscoped search returns no results.
+## [0.10.98] - 2026-04-02
+- Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
+
 ## [0.10.97] - 2026-04-01
 - Chore: uv `exclude-newer` (2 weeks) and lockfile refresh
 

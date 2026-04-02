@@ -32,6 +32,7 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
+        UV_NO_WORKSPACE: 1
       run: |
         uv venv --clear
         EXTRAS="${{ inputs.extras }}"
@@ -42,13 +43,24 @@ runs:
           PKG_SPEC=".[$EXTRAS]"
         fi
         uv pip install -e "$PKG_SPEC" --resolution=lowest-direct
-        uv export --only-group dev --no-hashes | uv pip install -r -
+
+    - name: Install root dev tools
+      shell: bash
+      env:
+        UV_NO_SOURCES: 1
+        # Point uv at the min-dep venv created in the package directory above,
+        # not the root venv. Without this, uv pip install targets the repo-root
+        # .venv and dev tools (pytest, deptry) end up in the wrong environment.
+        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
+      run: |
+        REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
+        uv export --directory "$REPO_ROOT" --locked --only-group dev --no-hashes | uv pip install -r -
 
     - name: Run deptry
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
-        UV_NO_SOURCES: 1
+        UV_NO_WORKSPACE: 1
       run: uv run --no-sync deptry .
 
     - name: Run tests with min dependencies
@@ -56,4 +68,5 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
+        UV_NO_WORKSPACE: 1
       run: uv run --no-sync pytest ${{ inputs.test_args }}

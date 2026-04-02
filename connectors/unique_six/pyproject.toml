@@ -1,6 +1,6 @@
 [project]
 name = "unique_six"
-version = "0.1.5"
+version = "0.1.6"
 description = "Unique Six API client"
 authors = [
     { name = "Ahmed Jellouli", email = "ahmed.jellouli.ext@unique.ch" },
@@ -21,12 +21,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "ruff>=0.12.10",
-    "pytest>=8.0.0",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.12.0",
     "responses>=0.25.0",
-    "deptry>=0.24.0",
 ]
 
 [build-system]
@@ -44,7 +39,7 @@ constraint-dependencies = ["lxml>=5.0.0"]
 "unique-toolkit" = false
 
 [tool.uv.sources]
-unique-toolkit = { path = "../../unique_toolkit", editable = true }
+unique-toolkit = { workspace = true }
 
 [tool.ruff]
 target-version = "py311"

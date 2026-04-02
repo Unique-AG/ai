@@ -20,6 +20,7 @@ from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_web_search.prompts import (
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
 )
+from unique_web_search.services.argument_screening import ArgumentScreeningConfig
 from unique_web_search.services.content_processing.config import (
     ContentProcessorConfig,
 )
@@ -116,6 +117,11 @@ class ExperimentalFeatures(FeatureExtendedSourceSerialization):
         default_factory=ToolResponseSystemReminderConfig,
         title="Tool Response System Reminder",
         description="Optional reminder text attached to each successful WebSearch tool response.",
+    )
+    argument_screening_config: ArgumentScreeningConfig = Field(
+        default_factory=ArgumentScreeningConfig,
+        title="Argument Screening",
+        description="LLM-based screening of tool call arguments for sensitive information before execution. Requires the feature flag FEATURE_FLAG_ENABLE_WEB_SEARCH_ARGUMENT_SCREENING_UN_18741 to be activated.",
     )
 
 

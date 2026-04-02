@@ -1,6 +1,6 @@
 [project]
 name = "unique_deep_research"
-version = "3.5.4"
+version = "3.5.5"
 description = "Deep Research Tool for complex research tasks"
 readme = "README.md"
 license = { text = "Proprietary" }
@@ -36,19 +36,7 @@ build-backend = "uv_build"
 module-root = ""
 
 [dependency-groups]
-dev = [
-    "unique-sdk",
-    "pytest>=8.4.1,<9",
-    "pytest-asyncio>=0.25.0,<0.26",
-    "pytest-cov>=7.0.0,<8",
-    "ruff==0.12.10",
-    "deptry>=0.24.0,<0.25",
-    "basedpyright>=1.35.0,<2",
-    "poethepoet>=0.32.0,<0.33",
-    "opik>=1.8.42,<2",
-    "google>=3.0.0,<4",
-    "google-genai>=1.46.0,<2",
-]
+dev = []
 
 [tool.uv]
 exclude-newer = "2 weeks"
@@ -59,9 +47,9 @@ exclude-newer = "2 weeks"
 "unique-web-search" = false
 
 [tool.uv.sources]
-unique-sdk = { path = "../../unique_sdk", editable = true }
-unique-toolkit = { path = "../../unique_toolkit", editable = true }
-unique-web-search = { path = "../unique_web_search", editable = true }
+unique-sdk = { workspace = true }
+unique-toolkit = { workspace = true }
+unique-web-search = { workspace = true }
 
 [tool.poe.tasks]
 lint = "ruff check ."

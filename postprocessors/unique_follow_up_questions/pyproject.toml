@@ -1,6 +1,6 @@
 [project]
 name = "unique_follow_up_questions"
-version = "1.1.15"
+version = "1.1.16"
 description = ""
 authors = [
     { name = "Martin Fadler", email = "martin.fadler@unique.ch" },
@@ -19,14 +19,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "pytest>=8.4.1",
-    "pytest-asyncio>=0.25.0",
-    "pytest-cov>=7.0.0",
-    "deptry>=0.24.0",
-    "basedpyright>=1.35.0",
-    "poethepoet>=0.32.0",
-    "unique-sdk>=0.10.0",
-    "ruff>=0.12.10",
+    "unique-sdk",
 ]
 
 [build-system]
@@ -45,8 +38,8 @@ constraint-dependencies = ["lxml>=5.0.0"]
 "unique-toolkit" = false
 
 [tool.uv.sources]
-unique-sdk = { path = "../../unique_sdk", editable = true }
-unique-toolkit = { path = "../../unique_toolkit", editable = true }
+unique-sdk = { workspace = true }
+unique-toolkit = { workspace = true }
 
 [tool.poe.tasks]
 lint = "ruff check ."
