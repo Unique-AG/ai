@@ -1,6 +1,6 @@
 [project]
 name = "unique-swot"
-version = "1.3.2"
+version = "1.3.3"
 description = "Unique Swot package is a tool that for conducting a swot analysis based on internal and external documents"
 readme = "README.md"
 license = { text = "Proprietary" }
@@ -26,7 +26,12 @@ build-backend = "uv_build"
 module-root = ""
 
 [tool.uv]
+exclude-newer = "2 weeks"
 constraint-dependencies = ["lxml>=5.0.0"]
+
+[tool.uv.exclude-newer-package]
+"unique-quartr" = false
+"unique-toolkit" = false
 
 [dependency-groups]
 dev = []

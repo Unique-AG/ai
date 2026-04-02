@@ -1,6 +1,6 @@
 [project]
 name = "core"
-version = "0.1.2"
+version = "0.1.3"
 description = "Web Search Proxy implementation"
 authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]
 readme = "README.md"
@@ -28,6 +28,7 @@ build-backend = "uv_build"
 module-root = "web"
 
 [tool.uv]
+exclude-newer = "2 weeks"
 constraint-dependencies = ["lxml>=5.0.0"]
 
 [tool.ruff]

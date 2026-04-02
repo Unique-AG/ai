@@ -5,8 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.5.4] - 2026-03-31
+## [3.5.5] - 2026-03-31
 - Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
+
+## [3.5.4] - 2026-04-01
+- Chore: uv `exclude-newer` (2 weeks) and lockfile refresh
 
 ## [3.5.3] - 2026-03-31
 - Docs: replace Poetry references with uv equivalents in benchmarking README

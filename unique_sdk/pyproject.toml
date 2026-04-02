@@ -1,6 +1,6 @@
 [project]
 name = "unique_sdk"
-version = "0.10.97"
+version = "0.10.98"
 description = ""
 readme = "README.md"
 license = { text = "MIT" }
@@ -38,6 +38,9 @@ build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-root = ""
+
+[tool.uv]
+exclude-newer = "2 weeks"
 
 [dependency-groups]
 dev = []

@@ -1,6 +1,6 @@
 [project]
 name = "unique_web_search"
-version = "1.14.4"
+version = "1.15.1"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
@@ -23,7 +23,7 @@ dependencies = [
     "unidecode>=1.4.0,<2",
     "azure-ai-projects>=1.0.0,<2",
     "azure-identity>=1.25.0,<2",
-    "unique-toolkit>=1.46.13,<2",
+    "unique-toolkit>=1.66.1,<2",
     "azure-core>=1.36.0,<2",
     "google-cloud-aiplatform>=1.128.0,<2",
     "google-auth>=2.43.0,<3",
@@ -40,6 +40,12 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = []
+
+[tool.uv]
+exclude-newer = "2 weeks"
+
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
 
 [tool.poe.tasks]
 lint = "ruff check ."

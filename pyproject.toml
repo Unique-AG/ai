@@ -1,6 +1,6 @@
 [project]
 name = "ai-monorepo"
-version = "0.1.0"
+version = "0.1.1"
 description = "AI Monorepo Documentation"
 authors = [{ name = "Unique Team" }]
 readme = "README.md"
@@ -44,6 +44,12 @@ docs = [
     "mkdocs-include-dir-to-nav>=1.2.0",
     "mike>=2.1.3",
 ]
+
+[tool.uv]
+exclude-newer = "2 weeks"
+
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
 
 [tool.uv.sources]
 unique-toolkit = { workspace = true }

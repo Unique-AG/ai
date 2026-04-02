@@ -1,6 +1,6 @@
 [project]
 name = "unique_orchestrator"
-version = "1.20.1"
+version = "1.20.3"
 description = ""
 readme = "README.md"
 license = { text = "Proprietary" }
@@ -31,6 +31,19 @@ module-root = ""
 
 [dependency-groups]
 dev = []
+
+[tool.uv]
+exclude-newer = "2 weeks"
+
+[tool.uv.exclude-newer-package]
+"unique-deep-research" = false
+"unique-follow-up-questions" = false
+"unique-internal-search" = false
+"unique-sdk" = false
+"unique-stock-ticker" = false
+"unique-swot" = false
+"unique-toolkit" = false
+"unique-web-search" = false
 
 [tool.uv.sources]
 unique-sdk = { workspace = true }

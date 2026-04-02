@@ -1,6 +1,6 @@
 [project]
 name = "unique_deep_research"
-version = "3.5.4"
+version = "3.5.5"
 description = "Deep Research Tool for complex research tasks"
 readme = "README.md"
 license = { text = "Proprietary" }
@@ -37,6 +37,14 @@ module-root = ""
 
 [dependency-groups]
 dev = []
+
+[tool.uv]
+exclude-newer = "2 weeks"
+
+[tool.uv.exclude-newer-package]
+"unique-sdk" = false
+"unique-toolkit" = false
+"unique-web-search" = false
 
 [tool.uv.sources]
 unique-sdk = { workspace = true }
