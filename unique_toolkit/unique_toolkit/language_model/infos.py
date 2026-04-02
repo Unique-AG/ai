@@ -385,11 +385,11 @@ class LanguageModelInfo(BaseModel):
                     fallback_effort,
                 )
                 reasoning_effort = fallback_effort
-                wants_active_reasoning = True
+                wants_active_reasoning = fallback_effort != "none"
 
         # By this point reasoning_effort is either None or a value from supported_reasoning_efforts,
-        # which are always valid ReasoningEffort entries — to_reasoning_effort will not raise.
-        resolved: ReasoningEffort | None = (
+        # which are always valid ReasoningEffort entries — to_reasoning_effort will not return None.
+        resolved = (
             to_reasoning_effort(reasoning_effort)
             if reasoning_effort is not None
             else None
