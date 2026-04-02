@@ -37,24 +37,26 @@ runs:
       shell: bash
       run: git fetch origin ${{ inputs.branch }}:${{ inputs.branch }}
 
-    - name: Save PR lock file
+    - name: Restore lock file before checkout
       shell: bash
-      run: cp uv.lock /tmp/pr-uv.lock
+      run: git restore uv.lock 2>/dev/null || true
 
     - name: Checkout base branch
       shell: bash
       run: git checkout "origin/${{ inputs.branch }}" --quiet
 
-    - name: Restore PR lock file on base branch
-      shell: bash
-      run: cp /tmp/pr-uv.lock uv.lock
-
     - name: Install dependencies on base branch
       shell: bash
       run: |
         PKG_NAME=$(grep '^name' "${{ inputs.package_dir }}/pyproject.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
-        uv sync --frozen --package "$PKG_NAME"
-        uv sync --frozen --inexact --only-dev
+        uv sync --locked --package "$PKG_NAME"
+        uv sync --locked --inexact --only-dev
+
+    - name: Discard lock file changes
+      shell: bash
+      run: |
+        git restore uv.lock 2>/dev/null || true
+        git clean -f -- uv.lock 2>/dev/null || true
 
     - name: Create baseline
       shell: bash
