@@ -173,6 +173,7 @@ class UploadedFileInfo(BaseModel):
     title: str = ""
     mime_type: str = ""
 
+
 class ChatEventAdditionalParameters(BaseModel):
     model_config = model_config
 
