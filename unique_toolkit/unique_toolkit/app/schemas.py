@@ -162,12 +162,49 @@ class EventAssistantMessage(ChatEventAssistantMessage):
     pass
 
 
+class UploadedFileInfo(BaseModel):
+    """Describes a file attached to the chat"""
+
+    model_config = model_config
+
+    id: str
+    title: str = ""
+    mime_type: str = ""
+
+    @classmethod
+    def _coerce_item(cls, item: Any) -> "UploadedFileInfo":
+        if isinstance(item, cls):
+            return item
+        if isinstance(item, str):
+            return cls(id=item)
+        if isinstance(item, dict):
+            return cls.model_validate(item)
+        raise ValueError(f"Cannot coerce {type(item)} to UploadedFileInfo")
+
+
 class ChatEventAdditionalParameters(BaseModel):
     model_config = model_config
 
     translate_to_language: Optional[str] = None
     content_id_to_translate: Optional[str] = None
     user_space_instructions: str
+    uploaded_files: list[UploadedFileInfo] = Field(default_factory=list)
+    selected_uploaded_files: list[UploadedFileInfo] = Field(default_factory=list)
+
+    @field_validator("uploaded_files", "selected_uploaded_files", mode="before")
+    @classmethod
+    def _coerce_file_list(cls, v: Any) -> list[Any]:
+        if not isinstance(v, list):
+            return v
+        return [UploadedFileInfo._coerce_item(item) for item in v]
+
+    @property
+    def uploaded_file_ids(self) -> list[str]:
+        return [f.id for f in self.uploaded_files]
+
+    @property
+    def selected_uploaded_file_ids(self) -> list[str]:
+        return [f.id for f in self.selected_uploaded_files]
 
 
 @deprecated(
