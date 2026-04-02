@@ -11,6 +11,7 @@ from unique_toolkit.app.schemas import (
     ChatEventPayload,
     ChatEventUserMessage,
     EventName,
+    UploadedFileInfo,
 )
 from unique_toolkit.app.unique_settings import UniqueSettings
 
@@ -92,8 +93,8 @@ class TestEventFactory:
         translate_to_language: str | None = None,
         content_id_to_translate: str | None = None,
         user_space_instructions: str = "",
-        uploaded_files: list[str] | None = None,
-        selected_uploaded_files: list[str] | None = None,
+        uploaded_files: list[UploadedFileInfo] | None = None,
+        selected_uploaded_files: list[UploadedFileInfo] | None = None,
     ) -> ChatEventAdditionalParameters:
         return ChatEventAdditionalParameters(
             translate_to_language=translate_to_language,

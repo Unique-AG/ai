@@ -454,7 +454,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
                 chat_id = self.event.payload.chat_id
             additional = self.event.payload.additional_parameters
             if additional and additional.selected_uploaded_files:
-                selected_uploaded_files = additional.selected_uploaded_files
+                selected_uploaded_files = additional.selected_uploaded_file_ids
         else:
             chat_id = None
         self._display_name = kwargs.get("display_name", "Internal Search")

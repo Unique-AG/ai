@@ -70,7 +70,8 @@ class TestBuildCommonSelectedUploadedFiles:
         monkeypatch.setattr(f"{MODULE}.feature_flags", mock_ff)
 
         additional = MagicMock()
-        additional.selected_uploaded_files = ["a", "c"]
+        additional.selected_uploaded_files = [MagicMock(id="a"), MagicMock(id="c")]
+        additional.selected_uploaded_file_ids = ["a", "c"]
         event = _make_event(additional_parameters=additional)
 
         result = _build_common(event, MagicMock(), UniqueAIConfig())
@@ -146,7 +147,8 @@ class TestBuildCommonSelectedUploadedFiles:
         monkeypatch.setattr(f"{MODULE}.feature_flags", mock_ff)
 
         additional = MagicMock()
-        additional.selected_uploaded_files = ["a"]
+        additional.selected_uploaded_files = [MagicMock(id="a")]
+        additional.selected_uploaded_file_ids = ["a"]
         event = _make_event(additional_parameters=additional)
 
         result = _build_common(event, MagicMock(), UniqueAIConfig())
@@ -172,7 +174,8 @@ class TestBuildCommonSelectedUploadedFiles:
         monkeypatch.setattr(f"{MODULE}.feature_flags", mock_ff)
 
         additional = MagicMock()
-        additional.selected_uploaded_files = ["y"]
+        additional.selected_uploaded_files = [MagicMock(id="y")]
+        additional.selected_uploaded_file_ids = ["y"]
         event = _make_event(additional_parameters=additional)
 
         result = _build_common(event, MagicMock(), UniqueAIConfig())

@@ -183,7 +183,7 @@ def _build_common(
     ):
         additional = event.payload.additional_parameters
         if additional and additional.selected_uploaded_files:
-            selected_ids = set(additional.selected_uploaded_files)
+            selected_ids = set(additional.selected_uploaded_file_ids)
             uploaded_documents = [
                 doc for doc in uploaded_documents if doc.id in selected_ids
             ]

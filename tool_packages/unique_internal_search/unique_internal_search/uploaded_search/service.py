@@ -48,7 +48,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             self._user_query = event.payload.user_message.text
             additional = event.payload.additional_parameters
             if additional and additional.selected_uploaded_files:
-                self._selected_uploaded_files = additional.selected_uploaded_files
+                self._selected_uploaded_files = additional.selected_uploaded_file_ids
         else:
             self._user_query = None
 

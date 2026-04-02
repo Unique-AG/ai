@@ -96,7 +96,8 @@ class TestRenderSystemPromptSelectedUploadedFiles:
         feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
 
         additional = MagicMock()
-        additional.selected_uploaded_files = ["a", "c"]
+        additional.selected_uploaded_files = [MagicMock(id="a"), MagicMock(id="c")]
+        additional.selected_uploaded_file_ids = ["a", "c"]
         mock_unique_ai._event.payload.additional_parameters = additional
 
         result = await mock_unique_ai._render_system_prompt()
@@ -157,7 +158,8 @@ class TestRenderSystemPromptSelectedUploadedFiles:
         feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = False
 
         additional = MagicMock()
-        additional.selected_uploaded_files = ["a"]
+        additional.selected_uploaded_files = [MagicMock(id="a")]
+        additional.selected_uploaded_file_ids = ["a"]
         mock_unique_ai._event.payload.additional_parameters = additional
 
         result = await mock_unique_ai._render_system_prompt()
@@ -178,7 +180,8 @@ class TestRenderSystemPromptSelectedUploadedFiles:
         feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
 
         additional = MagicMock()
-        additional.selected_uploaded_files = ["y"]
+        additional.selected_uploaded_files = [MagicMock(id="y")]
+        additional.selected_uploaded_file_ids = ["y"]
         mock_unique_ai._event.payload.additional_parameters = additional
 
         result = await mock_unique_ai._render_system_prompt()

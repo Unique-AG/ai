@@ -204,7 +204,29 @@ class TestEventSchemas:
             payload.additional_parameters.user_space_instructions == "some instructions"
         )
 
-    def test_additional_parameters__uploaded_files__deserialization(self):
+    def test_additional_parameters__uploaded_files__object_format_deserialization(self):
+        json_data = """{
+            "userSpaceInstructions": "",
+            "uploadedFiles": [
+                {"id": "cont_abc", "title": "Q3 Report.pdf", "mimeType": "application/pdf"}
+            ],
+            "selectedUploadedFiles": [
+                {"id": "cont_abc", "title": "Q3 Report.pdf", "mimeType": "application/pdf"}
+            ]
+        }"""
+        params = ChatEventAdditionalParameters.model_validate_json(json_data)
+
+        assert len(params.uploaded_files) == 1
+        assert params.uploaded_files[0].id == "cont_abc"
+        assert params.uploaded_files[0].title == "Q3 Report.pdf"
+        assert params.uploaded_files[0].mime_type == "application/pdf"
+        assert params.uploaded_file_ids == ["cont_abc"]
+
+        assert len(params.selected_uploaded_files) == 1
+        assert params.selected_uploaded_files[0].id == "cont_abc"
+        assert params.selected_uploaded_file_ids == ["cont_abc"]
+
+    def test_additional_parameters__uploaded_files__backward_compat_string_list(self):
         json_data = """{
             "userSpaceInstructions": "",
             "uploadedFiles": ["content_1", "content_2"],
@@ -212,8 +234,9 @@ class TestEventSchemas:
         }"""
         params = ChatEventAdditionalParameters.model_validate_json(json_data)
 
-        assert params.uploaded_files == ["content_1", "content_2"]
-        assert params.selected_uploaded_files == ["content_1"]
+        assert len(params.uploaded_files) == 2
+        assert params.uploaded_file_ids == ["content_1", "content_2"]
+        assert params.selected_uploaded_file_ids == ["content_1"]
 
     def test_additional_parameters__uploaded_files__defaults_to_empty_list(self):
         json_data = '{"userSpaceInstructions": ""}'
