@@ -62,7 +62,6 @@ class InternalSearchService:
         message_step_logger: MessageStepLogger | None = None,
         display_name: str = "Internal Search",
         language_model_orchestrator: "LanguageModelInfo | None" = None,
-        uploaded_files: list[str] | None = None,
         selected_uploaded_files: list[str] | None = None,
     ):
         self.config = config
@@ -77,7 +76,6 @@ class InternalSearchService:
         self._active_message_log: MessageLog | None = None
         # TODO: Propagate orchestrator LLM into tool initialization in separate PR
         self.language_model_orchestrator = language_model_orchestrator
-        self.uploaded_files: list[str] = uploaded_files or []
         self.selected_uploaded_files: list[str] = selected_uploaded_files or []
 
     async def post_progress_message(self, message: str, *args, **kwargs):
@@ -439,7 +437,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         content_service = ContentService.from_event(self.event)
         chunk_relevancy_sorter = ChunkRelevancySorter.from_event(self.event)
         # Determing chat_id if possible
-        uploaded_files: list[str] = []
         selected_uploaded_files: list[str] = []
         if isinstance(self.event, (ChatEvent, Event)):
             if self.event.payload.correlation:
@@ -450,8 +447,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             additional = self.event.payload.additional_parameters
             if additional and additional.selected_uploaded_files:
                 selected_uploaded_files = additional.selected_uploaded_files
-            if additional and additional.uploaded_files:
-                uploaded_files = additional.uploaded_files
         else:
             chat_id = None
         self._display_name = kwargs.get("display_name", "Internal Search")
@@ -465,7 +460,6 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             logger=self.logger,
             message_step_logger=self._message_step_logger,
             display_name=self._display_name,
-            uploaded_files=uploaded_files,
             selected_uploaded_files=selected_uploaded_files,
         )
 
