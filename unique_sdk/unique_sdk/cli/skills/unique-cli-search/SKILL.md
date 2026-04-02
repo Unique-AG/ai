@@ -47,6 +47,25 @@ When no `--folder` is given:
 - In interactive mode: searches within the current directory
 - At root `/`: searches the entire knowledge base
 
+## When Global Search Returns No Results
+
+Global (unscoped) search may return 0 results even when matching documents exist,
+because documents are indexed under specific folder scopes. If a global search
+returns nothing:
+
+1. List root folders to understand the structure:
+   ```bash
+   unique-cli ls
+   ```
+2. Re-run the search scoped to the most relevant folder:
+   ```bash
+   unique-cli search "term" --folder /FolderName
+   ```
+3. Use a broad single word grounded in a folder name or document type the user mentioned.
+
+**Always prefer folder-scoped search** when the user names a topic, report type, or
+folder. Folder-scoped search is more reliable than global search.
+
 ## Metadata Filtering
 
 Filter by metadata fields using `--metadata key=value` (repeatable, AND logic):
