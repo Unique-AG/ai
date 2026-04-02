@@ -8,6 +8,7 @@ Covers:
 - Large todo lists (100 items) preserved without truncation
 - debug_info structure on tool response
 - system_reminder set when active items, empty when all terminal
+- _log_step() Steps panel integration
 - Tool registration, config validation
 - Configurable prompts via TodoConfig
 """
@@ -33,6 +34,7 @@ from unique_toolkit.agentic.tools.experimental.todo.service import (
     TodoWriteTool,
 )
 from unique_toolkit.agentic.tools.factory import ToolFactory
+from unique_toolkit.chat.schemas import MessageLogStatus
 
 
 @pytest.fixture(autouse=True)
@@ -366,6 +368,135 @@ class TestTodoWriteTool:
         response = await tool.run(tc)
 
         assert "[x] Cached" in response.content
+
+
+class TestLogStep:
+    """Tests for _log_step() Steps panel integration."""
+
+    @pytest.mark.asyncio
+    async def test_creates_step_with_display_name_header(self) -> None:
+        tool = _make_tool(config=TodoConfig(display_name="Progress"))
+        tc = _make_tool_call(
+            {
+                "todos": [{"id": "t1", "content": "Task", "status": "pending"}],
+                "merge": False,
+            }
+        )
+
+        await tool.run(tc)
+
+        tool._message_step_logger.create_or_update_message_log.assert_called_once()
+        call_kwargs = tool._message_step_logger.create_or_update_message_log.call_args[
+            1
+        ]
+        assert call_kwargs["header"] == "Progress"
+
+    @pytest.mark.asyncio
+    async def test_progress_message_contains_counts(self) -> None:
+        tool = _make_tool()
+        tc = _make_tool_call(
+            {
+                "todos": [
+                    {"id": "t1", "content": "Done", "status": "completed"},
+                    {"id": "t2", "content": "Doing", "status": "in_progress"},
+                    {"id": "t3", "content": "Todo", "status": "pending"},
+                ],
+                "merge": False,
+            }
+        )
+
+        await tool.run(tc)
+
+        call_kwargs = tool._message_step_logger.create_or_update_message_log.call_args[
+            1
+        ]
+        progress = call_kwargs["progress_message"]
+        assert "3 items" in progress
+        assert "1 completed" in progress
+        assert "1 in_progress" in progress
+        assert "1 pending" in progress
+
+    @pytest.mark.asyncio
+    async def test_status_running_when_active_items(self) -> None:
+        tool = _make_tool()
+        tc = _make_tool_call(
+            {
+                "todos": [{"id": "t1", "content": "Doing", "status": "in_progress"}],
+                "merge": False,
+            }
+        )
+
+        await tool.run(tc)
+
+        call_kwargs = tool._message_step_logger.create_or_update_message_log.call_args[
+            1
+        ]
+        assert call_kwargs["status"] == MessageLogStatus.RUNNING
+
+    @pytest.mark.asyncio
+    async def test_status_completed_when_all_terminal(self) -> None:
+        tool = _make_tool()
+        tc = _make_tool_call(
+            {
+                "todos": [
+                    {"id": "t1", "content": "Done", "status": "completed"},
+                    {"id": "t2", "content": "Skipped", "status": "cancelled"},
+                ],
+                "merge": False,
+            }
+        )
+
+        await tool.run(tc)
+
+        call_kwargs = tool._message_step_logger.create_or_update_message_log.call_args[
+            1
+        ]
+        assert call_kwargs["status"] == MessageLogStatus.COMPLETED
+
+    @pytest.mark.asyncio
+    async def test_reuses_message_log_across_calls(self) -> None:
+        """Second run() passes the MessageLog from the first call as active_message_log."""
+        tool = _make_tool()
+        sentinel = MagicMock()
+        tool._message_step_logger.create_or_update_message_log.return_value = sentinel
+
+        tc1 = _make_tool_call(
+            {
+                "todos": [{"id": "t1", "content": "Task", "status": "pending"}],
+                "merge": False,
+            }
+        )
+        await tool.run(tc1)
+
+        tc2 = _make_tool_call(
+            {"todos": [{"id": "t1", "status": "completed"}], "merge": True}
+        )
+        await tool.run(tc2)
+
+        second_call_kwargs = (
+            tool._message_step_logger.create_or_update_message_log.call_args_list[1][1]
+        )
+        assert second_call_kwargs["active_message_log"] is sentinel
+
+    @pytest.mark.asyncio
+    async def test_log_step_failure_does_not_break_run(self) -> None:
+        """_log_step exceptions are swallowed — run() still returns a valid response."""
+        tool = _make_tool()
+        tool._message_step_logger.create_or_update_message_log.side_effect = Exception(
+            "Step log broken"
+        )
+
+        tc = _make_tool_call(
+            {
+                "todos": [{"id": "t1", "content": "Task", "status": "pending"}],
+                "merge": False,
+            }
+        )
+
+        response = await tool.run(tc)
+
+        assert "Task" in response.content
+        assert response.debug_info is not None
 
 
 class TestTodoWriteToolConfig:
