@@ -567,13 +567,16 @@ class LanguageModelResponse(BaseModel):
 ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh"]
 
 
-def to_reasoning_effort(value: str) -> ReasoningEffort | None:
-    """Narrow a raw string to ReasoningEffort, returning None if the value is not recognised."""
+def to_reasoning_effort(value: str) -> ReasoningEffort:
+    """Narrow a raw string to ReasoningEffort, raising ValueError for unrecognised values."""
     match value:
         case "none" | "minimal" | "low" | "medium" | "high" | "xhigh":
             return value
         case _:
-            return None
+            raise ValueError(
+                f"Unknown reasoning_effort {value!r}. "
+                f"Supported values: none, minimal, low, medium, high, xhigh."
+            )
 
 
 def reasoning_effort_to_openai(effort: ReasoningEffort) -> OpenAIReasoningEffort:
