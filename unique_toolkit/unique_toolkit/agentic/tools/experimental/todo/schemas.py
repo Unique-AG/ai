@@ -32,6 +32,12 @@ class TodoItem(BaseModel):
     )
     content: str = Field(description="Description of the task")
     status: TodoStatus
+    active_form: str | None = Field(
+        default=None,
+        description="Present-continuous form of the task shown as live status text "
+        "(e.g. 'Searching documents', 'Analyzing results'). "
+        "Provide when creating or updating an item.",
+    )
 
 
 class TodoItemInput(BaseModel):
@@ -45,6 +51,11 @@ class TodoItemInput(BaseModel):
         description="Description of the task. Required when creating new items, optional when updating existing ones via merge.",
     )
     status: TodoStatus
+    active_form: str | None = Field(
+        default=None,
+        description="Present-continuous form shown as live status text "
+        "(e.g. 'Searching documents'). Provide for richer UI display.",
+    )
 
 
 class TodoList(BaseModel):
@@ -57,6 +68,7 @@ class TodoList(BaseModel):
         """Update by ID: overwrite existing, append new, preserve unmentioned.
 
         When an incoming item omits content, the existing content is preserved.
+        active_form falls back to existing value when not supplied.
         New items without content get an empty string as fallback.
         """
         existing_by_id = {t.id: t for t in self.todos}
@@ -67,10 +79,16 @@ class TodoList(BaseModel):
                 if item.content is not None
                 else (existing.content if existing else "")
             )
+            active_form = (
+                item.active_form
+                if item.active_form is not None
+                else (existing.active_form if existing else None)
+            )
             existing_by_id[item.id] = TodoItem(
                 id=item.id,
                 content=content,
                 status=item.status,
+                active_form=active_form,
             )
         return TodoList(
             todos=list(existing_by_id.values()),

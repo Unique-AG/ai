@@ -1,14 +1,16 @@
 """Tests for TodoWriteTool, TodoList, and related schemas.
 
 Covers:
-- TodoList.update() logic (update, append, preserve)
+- TodoList.update() logic (update, append, preserve, active_form carry-over)
 - TodoList.has_active_items() logic
 - TodoList.status_counts() aggregation
 - TodoWriteTool.run() (create, update, replace, formatting)
 - Large todo lists (100 items) preserved without truncation
 - debug_info structure on tool response
 - system_reminder set when active items, empty when all terminal
-- _log_step() Steps panel integration
+- _log_step() Steps panel integration (counts and active_form display)
+- Verification nudge after N completions
+- parallel_mode config toggling descriptions and reminders
 - Tool registration, config validation
 - Configurable prompts via TodoConfig
 """
@@ -21,6 +23,9 @@ import pytest
 
 from unique_toolkit.agentic.tools.experimental.todo.config import (
     _DEFAULT_SYSTEM_PROMPT,
+    _DEFAULT_TOOL_DESCRIPTION,
+    _PARALLEL_EXECUTION_REMINDER,
+    _PARALLEL_TOOL_DESCRIPTION,
     TodoConfig,
 )
 from unique_toolkit.agentic.tools.experimental.todo.schemas import (
@@ -165,6 +170,49 @@ class TestTodoListUpdate:
             [TodoItemInput(id="a", content="x", status=TodoStatus.PENDING)]
         )
         assert updated.last_updated_iteration == 5
+
+    def test_update_preserves_active_form_when_omitted(self) -> None:
+        tl = TodoList(
+            todos=[
+                TodoItem(
+                    id="a",
+                    content="Task A",
+                    status=TodoStatus.PENDING,
+                    active_form="Doing Task A",
+                )
+            ]
+        )
+        updated = tl.update([TodoItemInput(id="a", status=TodoStatus.IN_PROGRESS)])
+        assert updated.todos[0].active_form == "Doing Task A"
+
+    def test_update_overwrites_active_form_when_supplied(self) -> None:
+        tl = TodoList(
+            todos=[
+                TodoItem(
+                    id="a",
+                    content="Task A",
+                    status=TodoStatus.PENDING,
+                    active_form="Old form",
+                )
+            ]
+        )
+        updated = tl.update(
+            [
+                TodoItemInput(
+                    id="a",
+                    status=TodoStatus.IN_PROGRESS,
+                    active_form="New form",
+                )
+            ]
+        )
+        assert updated.todos[0].active_form == "New form"
+
+    def test_new_item_without_active_form_is_none(self) -> None:
+        tl = TodoList()
+        updated = tl.update(
+            [TodoItemInput(id="a", content="x", status=TodoStatus.PENDING)]
+        )
+        assert updated.todos[0].active_form is None
 
 
 class TestTodoWriteInput:
@@ -392,14 +440,14 @@ class TestLogStep:
         assert call_kwargs["header"] == "Progress"
 
     @pytest.mark.asyncio
-    async def test_progress_message_contains_counts(self) -> None:
+    async def test_progress_message_shows_counts_when_no_in_progress(self) -> None:
+        """When no item is in_progress, _log_step shows a counts-based summary."""
         tool = _make_tool()
         tc = _make_tool_call(
             {
                 "todos": [
                     {"id": "t1", "content": "Done", "status": "completed"},
-                    {"id": "t2", "content": "Doing", "status": "in_progress"},
-                    {"id": "t3", "content": "Todo", "status": "pending"},
+                    {"id": "t2", "content": "Todo", "status": "pending"},
                 ],
                 "merge": False,
             }
@@ -411,10 +459,55 @@ class TestLogStep:
             1
         ]
         progress = call_kwargs["progress_message"]
-        assert "3 items" in progress
+        assert "2 items" in progress
         assert "1 completed" in progress
-        assert "1 in_progress" in progress
         assert "1 pending" in progress
+
+    @pytest.mark.asyncio
+    async def test_progress_message_shows_active_form_when_in_progress(self) -> None:
+        """When an item is in_progress, _log_step shows its active_form."""
+        tool = _make_tool()
+        tc = _make_tool_call(
+            {
+                "todos": [
+                    {
+                        "id": "t1",
+                        "content": "Search docs",
+                        "status": "in_progress",
+                        "active_form": "Searching documents",
+                    },
+                    {"id": "t2", "content": "Write report", "status": "pending"},
+                ],
+                "merge": False,
+            }
+        )
+
+        await tool.run(tc)
+
+        call_kwargs = tool._message_step_logger.create_or_update_message_log.call_args[
+            1
+        ]
+        assert call_kwargs["progress_message"] == "Searching documents"
+
+    @pytest.mark.asyncio
+    async def test_progress_message_falls_back_to_content(self) -> None:
+        """When in_progress item has no active_form, _log_step shows content."""
+        tool = _make_tool()
+        tc = _make_tool_call(
+            {
+                "todos": [
+                    {"id": "t1", "content": "Search docs", "status": "in_progress"},
+                ],
+                "merge": False,
+            }
+        )
+
+        await tool.run(tc)
+
+        call_kwargs = tool._message_step_logger.create_or_update_message_log.call_args[
+            1
+        ]
+        assert call_kwargs["progress_message"] == "Search docs"
 
     @pytest.mark.asyncio
     async def test_status_running_when_active_items(self) -> None:
@@ -692,3 +785,126 @@ class TestMultiStepWorkflow:
         )
         r2 = await tool.run(tc2)
         assert r2.debug_info["iteration"] == 2
+
+
+class TestVerificationNudge:
+    """Tests for _maybe_add_verification_nudge behavior."""
+
+    @pytest.mark.asyncio
+    async def test_no_nudge_when_threshold_zero(self) -> None:
+        tool = _make_tool(config=TodoConfig(verification_threshold=0))
+        tc = _make_tool_call(
+            {
+                "todos": [
+                    {"id": "t1", "content": "Done", "status": "completed"},
+                    {"id": "t2", "content": "Done 2", "status": "completed"},
+                    {"id": "t3", "content": "Todo", "status": "pending"},
+                ],
+                "merge": False,
+            }
+        )
+
+        response = await tool.run(tc)
+        assert "[Checkpoint" not in response.content
+
+    @pytest.mark.asyncio
+    async def test_nudge_fires_at_threshold(self) -> None:
+        tool = _make_tool(config=TodoConfig(verification_threshold=2))
+        tc = _make_tool_call(
+            {
+                "todos": [
+                    {"id": "t1", "content": "Done", "status": "completed"},
+                    {"id": "t2", "content": "Done 2", "status": "completed"},
+                    {"id": "t3", "content": "Todo", "status": "pending"},
+                ],
+                "merge": False,
+            }
+        )
+
+        response = await tool.run(tc)
+        assert "[Checkpoint: 2 tasks completed" in response.content
+
+    @pytest.mark.asyncio
+    async def test_no_nudge_when_all_completed(self) -> None:
+        """No nudge when there are no pending items left."""
+        tool = _make_tool(config=TodoConfig(verification_threshold=2))
+        tc = _make_tool_call(
+            {
+                "todos": [
+                    {"id": "t1", "content": "Done", "status": "completed"},
+                    {"id": "t2", "content": "Done 2", "status": "completed"},
+                ],
+                "merge": False,
+            }
+        )
+
+        response = await tool.run(tc)
+        assert "[Checkpoint" not in response.content
+
+    @pytest.mark.asyncio
+    async def test_no_nudge_below_threshold(self) -> None:
+        tool = _make_tool(config=TodoConfig(verification_threshold=3))
+        tc = _make_tool_call(
+            {
+                "todos": [
+                    {"id": "t1", "content": "Done", "status": "completed"},
+                    {"id": "t2", "content": "Done 2", "status": "completed"},
+                    {"id": "t3", "content": "Todo", "status": "pending"},
+                ],
+                "merge": False,
+            }
+        )
+
+        response = await tool.run(tc)
+        assert "[Checkpoint" not in response.content
+
+
+class TestParallelModeConfig:
+    """Tests for parallel_mode toggling descriptions and reminders."""
+
+    def test_default_is_sequential(self) -> None:
+        config = TodoConfig()
+        assert config.parallel_mode is False
+
+    def test_sequential_tool_description(self) -> None:
+        config = TodoConfig(parallel_mode=False)
+        assert config.effective_tool_description == _DEFAULT_TOOL_DESCRIPTION
+
+    def test_parallel_tool_description(self) -> None:
+        config = TodoConfig(parallel_mode=True)
+        assert config.effective_tool_description == _PARALLEL_TOOL_DESCRIPTION
+
+    def test_sequential_execution_reminder(self) -> None:
+        config = TodoConfig(parallel_mode=False)
+        assert "Mark exactly one item" in config.effective_execution_reminder
+
+    def test_parallel_execution_reminder(self) -> None:
+        config = TodoConfig(parallel_mode=True)
+        assert config.effective_execution_reminder == _PARALLEL_EXECUTION_REMINDER
+
+    @pytest.mark.asyncio
+    async def test_tool_uses_effective_description(self) -> None:
+        tool = _make_tool(config=TodoConfig(parallel_mode=True))
+        desc = tool.tool_description()
+        assert desc.description == _PARALLEL_TOOL_DESCRIPTION
+
+    @pytest.mark.asyncio
+    async def test_tool_uses_effective_system_prompt(self) -> None:
+        tool = _make_tool(config=TodoConfig(parallel_mode=True))
+        prompt = tool.tool_description_for_system_prompt()
+        assert "parallel" in prompt.lower()
+
+    @pytest.mark.asyncio
+    async def test_tool_uses_effective_reminder_in_response(self) -> None:
+        tool = _make_tool(config=TodoConfig(parallel_mode=True))
+        tc = _make_tool_call(
+            {
+                "todos": [
+                    {"id": "t1", "content": "Task", "status": "in_progress"},
+                ],
+                "merge": False,
+            }
+        )
+
+        response = await tool.run(tc)
+        assert response.system_reminder == _PARALLEL_EXECUTION_REMINDER
