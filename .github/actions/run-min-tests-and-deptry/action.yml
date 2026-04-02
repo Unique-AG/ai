@@ -26,6 +26,7 @@ runs:
       with:
         package_dir: ${{ inputs.package_dir }}
         python_version: ${{ inputs.python_version }}
+        install_dependencies: 'false'
 
     - name: Install package (min deps)
       shell: bash
@@ -47,16 +48,16 @@ runs:
         uv lock
         uv sync $EXTRA_ARGS
 
+        git checkout -- pyproject.toml
+        rm -f uv.lock
+
     - name: Install root dev tools
       shell: bash
       env:
         VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: |
-        # Freeze min-dep versions so dev tools cannot upgrade them
-        uv pip freeze > /tmp/min-deps-freeze.txt
         REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
-        uv export --directory "$REPO_ROOT" --frozen --only-group dev --no-hashes | \
-          uv pip install -r - --constraint /tmp/min-deps-freeze.txt
+        uv export --directory "$REPO_ROOT" --frozen --only-group dev --no-hashes | uv pip install -r -
 
     - name: Run deptry
       shell: bash
