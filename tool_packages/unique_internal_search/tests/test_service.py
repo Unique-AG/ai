@@ -215,7 +215,9 @@ class TestInternalSearchService:
 
         # Act
         mock_flags = Mock()
-        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
+        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
+            True
+        )
         with patch("unique_internal_search.service.feature_flags", mock_flags):
             result = await service.is_chat_only()
 
@@ -253,7 +255,9 @@ class TestInternalSearchService:
 
         # Act
         mock_flags = Mock()
-        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = False
+        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
+            False
+        )
         with patch("unique_internal_search.service.feature_flags", mock_flags):
             result = await service.is_chat_only()
 
@@ -295,7 +299,9 @@ class TestInternalSearchService:
 
         # Act
         mock_flags = Mock()
-        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
+        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
+            True
+        )
         with patch("unique_internal_search.service.feature_flags", mock_flags):
             await service.search(search_string="test query")
 
@@ -335,7 +341,9 @@ class TestInternalSearchService:
 
         # Act
         mock_flags = Mock()
-        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = False
+        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
+            False
+        )
         with patch("unique_internal_search.service.feature_flags", mock_flags):
             await service.search(search_string="test query")
 
