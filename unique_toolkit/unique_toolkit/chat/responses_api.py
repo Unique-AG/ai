@@ -169,8 +169,12 @@ def _prepare_responses_params_util(
         if resolved_effort is not None:
             reasoning = Reasoning(**(reasoning or {}))
             reasoning["effort"] = reasoning_effort_to_openai(resolved_effort)
-        elif reasoning is None:
-            if "reasoning_effort" in model_info.default_options:
+        else:
+            if reasoning is not None and "effort" in reasoning:
+                del reasoning["effort"]
+                if not reasoning:
+                    reasoning = None
+            if reasoning is None and "reasoning_effort" in model_info.default_options:
                 reasoning = Reasoning(
                     effort=model_info.default_options["reasoning_effort"]
                 )

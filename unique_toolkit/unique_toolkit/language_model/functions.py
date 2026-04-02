@@ -417,11 +417,7 @@ def _prepare_all_completions_params_util(
             options["temperature"] = resolved_temp
         if resolved_effort is not None:
             options["reasoning_effort"] = resolved_effort
-        elif (
-            "reasoning_effort" not in options
-            and resolved_effort is None
-            and reasoning_effort is not None
-        ):
+        elif reasoning_effort is not None:
             options.pop("reasoning_effort", None)
 
     integrated_messages = cast(
