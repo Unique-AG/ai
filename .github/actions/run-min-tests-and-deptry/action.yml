@@ -77,13 +77,17 @@ runs:
 
         uv pip install $PKG_SPEC --resolution lowest-direct $CONSTRAINT_ARGS
 
-    - name: Install root dev tools
+    - name: Install dev tools
       shell: bash
+      working-directory: ${{ inputs.package_dir }}
       env:
         VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: |
         REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
+        # Root dev group: pytest, ruff, deptry, etc.
         uv export --directory "$REPO_ROOT" --frozen --only-group dev --no-hashes | uv pip install -r -
+        # Package-level dev group: package-specific test deps (e.g. responses for unique_six)
+        uv export --frozen --only-group dev --no-hashes 2>/dev/null | uv pip install -r - 2>/dev/null || true
 
     - name: Run deptry
       shell: bash
