@@ -8,13 +8,17 @@ from pathlib import Path
 from typing import Annotated, Any, Callable, ClassVar, Optional, Self
 
 import tiktoken
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from tokenizers import Tokenizer
 from typing_extensions import deprecated
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
-from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
+from unique_toolkit.language_model.schemas import (
+    LanguageModelTokenLimits,
+    ReasoningEffort,
+    to_reasoning_effort,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -303,7 +307,27 @@ class LanguageModelInfo(BaseModel):
 
     default_options: dict[str, Any] = {}
 
+    supported_reasoning_efforts: list[ReasoningEffort] = []
+
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
+
+    @model_validator(mode="after")
+    def _ensure_default_effort_in_supported(self) -> Self:
+        effort = self.default_options.get("reasoning_effort")
+        if effort is not None and effort not in self.supported_reasoning_efforts:
+            _LOGGER.warning(
+                "Model %r has default_options['reasoning_effort']=%r which is "
+                "not in supported_reasoning_efforts=%r; prepending it automatically. "
+                "Consider setting supported_reasoning_efforts explicitly.",
+                self.name,
+                effort,
+                self.supported_reasoning_efforts,
+            )
+            self.supported_reasoning_efforts = [
+                effort,
+                *self.supported_reasoning_efforts,
+            ]
+        return self
 
     def get_encoder(self) -> TypeEncoder:
         """Get an encode callable for this model's tokenizer."""
@@ -315,6 +339,112 @@ class LanguageModelInfo(BaseModel):
         if isinstance(self.encoder_name, EncoderName):
             return self.encoder_name.get_decoder()
         return _load_custom_decoder(self.encoder_name)
+
+    def resolve_temp_and_reasoning(
+        self,
+        temperature: float,
+        reasoning_effort: str | None,
+    ) -> tuple[float, ReasoningEffort | None]:
+        """Resolve temperature and reasoning_effort together for this model.
+
+        Scenarios handled in order:
+
+        1. Model does not participate in reasoning_effort
+           (supported_reasoning_efforts is empty):
+           - If the caller provided an effort, warn and drop it (return None).
+           - Temperature is clamped to declared bounds.
+
+        2. No effort supplied and model has a default_options["reasoning_effort"]:
+           - Silently apply the model default.
+
+        3. Effort not in the model's supported_reasoning_efforts list:
+           - Warn and fall back to the first (lightest) supported effort.
+           - Temperature is forced to 1.0 via scenario 4.
+
+        4. Active reasoning forces temperature to 1.0 (API requirement).
+
+        After scenarios 1–4, temperature is clamped to the model's declared bounds.
+        Models without declared bounds fall back to the OpenAI-documented global range
+        [0, 2]. Invalid declared bounds are intentionally NOT corrected here —
+        a misconfigured model definition should surface as a visible bug.
+
+        Returns (resolved_temperature, resolved_reasoning_effort).
+        """
+
+        is_reasoning_effort_set = reasoning_effort is not None
+        wants_active_reasoning = (
+            reasoning_effort is not None and reasoning_effort != "none"
+        )
+
+        supported_efforts = self.supported_reasoning_efforts
+        temperature_bounds = self.temperature_bounds
+
+        # --- Scenario 1: model has no reasoning_effort concept ---
+        # Empty supported_reasoning_efforts means reasoning is not applicable for this
+        # model; drop any caller-provided effort so the API doesn't reject the call.
+        if not supported_efforts:
+            if is_reasoning_effort_set:
+                _LOGGER.warning(
+                    "reasoning_effort '%s' was provided but model %s does not "
+                    "support reasoning_effort; reasoning_effort will be ignored.",
+                    reasoning_effort,
+                    self.name,
+                )
+                reasoning_effort = None
+                wants_active_reasoning = False
+        else:
+            if not is_reasoning_effort_set:
+                # --- Scenario 2: no effort supplied — apply model default if one exists ---
+                default = self.default_options.get("reasoning_effort")
+                if default is not None:
+                    reasoning_effort = default
+                    wants_active_reasoning = default != "none"
+            elif reasoning_effort not in supported_efforts:
+                # --- Scenario 3: effort not in the model's declared list ---
+                # Warn and fallback to first (i.e. lightest) supported effort level.
+                fallback_effort = supported_efforts[0]
+                _LOGGER.warning(
+                    "reasoning_effort '%s' is not supported by %s "
+                    "(supported: %s). falling back to '%s'.",
+                    reasoning_effort,
+                    self.name,
+                    supported_efforts,
+                    fallback_effort,
+                )
+                reasoning_effort = fallback_effort
+                wants_active_reasoning = fallback_effort != "none"
+
+        # By this point reasoning_effort is either None or a value from supported_reasoning_efforts,
+        # which are always valid ReasoningEffort entries — to_reasoning_effort will not return None.
+        resolved = (
+            to_reasoning_effort(reasoning_effort)
+            if reasoning_effort is not None
+            else None
+        )
+
+        # --- Scenario 3: active reasoning forces temperature to 1.0 ---
+        if wants_active_reasoning:
+            return 1.0, resolved
+
+        # --- No reasoning: clamp temperature to model bounds ---
+        # Fall back to the OpenAI-documented global range [0, 2] for models without
+        # declared bounds (e.g. GPT-4o, GPT-4 Turbo). This catches clearly invalid
+        # values while still allowing temperature > 1.0 where the API accepts it.
+        lo, hi = 0.0, 2.0
+        if temperature_bounds is not None:
+            lo = temperature_bounds.min_temperature
+            hi = temperature_bounds.max_temperature
+
+        if temperature < lo or temperature > hi:
+            _LOGGER.warning(
+                "temperature %.2f is out of bounds [%.2f, %.2f] for %s; "
+                "it will be clamped.",
+                temperature,
+                lo,
+                hi,
+                self.name,
+            )
+        return round(max(lo, min(hi, temperature)), 2), resolved
 
     @classmethod
     @lru_cache(maxsize=1)
@@ -476,6 +606,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "minimal",
                     },
+                    supported_reasoning_efforts=["minimal", "low", "medium", "high"],
                 )
             case LanguageModelName.AZURE_GPT_5_MINI_2025_0807:
                 return cls(
@@ -506,6 +637,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "minimal",
                     },
+                    supported_reasoning_efforts=["minimal", "low", "medium", "high"],
                 )
             case LanguageModelName.AZURE_GPT_5_NANO_2025_0807:
                 return cls(
@@ -536,6 +668,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "minimal",
                     },
+                    supported_reasoning_efforts=["minimal", "low", "medium", "high"],
                 )
             case LanguageModelName.AZURE_GPT_5_CHAT_2025_0807:
                 return cls(
@@ -577,6 +710,10 @@ class LanguageModelInfo(BaseModel):
                     temperature_bounds=TemperatureBounds(
                         min_temperature=1.0, max_temperature=1.0
                     ),
+                    default_options={
+                        "reasoning_effort": "high",
+                    },
+                    supported_reasoning_efforts=["high"],
                 )
             case LanguageModelName.AZURE_GPT_51_2025_1113:
                 return cls(
@@ -605,6 +742,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "none",
                     },
+                    supported_reasoning_efforts=["none", "low", "medium", "high"],
                 )
             case LanguageModelName.AZURE_GPT_51_THINKING_2025_1113:
                 return cls(
@@ -633,6 +771,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "medium",
                     },
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.AZURE_GPT_51_CHAT_2025_1113:
                 return cls(
@@ -661,6 +800,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "medium",
                     },
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.AZURE_GPT_51_CODEX_2025_1113:
                 return cls(
@@ -688,6 +828,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "medium",
                     },
+                    supported_reasoning_efforts=["none", "low", "medium", "high"],
                 )
             case LanguageModelName.AZURE_GPT_51_CODEX_MINI_2025_1113:
                 return cls(
@@ -715,6 +856,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "medium",
                     },
+                    supported_reasoning_efforts=["none", "low", "medium", "high"],
                 )
             case LanguageModelName.AZURE_GPT_52_2025_1211:
                 return cls(
@@ -743,6 +885,13 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "none",
                     },
+                    supported_reasoning_efforts=[
+                        "none",
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
                 )
             case LanguageModelName.AZURE_GPT_52_CHAT_2025_1211:
                 return cls(
@@ -769,6 +918,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "medium",
                     },
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.AZURE_GPT_54_2026_0305:
                 return cls(
@@ -797,6 +947,13 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "none",
                     },
+                    supported_reasoning_efforts=[
+                        "none",
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
                 )
             case LanguageModelName.AZURE_GPT_54_PRO_2026_0305:
                 return cls(
@@ -825,6 +982,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "medium",
                     },
+                    supported_reasoning_efforts=["medium", "high", "xhigh"],
                 )
             case LanguageModelName.AZURE_GPT_4_TURBO_2024_0409:
                 return cls(
@@ -973,6 +1131,7 @@ class LanguageModelInfo(BaseModel):
                     temperature_bounds=TemperatureBounds(
                         min_temperature=1.0, max_temperature=1.0
                     ),
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.AZURE_o3_MINI_2025_0131:
                 return cls(
@@ -996,6 +1155,7 @@ class LanguageModelInfo(BaseModel):
                     temperature_bounds=TemperatureBounds(
                         min_temperature=1.0, max_temperature=1.0
                     ),
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.AZURE_o3_2025_0416:
                 return cls(
@@ -1020,6 +1180,7 @@ class LanguageModelInfo(BaseModel):
                     temperature_bounds=TemperatureBounds(
                         min_temperature=1.0, max_temperature=1.0
                     ),
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.AZURE_o4_MINI_2025_0416:
                 return cls(
@@ -1044,6 +1205,7 @@ class LanguageModelInfo(BaseModel):
                     temperature_bounds=TemperatureBounds(
                         min_temperature=1.0, max_temperature=1.0
                     ),
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.AZURE_GPT_45_PREVIEW_2025_0227:
                 return cls(
@@ -1622,6 +1784,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "minimal",
                     },
+                    supported_reasoning_efforts=["minimal", "low", "medium", "high"],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_5_MINI:
                 return cls(
@@ -1652,6 +1815,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "minimal",
                     },
+                    supported_reasoning_efforts=["minimal", "low", "medium", "high"],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_5_NANO:
                 return cls(
@@ -1682,6 +1846,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "minimal",
                     },
+                    supported_reasoning_efforts=["minimal", "low", "medium", "high"],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_5_CHAT:
                 return cls(
@@ -1723,6 +1888,10 @@ class LanguageModelInfo(BaseModel):
                     temperature_bounds=TemperatureBounds(
                         min_temperature=1.0, max_temperature=1.0
                     ),
+                    default_options={
+                        "reasoning_effort": "high",
+                    },
+                    supported_reasoning_efforts=["high"],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_51:
                 return cls(
@@ -1751,6 +1920,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "none",
                     },
+                    supported_reasoning_efforts=["none", "low", "medium", "high"],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_51_THINKING:
                 return cls(
@@ -1779,6 +1949,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "medium",
                     },
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_52:
                 return cls(
@@ -1807,6 +1978,13 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "none",
                     },
+                    supported_reasoning_efforts=[
+                        "none",
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_52_THINKING:
                 return cls(
@@ -1835,6 +2013,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "medium",
                     },
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_54:
                 return cls(
@@ -1863,6 +2042,13 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "none",
                     },
+                    supported_reasoning_efforts=[
+                        "none",
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                    ],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_54_THINKING:
                 return cls(
@@ -1891,6 +2077,7 @@ class LanguageModelInfo(BaseModel):
                     default_options={
                         "reasoning_effort": "medium",
                     },
+                    supported_reasoning_efforts=["medium", "high", "xhigh"],
                 )
             case LanguageModelName.LITELLM_OPENAI_O1:
                 return cls(
@@ -1915,6 +2102,7 @@ class LanguageModelInfo(BaseModel):
                     temperature_bounds=TemperatureBounds(
                         min_temperature=1.0, max_temperature=1.0
                     ),
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.LITELLM_OPENAI_O3:
                 return cls(
@@ -1939,6 +2127,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     published_at=date(2025, 4, 16),
                     info_cutoff_at=date(2024, 6, 1),
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.LITELLM_OPENAI_O3_DEEP_RESEARCH:
                 return cls(
@@ -1977,6 +2166,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     published_at=date(2025, 6, 10),
                     info_cutoff_at=date(2024, 6, 1),
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.LITELLM_OPENAI_O4_MINI:
                 return cls(
@@ -2001,6 +2191,7 @@ class LanguageModelInfo(BaseModel):
                     temperature_bounds=TemperatureBounds(
                         min_temperature=1.0, max_temperature=1.0
                     ),
+                    supported_reasoning_efforts=["low", "medium", "high"],
                 )
             case LanguageModelName.LITELLM_OPENAI_O4_MINI_DEEP_RESEARCH:
                 return cls(

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.69.0] - 2026-04-01
+- Add `supported_reasoning_efforts: list[ReasoningEffort]` to `LanguageModelInfo` (defaults to `[]`); populated per-model for all Azure/OpenAI reasoning models including `xhigh` where supported.
+- Add `LanguageModelInfo.resolve_temp_and_reasoning` instance method centralising all temperature and reasoning effort resolution for both the Chat Completions and Responses API paths. Handles four scenarios in order: (1) non-reasoning model — caller effort warned and dropped; (2) no effort supplied — model `default_options["reasoning_effort"]` applied silently; (3) unsupported effort — warned and corrected to lightest supported; (4) active reasoning — temperature forced to `1.0`. Temperature is always clamped to declared bounds, falling back to `[0, 2]` for models without declared bounds.
+- Add `ReasoningEffort` `Literal` type and helpers `to_reasoning_effort` / `reasoning_effort_to_openai` in `schemas.py`; the OpenAI SDK type is outdated (missing `xhigh`/`none`) so we define our own.
+- Fix: `reasoning_effort` validation, default application, and temperature clamping are now applied in the Chat Completions path (`functions.py`) — previously only the Responses API path did this.
+- Fix `responses_api`: preserve extra `Reasoning` fields (`summary`, `generate_summary`) when updating `effort`; strip `effort` from the dict when a non-reasoning model drops it.
 ## [1.68.6] - 2026-04-02
 - Adding `uploaded_files` and `selected_uploaded_files` to additional parameters in payload
 - Feature flag `FEATURE_FLAG_SELECTED_UPLOADED_FILES_UN_18470` added
