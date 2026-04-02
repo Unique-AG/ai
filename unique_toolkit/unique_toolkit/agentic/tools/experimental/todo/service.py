@@ -48,16 +48,13 @@ class TodoWriteTool(Tool[TodoConfig]):
         )
         self._cached_state: TodoList | None = None
 
+    def display_name(self) -> str:
+        return self.config.display_name
+
     def tool_description(self) -> LanguageModelToolDescription:
         return LanguageModelToolDescription(
             name="todo_write",
-            description=(
-                "Create or update a task list to track progress. "
-                "Use for any task involving multiple tool calls — the user sees "
-                "this as a live progress indicator. Mark items in_progress when "
-                "starting, completed when done. You can mark multiple items "
-                "in_progress if working on them in parallel."
-            ),
+            description=self.config.tool_description,
             parameters=TodoWriteInput.model_json_schema(),
         )
 

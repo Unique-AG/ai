@@ -1,6 +1,11 @@
+from typing import Annotated
+
 from pydantic import Field
 
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
+
+_DEFAULT_TOOL_DESCRIPTION = "Create or update a task list to track progress. Use for any task involving multiple tool calls — the user sees this as a live progress indicator. Mark items in_progress when starting, completed when done. You can mark multiple items in_progress if working on them in parallel."
 
 _DEFAULT_SYSTEM_PROMPT = """\
 You have access to a task tracking tool (todo_write). Use it liberally — any task involving multiple tool calls should use todo_write to track progress. The user sees the task list as a live progress indicator, so using it is helpful even for moderately complex tasks.
@@ -46,18 +51,38 @@ class TodoConfig(BaseToolConfig):
     (Experimental Settings) to customize the agent's task tracking behavior.
     """
 
+    display_name: str = Field(
+        default="Progress",
+        description="Human-readable label shown in the UI (Steps panel, tool progress).",
+    )
+
     memory_key: str = Field(
         default="agent_todo_state",
         description="ShortTermMemory key under which TODO state is stored.",
     )
 
-    system_prompt: str = Field(
+    tool_description: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=3),
+    ] = Field(
+        default=_DEFAULT_TOOL_DESCRIPTION,
+        description="Description passed to the LLM in the tool definition. "
+        "Edit to change how the model understands when and how to use todo_write.",
+    )
+
+    system_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=15),
+    ] = Field(
         default=_DEFAULT_SYSTEM_PROMPT,
         description="System prompt injected for todo tracking. "
         "Edit to customize the agent's task tracking behavior.",
     )
 
-    execution_reminder: str = Field(
+    execution_reminder: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=5),
+    ] = Field(
         default=_DEFAULT_EXECUTION_REMINDER,
         description="Reminder appended to tool responses during execution phase. "
         "Keeps the agent working autonomously until all items are done.",
