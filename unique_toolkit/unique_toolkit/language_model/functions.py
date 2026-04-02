@@ -413,8 +413,7 @@ def _prepare_all_completions_params_util(
         resolved_temp, resolved_effort = model_info.resolve_temp_and_reasoning(
             temperature, reasoning_effort=reasoning_effort
         )
-        if "temperature" in options:
-            options["temperature"] = resolved_temp
+        options["temperature"] = resolved_temp
         if resolved_effort is not None:
             options["reasoning_effort"] = resolved_effort
         elif reasoning_effort is not None:
