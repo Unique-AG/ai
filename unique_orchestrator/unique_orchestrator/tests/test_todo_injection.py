@@ -31,11 +31,11 @@ class TestInjectTodoTools:
 
     @pytest.mark.ai
     def test_returns_original_tools_when_tracking_disabled(self) -> None:
-        """No tools added when todo_tracking is None."""
+        """No tools added when todo_tracking.enabled is False (default)."""
         from unique_orchestrator.unique_ai_builder import _inject_todo_tools
 
         mock_config = MagicMock()
-        mock_config.agent.experimental.todo_tracking = None
+        mock_config.agent.experimental.todo_tracking = TodoConfig()
         mock_config.space.tools = [MagicMock(name="search")]
 
         result = _inject_todo_tools(mock_config)
@@ -44,11 +44,11 @@ class TestInjectTodoTools:
 
     @pytest.mark.ai
     def test_adds_todo_write_when_tracking_enabled(self) -> None:
-        """todo_write is added when todo_tracking is configured."""
+        """todo_write is added when todo_tracking.enabled is True."""
         from unique_orchestrator.unique_ai_builder import _inject_todo_tools
 
         mock_config = MagicMock()
-        mock_config.agent.experimental.todo_tracking = TodoConfig()
+        mock_config.agent.experimental.todo_tracking = TodoConfig(enabled=True)
         existing_tool = MagicMock()
         existing_tool.name = "search"
         mock_config.space.tools = [existing_tool]
@@ -64,7 +64,7 @@ class TestInjectTodoTools:
         from unique_orchestrator.unique_ai_builder import _inject_todo_tools
 
         mock_config = MagicMock()
-        mock_config.agent.experimental.todo_tracking = TodoConfig()
+        mock_config.agent.experimental.todo_tracking = TodoConfig(enabled=True)
         mock_config.space.tools = []
 
         result = _inject_todo_tools(mock_config)
@@ -78,7 +78,7 @@ class TestInjectTodoTools:
         from unique_orchestrator.unique_ai_builder import _inject_todo_tools
 
         mock_config = MagicMock()
-        mock_config.agent.experimental.todo_tracking = TodoConfig()
+        mock_config.agent.experimental.todo_tracking = TodoConfig(enabled=True)
         existing_todo = MagicMock()
         existing_todo.name = "todo_write"
         mock_config.space.tools = [existing_todo]
@@ -94,6 +94,7 @@ class TestInjectTodoTools:
         from unique_orchestrator.unique_ai_builder import _inject_todo_tools
 
         todo_cfg = TodoConfig(
+            enabled=True,
             system_prompt="Custom system prompt",
             execution_reminder="Custom reminder",
         )
