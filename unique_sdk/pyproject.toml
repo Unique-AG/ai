@@ -93,3 +93,4 @@ coverage = "pytest --cov=unique_sdk --cov-report=term-missing"
 ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
 ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
+

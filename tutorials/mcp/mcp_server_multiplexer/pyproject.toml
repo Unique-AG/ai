@@ -20,3 +20,4 @@ build-backend = "uv_build"
 
 [tool.uv]
 exclude-newer = "2 weeks"
+

@@ -19,3 +19,4 @@ google-auth-mcp = "google_auth.google_auth_server:main"
 requires = ["uv_build>=0.8.14,<0.9.0"]
 build-backend = "uv_build"
 
+
