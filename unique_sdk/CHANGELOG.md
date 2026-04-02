@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.10.96] - 2026-03-31
 - Remove leftover `poetry` references from tox config, CONTRIBUTING.md, and tutorial docs — all replaced with `uv` equivalents
 
-
 ## [0.10.95] - 2026-03-30
 - Add `mcp` command to the CLI for calling MCP server tools directly via JSON payload
 - Support inline JSON, `--file`, and `--stdin` input modes for MCP tool payloads
