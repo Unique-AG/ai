@@ -343,9 +343,7 @@ class ExperimentalConfig(BaseToolConfig):
         max_tool_calls_per_iteration=10
     )
 
-    todo_tracking: Annotated[TodoConfig, Field(title="Active")] | DeactivatedNone = (
-        Field(default=None, description="Persistent task tracking for the agent.")
-    )
+    todo_tracking: TodoConfig = TodoConfig()
 
     sub_agents_config: SubAgentsConfig = SubAgentsConfig()
 

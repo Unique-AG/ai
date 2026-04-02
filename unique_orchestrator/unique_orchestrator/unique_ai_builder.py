@@ -119,7 +119,7 @@ class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
 def _inject_todo_tools(config: UniqueAIConfig) -> list[ToolBuildConfig]:
     """Return space tools with todo_write appended when todo tracking is active."""
     todo_cfg = config.agent.experimental.todo_tracking
-    if todo_cfg is None:
+    if not todo_cfg.enabled:
         return config.space.tools
 
     import unique_toolkit.agentic.tools.experimental.todo  # noqa: F401 — registers with ToolFactory
