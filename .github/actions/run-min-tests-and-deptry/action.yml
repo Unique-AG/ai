@@ -36,6 +36,11 @@ runs:
         UV_NO_WORKSPACE: 1
         VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: |
+        # The repo-root .python-version says 3.12 (strictest workspace constraint).
+        # uv walks up the directory tree to find it, even with UV_NO_WORKSPACE=1.
+        # Shadow it with the CI matrix version so packages like the SDK that
+        # support older Python can be tested at their actual lower bound.
+        echo "${{ inputs.python_version }}" > .python-version
         uv venv --clear
         # Inject lowest-direct resolution so uv lock resolves minimum versions
         # while still respecting constraint-dependencies from [tool.uv].
