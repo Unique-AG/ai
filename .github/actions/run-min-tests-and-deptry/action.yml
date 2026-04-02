@@ -52,8 +52,11 @@ runs:
       env:
         VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: |
+        # Freeze min-dep versions so dev tools cannot upgrade them
+        uv pip freeze > /tmp/min-deps-freeze.txt
         REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
-        uv export --directory "$REPO_ROOT" --locked --only-group dev --no-hashes | uv pip install -r -
+        uv export --directory "$REPO_ROOT" --frozen --only-group dev --no-hashes | \
+          uv pip install -r - --constraint /tmp/min-deps-freeze.txt
 
     - name: Run deptry
       shell: bash
