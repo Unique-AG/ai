@@ -116,21 +116,44 @@ class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
         )
 
 
-def _inject_todo_tools(config: UniqueAIConfig) -> list[ToolBuildConfig]:
-    """Return space tools with todo_write appended when todo tracking is active."""
-    todo_cfg = config.agent.experimental.todo_tracking
-    if not todo_cfg.enabled:
-        return config.space.tools
+def _inject_experimental_tools(config: UniqueAIConfig) -> list[ToolBuildConfig]:
+    """Append enabled experimental tools to the space tool list.
 
-    import unique_toolkit.agentic.tools.experimental.todo  # noqa: F401 — registers with ToolFactory
+    Discovers injectable tools by inspecting ExperimentalConfig fields for
+    configs that declare ``_tool_name`` and ``_tool_module`` class variables
+    and have ``enabled=True``.  The module is imported (triggering
+    ToolFactory registration) and a ToolBuildConfig is appended.
+    """
+    import importlib
 
-    tools = list(config.space.tools)
-    existing_names = {t.name for t in tools}
-    if "todo_write" not in existing_names:
+    tools: list[ToolBuildConfig] | None = None
+    existing_names: set[str] | None = None
+
+    for field_name in type(config.agent.experimental).model_fields:
+        tool_cfg = getattr(config.agent.experimental, field_name)
+
+        tool_name = getattr(tool_cfg, "_tool_name", None)
+        tool_module = getattr(tool_cfg, "_tool_module", None)
+        if not tool_name or not tool_module:
+            continue
+        if not getattr(tool_cfg, "enabled", False):
+            continue
+
+        if tools is None:
+            tools = list(config.space.tools)
+            existing_names = {t.name for t in tools}
+
+        assert existing_names is not None
+        if tool_name in existing_names:
+            continue
+
+        importlib.import_module(tool_module)
         tools.append(
-            ToolBuildConfig(name="todo_write", configuration=todo_cfg, is_enabled=True)
+            ToolBuildConfig(name=tool_name, configuration=tool_cfg, is_enabled=True)
         )
-    return tools
+        existing_names.add(tool_name)
+
+    return tools if tools is not None else config.space.tools
 
 
 async def build_unique_ai(
@@ -250,7 +273,7 @@ def _build_common(
     )
 
     tool_manager_config = ToolManagerConfig(
-        tools=_inject_todo_tools(config),
+        tools=_inject_experimental_tools(config),
         max_tool_calls=config.agent.experimental.loop_configuration.max_tool_calls_per_iteration,
     )
 
