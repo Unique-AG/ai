@@ -16,6 +16,7 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.language_model import LanguageModelToolDescription
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 from unique_toolkit.short_term_memory.service import ShortTermMemoryService
@@ -47,6 +48,7 @@ class TodoWriteTool(Tool[TodoConfig]):
             )
         )
         self._cached_state: TodoList | None = None
+        self._message_log: MessageLog | None = None
 
     def display_name(self) -> str:
         return self.config.display_name
@@ -115,6 +117,7 @@ class TodoWriteTool(Tool[TodoConfig]):
         )
 
         counts = current_state.status_counts()
+        await self._log_step(counts)
 
         return ToolCallResponse(
             id=tool_call.id,
@@ -135,6 +138,32 @@ class TodoWriteTool(Tool[TodoConfig]):
                 "iteration": current_state.last_updated_iteration,
             },
         )
+
+    async def _log_step(self, counts: dict[str, int]) -> None:
+        """Write a Steps panel entry summarising the current todo state."""
+        try:
+            parts = []
+            for key in ("completed", "in_progress", "pending", "cancelled"):
+                if counts.get(key):
+                    parts.append(f"{counts[key]} {key}")
+            detail = ", ".join(parts) if parts else "empty"
+            total = counts.get("total", 0)
+            progress = f"{total} items ({detail})"
+
+            status = (
+                MessageLogStatus.COMPLETED
+                if not counts.get("in_progress") and not counts.get("pending")
+                else MessageLogStatus.RUNNING
+            )
+
+            self._message_log = self._message_step_logger.create_or_update_message_log(
+                active_message_log=self._message_log,
+                header=self.display_name(),
+                progress_message=progress,
+                status=status,
+            )
+        except Exception:
+            logger.debug("TodoWriteTool: failed to write step log", exc_info=True)
 
     async def _load_state(self) -> TodoList:
         """Load state from persistence, falling back to in-memory cache."""
