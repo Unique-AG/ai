@@ -50,8 +50,8 @@ runs:
           [ -n "$e" ] && EXTRA_ARGS="$EXTRA_ARGS --extra $e"
         done
 
-        uv lock
-        uv sync --active $EXTRA_ARGS
+        UV_NO_WORKSPACE=1 uv lock
+        UV_NO_WORKSPACE=1 uv sync --active $EXTRA_ARGS
 
     - name: Install root dev tools
       shell: bash
