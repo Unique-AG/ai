@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-19T13:17:23.459439Z"
+exclude-newer = "2026-03-19T17:12:23.516085Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5268,7 +5268,7 @@ dev = []
 
 [[package]]
 name = "unique-mcp"
-version = "0.2.2"
+version = "0.2.3"
 source = { editable = "unique_mcp" }
 dependencies = [
     { name = "fastmcp" },
@@ -5494,7 +5494,6 @@ dependencies = [
     { name = "httpx" },
     { name = "jambo" },
     { name = "jinja2" },
-    { name = "lxml" },
     { name = "markdown-it-py" },
     { name = "numpy" },
     { name = "openai" },
@@ -5542,7 +5541,6 @@ requires-dist = [
     { name = "langchain", marker = "extra == 'langchain'", specifier = ">=1.0.0,<2" },
     { name = "langchain-core", marker = "extra == 'langchain'", specifier = ">=1.0.0,<2" },
     { name = "langchain-openai", marker = "extra == 'langchain'", specifier = ">=0.3.28" },
-    { name = "lxml", specifier = ">=5.0.0" },
     { name = "markdown-it-py", specifier = ">=4.0.0,<5" },
     { name = "numpy", specifier = ">=2.4.2,<3" },
     { name = "openai", specifier = ">=1.105.0,<2" },

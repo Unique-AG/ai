@@ -47,10 +47,6 @@ runs:
     - name: Install root dev tools
       shell: bash
       env:
-        UV_NO_SOURCES: 1
-        # Point uv at the min-dep venv created in the package directory above,
-        # not the root venv. Without this, uv pip install targets the repo-root
-        # .venv and dev tools (pytest, deptry) end up in the wrong environment.
         VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: |
         REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
