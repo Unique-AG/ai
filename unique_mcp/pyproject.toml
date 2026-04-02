@@ -54,6 +54,7 @@ ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/d
 
 [tool.uv]
 exclude-newer = "2 weeks"
+constraint-dependencies = ["lxml>=5.0.0"]
 
 [tool.uv.exclude-newer-package]
 "unique-toolkit" = false

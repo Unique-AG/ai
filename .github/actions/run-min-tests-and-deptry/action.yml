@@ -41,14 +41,23 @@ runs:
         # uv pip install is fully workspace-agnostic.
         uv venv --python "${{ inputs.python_version }}"
 
-        # Extract constraint-dependencies from [tool.uv] (e.g. lxml>=5.0.0)
-        # and pass as --constraint so lowest-direct respects known-working floors.
+        # Collect constraint-dependencies from all workspace members' pyproject.toml
+        # files (not just the current package). This ensures transitive constraints
+        # like lxml>=5.0.0 (defined in unique_toolkit) are applied even when
+        # installing unique_mcp which depends on toolkit indirectly.
+        REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
         python3 -c "
-        import tomllib, pathlib
-        data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
-        for dep in data.get('tool', {}).get('uv', {}).get('constraint-dependencies', []):
-            print(dep)
-        " > /tmp/constraints.txt
+        import tomllib, pathlib, sys
+        seen = set()
+        for p in pathlib.Path(sys.argv[1]).rglob('pyproject.toml'):
+            if '.venv' in p.parts or 'tutorials' in p.parts:
+                continue
+            data = tomllib.loads(p.read_text())
+            for dep in data.get('tool', {}).get('uv', {}).get('constraint-dependencies', []):
+                if dep not in seen:
+                    seen.add(dep)
+                    print(dep)
+        " "$REPO_ROOT" > /tmp/constraints.txt
 
         CONSTRAINT_ARGS=""
         if [ -s /tmp/constraints.txt ]; then
