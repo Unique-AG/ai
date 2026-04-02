@@ -59,4 +59,3 @@ addopts = "--strict-markers --cov=core --cov=app --cov=settings --cov-report=xml
 markers = [
     "ai: AI-authored test",
 ]
-

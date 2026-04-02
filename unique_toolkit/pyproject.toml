@@ -122,4 +122,3 @@ pythonVersion = "3.12"
 typeCheckingMode = "standard"
 include = ["unique_toolkit"]
 exclude = ["**/tests/**", "**/test_*.py"]
-

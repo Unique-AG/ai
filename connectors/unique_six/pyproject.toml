@@ -67,4 +67,3 @@ markers = [
 filterwarnings = [
     "ignore:DeprecationWarning",
 ]
-
