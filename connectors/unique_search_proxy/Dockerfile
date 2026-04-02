@@ -25,7 +25,10 @@ ENV VIRTUAL_ENV=/app/.venv \
 COPY requirements.txt pyproject.toml ./
 
 # Project initialization (install dependencies)
-RUN uv venv && uv pip install -r requirements.txt
+# --require-hashes makes pip verify every wheel/sdist against the sha256 hash
+# recorded in requirements.txt (exported from uv.lock). Any tampered or
+# unexpected package causes an immediate build failure.
+RUN uv venv && uv pip install --require-hashes -r requirements.txt
 
 # Copy application code
 COPY web/ ./
