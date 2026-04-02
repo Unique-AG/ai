@@ -59,6 +59,8 @@ runs:
     - name: Run deptry
       shell: bash
       working-directory: ${{ inputs.package_dir }}
+      env:
+        UV_NO_WORKSPACE: 1
       run: uv run --no-sync deptry .
 
     - name: Run tests with min dependencies
@@ -66,4 +68,5 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
+        UV_NO_WORKSPACE: 1
       run: uv run --no-sync pytest ${{ inputs.test_args }}
