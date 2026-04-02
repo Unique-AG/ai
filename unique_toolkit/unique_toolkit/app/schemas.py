@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from enum import StrEnum
 from logging import getLogger
@@ -46,7 +48,7 @@ class BaseEvent(BaseModel, Generic[FilterOptionsT]):
     company_id: str
 
     @classmethod
-    def from_json_file(cls, file_path: Path) -> "BaseEvent":
+    def from_json_file(cls, file_path: Path) -> BaseEvent:
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         with file_path.open("r", encoding="utf-8") as f:
@@ -171,17 +173,6 @@ class UploadedFileInfo(BaseModel):
     title: str = ""
     mime_type: str = ""
 
-    @classmethod
-    def _coerce_item(cls, item: Any) -> "UploadedFileInfo":
-        if isinstance(item, cls):
-            return item
-        if isinstance(item, str):
-            return cls(id=item)
-        if isinstance(item, dict):
-            return cls.model_validate(item)
-        raise ValueError(f"Cannot coerce {type(item)} to UploadedFileInfo")
-
-
 class ChatEventAdditionalParameters(BaseModel):
     model_config = model_config
 
@@ -190,13 +181,6 @@ class ChatEventAdditionalParameters(BaseModel):
     user_space_instructions: str
     uploaded_files: list[UploadedFileInfo] = Field(default_factory=list)
     selected_uploaded_files: list[UploadedFileInfo] = Field(default_factory=list)
-
-    @field_validator("uploaded_files", "selected_uploaded_files", mode="before")
-    @classmethod
-    def _coerce_file_list(cls, v: Any) -> list[Any]:
-        if not isinstance(v, list):
-            return v
-        return [UploadedFileInfo._coerce_item(item) for item in v]
 
     @property
     def uploaded_file_ids(self) -> list[str]:
@@ -300,7 +284,7 @@ class ChatEvent(BaseEvent):
     version: Optional[str] = None
 
     @classmethod
-    def from_json_file(cls, file_path: Path) -> "ChatEvent":
+    def from_json_file(cls, file_path: Path) -> ChatEvent:
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         with file_path.open("r", encoding="utf-8") as f:
@@ -363,7 +347,7 @@ class Event(ChatEvent):
     # payload: EventPayload
 
     @classmethod
-    def from_json_file(cls, file_path: Path) -> "Event":
+    def from_json_file(cls, file_path: Path) -> Event:
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         with file_path.open("r", encoding="utf-8") as f:
