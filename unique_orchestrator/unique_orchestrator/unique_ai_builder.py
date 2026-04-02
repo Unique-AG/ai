@@ -24,6 +24,7 @@ from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManag
 from unique_toolkit.agentic.evaluation.hallucination.hallucination_evaluation import (
     HallucinationEvaluation,
 )
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager import (
     history_manager as history_manager_module,
 )
@@ -177,6 +178,15 @@ def _build_common(
     content_service = ContentService.from_event(event)
 
     uploaded_documents = content_service.get_documents_uploaded_to_chat()
+    if feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
+        event.company_id
+    ):
+        additional = event.payload.additional_parameters
+        if additional and additional.selected_uploaded_files:
+            selected_ids = set(additional.selected_uploaded_file_ids)
+            uploaded_documents = [
+                doc for doc in uploaded_documents if doc.id in selected_ids
+            ]
 
     response_watcher = SubAgentResponseWatcher()
 
