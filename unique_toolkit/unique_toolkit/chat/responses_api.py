@@ -2,7 +2,7 @@ import json
 import logging
 import random
 from collections.abc import Awaitable, Callable
-from typing import Any, NamedTuple, Sequence
+from typing import Any, NamedTuple, Sequence, cast
 
 import unique_sdk
 from openai.types.responses import (
@@ -15,6 +15,7 @@ from openai.types.responses import (
     response_create_params,
 )
 from openai.types.shared_params import Metadata, Reasoning
+from openai.types.shared_params import ReasoningEffort as SDKReasoningEffort
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from tenacity import (
@@ -167,7 +168,7 @@ def _prepare_responses_params_util(
         )
         if resolved_effort is not None:
             reasoning = Reasoning(**(reasoning or {}))
-            reasoning["effort"] = resolved_effort
+            reasoning["effort"] = cast(SDKReasoningEffort, resolved_effort)
         elif reasoning is None:
             if "reasoning_effort" in model_info.default_options:
                 reasoning = Reasoning(

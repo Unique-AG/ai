@@ -558,6 +558,9 @@ class LanguageModelResponse(BaseModel):
         return cls(choices=[choice])
 
 
+ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+
+
 # This is tailored for unique and only used in language model info
 class LanguageModelTokenLimits(BaseModel):
     token_limit_input: int
