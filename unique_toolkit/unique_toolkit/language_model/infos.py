@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Annotated, Any, Callable, ClassVar, Optional, Self
 
 import tiktoken
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic.json_schema import SkipJsonSchema
 from tokenizers import Tokenizer
 from typing_extensions import deprecated
@@ -310,6 +310,24 @@ class LanguageModelInfo(BaseModel):
     supported_reasoning_efforts: list[ReasoningEffort] = []
 
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
+
+    @model_validator(mode="after")
+    def _ensure_default_effort_in_supported(self) -> Self:
+        effort = self.default_options.get("reasoning_effort")
+        if effort is not None and effort not in self.supported_reasoning_efforts:
+            _LOGGER.warning(
+                "Model %r has default_options['reasoning_effort']=%r which is "
+                "not in supported_reasoning_efforts=%r; prepending it automatically. "
+                "Consider setting supported_reasoning_efforts explicitly.",
+                self.name,
+                effort,
+                self.supported_reasoning_efforts,
+            )
+            self.supported_reasoning_efforts = [
+                effort,
+                *self.supported_reasoning_efforts,
+            ]
+        return self
 
     def get_encoder(self) -> TypeEncoder:
         """Get an encode callable for this model's tokenizer."""
