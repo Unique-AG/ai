@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-04-01
+### Added
+- **`unique-websearch` CLI**: standalone terminal command for running web searches directly from the command line
+  - Engine and crawler auto-selected from `ACTIVE_SEARCH_ENGINES` / `ACTIVE_INHOUSE_CRAWLERS` environment variables
+  - `--fetch-size` / `-n` to control number of results per invocation (default: 50)
+  - `--no-crawl` flag for fast snippet-only output without page crawling
+  - Optional JSON config file (`~/.unique-websearch.json`) for non-secret overrides
+  - Agent skill documentation (`SKILL.md`) for AI assistant integration
+- `click` dependency for CLI framework
+
 ## [1.15.0] - 2026-03-30
 ### Added
 - **Argument Screening**: LLM-based screening agent that inspects tool call arguments for sensitive information (PII, credentials, financial data, health info) before execution, raising `ArgumentScreeningException` to block unsafe calls
