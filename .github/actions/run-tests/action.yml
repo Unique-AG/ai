@@ -31,7 +31,7 @@ runs:
       if: inputs.install_args != ''
       shell: bash
       working-directory: ${{ inputs.package_dir }}
-      run: uv sync --locked ${{ inputs.install_args }}
+      run: uv sync --locked --inexact ${{ inputs.install_args }}
 
     - name: Run pytest
       shell: bash
