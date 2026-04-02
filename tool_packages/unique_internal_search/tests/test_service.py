@@ -187,6 +187,172 @@ class TestInternalSearchService:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
+    async def test_is_chat_only__returns_true__when_flag_on_and_selected_uploaded_files(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify is_chat_only returns True when feature flag is on and selected_uploaded_files is non-empty.
+        Why this matters: New path uses event-provided file list instead of querying backend.
+        Setup summary: Enable flag, provide selected_uploaded_files, verify True without backend call.
+        """
+        # Arrange
+        base_internal_search_config.chat_only = False
+        base_internal_search_config.scope_to_chat_on_upload = True
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+            company_id="company_123",
+            selected_uploaded_files=["content_1", "content_2"],
+        )
+        mock_content_service.search_contents_async = AsyncMock(return_value=[])
+
+        # Act
+        mock_flags = Mock()
+        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
+            True
+        )
+        with patch("unique_internal_search.service.feature_flags", mock_flags):
+            result = await service.is_chat_only()
+
+        # Assert
+        assert result is True
+        mock_content_service.search_contents_async.assert_not_called()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_is_chat_only__falls_back_to_backend__when_flag_off(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify is_chat_only ignores selected_uploaded_files when flag is off.
+        Why this matters: Old behavior preserved when flag is disabled.
+        Setup summary: Disable flag, provide selected_uploaded_files, verify backend is queried.
+        """
+        # Arrange
+        base_internal_search_config.chat_only = False
+        base_internal_search_config.scope_to_chat_on_upload = True
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+            company_id="company_123",
+            selected_uploaded_files=["content_1", "content_2"],
+        )
+        mock_content_service.search_contents_async = AsyncMock(return_value=[])
+
+        # Act
+        mock_flags = Mock()
+        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
+            False
+        )
+        with patch("unique_internal_search.service.feature_flags", mock_flags):
+            result = await service.is_chat_only()
+
+        # Assert
+        assert result is False
+        mock_content_service.search_contents_async.assert_called_once()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__uses_selected_uploaded_files_as_content_ids__when_flag_on(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+        sample_content_chunks: list[ContentChunk],
+    ) -> None:
+        """
+        Purpose: Verify search passes selected_uploaded_files as content_ids when flag is on.
+        Why this matters: Scopes vector search to exactly the selected files.
+        Setup summary: Enable flag, provide selected_uploaded_files, verify content_ids in search call.
+        """
+        # Arrange
+        selected_files = ["content_1", "content_2"]
+        base_internal_search_config.chat_only = True
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+            company_id="company_123",
+            selected_uploaded_files=selected_files,
+        )
+        mock_content_service.search_content_chunks_async = AsyncMock(
+            return_value=sample_content_chunks
+        )
+        mock_content_service.search_contents_async = AsyncMock(return_value=[])
+
+        # Act
+        mock_flags = Mock()
+        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
+            True
+        )
+        with patch("unique_internal_search.service.feature_flags", mock_flags):
+            await service.search(search_string="test query")
+
+        # Assert
+        call_kwargs = mock_content_service.search_content_chunks_async.call_args
+        assert call_kwargs.kwargs["content_ids"] == selected_files
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_search__does_not_set_content_ids__when_flag_off(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+        sample_content_chunks: list[ContentChunk],
+    ) -> None:
+        """
+        Purpose: Verify search does not use selected_uploaded_files when flag is off.
+        Why this matters: Old behavior preserved when flag is disabled.
+        Setup summary: Disable flag, provide selected_uploaded_files, verify content_ids is None.
+        """
+        # Arrange
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+            company_id="company_123",
+            selected_uploaded_files=["content_1", "content_2"],
+        )
+        mock_content_service.search_content_chunks_async = AsyncMock(
+            return_value=sample_content_chunks
+        )
+        mock_content_service.search_contents_async = AsyncMock(return_value=[])
+
+        # Act
+        mock_flags = Mock()
+        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
+            False
+        )
+        with patch("unique_internal_search.service.feature_flags", mock_flags):
+            await service.search(search_string="test query")
+
+        # Assert
+        call_kwargs = mock_content_service.search_content_chunks_async.call_args
+        assert call_kwargs.kwargs["content_ids"] is None
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
     async def test_search__calls_content_service__with_correct_parameters(
         self,
         base_internal_search_config: InternalSearchConfig,
