@@ -307,7 +307,7 @@ class LanguageModelInfo(BaseModel):
 
     default_options: dict[str, Any] = {}
 
-    supported_reasoning_efforts: list[str] = []
+    supported_reasoning_efforts: list[ReasoningEffort] = []
 
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
 
