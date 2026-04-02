@@ -35,7 +35,15 @@ runs:
       run: |
         PKG_NAME=$(grep '^name' "${{ inputs.package_dir }}/pyproject.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
         echo "Syncing package: $PKG_NAME"
-        uv sync --locked --package "$PKG_NAME"
-        echo "Installing root dev tools"
-        uv sync --locked --inexact --only-dev
+        # The workspace lockfile requires Python >=3.12. Packages tested on older
+        # Python (e.g. unique_sdk on 3.11) must bypass --locked and install standalone.
+        if python -c "import sys; exit(0 if sys.version_info >= (3, 12) else 1)"; then
+          uv sync --locked --package "$PKG_NAME"
+          uv sync --locked --inexact --only-dev
+        else
+          echo "Python $(python --version) is below workspace lockfile minimum (3.12); using standalone install"
+          UV_NO_SOURCES=1 UV_NO_WORKSPACE=1 uv sync
+          REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
+          uv export --directory "$REPO_ROOT" --only-group dev --no-hashes | uv pip install -r -
+        fi
 

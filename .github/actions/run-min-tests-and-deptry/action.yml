@@ -43,8 +43,14 @@ runs:
           PKG_SPEC=".[$EXTRAS]"
         fi
         uv pip install -e "$PKG_SPEC" --resolution=lowest-direct
+
+    - name: Install root dev tools
+      shell: bash
+      env:
+        UV_NO_SOURCES: 1
+      run: |
         REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
-        uv export --directory "$REPO_ROOT" --only-group dev --no-hashes | uv pip install -r -
+        uv export --directory "$REPO_ROOT" --locked --only-group dev --no-hashes | uv pip install -r -
 
     - name: Run deptry
       shell: bash
