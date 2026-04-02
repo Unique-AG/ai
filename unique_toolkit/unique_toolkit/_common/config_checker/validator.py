@@ -83,12 +83,12 @@ class ConfigValidator:
 
             for key in removed_keys:
                 msg = f"Field '{key}' was removed from the model"
-                if extra_handling == "allow":
-                    logger.debug(f"Allowing removal of '{key}' because extra='allow'")
+                if extra_handling in ("allow", "ignore"):
+                    logger.debug(f"Allowing removal of '{key}' because extra='{extra_handling}'")
                     warnings.append(
                         ValidationErrorModel(
                             field_path=key,
-                            message=f"{msg} (Allowed because model allows extra fields)",
+                            message=f"{msg} (Allowed because model uses extra='{extra_handling}')",
                             old_value=old_json.get(key),
                         )
                     )
@@ -96,7 +96,7 @@ class ConfigValidator:
                     errors.append(
                         ValidationErrorModel(
                             field_path=key,
-                            message=f"{msg} (Breaking change because model does not explicitly allow extra fields)",
+                            message=f"{msg} (Breaking change because model uses extra='{extra_handling}')",
                             old_value=old_json.get(key),
                         )
                     )
