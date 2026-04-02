@@ -91,9 +91,6 @@ class TestRenderSystemPromptSelectedUploadedFiles:
             docs
         )
 
-        flag = mock_unique_ai._event.company_id
-        ff = mock_unique_ai._config  # access via the monkeypatched module
-        # Enable the feature flag
         from unique_orchestrator.unique_ai import feature_flags
 
         feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
