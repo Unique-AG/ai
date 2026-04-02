@@ -41,7 +41,6 @@ runs:
         # Shadow it with the CI matrix version so packages like the SDK that
         # support older Python can be tested at their actual lower bound.
         echo "${{ inputs.python_version }}" > .python-version
-        uv venv --clear
         # Inject lowest-direct resolution so uv lock resolves minimum versions
         # while still respecting constraint-dependencies from [tool.uv].
         sed -i 's/\[tool\.uv\]/&\nresolution = "lowest-direct"/' pyproject.toml
