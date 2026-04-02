@@ -174,10 +174,6 @@ def _prepare_responses_params_util(
                 del reasoning["effort"]
                 if not reasoning:
                     reasoning = None
-            if reasoning is None and "reasoning_effort" in model_info.default_options:
-                reasoning = Reasoning(
-                    effort=model_info.default_options["reasoning_effort"]
-                )
 
         if (
             reasoning is not None
