@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `resolve_temp_and_reasoning`: use `[0, 2]` fallback temperature bounds for models without declared bounds (previously clamped to `[0, 1]`).
 - Fix `resolve_temp_and_reasoning` default for thinking-only models: `AZURE_GPT_5_PRO_2025_1006` and `LITELLM_OPENAI_GPT_5_PRO` now carry `default_options={"reasoning_effort": "high"}` to avoid falling back to `"medium"`.
 - Fix `responses_api`: preserve all fields on an existing `Reasoning` object (`summary`, `generate_summary`) when updating `reasoning_effort` instead of replacing the whole object.
+## [1.68.5] - 2026-04-01
+- Code interpreter (UN-17972): restore `htmlWithSource` fences for HTML when code-execution fence FF is on (legacy `HtmlRendering` path only when fence FF is off and HTML rendering FF is on)
+- Extend fence regexes and `_get_next_fence_id` for `htmlWithSource`; include HTML in unmatched-code-block warnings when fences are used
 
 ## [1.68.4] - 2026-04-01
 - Removing feature flag for tool call persistence (`FEATURE_FLAG_ENABLE_TOOL_CALL_PERSISTENCE_UN_15977`)
