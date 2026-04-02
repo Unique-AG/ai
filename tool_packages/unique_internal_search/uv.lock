@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.12, <4"
 
 [options]
-exclude-newer = "2026-03-18T13:54:31.441505Z"
+exclude-newer = "2026-03-19T15:27:56.820933Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -2064,7 +2064,7 @@ wheels = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.68.2"
+version = "1.68.6"
 source = { editable = "../../unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
