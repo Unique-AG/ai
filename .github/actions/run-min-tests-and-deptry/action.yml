@@ -32,26 +32,41 @@ runs:
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
-        UV_NO_SOURCES: 1
-        UV_NO_WORKSPACE: 1
         VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: |
-        # The repo-root .python-version says 3.12 (strictest workspace constraint).
-        # uv walks up the directory tree to find it, even with UV_NO_WORKSPACE=1.
-        # Shadow it with the CI matrix version so packages like the SDK that
-        # support older Python can be tested at their actual lower bound.
-        echo "${{ inputs.python_version }}" > .python-version
-        # Inject lowest-direct resolution so uv lock resolves minimum versions
-        # while still respecting constraint-dependencies from [tool.uv].
-        sed -i 's/\[tool\.uv\]/&\nresolution = "lowest-direct"/' pyproject.toml
+        # Use uv pip install instead of uv lock + uv sync because
+        # UV_NO_WORKSPACE=1 does not prevent uv lock from checking workspace
+        # members' requires-python, which fails when the CI matrix Python
+        # (e.g. 3.11 for the SDK) is older than the workspace constraint (3.12).
+        # uv pip install is fully workspace-agnostic.
+        uv venv --python "${{ inputs.python_version }}"
 
-        EXTRA_ARGS=""
+        # Extract constraint-dependencies from [tool.uv] (e.g. lxml>=5.0.0)
+        # and pass as --constraint so lowest-direct respects known-working floors.
+        python3 -c "
+        import tomllib, pathlib
+        data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+        for dep in data.get('tool', {}).get('uv', {}).get('constraint-dependencies', []):
+            print(dep)
+        " > /tmp/constraints.txt
+
+        CONSTRAINT_ARGS=""
+        if [ -s /tmp/constraints.txt ]; then
+          CONSTRAINT_ARGS="--constraint /tmp/constraints.txt"
+        fi
+
+        EXTRAS=""
         for e in $(echo "${{ inputs.extras }}" | tr ',' ' '); do
-          [ -n "$e" ] && EXTRA_ARGS="$EXTRA_ARGS --extra $e"
+          [ -n "$e" ] && EXTRAS="${EXTRAS:+$EXTRAS,}$e"
         done
 
-        UV_NO_WORKSPACE=1 uv lock
-        UV_NO_WORKSPACE=1 uv sync --active $EXTRA_ARGS
+        if [ -n "$EXTRAS" ]; then
+          PKG_SPEC="-e .[$EXTRAS]"
+        else
+          PKG_SPEC="-e ."
+        fi
+
+        uv pip install $PKG_SPEC --resolution lowest-direct $CONSTRAINT_ARGS
 
     - name: Install root dev tools
       shell: bash
@@ -65,7 +80,6 @@ runs:
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
-        UV_NO_WORKSPACE: 1
         VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: .venv/bin/deptry .
 
@@ -73,7 +87,5 @@ runs:
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
-        UV_NO_SOURCES: 1
-        UV_NO_WORKSPACE: 1
         VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: .venv/bin/pytest ${{ inputs.test_args }}
