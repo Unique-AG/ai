@@ -169,13 +169,13 @@ async def test_complete_async_basic(mock_create):
 
 def test_resolve_temp_and_reasoning_clamps_temperature():
     """Test that temperature is clamped to the model's declared bounds when no reasoning."""
-    # AZURE_GPT_51 has temperature_bounds min=0.0, max=1.0 (switchable model)
+    # AZURE_GPT_51 has temperature_bounds min=0.0, max=1.0 and default effort "none"
     model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_51_2025_1113)
 
-    assert model.resolve_temp_and_reasoning(0.12345, None) == (0.12, None)
-    assert model.resolve_temp_and_reasoning(0.996, None) == (1.0, None)
-    assert model.resolve_temp_and_reasoning(2.0, None) == (1.0, None)
-    assert model.resolve_temp_and_reasoning(-0.5, None) == (0.0, None)
+    assert model.resolve_temp_and_reasoning(0.12345, None) == (0.12, "none")
+    assert model.resolve_temp_and_reasoning(0.996, None) == (1.0, "none")
+    assert model.resolve_temp_and_reasoning(2.0, None) == (1.0, "none")
+    assert model.resolve_temp_and_reasoning(-0.5, None) == (0.0, "none")
 
 
 def test_resolve_temp_and_reasoning_boundless_known_model_allows_up_to_2():
@@ -205,12 +205,11 @@ def test_resolve_temp_and_reasoning_forces_1_when_reasoning_active():
 
 
 def test_resolve_temp_and_reasoning_fixes_thinking_only_model_with_none_effort():
-    """Scenario 2 catches 'none' for thinking-only models and falls back to first supported effort.
+    """Scenario 3 catches 'none' for thinking-only models and falls back to first supported effort.
 
-    reasoning_effort=None means "not provided" (e.g. Chat Completions path) and must
-    NOT trigger the fallback.
+    reasoning_effort=None means "not provided" — scenario 2 applies the model default instead.
     """
-    # AZURE_GPT_54_PRO supports ["medium", "high", "xhigh"] — "none" is not in the list
+    # AZURE_GPT_54_PRO supports ["medium", "high", "xhigh"] and has default "medium"
     thinking_model = LanguageModelInfo.from_name(
         LanguageModelName.AZURE_GPT_54_PRO_2026_0305
     )
@@ -220,10 +219,31 @@ def test_resolve_temp_and_reasoning_fixes_thinking_only_model_with_none_effort()
     assert temp == 1.0
     assert effort == "medium"
 
-    # Passing None → not provided; effort stays None, temperature clamped (but not written for thinking models)
+    # Passing None → scenario 2 applies the model default ("medium")
     temp, effort = thinking_model.resolve_temp_and_reasoning(0.5, None)
     assert temp == 1.0
-    assert effort is None
+    assert effort == "medium"
+
+
+def test_resolve_temp_and_reasoning_applies_model_default_when_no_effort_supplied():
+    """Scenario 2: when no effort is passed, the model default from default_options is used."""
+    # AZURE_GPT_54_PRO has default_options={"reasoning_effort": "medium"}
+    thinking_model = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_54_PRO_2026_0305
+    )
+    temp, effort = thinking_model.resolve_temp_and_reasoning(0.5, None)
+    assert effort == "medium"
+    assert temp == 1.0
+
+    # GPT-5.1 has default_options={"reasoning_effort": "none"} → default is applied
+    switchable_model = LanguageModelInfo.from_name(
+        LanguageModelName.AZURE_GPT_51_2025_1113
+    )
+    temp, effort = switchable_model.resolve_temp_and_reasoning(0.5, None)
+    assert effort == "none"
+    assert (
+        temp == 0.5
+    )  # "none" → no active reasoning → temperature is clamped, not forced
 
 
 def test_resolve_temp_and_reasoning_drops_effort_for_non_reasoning_model(caplog):
@@ -265,7 +285,7 @@ def test_resolve_temp_and_reasoning_warns_on_out_of_bounds_temperature(caplog):
 
     assert "out of bounds" in caplog.text
     assert temp == 1.0  # clamped to max
-    assert effort is None
+    assert effort == "none"  # model default applied
 
 
 def test_resolve_temp_and_reasoning_no_warning_for_valid_effort(caplog):

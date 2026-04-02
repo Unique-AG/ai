@@ -336,13 +336,16 @@ class LanguageModelInfo(BaseModel):
            - If the caller provided an effort, warn and drop it (return None).
            - Temperature is clamped to declared bounds.
 
-        2. Effort not in the model's supported_reasoning_efforts list:
+        2. No effort supplied and model has a default_options["reasoning_effort"]:
+           - Silently apply the model default.
+
+        3. Effort not in the model's supported_reasoning_efforts list:
            - Warn and fall back to the first (lightest) supported effort.
-           - Temperature is forced to 1.0 via scenario 3.
+           - Temperature is forced to 1.0 via scenario 4.
 
-        3. Active reasoning forces temperature to 1.0 (API requirement).
+        4. Active reasoning forces temperature to 1.0 (API requirement).
 
-        After scenarios 1–3, temperature is clamped to the model's declared bounds.
+        After scenarios 1–4, temperature is clamped to the model's declared bounds.
         Models without declared bounds fall back to the OpenAI-documented global range
         [0, 2]. Invalid declared bounds are intentionally NOT corrected here —
         a misconfigured model definition should surface as a visible bug.
@@ -372,9 +375,15 @@ class LanguageModelInfo(BaseModel):
                 reasoning_effort = None
                 wants_active_reasoning = False
         else:
-            # --- Scenario 2: effort not in the model's declared list ---
-            # Warn and fallback to first (i.e. lightest) supported effort level.
-            if is_reasoning_effort_set and reasoning_effort not in supported_efforts:
+            if not is_reasoning_effort_set:
+                # --- Scenario 2: no effort supplied — apply model default if one exists ---
+                default = self.default_options.get("reasoning_effort")
+                if default is not None:
+                    reasoning_effort = default
+                    wants_active_reasoning = default != "none"
+            elif reasoning_effort not in supported_efforts:
+                # --- Scenario 3: effort not in the model's declared list ---
+                # Warn and fallback to first (i.e. lightest) supported effort level.
                 fallback_effort = supported_efforts[0]
                 _LOGGER.warning(
                     "reasoning_effort '%s' is not supported by %s "
