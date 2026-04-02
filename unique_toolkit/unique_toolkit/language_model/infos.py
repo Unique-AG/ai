@@ -350,11 +350,6 @@ class LanguageModelInfo(BaseModel):
         Returns (resolved_temperature, resolved_reasoning_effort).
         """
 
-        reasoning_effort: ReasoningEffort | None = (
-            to_reasoning_effort(reasoning_effort)
-            if reasoning_effort is not None
-            else None
-        )
         is_reasoning_effort_set = reasoning_effort is not None
         wants_active_reasoning = (
             reasoning_effort is not None and reasoning_effort != "none"
@@ -392,9 +387,17 @@ class LanguageModelInfo(BaseModel):
                 reasoning_effort = fallback_effort
                 wants_active_reasoning = True
 
+        # By this point reasoning_effort is either None or a value from supported_reasoning_efforts,
+        # which are always valid ReasoningEffort entries — to_reasoning_effort will not raise.
+        resolved: ReasoningEffort | None = (
+            to_reasoning_effort(reasoning_effort)
+            if reasoning_effort is not None
+            else None
+        )
+
         # --- Scenario 3: active reasoning forces temperature to 1.0 ---
         if wants_active_reasoning:
-            return 1.0, reasoning_effort
+            return 1.0, resolved
 
         # --- No reasoning: clamp temperature to model bounds ---
         # Fall back to the OpenAI-documented global range [0, 2] for models without
@@ -414,7 +417,7 @@ class LanguageModelInfo(BaseModel):
                 hi,
                 self.name,
             )
-        return round(max(lo, min(hi, temperature)), 2), reasoning_effort
+        return round(max(lo, min(hi, temperature)), 2), resolved
 
     @classmethod
     @lru_cache(maxsize=1)
