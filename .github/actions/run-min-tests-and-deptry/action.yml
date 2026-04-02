@@ -48,9 +48,6 @@ runs:
         uv lock
         uv sync $EXTRA_ARGS
 
-        git checkout -- pyproject.toml
-        rm -f uv.lock
-
     - name: Install root dev tools
       shell: bash
       env:
