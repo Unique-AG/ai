@@ -3,40 +3,33 @@ name: unique-websearch-cli
 description: >-
   Search the web using the unique-websearch command-line tool. Use when
   the user asks to search the public web, find web pages, or look up
-  information online using Google, Brave, Tavily, or other supported
-  search engines. Results include URLs, snippets, and optionally
-  crawled page content.
+  information online. The search engine and crawler are determined by
+  environment variables -- the CLI always uses whichever single engine
+  and crawler are configured, not a choice of all engines.
 ---
 
 # Unique WebSearch CLI
 
-Search the public web from the terminal using configurable search engines
-via the `unique-websearch` command.
+Search the public web from the terminal. The search engine and crawler
+are **automatically determined** from environment variables, matching the
+server-side configuration. You do not choose the engine at invocation
+time -- it is always the one that is configured.
 
 ## Setup
 
-### 1. Config file
+### 1. Environment variables (required)
 
-Create `~/.unique-websearch.json` with your engine and crawler settings:
+Set which search engine to use and provide its API keys:
 
-```json
-{
-  "search_engine_config": {
-    "search_engine_name": "Google",
-    "fetch_size": 5
-  },
-  "crawler_config": {
-    "crawler_type": "BasicCrawler",
-    "timeout": 10
-  }
-}
+```bash
+# Engine selection (default: google)
+export ACTIVE_SEARCH_ENGINES='["google"]'
+
+# Crawler selection (default: basic, crawl4ai)
+export ACTIVE_INHOUSE_CRAWLERS='["basic", "crawl4ai"]'
 ```
 
-Override the path with `--config` or the `UNIQUE_WEBSEARCH_CONFIG` env var.
-
-### 2. Environment variables
-
-Set API keys for your chosen search engine:
+Then set the API keys for your configured engine:
 
 **Google:**
 ```bash
@@ -66,10 +59,26 @@ export JINA_API_KEY="..."
 export FIRECRAWL_API_KEY="..."
 ```
 
-## Basic Usage
+### 2. Optional config file
+
+Create `~/.unique-websearch.json` to override non-secret settings like
+`fetch_size` or crawler `timeout`. The engine and crawler selection still
+comes from environment variables -- the JSON file only tunes their settings.
+
+```json
+{
+  "search_engine_config": { "fetch_size": 50 },
+  "crawler_config": { "timeout": 15 }
+}
+```
+
+Override the path with `--config` or the `UNIQUE_WEBSEARCH_CONFIG` env var.
+If no config file exists, defaults are used (fetch_size: 50, timeout: 10).
+
+## Usage
 
 ```bash
-# Search with defaults from config
+# Search with defaults (50 results, auto-configured engine + crawler)
 unique-websearch "quarterly earnings report 2025"
 
 # Control number of results
@@ -77,16 +86,9 @@ unique-websearch "AI regulation EU" -n 10
 
 # Fast mode -- URLs and snippets only, no page crawling
 unique-websearch "python asyncio tutorial" --no-crawl
-```
 
-## Override Search Engine
-
-```bash
-# Use Brave instead of the configured engine
-unique-websearch "climate change policy" --engine brave -n 8
-
-# Use Tavily (returns content directly, no crawling needed)
-unique-websearch "latest OpenAI announcements" -e tavily
+# Use a project-specific config file
+unique-websearch "internal docs" --config ./project.json
 ```
 
 ## Command Reference
@@ -97,34 +99,11 @@ unique-websearch <query> [options]
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
-| `--fetch-size` | `-n` | From config | Number of results to fetch |
-| `--engine` | `-e` | From config | Override search engine |
+| `--fetch-size` | `-n` | 50 (or from config) | Number of results to fetch |
 | `--no-crawl` | | Off | Skip page crawling |
 | `--config` | `-c` | `~/.unique-websearch.json` | Config file path |
 | `--version` | | | Show version |
 | `--help` | | | Show help |
-
-## Supported Engines
-
-| Engine | Config name | Requires crawling |
-|--------|-------------|-------------------|
-| Google | `Google` | Yes |
-| Brave | `Brave` | Yes |
-| Tavily | `Tavily` | No |
-| Jina | `Jina` | No |
-| Firecrawl | `Firecrawl` | Depends |
-| VertexAI | `VertexAI` | Yes |
-| Custom API | `CustomAPI` | Depends |
-
-## Supported Crawlers
-
-| Crawler | Config name |
-|---------|-------------|
-| Basic HTTP | `BasicCrawler` |
-| Crawl4AI | `Crawl4AiCrawler` |
-| Tavily | `TavilyCrawler` |
-| Firecrawl | `FirecrawlCrawler` |
-| Jina | `JinaCrawler` |
 
 ## Output Format
 
@@ -141,6 +120,17 @@ Found 3 result(s):
      --- crawled content ---
      Full page content preview truncated to 200 characters...
 ```
+
+## How It Works
+
+1. The CLI reads `ACTIVE_SEARCH_ENGINES` to determine which single search
+   engine to use (e.g. Google, Brave, Tavily).
+2. The CLI reads `ACTIVE_INHOUSE_CRAWLERS` (plus API keys) to determine
+   the active crawler for fetching full page content.
+3. An optional JSON config file can override settings like `fetch_size`.
+4. The `--fetch-size` / `-n` flag overrides `fetch_size` per invocation.
+5. If the engine requires page scraping and `--no-crawl` is not set,
+   the first active crawler fetches full page content automatically.
 
 ## Install
 

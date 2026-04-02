@@ -1,4 +1,4 @@
-"""Web search command: query a search engine and optionally crawl results."""
+"""Web search command: query the configured search engine and optionally crawl results."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ UNSUPPORTED_CLI_ENGINES = {SearchEngineType.BING}
 def _instantiate_engine(
     config: SearchEngineConfigTypes,
 ) -> SearchEngine:
-    """Instantiate a search engine service from config, bypassing engines that need server-side deps."""
+    """Instantiate the search engine service from its config."""
     from unique_web_search.services.search_engine.brave import BraveSearch
     from unique_web_search.services.search_engine.custom_api import CustomAPI
     from unique_web_search.services.search_engine.firecrawl import FireCrawlSearch
@@ -78,10 +78,10 @@ def cmd_websearch(
     """Execute a web search and optionally crawl the result pages.
 
     Args:
-        search_engine_config: Validated search engine config from JSON.
-        crawler_config: Validated crawler config from JSON.
+        search_engine_config: Validated search engine config (from env + JSON).
+        crawler_config: Validated crawler config (from env + JSON).
         query: The search query string.
-        fetch_size: Override the engine's fetch_size if provided.
+        fetch_size: Override fetch_size if provided via CLI flag.
         no_crawl: Skip crawling, return URLs + snippets only.
 
     Returns:
