@@ -54,6 +54,11 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Export locked requirements
+        # Generates requirements.txt from the workspace uv.lock with exact ==
+        # pins for every direct and transitive dependency (--locked refuses to
+        # update the lockfile). The Dockerfile then installs from this file,
+        # guaranteeing the image contains exactly the versions recorded in
+        # uv.lock — nothing more, nothing less.
         run: uv export --locked --package core --no-dev --no-hashes -o connectors/unique_search_proxy/requirements.txt
 
       - name: Build and push container
