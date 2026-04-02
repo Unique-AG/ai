@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [1.68.6] - 2026-04-01
+- Fix `ChatEvent.filter()`: empty `assistant_ids` / `references_in_code` mean “do not filter by this criterion” 
+- Move `find_env_file` / `EnvFileNotFoundError` to `unique_toolkit.app.find_env_file`; `find_env_file` is keyword-only (`filename=`)
+- Freeze parts of the unique toolkit settings via feature flag `FEATURE_FLAG_UN_18894_FREEZE_UNIQUE_SETTING`
 ## [1.68.5] - 2026-04-01
 - Code interpreter (UN-17972): restore `htmlWithSource` fences for HTML when code-execution fence FF is on (legacy `HtmlRendering` path only when fence FF is off and HTML rendering FF is on)
 - Extend fence regexes and `_get_next_fence_id` for `htmlWithSource`; include HTML in unmatched-code-block warnings when fences are used

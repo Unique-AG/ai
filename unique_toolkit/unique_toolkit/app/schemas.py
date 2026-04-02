@@ -10,6 +10,9 @@ from pydantic_settings import BaseSettings
 from typing_extensions import deprecated
 
 from unique_toolkit._common.exception import ConfigurationException
+from unique_toolkit.app.chat_event_filter_options_settings import (
+    CHAT_EVENT_FILTER_OPTIONS_SETTINGS,
+)
 from unique_toolkit.app.unique_settings import UniqueChatEventFilterOptions
 from unique_toolkit.smart_rules.compile import UniqueQL, parse_uniqueql
 
@@ -52,6 +55,9 @@ class BaseEvent(BaseModel, Generic[FilterOptionsT]):
         with file_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
         return cls.model_validate(data)
+
+    def filter(self) -> bool:
+        return False
 
     def filter_event(self, *, filter_options: FilterOptionsT | None = None) -> bool:
         """Determine if event should be filtered out and be neglected."""
@@ -262,6 +268,18 @@ class ChatEvent(BaseEvent):
     created_at: Optional[int] = None
     version: Optional[str] = None
 
+    class FilterOptions(BaseSettings):
+        assistant_ids: list[str] = Field(
+            default=[],
+            description="The assistant ids (space) to filter by. Default is all assistants.",
+        )
+        references_in_code: list[str] = Field(
+            default=[],
+            description="The module (reference) names in code to filter by. Default is all modules.",
+        )
+
+        model_config = CHAT_EVENT_FILTER_OPTIONS_SETTINGS
+
     @classmethod
     def from_json_file(cls, file_path: Path) -> "ChatEvent":
         if not file_path.exists():
@@ -280,6 +298,27 @@ class ChatEvent(BaseEvent):
             "chosen_module": self.payload.name,
             "assistant": {"id": self.payload.assistant_id},
         }
+
+    @override
+    def filter(self) -> bool:
+        """Filter the chat event based on the assistant id and reference in code."""
+
+        options = ChatEvent.FilterOptions()
+
+        # Empty lists mean "do not filter by this criterion" (same as filter_event).
+        if (
+            options.assistant_ids
+            and self.payload.assistant_id not in options.assistant_ids
+        ):
+            return True
+
+        if (
+            options.references_in_code
+            and self.payload.name not in options.references_in_code
+        ):
+            return True
+
+        return False
 
     @override
     def filter_event(
