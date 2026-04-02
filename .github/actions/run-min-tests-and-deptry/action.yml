@@ -34,6 +34,7 @@ runs:
       env:
         UV_NO_SOURCES: 1
         UV_NO_WORKSPACE: 1
+        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
       run: |
         uv venv --clear
         # Inject lowest-direct resolution so uv lock resolves minimum versions
@@ -61,7 +62,8 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_WORKSPACE: 1
-      run: uv run --no-sync deptry .
+        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
+      run: .venv/bin/deptry .
 
     - name: Run tests with min dependencies
       shell: bash
@@ -69,4 +71,5 @@ runs:
       env:
         UV_NO_SOURCES: 1
         UV_NO_WORKSPACE: 1
-      run: uv run --no-sync pytest ${{ inputs.test_args }}
+        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
+      run: .venv/bin/pytest ${{ inputs.test_args }}
