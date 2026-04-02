@@ -5,9 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.68.7] - 2026-03-31
+## [1.68.7] - 2026-04-02
 - Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
 - Update `langchain` optional extra to `>=1.0.0,<2` (was `>=0.3.27,<0.4`) and `langchain-core` to `>=1.0.0,<2`
+
 ## [1.68.6] - 2026-04-02
 - Adding `uploaded_files` and `selected_uploaded_files` to additional parameters in payload
 - Feature flag `FEATURE_FLAG_SELECTED_UPLOADED_FILES_UN_18470` added
