@@ -10,6 +10,7 @@ from unique_toolkit.agentic.tools.experimental.todo.config import TodoConfig
 from unique_toolkit.agentic.tools.experimental.todo.schemas import (
     TodoItem,
     TodoList,
+    TodoStatus,
     TodoWriteInput,
 )
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -56,12 +57,12 @@ class TodoWriteTool(Tool[TodoConfig]):
     def tool_description(self) -> LanguageModelToolDescription:
         return LanguageModelToolDescription(
             name="todo_write",
-            description=self.config.tool_description,
+            description=self.config.effective_tool_description,
             parameters=TodoWriteInput.model_json_schema(),
         )
 
     def tool_description_for_system_prompt(self) -> str:
-        return self.config.system_prompt
+        return self.config.effective_system_prompt
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         try:
@@ -92,7 +93,12 @@ class TodoWriteTool(Tool[TodoConfig]):
         else:
             current_state = TodoList(
                 todos=[
-                    TodoItem(id=t.id, content=t.content or "", status=t.status)
+                    TodoItem(
+                        id=t.id,
+                        content=t.content or "",
+                        status=t.status,
+                        active_form=t.active_form,
+                    )
                     for t in input_data.todos
                 ],
                 last_updated_iteration=current_state.last_updated_iteration,
@@ -117,13 +123,16 @@ class TodoWriteTool(Tool[TodoConfig]):
         )
 
         counts = current_state.status_counts()
-        await self._log_step(counts)
+        await self._log_step(current_state)
+
+        content = current_state.format()
+        content = self._maybe_add_verification_nudge(content, counts)
 
         return ToolCallResponse(
             id=tool_call.id,
             name=self.name,
-            content=current_state.format(),
-            system_reminder=self.config.execution_reminder
+            content=content,
+            system_reminder=self.config.effective_execution_reminder
             if current_state.has_active_items()
             else "",
             debug_info={
@@ -139,16 +148,29 @@ class TodoWriteTool(Tool[TodoConfig]):
             },
         )
 
-    async def _log_step(self, counts: dict[str, int]) -> None:
-        """Write a Steps panel entry summarising the current todo state."""
+    async def _log_step(self, state: TodoList) -> None:
+        """Write a Steps panel entry summarising the current todo state.
+
+        Uses the active_form of in-progress items as the progress message
+        when available, falling back to a counts-based summary.
+        """
         try:
-            parts = []
-            for key in ("completed", "in_progress", "pending", "cancelled"):
-                if counts.get(key):
-                    parts.append(f"{counts[key]} {key}")
-            detail = ", ".join(parts) if parts else "empty"
-            total = counts.get("total", 0)
-            progress = f"{total} items ({detail})"
+            counts = state.status_counts()
+            in_progress_items = [
+                t for t in state.todos if t.status == TodoStatus.IN_PROGRESS
+            ]
+
+            if in_progress_items:
+                active = in_progress_items[0]
+                progress = active.active_form or active.content
+            else:
+                parts = []
+                for key in ("completed", "in_progress", "pending", "cancelled"):
+                    if counts.get(key):
+                        parts.append(f"{counts[key]} {key}")
+                detail = ", ".join(parts) if parts else "empty"
+                total = counts.get("total", 0)
+                progress = f"{total} items ({detail})"
 
             status = (
                 MessageLogStatus.COMPLETED
@@ -164,6 +186,21 @@ class TodoWriteTool(Tool[TodoConfig]):
             )
         except Exception:
             logger.debug("TodoWriteTool: failed to write step log", exc_info=True)
+
+    def _maybe_add_verification_nudge(
+        self, content: str, counts: dict[str, int]
+    ) -> str:
+        """Append a verification nudge after N consecutive completions."""
+        threshold = self.config.verification_threshold
+        if threshold <= 0:
+            return content
+        completed = counts.get("completed", 0)
+        if completed > 0 and completed % threshold == 0 and counts.get("pending", 0):
+            content += (
+                f"\n\n[Checkpoint: {completed} tasks completed. "
+                "Before continuing, briefly verify recent results are correct.]"
+            )
+        return content
 
     async def _load_state(self) -> TodoList:
         """Load state from persistence, falling back to in-memory cache."""
