@@ -6,13 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.69.0] - 2026-04-01
-- Add `supported_reasoning_efforts: list[str] | None` field to `LanguageModelInfo` listing valid `reasoning_effort` values per model; `None` for third-party models (DeepSeek, Qwen, Grok) and `o1-mini` where validation is not applicable.
-- Add `xhigh` reasoning effort support for `AZURE_GPT_52_2025_1211`, `AZURE_GPT_54_2026_0305`, `AZURE_GPT_54_PRO_2026_0305`, and their LiteLLM counterparts; `GPT-5.4 Pro` supports `medium`/`high`/`xhigh` only.
-- `LanguageModelInfo.resolve_temp_and_reasoning`: log a warning instead of raising when `reasoning_effort` is not in `supported_reasoning_efforts`, or when `temperature` is outside declared bounds before clamping.
-- `resolve_temp_and_reasoning`: pass `temperature` and `reasoning_effort` through unchanged for unknown (unrecognised) models.
-- `resolve_temp_and_reasoning`: use `[0, 2]` fallback temperature bounds for models without declared bounds (previously clamped to `[0, 1]`).
-- Fix `resolve_temp_and_reasoning` default for thinking-only models: `AZURE_GPT_5_PRO_2025_1006` and `LITELLM_OPENAI_GPT_5_PRO` now carry `default_options={"reasoning_effort": "high"}` to avoid falling back to `"medium"`.
-- Fix `responses_api`: preserve all fields on an existing `Reasoning` object (`summary`, `generate_summary`) when updating `reasoning_effort` instead of replacing the whole object.
+- Add `supported_reasoning_efforts: list[ReasoningEffort]` to `LanguageModelInfo` (defaults to `[]`); populated per-model for all Azure/OpenAI reasoning models including `xhigh` where supported.
+- Add `LanguageModelInfo.resolve_temp_and_reasoning` instance method centralising all temperature and reasoning effort resolution for both the Chat Completions and Responses API paths. Handles four scenarios in order: (1) non-reasoning model — caller effort warned and dropped; (2) no effort supplied — model `default_options["reasoning_effort"]` applied silently; (3) unsupported effort — warned and corrected to lightest supported; (4) active reasoning — temperature forced to `1.0`. Temperature is always clamped to declared bounds, falling back to `[0, 2]` for models without declared bounds.
+- Add `ReasoningEffort` `Literal` type and helpers `to_reasoning_effort` / `reasoning_effort_to_openai` in `schemas.py`; the OpenAI SDK type is outdated (missing `xhigh`/`none`) so we define our own.
+- Fix: `reasoning_effort` validation, default application, and temperature clamping are now applied in the Chat Completions path (`functions.py`) — previously only the Responses API path did this.
+- Fix `responses_api`: preserve extra `Reasoning` fields (`summary`, `generate_summary`) when updating `effort`; strip `effort` from the dict when a non-reasoning model drops it.
 ## [1.68.5] - 2026-04-01
 - Code interpreter (UN-17972): restore `htmlWithSource` fences for HTML when code-execution fence FF is on (legacy `HtmlRendering` path only when fence FF is off and HTML rendering FF is on)
 - Extend fence regexes and `_get_next_fence_id` for `htmlWithSource`; include HTML in unmatched-code-block warnings when fences are used
