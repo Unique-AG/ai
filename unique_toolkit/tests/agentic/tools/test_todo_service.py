@@ -191,6 +191,7 @@ def _make_tool(
     tool._memory_manager = MagicMock()
     tool._memory_manager.load_async = AsyncMock(return_value=None)
     tool._memory_manager.save_async = AsyncMock()
+    tool._message_step_logger = MagicMock()
     return tool
 
 
