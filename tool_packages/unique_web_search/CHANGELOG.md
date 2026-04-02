@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Experimental **Tool Response Reminder**: `enable_system_reminder` (default off) and `system_reminder_prompt` (defaults to the standard source citation template) under Experimental Features.
 - Explicit V3 prompts
+
 ## [1.14.1] - 2026-03-19
 ### Added
 - `WebSearchV3Executor` for snippet-based relevance filtering before crawling.

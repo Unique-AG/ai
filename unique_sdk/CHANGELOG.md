@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.93] - 2026-03-25
 - Add `Space.create_chat`
+
 ## [0.10.92] - 2026-03-19
 - Add experimental CLI (`unique-cli`) for interactive file exploration of the Unique knowledge base
 - Add `click` as a required dependency for the CLI

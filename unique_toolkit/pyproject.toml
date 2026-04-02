@@ -43,7 +43,6 @@ dependencies = [
     "pypandoc>=1.16.2,<2",
     "tenacity>=9.1.4",
     "pydantic-core>=2.41.5",
-    "lxml>=5.0.0",
 ]
 
 [project.optional-dependencies]
@@ -108,7 +107,7 @@ known_first_party = ["unique_toolkit"]
 extend_exclude = ["docs", "tests", "unique_toolkit/.*/test", "unique_toolkit/.*/tests"]
 
 [tool.deptry.per_rule_ignores]
-DEP002 = ["langchain", "fastapi", "starlette", "uvicorn", "lxml"]
+DEP002 = ["langchain", "fastapi", "starlette", "uvicorn"]
 DEP004 = ["langchain_openai", "langchain_core"]
 
 [tool.ruff]
