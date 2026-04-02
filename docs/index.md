@@ -56,17 +56,17 @@ A powerful, configurable web search tool for retrieving and processing the lates
 
 ## 💻 Development
 
-This is a monorepo using Poetry for dependency management. To build the documentation locally:
+This is a monorepo using uv for dependency management. To build the documentation locally:
 
 ```bash
 # Install dependencies
-poetry install --with dev
+uv sync
 
 # Build versioned documentation locally (simulates CI)
 ./.github/scripts/docs_build_versioned.sh --clean --serve
 
 # Or build root site only for quick iteration
-poetry run mkdocs serve
+uv run mkdocs serve
 ```
 
 ## 🤝 Contributing

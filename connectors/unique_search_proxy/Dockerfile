@@ -1,7 +1,7 @@
 # =============================================================================
 # Search Proxy - Experimental Image
 # =============================================================================
-FROM python:3.12-slim-bookworm
+FROM python:3.12-slim-bookworm@sha256:31c0807da611e2e377a2e9b566ad4eb038ac5a5838cbbbe6f2262259b5dc77a0
 
 ENV PYTHONFAULTHANDLER=1 \
     PYTHONUNBUFFERED=1 \
@@ -14,7 +14,7 @@ ENV PYTHONFAULTHANDLER=1 \
 
 # Create user and install uv
 RUN useradd -m appuser && \
-    pip install --no-cache-dir "uv==0.7.19"
+    pip install --no-cache-dir "uv==0.10.11"
 
 # Copy only requirements to cache them in docker layer
 WORKDIR /app

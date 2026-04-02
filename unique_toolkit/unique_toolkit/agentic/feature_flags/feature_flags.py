@@ -82,9 +82,9 @@ class FeatureFlags(BaseSettings):
         description="Emit codeExecution fences in message.text for code interpreter outputs (UN-17972). When disabled, inline file refs are kept as-is. Can be 'true' or comma-separated company IDs.",
     )
 
-    enable_tool_call_persistence_un_15977: FeatureFlag = Field(
+    enable_web_search_argument_screening_un_18741: FeatureFlag = Field(
         default=FeatureFlag(False),
-        description="Persist tool calls and reconstruct tool call history across turns (UN-15977). Can be 'true' or comma-separated company IDs.",
+        description="Enable argument screening agent for web search tool calls (UN-18741). Can be 'true' or comma-separated company IDs.",
     )
 
     model_config = SettingsConfigDict(

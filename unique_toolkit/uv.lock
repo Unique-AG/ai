@@ -6,6 +6,13 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 
+[options]
+exclude-newer = "2026-03-18T13:50:19.242153Z"
+exclude-newer-span = "P2W"
+
+[options.exclude-newer-package]
+unique-sdk = false
+
 [manifest]
 constraints = [
     { name = "lxml", specifier = ">=5.0.0" },
@@ -3138,7 +3145,7 @@ wheels = [
 
 [[package]]
 name = "unique-toolkit"
-version = "1.65.1"
+version = "1.68.2"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },

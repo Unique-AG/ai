@@ -1,6 +1,6 @@
 [project]
 name = "unique_stock_ticker"
-version = "1.1.2"
+version = "1.1.3"
 description = ""
 authors = [
     { name = "Martin Fadler", email = "martin.fadler@unique.ch" },
@@ -43,7 +43,13 @@ build-backend = "uv_build"
 module-root = ""
 
 [tool.uv]
+exclude-newer = "2 weeks"
 constraint-dependencies = ["lxml>=5.0.0"]
+
+[tool.uv.exclude-newer-package]
+"unique-sdk" = false
+"unique-six" = false
+"unique-toolkit" = false
 
 [tool.uv.sources]
 unique-sdk = { path = "../../unique_sdk", editable = true }

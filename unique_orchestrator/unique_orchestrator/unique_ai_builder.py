@@ -24,7 +24,6 @@ from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManag
 from unique_toolkit.agentic.evaluation.hallucination.hallucination_evaluation import (
     HallucinationEvaluation,
 )
-from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager import (
     history_manager as history_manager_module,
 )
@@ -73,9 +72,14 @@ from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
 from unique_orchestrator._builders import build_loop_iteration_runner
+from unique_orchestrator._builders.open_file_setup import (
+    configure_file_payload,
+    handle_uploaded_file_tool_choices,
+)
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
 
@@ -120,7 +124,10 @@ async def build_unique_ai(
 ) -> UniqueAI:
     common_components = _build_common(event, logger, config)
 
-    if config.agent.experimental.responses_api_config.use_responses_api:
+    if (
+        config.agent.experimental.responses_api_config.use_responses_api
+        or config.agent.experimental.use_responses_api
+    ):
         return await _build_responses(
             event=event,
             logger=logger,
@@ -194,9 +201,7 @@ def _build_common(
         percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
         language_model=config.space.language_model,
         uploaded_content_config=config.agent.services.uploaded_content_config,
-        enable_tool_call_persistence=feature_flags.enable_tool_call_persistence_un_15977.is_enabled(
-            event.company_id
-        ),
+        enable_tool_call_persistence=config.agent.input_token_distribution.enable_tool_call_persistence,
     )
     history_manager = HistoryManager(
         logger,
@@ -356,11 +361,28 @@ async def _build_responses(
         chat_service=common_components.chat_service,
     )
 
-    has_valid_uploaded_documents, has_tool_choices = _configure_uploaded_search_tool(
-        event=event,
-        logger=logger,
-        common_components=common_components,
+    force_auto_container = (
+        ModelCapabilities.AUTO_CONTAINER_ONLY
+        in config.space.language_model.capabilities
     )
+
+    has_valid_uploaded_documents = False
+    has_tool_choices = False
+    if config.agent.experimental.open_file_tool_config.enabled:
+        handle_uploaded_file_tool_choices(
+            config,
+            event,
+            common_components.uploaded_documents,
+            logger,
+        )
+    else:
+        has_valid_uploaded_documents, has_tool_choices = (
+            _configure_uploaded_search_tool(
+                event=event,
+                logger=logger,
+                common_components=common_components,
+            )
+        )
 
     builtin_tool_manager = await OpenAIBuiltInToolManager.build_manager(
         uploaded_files=common_components.uploaded_documents,
@@ -370,6 +392,7 @@ async def _build_responses(
         chat_id=event.payload.chat_id,
         client=client,
         tool_configs=config.space.tools,
+        force_auto_container=force_auto_container,
     )
 
     tool_manager = ResponsesApiToolManager(
@@ -381,8 +404,24 @@ async def _build_responses(
         a2a_manager=common_components.a2a_manager,
         builtin_tool_manager=builtin_tool_manager,
     )
-    if not has_tool_choices and has_valid_uploaded_documents:
-        tool_manager.add_forced_tool(UploadedSearchTool.name)
+    if not config.agent.experimental.open_file_tool_config.enabled:
+        if not has_tool_choices and has_valid_uploaded_documents:
+            tool_manager.add_forced_tool(UploadedSearchTool.name)
+
+    agent_file_registry: list[str] = []
+    if config.agent.experimental.open_file_tool_config.enabled:
+        history_manager, agent_file_registry = configure_file_payload(
+            config,
+            event,
+            logger,
+            common_components.history_manager,
+            common_components.reference_manager,
+            config.space.language_model,
+            tool_manager,
+        )
+        common_components = common_components._replace(
+            history_manager=history_manager,
+        )
 
     loop_iteration_runner = build_loop_iteration_runner(
         config=config,
@@ -428,6 +467,7 @@ async def _build_responses(
         message_step_logger=common_components.message_step_logger,
         mcp_servers=event.payload.mcp_servers,
         loop_iteration_runner=loop_iteration_runner,
+        agent_file_registry=agent_file_registry,
     )
 
 

@@ -1,24 +1,16 @@
 name: 'Run Tests'
-description: 'Runs pytest tests, supporting both Poetry and uv'
+description: 'Runs pytest tests using uv'
 
 inputs:
   package_dir:
     description: 'Path to the package directory'
     required: true
-  package_manager:
-    description: 'Package manager to use: auto (detect), poetry, or uv'
-    required: false
-    default: 'auto'
   python_version:
     description: 'Python version to use'
     required: false
     default: '3.11'
-  package_manager_version:
-    description: 'Package manager version to install (e.g., "1.8.3" for Poetry, ignored for uv)'
-    required: false
-    default: '1.8.3'
   install_args:
-    description: 'Additional arguments for install command (e.g., "--with fastapi" for poetry)'
+    description: 'Additional arguments for uv sync (e.g., --with fastapi)'
     required: false
     default: ''
   test_args:
@@ -29,28 +21,23 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Install package manager
-      id: install_pm
-      uses: ./.github/actions/install-package-manager
+    - name: Setup uv
+      uses: ./.github/actions/setup-uv
       with:
         package_dir: ${{ inputs.package_dir }}
-        package_manager: ${{ inputs.package_manager }}
         python_version: ${{ inputs.python_version }}
-        package_manager_version: ${{ inputs.package_manager_version }}
 
-    # Note: install-package-manager already installs deps via setup-poetry/setup-uv
-    # Only run explicit install if install_args is provided (e.g., --with fastapi)
     - name: Install extra dependencies
       if: inputs.install_args != ''
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
-      run: ${{ steps.install_pm.outputs.install_cmd }} ${{ inputs.install_args }}
+      run: uv sync --locked ${{ inputs.install_args }}
 
     - name: Run pytest
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
-      run: ${{ steps.install_pm.outputs.run_cmd }} pytest ${{ inputs.test_args }}
+      run: uv run pytest ${{ inputs.test_args }}

@@ -261,6 +261,8 @@ def map_content(content: dict):
         created_at=content["createdAt"],
         updated_at=content["updatedAt"],
         ingestion_state=content.get("ingestionState"),
+        ingestion_config=content.get("ingestionConfig"),
+        applied_ingestion_config=content.get("appliedIngestionConfig"),
         expired_at=content.get("expiredAt"),
         metadata=content.get("metadata"),
     )

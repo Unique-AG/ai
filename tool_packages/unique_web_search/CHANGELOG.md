@@ -2,20 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.15.0] - 2026-04-01
+## [1.16.0] - 2026-04-01
 ### Added
 - **`unique-websearch` CLI**: standalone terminal command for running web searches directly from the command line
-  - Supports Google, Brave, Tavily, Jina, Firecrawl, VertexAI, and Custom API search engines
-  - JSON config file (`~/.unique-websearch.json`) for engine and crawler settings, with `--config` override
-  - `--fetch-size` / `-n` to control number of results per invocation
-  - `--engine` / `-e` to override the configured search engine on the fly
+  - Engine and crawler auto-selected from `ACTIVE_SEARCH_ENGINES` / `ACTIVE_INHOUSE_CRAWLERS` environment variables
+  - `--fetch-size` / `-n` to control number of results per invocation (default: 50)
   - `--no-crawl` flag for fast snippet-only output without page crawling
-  - Reuses existing `ENGINE_NAME_TO_CONFIG` and `CRAWLER_NAME_TO_CONFIG` Pydantic models for config validation
+  - Optional JSON config file (`~/.unique-websearch.json`) for non-secret overrides
   - Agent skill documentation (`SKILL.md`) for AI assistant integration
 - `click` dependency for CLI framework
+
+## [1.15.0] - 2026-03-30
+### Added
+- **Argument Screening**: LLM-based screening agent that inspects tool call arguments for sensitive information (PII, credentials, financial data, health info) before execution, raising `ArgumentScreeningException` to block unsafe calls
+- `ArgumentScreeningService` with structured output (`ArgumentScreeningResult`) and configurable Jinja2 prompt templates (system, user, guidelines)
+- `ArgumentScreeningConfig` under `ExperimentalFeatures` with `enabled` flag (default off), customizable `guidelines`, `system_prompt`, and `user_prompt_template`
+- Comprehensive test suite for argument screening config, result model, exception, and service behavior
+## [1.14.4] - 2026-03-30
+- Chore: uv `exclude-newer` (2 weeks) and lockfile refresh
 
 ## [1.14.3] - 2026-03-25
 ### Fixed

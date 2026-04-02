@@ -66,6 +66,6 @@ jobs:
           # For pull_request: github.base_ref; for merge_group: github.event.merge_group.base_ref
           BASE_REF="${{ github.base_ref || github.event.merge_group.base_ref }}"
           ./.github/scripts/validate-changelog-version-bump.sh \
-            --exclude "poetry.lock,uv.lock,CHANGELOG.md,docs/,mkdocs.yaml,.entangled/" \
+            --exclude "uv.lock,CHANGELOG.md,docs/,mkdocs.yaml,.entangled/" \
             ${{ matrix.package }} \
             "$BASE_REF"

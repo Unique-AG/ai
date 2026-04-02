@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.97] - 2026-04-01
+- Chore: uv `exclude-newer` (2 weeks) and lockfile refresh
+
+## [0.10.96] - 2026-03-31
+- Remove leftover `poetry` references from tox config, CONTRIBUTING.md, and tutorial docs — all replaced with `uv` equivalents
+
+
 ## [0.10.95] - 2026-03-30
 - Add `mcp` command to the CLI for calling MCP server tools directly via JSON payload
 - Support inline JSON, `--file`, and `--stdin` input modes for MCP tool payloads

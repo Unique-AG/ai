@@ -1,6 +1,6 @@
 [project]
 name = "mcp-demo"
-version = "0.1.0"
+version = "0.1.1"
 description = "Add your description here"
 readme = "README.md"
 authors = [{ name = "Cedric Klinkert", email = "cedric@unique.ch" }]
@@ -17,3 +17,6 @@ mcp-demo = "mcp_demo.mcp_demo_server:main"
 [build-system]
 requires = ["uv_build>=0.8.14,<0.9.0"]
 build-backend = "uv_build"
+
+[tool.uv]
+exclude-newer = "2 weeks"
