@@ -54,13 +54,10 @@ jobs:
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Export locked requirements
-        # Generates requirements.txt from the workspace uv.lock with exact ==
-        # pins AND sha256 hashes for every direct and transitive dependency.
-        # --locked refuses to update the lockfile (fails if uv.lock is stale).
-        # The Dockerfile installs with --require-hashes, so pip verifies every
-        # downloaded wheel/sdist against these hashes before touching the
-        # filesystem — guaranteeing the image contains byte-for-byte exactly
-        # what is recorded in uv.lock and nothing that was tampered with in transit.
+        # Generates requirements.txt from uv.lock with exact == version pins
+        # and sha256 hashes for every dependency (direct and transitive).
+        # --locked fails if uv.lock is out of date, so the export is always
+        # derived from the committed lockfile — never a fresh resolve.
         run: uv export --locked --package core --no-dev -o connectors/unique_search_proxy/requirements.txt
 
       - name: Build and push container
