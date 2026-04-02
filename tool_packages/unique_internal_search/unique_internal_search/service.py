@@ -62,6 +62,7 @@ class InternalSearchService:
         message_step_logger: MessageStepLogger | None = None,
         display_name: str = "Internal Search",
         language_model_orchestrator: "LanguageModelInfo | None" = None,
+        selected_uploaded_files: list[str] | None = None,
     ):
         self.config = config
         self.content_service = content_service
@@ -75,6 +76,7 @@ class InternalSearchService:
         self._active_message_log: MessageLog | None = None
         # TODO: Propagate orchestrator LLM into tool initialization in separate PR
         self.language_model_orchestrator = language_model_orchestrator
+        self.selected_uploaded_files: list[str] = selected_uploaded_files or []
 
     async def post_progress_message(self, message: str, *args, **kwargs):
         pass
@@ -99,6 +101,13 @@ class InternalSearchService:
         if self.config.chat_only:
             return True
         if self.config.scope_to_chat_on_upload:
+            if (
+                feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
+                    self.company_id
+                )
+                and self.selected_uploaded_files
+            ):
+                return True
             chat_files = await self.get_uploaded_files()
             if len(chat_files) > 0:
                 return True
@@ -140,20 +149,30 @@ class InternalSearchService:
         ###
         chat_only = await self.is_chat_only(**kwargs)
 
-        """
-        Handle the fact that metadata can exclude uploaded content
-        and that the search service is hardcoded to use the metadata_filter 
-        from the event if set to None
-        """
-        # Take a backup of the metadata filter
+        # Workaround: The event's metadata_filter scopes searches to specific
+        # documents but does not include user-uploaded files. In "chat only" mode
+        # the filter would therefore exclude those uploads from results.
+        # ContentService.search_content_chunks_async falls back to
+        # self._metadata_filter when metadata_filter=None is passed, so we can't
+        # simply pass None to clear it. We temporarily set the service's internal
+        # _metadata_filter to None so the fallback can't re-apply it, then
+        # restore it after the search.
         metadata_filter_copy = self.content_service._metadata_filter
 
         if metadata_filter is None:
             metadata_filter = self.content_service._metadata_filter
         if chat_only and metadata_filter:
-            # if this is not set to none search_content_chunks_async will overwrite it inside its call thats why it needs to stay.
             self.content_service._metadata_filter = None
             metadata_filter = None
+
+        if (
+            feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
+                self.company_id
+            )
+            and self.selected_uploaded_files
+            and chat_only
+        ):
+            content_ids = self.selected_uploaded_files
 
         # Run all searches in parallel
         results = await asyncio.gather(
@@ -426,12 +445,16 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         content_service = ContentService.from_event(self.event)
         chunk_relevancy_sorter = ChunkRelevancySorter.from_event(self.event)
         # Determing chat_id if possible
+        selected_uploaded_files: list[str] = []
         if isinstance(self.event, (ChatEvent, Event)):
             if self.event.payload.correlation:
                 # Use parent chat id if correlation is present
                 chat_id = self.event.payload.correlation.parent_chat_id
             else:
                 chat_id = self.event.payload.chat_id
+            additional = self.event.payload.additional_parameters
+            if additional and additional.selected_uploaded_files:
+                selected_uploaded_files = additional.selected_uploaded_file_ids
         else:
             chat_id = None
         self._display_name = kwargs.get("display_name", "Internal Search")
@@ -445,6 +468,7 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             logger=self.logger,
             message_step_logger=self._message_step_logger,
             display_name=self._display_name,
+            selected_uploaded_files=selected_uploaded_files,
         )
 
     async def post_progress_message(
