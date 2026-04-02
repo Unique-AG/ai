@@ -35,14 +35,17 @@ runs:
         UV_NO_WORKSPACE: 1
       run: |
         uv venv --clear
-        EXTRAS="${{ inputs.extras }}"
-        EXTRAS=$(echo "$EXTRAS" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        EXTRAS="${EXTRAS// /}"
-        PKG_SPEC="."
-        if [ -n "$EXTRAS" ]; then
-          PKG_SPEC=".[$EXTRAS]"
-        fi
-        uv pip install -e "$PKG_SPEC" --resolution=lowest-direct
+        # Inject lowest-direct resolution so uv lock resolves minimum versions
+        # while still respecting constraint-dependencies from [tool.uv].
+        sed -i 's/\[tool\.uv\]/&\nresolution = "lowest-direct"/' pyproject.toml
+
+        EXTRA_ARGS=""
+        for e in $(echo "${{ inputs.extras }}" | tr ',' ' '); do
+          [ -n "$e" ] && EXTRA_ARGS="$EXTRA_ARGS --extra $e"
+        done
+
+        uv lock
+        uv sync $EXTRA_ARGS
 
     - name: Install root dev tools
       shell: bash
