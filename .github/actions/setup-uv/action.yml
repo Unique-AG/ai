@@ -33,6 +33,7 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
+        REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
         PKG_NAME=$(grep '^name' "${{ inputs.package_dir }}/pyproject.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
         echo "Syncing package: $PKG_NAME"
         # The workspace lockfile requires Python >=3.12. Packages tested on older
@@ -42,8 +43,11 @@ runs:
           uv sync --locked --inexact --only-dev
         else
           echo "Python $(python --version) is below workspace lockfile minimum (3.12); using standalone install"
+          # cd into the package dir so uv sync creates .venv there (not at the repo
+          # root) and installs the correct package's dependencies.
+          cd "$REPO_ROOT/${{ inputs.package_dir }}"
           UV_NO_SOURCES=1 UV_NO_WORKSPACE=1 uv sync
-          REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
+          # uv pip install sees the .venv in the current directory (the package dir).
           uv export --directory "$REPO_ROOT" --only-group dev --no-hashes | uv pip install -r -
         fi
 
