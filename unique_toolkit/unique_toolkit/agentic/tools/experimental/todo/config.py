@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from pydantic import Field
 
@@ -50,6 +50,9 @@ class TodoConfig(BaseToolConfig):
     Prompt fields default to the built-in prompts. Edit via the admin UI
     (Experimental Settings) to customize the agent's task tracking behavior.
     """
+
+    _tool_name: ClassVar[str] = "todo_write"
+    _tool_module: ClassVar[str] = "unique_toolkit.agentic.tools.experimental.todo"
 
     enabled: Annotated[
         bool,
