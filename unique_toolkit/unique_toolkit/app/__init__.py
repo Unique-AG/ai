@@ -44,6 +44,9 @@ from .schemas import (
 from .schemas import (
     McpTool as McpTool,
 )
+from .schemas import (
+    UploadedFileInfo as UploadedFileInfo,
+)
 from .verification import (
     verify_signature_and_construct_event as verify_signature_and_construct_event,
 )
