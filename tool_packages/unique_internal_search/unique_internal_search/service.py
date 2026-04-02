@@ -102,7 +102,9 @@ class InternalSearchService:
             return True
         if self.config.scope_to_chat_on_upload:
             if (
-                feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(self.company_id)
+                feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
+                    self.company_id
+                )
                 and self.selected_uploaded_files
             ):
                 return True
@@ -163,7 +165,13 @@ class InternalSearchService:
             self.content_service._metadata_filter = None
             metadata_filter = None
 
-        if feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(self.company_id) and self.selected_uploaded_files and chat_only:
+        if (
+            feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
+                self.company_id
+            )
+            and self.selected_uploaded_files
+            and chat_only
+        ):
             content_ids = self.selected_uploaded_files
 
         # Run all searches in parallel

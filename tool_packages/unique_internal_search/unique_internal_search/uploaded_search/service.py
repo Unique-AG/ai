@@ -78,7 +78,9 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
     def tool_description_for_system_prompt(self) -> str:
         documents = self._content_service.get_documents_uploaded_to_chat()
         if (
-            feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(self._company_id)
+            feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
+                self._company_id
+            )
             and self._selected_uploaded_files
         ):
             selected_ids = set(self._selected_uploaded_files)
