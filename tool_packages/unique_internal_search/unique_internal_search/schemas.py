@@ -20,6 +20,8 @@ if TYPE_CHECKING:
         ChunkRelevancySorter,
     )
     from unique_toolkit.language_model.infos import LanguageModelInfo
+    from unique_toolkit.services.chat_service import ChatService
+    from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED = 200
 DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED = 1000
@@ -86,6 +88,8 @@ class InternalSearchProgressMessage(BaseModel):
 @dataclass
 class InternalSearchDeps:
     chunk_relevancy_sorter: ChunkRelevancySorter
+    kb_service: KnowledgeBaseService
+    chat_service: ChatService | None
 
 
 @dataclass

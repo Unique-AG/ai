@@ -10,16 +10,14 @@ from unique_toolkit._common.chunk_relevancy_sorter.exception import (
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.chat.schemas import MessageLogStatus
-from unique_toolkit.content.functions import (
-    search_content_chunks_async,
-    search_contents_async,
-)
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.content.utils import (
     merge_content_chunks,
     pick_content_chunks_for_token_window,
     sort_content_chunks,
 )
+from unique_toolkit.services.chat_service import ChatService
+from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 from unique_internal_search.base_service import BaseService
 from unique_internal_search.schemas import (
@@ -56,9 +54,12 @@ class InternalSearchService(
         return instance
 
     def bind_settings(self, settings: UniqueSettings) -> Self:
-        self._context = UniqueContext.from_settings(settings)
+        context = UniqueContext.from_settings(settings)
+        self._context = context
         self._dependencies = InternalSearchDeps(
             chunk_relevancy_sorter=ChunkRelevancySorter.from_settings(settings),
+            kb_service=KnowledgeBaseService.from_context(context),
+            chat_service=ChatService.from_context(context) if context.chat else None,
         )
         return self
 
@@ -192,14 +193,13 @@ class InternalSearchService(
 
     async def _has_uploaded_files(self) -> bool:
         """Return True if any files are owned by the current chat session."""
+        chat_service = self._dependencies.chat_service
+        if chat_service is None:
+            return False
         chat_id = self._effective_chat_id
         if not chat_id:
             return False
-        auth = self._context.auth
-        files = await search_contents_async(
-            user_id=auth.get_confidential_user_id(),
-            company_id=auth.get_confidential_company_id(),
-            chat_id=chat_id,
+        files = await chat_service.search_contents_async(
             where={"ownerId": {"equals": chat_id}},
         )
         return bool(files)
@@ -217,26 +217,34 @@ class InternalSearchService(
         chat_only: bool,
         content_ids: list[str] | None,
     ) -> SearchStringResult:
-        # KnowledgeBaseService is intentionally bypassed — it hardcodes chat_id=""
-        # and chat_only=False, losing chat-scope support. We call the underlying
-        # function directly with values resolved from context and state.
-        auth = self._context.auth
+        deps = self._dependencies
         try:
-            chunks = await search_content_chunks_async(
-                user_id=auth.get_confidential_user_id(),
-                company_id=auth.get_confidential_company_id(),
-                chat_id=self._effective_chat_id or "",
-                search_string=query,
-                search_type=self._config.search_type,
-                limit=self._config.limit,
-                reranker_config=self._config.reranker_config,
-                search_language=self._config.search_language,
-                scope_ids=self._config.scope_ids,
-                metadata_filter=metadata_filter,
-                chat_only=chat_only,
-                content_ids=content_ids,
-                score_threshold=self._config.score_threshold,
-            )
+            if chat_only:
+                if deps.chat_service is None:
+                    raise RuntimeError("chat_service is required for chat_only search")
+                chunks = await deps.chat_service.search_content_chunks_async(
+                    search_string=query,
+                    search_type=self._config.search_type,
+                    limit=self._config.limit,
+                    reranker_config=self._config.reranker_config,
+                    search_language=self._config.search_language,
+                    scope_ids=self._config.scope_ids,
+                    metadata_filter=metadata_filter,
+                    content_ids=content_ids,
+                    score_threshold=self._config.score_threshold,
+                )
+            else:
+                chunks = await deps.kb_service.search_content_chunks_async(
+                    search_string=query,
+                    search_type=self._config.search_type,
+                    limit=self._config.limit,
+                    reranker_config=self._config.reranker_config,
+                    search_language=self._config.search_language,
+                    scope_ids=self._config.scope_ids,
+                    metadata_filter=metadata_filter,
+                    content_ids=content_ids,
+                    score_threshold=self._config.score_threshold,
+                )
         except Exception as e:
             self.logger.error("Error in search_content_chunks_async call: %s", e)
             raise
