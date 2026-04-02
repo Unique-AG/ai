@@ -51,6 +51,20 @@ class TodoConfig(BaseToolConfig):
     (Experimental Settings) to customize the agent's task tracking behavior.
     """
 
+    enabled: Annotated[
+        bool,
+        RJSFMetaTag.BooleanWidget.checkbox(
+            help=(
+                "Master switch for task tracking. When disabled, the "
+                "todo_write tool is not registered and none of the other "
+                "settings in this section take effect."
+            ),
+        ),
+    ] = Field(
+        default=False,
+        description="Enable task tracking for the agent.",
+    )
+
     display_name: str = Field(
         default="Progress",
         description="Human-readable label shown in the UI (Steps panel, tool progress).",
