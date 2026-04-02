@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.69.0] - 2026-04-02
+- Todo task tracking: add `TodoWriteTool` for agent-side task tracking with two-phase workflow (clarification → autonomous execution), `system_reminder` on tool responses, structured `debug_info`, and configurable prompts via `TodoConfig`
+- Todo tracking prompts (`system_prompt`, `execution_reminder`) can be overridden from the admin UI for experimentation without code changes
+
 ## [1.68.7] - 2026-04-02
 - Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
 - Update `langchain` optional extra to `>=1.0.0,<2` (was `>=0.3.27,<0.4`) and `langchain-core` to `>=1.0.0,<2`
