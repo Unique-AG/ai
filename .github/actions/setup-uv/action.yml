@@ -1,14 +1,18 @@
 name: 'Setup uv'
-description: 'Sets up Python and uv'
+description: 'Sets up Python and uv, optionally installs package dependencies'
 
 inputs:
   package_dir:
-    description: 'Path to the package directory'
-    required: true
+    description: 'Path to the package directory (required when install_dependencies is true)'
+    required: false
   python_version:
     description: 'Python version to use'
     required: false
-    default: '3.11'
+    default: '3.12'
+  install_dependencies:
+    description: 'Whether to install package dependencies after setting up uv'
+    required: false
+    default: 'true'
 
 runs:
   using: 'composite'
@@ -21,7 +25,7 @@ runs:
     - name: Install uv
       shell: bash
       run: |
-        curl -LsSf https://astral.sh/uv/0.10.8/install.sh | sh
+        curl -LsSf https://astral.sh/uv/0.10.11/install.sh | sh
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
     - name: Print versions
@@ -31,6 +35,7 @@ runs:
         echo "uv version: $(uv --version)"
 
     - name: Install dependencies
+      if: inputs.install_dependencies == 'true'
       shell: bash
       run: |
         REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
@@ -46,8 +51,20 @@ runs:
           # cd into the package dir so uv sync creates .venv there (not at the repo
           # root) and installs the correct package's dependencies.
           cd "$REPO_ROOT/${{ inputs.package_dir }}"
-          UV_NO_SOURCES=1 UV_NO_WORKSPACE=1 uv sync
+          UV_NO_SOURCES=1 UV_NO_WORKSPACE=1 uv sync --locked
           # uv pip install sees the .venv in the current directory (the package dir).
-          uv export --directory "$REPO_ROOT" --only-group dev --no-hashes | uv pip install -r -
+          uv export --directory "$REPO_ROOT" --locked --only-group dev --no-hashes | uv pip install -r -
         fi
 
+    # The workspace root uv.lock requires Python >=3.12. When running on an
+    # older interpreter (e.g. unique_sdk CI on 3.11), every subsequent uv
+    # command (uv run, uv sync) would discover the workspace and fail against
+    # the incompatible lockfile. Setting UV_NO_WORKSPACE globally for the rest
+    # of the job makes all downstream actions use the package-local lockfile.
+    - name: Isolate from workspace on Python <3.12
+      shell: bash
+      run: |
+        if ! python -c "import sys; exit(0 if sys.version_info >= (3, 12) else 1)"; then
+          echo "UV_NO_WORKSPACE=1" >> "$GITHUB_ENV"
+          echo "Python <3.12 detected — set UV_NO_WORKSPACE=1 for all subsequent steps"
+        fi

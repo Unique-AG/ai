@@ -74,7 +74,7 @@ check_dependencies() {
     fi
     
     log_info "Syncing docs dependencies..."
-    uv sync --group docs
+    uv sync --locked --inexact --group docs
     
     log_success "Dependencies OK"
 }

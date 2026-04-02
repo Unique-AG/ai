@@ -37,9 +37,12 @@ runs:
       shell: bash
       run: git fetch origin ${{ inputs.branch }}:${{ inputs.branch }}
 
-    - name: Restore lock file before checkout
+    - name: Restore lock files before checkout
       shell: bash
-      run: git restore uv.lock 2>/dev/null || true
+      run: |
+        git restore uv.lock 2>/dev/null || true
+        git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
+
     - name: Checkout base branch
       shell: bash
       run: git checkout "origin/${{ inputs.branch }}" --quiet
@@ -49,13 +52,14 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
-      run: uv sync
+      run: uv sync --locked
 
     - name: Discard lock file changes
       shell: bash
       run: |
         git restore uv.lock 2>/dev/null || true
-        git clean -f -- uv.lock 2>/dev/null || true
+        git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
+        git clean -f -- uv.lock "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
 
     - name: Create baseline
       shell: bash

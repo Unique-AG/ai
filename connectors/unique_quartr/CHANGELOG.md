@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.7] - 2026-03-31
 - Docs: replace Poetry references with uv equivalents in README
+
 ## [0.2.6] - 2026-03-06
 - Build: migrate from Poetry to uv
 - Bump unique-toolkit to >=1.50.4

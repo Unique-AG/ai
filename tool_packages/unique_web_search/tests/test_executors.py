@@ -806,8 +806,8 @@ class TestWebSearchV3ExecutorExecuteSearchStep:
             ]
         )
         mock_executor_dependencies["chunk_relevancy_sort_config"].enabled = False
-        mock_executor_dependencies["content_reducer"].side_effect = lambda chunks: (
-            chunks
+        mock_executor_dependencies["content_reducer"].side_effect = (
+            lambda chunks: chunks
         )
         # Base executor always calls chunk_relevancy_sorter when present; pass chunks through.
         mock_executor_dependencies["chunk_relevancy_sorter"].run = AsyncMock(
