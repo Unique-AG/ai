@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `ReasoningEffort` `Literal` type and helpers `to_reasoning_effort` / `reasoning_effort_to_openai` in `schemas.py`; the OpenAI SDK type is outdated (missing `xhigh`/`none`) so we define our own.
 - Fix: `reasoning_effort` validation, default application, and temperature clamping are now applied in the Chat Completions path (`functions.py`) — previously only the Responses API path did this.
 - Fix `responses_api`: preserve extra `Reasoning` fields (`summary`, `generate_summary`) when updating `effort`; strip `effort` from the dict when a non-reasoning model drops it.
+## [1.68.6] - 2026-04-02
+- Adding `uploaded_files` and `selected_uploaded_files` to additional parameters in payload
+- Feature flag `FEATURE_FLAG_SELECTED_UPLOADED_FILES_UN_18470` added
+
 ## [1.68.5] - 2026-04-01
 - Code interpreter (UN-17972): restore `htmlWithSource` fences for HTML when code-execution fence FF is on (legacy `HtmlRendering` path only when fence FF is off and HTML rendering FF is on)
 - Extend fence regexes and `_get_next_fence_id` for `htmlWithSource`; include HTML in unmatched-code-block warnings when fences are used

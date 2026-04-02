@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from enum import StrEnum
 from logging import getLogger
@@ -46,7 +48,7 @@ class BaseEvent(BaseModel, Generic[FilterOptionsT]):
     company_id: str
 
     @classmethod
-    def from_json_file(cls, file_path: Path) -> "BaseEvent":
+    def from_json_file(cls, file_path: Path) -> BaseEvent:
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         with file_path.open("r", encoding="utf-8") as f:
@@ -162,12 +164,32 @@ class EventAssistantMessage(ChatEventAssistantMessage):
     pass
 
 
+class UploadedFileInfo(BaseModel):
+    """Describes a file attached to the chat"""
+
+    model_config = model_config
+
+    id: str
+    title: str = ""
+    mime_type: str = ""
+
+
 class ChatEventAdditionalParameters(BaseModel):
     model_config = model_config
 
     translate_to_language: Optional[str] = None
     content_id_to_translate: Optional[str] = None
     user_space_instructions: str
+    uploaded_files: list[UploadedFileInfo] = Field(default_factory=list)
+    selected_uploaded_files: list[UploadedFileInfo] = Field(default_factory=list)
+
+    @property
+    def uploaded_file_ids(self) -> list[str]:
+        return [f.id for f in self.uploaded_files]
+
+    @property
+    def selected_uploaded_file_ids(self) -> list[str]:
+        return [f.id for f in self.selected_uploaded_files]
 
 
 @deprecated(
@@ -263,7 +285,7 @@ class ChatEvent(BaseEvent):
     version: Optional[str] = None
 
     @classmethod
-    def from_json_file(cls, file_path: Path) -> "ChatEvent":
+    def from_json_file(cls, file_path: Path) -> ChatEvent:
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         with file_path.open("r", encoding="utf-8") as f:
@@ -326,7 +348,7 @@ class Event(ChatEvent):
     # payload: EventPayload
 
     @classmethod
-    def from_json_file(cls, file_path: Path) -> "Event":
+    def from_json_file(cls, file_path: Path) -> Event:
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         with file_path.open("r", encoding="utf-8") as f:
