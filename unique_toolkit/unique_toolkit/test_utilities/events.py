@@ -92,11 +92,15 @@ class TestEventFactory:
         translate_to_language: str | None = None,
         content_id_to_translate: str | None = None,
         user_space_instructions: str = "",
+        uploaded_files: list[str] | None = None,
+        selected_uploaded_files: list[str] | None = None,
     ) -> ChatEventAdditionalParameters:
         return ChatEventAdditionalParameters(
             translate_to_language=translate_to_language,
             content_id_to_translate=content_id_to_translate,
             user_space_instructions=user_space_instructions,
+            uploaded_files=uploaded_files or [],
+            selected_uploaded_files=selected_uploaded_files or [],
         )
 
     def get_base_event(

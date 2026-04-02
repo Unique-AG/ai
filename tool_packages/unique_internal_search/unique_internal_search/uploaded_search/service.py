@@ -43,8 +43,12 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             config, event, None, *args, **kwargs
         )
         self._internal_search_tool._display_name = self._display_name
+        self._selected_uploaded_files: list[str] = []
         if isinstance(event, ChatEvent):
             self._user_query = event.payload.user_message.text
+            additional = event.payload.additional_parameters
+            if additional and additional.selected_uploaded_files:
+                self._selected_uploaded_files = additional.selected_uploaded_files
         else:
             self._user_query = None
 
@@ -73,6 +77,12 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
 
     def tool_description_for_system_prompt(self) -> str:
         documents = self._content_service.get_documents_uploaded_to_chat()
+        if (
+            feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(self._company_id)
+            and self._selected_uploaded_files
+        ):
+            selected_ids = set(self._selected_uploaded_files)
+            documents = [doc for doc in documents if doc.id in selected_ids]
         now = datetime.now(timezone.utc)
 
         valid_documents = [

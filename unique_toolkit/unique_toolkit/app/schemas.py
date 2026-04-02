@@ -168,6 +168,8 @@ class ChatEventAdditionalParameters(BaseModel):
     translate_to_language: Optional[str] = None
     content_id_to_translate: Optional[str] = None
     user_space_instructions: str
+    uploaded_files: list[str] = Field(default_factory=list)
+    selected_uploaded_files: list[str] = Field(default_factory=list)
 
 
 @deprecated(

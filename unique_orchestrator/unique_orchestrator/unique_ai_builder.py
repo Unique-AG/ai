@@ -67,6 +67,7 @@ from unique_toolkit.agentic.tools.tool_manager import (
     ToolManager,
     ToolManagerConfig,
 )
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.tool_progress_reporter import ToolProgressReporter
 from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
@@ -177,6 +178,13 @@ def _build_common(
     content_service = ContentService.from_event(event)
 
     uploaded_documents = content_service.get_documents_uploaded_to_chat()
+    if feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(event.company_id):
+        additional = event.payload.additional_parameters
+        if additional and additional.selected_uploaded_files:
+            selected_ids = set(additional.selected_uploaded_files)
+            uploaded_documents = [
+                doc for doc in uploaded_documents if doc.id in selected_ids
+            ]
 
     response_watcher = SubAgentResponseWatcher()
 

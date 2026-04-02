@@ -87,6 +87,11 @@ class FeatureFlags(BaseSettings):
         description="Enable argument screening agent for web search tool calls (UN-18741). Can be 'true' or comma-separated company IDs.",
     )
 
+    enable_selected_uploaded_files_un_18470: FeatureFlag = Field(
+        default=FeatureFlag(False),
+        description="Use selected_uploaded_files from event payload instead of querying uploaded files from the backend. Can be 'true' or comma-separated company IDs.",
+    )
+
     model_config = SettingsConfigDict(
         extra="ignore",
         env_prefix="FEATURE_FLAG_",
