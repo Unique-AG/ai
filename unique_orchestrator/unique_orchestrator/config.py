@@ -269,12 +269,17 @@ class UniqueAIServices(BaseToolConfig):
         return evaluation_config
 
 
-class InputTokenDistributionConfig(BaseToolConfig):
+class HistoryConfig(BaseToolConfig):
     percent_for_history: float = Field(
         default=0.2,
         ge=0.0,
         lt=1.0,
         description="The fraction of the max input tokens that will be reserved for the history.",
+    )
+
+    enable_tool_call_persistence: bool = Field(
+        default=False,
+        description="Persist tool calls and reconstruct tool call history across turns.",
     )
 
     def max_history_tokens(self, max_input_token: int) -> int:
@@ -354,9 +359,10 @@ class UniqueAIAgentConfig(BaseToolConfig):
         int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
     ] = 5
 
-    input_token_distribution: InputTokenDistributionConfig = Field(
-        default=InputTokenDistributionConfig(),
-        description="The distribution of the input tokens.",
+    input_token_distribution: HistoryConfig = Field(
+        default=HistoryConfig(),
+        title="Loop History",
+        description="Configuration for loop history.",
     )
 
     prompt_config: UniqueAIPromptConfig = UniqueAIPromptConfig()

@@ -2,7 +2,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from unique_internal_search.uploaded_search.service import UploadedSearchTool
-from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
@@ -246,13 +245,16 @@ def test_configure_file_payload_preserves_tool_call_persistence_and_language_mod
     tool_manager = MagicMock()
     config = UniqueAIConfig(
         agent={
+            "input_token_distribution": {
+                "enable_tool_call_persistence": True,
+            },
             "experimental": {
                 "responses_api_config": {"use_responses_api": True},
                 "open_file_tool_config": OpenFileToolConfig(
                     enabled=True,
                     send_uploaded_files_in_payload=True,
                 ),
-            }
+            },
         }
     )
     language_model = config.space.language_model
@@ -277,11 +279,6 @@ def test_configure_file_payload_preserves_tool_call_persistence_and_language_mod
     monkeypatch.setattr(
         "unique_orchestrator._builders.open_file_setup.HistoryManager",
         _FakeHistoryManager,
-    )
-    monkeypatch.setattr(
-        feature_flags.enable_tool_call_persistence_un_15977,
-        "is_enabled",
-        lambda company_id: company_id == event.company_id,
     )
 
     updated_history_manager, agent_file_registry = configure_file_payload(

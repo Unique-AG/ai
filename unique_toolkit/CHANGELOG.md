@@ -6,11 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.68.4] - 2026-04-01
+- Removing feature flag for tool call persistence (`FEATURE_FLAG_ENABLE_TOOL_CALL_PERSISTENCE_UN_15977`)
 - Code interpreter (UN-17972): restore `htmlWithSource` fences for HTML when code-execution fence FF is on (legacy `HtmlRendering` path only when fence FF is off and HTML rendering FF is on)
 - Extend fence regexes and `_get_next_fence_id` for `htmlWithSource`; include HTML in unmatched-code-block warnings when fences are used
+- 
 ## [1.68.3] - 2026-04-01
 - `DDMetadata`: add `rerun` (optional bool, default false), aligned with `MagicTableMetadata` in node-chat; accepts legacy `Rerun` key via `validation_alias`
-
+- 
 ## [1.68.2] - 2026-04-01
 - Chore: uv `exclude-newer` (2 weeks) and lockfile refresh
 
