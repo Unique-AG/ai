@@ -5,17 +5,19 @@ from datetime import date
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated, Any, Callable, ClassVar, Optional, Self, cast
+from typing import Annotated, Any, Callable, ClassVar, Optional, Self
 
 import tiktoken
-from openai.types.shared_params import ReasoningEffort
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 from tokenizers import Tokenizer
 from typing_extensions import deprecated
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
-from unique_toolkit.language_model.schemas import LanguageModelTokenLimits
+from unique_toolkit.language_model.schemas import (
+    LanguageModelTokenLimits,
+    ReasoningEffort,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -381,12 +383,12 @@ class LanguageModelInfo(BaseModel):
                     supported_efforts,
                     fallback_effort,
                 )
-                reasoning_effort = cast(ReasoningEffort, fallback_effort)
+                reasoning_effort = fallback_effort
                 wants_active_reasoning = True
 
         # --- Scenario 3: active reasoning forces temperature to 1.0 ---
         if wants_active_reasoning:
-            return 1.0, cast(ReasoningEffort, reasoning_effort)
+            return 1.0, reasoning_effort
 
         # --- No reasoning: clamp temperature to model bounds ---
         # Fall back to the OpenAI-documented global range [0, 2] for models without
@@ -406,9 +408,7 @@ class LanguageModelInfo(BaseModel):
                 hi,
                 self.name,
             )
-        return round(max(lo, min(hi, temperature)), 2), cast(
-            ReasoningEffort, reasoning_effort
-        ) if reasoning_effort is not None else None
+        return round(max(lo, min(hi, temperature)), 2), reasoning_effort
 
     @classmethod
     @lru_cache(maxsize=1)
