@@ -17,6 +17,7 @@ from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.language_model.schemas import (
     LanguageModelTokenLimits,
     ReasoningEffort,
+    to_reasoning_effort,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -349,6 +350,11 @@ class LanguageModelInfo(BaseModel):
         Returns (resolved_temperature, resolved_reasoning_effort).
         """
 
+        reasoning_effort: ReasoningEffort | None = (
+            to_reasoning_effort(reasoning_effort)
+            if reasoning_effort is not None
+            else None
+        )
         is_reasoning_effort_set = reasoning_effort is not None
         wants_active_reasoning = (
             reasoning_effort is not None and reasoning_effort != "none"
