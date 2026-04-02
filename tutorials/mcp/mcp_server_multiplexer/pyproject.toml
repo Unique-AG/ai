@@ -1,11 +1,11 @@
 [project]
 name = "mcp-server-multiplexer"
-version = "0.1.0"
+version = "0.1.1"
 description = "Dynamic MCP server multiplexer — host multiple MCP servers under one process with modular routing"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastmcp>=2.3.2",
+    "fastmcp>=3.1.1,<4",
     "pyyaml",
     "uvicorn",
     "starlette",
@@ -17,3 +17,6 @@ serve = "mcp_server_multiplexer.app:main"
 [build-system]
 requires = ["uv_build>=0.8.14,<0.9.0"]
 build-backend = "uv_build"
+
+[tool.uv]
+exclude-newer = "2 weeks"

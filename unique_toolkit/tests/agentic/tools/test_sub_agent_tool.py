@@ -132,7 +132,7 @@ class TestSubAgentToolInitialization:
         )
 
         # Assert
-        assert tool.tool_progress_reporter == mock_progress_reporter
+        assert tool._tool_progress_reporter == mock_progress_reporter
 
 
 class TestSubAgentToolDescription:
@@ -833,6 +833,151 @@ class TestSubAgentToolRun:
         # Last call should be FAILED status
         last_call = calls[-1]
         assert last_call.kwargs["status"] == MessageLogStatus.FAILED
+
+
+class TestSubAgentToolDebugInfo:
+    """Test suite for debug info in tool call responses."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__includes_debug_info__with_chat_id_assistant_id_display_name_AI(
+        self,
+        mock_sub_agent_config: SubAgentToolConfig,
+        mock_chat_event: ChatEvent,
+    ) -> None:
+        """
+        Purpose: Verify run() includes chat_id, assistant_id, and display_name in debug_info.
+        Why this matters: Debug info is surfaced on the parent message for tracing subagent executions.
+        Setup summary: Mock dependencies, execute run, verify debug_info fields on the response.
+        """
+        # Arrange
+        mock_response_watcher = Mock()
+        mock_response_watcher.notify_response = Mock()
+
+        tool = SubAgentTool(
+            configuration=mock_sub_agent_config,
+            event=mock_chat_event,
+            name="TestSubAgent",
+            display_name="Test Sub Agent",
+            response_watcher=mock_response_watcher,
+        )
+
+        tool._message_step_logger = Mock()
+        tool._message_step_logger.create_or_update_message_log = Mock(
+            return_value=Mock()
+        )
+
+        tool_call = LanguageModelFunction(
+            id="call_123",
+            name="TestSubAgent",
+            arguments={"user_message": "test message"},
+        )
+
+        mock_response = {
+            "text": "Sub agent response",
+            "assessment": None,
+            "chatId": "sub_agent_chat_999",
+            "references": None,
+        }
+
+        with (
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
+                return_value=True,
+            ),
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
+                new_callable=AsyncMock,
+                return_value=mock_response,
+            ),
+            patch.object(
+                tool, "_get_chat_id", new_callable=AsyncMock, return_value=None
+            ),
+            patch.object(
+                tool, "_save_chat_id", new_callable=AsyncMock, return_value=None
+            ),
+        ):
+            # Act
+            response = await tool.run(tool_call)
+
+            # Assert
+            assert response.debug_info is not None
+            assert response.debug_info["chat_id"] == "sub_agent_chat_999"
+            assert response.debug_info["assistant_id"] == "sub_agent_assistant_123"
+            assert response.debug_info["display_name"] == "Test Sub Agent"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_run__debug_info_chat_id_matches_response__when_reusing_existing_chat_AI(
+        self,
+        mock_chat_event: ChatEvent,
+    ) -> None:
+        """
+        Purpose: Verify debug_info chat_id comes from the SDK response even when a pre-existing chat was reused.
+        Why this matters: The response chatId is the authoritative source regardless of reuse.
+        Setup summary: Configure reuse_chat with existing chat_id, verify debug_info uses response chatId.
+        """
+        # Arrange
+        config = SubAgentToolConfig(
+            assistant_id="sub_agent_assistant_456",
+            tool_description="A test sub agent tool",
+            tool_description_for_system_prompt="",
+            tool_format_information_for_system_prompt="",
+            tool_description_for_user_prompt="",
+            tool_format_information_for_user_prompt="",
+            param_description_sub_agent_user_message="Message",
+            reuse_chat=True,
+            chat_id="existing_chat_id",
+        )
+
+        mock_response_watcher = Mock()
+        mock_response_watcher.notify_response = Mock()
+
+        tool = SubAgentTool(
+            configuration=config,
+            event=mock_chat_event,
+            name="ReusableAgent",
+            display_name="Reusable Agent",
+            response_watcher=mock_response_watcher,
+        )
+
+        tool._message_step_logger = Mock()
+        tool._message_step_logger.create_or_update_message_log = Mock(
+            return_value=Mock()
+        )
+
+        tool_call = LanguageModelFunction(
+            id="call_456",
+            name="ReusableAgent",
+            arguments={"user_message": "test"},
+        )
+
+        mock_response = {
+            "text": "Response from reused chat",
+            "assessment": None,
+            "chatId": "existing_chat_id",
+            "references": None,
+        }
+
+        with (
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.feature_flags.enable_new_answers_ui_un_14411.is_enabled",
+                return_value=True,
+            ),
+            patch(
+                "unique_toolkit.agentic.tools.a2a.tool.service.send_message_and_wait_for_completion",
+                new_callable=AsyncMock,
+                return_value=mock_response,
+            ),
+        ):
+            # Act
+            response = await tool.run(tool_call)
+
+            # Assert
+            assert response.debug_info is not None
+            assert response.debug_info["chat_id"] == "existing_chat_id"
+            assert response.debug_info["assistant_id"] == "sub_agent_assistant_456"
+            assert response.debug_info["display_name"] == "Reusable Agent"
 
 
 class TestSubAgentToolEvaluation:

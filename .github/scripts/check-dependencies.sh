@@ -33,7 +33,7 @@ OPTIONS:
     -h, --help           Show this help message and exit
     -v, --version        Show version information and exit
     -b, --base BRANCH    Base branch to compare against (default: main)
-    -r, --runner CMD     Command executor prefix (e.g., "poetry run" or "uv run", default: auto-detect)
+    -r, --runner CMD     Command executor prefix (default: "uv run")
 
 EXAMPLES:
     # Basic usage
@@ -42,8 +42,8 @@ EXAMPLES:
     # Compare against different base branch
     ${SCRIPT_NAME} -b develop unique_mcp
 
-    # Specify runner
-    ${SCRIPT_NAME} -r "poetry run" unique_toolkit
+    # Specify runner explicitly
+    ${SCRIPT_NAME} -r "uv run" unique_toolkit
 
 EXIT CODES:
     0    No new dependency issues found
@@ -191,18 +191,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Auto-detect runner if not specified
 if [ -z "$RUNNER" ]; then
-    if [ -f "$PACKAGE_DIR/pyproject.toml" ]; then
-        # Check if it uses uv (has uv_build in build-system)
-        if grep -q "uv_build" "$PACKAGE_DIR/pyproject.toml" 2>/dev/null; then
-            RUNNER="uv run"
-        elif [ -f "$PACKAGE_DIR/poetry.lock" ] || grep -q "poetry" "$PACKAGE_DIR/pyproject.toml" 2>/dev/null; then
-            RUNNER="poetry run"
-        else
-            RUNNER="uv run"  # Default to uv
-        fi
-    else
-        RUNNER="uv run"  # Default to uv
-    fi
+    RUNNER="uv run"
 fi
 
 # Check if we're in a git repository

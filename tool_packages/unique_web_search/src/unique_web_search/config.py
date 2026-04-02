@@ -20,6 +20,7 @@ from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_web_search.prompts import (
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
 )
+from unique_web_search.services.argument_screening import ArgumentScreeningConfig
 from unique_web_search.services.content_processing.config import (
     ContentProcessorConfig,
 )
@@ -60,6 +61,35 @@ DefaultCrawler = get_default_crawler_config(env_settings.active_crawlers)
 DEFAULT_WEB_SEARCH_MODE_CONFIG = get_default_web_search_mode_config()
 
 
+class ToolResponseSystemReminderConfig(BaseModel):
+    model_config = get_configuration_dict()
+
+    enabled: bool = Field(
+        default=False,
+        title="Enable Tool Response Reminder",
+        description="When enabled, attach reminder text to each successful WebSearch tool response (independent of system-prompt citation instructions).",
+    )
+    system_reminder_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(
+            rows=int(
+                len(DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT.split("\n")) / 3
+            )
+        ),
+    ] = Field(
+        default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
+        title="Tool Response System Reminder Prompt",
+        description="Text sent as system_reminder on WebSearch tool responses when the reminder is enabled.",
+    )
+
+    @property
+    def get_reminder_prompt(self):
+        if not self.enabled:
+            return ""
+
+        return self.system_reminder_prompt
+
+
 class AnswerGenerationConfig(BaseModel):
     model_config = get_configuration_dict()
 
@@ -82,6 +112,16 @@ class ExperimentalFeatures(FeatureExtendedSourceSerialization):
         default_factory=QueryElicitationConfig,
         title="Query Review",
         description="Allow users to review and modify search queries before execution.",
+    )
+    tool_response_system_reminder: ToolResponseSystemReminderConfig = Field(
+        default_factory=ToolResponseSystemReminderConfig,
+        title="Tool Response System Reminder",
+        description="Optional reminder text attached to each successful WebSearch tool response.",
+    )
+    argument_screening_config: ArgumentScreeningConfig = Field(
+        default_factory=ArgumentScreeningConfig,
+        title="Argument Screening",
+        description="LLM-based screening of tool call arguments for sensitive information before execution. Requires the feature flag FEATURE_FLAG_ENABLE_WEB_SEARCH_ARGUMENT_SCREENING_UN_18741 to be activated.",
     )
 
 
@@ -183,7 +223,7 @@ class WebSearchConfig(BaseToolConfig):
         ),
     ] = Field(
         default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
-        title="Source Citation Instructions",
+        title="Tool Format Information For System Prompt",
         description="Advanced: Instructions that tell the AI how to cite web search sources in its answers.",
     )
 

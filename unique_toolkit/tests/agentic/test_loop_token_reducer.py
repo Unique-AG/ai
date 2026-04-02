@@ -596,12 +596,47 @@ def test_create_reduced_standard_sources_message__formats_sources_correctly_AI(
     content_dict = json.loads(content)
     assert len(content_dict) == 2
     assert content_dict[0]["source_number"] == 5
+    assert content_dict[0]["content_id"] == "cont_test123"
     assert content_dict[0]["content"] == "First chunk text"
     assert content_dict[1]["source_number"] == 6
+    assert content_dict[1]["content_id"] == "cont_test123"
     assert content_dict[1]["content"] == "Second chunk text"
 
 
 @pytest.mark.ai
+def test_create_reduced_standard_sources_message__preserves_readable_unicode_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify reduced source messages keep multilingual text readable.
+    Why this matters: Token reduction should not reintroduce escaped Unicode in tool content.
+    """
+    original_message = create_tool_message("tool_1", "TestTool", "original")
+    chunks = [
+        create_content_chunk("chunk_1", 'ページ名 "quoted"'),
+        create_content_chunk("chunk_2", "مرحبا 😀"),
+    ]
+
+    result = loop_token_reducer._create_reduced_standard_sources_message(
+        message=original_message,
+        content_chunks=chunks,
+        source_offset=2,
+    )
+
+    content = result.content
+    assert isinstance(content, str)
+    assert "ページ名" in content
+    assert "مرحبا" in content
+    assert "😀" in content
+    assert "\\u30da" not in content
+
+    content_dict = json.loads(content)
+    assert content_dict[0]["source_number"] == 2
+    assert content_dict[0]["content"] == 'ページ名 "quoted"'
+    assert content_dict[1]["source_number"] == 3
+    assert content_dict[1]["content"] == "مرحبا 😀"
+
+
 def test_create_reduced_table_search_message__preserves_sql_content_AI(
     loop_token_reducer: LoopTokenReducer,
 ) -> None:
@@ -627,6 +662,39 @@ def test_create_reduced_table_search_message__preserves_sql_content_AI(
     content_dict = json.loads(content)
     assert content_dict["source_number"] == 0
     assert content_dict["content"] == "SELECT * FROM users"
+
+
+@pytest.mark.ai
+def test_create_reduced_table_search_message__preserves_readable_unicode_AI(
+    loop_token_reducer: LoopTokenReducer,
+) -> None:
+    """
+    Purpose: Verify reduced TableSearch messages keep non-ASCII content readable.
+    Why this matters: TableSearch reduction serializes tool content separately from chunk history.
+    """
+    table_content = {
+        "content": "ページ名 / マーケティングタグ / مرحبا 😀",
+        "other_field": "value",
+    }
+    original_message = create_tool_message("tool_1", "TableSearch", table_content)
+    chunk = create_content_chunk("chunk_1", "table result")
+
+    result = loop_token_reducer._create_reduced_table_search_message(
+        message=original_message,
+        content_chunks=[chunk],
+        source_offset=4,
+    )
+
+    content = result.content
+    assert isinstance(content, str)
+    assert "ページ名" in content
+    assert "مرحبا" in content
+    assert "😀" in content
+    assert "\\u30da" not in content
+
+    content_dict = json.loads(content)
+    assert content_dict["source_number"] == 4
+    assert content_dict["content"] == "ページ名 / マーケティングタグ / مرحبا 😀"
 
 
 @pytest.mark.ai
@@ -1091,7 +1159,7 @@ def test_get_encoder__uses_model_get_encoder_AI(
 # Integration-style Tests (still unit tests but test larger flows)
 @pytest.mark.ai
 @patch(
-    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls"
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
 )
 @patch.object(LoopTokenReducer, "_count_message_tokens")
 async def test_get_history_for_model_call__returns_messages__when_under_limit_AI(
@@ -1128,7 +1196,7 @@ async def test_get_history_for_model_call__returns_messages__when_under_limit_AI
 
 @pytest.mark.ai
 @patch(
-    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls"
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
 )
 @patch.object(LoopTokenReducer, "_count_message_tokens")
 async def test_get_history_for_model_call__appends_image_urls_to_user_message__when_provided_AI(
@@ -1178,136 +1246,104 @@ async def test_get_history_for_model_call__appends_image_urls_to_user_message__w
     )
 
 
-def _make_tool_call_round(
-    round_id: str,
-    tool_content: str = "tool result",
-) -> list[LanguageModelMessage]:
-    """Create a tool call round: ASSISTANT(tool_calls) + TOOL message."""
-    fn = LanguageModelFunction(name=f"tool_{round_id}", arguments={})
-    fn_call = LanguageModelFunctionCall(id=f"tc_{round_id}", function=fn)
-    return [
-        LanguageModelAssistantMessage(content=None, tool_calls=[fn_call]),
-        LanguageModelToolMessage(
-            tool_call_id=f"tc_{round_id}",
-            content=tool_content,
-            name=f"tool_{round_id}",
-        ),
-    ]
-
-
+# Feature flag path tests
 @pytest.mark.ai
-def test_limit_tool_call_tokens__keeps_all_rounds__when_budget_sufficient_AI(
-    loop_token_reducer: LoopTokenReducer,
+@patch(
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
+)
+@patch.object(LoopTokenReducer, "_count_message_tokens")
+async def test_get_history_from_db__calls_without_tool_calls__when_persistence_disabled_AI(
+    mock_count_tokens: "Mock",
+    mock_get_history: "Mock",
+    mock_logger: Logger,
+    test_event: ChatEvent,
+    mock_reference_manager: ReferenceManager,
+    language_model_info: LanguageModelInfo,
 ) -> None:
-    """All tool call rounds fit within budget -- nothing is dropped."""
-    round1 = _make_tool_call_round("1", "short")
-    round2 = _make_tool_call_round("2", "short")
-    user_msg = LanguageModelUserMessage(content="question")
-    messages: list[LanguageModelMessage] = [user_msg] + round1 + round2
-
-    result = loop_token_reducer._limit_tool_call_tokens(messages, budget=100_000)
-
-    assert result == messages
-
-
-@pytest.mark.ai
-def test_limit_tool_call_tokens__drops_oldest_round__when_budget_tight_AI(
-    loop_token_reducer: LoopTokenReducer,
-) -> None:
-    """When total tool tokens exceed budget, oldest rounds are dropped first."""
-    round1 = _make_tool_call_round("old", "old content " * 200)
-    round2 = _make_tool_call_round("new", "new content")
-    user_msg = LanguageModelUserMessage(content="question")
-    messages: list[LanguageModelMessage] = [user_msg] + round1 + round2
-
-    round2_tokens = sum(
-        loop_token_reducer._count_message_tokens(LanguageModelMessages(root=[m]))
-        for m in round2
+    """
+    Purpose: Verify get_history_from_db calls get_full_history_with_contents (not the tool-call
+        variant) when enable_tool_call_persistence=False.
+    Why this matters: With the flag off, we must avoid the DB round-trip that loads ToolCall
+        records, keeping the code path identical to before the feature was introduced.
+    Setup summary: LoopTokenReducer constructed with enable_tool_call_persistence=False;
+        assert get_full_history_with_contents is called once.
+    """
+    reducer = LoopTokenReducer(
+        logger=mock_logger,
+        event=test_event,
+        max_history_tokens=4000,
+        has_uploaded_content_config=False,
+        reference_manager=mock_reference_manager,
+        language_model=language_model_info,
+        enable_tool_call_persistence=False,
     )
-    budget = round2_tokens + 5
+    mock_get_history.return_value = LanguageModelMessages(
+        root=[LanguageModelUserMessage(content="hello")]
+    )
+    mock_count_tokens.return_value = 100
 
-    result = loop_token_reducer._limit_tool_call_tokens(messages, budget=budget)
+    async def noop(text: str) -> str:
+        return text
 
-    assert user_msg in result
-    for m in round2:
-        assert m in result
-    for m in round1:
-        assert m not in result
-
-
-@pytest.mark.ai
-def test_limit_tool_call_tokens__preserves_non_tool_messages__when_dropping_rounds_AI(
-    loop_token_reducer: LoopTokenReducer,
-) -> None:
-    """Non-tool-call messages (USER, plain ASSISTANT) are never dropped."""
-    user1 = LanguageModelUserMessage(content="first question")
-    assistant1 = LanguageModelAssistantMessage(content="prose answer")
-    round1 = _make_tool_call_round("old", "big payload " * 200)
-    user2 = LanguageModelUserMessage(content="second question")
-    round2 = _make_tool_call_round("new", "small")
-
-    messages: list[LanguageModelMessage] = (
-        [user1, assistant1] + round1 + [user2] + round2
+    await reducer.get_history_for_model_call(
+        original_user_message="hello",
+        rendered_user_message_string="hello",
+        rendered_system_message_string="system",
+        loop_history=[],
+        remove_from_text=noop,
     )
 
-    round2_tokens = sum(
-        loop_token_reducer._count_message_tokens(LanguageModelMessages(root=[m]))
-        for m in round2
+    mock_get_history.assert_called_once()
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls"
+)
+@patch.object(LoopTokenReducer, "_count_message_tokens")
+async def test_get_history_from_db__calls_with_tool_calls__when_persistence_enabled_AI(
+    mock_count_tokens: "Mock",
+    mock_get_history: "Mock",
+    mock_logger: Logger,
+    test_event: ChatEvent,
+    mock_reference_manager: ReferenceManager,
+    language_model_info: LanguageModelInfo,
+) -> None:
+    """
+    Purpose: Verify get_history_from_db calls get_full_history_with_contents_and_tool_calls
+        when enable_tool_call_persistence=True.
+    Why this matters: With the flag on, prior-turn tool call records must be loaded from the
+        DB so that source numbering can continue from where the last turn left off.
+    Setup summary: LoopTokenReducer constructed with enable_tool_call_persistence=True;
+        assert get_full_history_with_contents_and_tool_calls is called and max_db_source_number
+        is populated from its return value.
+    """
+    reducer = LoopTokenReducer(
+        logger=mock_logger,
+        event=test_event,
+        max_history_tokens=4000,
+        has_uploaded_content_config=False,
+        reference_manager=mock_reference_manager,
+        language_model=language_model_info,
+        enable_tool_call_persistence=True,
     )
-    budget = round2_tokens + 5
+    mock_get_history.return_value = (
+        LanguageModelMessages(root=[LanguageModelUserMessage(content="hello")]),
+        5,
+        {},
+    )
+    mock_count_tokens.return_value = 100
 
-    result = loop_token_reducer._limit_tool_call_tokens(messages, budget=budget)
+    async def noop(text: str) -> str:
+        return text
 
-    assert user1 in result
-    assert assistant1 in result
-    assert user2 in result
+    await reducer.get_history_for_model_call(
+        original_user_message="hello",
+        rendered_user_message_string="hello",
+        rendered_system_message_string="system",
+        loop_history=[],
+        remove_from_text=noop,
+    )
 
-
-@pytest.mark.ai
-def test_limit_tool_call_tokens__keeps_at_least_one_round__when_single_exceeds_budget_AI(
-    loop_token_reducer: LoopTokenReducer,
-) -> None:
-    """Even if the most recent round alone exceeds the budget, it is kept."""
-    round1 = _make_tool_call_round("only", "huge content " * 500)
-    messages: list[LanguageModelMessage] = list(round1)
-
-    result = loop_token_reducer._limit_tool_call_tokens(messages, budget=10)
-
-    assert len(result) == len(round1)
-    for m in round1:
-        assert m in result
-
-
-@pytest.mark.ai
-def test_limit_tool_call_tokens__noop__when_no_tool_rounds_AI(
-    loop_token_reducer: LoopTokenReducer,
-) -> None:
-    """If there are no tool call rounds, messages are returned unchanged."""
-    messages: list[LanguageModelMessage] = [
-        LanguageModelUserMessage(content="question"),
-        LanguageModelAssistantMessage(content="answer"),
-    ]
-
-    result = loop_token_reducer._limit_tool_call_tokens(messages, budget=10)
-
-    assert result == messages
-
-
-@pytest.mark.ai
-def test_limit_tool_call_tokens__drops_all_rounds__when_budget_zero_AI(
-    loop_token_reducer: LoopTokenReducer,
-) -> None:
-    """Budget of 0 removes all tool-call rounds but preserves other messages."""
-    user_msg = LanguageModelUserMessage(content="question")
-    assistant_msg = LanguageModelAssistantMessage(content="thinking out loud")
-    round1 = _make_tool_call_round("first", "content one")
-    round2 = _make_tool_call_round("second", "content two")
-
-    messages: list[LanguageModelMessage] = [user_msg, assistant_msg] + round1 + round2
-
-    result = loop_token_reducer._limit_tool_call_tokens(messages, budget=0)
-
-    assert user_msg in result
-    assert assistant_msg in result
-    for m in round1 + round2:
-        assert m not in result
+    mock_get_history.assert_called_once()
+    assert reducer.max_db_source_number == 5

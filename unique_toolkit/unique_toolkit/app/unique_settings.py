@@ -334,7 +334,10 @@ class UniqueApi(BaseSettings):
             base_path = "/public/chat-gen2"
 
         if parsed.hostname and (
-            "localhost" in parsed.hostname or "svc.cluster.local" in parsed.hostname
+            "localhost" in parsed.hostname
+            or "svc.cluster.local" in parsed.hostname
+            or ".svc." in parsed.hostname
+            or parsed.hostname.endswith(".svc")
         ):
             base_path = "/public"
 
@@ -629,6 +632,18 @@ class UniqueSettings:
         # keeps working for callers that haven't migrated yet.
         self._context = UniqueContext(
             auth=UniqueAuth.from_event(event), chat=self._context.chat
+        )
+
+    # utility method to return a copy with new auth context
+    def with_auth(self, auth: AuthContextProtocol) -> Self:
+        """Return a copy of the settings with the new auth context."""
+        return self.__class__(
+            auth=auth,
+            app=self.app,
+            api=self.api,
+            chat_event_filter_options=self.chat_event_filter_options,
+            chat=self._context.chat,
+            env_file=self._env_file,
         )
 
     @property

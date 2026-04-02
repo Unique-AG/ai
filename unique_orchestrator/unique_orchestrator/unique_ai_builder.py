@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
 from logging import Logger
-from typing import NamedTuple, cast
+from typing import Any, NamedTuple, cast
 
 from openai import AsyncOpenAI
+from typing_extensions import override
 from unique_follow_up_questions.follow_up_postprocessor import (
     FollowUpPostprocessor,
 )
@@ -71,11 +72,48 @@ from unique_toolkit.app.schemas import ChatEvent, McpServer
 from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import Content
 from unique_toolkit.content.service import ContentService
+from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
 from unique_orchestrator._builders import build_loop_iteration_runner
+from unique_orchestrator._builders.open_file_setup import (
+    configure_file_payload,
+    handle_uploaded_file_tool_choices,
+)
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
+
+
+class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
+    """Streaming handler for Responses API runs.
+
+    Injects `include` params from the tool manager on every call so the
+    orchestrator loop stays generic (no isinstance checks in UniqueAI).
+    """
+
+    def __init__(
+        self,
+        chat_service: ChatService,
+        tool_manager: ResponsesApiToolManager,
+    ) -> None:
+        self._chat_service: ChatService = chat_service
+        self._tool_manager: ResponsesApiToolManager = tool_manager
+
+    @override
+    def complete_with_references(self, *args: Any, **kwargs: Any) -> Any:
+        include = self._tool_manager.get_required_include_params()
+        if include:
+            kwargs["include"] = include
+        return self._chat_service.complete_responses_with_references(*args, **kwargs)
+
+    @override
+    async def complete_with_references_async(self, *args: Any, **kwargs: Any) -> Any:
+        include = self._tool_manager.get_required_include_params()
+        if include:
+            kwargs["include"] = include
+        return await self._chat_service.complete_responses_with_references_async(
+            *args, **kwargs
+        )
 
 
 async def build_unique_ai(
@@ -86,7 +124,10 @@ async def build_unique_ai(
 ) -> UniqueAI:
     common_components = _build_common(event, logger, config)
 
-    if config.agent.experimental.responses_api_config.use_responses_api:
+    if (
+        config.agent.experimental.responses_api_config.use_responses_api
+        or config.agent.experimental.use_responses_api
+    ):
         return await _build_responses(
             event=event,
             logger=logger,
@@ -160,6 +201,7 @@ def _build_common(
         percent_of_max_tokens_for_history=config.agent.input_token_distribution.percent_for_history,
         language_model=config.space.language_model,
         uploaded_content_config=config.agent.services.uploaded_content_config,
+        enable_tool_call_persistence=config.agent.input_token_distribution.enable_tool_call_persistence,
     )
     history_manager = HistoryManager(
         logger,
@@ -272,7 +314,8 @@ def _register_code_interpreter_postprocessors(
 
     postprocessor_manager.add_postprocessor(
         ShowExecutedCodePostprocessor(
-            config=code_interpreter_config.executed_code_display_config
+            config=code_interpreter_config.executed_code_display_config,
+            company_id=company_id,
         )
     )
     postprocessor_manager.add_postprocessor(
@@ -318,11 +361,28 @@ async def _build_responses(
         chat_service=common_components.chat_service,
     )
 
-    has_valid_uploaded_documents, has_tool_choices = _configure_uploaded_search_tool(
-        event=event,
-        logger=logger,
-        common_components=common_components,
+    force_auto_container = (
+        ModelCapabilities.AUTO_CONTAINER_ONLY
+        in config.space.language_model.capabilities
     )
+
+    has_valid_uploaded_documents = False
+    has_tool_choices = False
+    if config.agent.experimental.open_file_tool_config.enabled:
+        handle_uploaded_file_tool_choices(
+            config,
+            event,
+            common_components.uploaded_documents,
+            logger,
+        )
+    else:
+        has_valid_uploaded_documents, has_tool_choices = (
+            _configure_uploaded_search_tool(
+                event=event,
+                logger=logger,
+                common_components=common_components,
+            )
+        )
 
     builtin_tool_manager = await OpenAIBuiltInToolManager.build_manager(
         uploaded_files=common_components.uploaded_documents,
@@ -332,6 +392,7 @@ async def _build_responses(
         chat_id=event.payload.chat_id,
         client=client,
         tool_configs=config.space.tools,
+        force_auto_container=force_auto_container,
     )
 
     tool_manager = ResponsesApiToolManager(
@@ -343,8 +404,24 @@ async def _build_responses(
         a2a_manager=common_components.a2a_manager,
         builtin_tool_manager=builtin_tool_manager,
     )
-    if not has_tool_choices and has_valid_uploaded_documents:
-        tool_manager.add_forced_tool(UploadedSearchTool.name)
+    if not config.agent.experimental.open_file_tool_config.enabled:
+        if not has_tool_choices and has_valid_uploaded_documents:
+            tool_manager.add_forced_tool(UploadedSearchTool.name)
+
+    agent_file_registry: list[str] = []
+    if config.agent.experimental.open_file_tool_config.enabled:
+        history_manager, agent_file_registry = configure_file_payload(
+            config,
+            event,
+            logger,
+            common_components.history_manager,
+            common_components.reference_manager,
+            config.space.language_model,
+            tool_manager,
+        )
+        common_components = common_components._replace(
+            history_manager=history_manager,
+        )
 
     loop_iteration_runner = build_loop_iteration_runner(
         config=config,
@@ -354,18 +431,10 @@ async def _build_responses(
         use_responses_api=True,
     )
 
-    class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
-        def complete_with_references(self, *args, **kwargs):
-            return common_components.chat_service.complete_responses_with_references(
-                *args, **kwargs
-            )
-
-        async def complete_with_references_async(self, *args, **kwargs):
-            return await common_components.chat_service.complete_responses_with_references_async(
-                *args, **kwargs
-            )
-
-    streaming_handler = ResponsesStreamingHandler()
+    streaming_handler = ResponsesStreamingHandler(
+        chat_service=common_components.chat_service,
+        tool_manager=tool_manager,
+    )
 
     _add_sub_agents_postprocessor(
         postprocessor_manager=postprocessor_manager,
@@ -398,6 +467,7 @@ async def _build_responses(
         message_step_logger=common_components.message_step_logger,
         mcp_servers=event.payload.mcp_servers,
         loop_iteration_runner=loop_iteration_runner,
+        agent_file_registry=agent_file_registry,
     )
 
 

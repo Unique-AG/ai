@@ -354,6 +354,34 @@ class TestHandleToolCallsTiming:
         assert timing["search"] == 0.5
         assert timing["calculator"] == 0.1
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_handle_tool_calls__open_file_reminder__injected_before_history_add(
+        self, ua
+    ) -> None:
+        ua._config.agent.experimental.open_file_tool_config.enabled = True
+        ua._open_file_runtime = MagicMock()
+        ua._tool_manager.execute_selected_tools = AsyncMock(
+            return_value=[_make_tool_response("InternalSearch", execution_time_s=0.5)]
+        )
+
+        call_sequence: list[str] = []
+
+        def record_reminder_injection(tool_call_responses):
+            call_sequence.append("inject_reminder")
+
+        def record_history_add(tool_call_responses):
+            call_sequence.append("history_add")
+
+        ua._open_file_runtime.inject_open_file_reminder.side_effect = (
+            record_reminder_injection
+        )
+        ua._history_manager.add_tool_call_results.side_effect = record_history_add
+
+        await ua._handle_tool_calls(_make_loop_response([MagicMock()]))
+
+        assert call_sequence[:2] == ["inject_reminder", "history_add"]
+
 
 class TestHandleNoToolCallsTiming:
     """Tests that _handle_no_tool_calls populates post_processing and evaluation timing."""
@@ -471,6 +499,52 @@ class TestHandleNoToolCallsTiming:
         assert "unselected_eval" not in ua._current_loop_timing["evaluation"]
 
 
+class TestPlanOrExecuteOpenFileRetry:
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_plan_or_execute__retry_refreshes_tools_and_tool_choices(
+        self,
+    ) -> None:
+        ua = _build_unique_ai()
+        ua._config.agent.experimental.open_file_tool_config.enabled = True
+
+        initial_messages = MagicMock(name="initial_messages")
+        retried_messages = MagicMock(name="retried_messages")
+        final_response = _make_loop_response()
+
+        ua._compose_message_plan_execution = AsyncMock(return_value=initial_messages)  # type: ignore[method-assign]
+        ua._tool_manager.get_tool_definitions.side_effect = [
+            ["OpenFile", "InternalSearch"],
+            ["InternalSearch"],
+        ]
+        ua._tool_manager.get_forced_tools.side_effect = [
+            ["OpenFile"],
+            [],
+        ]
+
+        retry_error = RuntimeError("payload too large")
+        ua._open_file_runtime = MagicMock()
+        ua._open_file_runtime.should_retry_without_files.return_value = True
+        ua._open_file_runtime.prepare_retry_messages.return_value = retried_messages
+
+        ua._loop_iteration_runner = AsyncMock(side_effect=[retry_error, final_response])
+
+        result = await ua._plan_or_execute()
+
+        assert result is final_response
+        assert ua._loop_iteration_runner.await_count == 2
+
+        first_call = ua._loop_iteration_runner.await_args_list[0].kwargs
+        second_call = ua._loop_iteration_runner.await_args_list[1].kwargs
+
+        assert first_call["messages"] is initial_messages
+        assert first_call["tools"] == ["OpenFile", "InternalSearch"]
+        assert first_call["tool_choices"] == ["OpenFile"]
+        assert second_call["messages"] is retried_messages
+        assert second_call["tools"] == ["InternalSearch"]
+        assert second_call["tool_choices"] == []
+
+
 class TestRunExecutionTimingIntegration:
     """Integration tests: run() persists execution_time in debug info correctly."""
 
@@ -494,6 +568,7 @@ class TestRunExecutionTimingIntegration:
 
         mock_chat_service = MagicMock()
         mock_chat_service.cancellation = mock_cancellation
+        mock_chat_service.get_debug_info_async = AsyncMock(return_value={})
         mock_chat_service.update_debug_info_async = AsyncMock(return_value=None)
         mock_chat_service.modify_assistant_message_async = AsyncMock(return_value=None)
         mock_chat_service.create_assistant_message_async = AsyncMock(
@@ -516,7 +591,7 @@ class TestRunExecutionTimingIntegration:
         )
 
         mock_debug_info_manager = MagicMock()
-        mock_debug_info_manager.get.return_value = {}
+        mock_debug_info_manager.get.return_value = {"tools": []}
 
         mock_config = MagicMock()
         mock_config.effective_max_loop_iterations = 1
@@ -528,6 +603,7 @@ class TestRunExecutionTimingIntegration:
         )
         mock_history_manager._append_tool_calls_to_history = MagicMock()
         mock_history_manager.add_tool_call_results = MagicMock()
+        mock_history_manager.extract_message_tools.return_value = []
 
         mock_postprocessor_manager = MagicMock()
         mock_postprocessor_manager.run_postprocessors = AsyncMock(return_value=None)
@@ -696,23 +772,23 @@ class TestRunExecutionTimingIntegration:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__debug_info_update_failure__does_not_block_completion(
+    async def test_run__debug_info_update_failure__propagates_exception(
         self, monkeypatch
     ) -> None:
         """
-        Purpose: Verify that a failure in update_debug_info_async does not prevent
-        assistant message completion.
-        Why this matters: Debug info persistence is diagnostic; users should still get a
-        completed message even if debug info write fails.
-        Setup summary: Make update_debug_info_async raise; run one iteration; assert
-        modify_assistant_message_async is still called.
+        Purpose: Verify that a failure in update_debug_info_async propagates to the caller.
+        Why this matters: After refactoring, debug info failures are no longer silently
+        swallowed; callers must handle them.
+        Setup summary: Make update_debug_info_async raise; run; assert RuntimeError
+        propagates and modify_assistant_message_async is never reached.
         """
         ua = self._build_run_ua(monkeypatch)
         ua._chat_service.update_debug_info_async.side_effect = RuntimeError("boom")
 
-        await ua.run()
+        with pytest.raises(RuntimeError, match="boom"):
+            await ua.run()
 
-        ua._chat_service.modify_assistant_message_async.assert_called()
+        ua._chat_service.modify_assistant_message_async.assert_not_called()
 
     @pytest.mark.ai
     @pytest.mark.asyncio

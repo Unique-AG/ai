@@ -10,8 +10,10 @@ from unique_toolkit._common.token.token_counting import (
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
     FileContentSerialization,
+    get_full_history_with_contents,
     get_full_history_with_contents_and_tool_calls,
 )
+from unique_toolkit.agentic.history_manager.utils import serialize_tool_content_json
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -53,11 +55,10 @@ class LoopTokenReducer:
         has_uploaded_content_config: bool,
         reference_manager: ReferenceManager,
         language_model: LMI,
-        max_tokens_for_tool_call_history: int | None = None,
+        enable_tool_call_persistence: bool = False,
     ):
         self._max_history_tokens = max_history_tokens
         self._has_uploaded_content_config = has_uploaded_content_config
-        self._max_tokens_for_tool_call_history = max_tokens_for_tool_call_history
         self._logger = logger
         self._reference_manager = reference_manager
         self._language_model = language_model
@@ -72,6 +73,17 @@ class LoopTokenReducer:
             self._language_model.token_limits.token_limit_input
             * (1 - MAX_INPUT_TOKENS_SAFETY_PERCENTAGE)
         )
+        self._max_db_source_number: int = -1
+        self._db_source_map: dict[int, ContentChunk] = {}
+        self._enable_tool_call_persistence = enable_tool_call_persistence
+
+    @property
+    def max_db_source_number(self) -> int:
+        return self._max_db_source_number
+
+    @property
+    def db_source_map(self) -> dict[int, ContentChunk]:
+        return self._db_source_map
 
     def _get_encoder(self, language_model: LMI) -> Callable[[str], list[int]]:
         return language_model.get_encoder()
@@ -105,7 +117,9 @@ class LoopTokenReducer:
 
         while self._exceeds_token_limit(token_count):
             token_count_before_reduction = token_count
-            loop_history = self._handle_token_limit_exceeded(loop_history, token_count)
+            loop_history[:] = self._handle_token_limit_exceeded(
+                loop_history, token_count
+            )
             messages = self._construct_history(
                 history_from_db,
                 loop_history,
@@ -292,25 +306,35 @@ class LoopTokenReducer:
         Returns:
             list[LanguageModelMessage]: The history
         """
-        full_history = get_full_history_with_contents_and_tool_calls(
-            user_message=self._user_message,
-            chat_id=self._chat_id,
-            chat_service=self._chat_service,
-            content_service=self._content_service,
-            file_content_serialization_type=(
-                FileContentSerialization.NONE
-                if self._has_uploaded_content_config
-                else FileContentSerialization.FILE_NAME
-            ),
+        file_content_serialization_type = (
+            FileContentSerialization.NONE
+            if self._has_uploaded_content_config
+            else FileContentSerialization.FILE_NAME
         )
+        if self._enable_tool_call_persistence:
+            full_history, max_src, src_map = (
+                get_full_history_with_contents_and_tool_calls(
+                    user_message=self._user_message,
+                    chat_id=self._chat_id,
+                    chat_service=self._chat_service,
+                    content_service=self._content_service,
+                    file_content_serialization_type=file_content_serialization_type,
+                )
+            )
+            self._max_db_source_number = max_src
+            self._db_source_map = src_map
+        else:
+            full_history = get_full_history_with_contents(
+                user_message=self._user_message,
+                chat_id=self._chat_id,
+                chat_service=self._chat_service,
+                content_service=self._content_service,
+                file_content_serialization_type=file_content_serialization_type,
+            )
+
         if remove_from_text is not None:
             full_history.root = await self._clean_messages(
                 full_history.root, remove_from_text
-            )
-
-        if self._max_tokens_for_tool_call_history is not None:
-            full_history.root = self._limit_tool_call_tokens(
-                full_history.root, self._max_tokens_for_tool_call_history
             )
 
         limited_history_messages = self._limit_to_token_window(
@@ -383,77 +407,6 @@ class LoopTokenReducer:
 
         return [msg for turn in selected_turns[::-1] for msg in turn]
 
-    def _limit_tool_call_tokens(
-        self,
-        messages: list[LanguageModelMessage],
-        budget: int,
-    ) -> list[LanguageModelMessage]:
-        """Drop older tool-call rounds so the total stays within *budget* tokens.
-
-        A "round" is a contiguous block of one ``LanguageModelAssistantMessage``
-        (with ``tool_calls``) followed by its ``LanguageModelToolMessage`` replies.
-        Rounds are kept from the back (most recent first).  When *budget* is
-        positive, at least one round is always preserved even if it alone exceeds
-        the budget.  A *budget* of ``0`` removes **all** tool-call rounds.
-        """
-        rounds: list[tuple[int, int]] = []
-        i = 0
-        while i < len(messages):
-            msg = messages[i]
-            if isinstance(msg, LanguageModelAssistantMessage) and msg.tool_calls:
-                start = i
-                i += 1
-                while i < len(messages) and isinstance(
-                    messages[i], LanguageModelToolMessage
-                ):
-                    i += 1
-                rounds.append((start, i))
-            else:
-                i += 1
-
-        if not rounds:
-            return messages
-
-        if budget <= 0:
-            drop_all: set[int] = set()
-            for start, end in rounds:
-                drop_all.update(range(start, end))
-            self._logger.info(
-                f"Tool-call budget is 0: dropping all {len(rounds)} tool-call rounds",
-            )
-            return [m for i, m in enumerate(messages) if i not in drop_all]
-
-        round_tokens = [
-            sum(
-                self._count_message_tokens(LanguageModelMessages(root=[m]))
-                for m in messages[start:end]
-            )
-            for start, end in rounds
-        ]
-
-        keep: set[int] = set()
-        cumulative = 0
-        for idx in range(len(rounds) - 1, -1, -1):
-            cumulative += round_tokens[idx]
-            if cumulative > budget and keep:
-                break
-            keep.add(idx)
-
-        drop_indices: set[int] = set()
-        for idx, (start, end) in enumerate(rounds):
-            if idx not in keep:
-                drop_indices.update(range(start, end))
-
-        if not drop_indices:
-            return messages
-
-        self._logger.info(
-            f"Tool-call budget: dropping {len(rounds) - len(keep)} of {len(rounds)} "
-            f"rounds ({sum(round_tokens[i] for i in range(len(rounds)) if i not in keep)} tokens freed)",
-        )
-
-        return [m for i, m in enumerate(messages) if i not in drop_indices]
-
     async def _clean_messages(
         self,
         messages: list[
@@ -515,7 +468,7 @@ class LoopTokenReducer:
         history_reduced: list[LanguageModelMessage] = []
         content_chunks_reduced: list[ContentChunk] = []
         chunk_offset = 0
-        source_offset = 0
+        source_offset = max(0, self._max_db_source_number + 1)
 
         for message in history:
             if self._should_reduce_message(message):
@@ -651,7 +604,7 @@ class LoopTokenReducer:
             else:
                 raise ValueError(f"Unexpected content type: {type(message.content)}")
 
-            content = json.dumps(
+            content = serialize_tool_content_json(
                 {
                     "source_number": source_offset,
                     "content": content_dict.get("content"),
@@ -685,13 +638,14 @@ class LoopTokenReducer:
         sources = [
             {
                 "source_number": source_offset + i,
+                "content_id": chunk.id,
                 "content": chunk.text,
             }
             for i, chunk in enumerate(content_chunks)
         ]
 
         return LanguageModelToolMessage(
-            content=json.dumps(sources),
+            content=serialize_tool_content_json(sources),
             tool_call_id=message.tool_call_id,
             name=message.name,
         )

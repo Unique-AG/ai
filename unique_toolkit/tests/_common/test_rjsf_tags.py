@@ -1593,16 +1593,12 @@ def test_AI_ui_schema_for_model__sub_agent_tool_config__produces_textarea_widget
         "tool_format_information_for_system_prompt",
         "tool_description_for_user_prompt",
         "tool_format_information_for_user_prompt",
+        "tool_input_json_schema",
     ]
     for field in textarea_fields:
         assert field in schema, f"Expected {field} in schema"
         assert schema[field]["ui:widget"] == "textarea"
         assert schema[field]["ui:options"] == {"rows": 5}
-
-    # tool_input_json_schema is Annotated[str, meta] | None; metadata must be preserved
-    assert "tool_input_json_schema" in schema
-    assert schema["tool_input_json_schema"]["ui:widget"] == "textarea"
-    assert schema["tool_input_json_schema"]["ui:options"] == {"rows": 5}
 
 
 @pytest.mark.ai

@@ -33,6 +33,9 @@ from unique_toolkit.agentic.tools.a2a import (
     REFERENCING_INSTRUCTIONS_FOR_USER_PROMPT,
 )
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
+from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
+    OpenFileToolConfig,
+)
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
@@ -266,12 +269,17 @@ class UniqueAIServices(BaseToolConfig):
         return evaluation_config
 
 
-class InputTokenDistributionConfig(BaseToolConfig):
+class HistoryConfig(BaseToolConfig):
     percent_for_history: float = Field(
         default=0.2,
         ge=0.0,
         lt=1.0,
         description="The fraction of the max input tokens that will be reserved for the history.",
+    )
+
+    enable_tool_call_persistence: bool = Field(
+        default=False,
+        description="Persist tool calls and reconstruct tool call history across turns.",
     )
 
     def max_history_tokens(self, max_input_token: int) -> int:
@@ -338,15 +346,23 @@ class ExperimentalConfig(BaseToolConfig):
 
     responses_api_config: SkipJsonSchema[ResponsesApiConfig] = ResponsesApiConfig()
 
+    open_file_tool_config: OpenFileToolConfig = OpenFileToolConfig()
+
+    use_responses_api: bool = Field(
+        default=False,
+        description="If set, the main agent will use the Responses API from OpenAI",
+    )
+
 
 class UniqueAIAgentConfig(BaseToolConfig):
     max_loop_iterations: Annotated[
         int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
     ] = 5
 
-    input_token_distribution: InputTokenDistributionConfig = Field(
-        default=InputTokenDistributionConfig(),
-        description="The distribution of the input tokens.",
+    input_token_distribution: HistoryConfig = Field(
+        default=HistoryConfig(),
+        title="Loop History",
+        description="Configuration for loop history.",
     )
 
     prompt_config: UniqueAIPromptConfig = UniqueAIPromptConfig()
@@ -393,6 +409,21 @@ class UniqueAIConfig(BaseToolConfig):
         ):
             self.agent.experimental.responses_api_config.use_responses_api = True
 
+        return self
+
+    @model_validator(mode="after")
+    def validate_open_file_tool_requires_responses_api(self) -> "UniqueAIConfig":
+        uses_responses_api = (
+            self.agent.experimental.responses_api_config.use_responses_api
+            or self.agent.experimental.use_responses_api
+        )
+        if (
+            self.agent.experimental.open_file_tool_config.enabled
+            and not uses_responses_api
+        ):
+            raise ValueError(
+                "open_file_tool_config.enabled requires the Responses API to be enabled."
+            )
         return self
 
     @property

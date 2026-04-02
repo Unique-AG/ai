@@ -2,7 +2,7 @@ import asyncio
 import time
 from datetime import datetime, timezone
 from logging import Logger
-from typing import Any, overload
+from typing import Any, cast, overload
 
 import jinja2
 from typing_extensions import deprecated
@@ -22,6 +22,10 @@ from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.agentic.thinking_manager.thinking_manager import ThinkingManager
+from unique_toolkit.agentic.tools.experimental.open_file_tool import (
+    OpenFileToolRuntime,
+    OpenFileToolRuntimeConfig,
+)
 from unique_toolkit.agentic.tools.tool_manager import (
     ResponsesApiToolManager,
     SafeTaskExecutor,
@@ -97,6 +101,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: ResponsesLoopIterationRunner,
+        agent_file_registry: list[str] | None = None,
     ) -> None: ...
 
     def __init__(
@@ -118,6 +123,7 @@ class UniqueAI:
         message_step_logger: MessageStepLogger,
         mcp_servers: list[McpServer],
         loop_iteration_runner: LoopIterationRunner | ResponsesLoopIterationRunner,
+        agent_file_registry: list[str] | None = None,
     ) -> None:
         self._logger = logger
         self._event = event
@@ -139,9 +145,32 @@ class UniqueAI:
         self._streaming_handler = streaming_handler
 
         self._message_step_logger = message_step_logger
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            self._agent_file_registry: list[str] = (
+                agent_file_registry if agent_file_registry is not None else []
+            )
+            file_cfg = self._config.agent.experimental.open_file_tool_config
+            self._open_file_runtime = OpenFileToolRuntime(
+                logger=logger,
+                config=OpenFileToolRuntimeConfig(
+                    enabled=file_cfg.enabled,
+                    send_files_in_payload=file_cfg.send_files_in_payload,
+                    send_uploaded_files_in_payload=file_cfg.send_uploaded_files_in_payload,
+                    use_responses_api=(
+                        self._config.agent.experimental.responses_api_config.use_responses_api
+                        or self._config.agent.experimental.use_responses_api
+                    ),
+                ),
+                content_service=content_service,
+                tool_manager=tool_manager,
+                message_step_logger=message_step_logger,
+                agent_file_registry=self._agent_file_registry,
+            )
+        self._file_fallback_occurred = False
         # Helper variable to support control loop
         self._tool_took_control = False
         self._loop_iteration_runner = loop_iteration_runner
+        self._last_assistant_text: str | None = None
 
         self._execution_times: list[dict[str, Any]] = []
         self._current_loop_timing: dict[str, Any] = {}
@@ -205,9 +234,25 @@ class UniqueAI:
                 self._reference_manager.add_references(
                     loop_response.message.references or []
                 )
+                self._last_assistant_text = (
+                    loop_response.message.original_text or loop_response.message.text
+                )
                 self._logger.info("Done with adding references")
 
                 self._thinking_manager.update_tool_progress_reporter(loop_response)
+
+                if (
+                    self._config.agent.experimental.open_file_tool_config.enabled
+                    and self._file_fallback_occurred
+                ):
+                    await self._open_file_runtime.report_file_fallback_step()
+                    self._file_fallback_occurred = False
+
+                self._debug_info_manager.extract_builtin_tool_debug_info(
+                    loop_response,
+                    tool_manager=cast(ToolManager, self._tool_manager),
+                    loop_iteration_index=self.current_iteration_index,
+                )
 
                 exit_loop = await self._process_plan(loop_response)
                 self._logger.info("Done with _process_plan")
@@ -241,26 +286,21 @@ class UniqueAI:
                 },
             )
 
-            debug_info = self._debug_info_manager.get()
-            tool_names = [tool.get("name") for tool in debug_info.get("tools", [])]
-            contains_deep_research = "DeepResearch" in tool_names
+            tool_names = [
+                tool["name"] for tool in self._debug_info_manager.get()["tools"]
+            ]
 
-            try:
-                if (
-                    self._chat_service.cancellation.is_cancelled
-                    or not self._tool_took_control
-                    or contains_deep_research
-                ):
-                    await self._chat_service.update_debug_info_async(
-                        debug_info=debug_info
-                    )
-            except Exception:
-                self._logger.warning(
-                    "Failed to persist execution timing to debug info", exc_info=True
-                )
+            # Get current debug info from chat service and add debug info from run. Do not update if DeepResearch is in the tool names.
+            if "DeepResearch" not in tool_names:
+                debug_info = {
+                    **await self._chat_service.get_debug_info_async(),
+                    **self._debug_info_manager.get(),
+                }
+                await self._chat_service.update_debug_info_async(debug_info=debug_info)
 
             if not self._chat_service.cancellation.is_cancelled:
-                await self._update_debug_info_if_tool_took_control()
+                if self._config.agent.input_token_distribution.enable_tool_call_persistence:
+                    await self._persist_tool_calls()
                 await self._chat_service.modify_assistant_message_async(
                     set_completed_at=not self._tool_took_control,
                 )
@@ -274,19 +314,40 @@ class UniqueAI:
 
         self._logger.info("Done composing message plan execution.")
 
-        return await self._loop_iteration_runner(
+        kwargs: dict = dict(
             messages=messages,
             iteration_index=self.current_iteration_index,
             streaming_handler=self._streaming_handler,  # type: ignore (constructor accepts only compatible arguments)
             model=self._config.space.language_model,
             tools=self._tool_manager.get_tool_definitions(),  # type: ignore (as above)
-            content_chunks=self._reference_manager.get_chunks(),
+            content_chunks=self._history_manager.get_content_chunks_for_backend(),
             start_text=self.start_text,
             debug_info=self._debug_info_manager.get(),
             temperature=self._config.agent.experimental.temperature,
             tool_choices=self._tool_manager.get_forced_tools(),  # type: ignore (as above)
             other_options=self._config.agent.experimental.additional_llm_options,
         )
+
+        # Experimental Feature UN-17905
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            try:
+                return await self._loop_iteration_runner(**kwargs)
+            except Exception as exc:
+                if not self._open_file_runtime.should_retry_without_files(exc):
+                    raise
+                self._logger.warning(
+                    "LLM call failed (likely payload too large). "
+                    "Retrying without attached files."
+                )
+                self._file_fallback_occurred = True
+                kwargs["messages"] = self._open_file_runtime.prepare_retry_messages(
+                    messages=messages
+                )
+                kwargs["tools"] = self._tool_manager.get_tool_definitions()  # type: ignore (as above)
+                kwargs["tool_choices"] = self._tool_manager.get_forced_tools()  # type: ignore (as above)
+                return await self._loop_iteration_runner(**kwargs)
+
+        return await self._loop_iteration_runner(**kwargs)
 
     async def _process_plan(self, loop_response: LanguageModelStreamResponse) -> bool:
         self._logger.info(
@@ -324,6 +385,14 @@ class UniqueAI:
             rendered_system_message_string,
             self._postprocessor_manager.remove_from_text,
         )
+
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            if self._open_file_runtime.should_attach_content_files():
+                messages = (
+                    self._open_file_runtime.inject_content_files_into_user_message(
+                        messages
+                    )
+                )
         return messages
 
     async def _render_user_prompt(self) -> str:
@@ -454,7 +523,13 @@ class UniqueAI:
             logger=self._logger,
         )
 
-        selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            selected_evaluation_names = self._open_file_runtime.filter_evaluation_names(
+                self._tool_manager.get_evaluation_check_list()
+            )
+        else:
+            selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
+
         evaluation_results = task_executor.execute_async(
             self._evaluation_manager.run_evaluations,
             selected_evaluation_names,
@@ -491,6 +566,28 @@ class UniqueAI:
             )  # TODO: add retry counter and instruction
 
         return True
+
+    async def _persist_tool_calls(self) -> None:
+        """Persist tool calls and responses from the loop to the database.
+
+        Before persisting, uncited sources are stripped from tool response
+        content so that only sources referenced in the final assistant message
+        are kept (compaction).
+        """
+        records = self._history_manager.extract_message_tools()
+        if not records:
+            return
+        records = HistoryManager.compact_message_tools(
+            records=records,
+            assistant_text=self._last_assistant_text,
+        )
+        try:
+            await self._chat_service.create_message_tools_async(
+                tool_calls=records,
+            )
+            self._logger.info(f"Persisted {len(records)} tool call records")
+        except Exception:
+            self._logger.error("Failed to persist tool calls", exc_info=True)
 
     def _log_tool_calls(self, tool_calls: list) -> None:
         # Create dictionary mapping tool names to display names for efficient lookup
@@ -567,6 +664,10 @@ class UniqueAI:
             **tool_times,
         }
 
+        # Inject reminders before persisting tool results into history.
+        if self._config.agent.experimental.open_file_tool_config.enabled:
+            self._open_file_runtime.inject_open_file_reminder(tool_call_responses)
+
         # Process results with error handling
         # Add tool call results to history first to stabilize source numbering,
         # then extract referenceable chunks and debug info
@@ -579,6 +680,7 @@ class UniqueAI:
         self._tool_took_control = self._tool_manager.does_a_tool_take_control(
             tool_calls
         )
+
         return self._tool_took_control
 
     async def _create_new_assistant_message_if_loop_response_contains_content(
@@ -634,32 +736,6 @@ class UniqueAI:
                 if k in self._config.agent.prompt_config.user_metadata
             }
         return user_metadata
-
-    async def _update_debug_info_if_tool_took_control(self) -> None:
-        """
-        Update debug info when a tool takes control of the conversation.
-        DeepResearch is excluded as it handles debug info directly since it calls
-        the orchestrator multiple times.
-        """
-        if not self._tool_took_control:
-            return
-
-        tool_names = [tool["name"] for tool in self._debug_info_manager.get()["tools"]]
-        if "DeepResearch" in tool_names:
-            return
-
-        debug_info_event = {
-            "assistant": {
-                "id": self._event.payload.assistant_id,
-                "name": self._event.payload.name,
-            },
-            "chosenModule": self._event.payload.name,
-            "userMetadata": self._event.payload.user_metadata,
-            "toolParameters": self._event.payload.tool_parameters,
-            **self._debug_info_manager.get(),
-        }
-
-        await self._chat_service.update_debug_info_async(debug_info=debug_info_event)
 
 
 @deprecated("Use UniqueAI directly instead")

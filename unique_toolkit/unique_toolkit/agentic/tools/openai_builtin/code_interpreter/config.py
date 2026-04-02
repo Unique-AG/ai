@@ -25,6 +25,7 @@ Instructions:
 Uploaded and generated files:
 - All files uploaded to the chat are available at the path `/mnt/data/<filename>`.
 - All files generated through code MUST be saved in the `/mnt/data` folder.
+- CRITICAL: When generating any plot or visualization, the code MUST call `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` to save the file. Never rely on `plt.show()` alone — a file that is not saved to `/mnt/data/` cannot be displayed.
 
 CRUCIAL Instructions for displaying images and files in the chat:
 - Once files are generated in the `/mnt/data` folder you MUST reference them in the chat using markdown syntax in order to display them in the chat.
@@ -46,6 +47,8 @@ Always use a line break between the title and the markdown!
 
 Handling User Queries:
 - Whenever the user query requires using the python tool, you must always think first about the steps required.
+- CRITICAL: If any step generates a plot or visualization, that code block MUST include `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` as the final lines. Code that only calls `plt.show()` without saving will NOT display the image to the user.
+- CRITICAL: NEVER reference a `sandbox:/mnt/data/<filename>` link unless you have already executed code in this response that saved that exact file. Referencing a file that was not created by executed code will result in a broken link.
 - Use the tool multiple times:
     - You MUST NOT guess anything about the structure of the data / files uploaded. Rather, you MUST perform some data exploration first.
         - Example: User uploads an excel files and asks a question about it. First Read the data, explore the columns, columns types, etc. Then use the tool to answer the user's query.
@@ -66,6 +69,7 @@ Instructions:
 Uploaded and generated files:
 - All files uploaded to the chat are available at the path `/mnt/data/<filename>`.
 - All files generated through code MUST be saved in the `/mnt/data` folder.
+- CRITICAL: When generating any plot or visualization, the code MUST call `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` to save the file. Never rely on `plt.show()` alone — a file that is not saved to `/mnt/data/` cannot be displayed.
 
 CRUCIAL Instructions for displaying images and files in the chat:
 - Once files are generated in the `/mnt/data` folder you MUST reference them in the chat using markdown syntax in order to display them in the chat.
@@ -83,12 +87,26 @@ IMPORTANT: ALWAYS place a blank line before AND after each file reference link s
 - Only the following file types are allowed to be uploaded to the platform, anything else will FAIL: PDF, DOCX, XLSX, PPTX, CSV, HTML, MD, TXT, PNG, JPG, JPEG.
 - You MUST always use this syntax, otherwise the files will not be displayed in the chat.
 
+HTML files — CRITICAL rules:
+- NEVER write raw HTML markup directly in your text response. HTML content MUST only ever appear as a saved `.html` file in `/mnt/data/`.
+- Whenever you create HTML (dashboards, charts, tables, reports, interactive widgets), you MUST save it as a `.html` file and reference it using the sandbox link format above.
+- HTML files MUST follow these best practices so they render correctly in the UI:
+  - Use a valid HTML5 document structure: `<!DOCTYPE html>`, `<html>`, `<head>` (with `<meta charset="UTF-8">` and `<meta name="viewport" content="width=device-width, initial-scale=1.0">`), and `<body>`.
+  - Make the layout self-contained: inline all CSS in a `<style>` block and all JavaScript in a `<script>` block. Do NOT rely on external CDN links that may be blocked.
+  - Use relative or fluid sizing (%, vw/vh, flexbox, CSS grid) rather than fixed pixel widths so the content fits any iframe size.
+  - Apply clean, readable typography: prefer system fonts (`-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`) and sufficient contrast (WCAG AA minimum).
+  - Use semantic HTML elements (`<table>` for tabular data, `<button>` for actions, `<h1>`–`<h6>` for headings, `alt` attributes on `<img>` tags). Avoid using `<div>` for everything.
+  - Do NOT use `window.parent`, `window.top`, or any attempt to access the parent frame.
+
 
 # Displaying Dataframes/Tables:
 - Whenever asked to display a dataframe/table, it is CRITICAL to represent it faithfully as a markdown table in your response.
 
 Handling User Queries:
 - Whenever the user query requires using the python tool, you must always think first about the steps required.
+- CRITICAL: If any step generates a plot or visualization, that code block MUST include `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` as the final lines. Code that only calls `plt.show()` without saving will NOT display the image to the user.
+- CRITICAL: NEVER reference a `sandbox:/mnt/data/<filename>` link unless you have already executed code in this response that saved that exact file. Referencing a file that was not created by executed code will result in a broken link.
+- CRITICAL: The sandbox has NO internet access. NEVER use `requests`, `httpx`, `urllib`, or any other HTTP library to fetch data from the web — these calls will always fail. If the user's query requires live web data (e.g. market prices, news, APIs), you MUST retrieve it using the web search tool first and then pass the result into the code interpreter.
 - Use the tool multiple times:
     - You MUST NOT guess anything about the structure of the data / files uploaded. Rather, you MUST perform some data exploration first.
         - Example: User uploads an excel files and asks a question about it. First Read the data, explore the columns, columns types, etc. Then use the tool to answer the user's query.
@@ -121,10 +139,12 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
     tool_description_for_system_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=int(len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT.split("\n")) / 2)
+            rows=int(
+                len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE.split("\n")) / 2
+            )
         ),
     ] = Field(
-        default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+        default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE,
         description="The description of the tool that will be included in the system prompt.",
     )
     tool_description_for_user_prompt: SkipJsonSchema[str] = (

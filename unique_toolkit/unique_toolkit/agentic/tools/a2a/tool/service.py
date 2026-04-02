@@ -19,6 +19,7 @@ from unique_toolkit._common.referencing import (
 from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit.agentic.message_log_manager.service import MessageStepLogger
 from unique_toolkit.agentic.tools.a2a.response_watcher import SubAgentResponseWatcher
 from unique_toolkit.agentic.tools.a2a.tool._memory import (
     get_sub_agent_short_term_memory_manager,
@@ -42,6 +43,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 )
 from unique_toolkit.app import ChatEvent
 from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
+from unique_toolkit.chat.service import ChatService
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import (
     LanguageModelFunction,
@@ -64,8 +66,12 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         name: str = "SubAgentTool",
         display_name: str = "SubAgentTool",
         response_watcher: SubAgentResponseWatcher | None = None,
-    ):
-        super().__init__(configuration, event, tool_progress_reporter)
+    ) -> None:
+        super().__init__(configuration)
+        self._event = event
+        self._tool_progress_reporter = tool_progress_reporter
+        self._chat_service = ChatService(event)
+        self._message_step_logger = MessageStepLogger(chat_service=self._chat_service)
         self._user_id = event.user_id
         self._company_id = event.company_id
 
@@ -104,7 +110,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
 
     @override
     def tool_description(self) -> LanguageModelToolDescription:
-        if self.config.tool_input_json_schema is not None:
+        if self.config.tool_input_json_schema:
             return LanguageModelToolDescription(
                 name=self.name,
                 description=self.config.tool_description,
@@ -157,7 +163,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         active_message_log: MessageLog | None = None
 
         try:
-            if self.config.tool_input_json_schema is not None:
+            if self.config.tool_input_json_schema:
                 tool_input = json.dumps(tool_call.arguments)
             else:
                 tool_input = SubAgentToolInput.model_validate(
@@ -277,6 +283,11 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                         system_reminders=system_reminders,
                     ),
                     content_chunks=content_chunks,
+                    debug_info={
+                        "chat_id": response["chatId"],
+                        "assistant_id": self.config.assistant_id,
+                        "display_name": self._display_name,
+                    },
                 )
         except TimeoutError as e:
             raise e
@@ -323,12 +334,12 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
         state: ProgressState,
     ) -> None:
         if (
-            self.tool_progress_reporter is not None
+            self._tool_progress_reporter is not None
             and not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
                 self._company_id
             )
         ):
-            await self.tool_progress_reporter.notify_from_tool_call(
+            await self._tool_progress_reporter.notify_from_tool_call(
                 tool_call=tool_call,
                 name=self._display_name,
                 message=message,
@@ -385,7 +396,7 @@ class SubAgentTool(Tool[SubAgentToolConfig]):
                 text=tool_user_message,
                 chat_id=chat_id,
                 poll_interval=self.config.poll_interval,
-                tool_choices=self.config.forced_tools,
+                tool_choices=self.config.forced_tools or None,
                 max_wait=self.config.max_wait,
                 stop_condition=self.config.stop_condition,
                 correlation=Space.Correlation(

@@ -28,6 +28,10 @@ class CustomWidgetName(StrEnum):
     """Mirrors TypeScript CustomWidgetName. Keep in sync when extending."""
 
     ICON_PICKER = "iconPicker"
+    FOLDER_SCOPE_PICKER = "folderScopePicker"
+    SELECTION_POLICY = "selectionPolicy"
+    TOOL_ICON_SELECT = "toolIconSelect"
+    TOGGLE_SWITCH = "toggleSwitch"
     # Add new entries here when adding custom widgets in TypeScript
 
 
@@ -589,7 +593,7 @@ class RJSFMetaTag:
         @classmethod
         def custom(
             cls,
-            name: CustomWidgetName,
+            name: CustomWidgetName | str,
             *,
             disabled: bool = False,
             title: str | None = None,

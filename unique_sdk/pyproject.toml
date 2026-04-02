@@ -1,6 +1,6 @@
 [project]
 name = "unique_sdk"
-version = "0.10.92"
+version = "0.10.98"
 description = ""
 readme = "README.md"
 license = { text = "MIT" }
@@ -39,21 +39,11 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-root = ""
 
+[tool.uv]
+exclude-newer = "2 weeks"
+
 [dependency-groups]
-dev = [
-    "ruff==0.11.7",
-    "pytest>=8.0,<9",
-    "tox>=4.11.4,<5",
-    "basedpyright>=1.35.0,<2",
-    "pytest-cov>=4.1.0,<5",
-    "pytest-asyncio>=0.24.0,<0.25",
-    "pytest-mock>=3.14.0,<4",
-    "python-dotenv>=1.1.0,<2",
-    "ipykernel>=7.1.0,<8",
-    "deptry>=0.24.0,<0.25",
-    "poethepoet>=0.32.0,<0.33",
-    "openai>=1.105.0,<2",
-]
+dev = []
 
 [tool.deptry]
 known_first_party = ["unique_sdk"]
@@ -103,34 +93,3 @@ coverage = "pytest --cov=unique_sdk --cov-report=term-missing"
 ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
 ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
-[tool.tox]
-legacy_tox_ini = """
-    [tox]
-    min_version = 4.0
-    isolated_build = true
-    env_list =
-        lint
-        py311
-        py312
-
-    [testenv]
-    allowlist_externals = poetry
-    commands_pre =
-        poetry install --no-root --sync --with dev
-
-    [testenv:py311]
-    description = run tests with python 3.11
-    basepython = python3.11
-    commands =
-        poetry run pytest --cov=unique_sdk tests/ --import-mode importlib
-
-    [testenv:py312]
-    description = run tests with python 3.12
-    basepython = python3.12
-    commands =
-        poetry run pytest --cov=unique_sdk tests/ --import-mode importlib
-
-    [testenv:lint]
-    description = lint source code
-    commands = ruff check {posargs:unique_sdk tests}
-"""

@@ -6,9 +6,16 @@ from mimetypes import guess_type
 from typing import NamedTuple, override
 
 from openai import AsyncOpenAI
+from openai.types.responses import ResponseCodeInterpreterToolCall
 from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 from pydantic import BaseModel, Field, RootModel
 from pydantic.json_schema import SkipJsonSchema
+from tenacity import (
+    AsyncRetrying,
+    before_sleep_log,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from unique_toolkit import ChatService
 from unique_toolkit._common.execution import failsafe_async
@@ -20,9 +27,6 @@ from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memo
     PersistentShortMemoryManager,
 )
 from unique_toolkit.agentic.tools.config import get_configuration_dict
-from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.code_display import (
-    strip_executed_code_blocks,
-)
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import (
     CodeInterpreterBlock,
     CodeInterpreterFile,
@@ -55,6 +59,14 @@ class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
     max_concurrent_file_downloads: int = Field(
         default=10,
         description="The maximum number of concurrent file downloads.",
+    )
+    max_download_retries: int = Field(
+        default=2,
+        description="Maximum number of additional download attempts per container file after the first try (0 = no retries).",
+    )
+    download_retry_base_delay: float = Field(
+        default=0.5,
+        description="Base delay in seconds for exponential backoff between download/upload retries.",
     )
 
 
@@ -110,6 +122,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         if self._chat_service is None:
             raise ValueError("ChatService is required if uploadToChat is True")
 
+        self._orphan_code_blocks: list[CodeInterpreterBlock] = []
         self._short_term_memory_manager = None
         if chat_id is not None and user_id is not None and company_id is not None:
             self._short_term_memory_manager = _init_short_term_memory_manager(
@@ -150,12 +163,29 @@ class DisplayCodeInterpreterFilesPostProcessor(
             ]
         )
 
+        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+            self._company_id
+        ):
+            self._orphan_code_blocks = await self._upload_orphan_code_as_txt(
+                loop_response
+            )
+        else:
+            self._orphan_code_blocks = []
+
     @override
     def apply_postprocessing_to_response(
         self, loop_response: ResponsesLanguageModelStreamResponse
     ) -> bool:
+        if loop_response.message.references is None:
+            loop_response.message.references = []
+        if loop_response.message.text is None:
+            loop_response.message.text = ""
+
         ref_number = _get_next_ref_number(loop_response.message.references)
         changed = False
+        fence_ff_on = feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+            self._company_id
+        )
 
         for filename, content_id in self._content_map.items():
             if content_id is None:
@@ -181,9 +211,13 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # HTML (behind feature flag)
-            elif is_html and feature_flags.enable_html_rendering_un_15131.is_enabled(
-                self._company_id
+            # HTML rendered as legacy HtmlRendering block — only when fence FF is off
+            elif (
+                is_html
+                and not fence_ff_on
+                and feature_flags.enable_html_rendering_un_15131.is_enabled(
+                    self._company_id
+                )
             ):
                 loop_response.message.text, replaced = _replace_container_html_citation(
                     text=loop_response.message.text,
@@ -192,13 +226,8 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # Files (including HTML when feature flag is disabled)
+            # Files and HTML (fence FF on: HTML → htmlWithSource; others → fileWithSource)
             else:
-                fence_ff_on = (
-                    feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-                        self._company_id
-                    )
-                )
                 loop_response.message.text, replaced = _replace_container_file_citation(
                     text=loop_response.message.text,
                     filename=filename,
@@ -208,13 +237,14 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            is_html_rendered = (
-                is_html
-                and feature_flags.enable_html_rendering_un_15131.is_enabled(
+            # htmlWithSource / HtmlRendering blocks carry contentId directly — no separate reference needed
+            is_html_rendered = is_html and (
+                fence_ff_on
+                or feature_flags.enable_html_rendering_un_15131.is_enabled(
                     self._company_id
                 )
             )
-            if replaced and not is_image and not is_html_rendered:
+            if replaced and not (is_image or is_html_rendered or fence_ff_on):
                 loop_response.message.references.append(
                     ContentReference(
                         sequence_number=ref_number,
@@ -226,9 +256,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 ref_number += 1
 
-        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-            self._company_id
-        ):
+        if fence_ff_on:
             code_blocks = _build_code_blocks(loop_response, self._content_map)
             _warn_unmatched_code_blocks(self._content_map, code_blocks)
             text_before = loop_response.message.text
@@ -237,6 +265,14 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 code_blocks,
             )
             changed |= loop_response.message.text != text_before
+
+            if self._orphan_code_blocks:
+                fence_id = _get_next_fence_id(loop_response.message.text)
+                orphan_fences = _build_orphan_fences(self._orphan_code_blocks, fence_id)
+                loop_response.message.text = (
+                    loop_response.message.text.rstrip() + "\n\n" + orphan_fences
+                )
+                changed = True
 
         _warn_missing_content_ids(loop_response.message.text, self._content_map)
         loop_response.message.text, dangling_replaced = _replace_dangling_sandbox_links(
@@ -257,9 +293,18 @@ class DisplayCodeInterpreterFilesPostProcessor(
         semaphore: asyncio.Semaphore,
     ) -> _ContentInfo | None:
         async with semaphore:
-            logger.info("Fetching file content for %s", container_file.filename)
-            file_content = await self._client.containers.files.content.retrieve(
-                container_id=container_file.container_id, file_id=container_file.file_id
+            retry = AsyncRetrying(
+                stop=stop_after_attempt(1 + self._config.max_download_retries),
+                wait=wait_exponential(
+                    multiplier=self._config.download_retry_base_delay
+                ),
+                before_sleep=before_sleep_log(logger, logging.WARNING),
+                reraise=True,
+            )
+            file_content = await retry(
+                self._client.containers.files.content.retrieve,
+                container_id=container_file.container_id,
+                file_id=container_file.file_id,
             )
 
             logger.info(
@@ -306,6 +351,112 @@ class DisplayCodeInterpreterFilesPostProcessor(
         await self._short_term_memory_manager.save_async(
             _DisplayedFilesShortTermMemorySchema(root=content_infos)
         )
+
+    async def _upload_orphan_code_as_txt(
+        self, loop_response: ResponsesLanguageModelStreamResponse
+    ) -> list[CodeInterpreterBlock]:
+        """Upload stdout (or code) from calls that produced no container files as .txt artifacts.
+
+        When code interpreter runs but generates no files or images, the response
+        text has no sandbox links for fence injection to hook onto.  This method
+        converts those "orphan" calls into downloadable .txt files so the fence
+        postprocessor can attach a fileWithSource component and the new Code
+        Execution UI is shown instead of the legacy <details> block.
+
+        Called only when the fence feature flag is enabled.  Skipped entirely if
+        any container files were produced (normal fencing handles those).
+        """
+        if loop_response.container_files:
+            return []
+
+        calls = loop_response.code_interpreter_calls
+        if not calls:
+            return []
+
+        assert self._chat_service is not None  # Checked in __init__
+
+        use_numeric_suffix = len(calls) > 1
+        orphan_blocks: list[CodeInterpreterBlock] = []
+
+        for i, call in enumerate(calls):
+            if not call.code:
+                continue
+
+            # Code interpreter logs are only present on each code_interpreter_call when
+            # the create/retrieve request sets include=["code_interpreter_call.outputs"]
+            # (see OpenAI Responses API `include` and manual examples in
+            # docs/manual_examples_for_docs/code_execution_openai_client.py).  If
+            # `outputs` is omitted, call.outputs is null and we fall back to the
+            # source code as the downloadable txt.
+            txt_content = _collect_stdout(call) or call.code
+            filename = f"code_{i + 1}.txt" if use_numeric_suffix else "code.txt"
+
+            try:
+                content = await self._chat_service.upload_to_chat_from_bytes_async(
+                    content=txt_content.encode("utf-8"),
+                    content_name=filename,
+                    mime_type="text/plain",
+                    skip_ingestion=True,
+                    hide_in_chat=True,
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to upload orphan code block as txt for call %d ('%s'); "
+                    "falling back to legacy code block display.",
+                    i,
+                    filename,
+                )
+                continue
+
+            orphan_file = CodeInterpreterFile(
+                filename=filename,
+                content_id=content.id,
+                type="document",
+            )
+            orphan_blocks.append(
+                CodeInterpreterBlock(code=call.code, files=[orphan_file])
+            )
+            logger.info(
+                "Uploaded orphan code block as '%s' (content_id=%s)",
+                filename,
+                content.id,
+            )
+
+        return orphan_blocks
+
+
+def _collect_stdout(call: ResponseCodeInterpreterToolCall) -> str:
+    """Collect all stdout logs from a code interpreter call's outputs."""
+    if not call.outputs:
+        return ""
+    return "\n".join(output.logs for output in call.outputs if output.type == "logs")
+
+
+def _get_next_fence_id(text: str) -> int:
+    """Return the next available fence id by scanning existing fences in the text."""
+    existing = re.findall(
+        r"````(?:imgWithSource|fileWithSource|htmlWithSource)\(id='(\d+)'", text
+    )
+    if not existing:
+        return 1
+    return max(int(fid) for fid in existing) + 1
+
+
+def _build_orphan_fences(
+    blocks: list[CodeInterpreterBlock], start_fence_id: int
+) -> str:
+    """Build concatenated fence text for orphan code blocks.
+
+    Orphan blocks have no inline ref in the message text, so their fences are
+    appended directly rather than injected via pattern replacement.
+    """
+    fence_id = start_fence_id
+    parts: list[str] = []
+    for block in blocks:
+        for file in block.files:
+            parts.append(_build_file_fence(file, block.code, fence_id))
+            fence_id += 1
+    return "\n".join(parts)
 
 
 def _get_file_type(filename: str) -> CodeInterpreterFileType:
@@ -375,6 +526,7 @@ def _build_file_fence(file: CodeInterpreterFile, code: str, fence_id: int) -> st
 
     Format (4 backticks so inner code backticks never close the fence):
       ````imgWithSource(id='{n}', contentId='{id}', title="{title}", code="{escaped_code}")````
+      ````htmlWithSource(id='{n}', contentId='{id}', title="{title}", code="{escaped_code}")````
       ````fileWithSource(id='{n}', contentId='{id}', title="{title}", type="{type}", code="{escaped_code}")````
     """
     title = _file_title(file.filename)
@@ -382,6 +534,8 @@ def _build_file_fence(file: CodeInterpreterFile, code: str, fence_id: int) -> st
     outer = "````"
     if file.type == "image":
         tag = f"imgWithSource(id='{fence_id}', contentId='{file.content_id}', title=\"{title}\", code=\"{escaped}\")"
+    elif file.type == "html":
+        tag = f"htmlWithSource(id='{fence_id}', contentId='{file.content_id}', title=\"{title}\", code=\"{escaped}\")"
     else:
         ftype = _file_frontend_type(file.filename)
         tag = f'fileWithSource(id=\'{fence_id}\', contentId=\'{file.content_id}\', title="{title}", type="{ftype}", code="{escaped}")'
@@ -394,23 +548,18 @@ def _inline_ref_pattern(file: CodeInterpreterFile) -> re.Pattern[str]:
     After apply_postprocessing_to_response replaces sandbox paths, each file type
     has a distinct inline form in the text:
       image    → ![image](unique://content/{content_id})
+      html     → [{filename}](unique://content/{content_id})
       document → [{filename}](unique://content/{content_id})
-      html     → ```HtmlRendering\\n100%\\n500px\\n\\nunique://content/{content_id}\\n\\n```
     """
     cid = re.escape(file.content_id)
     fname = re.escape(file.filename)
     if file.type == "image":
         return re.compile(rf"!\[image\]\(unique://content/{cid}\)")
-    if file.type == "html":
-        return re.compile(
-            rf"```HtmlRendering\n100%\n500px\n\nunique://content/{cid}\n\n```",
-            re.DOTALL,
-        )
     return re.compile(rf"\[{fname}\]\(unique://content/{cid}\)")
 
 
 _FENCE_BLOCK_START = re.compile(
-    r"^[^\n`]+?(````(?:imgWithSource|fileWithSource)\()",
+    r"^[^\n`]+?(````(?:imgWithSource|fileWithSource|htmlWithSource)\()",
     re.MULTILINE,
 )
 
@@ -420,9 +569,9 @@ _FENCE_BLOCK_START = re.compile(
 #   - cross-line: 1 or 2 newlines optionally surrounded by horizontal whitespace
 #     (list-item linebreak, or blank-line paragraph gap)
 _CONSECUTIVE_FENCES_RE = re.compile(
-    r"(````(?:imgWithSource|fileWithSource)\([^\n]*\)````)"
+    r"(````(?:imgWithSource|fileWithSource|htmlWithSource)\([^\n]*\)````)"
     r"(?:[^\n`]*|[ \t]*\n{1,2}[ \t]*)"
-    r"(?=````(?:imgWithSource|fileWithSource)\()"
+    r"(?=````(?:imgWithSource|fileWithSource|htmlWithSource)\()"
 )
 
 
@@ -453,8 +602,6 @@ def _inject_code_execution_fences(
 
     Each file gets its own fence placed at the position of its inline ref. Duplicate
     refs for the same file (overwrite case) are removed after the first is replaced.
-    When at least one fence was injected, executed-code <details> blocks are
-    stripped via strip_executed_code_blocks() from the code_display postprocessor.
 
     fence_id is a message-level counter so each fence has a unique id.
     """
@@ -480,7 +627,6 @@ def _inject_code_execution_fences(
             # Remove duplicate refs (overwrite case)
             text = re.sub(pattern, "", text)
     if any_fence_injected:
-        text = strip_executed_code_blocks(text)
         text = _ensure_fences_are_standalone(text)
         text = _CONSECUTIVE_FENCES_RE.sub(r"\1\n", text)
     return text
@@ -687,7 +833,9 @@ def _warn_unmatched_code_blocks(
             )
 
 
-def _get_next_ref_number(references: list[ContentReference]) -> int:
+def _get_next_ref_number(references: list[ContentReference] | None) -> int:
+    if not references:
+        return 1
     max_ref_number = 0
     for ref in references:
         max_ref_number = max(max_ref_number, ref.sequence_number)
@@ -740,7 +888,8 @@ def _replace_container_image_citation(
 def _replace_container_html_citation(
     text: str, filename: str, content_id: str
 ) -> tuple[str, bool]:
-    html_markdown = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+    link_core = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+    html_markdown = link_core
 
     if not re.search(html_markdown, text):
         logger.warning(
@@ -752,18 +901,34 @@ def _replace_container_html_citation(
         return text, False
 
     logger.info("Inserting HTML rendering block for '%s'", filename)
-    html_rendering_block = f"""```HtmlRendering
-100%
-500px
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
 
-unique://content/{content_id}
+    # Pattern 1 — link is the only non-whitespace content on its line (the common case
+    # when the model writes the link as a list continuation on its own indented line).
+    # Replace the FULL line (including leading whitespace) so the opening fence is
+    # flush-left. Parsers require column-0 fences.
+    # Also consume any whitespace-only lines immediately before the match so we don't
+    # leave orphan indented blank lines above the block.
+    line_only_link = re.compile(
+        rf"(?m)^(?:[ \t]*\n)*[ \t]*{link_core}[ \t]*(?=\r?\n|$)"
+    )
+    if line_only_link.search(text):
+        result = line_only_link.sub(block, text)
+        return result, True
 
-```"""
-    return re.sub(
-        html_markdown,
-        html_rendering_block,
-        text,
-    ), True
+    # Pattern 2 — link shares a line with other content (e.g. "3. Dashboard: [link]").
+    # Keep the label, then start the block on the next line.
+    def _replace(m: re.Match[str]) -> str:
+        start = m.start()
+        line_start = text.rfind("\n", 0, start) + 1
+        prefix_on_line = text[line_start:start].strip()
+        leading = "\n" if prefix_on_line else ""
+        # Ensure one blank line after the closing fence when followed by more text.
+        end = m.end()
+        trailing = "\n" if end < len(text) and not text[end:].startswith("\n") else ""
+        return leading + block + trailing
+
+    return re.sub(html_markdown, _replace, text), True
 
 
 def _replace_container_file_citation(

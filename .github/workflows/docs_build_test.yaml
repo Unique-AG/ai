@@ -30,12 +30,14 @@ jobs:
       - name: Check out code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Install package manager
-        id: pm
-        uses: ./.github/actions/install-package-manager
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv
         with:
           package_dir: .
           python_version: '3.12'
+
+      - name: Install docs dependencies
+        run: uv sync --locked --inexact --group docs
 
       - name: Build versioned documentation
         run: ./.github/scripts/docs_build_versioned.sh --clean

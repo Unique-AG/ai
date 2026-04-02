@@ -1,5 +1,5 @@
 name: 'Run Min Tests and Deptry'
-description: 'Runs deptry on all packages, and min-deps pytest tests for uv packages only'
+description: 'Runs deptry and min-deps pytest tests using uv'
 
 inputs:
   package_dir:
@@ -21,20 +21,18 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Install package manager
-      id: pm
-      uses: ./.github/actions/install-package-manager
+    - name: Setup uv
+      uses: ./.github/actions/setup-uv
       with:
         package_dir: ${{ inputs.package_dir }}
         python_version: ${{ inputs.python_version }}
 
-    # uv: Install with min deps
-    - name: Install package (min deps - uv)
-      if: startsWith(steps.pm.outputs.run_cmd, 'uv')
+    - name: Install package (min deps)
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
+        UV_NO_WORKSPACE: 1
       run: |
         uv venv --clear
         EXTRAS="${{ inputs.extras }}"
@@ -45,33 +43,30 @@ runs:
           PKG_SPEC=".[$EXTRAS]"
         fi
         uv pip install -e "$PKG_SPEC" --resolution=lowest-direct
-        uv export --only-group dev --no-hashes | uv pip install -r -
 
-    # Poetry: Normal install (deptry is in dev dependencies)
-    - name: Install package (poetry)
-      if: steps.pm.outputs.run_cmd == 'poetry run'
+    - name: Install root dev tools
       shell: bash
-      working-directory: ${{ inputs.package_dir }}
-      run: poetry install
+      env:
+        UV_NO_SOURCES: 1
+        # Point uv at the min-dep venv created in the package directory above,
+        # not the root venv. Without this, uv pip install targets the repo-root
+        # .venv and dev tools (pytest, deptry) end up in the wrong environment.
+        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
+      run: |
+        REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
+        uv export --directory "$REPO_ROOT" --locked --only-group dev --no-hashes | uv pip install -r -
 
-    - name: Run deptry (uv)
-      if: startsWith(steps.pm.outputs.run_cmd, 'uv')
+    - name: Run deptry
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
-        UV_NO_SOURCES: 1
+        UV_NO_WORKSPACE: 1
       run: uv run --no-sync deptry .
 
-    - name: Run deptry (poetry)
-      if: steps.pm.outputs.run_cmd == 'poetry run'
-      shell: bash
-      working-directory: ${{ inputs.package_dir }}
-      run: poetry run deptry .
-
-    - name: Run tests with min dependencies (uv only)
-      if: startsWith(steps.pm.outputs.run_cmd, 'uv')
+    - name: Run tests with min dependencies
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
+        UV_NO_WORKSPACE: 1
       run: uv run --no-sync pytest ${{ inputs.test_args }}

@@ -1,6 +1,6 @@
 [project]
 name = "unique_quartr"
-version = "0.2.6"
+version = "0.2.9"
 description = "Unique Quartr API client"
 authors = [
     { name = "Rami Azouz", email = "rami.ext@unique.ch" },
@@ -18,15 +18,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = [
-    "ruff>=0.12.10",
-    "pytest>=8.0.0",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.12.0",
-    "deptry>=0.24.0",
-    "basedpyright>=1.35.0",
-    "poethepoet>=0.32.0",
-]
+dev = []
 
 [build-system]
 requires = ["uv_build>=0.7.19,<0.8"]
@@ -36,10 +28,14 @@ build-backend = "uv_build"
 module-root = ""
 
 [tool.uv]
+exclude-newer = "2 weeks"
 constraint-dependencies = ["lxml>=5.0.0"]
 
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
+
 [tool.uv.sources]
-unique-toolkit = { path = "../../unique_toolkit", editable = true }
+unique-toolkit = { workspace = true }
 
 [tool.poe.tasks]
 lint = "ruff check ."

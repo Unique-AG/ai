@@ -6,7 +6,9 @@ import jinja2
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.feature_flags import feature_flags
+from unique_toolkit.agentic.feature_flags.feature_flags import (
+    feature_flags,
+)
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import (
@@ -20,13 +22,13 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_web_search.config import WebSearchConfig
-from unique_web_search.prompts import (
-    DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3_ADDENDUM,
-)
 from unique_web_search.schema import (
     WebSearchDebugInfo,
     WebSearchPlan,
     WebSearchToolParameters,
+)
+from unique_web_search.services.argument_screening import (
+    ArgumentScreeningService,
 )
 from unique_web_search.services.content_processing import ContentProcessor
 from unique_web_search.services.crawlers import get_crawler_service
@@ -140,14 +142,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
         return self.config.web_search_mode_config.tool_description_for_system_prompt
 
     def tool_format_information_for_system_prompt(self) -> str:
-        prompt = self.config.tool_format_information_for_system_prompt
-        if self.config.web_search_mode_config.mode == WebSearchMode.V3:
-            return (
-                prompt.rstrip()
-                + "\n"
-                + DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3_ADDENDUM
-            )
-        return prompt
+        if self.config.web_search_active_mode == WebSearchMode.V3:
+            return self.config.web_search_mode_config_v3.tool_format_information_for_system_prompt
+        return self.config.tool_format_information_for_system_prompt
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return self.config.evaluation_check_list
@@ -159,6 +156,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
         parameters = self.tool_parameter_calls.model_validate(
             tool_call.arguments,
         )
+
+        screening_service = await self._get_argument_screening_service_if_ff_enabled()
 
         debug_info = WebSearchDebugInfo(parameters=parameters.model_dump())
 
@@ -173,8 +172,28 @@ class WebSearchTool(Tool[WebSearchConfig]):
         notify_from_tool_call = self._ff_tool_progress_reporter_callback()
 
         try:
+            if screening_service is not None:
+                screening_result = await screening_service(parameters.model_dump())
+                debug_info.steps.append(
+                    screening_service.build_step_debug_info_from_result(
+                        screening_result
+                    )
+                )
+
+                if not screening_result.go:
+                    return ToolCallResponse(
+                        id=tool_call.id,  # type: ignore
+                        name=self.name,
+                        debug_info=debug_info.model_dump(with_debug_details=self.debug),
+                        content=screening_service.build_rejection_response(
+                            screening_result
+                        ),
+                    )
+
             content_chunks = await executor.run()
+
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
+
             debug_info.execution_time = time() - start_time
 
             await web_search_message_logger.finished()
@@ -191,7 +210,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 name=self.name,
                 debug_info=debug_info.model_dump(with_debug_details=self.debug),
                 content_chunks=content_chunks,
+                system_reminder=self.config.experimental_features.tool_response_system_reminder.get_reminder_prompt,
             )
+
         except Exception as e:
             _LOGGER.exception(f"Error executing WebSearch tool: {e}")
 
@@ -297,6 +318,20 @@ class WebSearchTool(Tool[WebSearchConfig]):
         if not tool_response.content_chunks:
             return []
         return evaluation_check_list
+
+    async def _get_argument_screening_service_if_ff_enabled(
+        self,
+    ) -> ArgumentScreeningService | None:
+        if not feature_flags.enable_web_search_argument_screening_un_18741.is_enabled(
+            self.company_id
+        ):
+            return None
+
+        return ArgumentScreeningService(
+            language_model_service=self.language_model_service,
+            language_model=self.config.language_model,
+            config=self.config.experimental_features.argument_screening_config,
+        )
 
     def _ff_tool_progress_reporter(self):
         if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):

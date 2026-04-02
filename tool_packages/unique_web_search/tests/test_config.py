@@ -14,6 +14,10 @@ from unique_web_search.config import (
     ExperimentalFeatures,
     WebSearchConfig,
 )
+from unique_web_search.prompts import (
+    DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
+    DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3,
+)
 from unique_web_search.services.crawlers.base import CrawlerType
 from unique_web_search.services.crawlers.basic import BasicCrawlerConfig
 from unique_web_search.services.executors.configs import (
@@ -26,6 +30,7 @@ from unique_web_search.services.executors.configs.v1_config import (
     WebSearchV1Config,
 )
 from unique_web_search.services.executors.configs.v2_config import WebSearchV2Config
+from unique_web_search.services.executors.configs.v3_config import WebSearchV3Config
 from unique_web_search.services.search_engine.base import SearchEngineType
 from unique_web_search.services.search_engine.google import GoogleConfig
 
@@ -214,8 +219,29 @@ class TestExperimentalFeatures:
         """Test ExperimentalFeatures with default values."""
         config = ExperimentalFeatures()
 
-        # ExperimentalFeatures now just extends FeatureExtendedSourceSerialization
         assert isinstance(config, ExperimentalFeatures)
+        assert config.tool_response_system_reminder.enabled is False
+        assert (
+            config.tool_response_system_reminder.system_reminder_prompt
+            == DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT
+        )
+        assert config.tool_response_system_reminder.get_reminder_prompt == ""
+
+
+class TestWebSearchV3Config:
+    """Test cases for WebSearchV3Config."""
+
+    def test_web_search_v3_config_tool_format_information_default(self) -> None:
+        """V3 citation instructions default to the full V3 template including domain diversity."""
+        config = WebSearchV3Config()
+
+        assert (
+            config.tool_format_information_for_system_prompt
+            == DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3
+        )
+        assert "Domain Diversity Requirement" in (
+            config.tool_format_information_for_system_prompt
+        )
 
 
 class TestQueryRefinementConfig:

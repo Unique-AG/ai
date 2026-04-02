@@ -79,7 +79,7 @@ load test_helper
     setup_test_repo
     
     # Make changes only to lock files
-    echo "new lock content" >> "$TEST_PACKAGE/poetry.lock"
+    echo "new lock content" >> "$TEST_PACKAGE/uv.lock"
     git add .
     git commit -m "Update lock file"
     
@@ -127,15 +127,15 @@ load test_helper
     [[ "$output" =~ "CHANGELOG.md must be updated" ]]
 }
 
-@test "does NOT skip validation for similarly-named files (my-poetry.lock vs poetry.lock)" {
+@test "does NOT skip validation for similarly-named files (my-uv.lock vs uv.lock)" {
     setup_test_repo
     
     # Make changes to a file with similar name - should NOT be excluded
-    echo "custom lock" > "$TEST_PACKAGE/my-poetry.lock"
+    echo "custom lock" > "$TEST_PACKAGE/my-uv.lock"
     git add .
     git commit -m "Add custom lock file"
     
-    # 'poetry.lock' pattern should NOT match 'my-poetry.lock'
+    # 'uv.lock' pattern should NOT match 'my-uv.lock'
     run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch
     [ "$status" -eq 1 ]
     [[ "$output" =~ "CHANGELOG.md must be updated" ]]
@@ -353,7 +353,7 @@ EOF
     git add .
     git commit -m "Add custom lock file"
     
-    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch --exclude "custom.lock,poetry.lock"
+    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch --exclude "custom.lock,uv.lock"
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Skipping validation" ]] || [[ "$output" =~ "No code changes" ]]
 }
@@ -367,7 +367,7 @@ EOF
     git commit -m "Add code change"
     
     # Use exclude with trailing comma - this should NOT cause all files to be excluded
-    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch --exclude "poetry.lock,uv.lock,"
+    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch --exclude "uv.lock,custom.lock,"
     [ "$status" -eq 1 ]
     # Should fail because src/main.py is a meaningful change requiring changelog
     [[ "$output" =~ "CHANGELOG.md must be updated" ]]
@@ -382,7 +382,7 @@ EOF
     git commit -m "Add code change"
     
     # Use exclude with leading comma
-    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch --exclude ",poetry.lock,uv.lock"
+    run "$SCRIPT" "$TEST_PACKAGE" --base-ref main --no-fetch --exclude ",uv.lock,custom.lock"
     [ "$status" -eq 1 ]
     [[ "$output" =~ "CHANGELOG.md must be updated" ]]
 }

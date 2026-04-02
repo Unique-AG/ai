@@ -1,37 +1,19 @@
-from copy import deepcopy
 from typing import Annotated
 
 from fastmcp import FastMCP
+from fastmcp.dependencies import Depends
 from mcp.types import CallToolResult, TextContent
 from pydantic import Field
 
-from mcp_search.util import get_unique_auth_from_zitadel_user
-from unique_mcp.provider import BaseProvider
+from unique_mcp.provider import BaseProvider, UniqueContextProvider
 from unique_toolkit import KnowledgeBaseService
-from unique_toolkit.app.unique_settings import UniqueAuth, UniqueSettings
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentSearchType
 
 
 class UniqueKnowledgeBaseTools(BaseProvider):
-    def __init__(self, unique_settings: UniqueSettings | None = None) -> None:
-        super().__init__()
-        self._unique_settings = (
-            unique_settings or UniqueSettings.from_env_auto_with_sdk_init()
-        )
-
-    def _get_unique_settings_for_request(
-        self, unique_auth: UniqueAuth | None = None
-    ) -> UniqueSettings:
-        """
-        Create a unique settings object for the current request. This is necessary
-        """
-        settings = deepcopy(self._unique_settings)
-        if unique_auth is not None:
-            settings.auth = unique_auth
-        else:
-            settings.auth = get_unique_auth_from_zitadel_user()
-
-        return settings
+    def __init__(self, context_provider: UniqueContextProvider) -> None:
+        self._context_provider = context_provider
 
     def register(self, *, mcp: FastMCP) -> None:
         @mcp.tool(
@@ -41,9 +23,8 @@ class UniqueKnowledgeBaseTools(BaseProvider):
                 "unique.app/icon": "search",
                 "unique.app/system-prompt": "Choose this tool if you need to search in the knowledge base",
             },
-            exclude_args=["unique_auth"],
         )
-        def _search(
+        async def _search(
             search_string: Annotated[
                 str,
                 Field(
@@ -64,11 +45,9 @@ class UniqueKnowledgeBaseTools(BaseProvider):
                     default=10,
                 ),
             ] = 10,
-            unique_auth: UniqueAuth | None = None,
+            settings: UniqueSettings = Depends(self._context_provider.get_settings),
         ) -> CallToolResult:
             """Search in the knowledge base"""
-
-            settings = self._get_unique_settings_for_request(unique_auth=unique_auth)
 
             knowledge_base_service = KnowledgeBaseService.from_settings(settings)
 

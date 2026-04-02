@@ -73,10 +73,8 @@ check_dependencies() {
         exit 1
     fi
     
-    if ! uv run --no-sync python -c "import mkdocs" &> /dev/null; then
-        log_error "mkdocs not installed. Run: uv sync"
-        exit 1
-    fi
+    log_info "Syncing docs dependencies..."
+    uv sync --locked --inexact --group docs
     
     log_success "Dependencies OK"
 }
@@ -210,7 +208,7 @@ build_project_site() {
     # Create temporary config with updated site_url
     sed "s|site_url:.*|site_url: $site_url|g" "$project_dir/mkdocs.yaml" > "$temp_config"
     
-    # Build from repo root so root's poetry (with mkdocs) is used.
+    # Build from repo root so root's uv environment (with mkdocs) is used.
     # Suppress SyntaxWarning from mkdocs-include-dir-to-nav (invalid escape sequence in its code).
     (
         cd "$REPO_ROOT"

@@ -6,6 +6,7 @@ from typing import override
 from pydantic import BaseModel, Field
 from pydantic.json_schema import SkipJsonSchema
 
+from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     ResponsesApiPostprocessor,
 )
@@ -23,22 +24,6 @@ _TEMPLATE = """
 </br>
 
 """.lstrip()
-
-# Pattern matching the block emitted by _TEMPLATE (including trailing </br>).
-# Used when another postprocessor supersedes this content (e.g. fence injection).
-_EXECUTED_CODE_BLOCK_RE = re.compile(
-    r"\n*<details><summary>Code Interpreter Call</summary>.*?</details>[ \t]*\n*(?:[ \t]*</br>[ \t]*\n*)?",
-    re.DOTALL,
-)
-
-
-def strip_executed_code_blocks(text: str) -> str:
-    """Remove all executed-code <details> blocks emitted by this postprocessor.
-
-    Call this when the same content is represented elsewhere (e.g. imgWithSource
-    / fileWithSource fences) so the message does not contain duplicate code blocks.
-    """
-    return _EXECUTED_CODE_BLOCK_RE.sub("", text)
 
 
 logger = logging.getLogger(__name__)
@@ -59,18 +44,32 @@ class ShowExecutedCodePostprocessorConfig(BaseModel):
 
 
 class ShowExecutedCodePostprocessor(ResponsesApiPostprocessor):
-    def __init__(self, config: ShowExecutedCodePostprocessorConfig):
+    def __init__(
+        self,
+        config: ShowExecutedCodePostprocessorConfig,
+        company_id: str | None = None,
+    ):
         super().__init__(self.__class__.__name__)
         self._config = config
+        self._company_id = company_id
 
     @override
     async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:
+        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+            self._company_id
+        ):
+            return
         await asyncio.sleep(self._config.sleep_time_before_display)
 
     @override
     def apply_postprocessing_to_response(
         self, loop_response: ResponsesLanguageModelStreamResponse
     ) -> bool:
+        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+            self._company_id
+        ):
+            return False
+
         prepended_text = ""
         for output in loop_response.code_interpreter_calls:
             prepended_text += _TEMPLATE.format(code=output.code)
@@ -83,6 +82,5 @@ class ShowExecutedCodePostprocessor(ResponsesApiPostprocessor):
     async def remove_from_text(self, text) -> str:
         if not self._config.remove_from_history:
             return text
-        # Remove code interpreter blocks using regex
         pattern = r"<details><summary>Code Interpreter Call</summary>.*?</details>"
         return re.sub(pattern, "", text, flags=re.DOTALL)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # Development helper script for running CI checks locally
-# Auto-detects package manager (poetry vs uv) based on pyproject.toml
+# Uses uv as the package manager
 #
 # Usage: ./dev.sh <command> [options]
 #
@@ -74,7 +74,7 @@ while [[ $# -gt 0 ]]; do
         -h|--help)
             cat << 'HELP'
 Development helper script for running CI checks locally
-Auto-detects package manager (poetry vs uv) based on pyproject.toml
+Development helper script for running CI checks locally using uv
 
 Usage: ./dev.sh <command> [options]
 
@@ -124,40 +124,17 @@ fi
 cd "$PACKAGE_DIR"
 PACKAGE_DIR=$(pwd)
 
-# Detect package manager
-detect_package_manager() {
-    if [[ ! -f "pyproject.toml" ]]; then
-        print_error "No pyproject.toml found in $(pwd)"
-        exit 1
-    fi
-    
-    if [[ -f "uv.lock" ]] || grep -q "uv_build" pyproject.toml 2>/dev/null; then
-        echo "uv"
-    elif grep -q "\[tool\.poetry\]" pyproject.toml 2>/dev/null; then
-        echo "poetry"
-    else
-        print_error "Could not detect package manager (poetry or uv)"
-        exit 1
-    fi
-}
-
-PM=$(detect_package_manager)
-print_info "Package manager: $PM | Directory: $PACKAGE_DIR"
-
-# Get run command
-if [[ "$PM" == "uv" ]]; then
-    RUN="uv run"
-else
-    RUN="poetry run"
+if [[ ! -f "pyproject.toml" ]]; then
+    print_error "No pyproject.toml found in $(pwd)"
+    exit 1
 fi
 
-# Get package name
+PM="uv"
+RUN="uv run"
+print_info "Package manager: $PM | Directory: $PACKAGE_DIR"
+
 get_package_name() {
-    if [[ "$PM" == "uv" ]]; then
-        grep -A1 "^\[project\]" pyproject.toml | grep "^name" | sed 's/.*= *"\([^"]*\)".*/\1/' | tr '-' '_'
-    else
-        grep -A5 "^\[tool\.poetry\]" pyproject.toml | grep "^name" | sed 's/.*= *"\([^"]*\)".*/\1/' | tr '-' '_'
-    fi
+    grep -A1 "^\[project\]" pyproject.toml | grep "^name" | sed 's/.*= *"\([^"]*\)".*/\1/' | tr '-' '_'
 }
 
 # =============================================================================
@@ -307,11 +284,7 @@ cmd_typecheck() {
         git checkout "$BASE_REF" --quiet 2>/dev/null || git checkout "$BASE_SHA" --quiet
         
         # Install deps and generate baseline using --writebaseline (same as CI)
-        if [[ "$PM" == "uv" ]]; then
-            uv sync --quiet 2>/dev/null || true
-        else
-            poetry install --quiet 2>/dev/null || true
-        fi
+        uv sync --quiet 2>/dev/null || true
         
         # Create .basedpyright directory and run with --writebaseline
         print_info "Generating baseline from $BASE_REF using --writebaseline..."
@@ -342,11 +315,7 @@ cmd_typecheck() {
         }
         
         # Reinstall deps for current branch
-        if [[ "$PM" == "uv" ]]; then
-            uv sync --quiet 2>/dev/null || true
-        else
-            poetry install --quiet 2>/dev/null || true
-        fi
+        uv sync --quiet 2>/dev/null || true
         
         print_success "Baseline cached at: $BASELINE_FILE"
         

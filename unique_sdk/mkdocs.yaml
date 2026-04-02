@@ -60,6 +60,7 @@ nav:
   - API Reference:
     - Overview: api_resources/index.md
     - Agentic Table: api_resources/agentic_table.md
+    - Benchmarking: api_resources/benchmarking.md
     - ChatCompletion: api_resources/chat_completion.md
     - Content: api_resources/content.md
     - Embeddings: api_resources/embeddings.md
@@ -80,6 +81,7 @@ nav:
   - UniqueQL:
     - Query Language: uniqueql.md
   - Utilities:
+    - Benchmarking run: utilities/benchmarking_run.md
     - Chat History: utilities/chat_history.md
     - File I/O: utilities/file_io.md
     - Sources: utilities/sources.md

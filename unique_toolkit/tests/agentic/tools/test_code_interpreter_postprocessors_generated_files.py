@@ -1,7 +1,8 @@
 """Tests for code interpreter generated-files postprocessor (config, __init__, helpers)."""
 
 import logging
-from unittest.mock import MagicMock
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
@@ -15,6 +16,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     DisplayCodeInterpreterFilesPostProcessorConfig,
     _build_code_blocks,
     _build_file_fence,
+    _collect_stdout,
     _ensure_fences_are_standalone,
     _file_frontend_type,
     _file_title,
@@ -27,7 +29,11 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.schemas import
     CodeInterpreterBlock,
     CodeInterpreterFile,
 )
+from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.content.schemas import ContentReference
+from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
+
+GEN_FILES_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files.feature_flags"
 
 
 @pytest.mark.ai
@@ -86,6 +92,12 @@ def test_get_next_ref_number__returns_one__when_references_empty() -> None:
 
     # Assert
     assert result == 1
+
+
+@pytest.mark.ai
+def test_get_next_ref_number__returns_one__when_references_none() -> None:
+    """Message.references may be None before postprocessing; treat like no refs."""
+    assert gen_mod._get_next_ref_number(None) == 1
 
 
 @pytest.mark.ai
@@ -258,24 +270,122 @@ def test_replace_container_html_citation__replaces_markdown__with_html_rendering
     None
 ):
     """
-    Purpose: Verify sandbox HTML link is replaced by HtmlRendering code block with content URL.
-    Why this matters: HTML files are rendered in chat via special block.
-    Setup summary: Text with link to .html file; assert ```HtmlRendering and unique://content in result.
+    Purpose: Verify sandbox HTML link replaced by HtmlRendering block with correct single blank line.
+    Why this matters: HTML files are rendered in chat via special block; exact format matters.
+    Setup summary: Link at start of line — no leading newline injected.
     """
-    # Arrange
-    text = "Report: [report](sandbox:/mnt/data/report.html)"
+    text = "[report](sandbox:/mnt/data/report.html)"
     content_id = "html-content-456"
 
-    # Act
     new_text, replaced = gen_mod._replace_container_html_citation(
         text, filename="report.html", content_id=content_id
     )
 
-    # Assert
     assert replaced is True
-    assert "HtmlRendering" in new_text
-    assert f"unique://content/{content_id}" in new_text
     assert "sandbox" not in new_text
+    expected_block = (
+        f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+    )
+    assert expected_block in new_text
+
+
+@pytest.mark.ai
+def test_replace_container_html_citation__inline_link__starts_on_new_line() -> None:
+    """
+    Purpose: Verify that when the sandbox link is mid-line (e.g. in a list item), the
+    HtmlRendering block is placed on a new line so the frontend parser can detect it.
+    Why this matters: LLMs often write "3. Dashboard: [link](sandbox://...)" — without
+    a leading newline the HtmlRendering fence is inline and fails to render.
+    """
+    text = (
+        "3. **HTML Dashboard**: [View the dashboard](sandbox:/mnt/data/dashboard.html) "
+    )
+    content_id = "cid-dash"
+
+    new_text, replaced = gen_mod._replace_container_html_citation(
+        text, filename="dashboard.html", content_id=content_id
+    )
+
+    assert replaced is True
+    assert "sandbox" not in new_text
+    # Block must be preceded by a newline (not inline after the label)
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+    assert "\n" + block in new_text
+    # Label is preserved before the block
+    assert "3. **HTML Dashboard**:" in new_text
+
+
+@pytest.mark.ai
+def test_replace_container_html_citation__indented_link_only_line__flushes_fence_left() -> (
+    None
+):
+    """
+    Purpose: List continuations often use two spaces then the sandbox link alone on
+    the line. Replacing only the link left `` ```HtmlRendering `` indented; parsers
+    require a column-0 fence. The full whitespace+link line must become the block.
+    """
+    text = (
+        "- 📊 HTML dashboard:\n\n"
+        "  [VIX Analytics Dashboard (HTML)](sandbox:/mnt/data/vix_dashboard.html)\n"
+    )
+    content_id = "cid-html"
+    new_text, replaced = gen_mod._replace_container_html_citation(
+        text, filename="vix_dashboard.html", content_id=content_id
+    )
+
+    assert replaced is True
+    assert "sandbox" not in new_text
+    assert "  ```HtmlRendering" not in new_text
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+    assert block in new_text
+
+
+@pytest.mark.ai
+def test_replace_container_html_citation__blank_lines_before_link__are_stripped() -> (
+    None
+):
+    """
+    Purpose: When the link is on its own indented line, any whitespace-only lines
+    immediately before it (common list separator lines like '  \\n') must also be
+    consumed so they don't appear as orphaned blank lines above the HtmlRendering block.
+    """
+    text = (
+        "- HTML dashboard (open in your browser):\n"
+        "  \n"
+        "  [Dashboard](sandbox:/mnt/data/dash.html)\n"
+        "- Next item\n"
+    )
+    content_id = "cid-blank"
+    new_text, replaced = gen_mod._replace_container_html_citation(
+        text, filename="dash.html", content_id=content_id
+    )
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+    assert replaced is True
+    assert "sandbox" not in new_text
+    assert "  ```HtmlRendering" not in new_text
+    assert block in new_text
+    # The orphaned '  \n' must not appear between the label and the block
+    assert "  \n" + block not in new_text
+
+
+@pytest.mark.ai
+def test_replace_container_html_citation__mid_line_followed_by_more_text__trailing_newline() -> (
+    None
+):
+    """
+    Purpose: When the link is mid-line and is followed immediately by more text
+    (no newline), the closing ``` must still be followed by a newline so subsequent
+    content starts on a fresh line.
+    """
+    text = "Dashboard: [d](sandbox:/mnt/data/d.html)More text here"
+    content_id = "cid-trail"
+    new_text, replaced = gen_mod._replace_container_html_citation(
+        text, filename="d.html", content_id=content_id
+    )
+    block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
+    assert replaced is True
+    assert "sandbox" not in new_text
+    assert block + "\n" in new_text or new_text.endswith(block)
 
 
 # ============================================================================
@@ -306,6 +416,21 @@ def _make_annotation(
         start_index=0,
         end_index=10,
         type="container_file_citation",
+    )
+
+
+def _make_display_files_postprocessor(
+    company_id: str = "co-test",
+) -> DisplayCodeInterpreterFilesPostProcessor:
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    return DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id=company_id,
+        user_id="u1",
+        chat_id="ch1",
     )
 
 
@@ -720,6 +845,24 @@ def test_build_file_fence__document__uses_fileWithSource_tag() -> None:
 
 
 @pytest.mark.ai
+def test_build_file_fence__html__produces_htmlWithSource() -> None:
+    """
+    Purpose: HTML files produce an htmlWithSource fence (not fileWithSource).
+    Why this matters: When the fence FF is on, HTML is injected as htmlWithSource
+    so the frontend can render it in-place rather than as a download link.
+    """
+    file = CodeInterpreterFile(
+        filename="report.html", content_id="cont_html1", type="html"
+    )
+    fence = _build_file_fence(
+        file, 'open("/mnt/data/report.html", "w").write("<html></html>")', fence_id=3
+    )
+    assert fence.startswith("````htmlWithSource(")
+    assert "cont_html1" in fence
+    assert "fileWithSource" not in fence
+
+
+@pytest.mark.ai
 def test_build_file_fence__code_is_escaped__when_contains_double_quotes() -> None:
     """
     Purpose: Verify double quotes inside the code string are escaped so the
@@ -799,6 +942,33 @@ def test_inject_code_execution_fences__replaces_document_inline_ref__with_fileWi
     assert "````fileWithSource(" in result
     assert "cont_doc1" in result
     assert "[data.xlsx](unique://content/cont_doc1)" not in result
+
+
+@pytest.mark.ai
+def test_inject_code_execution_fences__html_file__is_not_injected() -> None:
+    """
+    Purpose: HTML files are rendered via HtmlRendering blocks (not fence injection),
+    so an HTML block passed to _inject_code_execution_fences leaves the text unchanged.
+    Why this matters: In normal flow HTML never reaches fence injection — this guards
+    against accidental regressions where an htmlWithSource fence is emitted.
+    """
+    block = CodeInterpreterBlock(
+        code='open("/mnt/data/page.html", "w").write("<html></html>")',
+        files=[
+            CodeInterpreterFile(
+                filename="page.html", content_id="cont_html1", type="html"
+            )
+        ],
+    )
+    # HTML produces no unique://content inline ref (it was replaced by HtmlRendering),
+    # so there is nothing for the injector to match.
+    text = "```HtmlRendering\nunique://content/cont_html1\n```"
+
+    result = _inject_code_execution_fences(text, [block])
+
+    assert "htmlWithSource" not in result
+    assert "HtmlRendering" in result
+    assert "cont_html1" in result
 
 
 @pytest.mark.ai
@@ -893,68 +1063,6 @@ def test_inject_code_execution_fences__two_blocks__produce_two_fences() -> None:
     assert "cont_img2" in result
     assert "cont_doc1" in result
     assert "[kpis.xlsx](unique://content/cont_doc1)" not in result
-
-
-@pytest.mark.ai
-def test_inject_code_execution_fences__strips_details_block__when_present() -> None:
-    """
-    Purpose: Verify <details><summary>Code Interpreter Call</summary>...</details>
-    blocks are removed after fence injection.
-    Why this matters: ShowExecutedCodePostprocessor output is superseded by codeExecution fences.
-    Setup summary: Text has a <details> block followed by an image ref; assert <details> stripped.
-    """
-    block = CodeInterpreterBlock(
-        code='plt.savefig("/mnt/data/chart.png")',
-        files=[
-            CodeInterpreterFile(
-                filename="chart.png", content_id="cont_img1", type="image"
-            )
-        ],
-    )
-    text = (
-        "<details><summary>Code Interpreter Call</summary>\n"
-        "```python\nplt.savefig('/mnt/data/chart.png')\n```\n"
-        "</details>\n"
-        "![image](unique://content/cont_img1)"
-    )
-
-    result = _inject_code_execution_fences(text, [block])
-
-    assert "````imgWithSource(" in result
-    assert "<details>" not in result
-
-
-@pytest.mark.ai
-def test_inject_code_execution_fences__strips_trailing_br__after_details_block() -> (
-    None
-):
-    """
-    Purpose: Verify the stray </br> separator left after <details> stripping is also removed.
-    Why this matters: ShowExecutedCodePostprocessor emits <details>...</details>    \n</br>\n
-    — after stripping <details> the </br> must not be left dangling at the top of the message.
-    """
-    block = CodeInterpreterBlock(
-        code='plt.savefig("/mnt/data/chart.png")',
-        files=[
-            CodeInterpreterFile(
-                filename="chart.png", content_id="cont_img1", type="image"
-            )
-        ],
-    )
-    text = (
-        "<details><summary>Code Interpreter Call</summary>\n"
-        "```python\nplt.savefig('/mnt/data/chart.png')\n```\n"
-        "</details>    \n</br>\n\n"
-        "Here is the chart.\n\n"
-        "![image](unique://content/cont_img1)"
-    )
-
-    result = _inject_code_execution_fences(text, [block])
-
-    assert "</br>" not in result
-    assert "<details>" not in result
-    assert "Here is the chart." in result
-    assert "````imgWithSource(" in result
 
 
 @pytest.mark.ai
@@ -1479,3 +1587,760 @@ def test_warn_unmatched_code_blocks__skips_none_content_ids(caplog) -> None:
         _warn_unmatched_code_blocks(content_map, code_blocks)
 
     assert not any(r.levelno == logging.WARNING for r in caplog.records)
+
+
+# ============================================================================
+# Tests for _collect_stdout
+# ============================================================================
+
+
+def _make_logs_output(logs: str) -> MagicMock:
+    """Build a mock output item with type='logs' and the given logs string."""
+    output = MagicMock()
+    output.type = "logs"
+    output.logs = logs
+    return output
+
+
+def _make_image_output() -> MagicMock:
+    """Build a mock output item with type='image' (should be ignored by _collect_stdout)."""
+    output = MagicMock()
+    output.type = "image"
+    return output
+
+
+def _make_call(outputs: list | None) -> ResponseCodeInterpreterToolCall:
+    """Build a minimal ResponseCodeInterpreterToolCall with the given outputs list."""
+    call = MagicMock(spec=ResponseCodeInterpreterToolCall)
+    call.outputs = outputs
+    return call
+
+
+@pytest.mark.ai
+def test_collect_stdout__returns_empty_string__when_outputs_is_none() -> None:
+    """
+    Purpose: Verify _collect_stdout returns '' when the call has no outputs (include not set).
+    Why this matters: When the Responses API is called without include=["code_interpreter_call.outputs"],
+    call.outputs is None; we must not crash and must fall back to source code.
+    """
+    call = _make_call(outputs=None)
+    assert _collect_stdout(call) == ""
+
+
+@pytest.mark.ai
+def test_collect_stdout__returns_empty_string__when_outputs_is_empty_list() -> None:
+    """
+    Purpose: Verify _collect_stdout returns '' for an empty outputs list.
+    Why this matters: Empty list is a valid API response when code produces no stdout.
+    """
+    call = _make_call(outputs=[])
+    assert _collect_stdout(call) == ""
+
+
+@pytest.mark.ai
+def test_collect_stdout__returns_logs__when_single_logs_output() -> None:
+    """
+    Purpose: Verify _collect_stdout extracts the logs text from a single logs output item.
+    Why this matters: Core happy-path: stdout from a print() call should become the txt content.
+    """
+    call = _make_call(outputs=[_make_logs_output("Hello, world!")])
+    assert _collect_stdout(call) == "Hello, world!"
+
+
+@pytest.mark.ai
+def test_collect_stdout__joins_multiple_logs_outputs__with_newline() -> None:
+    """
+    Purpose: Verify _collect_stdout joins multiple logs outputs with newlines.
+    Why this matters: Code interpreter may emit several log chunks; they must be
+    concatenated in order so the txt file is readable.
+    """
+    call = _make_call(
+        outputs=[
+            _make_logs_output("line 1"),
+            _make_logs_output("line 2"),
+            _make_logs_output("line 3"),
+        ]
+    )
+    assert _collect_stdout(call) == "line 1\nline 2\nline 3"
+
+
+@pytest.mark.ai
+def test_collect_stdout__ignores_non_logs_outputs() -> None:
+    """
+    Purpose: Verify _collect_stdout skips image (and other non-logs) output items.
+    Why this matters: Code interpreter outputs can include images; those must not
+    be included in the stdout text.
+    """
+    call = _make_call(
+        outputs=[
+            _make_logs_output("stdout text"),
+            _make_image_output(),
+        ]
+    )
+    assert _collect_stdout(call) == "stdout text"
+
+
+# ============================================================================
+# Tests for orphan path, _get_next_fence_id, _build_orphan_fences, run()
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_get_next_fence_id__returns_one__when_no_fences_in_text() -> None:
+    assert gen_mod._get_next_fence_id("plain text") == 1
+
+
+@pytest.mark.ai
+def test_get_next_fence_id__returns_max_plus_one__when_fences_in_text() -> None:
+    text = "x ````fileWithSource(id='2', contentId='a')```` y ````imgWithSource(id='5', contentId='b')````"
+    assert gen_mod._get_next_fence_id(text) == 6
+
+
+@pytest.mark.ai
+def test_build_orphan_fences__concatenates_file_fences() -> None:
+    f = CodeInterpreterFile(filename="code.txt", content_id="cid1", type="document")
+    block = CodeInterpreterBlock(code="print(1)", files=[f])
+    out = gen_mod._build_orphan_fences([block], start_fence_id=1)
+    assert "fileWithSource" in out
+    assert "cid1" in out
+    assert "print(1)" in out or "\\n" in out  # code may be escaped in fence
+
+
+@pytest.mark.ai
+@patch(GEN_FILES_FF)
+def test_apply_postprocessing__normalizes_none_message_text__to_empty_string(
+    mock_ff: MagicMock,
+) -> None:
+    """
+    Purpose: `apply_postprocessing_to_response` must coerce `message.text` None to ''.
+    Why this matters: Downstream regex/replace assumes a string; Responses payloads can
+    omit text until postprocessing.
+    """
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id="company-null-text",
+    )
+    proc._content_map = {}
+    proc._orphan_code_blocks = []
+    msg = ChatMessage(
+        chat_id="c1",
+        role=ChatMessageRole.ASSISTANT,
+        content=None,
+        references=[],
+    )
+    loop = ResponsesLanguageModelStreamResponse(message=msg, output=[])
+    proc.apply_postprocessing_to_response(loop)
+    assert msg.text == ""
+
+
+@pytest.mark.ai
+@patch(GEN_FILES_FF)
+def test_apply_postprocessing__orphan_path_appends_fence_but_not_references__when_ff_on(
+    mock_ff: MagicMock,
+) -> None:
+    """
+    Purpose: Orphan blocks get fence text but NO ContentReference entries when fence FF is on.
+    Why this matters: Orphan artifacts are rendered via fences in message.text; adding them
+    to references would surface them as source citations, which is semantically wrong.
+    Setup summary: One orphan block with a document file, fence FF ON; assert fence text
+    added and references remain empty.
+    """
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id="company-orphan",
+    )
+    proc._content_map = {}
+    orphan_file = CodeInterpreterFile(
+        filename="code.txt", content_id="cont_orphan", type="document"
+    )
+    proc._orphan_code_blocks = [
+        CodeInterpreterBlock(code="print('hi')", files=[orphan_file]),
+    ]
+    msg = ChatMessage(
+        chat_id="c1",
+        role=ChatMessageRole.ASSISTANT,
+        content="Hello",
+        references=None,
+    )
+    loop = ResponsesLanguageModelStreamResponse(message=msg, output=[])
+    changed = proc.apply_postprocessing_to_response(loop)
+    assert changed is True
+    assert msg.text is not None
+    assert "fileWithSource" in msg.text
+    assert msg.references == []
+
+
+@pytest.mark.ai
+@patch(GEN_FILES_FF)
+def test_apply_postprocessing__ff_on__does_not_append_reference_for_non_image_file(
+    mock_ff: MagicMock,
+) -> None:
+    """
+    Purpose: When fence FF is ON, non-image files must NOT be added to message.references.
+    Why this matters: Files are rendered as fence blocks in message.text; references entries
+    would incorrectly surface them as source citations in the references panel.
+    Setup summary: One .pdf with sandbox link, fence FF ON; assert references stays empty.
+    """
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
+    mock_ff.enable_html_rendering_un_15131.is_enabled.return_value = False
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id="company-fence-on",
+    )
+    proc._content_map = {"report.pdf": "cid-pdf-1"}
+    proc._orphan_code_blocks = []
+    message = SimpleNamespace(
+        text="See [report.pdf](sandbox:/mnt/data/report.pdf) for details.",
+        references=[],
+    )
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[],
+        code_interpreter_calls=[],
+    )
+    proc.apply_postprocessing_to_response(loop_response)
+    assert message.references == []
+
+
+@pytest.mark.ai
+@patch(GEN_FILES_FF)
+def test_apply_postprocessing__ff_off__appends_reference_for_non_image_file(
+    mock_ff: MagicMock,
+) -> None:
+    """
+    Purpose: When fence FF is OFF, non-image files must still be added to message.references.
+    Why this matters: The legacy references UI uses these entries for download/open actions.
+    Setup summary: One .pdf with sandbox link, fence FF OFF; assert one ContentReference appended.
+    """
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
+    mock_ff.enable_html_rendering_un_15131.is_enabled.return_value = False
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id="company-fence-off",
+    )
+    proc._content_map = {"report.pdf": "cid-pdf-1"}
+    proc._orphan_code_blocks = []
+    message = SimpleNamespace(
+        text="See [report.pdf](sandbox:/mnt/data/report.pdf) for details.",
+        references=[],
+    )
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[],
+        code_interpreter_calls=[],
+    )
+    proc.apply_postprocessing_to_response(loop_response)
+    assert len(message.references) == 1
+    ref = message.references[0]
+    assert ref.source_id == "cid-pdf-1"
+    assert ref.name == "report.pdf"
+
+
+@pytest.mark.ai
+@patch(GEN_FILES_FF)
+def test_apply_postprocessing__ff_off__existing_citation_refs_preserved(
+    mock_ff: MagicMock,
+) -> None:
+    """
+    Purpose: Pre-existing (ingestion/citation) references are preserved when fence FF is OFF
+    and a new artifact reference is appended alongside them.
+    Why this matters: Regression check — the fix must not disturb existing non-artifact refs.
+    Setup summary: One pre-existing ContentReference; one .xlsx with sandbox link; FF OFF.
+    Assert both refs present after postprocessing.
+    """
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
+    mock_ff.enable_html_rendering_un_15131.is_enabled.return_value = False
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=config,
+        chat_service=MagicMock(),
+        company_id="company-existing-refs",
+    )
+    proc._content_map = {"data.xlsx": "cid-xls-1"}
+    proc._orphan_code_blocks = []
+    existing_ref = ContentReference(
+        name="source-doc",
+        sequence_number=3,
+        source="ingestion",
+        source_id="existing-sid",
+        url="unique://content/existing-sid",
+    )
+    message = SimpleNamespace(
+        text="See [data.xlsx](sandbox:/mnt/data/data.xlsx).",
+        references=[existing_ref],
+    )
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[],
+        code_interpreter_calls=[],
+    )
+    proc.apply_postprocessing_to_response(loop_response)
+    assert len(message.references) == 2
+    source_ids = {r.source_id for r in message.references}
+    assert "existing-sid" in source_ids
+    assert "cid-xls-1" in source_ids
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@patch(GEN_FILES_FF)
+async def test_run__populates_orphan_blocks__when_ff_on_and_no_container_files(
+    mock_ff: MagicMock,
+) -> None:
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
+    call = ResponseCodeInterpreterToolCall(
+        id="call-1",
+        container_id="ctr",
+        status="completed",
+        type="code_interpreter_call",
+        code="print(42)",
+    )
+    msg = ChatMessage(
+        chat_id="c1",
+        role=ChatMessageRole.ASSISTANT,
+        content="Hi",
+    )
+    loop = ResponsesLanguageModelStreamResponse(message=msg, output=[call])
+    uploaded = MagicMock()
+    uploaded.id = "cont_up"
+    chat = AsyncMock()
+    chat.upload_to_chat_from_bytes_async = AsyncMock(return_value=uploaded)
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=chat,
+        company_id="co1",
+    )
+    await proc.run(loop)
+    assert len(proc._orphan_code_blocks) == 1
+    assert proc._orphan_code_blocks[0].files[0].content_id == "cont_up"
+    chat.upload_to_chat_from_bytes_async.assert_awaited()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@patch(GEN_FILES_FF)
+async def test_run__clears_orphan_blocks__when_fence_ff_off(mock_ff: MagicMock) -> None:
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
+    call = ResponseCodeInterpreterToolCall(
+        id="call-1",
+        container_id="ctr",
+        status="completed",
+        type="code_interpreter_call",
+        code="print(1)",
+    )
+    msg = ChatMessage(chat_id="c1", role=ChatMessageRole.ASSISTANT, content="Hi")
+    loop = ResponsesLanguageModelStreamResponse(message=msg, output=[call])
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=AsyncMock(),
+        company_id="co1",
+    )
+    proc._orphan_code_blocks = [
+        CodeInterpreterBlock(code="old", files=[]),
+    ]
+    await proc.run(loop)
+    assert proc._orphan_code_blocks == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@patch(GEN_FILES_FF)
+async def test_run__orphan_upload_skips_calls_when_upload_fails(
+    mock_ff: MagicMock,
+) -> None:
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
+    call = ResponseCodeInterpreterToolCall(
+        id="call-1",
+        container_id="ctr",
+        status="completed",
+        type="code_interpreter_call",
+        code="print(1)",
+    )
+    msg = ChatMessage(chat_id="c1", role=ChatMessageRole.ASSISTANT, content="Hi")
+    loop = ResponsesLanguageModelStreamResponse(message=msg, output=[call])
+    chat = AsyncMock()
+    chat.upload_to_chat_from_bytes_async = AsyncMock(
+        side_effect=RuntimeError("upload failed")
+    )
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=chat,
+        company_id="co1",
+    )
+    await proc.run(loop)
+    assert proc._orphan_code_blocks == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_upload_orphan_code_as_txt__returns_empty_when_container_files_present() -> (
+    None
+):
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=MagicMock(),
+        company_id="co1",
+    )
+    lr = MagicMock(spec=ResponsesLanguageModelStreamResponse)
+    lr.container_files = [MagicMock()]
+    lr.code_interpreter_calls = []
+    assert await proc._upload_orphan_code_as_txt(lr) == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_upload_orphan_code_as_txt__returns_empty_when_no_calls() -> None:
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=MagicMock(),
+        company_id="co1",
+    )
+    lr = MagicMock(spec=ResponsesLanguageModelStreamResponse)
+    lr.container_files = []
+    lr.code_interpreter_calls = []
+    assert await proc._upload_orphan_code_as_txt(lr) == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_upload_orphan_code_as_txt__skips_call_without_code() -> None:
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=MagicMock(),
+        company_id="co1",
+    )
+    call_no_code = MagicMock(spec=ResponseCodeInterpreterToolCall)
+    call_no_code.code = None
+    lr = MagicMock(spec=ResponsesLanguageModelStreamResponse)
+    lr.container_files = []
+    lr.code_interpreter_calls = [call_no_code]
+    assert await proc._upload_orphan_code_as_txt(lr) == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize("num_calls", [1, 2])
+async def test_upload_orphan_code_as_txt__uploads_txt_uses_expected_filename(
+    num_calls: int,
+) -> None:
+    """Single call → code.txt; multiple calls → code_1.txt, code_2.txt."""
+    calls = [
+        ResponseCodeInterpreterToolCall(
+            id=f"call-{i}",
+            container_id="ctr",
+            status="completed",
+            type="code_interpreter_call",
+            code=f"print({i})",
+        )
+        for i in range(num_calls)
+    ]
+    lr = MagicMock(spec=ResponsesLanguageModelStreamResponse)
+    lr.container_files = []
+    lr.code_interpreter_calls = calls
+    chat = AsyncMock()
+
+    async def _upload(**kwargs):
+        m = MagicMock()
+        m.id = f"id-{kwargs.get('content_name', '')}"
+        return m
+
+    chat.upload_to_chat_from_bytes_async = AsyncMock(side_effect=_upload)
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=chat,
+        company_id="co1",
+    )
+    blocks = await proc._upload_orphan_code_as_txt(lr)
+    assert len(blocks) == num_calls
+    if num_calls == 1:
+        chat.upload_to_chat_from_bytes_async.assert_awaited_once()
+        assert blocks[0].files[0].filename == "code.txt"
+    else:
+        assert {blocks[i].files[0].filename for i in range(2)} == {
+            "code_1.txt",
+            "code_2.txt",
+        }
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
+    "generated_files.feature_flags.enable_html_rendering_un_15131.is_enabled",
+    return_value=True,
+)
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
+    "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
+    return_value=False,
+)
+def test_apply_postprocessing_to_response__html_uses_legacy_HtmlRendering__when_fence_ff_off(
+    _mock_fence_ff: MagicMock,
+    _mock_html_ff: MagicMock,
+) -> None:
+    """
+    Purpose: HTML with fence FF off and HTML-rendering FF on uses _replace_container_html_citation.
+    Why this matters: Covers the legacy HtmlRendering branch (UN-15131) in apply_postprocessing.
+    """
+    proc = _make_display_files_postprocessor()
+    proc._content_map = {"report.html": "cid_html"}
+
+    refs: list[ContentReference] = []
+    message = SimpleNamespace(
+        text="[Download](sandbox:/mnt/data/report.html)",
+        references=refs,
+    )
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[],
+        code_interpreter_calls=[],
+    )
+
+    changed = proc.apply_postprocessing_to_response(loop_response)
+
+    assert changed is True
+    assert "HtmlRendering" in message.text
+    assert "unique://content/cid_html" in message.text
+    assert len(refs) == 0
+
+
+@pytest.mark.ai
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
+    "generated_files.feature_flags.enable_html_rendering_un_15131.is_enabled",
+    return_value=False,
+)
+@patch(
+    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
+    "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
+    return_value=True,
+)
+def test_apply_postprocessing_to_response__html_with_fence_ff_on__uses_htmlWithSource(
+    _mock_fence_ff: MagicMock,
+    _mock_html_ff: MagicMock,
+) -> None:
+    """
+    Purpose: HTML + fence FF on emits an htmlWithSource fence (not HtmlRendering).
+    Why this matters: htmlWithSource lets the frontend render HTML in-place with full
+    code context; no ContentReference row is added (fence carries contentId directly).
+    """
+    proc = _make_display_files_postprocessor()
+    proc._content_map = {"page.html": "cid_page"}
+
+    refs: list[ContentReference] = []
+    message = SimpleNamespace(
+        text="[page.html](sandbox:/mnt/data/page.html)",
+        references=refs,
+    )
+    call = _make_ci_call('open("/mnt/data/page.html", "w").write("x")')
+    ann = _make_annotation("page.html", file_id="f_html", container_id="cntr_x")
+    loop_response = SimpleNamespace(
+        message=message,
+        container_files=[ann],
+        code_interpreter_calls=[call],
+    )
+
+    changed = proc.apply_postprocessing_to_response(loop_response)
+
+    assert changed is True
+    assert len(refs) == 0
+    assert "htmlWithSource" in message.text
+    assert "cid_page" in message.text
+    assert "HtmlRendering" not in message.text
+
+
+# ---------------------------------------------------------------------------
+# _download_and_upload_container_files_to_knowledge_base — retry behaviour
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+def test_download_retry_config__has_defaults__when_constructed_with_no_args() -> None:
+    """
+    Purpose: Verify new retry config fields have correct default values.
+    Why this matters: Defaults encode the agreed "3 total attempts, 1 s base" policy.
+    Setup summary: Instantiate config with no args; assert retry defaults.
+    """
+    config = DisplayCodeInterpreterFilesPostProcessorConfig()
+
+    assert config.max_download_retries == 2
+    assert config.download_retry_base_delay == 0.5
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_and_upload__returns_content_info__when_download_succeeds_after_transient_failure() -> (
+    None
+):
+    """
+    Purpose: Verify that a transient download failure is retried and the method returns _ContentInfo.
+    Why this matters: Exactly the scenario described in UN-18531 — concurrent pulls can fail once.
+    Setup summary: retrieve raises on call 1, succeeds on call 2; upload always succeeds.
+    """
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        max_download_retries=2,
+        download_retry_base_delay=0,  # no real sleep in tests
+    )
+    annotation = _make_annotation("chart.png")
+    semaphore = asyncio.Semaphore(10)
+
+    mock_file_content = MagicMock()
+    mock_file_content.content = b"png-bytes"
+
+    proc._client.containers.files.content.retrieve = AsyncMock(
+        side_effect=[ConnectionError("transient"), mock_file_content]
+    )
+    mock_upload_result = MagicMock()
+    mock_upload_result.id = "cid_123"
+    proc._chat_service.upload_to_chat_from_bytes_async = AsyncMock(
+        return_value=mock_upload_result
+    )
+
+    result = await proc._download_and_upload_container_files_to_knowledge_base(
+        annotation, semaphore
+    )
+
+    assert result is not None
+    assert result.filename == "chart.png"
+    assert result.content_id == "cid_123"
+    assert proc._client.containers.files.content.retrieve.call_count == 2
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_and_upload__returns_none__when_all_download_attempts_exhausted() -> (
+    None
+):
+    """
+    Purpose: Verify that after all download retries are exhausted, failsafe_async returns None.
+    Why this matters: Pipeline must not crash — None triggers the file_download_failed_message path.
+    Setup summary: retrieve always raises; assert None returned and upload never called.
+    """
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        max_download_retries=1,
+        download_retry_base_delay=0,
+    )
+    annotation = _make_annotation("report.pdf")
+    semaphore = asyncio.Semaphore(10)
+
+    proc._client.containers.files.content.retrieve = AsyncMock(
+        side_effect=RuntimeError("permanent failure")
+    )
+
+    result = await proc._download_and_upload_container_files_to_knowledge_base(
+        annotation, semaphore
+    )
+
+    assert result is None
+    assert (
+        proc._client.containers.files.content.retrieve.call_count == 2
+    )  # 1 + max_download_retries
+    proc._chat_service.upload_to_chat_from_bytes_async.assert_not_called()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_and_upload__returns_none__when_zero_retries_and_download_fails() -> (
+    None
+):
+    """
+    Purpose: Verify max_download_retries=0 means exactly 1 total download attempt.
+    Why this matters: Operators can disable retries; must behave like the old single-attempt path.
+    Setup summary: retrieve fails once; max_download_retries=0; assert only 1 call.
+    """
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        max_download_retries=0,
+        download_retry_base_delay=0,
+    )
+    annotation = _make_annotation("data.csv")
+    semaphore = asyncio.Semaphore(10)
+
+    proc._client.containers.files.content.retrieve = AsyncMock(
+        side_effect=ValueError("fail")
+    )
+
+    result = await proc._download_and_upload_container_files_to_knowledge_base(
+        annotation, semaphore
+    )
+
+    assert result is None
+    assert proc._client.containers.files.content.retrieve.call_count == 1
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_and_upload__returns_none__when_upload_fails_after_successful_download() -> (
+    None
+):
+    """
+    Purpose: Verify upload is not retried — a single upload failure returns None.
+    Why this matters: Retry scope is intentionally limited to the download step only.
+    Setup summary: retrieve succeeds once; upload raises; assert retrieve called exactly once.
+    """
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        max_download_retries=2,
+        download_retry_base_delay=0,
+    )
+    annotation = _make_annotation("data.xlsx")
+    semaphore = asyncio.Semaphore(10)
+
+    mock_file_content = MagicMock()
+    mock_file_content.content = b"xlsx-bytes"
+    proc._client.containers.files.content.retrieve = AsyncMock(
+        return_value=mock_file_content
+    )
+    proc._chat_service.upload_to_chat_from_bytes_async = AsyncMock(
+        side_effect=RuntimeError("upload failed")
+    )
+
+    result = await proc._download_and_upload_container_files_to_knowledge_base(
+        annotation, semaphore
+    )
+
+    assert result is None
+    assert proc._client.containers.files.content.retrieve.call_count == 1
