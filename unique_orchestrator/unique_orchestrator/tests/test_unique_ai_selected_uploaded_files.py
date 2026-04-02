@@ -96,9 +96,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
         # Enable the feature flag
         from unique_orchestrator.unique_ai import feature_flags
 
-        feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
-            True
-        )
+        feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
 
         additional = MagicMock()
         additional.selected_uploaded_files = ["a", "c"]
@@ -119,9 +117,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
 
         from unique_orchestrator.unique_ai import feature_flags
 
-        feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
-            True
-        )
+        feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
 
         mock_unique_ai._event.payload.additional_parameters = None
 
@@ -140,9 +136,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
 
         from unique_orchestrator.unique_ai import feature_flags
 
-        feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
-            True
-        )
+        feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
 
         additional = MagicMock()
         additional.selected_uploaded_files = []
@@ -163,9 +157,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
 
         from unique_orchestrator.unique_ai import feature_flags
 
-        feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
-            False
-        )
+        feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = False
 
         additional = MagicMock()
         additional.selected_uploaded_files = ["a"]
@@ -186,9 +178,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
 
         from unique_orchestrator.unique_ai import feature_flags
 
-        feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
-            True
-        )
+        feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
 
         additional = MagicMock()
         additional.selected_uploaded_files = ["y"]
