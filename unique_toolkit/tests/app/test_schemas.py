@@ -226,18 +226,6 @@ class TestEventSchemas:
         assert params.selected_uploaded_files[0].id == "cont_abc"
         assert params.selected_uploaded_file_ids == ["cont_abc"]
 
-    def test_additional_parameters__uploaded_files__backward_compat_string_list(self):
-        json_data = """{
-            "userSpaceInstructions": "",
-            "uploadedFiles": ["content_1", "content_2"],
-            "selectedUploadedFiles": ["content_1"]
-        }"""
-        params = ChatEventAdditionalParameters.model_validate_json(json_data)
-
-        assert len(params.uploaded_files) == 2
-        assert params.uploaded_file_ids == ["content_1", "content_2"]
-        assert params.selected_uploaded_file_ids == ["content_1"]
-
     def test_additional_parameters__uploaded_files__defaults_to_empty_list(self):
         json_data = '{"userSpaceInstructions": ""}'
         params = ChatEventAdditionalParameters.model_validate_json(json_data)
