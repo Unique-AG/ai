@@ -94,14 +94,27 @@ jobs:
           echo "Merge base: $MERGE_BASE"
 
       # 2. Export defaults from base commit
+      - name: Save PR lock file
+        run: cp uv.lock /tmp/pr-uv.lock
+
       - name: Checkout base commit
         run: git checkout ${{ steps.base.outputs.commit }} --quiet
+
+      - name: Restore PR lock file on base commit
+        run: cp /tmp/pr-uv.lock uv.lock
 
       - name: Setup uv (base)
         uses: ./.github/actions/setup-uv
         with:
           package_dir: ${{ matrix.dir }}
           python_version: ${{ matrix.python }}
+          install_dependencies: 'false'
+
+      - name: Install base dependencies
+        run: |
+          PKG_NAME=$(grep '^name' "${{ matrix.dir }}/pyproject.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+          uv sync --frozen --package "$PKG_NAME"
+          uv sync --frozen --inexact --only-dev
 
       - name: Export base defaults
         working-directory: ${{ matrix.dir }}
@@ -127,9 +140,8 @@ jobs:
           retention-days: 1
           if-no-files-found: warn
 
-      - name: Restore lock file before checkout
-        run: |
-          git restore uv.lock 2>/dev/null || true
+      - name: Restore PR lock file before checkout
+        run: cp /tmp/pr-uv.lock uv.lock
 
       # 3. Checkout tip and validate
       - name: Checkout PR tip
