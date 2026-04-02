@@ -7,6 +7,10 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 
+[options]
+exclude-newer = "2026-03-11T10:27:21.759235Z"
+exclude-newer-span = "P2W"
+
 [manifest]
 constraints = [{ name = "lxml", specifier = ">=5.0.0" }]
 
@@ -199,7 +203,7 @@ wheels = [
 
 [[package]]
 name = "core"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },

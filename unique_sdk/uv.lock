@@ -2,6 +2,10 @@ version = 1
 revision = 3
 requires-python = ">=3.11, <4"
 
+[options]
+exclude-newer = "2026-03-18T13:50:18.274339Z"
+exclude-newer-span = "P2W"
+
 [[package]]
 name = "aiohappyeyeballs"
 version = "2.6.1"
@@ -2045,7 +2049,7 @@ wheels = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.95"
+version = "0.10.97"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },

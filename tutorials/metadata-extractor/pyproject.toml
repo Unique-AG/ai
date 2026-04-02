@@ -1,6 +1,6 @@
 [project]
 name = "metadata-extractor"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = [{ name = "Martin Fadler", email = "martin.fadler@unique.ai" }]
 readme = "README.md"
@@ -28,3 +28,10 @@ start = "metadata_extractor:app.run"
 [build-system]
 requires = ["uv_build>=0.8.14,<0.9.0"]
 build-backend = "uv_build"
+
+[tool.uv]
+exclude-newer = "2 weeks"
+
+[tool.uv.exclude-newer-package]
+"unique-sdk" = false
+"unique-toolkit" = false
