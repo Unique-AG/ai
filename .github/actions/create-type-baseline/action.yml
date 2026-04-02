@@ -37,11 +37,9 @@ runs:
       shell: bash
       run: git fetch origin ${{ inputs.branch }}:${{ inputs.branch }}
 
-    - name: Restore lock files before checkout
+    - name: Restore lock file before checkout
       shell: bash
-      run: |
-        git restore uv.lock 2>/dev/null || true
-        git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
+      run: git restore uv.lock 2>/dev/null || true
 
     - name: Checkout base branch
       shell: bash
@@ -49,17 +47,16 @@ runs:
 
     - name: Install dependencies on base branch
       shell: bash
-      working-directory: ${{ inputs.package_dir }}
-      env:
-        UV_NO_SOURCES: 1
-      run: uv sync --locked
+      run: |
+        PKG_NAME=$(grep '^name' "${{ inputs.package_dir }}/pyproject.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+        uv sync --locked --package "$PKG_NAME"
+        uv sync --locked --inexact --only-dev
 
     - name: Discard lock file changes
       shell: bash
       run: |
         git restore uv.lock 2>/dev/null || true
-        git restore "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
-        git clean -f -- uv.lock "${{ inputs.package_dir }}/uv.lock" 2>/dev/null || true
+        git clean -f -- uv.lock 2>/dev/null || true
 
     - name: Create baseline
       shell: bash
