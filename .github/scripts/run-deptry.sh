@@ -31,6 +31,7 @@ OPTIONS:
     -v, --version        Show version information and exit
     -o, --output FILE    Path to output JSON file (default: /tmp/deptry.json)
     -r, --runner CMD     Command executor prefix (default: "uv run")
+
 EXAMPLES:
     # Basic usage
     ${SCRIPT_NAME} unique_mcp
