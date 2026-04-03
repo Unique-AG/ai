@@ -6,4 +6,3 @@ watch_list = ["docs/**/*.md"]
 
 # default ignore_list is ["**/README.md"]
 ignore_list = ["docs/**/examples.md"]
-

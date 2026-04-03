@@ -22,4 +22,3 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 unique-sdk = { path = "../..", editable = true }
-
