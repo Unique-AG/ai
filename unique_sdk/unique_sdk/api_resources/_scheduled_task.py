@@ -22,6 +22,10 @@ class ScheduledTask(APIResource["ScheduledTask"]):
 
     RESOURCE_URL = "/scheduled-tasks"
 
+    @classmethod
+    def class_url(cls) -> str:
+        return cls.RESOURCE_URL
+
     # -- Nested param types ------------------------------------------------
 
     class CreateParams(RequestOptions):
