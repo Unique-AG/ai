@@ -29,7 +29,6 @@ module-root = "web"
 
 [tool.uv]
 exclude-newer = "2 weeks"
-constraint-dependencies = ["lxml>=5.0.0"]
 
 [tool.ruff]
 target-version = "py312"
