@@ -639,7 +639,8 @@ class UniqueShell(cmd.Cmd):
         assistant_id: str | None = None
         prompt: str | None = None
         chat_id: str | None = None
-        enabled: bool | None = None
+        enable = False
+        disable = False
 
         i = 0
         while i < len(parts):
@@ -656,14 +657,24 @@ class UniqueShell(cmd.Cmd):
                 chat_id = "" if parts[i + 1].lower() == "none" else parts[i + 1]
                 i += 2
             elif parts[i] == "--enable":
-                enabled = True
+                enable = True
                 i += 1
             elif parts[i] == "--disable":
-                enabled = False
+                disable = True
                 i += 1
             else:
                 self._print(f"Unknown option: {parts[i]}")
                 return
+
+        if enable and disable:
+            self._print("schedule: cannot use --enable and --disable together")
+            return
+
+        enabled: bool | None = None
+        if enable:
+            enabled = True
+        elif disable:
+            enabled = False
 
         self._print(
             cmd_schedule_update(

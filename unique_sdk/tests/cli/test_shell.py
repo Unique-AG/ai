@@ -471,6 +471,10 @@ class TestShellSchedule:
         out = _capture(_shell(), "schedule update task_abc --chat-id none")
         assert "Updated" in out
 
+    def test_schedule_update_enable_disable_conflict(self) -> None:
+        out = _capture(_shell(), "schedule update task_abc --enable --disable")
+        assert "cannot use --enable and --disable together" in out
+
     def test_schedule_update_unknown_option(self) -> None:
         out = _capture(_shell(), "schedule update task_abc --bad")
         assert "Unknown option" in out
