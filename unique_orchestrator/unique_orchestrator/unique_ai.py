@@ -10,6 +10,7 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.loop_runner import (
@@ -39,6 +40,7 @@ from unique_toolkit.language_model import LanguageModelAssistantMessage
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
+    ResponsesLanguageModelStreamResponse,
 )
 from unique_toolkit.protocols.support import (
     ResponsesSupportCompleteWithReferences,
@@ -529,6 +531,20 @@ class UniqueAI:
             )
         else:
             selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
+
+        if (
+            isinstance(loop_response, ResponsesLanguageModelStreamResponse)
+            and loop_response.code_interpreter_calls
+        ):
+            selected_evaluation_names = [
+                name
+                for name in selected_evaluation_names
+                if name != EvaluationMetricName.HALLUCINATION
+            ]
+            self._logger.info(
+                "Code interpreter was used - skipping hallucination check "
+                "(answer is grounded in code execution output, not search chunks)."
+            )
 
         evaluation_results = task_executor.execute_async(
             self._evaluation_manager.run_evaluations,
