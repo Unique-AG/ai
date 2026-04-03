@@ -653,9 +653,7 @@ class UniqueShell(cmd.Cmd):
                 prompt = parts[i + 1]
                 i += 2
             elif parts[i] == "--chat-id" and i + 1 < len(parts):
-                chat_id = parts[i + 1]
-                if chat_id.lower() == "none":
-                    chat_id = None
+                chat_id = "" if parts[i + 1].lower() == "none" else parts[i + 1]
                 i += 2
             elif parts[i] == "--enable":
                 enabled = True

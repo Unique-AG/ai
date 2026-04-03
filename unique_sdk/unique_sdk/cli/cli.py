@@ -618,7 +618,7 @@ def schedule_update(
 
     resolved_chat_id = chat_id
     if chat_id and chat_id.lower() == "none":
-        resolved_chat_id = None
+        resolved_chat_id = ""
 
     click.echo(
         cmd_schedule_update(

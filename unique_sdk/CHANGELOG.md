@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.99] - 2026-04-02
+- Add `ScheduledTask` API resource with full CRUD operations (create, list, retrieve, modify, delete) and async variants
+- Add `schedule` CLI command group with `list`, `get`, `create`, `update`, `delete` subcommands for both one-shot and interactive REPL modes
+- Add formatting helpers for scheduled task display (detail view and table view)
+- Add agent skill for scheduled task management (`unique-cli-scheduled-tasks`)
+
 ## [0.10.98] - 2026-04-02
 - Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
 

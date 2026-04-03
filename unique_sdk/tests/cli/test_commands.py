@@ -19,6 +19,13 @@ from unique_sdk.cli.commands.files import (
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import _parse_and_validate, _read_payload, cmd_mcp
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
+from unique_sdk.cli.commands.scheduled_tasks import (
+    cmd_schedule_create,
+    cmd_schedule_delete,
+    cmd_schedule_get,
+    cmd_schedule_list,
+    cmd_schedule_update,
+)
 from unique_sdk.cli.commands.search import (
     _build_metadata_filter,
     _resolve_folder_to_scope_id,
@@ -660,3 +667,156 @@ class TestCmdMcp:
             file="/nonexistent/payload.json",
         )
         assert "mcp:" in result
+
+
+# --- Scheduled Tasks ---
+
+
+def _scheduled_task_obj(
+    task_id: str = "task_abc",
+    cron: str = "0 9 * * 1-5",
+    assistant_id: str = "ast_123",
+    assistant_name: str = "Report Bot",
+    prompt: str = "Generate report",
+    enabled: bool = True,
+) -> MagicMock:
+    task = MagicMock()
+    task.id = task_id
+    task.object = "scheduled_task"
+    task.cronExpression = cron
+    task.assistantId = assistant_id
+    task.assistantName = assistant_name
+    task.chatId = None
+    task.prompt = prompt
+    task.enabled = enabled
+    task.lastRunAt = None
+    task.createdAt = "2026-04-01T00:00:00Z"
+    task.updatedAt = "2026-04-01T00:00:00Z"
+    return task
+
+
+class TestScheduledTasks:
+    @patch("unique_sdk.ScheduledTask.list")
+    def test_list_empty(self, mock: MagicMock) -> None:
+        mock.return_value = []
+        result = cmd_schedule_list(_state())
+        assert "No scheduled tasks found" in result
+
+    @patch("unique_sdk.ScheduledTask.list")
+    def test_list_with_tasks(self, mock: MagicMock) -> None:
+        mock.return_value = [_scheduled_task_obj()]
+        result = cmd_schedule_list(_state())
+        assert "1 scheduled task(s)" in result
+        assert "task_abc" in result
+        assert "0 9 * * 1-5" in result
+
+    @patch("unique_sdk.ScheduledTask.list")
+    def test_list_error(self, mock: MagicMock) -> None:
+        mock.side_effect = unique_sdk.APIError("fail")
+        result = cmd_schedule_list(_state())
+        assert "schedule:" in result
+
+    @patch("unique_sdk.ScheduledTask.retrieve")
+    def test_get(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj()
+        result = cmd_schedule_get(_state(), "task_abc")
+        assert "task_abc" in result
+        assert "0 9 * * 1-5" in result
+        assert "Report Bot" in result
+
+    @patch("unique_sdk.ScheduledTask.retrieve")
+    def test_get_error(self, mock: MagicMock) -> None:
+        mock.side_effect = unique_sdk.APIError("not found")
+        result = cmd_schedule_get(_state(), "task_xyz")
+        assert "schedule:" in result
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_create(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj()
+        result = cmd_schedule_create(
+            _state(),
+            cron="0 9 * * 1-5",
+            assistant_id="ast_123",
+            prompt="Generate report",
+        )
+        assert "Created scheduled task task_abc" in result
+        mock.assert_called_once()
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_create_with_chat_id(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj()
+        result = cmd_schedule_create(
+            _state(),
+            cron="0 9 * * 1-5",
+            assistant_id="ast_123",
+            prompt="Continue chat",
+            chat_id="chat_456",
+        )
+        assert "Created" in result
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["chatId"] == "chat_456"
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_create_disabled(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj(enabled=False)
+        result = cmd_schedule_create(
+            _state(),
+            cron="0 9 * * 1-5",
+            assistant_id="ast_123",
+            prompt="Report",
+            enabled=False,
+        )
+        assert "Created" in result
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["enabled"] is False
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_create_error(self, mock: MagicMock) -> None:
+        mock.side_effect = unique_sdk.APIError("bad cron")
+        result = cmd_schedule_create(
+            _state(),
+            cron="bad",
+            assistant_id="ast_123",
+            prompt="Report",
+        )
+        assert "schedule:" in result
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_update(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj(enabled=False)
+        result = cmd_schedule_update(_state(), "task_abc", enabled=False)
+        assert "Updated scheduled task task_abc" in result
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_update_cron(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task_obj(cron="*/15 * * * *")
+        result = cmd_schedule_update(_state(), "task_abc", cron="*/15 * * * *")
+        assert "Updated" in result
+        call_kwargs = mock.call_args[1]
+        assert call_kwargs["cronExpression"] == "*/15 * * * *"
+
+    def test_update_nothing(self) -> None:
+        result = cmd_schedule_update(_state(), "task_abc")
+        assert "nothing to update" in result
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_update_error(self, mock: MagicMock) -> None:
+        mock.side_effect = unique_sdk.APIError("not found")
+        result = cmd_schedule_update(_state(), "task_abc", enabled=True)
+        assert "schedule:" in result
+
+    @patch("unique_sdk.ScheduledTask.delete")
+    def test_delete(self, mock: MagicMock) -> None:
+        mock.return_value = {
+            "id": "task_abc",
+            "object": "scheduled_task",
+            "deleted": True,
+        }
+        result = cmd_schedule_delete(_state(), "task_abc")
+        assert "Deleted scheduled task task_abc" in result
+
+    @patch("unique_sdk.ScheduledTask.delete")
+    def test_delete_error(self, mock: MagicMock) -> None:
+        mock.side_effect = unique_sdk.APIError("not found")
+        result = cmd_schedule_delete(_state(), "task_xyz")
+        assert "schedule:" in result

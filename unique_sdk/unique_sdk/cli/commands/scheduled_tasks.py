@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import unique_sdk
 from unique_sdk.cli.formatting import format_scheduled_task, format_scheduled_tasks
 from unique_sdk.cli.state import ShellState
@@ -43,7 +45,7 @@ def cmd_schedule_create(
 ) -> str:
     """Create a new scheduled task."""
     try:
-        params: dict = {
+        params: dict[str, Any] = {
             "cronExpression": cron,
             "assistantId": assistant_id,
             "prompt": prompt,
@@ -75,7 +77,7 @@ def cmd_schedule_update(
 ) -> str:
     """Update an existing scheduled task."""
     try:
-        params: dict = {}
+        params: dict[str, Any] = {}
         if cron is not None:
             params["cronExpression"] = cron
         if assistant_id is not None:
@@ -83,7 +85,7 @@ def cmd_schedule_update(
         if prompt is not None:
             params["prompt"] = prompt
         if chat_id is not None:
-            params["chatId"] = chat_id
+            params["chatId"] = chat_id if chat_id != "" else None
         if enabled is not None:
             params["enabled"] = enabled
 

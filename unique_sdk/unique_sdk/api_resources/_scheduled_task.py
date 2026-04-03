@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Literal, NotRequired, TypedDict, Unpack, cast
 from urllib.parse import quote_plus
 
