@@ -31,14 +31,14 @@ runs:
     - name: Install uv
       uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
       with:
-        version: '0.10.11'
+        version: '0.11.2'
 
     - name: Build Package
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
-      run: uv build -o dist
+      run: uv build -o "$PWD/dist"
 
     - name: Get version
       if: inputs.check_version == 'true'
