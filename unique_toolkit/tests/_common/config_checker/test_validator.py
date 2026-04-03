@@ -56,21 +56,21 @@ def test_validator_validates_compatible_config():
 
 @pytest.mark.verified
 def test_validator_detects_removed_field():
-    """Test that validator detects removed required fields."""
+    """Test that validator detects removed fields as warnings when extra='ignore' (default)."""
 
     old_json = BaseConfig().model_dump()
     result = validator.validate_config(
         old_json, RemovedFieldConfig, "RemovedFieldConfig"
     )
 
-    assert not result.valid
-    assert result.errors is not None
-    assert len(result.errors) > 0
-    err = result.errors[0]
-    assert err.field_path == "value"
-    assert err.message.startswith("Field 'value' was removed from the model")
-    assert err.old_value == 42
-    assert err.new_value is None
+    assert result.valid
+    assert result.warnings is not None
+    assert len(result.warnings) > 0
+    warn = result.warnings[0]
+    assert warn.field_path == "value"
+    assert warn.message.startswith("Field 'value' was removed from the model")
+    assert warn.old_value == 42
+    assert warn.new_value is None
 
 
 @pytest.mark.verified
@@ -219,9 +219,13 @@ def test_validation_report_has_failures():
 
     assert not report.has_failures()
 
-    # Invalid result
+    # Invalid result — use a model with extra='forbid' so field removal is breaking
+    class ForbidExtraConfig(BaseModel):
+        name: str = "test"
+        model_config = {"extra": "forbid"}
+
     bad_result = validator.validate_config(
-        old_json, RemovedFieldConfig, "RemovedFieldConfig"
+        old_json, ForbidExtraConfig, "ForbidExtraConfig"
     )
     report2 = ValidationReport(
         total_configs=1,
@@ -370,7 +374,7 @@ def allowed_extra_fields_model():
     "old_json,should_be_valid,description,should_be_valid_2",
     [
         ({"x": 1}, True, "Valid JSON matches required fields", True),
-        ({"x": 1, "y": 999}, False, "Extra fields in JSON are handled", True),
+        ({"x": 1, "y": 999}, True, "Extra fields with default extra='ignore' are non-breaking", True),
         ({}, False, "Missing required field causes validation error", True),
     ],
 )
@@ -431,15 +435,15 @@ def test_validator_handles_extra_allow(allowed_extra_fields_model):
     assert result.valid
     assert result.warnings is not None
     assert any(
-        "allowed because model allows extra fields" in w.message.lower()
+        "allowed because model uses extra='allow'" in w.message.lower()
         for w in result.warnings
     )
     assert result.errors is None
 
 
 @pytest.mark.verified
-def test_validator_handles_extra_ignore_is_breaking():
-    """Test that removing a field is BREAKING if extra='ignore' (default)."""
+def test_validator_handles_extra_ignore_is_non_breaking():
+    """Test that removing a field is non-breaking if extra='ignore', since pydantic silently ignores unknown fields."""
 
     class ExtraIgnoreModel(BaseModel):
         model_config = {"extra": "ignore"}
@@ -447,12 +451,32 @@ def test_validator_handles_extra_ignore_is_breaking():
 
     old_json = {"kept_field": 1, "removed_field": 2}
 
-    # Should be INVALID
     result = validator.validate_config(old_json, ExtraIgnoreModel, "ExtraIgnore")
+
+    assert result.valid
+    assert result.warnings is not None
+    assert any(
+        "allowed because model uses extra='ignore'" in w.message.lower()
+        for w in result.warnings
+    )
+    assert result.errors is None
+
+
+@pytest.mark.verified
+def test_validator_handles_extra_forbid_is_breaking():
+    """Test that removing a field is BREAKING if extra='forbid'."""
+
+    class ExtraForbidModel(BaseModel):
+        model_config = {"extra": "forbid"}
+        kept_field: int = 1
+
+    old_json = {"kept_field": 1, "removed_field": 2}
+
+    result = validator.validate_config(old_json, ExtraForbidModel, "ExtraForbid")
 
     assert not result.valid
     assert result.errors is not None
     assert any(
-        "breaking change because model does not explicitly allow" in e.message.lower()
+        "breaking change because model uses extra='forbid'" in e.message.lower()
         for e in result.errors
     )
