@@ -504,7 +504,6 @@ class TestHandleNoToolCallsTiming:
         self, ua
     ) -> None:
         from openai.types.responses import ResponseCodeInterpreterToolCall
-
         from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
         from unique_toolkit.language_model.schemas import (
             ResponsesLanguageModelStreamResponse,
