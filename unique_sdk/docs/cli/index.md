@@ -124,6 +124,7 @@ python -m unique_sdk.cli
 | `rm` | Delete a file | `rm report.pdf` |
 | `mv` | Rename a file | `mv old.pdf new.pdf` |
 | `search` | Combined search | `search "query" --folder /Reports` |
+| `schedule` | Manage scheduled tasks | `schedule list`, `schedule create ...` |
 | `help` | Show available commands | `help`, `help search` |
 | `exit` | Exit the shell | `exit` |
 
@@ -143,5 +144,6 @@ Files can be referenced by:
 ## Next Steps
 
 - [Command Reference](commands.md) -- detailed documentation for every command
+- [Scheduled Tasks](scheduled_tasks.md) -- create and manage recurring cron-based tasks
 - [Search Guide](search.md) -- how to use combined search with metadata filters
 - [Configuration](configuration.md) -- environment variables and setup details

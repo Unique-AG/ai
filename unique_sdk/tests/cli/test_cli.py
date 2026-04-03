@@ -232,3 +232,140 @@ class TestClickCLI:
         )
         assert result.exit_code == 0
         assert "mcp:" in result.output
+
+    # -- Schedule commands --
+
+    def test_schedule_help(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(main, ["schedule", "--help"])
+        assert result.exit_code == 0
+        assert "Manage cron-based scheduled tasks" in result.output
+
+    @patch("unique_sdk.ScheduledTask.list")
+    def test_schedule_list(self, mock: MagicMock) -> None:
+        mock.return_value = []
+        runner = CliRunner()
+        result = runner.invoke(main, ["schedule", "list"])
+        assert result.exit_code == 0
+        assert "No scheduled tasks found" in result.output
+
+    @patch("unique_sdk.ScheduledTask.retrieve")
+    def test_schedule_get(self, mock: MagicMock) -> None:
+        task = MagicMock()
+        task.id = "task_1"
+        task.cronExpression = "0 9 * * 1-5"
+        task.assistantId = "ast_1"
+        task.assistantName = "Bot"
+        task.chatId = None
+        task.prompt = "Report"
+        task.enabled = True
+        task.lastRunAt = None
+        task.createdAt = "2026-04-01T00:00:00Z"
+        task.updatedAt = "2026-04-01T00:00:00Z"
+        mock.return_value = task
+        runner = CliRunner()
+        result = runner.invoke(main, ["schedule", "get", "task_1"])
+        assert result.exit_code == 0
+        assert "task_1" in result.output
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_schedule_create(self, mock: MagicMock) -> None:
+        task = MagicMock()
+        task.id = "task_new"
+        task.cronExpression = "0 9 * * 1-5"
+        task.assistantId = "ast_1"
+        task.assistantName = "Bot"
+        task.chatId = None
+        task.prompt = "Report"
+        task.enabled = True
+        task.lastRunAt = None
+        task.createdAt = "2026-04-01T00:00:00Z"
+        task.updatedAt = "2026-04-01T00:00:00Z"
+        mock.return_value = task
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "schedule",
+                "create",
+                "--cron",
+                "0 9 * * 1-5",
+                "--assistant",
+                "ast_1",
+                "--prompt",
+                "Report",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Created scheduled task task_new" in result.output
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_schedule_create_disabled(self, mock: MagicMock) -> None:
+        task = MagicMock()
+        task.id = "task_new"
+        task.cronExpression = "0 9 * * 1-5"
+        task.assistantId = "ast_1"
+        task.assistantName = "Bot"
+        task.chatId = None
+        task.prompt = "Report"
+        task.enabled = False
+        task.lastRunAt = None
+        task.createdAt = "2026-04-01T00:00:00Z"
+        task.updatedAt = "2026-04-01T00:00:00Z"
+        mock.return_value = task
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "schedule",
+                "create",
+                "-c",
+                "0 9 * * 1-5",
+                "-a",
+                "ast_1",
+                "-p",
+                "Report",
+                "--disabled",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Created" in result.output
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_schedule_update(self, mock: MagicMock) -> None:
+        task = MagicMock()
+        task.id = "task_1"
+        task.cronExpression = "0 9 * * 1-5"
+        task.assistantId = "ast_1"
+        task.assistantName = "Bot"
+        task.chatId = None
+        task.prompt = "Report"
+        task.enabled = False
+        task.lastRunAt = None
+        task.createdAt = "2026-04-01T00:00:00Z"
+        task.updatedAt = "2026-04-01T00:00:00Z"
+        mock.return_value = task
+        runner = CliRunner()
+        result = runner.invoke(main, ["schedule", "update", "task_1", "--disable"])
+        assert result.exit_code == 0
+        assert "Updated" in result.output
+
+    def test_schedule_update_enable_disable_conflict(self) -> None:
+        runner = CliRunner()
+        result = runner.invoke(
+            main, ["schedule", "update", "task_1", "--enable", "--disable"]
+        )
+        assert result.exit_code == 0
+        assert "cannot use --enable and --disable together" in result.output
+
+    @patch("unique_sdk.ScheduledTask.delete")
+    def test_schedule_delete(self, mock: MagicMock) -> None:
+        mock.return_value = {
+            "id": "task_1",
+            "object": "scheduled_task",
+            "deleted": True,
+        }
+        runner = CliRunner()
+        result = runner.invoke(main, ["schedule", "delete", "task_1"])
+        assert result.exit_code == 0
+        assert "Deleted scheduled task task_1" in result.output

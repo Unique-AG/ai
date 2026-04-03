@@ -16,6 +16,7 @@ This section contains documentation for all API resources available in the Uniqu
 - [Message Assessment API](message_assessment.md) - Message assessment functionality
 - [Message Execution API](message_execution.md) - Message execution operations
 - [Message Log API](message_log.md) - Message logging and history
+- [ScheduledTask API](scheduled_task.md) - Cron-based recurring task scheduling
 - [Search API](search.md) - Search functionality
 - [SearchString API](search_string.md) - String-based search operations
 - [Short Term Memory API](short_term_memory.md) - Short-term memory management

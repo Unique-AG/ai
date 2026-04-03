@@ -10,6 +10,8 @@ from unique_sdk.cli.formatting import (
     format_folder_info,
     format_ls,
     format_mcp_response,
+    format_scheduled_task,
+    format_scheduled_tasks,
     format_search_results,
 )
 
@@ -178,6 +180,90 @@ class TestFormatFolderInfo:
     def test_root_parent(self) -> None:
         result = format_folder_info(_folder(parent=None))
         assert "(root)" in result
+
+
+def _task(
+    task_id: str = "task_abc",
+    cron: str = "0 9 * * 1-5",
+    assistant_id: str = "ast_123",
+    assistant_name: str | None = "Report Bot",
+    prompt: str = "Generate report",
+    enabled: bool = True,
+    last_run: str | None = None,
+) -> MagicMock:
+    t = MagicMock()
+    t.id = task_id
+    t.cronExpression = cron
+    t.assistantId = assistant_id
+    t.assistantName = assistant_name
+    t.chatId = None
+    t.prompt = prompt
+    t.enabled = enabled
+    t.lastRunAt = last_run
+    t.createdAt = "2026-04-01T00:00:00Z"
+    t.updatedAt = "2026-04-01T00:00:00Z"
+    return t
+
+
+class TestFormatScheduledTask:
+    def test_basic(self) -> None:
+        result = format_scheduled_task(_task())
+        assert "task_abc" in result
+        assert "0 9 * * 1-5" in result
+        assert "Report Bot" in result
+        assert "ast_123" in result
+        assert "Generate report" in result
+        assert "yes" in result
+
+    def test_disabled(self) -> None:
+        result = format_scheduled_task(_task(enabled=False))
+        assert "no" in result
+
+    def test_no_assistant_name_falls_back_to_id(self) -> None:
+        result = format_scheduled_task(_task(assistant_name=None))
+        assert "ast_123" in result
+
+    def test_no_chat_id_shows_placeholder(self) -> None:
+        result = format_scheduled_task(_task())
+        assert "(new chat each run)" in result
+
+    def test_with_last_run(self) -> None:
+        result = format_scheduled_task(_task(last_run="2026-04-01T09:00:00Z"))
+        assert "2026-04-01 09:00" in result
+
+
+class TestFormatScheduledTasks:
+    def test_empty(self) -> None:
+        assert format_scheduled_tasks([]) == "No scheduled tasks found."
+
+    def test_single_task(self) -> None:
+        result = format_scheduled_tasks([_task()])
+        assert "1 scheduled task(s)" in result
+        assert "task_abc" in result
+        assert "0 9 * * 1-5" in result
+        assert "Report Bot" in result
+        assert "on" in result
+
+    def test_disabled_task(self) -> None:
+        result = format_scheduled_tasks([_task(enabled=False)])
+        assert "off" in result
+
+    def test_long_prompt_truncated(self) -> None:
+        result = format_scheduled_tasks([_task(prompt="x" * 100)])
+        assert "..." in result
+
+    def test_multiple_tasks(self) -> None:
+        tasks = [_task(task_id="t1"), _task(task_id="t2", enabled=False)]
+        result = format_scheduled_tasks(tasks)
+        assert "2 scheduled task(s)" in result
+        assert "t1" in result
+        assert "t2" in result
+
+    def test_header_present(self) -> None:
+        result = format_scheduled_tasks([_task()])
+        assert "STATUS" in result
+        assert "CRON" in result
+        assert "ASSISTANT" in result
 
 
 def _mcp_response(
