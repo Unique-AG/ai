@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 from typing import Literal, NotRequired, TypedDict, Unpack, cast
 from urllib.parse import quote_plus
 
@@ -81,15 +82,18 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         cls,
         user_id: str,
         company_id: str,
-    ) -> list["ScheduledTask"]:
+    ) -> builtins.list[ScheduledTask]:
         result = cls._static_request(
             "get",
             cls.RESOURCE_URL,
             user_id,
             company_id,
         )
-        data = result.get("data", []) if hasattr(result, "get") else []
-        return cast(list["ScheduledTask"], data)
+        if isinstance(result, builtins.list):
+            data = result
+        else:
+            data = result.get("data", []) if hasattr(result, "get") else []
+        return cast(builtins.list["ScheduledTask"], data)
 
     @classmethod
     def retrieve(
@@ -172,15 +176,18 @@ class ScheduledTask(APIResource["ScheduledTask"]):
         cls,
         user_id: str,
         company_id: str,
-    ) -> list["ScheduledTask"]:
+    ) -> builtins.list[ScheduledTask]:
         result = await cls._static_request_async(
             "get",
             cls.RESOURCE_URL,
             user_id,
             company_id,
         )
-        data = result.get("data", []) if hasattr(result, "get") else []
-        return cast(list["ScheduledTask"], data)
+        if isinstance(result, builtins.list):
+            data = result
+        else:
+            data = result.get("data", []) if hasattr(result, "get") else []
+        return cast(builtins.list["ScheduledTask"], data)
 
     @classmethod
     async def retrieve_async(
