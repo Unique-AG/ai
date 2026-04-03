@@ -1,17 +1,40 @@
 ---
 name: unique-cli-scheduled-tasks
 description: >-
-  Manage cron-based scheduled tasks on the Unique AI Platform using the
-  unique-cli schedule command. Use when the user asks to schedule,
-  automate, or set up recurring assistant executions, or when they need
-  to list, create, update, enable, disable, or delete scheduled tasks.
-  Each task defines a cron expression, an assistant, and a prompt that
-  triggers on the defined schedule.
+  ALWAYS use this skill when the user asks to schedule, automate, set up
+  recurring tasks, create a cron job, or anything involving timed /
+  periodic execution.  Do NOT use the local system crontab — scheduled
+  tasks are stored on the Unique AI Platform and executed by a
+  Kubernetes CronJob, not locally.  This skill covers creating,
+  listing, updating, enabling, disabling, and deleting scheduled tasks
+  via the unique-cli schedule command.
 ---
 
 # Unique CLI -- Scheduled Tasks
 
-Manage cron-tab style scheduled tasks that trigger an assistant on a recurring schedule. A Kubernetes CronJob evaluates all enabled tasks every minute and triggers assistant execution for those whose cron expression matches the current time.
+Manage cron-tab style scheduled tasks that trigger an assistant on a recurring schedule. Tasks are **stored and executed on the Unique AI Platform** (via a Kubernetes CronJob that evaluates all enabled tasks every minute). They are **not** local crontab entries — do not fall back to `crontab -e` or similar OS-level scheduling.
+
+> **Important — always use this skill** whenever the user mentions scheduling, recurring execution, cron jobs, timed tasks, or automation. Even if the phrasing sounds like a local cron job, the correct approach is `unique-cli schedule`.
+
+## Agent workflow for creating a task
+
+Before running `schedule create`, **ask the user**:
+
+1. **Which assistant?** — The user must supply an assistant ID (starts with `assistant_`). If unknown, run `unique-cli schedule list` to show existing tasks or ask the user.
+2. **New chat or existing chat?**
+   - **New chat each run** (default) — omit `--chat-id`. Each execution creates a fresh chat.
+   - **Continue an existing chat** — the user must provide a chat ID (starts with `chat_`). Pass it via `--chat-id`.
+3. **Cron expression** — help the user pick the right schedule (see reference below).
+4. **Prompt text** — what the assistant should do on each trigger.
+
+Only pass `--chat-id` when the user explicitly wants to continue a specific chat. Otherwise leave it out.
+
+## ID formats
+
+| Entity | Prefix | Example |
+|--------|--------|---------|
+| Assistant | `assistant_` | `assistant_cvj3fd7x8hpt1hfp0akqu1rq` |
+| Chat | `chat_` | `chat_b7ze6mpv0edy324yhjj1d92t` |
 
 ## List Scheduled Tasks
 
@@ -31,11 +54,23 @@ Shows full details of a single task including all fields.
 
 ## Create a Scheduled Task
 
+### New chat each run (default — no `--chat-id`)
+
 ```bash
 unique-cli schedule create \
   --cron "0 9 * * 1-5" \
-  --assistant clx1abc2d0001abcdef123456 \
+  --assistant assistant_cvj3fd7x8hpt1hfp0akqu1rq \
   --prompt "Generate the daily sales report and email it to the team"
+```
+
+### Continue an existing chat
+
+```bash
+unique-cli schedule create \
+  --cron "0 9 * * 1-5" \
+  --assistant assistant_cvj3fd7x8hpt1hfp0akqu1rq \
+  --chat-id chat_b7ze6mpv0edy324yhjj1d92t \
+  --prompt "Append today's numbers to the running report"
 ```
 
 ### Create options
@@ -43,9 +78,9 @@ unique-cli schedule create \
 | Option | Short | Required | Description |
 |--------|-------|----------|-------------|
 | `--cron` | `-c` | Yes | 5-field cron expression |
-| `--assistant` | `-a` | Yes | Assistant ID to execute |
+| `--assistant` | `-a` | Yes | Assistant ID to execute (starts with `assistant_`) |
 | `--prompt` | `-p` | Yes | Prompt text sent each run |
-| `--chat-id` | | No | Continue an existing chat (omit for new chat each run) |
+| `--chat-id` | | No | Continue an existing chat (starts with `chat_`; **omit for new chat each run**) |
 | `--disabled` | | No | Create in disabled state |
 
 ### Common cron expressions
@@ -66,7 +101,7 @@ unique-cli schedule create \
 │ │ ┌───────────── day of month (1–31)
 │ │ │ ┌───────────── month (1–12)
 │ │ │ │ ┌───────────── day of week (0–7, 0 and 7 = Sunday)
-│ ││ │ │
+│ │ │ │ │
 * * * * *
 ```
 
@@ -76,16 +111,16 @@ Only the fields you provide are changed; everything else stays the same.
 
 ```bash
 # Change the schedule
-unique-cli schedule update clx3ghi4f --cron "0 9 * * 1-5"
+unique-cli schedule update <task_id> --cron "0 9 * * 1-5"
 
 # Disable a task
-unique-cli schedule update clx3ghi4f --disable
+unique-cli schedule update <task_id> --disable
 
 # Enable and change prompt
-unique-cli schedule update clx3ghi4f --enable --prompt "Updated daily report"
+unique-cli schedule update <task_id> --enable --prompt "Updated daily report"
 
 # Clear the chat ID (new chat each run)
-unique-cli schedule update clx3ghi4f --chat-id none
+unique-cli schedule update <task_id> --chat-id none
 ```
 
 ### Update options
@@ -93,50 +128,54 @@ unique-cli schedule update clx3ghi4f --chat-id none
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--cron` | `-c` | Updated cron expression |
-| `--assistant` | `-a` | Updated assistant ID |
+| `--assistant` | `-a` | Updated assistant ID (starts with `assistant_`) |
 | `--prompt` | `-p` | Updated prompt text |
-| `--chat-id` | | Updated chat ID (`none` to clear) |
+| `--chat-id` | | Updated chat ID (starts with `chat_`; `none` to clear) |
 | `--enable` | | Enable the task |
 | `--disable` | | Disable the task |
 
 ## Delete a Scheduled Task
 
 ```bash
-unique-cli schedule delete clx3ghi4f0003mnopqr345678
+unique-cli schedule delete <task_id>
 ```
 
 This action cannot be undone.
 
 ## Workflow Examples
 
-### Set up a daily report
+### Set up a daily report (new chat each run)
 
 ```bash
-# Create a weekday 9 AM report task
 unique-cli schedule create \
   -c "0 9 * * 1-5" \
-  -a clx1abc2d0001abcdef123456 \
+  -a assistant_cvj3fd7x8hpt1hfp0akqu1rq \
   -p "Generate the daily sales report and email it to the team"
 
-# Verify it was created
 unique-cli schedule list
+```
+
+### Set up a recurring task that continues the same chat
+
+```bash
+unique-cli schedule create \
+  -c "0 9 * * 1-5" \
+  -a assistant_cvj3fd7x8hpt1hfp0akqu1rq \
+  --chat-id chat_b7ze6mpv0edy324yhjj1d92t \
+  -p "Append today's numbers to the running report"
 ```
 
 ### Pause and resume a task
 
 ```bash
-# Disable temporarily
-unique-cli schedule update clx3ghi4f --disable
-
-# Re-enable later
-unique-cli schedule update clx3ghi4f --enable
+unique-cli schedule update <task_id> --disable
+unique-cli schedule update <task_id> --enable
 ```
 
 ### Modify an existing task's schedule
 
 ```bash
-# Switch from every 15 min to once an hour
-unique-cli schedule update clx3ghi4f --cron "0 * * * *"
+unique-cli schedule update <task_id> --cron "0 * * * *"
 ```
 
 ## SDK Usage (Python)
@@ -149,13 +188,23 @@ import unique_sdk
 unique_sdk.api_key = "ukey_..."
 unique_sdk.app_id = "app_..."
 
-# Create
+# Create (new chat each run — no chatId)
 task = unique_sdk.ScheduledTask.create(
     user_id="user_123",
     company_id="company_456",
     cronExpression="0 9 * * 1-5",
-    assistantId="clx1abc2d0001abcdef123456",
+    assistantId="assistant_cvj3fd7x8hpt1hfp0akqu1rq",
     prompt="Generate daily report",
+)
+
+# Create (continue existing chat)
+task = unique_sdk.ScheduledTask.create(
+    user_id="user_123",
+    company_id="company_456",
+    cronExpression="0 9 * * 1-5",
+    assistantId="assistant_cvj3fd7x8hpt1hfp0akqu1rq",
+    chatId="chat_b7ze6mpv0edy324yhjj1d92t",
+    prompt="Append today's data",
 )
 
 # List
@@ -168,14 +217,14 @@ tasks = unique_sdk.ScheduledTask.list(
 task = unique_sdk.ScheduledTask.retrieve(
     user_id="user_123",
     company_id="company_456",
-    id="clx3ghi4f0003mnopqr345678",
+    id="<task_id>",
 )
 
 # Update
 task = unique_sdk.ScheduledTask.modify(
     user_id="user_123",
     company_id="company_456",
-    id="clx3ghi4f0003mnopqr345678",
+    id="<task_id>",
     enabled=False,
 )
 
@@ -183,7 +232,7 @@ task = unique_sdk.ScheduledTask.modify(
 unique_sdk.ScheduledTask.delete(
     user_id="user_123",
     company_id="company_456",
-    id="clx3ghi4f0003mnopqr345678",
+    id="<task_id>",
 )
 ```
 
