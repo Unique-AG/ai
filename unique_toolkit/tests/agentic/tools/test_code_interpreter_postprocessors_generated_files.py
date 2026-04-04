@@ -234,6 +234,37 @@ def test_replace_container_file_citation__replaces_link__with_unique_content_lin
 
 
 @pytest.mark.ai
+def test_replace_container_file_citation__replaces_link_with_bang_prefix__when_llm_uses_image_syntax() -> (
+    None
+):
+    """
+    Purpose: Verify file citation handles LLM using ![label]() syntax for non-image files.
+    Why this matters: LLMs sometimes write ![Download](sandbox:/mnt/data/report.xlsx)
+    with a ! prefix for non-image files. Without !? in the regex, the replacement fails
+    and the dangling handler replaces with a false error message even though the file
+    was successfully uploaded.
+    Setup summary: Text with ![label](sandbox:/mnt/data/data.csv); assert replacement succeeds.
+    """
+    # Arrange
+    text = "Data in ![file](sandbox:/mnt/data/data.csv)."
+    content_id = "cont_abc123"
+
+    # Act
+    new_text, replaced = gen_mod._replace_container_file_citation(
+        text,
+        filename="data.csv",
+        content_id=content_id,
+        ref_number=1,
+        use_content_link=True,
+    )
+
+    # Assert
+    assert replaced is True
+    assert f"[data.csv](unique://content/{content_id})" in new_text
+    assert "sandbox" not in new_text
+
+
+@pytest.mark.ai
 def test_replace_container_file_citation__replaces_link__with_superscript_when_fence_ff_off() -> (
     None
 ):

@@ -189,13 +189,20 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 "memory; file replacement will still proceed."
             )
 
-        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-            self._company_id
-        ):
-            self._orphan_code_blocks = await self._upload_orphan_code_as_txt(
-                loop_response
+        try:
+            if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+                self._company_id
+            ):
+                self._orphan_code_blocks = await self._upload_orphan_code_as_txt(
+                    loop_response
+                )
+            else:
+                self._orphan_code_blocks = []
+        except Exception:
+            logger.exception(
+                "Failed to process orphan code blocks; "
+                "file replacement will still proceed."
             )
-        else:
             self._orphan_code_blocks = []
 
     @override
@@ -959,7 +966,7 @@ def _replace_container_file_citation(
     original pre-fence behaviour is restored: the link is replaced with <sup>N</sup>
     and the file remains accessible via the references panel.
     """
-    file_markdown = rf"\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+    file_markdown = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
 
     if not re.search(file_markdown, text):
         logger.warning(
