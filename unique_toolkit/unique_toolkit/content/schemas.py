@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, Optional
@@ -71,6 +73,20 @@ class ContentChunk(BaseModel):
     internally_stored_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    def to_reference(
+        self,
+        source: str = "internal",
+        url_override: str | None = None,
+        sequence_number_override: int | None = None,
+    ) -> ContentReference:
+        return ContentReference(
+            name=self.title or self.key or "",
+            sequence_number=sequence_number_override or self.order,
+            source=source,
+            source_id=self.id,
+            url=url_override or f"unique://content/{self.id}",
+        )
 
 
 class Content(BaseModel):

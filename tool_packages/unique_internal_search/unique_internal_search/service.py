@@ -1,12 +1,8 @@
 import asyncio
 from logging import Logger
-from typing import TYPE_CHECKING
 
 from pydantic import Field, create_model
 from typing_extensions import override
-
-if TYPE_CHECKING:
-    from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit._common.chunk_relevancy_sorter.exception import (
     ChunkRelevancySorterException,
 )
@@ -23,25 +19,27 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import ProgressState
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent, Event
 from unique_toolkit.chat.schemas import (
     MessageLog,
-    MessageLogDetails,
-    MessageLogEvent,
     MessageLogStatus,
 )
 from unique_toolkit.chat.service import LanguageModelToolDescription
-from unique_toolkit.content.schemas import Content, ContentChunk, ContentReference
+from unique_toolkit.content.schemas import Content, ContentChunk
 from unique_toolkit.content.service import ContentService
 from unique_toolkit.content.utils import (
     merge_content_chunks,
     pick_content_chunks_for_token_window,
     sort_content_chunks,
 )
+from unique_toolkit.language_model.infos import LanguageModelInfo
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelMessage,
     LanguageModelToolMessage,
 )
 
-from unique_internal_search.config import InternalSearchConfig
+from unique_internal_search.config import (
+    InternalSearchConfig,
+    InternalSearchServiceConfig,
+)
 from unique_internal_search.utils import (
     SearchStringResult,
     append_metadata_in_chunks,
@@ -53,7 +51,7 @@ from unique_internal_search.utils import (
 class InternalSearchService:
     def __init__(
         self,
-        config: InternalSearchConfig,
+        config: InternalSearchServiceConfig,
         content_service: ContentService,
         chunk_relevancy_sorter: ChunkRelevancySorter,
         chat_id: str | None,
@@ -61,7 +59,7 @@ class InternalSearchService:
         company_id: str | None = None,
         message_step_logger: MessageStepLogger | None = None,
         display_name: str = "Internal Search",
-        language_model_orchestrator: "LanguageModelInfo | None" = None,
+        language_model_orchestrator: LanguageModelInfo | None = None,
     ):
         self.config = config
         self.content_service = content_service
@@ -179,11 +177,16 @@ class InternalSearchService:
 
         # Apply chunk relevancy sorter if enabled
         if self.config.chunk_relevancy_sort_config.enabled:
-            if feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
+            if (
+                feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id)
+                and self._message_step_logger is not None
+            ):
                 self._active_message_log = (
-                    await self._create_or_update_active_message_log(
+                    await self._message_step_logger.display_search_in_message_log(
+                        active_message_log=self._active_message_log,
                         progress_message="_Resorting search results_",
-                        search_strings_list=search_strings,
+                        search_queries=search_strings,
+                        search_type="InternalSearch",
                     )
                 )
             for i, result in enumerate(found_chunks_per_search_string):
@@ -210,17 +213,25 @@ class InternalSearchService:
                 found_chunks_per_search_string
             )
 
+        # This is a report concern
         if feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
             progress_message = "_Postprocessing search results_"
-            self._active_message_log = await self._create_or_update_active_message_log(
-                progress_message=progress_message,
-                search_strings_list=search_strings,
-            )
+            if self._message_step_logger is not None:
+                self._active_message_log = (
+                    await self._message_step_logger.display_search_in_message_log(
+                        active_message_log=self._active_message_log,
+                        progress_message=progress_message,
+                        search_queries=search_strings,
+                        search_type="InternalSearch",
+                        status=MessageLogStatus.RUNNING,
+                    )
+                )
         else:
             await self.post_progress_message(
                 f"{', '.join(search_strings)} (_Postprocessing search results_)",
                 **kwargs,
             )
+
         found_chunks = [
             chunk
             for result in found_chunks_per_search_string
@@ -228,7 +239,7 @@ class InternalSearchService:
         ]
         selected_chunks = pick_content_chunks_for_token_window(
             found_chunks,
-            self._get_max_tokens(),
+            self.config.get_max_tokens,
             model_info=self.language_model_orchestrator,
         )
 
@@ -316,99 +327,6 @@ class InternalSearchService:
             self.logger.warning(f"Error while sorting chunks: {e.error_message}")
         finally:
             return found_chunks
-
-    def _get_max_tokens(self) -> int:
-        if self.config.language_model_max_input_tokens is not None:
-            max_tokens = int(
-                self.config.language_model_max_input_tokens
-                * self.config.percentage_of_input_tokens_for_sources
-            )
-            self.logger.debug(
-                "Using %s of max tokens %s as token limit: %s",
-                self.config.percentage_of_input_tokens_for_sources,
-                self.config.language_model_max_input_tokens,
-                max_tokens,
-            )
-            return max_tokens
-        else:
-            self.logger.debug(
-                "language model input context size is not set, using default max tokens"
-            )
-            return self.config.max_tokens_for_sources
-
-    async def _create_or_update_active_message_log(
-        self,
-        *,
-        progress_message: str | None = None,
-        chunks: list[ContentChunk] | None = None,
-        search_strings_list: list[str],
-        status: MessageLogStatus | None = None,
-    ) -> MessageLog | None:
-        if self._message_step_logger is None:
-            return None
-        message_log_reference_list = []
-        if chunks is not None:
-            message_log_reference_list = (
-                await self._define_reference_list_for_message_log(
-                    content_chunks=chunks,
-                )
-            )
-        details = await self._prepare_message_log_details(
-            query_list=search_strings_list
-        )
-        return self._message_step_logger.create_or_update_message_log(
-            active_message_log=self._active_message_log,
-            header=self._display_name,
-            progress_message=progress_message,
-            details=details,
-            references=message_log_reference_list,
-            **({"status": status} if status is not None else {}),
-        )
-
-    async def _define_reference_list_for_message_log(
-        self,
-        *,
-        content_chunks: list[ContentChunk],
-    ) -> list[ContentReference]:
-        """
-        Create a reference list for internal search content chunks.
-
-        Args:
-            content_chunks: List of ContentChunk objects to convert
-        Returns:
-            List of ContentReference objects
-        """
-        data: list[ContentReference] = []
-        for count, content_chunk in enumerate(content_chunks):
-            reference_name: str = content_chunk.title or content_chunk.key or ""
-
-            data.append(
-                ContentReference(
-                    name=reference_name,
-                    sequence_number=count,
-                    source="internal",
-                    source_id=content_chunk.id,
-                    url=f"unique://content/{content_chunk.id}",
-                )
-            )
-            count += 1
-
-        return data
-
-    async def _prepare_message_log_details(
-        self, *, query_list: list[str]
-    ) -> MessageLogDetails:
-        details = MessageLogDetails(
-            data=[
-                MessageLogEvent(
-                    type="InternalSearch",
-                    text=query_for_log,
-                )
-                for query_for_log in query_list
-            ]
-        )
-
-        return details
 
 
 class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
@@ -557,9 +475,14 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
         search_strings_list = list(dict.fromkeys(search_strings_list))
         search_strings_list = search_strings_list[: self.config.max_search_strings]
 
-        self._active_message_log = await self._create_or_update_active_message_log(
-            progress_message="_Retrieving search results_",
-            search_strings_list=search_strings_list,
+        self._active_message_log = (
+            await self._message_step_logger.display_search_in_message_log(
+                active_message_log=self._active_message_log,
+                progress_message="_Retrieving search results_",
+                search_queries=search_strings_list,
+                search_type="InternalSearch",
+                status=MessageLogStatus.RUNNING,
+            )
         )
 
         if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(self.company_id):
@@ -573,10 +496,14 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
             active_message_log=self._active_message_log,
         )
 
-        self._active_message_log = await self._create_or_update_active_message_log(
-            chunks=selected_chunks,
-            search_strings_list=search_strings_list,
-            status=MessageLogStatus.COMPLETED,
+        self._active_message_log = (
+            await self._message_step_logger.display_search_in_message_log(
+                active_message_log=self._active_message_log,
+                chunks=selected_chunks,
+                search_queries=search_strings_list,
+                search_type="InternalSearch",
+                status=MessageLogStatus.COMPLETED,
+            )
         )
 
         ## Modify metadata in chunks
