@@ -211,14 +211,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # HTML rendered as legacy HtmlRendering block — only when fence FF is off
-            elif (
-                is_html
-                and not fence_ff_on
-                and feature_flags.enable_html_rendering_un_15131.is_enabled(
-                    self._company_id
-                )
-            ):
+            elif is_html:
                 loop_response.message.text, replaced = _replace_container_html_citation(
                     text=loop_response.message.text,
                     filename=filename,
@@ -226,7 +219,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # Files and HTML (fence FF on: HTML → htmlWithSource; others → fileWithSource)
             else:
                 loop_response.message.text, replaced = _replace_container_file_citation(
                     text=loop_response.message.text,
@@ -237,13 +229,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
-            # htmlWithSource / HtmlRendering blocks carry contentId directly — no separate reference needed
-            is_html_rendered = is_html and (
-                fence_ff_on
-                or feature_flags.enable_html_rendering_un_15131.is_enabled(
-                    self._company_id
-                )
-            )
+            is_html_rendered = is_html
             if replaced and not (is_image or is_html_rendered or fence_ff_on):
                 loop_response.message.references.append(
                     ContentReference(
@@ -732,8 +718,12 @@ def _build_code_blocks(
     # overwritten across executions. Using a dict keyed by filename ensures each
     # file appears exactly once per block (last annotation wins, consistent with
     # the last-writer-wins rule applied in step 1).
+    # HTML files are excluded: they are always rendered via HtmlRendering blocks
+    # and never participate in fence injection.
     block_file_map: dict[int, dict[str, CodeInterpreterFile]] = {}
     for annotation in loop_response.container_files:
+        if _get_file_type(annotation.filename) == "html":
+            continue
         content_id = content_map.get(annotation.filename)
         if content_id is None:
             continue
@@ -820,6 +810,8 @@ def _warn_unmatched_code_blocks(
     fenced_filenames = {f.filename for block in code_blocks for f in block.files}
     for filename, content_id in content_map.items():
         if content_id is None:
+            continue
+        if _get_file_type(filename) == "html":
             continue
         if filename not in fenced_filenames:
             logger.warning(

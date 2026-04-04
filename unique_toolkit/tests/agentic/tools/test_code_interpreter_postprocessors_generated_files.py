@@ -2099,21 +2099,15 @@ async def test_upload_orphan_code_as_txt__uploads_txt_uses_expected_filename(
 @pytest.mark.ai
 @patch(
     "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
-    "generated_files.feature_flags.enable_html_rendering_un_15131.is_enabled",
-    return_value=True,
-)
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
     "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
     return_value=False,
 )
-def test_apply_postprocessing_to_response__html_uses_legacy_HtmlRendering__when_fence_ff_off(
+def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_ff_off(
     _mock_fence_ff: MagicMock,
-    _mock_html_ff: MagicMock,
 ) -> None:
     """
-    Purpose: HTML with fence FF off and HTML-rendering FF on uses _replace_container_html_citation.
-    Why this matters: Covers the legacy HtmlRendering branch (UN-15131) in apply_postprocessing.
+    Purpose: HTML always uses _replace_container_html_citation regardless of feature flags.
+    Why this matters: HTML rendering via HtmlRendering blocks is unconditional.
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"report.html": "cid_html"}
@@ -2140,22 +2134,16 @@ def test_apply_postprocessing_to_response__html_uses_legacy_HtmlRendering__when_
 @pytest.mark.ai
 @patch(
     "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
-    "generated_files.feature_flags.enable_html_rendering_un_15131.is_enabled",
-    return_value=False,
-)
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
     "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
     return_value=True,
 )
-def test_apply_postprocessing_to_response__html_with_fence_ff_on__uses_htmlWithSource(
+def test_apply_postprocessing_to_response__html_uses_HtmlRendering__even_when_fence_ff_on(
     _mock_fence_ff: MagicMock,
-    _mock_html_ff: MagicMock,
 ) -> None:
     """
-    Purpose: HTML + fence FF on emits an htmlWithSource fence (not HtmlRendering).
-    Why this matters: htmlWithSource lets the frontend render HTML in-place with full
-    code context; no ContentReference row is added (fence carries contentId directly).
+    Purpose: HTML always uses HtmlRendering blocks, even when the fence FF is on.
+    Why this matters: HTML rendering is unconditional; the fence FF only affects
+    non-HTML files (images → imgWithSource, documents → fileWithSource).
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"page.html": "cid_page"}
@@ -2177,9 +2165,9 @@ def test_apply_postprocessing_to_response__html_with_fence_ff_on__uses_htmlWithS
 
     assert changed is True
     assert len(refs) == 0
-    assert "htmlWithSource" in message.text
-    assert "cid_page" in message.text
-    assert "HtmlRendering" not in message.text
+    assert "HtmlRendering" in message.text
+    assert "unique://content/cid_page" in message.text
+    assert "htmlWithSource" not in message.text
 
 
 # ---------------------------------------------------------------------------
