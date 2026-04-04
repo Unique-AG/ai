@@ -131,6 +131,21 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 chat_id=chat_id,
             )
 
+    def _build_retry(self) -> AsyncRetrying:
+        """Build a tenacity retry policy from the current config.
+
+        Reused for both container-file downloads and knowledge-base uploads so
+        that every I/O call gets the same exponential-backoff behaviour.
+        """
+        return AsyncRetrying(
+            stop=stop_after_attempt(1 + self._config.max_download_retries),
+            wait=wait_exponential(
+                multiplier=self._config.download_retry_base_delay
+            ),
+            before_sleep=before_sleep_log(logger, logging.WARNING),
+            reraise=True,
+        )
+
     @override
     async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:
         logger.info("Fetching and adding code interpreter files to the response")
@@ -138,7 +153,14 @@ class DisplayCodeInterpreterFilesPostProcessor(
         container_files = loop_response.container_files
         logger.info("Found %s container files", len(container_files))
 
-        self._content_map: dict[str, str | None] = await self._load_previous_files()  # type: ignore
+        try:
+            self._content_map: dict[str, str | None] = await self._load_previous_files()  # type: ignore
+        except Exception:
+            logger.exception(
+                "Failed to load previous code interpreter files from short-term "
+                "memory; proceeding without previous file context."
+            )
+            self._content_map = {}
 
         semaphore = asyncio.Semaphore(self._config.max_concurrent_file_downloads)
         tasks = [
@@ -155,13 +177,19 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 result.content_id if result is not None else None
             )
 
-        await self._save_generated_files(
-            [
-                _ContentInfo(filename=filename, content_id=content_id)
-                for filename, content_id in self._content_map.items()
-                if content_id is not None
-            ]
-        )
+        try:
+            await self._save_generated_files(
+                [
+                    _ContentInfo(filename=filename, content_id=content_id)
+                    for filename, content_id in self._content_map.items()
+                    if content_id is not None
+                ]
+            )
+        except Exception:
+            logger.exception(
+                "Failed to save generated code interpreter files to short-term "
+                "memory; file replacement will still proceed."
+            )
 
         if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
             self._company_id
@@ -279,14 +307,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         semaphore: asyncio.Semaphore,
     ) -> _ContentInfo | None:
         async with semaphore:
-            retry = AsyncRetrying(
-                stop=stop_after_attempt(1 + self._config.max_download_retries),
-                wait=wait_exponential(
-                    multiplier=self._config.download_retry_base_delay
-                ),
-                before_sleep=before_sleep_log(logger, logging.WARNING),
-                reraise=True,
-            )
+            retry = self._build_retry()
             file_content = await retry(
                 self._client.containers.files.content.retrieve,
                 container_id=container_file.container_id,
@@ -299,7 +320,8 @@ class DisplayCodeInterpreterFilesPostProcessor(
             )
 
             assert self._chat_service is not None  # Checked in __init__
-            content = await self._chat_service.upload_to_chat_from_bytes_async(
+            content = await self._build_retry()(
+                self._chat_service.upload_to_chat_from_bytes_async,
                 content=file_content.content,
                 content_name=container_file.filename,
                 mime_type=guess_type(container_file.filename)[0] or "text/plain",
@@ -378,7 +400,8 @@ class DisplayCodeInterpreterFilesPostProcessor(
             filename = f"code_{i + 1}.txt" if use_numeric_suffix else "code.txt"
 
             try:
-                content = await self._chat_service.upload_to_chat_from_bytes_async(
+                content = await self._build_retry()(
+                    self._chat_service.upload_to_chat_from_bytes_async,
                     content=txt_content.encode("utf-8"),
                     content_name=filename,
                     mime_type="text/plain",

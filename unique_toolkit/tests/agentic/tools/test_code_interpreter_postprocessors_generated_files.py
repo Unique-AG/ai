@@ -2303,9 +2303,10 @@ async def test_download_and_upload__returns_none__when_upload_fails_after_succes
     None
 ):
     """
-    Purpose: Verify upload is not retried — a single upload failure returns None.
-    Why this matters: Retry scope is intentionally limited to the download step only.
-    Setup summary: retrieve succeeds once; upload raises; assert retrieve called exactly once.
+    Purpose: Verify upload is retried and failsafe returns None when all upload attempts fail.
+    Why this matters: Transient upload failures should be retried with the same policy as downloads.
+    Setup summary: retrieve succeeds once; upload always raises; assert upload retried
+    (1 + max_download_retries) times and download called exactly once.
     """
     import asyncio
 
@@ -2332,3 +2333,4 @@ async def test_download_and_upload__returns_none__when_upload_fails_after_succes
 
     assert result is None
     assert proc._client.containers.files.content.retrieve.call_count == 1
+    assert proc._chat_service.upload_to_chat_from_bytes_async.call_count == 3  # 1 + max_download_retries
