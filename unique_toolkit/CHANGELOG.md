@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add async file tree resolution to `KnowledgeBaseService`: `resolve_visible_file_paths_async`, `display_path_tree`, `extract_scope_ids`, `get_content_infos_async`, `get_folder_info_async`
 - Add concurrent scope ID translation via `_translate_scope_ids_async` with configurable `max_concurrent_requests`
 - Remove sync `resolve_visible_file_tree` and `_resolve_visible_file_tree` methods (⚠️ breaking)
+## [1.68.8] - 2026-04-04
+- Always render HTML code interpreter files with `HtmlRendering` block, independent of feature flags (`enable_html_rendering_un_15131` and `enable_code_execution_fence_un_17972`)
+- Exclude HTML files from fence injection (`imgWithSource`/`fileWithSource`) pipeline to avoid spurious warnings
+
 ## [1.68.7] - 2026-04-02
 - Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
 - Update `langchain` optional extra to `>=1.0.0,<2` (was `>=0.3.27,<0.4`) and `langchain-core` to `>=1.0.0,<2`

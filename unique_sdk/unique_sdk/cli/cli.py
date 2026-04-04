@@ -9,6 +9,13 @@ from unique_sdk.cli.commands.files import cmd_download, cmd_mv_file, cmd_rm, cmd
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
+from unique_sdk.cli.commands.scheduled_tasks import (
+    cmd_schedule_create,
+    cmd_schedule_delete,
+    cmd_schedule_get,
+    cmd_schedule_list,
+    cmd_schedule_update,
+)
 from unique_sdk.cli.commands.search import cmd_search
 from unique_sdk.cli.config import load_config
 from unique_sdk.cli.shell import UniqueShell
@@ -435,3 +442,209 @@ def mcp(
             stdin=use_stdin,
         )
     )
+
+
+# -- Scheduled Tasks -------------------------------------------------------
+
+
+@main.group()
+def schedule() -> None:
+    """Manage cron-based scheduled tasks.
+
+    \b
+    Scheduled tasks trigger an assistant on a recurring schedule
+    defined by a cron expression. A Kubernetes CronJob evaluates all
+    enabled tasks every minute and triggers execution for those whose
+    cron expression matches the current time.
+
+    \b
+    Subcommands:
+      list      List all scheduled tasks
+      get       Get details of a single task
+      create    Create a new scheduled task
+      update    Update an existing task
+      delete    Delete a task
+    """
+
+
+@schedule.command(name="list")
+@click.pass_context
+def schedule_list(ctx: click.Context) -> None:
+    """List all scheduled tasks for the authenticated user.
+
+    \b
+    Shows a table of all tasks with their status, cron expression,
+    assistant, prompt snippet, ID, and last run time.
+
+    \b
+    Examples:
+      unique-cli schedule list
+    """
+    click.echo(cmd_schedule_list(LazyState.get(ctx)))
+
+
+@schedule.command(name="get")
+@click.argument("task_id")
+@click.pass_context
+def schedule_get(ctx: click.Context, task_id: str) -> None:
+    """Get details of a scheduled task by ID.
+
+    \b
+    TASK_ID is the scheduled task identifier.
+
+    \b
+    Examples:
+      unique-cli schedule get clx3ghi4f0003mnopqr345678
+    """
+    click.echo(cmd_schedule_get(LazyState.get(ctx), task_id))
+
+
+@schedule.command(name="create")
+@click.option(
+    "--cron",
+    "-c",
+    required=True,
+    help='5-field cron expression (e.g. "*/15 * * * *").',
+)
+@click.option(
+    "--assistant",
+    "-a",
+    "assistant_id",
+    required=True,
+    help="ID of the assistant to execute on each trigger.",
+)
+@click.option(
+    "--prompt",
+    "-p",
+    required=True,
+    help="Prompt text sent to the assistant on each trigger.",
+)
+@click.option(
+    "--chat-id",
+    default=None,
+    help="Optional chat ID to continue. If omitted, a new chat is created each run.",
+)
+@click.option(
+    "--disabled",
+    is_flag=True,
+    default=False,
+    help="Create the task in a disabled state.",
+)
+@click.pass_context
+def schedule_create(
+    ctx: click.Context,
+    cron: str,
+    assistant_id: str,
+    prompt: str,
+    chat_id: str | None,
+    disabled: bool,
+) -> None:
+    """Create a new scheduled task.
+
+    \b
+    Defines a cron schedule, an assistant, and a prompt. The task
+    will execute the assistant with the given prompt on every cron
+    match.
+
+    \b
+    Cron expression format (5 fields):
+      minute hour day-of-month month day-of-week
+
+    \b
+    Examples:
+      unique-cli schedule create \\
+        --cron "0 9 * * 1-5" \\
+        --assistant clx1abc2d0001abcdef123456 \\
+        --prompt "Generate the daily sales report"
+
+      unique-cli schedule create \\
+        -c "*/15 * * * *" -a clx1abc -p "Check inbox" --disabled
+    """
+    click.echo(
+        cmd_schedule_create(
+            LazyState.get(ctx),
+            cron=cron,
+            assistant_id=assistant_id,
+            prompt=prompt,
+            chat_id=chat_id,
+            enabled=not disabled,
+        )
+    )
+
+
+@schedule.command(name="update")
+@click.argument("task_id")
+@click.option("--cron", "-c", default=None, help="Updated cron expression.")
+@click.option(
+    "--assistant", "-a", "assistant_id", default=None, help="Updated assistant ID."
+)
+@click.option("--prompt", "-p", default=None, help="Updated prompt text.")
+@click.option("--chat-id", default=None, help="Updated chat ID (use 'none' to clear).")
+@click.option("--enable", is_flag=True, default=False, help="Enable the task.")
+@click.option("--disable", is_flag=True, default=False, help="Disable the task.")
+@click.pass_context
+def schedule_update(
+    ctx: click.Context,
+    task_id: str,
+    cron: str | None,
+    assistant_id: str | None,
+    prompt: str | None,
+    chat_id: str | None,
+    enable: bool,
+    disable: bool,
+) -> None:
+    """Update an existing scheduled task.
+
+    \b
+    TASK_ID is the scheduled task identifier. Only the fields you
+    provide will be changed; everything else stays the same.
+
+    \b
+    Examples:
+      unique-cli schedule update clx3ghi4f --cron "0 9 * * 1-5"
+      unique-cli schedule update clx3ghi4f --disable
+      unique-cli schedule update clx3ghi4f --enable --prompt "New prompt"
+      unique-cli schedule update clx3ghi4f --chat-id none
+    """
+    if enable and disable:
+        click.echo("schedule: cannot use --enable and --disable together")
+        return
+
+    enabled: bool | None = None
+    if enable:
+        enabled = True
+    elif disable:
+        enabled = False
+
+    resolved_chat_id = chat_id
+    if chat_id and chat_id.lower() == "none":
+        resolved_chat_id = ""
+
+    click.echo(
+        cmd_schedule_update(
+            LazyState.get(ctx),
+            task_id,
+            cron=cron,
+            assistant_id=assistant_id,
+            prompt=prompt,
+            chat_id=resolved_chat_id,
+            enabled=enabled,
+        )
+    )
+
+
+@schedule.command(name="delete")
+@click.argument("task_id")
+@click.pass_context
+def schedule_delete(ctx: click.Context, task_id: str) -> None:
+    """Delete a scheduled task by ID.
+
+    \b
+    TASK_ID is the scheduled task identifier. This action cannot
+    be undone.
+
+    \b
+    Examples:
+      unique-cli schedule delete clx3ghi4f0003mnopqr345678
+    """
+    click.echo(cmd_schedule_delete(LazyState.get(ctx), task_id))

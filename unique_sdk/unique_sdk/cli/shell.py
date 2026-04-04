@@ -11,6 +11,13 @@ from unique_sdk.cli.commands.files import cmd_download, cmd_mv_file, cmd_rm, cmd
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
 from unique_sdk.cli.commands.navigation import cmd_cd, cmd_ls, cmd_pwd
+from unique_sdk.cli.commands.scheduled_tasks import (
+    cmd_schedule_create,
+    cmd_schedule_delete,
+    cmd_schedule_get,
+    cmd_schedule_list,
+    cmd_schedule_update,
+)
 from unique_sdk.cli.commands.search import cmd_search
 from unique_sdk.cli.state import ShellState
 
@@ -50,6 +57,22 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --file / -f <path>        Read JSON from file instead
         --stdin                   Read JSON from stdin
 
+    Scheduled tasks:
+      schedule list             List all scheduled tasks
+      schedule get <id>         Get details of a task
+      schedule create [opts]    Create a new task
+        --cron / -c <expr>        Cron expression (required)
+        --assistant / -a <id>     Assistant ID (required)
+        --prompt / -p <text>      Prompt text (required)
+        --chat-id <id>            Chat to continue (optional)
+        --disabled                Create disabled
+      schedule update <id>      Update a task
+        --cron / -c <expr>        Updated cron expression
+        --assistant / -a <id>     Updated assistant ID
+        --prompt / -p <text>      Updated prompt
+        --chat-id <id>            Updated chat ID ('none' to clear)
+        --enable / --disable      Toggle task state
+      schedule delete <id>      Delete a task
 
     Shell:
       help [command]            Show help (for a specific command)
@@ -483,6 +506,185 @@ class UniqueShell(cmd.Cmd):
                 payload=payload,
                 file=file_path,
                 stdin=use_stdin,
+            )
+        )
+
+    # -- Scheduled tasks --
+
+    def do_schedule(self, arg: str) -> None:
+        """Manage cron-based scheduled tasks.
+
+        Usage: schedule <subcommand> [options]
+
+        Subcommands:
+          list                    List all scheduled tasks
+          get <task_id>           Get details of a task
+          create [options]        Create a new scheduled task
+          update <task_id> [opts] Update an existing task
+          delete <task_id>        Delete a task
+
+        Create options:
+          --cron / -c <expr>      Cron expression (required)
+          --assistant / -a <id>   Assistant ID (required)
+          --prompt / -p <text>    Prompt text (required)
+          --chat-id <id>          Chat to continue (optional)
+          --disabled              Create in disabled state
+
+        Update options:
+          --cron / -c <expr>      Updated cron expression
+          --assistant / -a <id>   Updated assistant ID
+          --prompt / -p <text>    Updated prompt
+          --chat-id <id>          Updated chat ID ('none' to clear)
+          --enable                Enable the task
+          --disable               Disable the task
+
+        Examples:
+          /> schedule list
+          /> schedule get clx3ghi4f0003mnopqr345678
+          /> schedule create -c "0 9 * * 1-5" -a clx1abc -p "Daily report"
+          /> schedule update clx3ghi4f --disable
+          /> schedule delete clx3ghi4f0003mnopqr345678
+        """
+        parts = shlex.split(arg)
+        if not parts:
+            self._print(
+                "Usage: schedule <list|get|create|update|delete> [options]\n"
+                "Type 'help schedule' for details."
+            )
+            return
+
+        subcmd = parts[0]
+        rest = parts[1:]
+
+        if subcmd == "list":
+            self._print(cmd_schedule_list(self.state))
+
+        elif subcmd == "get":
+            if not rest:
+                self._print("Usage: schedule get <task_id>")
+                return
+            self._print(cmd_schedule_get(self.state, rest[0]))
+
+        elif subcmd == "create":
+            self._schedule_create(rest)
+
+        elif subcmd == "update":
+            if not rest:
+                self._print("Usage: schedule update <task_id> [options]")
+                return
+            self._schedule_update(rest[0], rest[1:])
+
+        elif subcmd == "delete":
+            if not rest:
+                self._print("Usage: schedule delete <task_id>")
+                return
+            self._print(cmd_schedule_delete(self.state, rest[0]))
+
+        else:
+            self._print(
+                f"Unknown subcommand: {subcmd}\n"
+                "Usage: schedule <list|get|create|update|delete> [options]"
+            )
+
+    def _schedule_create(self, parts: list[str]) -> None:
+        """Parse and execute schedule create."""
+        cron: str | None = None
+        assistant_id: str | None = None
+        prompt: str | None = None
+        chat_id: str | None = None
+        disabled = False
+
+        i = 0
+        while i < len(parts):
+            if parts[i] in ("--cron", "-c") and i + 1 < len(parts):
+                cron = parts[i + 1]
+                i += 2
+            elif parts[i] in ("--assistant", "-a") and i + 1 < len(parts):
+                assistant_id = parts[i + 1]
+                i += 2
+            elif parts[i] in ("--prompt", "-p") and i + 1 < len(parts):
+                prompt = parts[i + 1]
+                i += 2
+            elif parts[i] == "--chat-id" and i + 1 < len(parts):
+                chat_id = parts[i + 1]
+                i += 2
+            elif parts[i] == "--disabled":
+                disabled = True
+                i += 1
+            else:
+                self._print(f"Unknown option: {parts[i]}")
+                return
+
+        if not cron or not assistant_id or not prompt:
+            self._print(
+                "Usage: schedule create --cron <expr> --assistant <id> --prompt <text> "
+                "[--chat-id <id>] [--disabled]"
+            )
+            return
+
+        self._print(
+            cmd_schedule_create(
+                self.state,
+                cron=cron,
+                assistant_id=assistant_id,
+                prompt=prompt,
+                chat_id=chat_id,
+                enabled=not disabled,
+            )
+        )
+
+    def _schedule_update(self, task_id: str, parts: list[str]) -> None:
+        """Parse and execute schedule update."""
+        cron: str | None = None
+        assistant_id: str | None = None
+        prompt: str | None = None
+        chat_id: str | None = None
+        enable = False
+        disable = False
+
+        i = 0
+        while i < len(parts):
+            if parts[i] in ("--cron", "-c") and i + 1 < len(parts):
+                cron = parts[i + 1]
+                i += 2
+            elif parts[i] in ("--assistant", "-a") and i + 1 < len(parts):
+                assistant_id = parts[i + 1]
+                i += 2
+            elif parts[i] in ("--prompt", "-p") and i + 1 < len(parts):
+                prompt = parts[i + 1]
+                i += 2
+            elif parts[i] == "--chat-id" and i + 1 < len(parts):
+                chat_id = "" if parts[i + 1].lower() == "none" else parts[i + 1]
+                i += 2
+            elif parts[i] == "--enable":
+                enable = True
+                i += 1
+            elif parts[i] == "--disable":
+                disable = True
+                i += 1
+            else:
+                self._print(f"Unknown option: {parts[i]}")
+                return
+
+        if enable and disable:
+            self._print("schedule: cannot use --enable and --disable together")
+            return
+
+        enabled: bool | None = None
+        if enable:
+            enabled = True
+        elif disable:
+            enabled = False
+
+        self._print(
+            cmd_schedule_update(
+                self.state,
+                task_id,
+                cron=cron,
+                assistant_id=assistant_id,
+                prompt=prompt,
+                chat_id=chat_id,
+                enabled=enabled,
             )
         )
 
