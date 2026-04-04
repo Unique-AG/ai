@@ -2333,4 +2333,6 @@ async def test_download_and_upload__returns_none__when_upload_fails_after_succes
 
     assert result is None
     assert proc._client.containers.files.content.retrieve.call_count == 1
-    assert proc._chat_service.upload_to_chat_from_bytes_async.call_count == 3  # 1 + max_download_retries
+    assert (
+        proc._chat_service.upload_to_chat_from_bytes_async.call_count == 3
+    )  # 1 + max_download_retries

@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.68.9] - 2026-04-04
+- Fix intermittent sandbox URL replacement failures in code interpreter postprocessor caused by transient short-term memory errors crashing `run()` and preventing `apply_postprocessing_to_response()` from executing
+- Add retry with exponential backoff to file upload calls (download already had retry)
+- Extract `_build_retry()` helper to share retry policy across all I/O operations
+
 ## [1.68.8] - 2026-04-04
 - Always render HTML code interpreter files with `HtmlRendering` block, independent of feature flags (`enable_html_rendering_un_15131` and `enable_code_execution_fence_un_17972`)
 - Exclude HTML files from fence injection (`imgWithSource`/`fileWithSource`) pipeline to avoid spurious warnings

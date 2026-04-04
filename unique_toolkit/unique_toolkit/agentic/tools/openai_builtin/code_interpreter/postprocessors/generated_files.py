@@ -139,9 +139,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         """
         return AsyncRetrying(
             stop=stop_after_attempt(1 + self._config.max_download_retries),
-            wait=wait_exponential(
-                multiplier=self._config.download_retry_base_delay
-            ),
+            wait=wait_exponential(multiplier=self._config.download_retry_base_delay),
             before_sleep=before_sleep_log(logger, logging.WARNING),
             reraise=True,
         )
