@@ -41,11 +41,12 @@ from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 logger = logging.getLogger(__name__)
 
 
-class _ChatLoggerAdapter(logging.LoggerAdapter):
+class _ChatLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
     """LoggerAdapter that prefixes every message with ``[chat_id=…]``."""
 
     def process(self, msg: str, kwargs):  # type: ignore[override]
-        return f"[chat_id={self.extra['chat_id']}] {msg}", kwargs  # type: ignore[index]
+        extra = dict(self.extra) if self.extra else {}  # type: ignore[arg-type]
+        return f"[chat_id={extra.get('chat_id', 'n/a')}] {msg}", kwargs
 
 
 class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
@@ -129,7 +130,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         if self._chat_service is None:
             raise ValueError("ChatService is required if uploadToChat is True")
 
-        self._log: logging.LoggerAdapter = _ChatLoggerAdapter(
+        self._log: logging.LoggerAdapter[logging.Logger] = _ChatLoggerAdapter(
             logger, {"chat_id": chat_id or "n/a"}
         )
 
