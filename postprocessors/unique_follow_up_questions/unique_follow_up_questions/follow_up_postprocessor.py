@@ -64,10 +64,7 @@ class FollowUpPostprocessor(Postprocessor):
         if not self._text or len(self._text) == 0:
             return False
 
-        if loop_response.message.text is None:
-            loop_response.message.text = ""
-
-        loop_response.message.text += "\n\n" + self._text
+        loop_response.message.text = (loop_response.message.text or "") + "\n\n" + self._text
         return True
 
     async def remove_from_text(self, text: str) -> str:
