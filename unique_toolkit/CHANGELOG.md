@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.68.11] - 2026-04-05
+- Add real-time file download/upload progress reporting to code interpreter postprocessor — users see inline progress (percentage or elapsed time), retry indicators, and a summary block while files are being prepared
+- Switch container file downloads from buffered to streaming (`with_streaming_response`) to enable chunk-level progress tracking and percentage display when `content-length` is available
+- Add `_FileProgressTracker` class with asyncio lock, throttled message updates, inline sandbox-link replacement, and an appended summary block
+- Replace tenacity-based download retry with manual retry loop to support per-attempt progress and retry-count reporting to the tracker
+- Add `progress_update_interval` and `download_chunk_size` config fields to `DisplayCodeInterpreterFilesPostProcessorConfig`
+
 ## [1.68.10] - 2026-04-05
 - Add detailed structured logging throughout the code interpreter citation pipeline (`run()`, download/upload, `apply_postprocessing_to_response()`) for production transparency: file counts, per-file outcomes, replacement summaries, and dangling-link detection
 - Add `_ChatLoggerAdapter` so all instance-method log messages are prefixed with `[chat_id=…]` for per-conversation traceability

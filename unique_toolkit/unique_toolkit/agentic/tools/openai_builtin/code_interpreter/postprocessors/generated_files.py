@@ -2,6 +2,8 @@ import asyncio
 import json
 import logging
 import re
+import time
+from dataclasses import dataclass
 from mimetypes import guess_type
 from typing import NamedTuple, override
 
@@ -76,6 +78,14 @@ class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
         default=0.5,
         description="Base delay in seconds for exponential backoff between download/upload retries.",
     )
+    progress_update_interval: float = Field(
+        default=3.0,
+        description="Minimum seconds between progress message updates sent to the user.",
+    )
+    download_chunk_size: int = Field(
+        default=8192,
+        description="Chunk size in bytes for streaming container file downloads.",
+    )
 
 
 class _ContentInfo(NamedTuple):
@@ -101,6 +111,141 @@ def _init_short_term_memory_manager(
         short_term_memory_schema=_DisplayedFilesShortTermMemorySchema,
         short_term_memory_name=_SHORT_TERM_MEMORY_KEY,
     )
+
+
+@dataclass
+class _FileState:
+    phase: str = "pending"
+    percent: int | None = None
+    elapsed_seconds: float = 0.0
+    retry_attempt: int = 0
+    max_retries: int = 0
+
+
+class _FileProgressTracker:
+    """Concurrency-safe coordinator that publishes file download/upload progress
+    to the user-visible assistant message in real time.
+
+    Replaces sandbox links inline with progress text and appends a summary block.
+    Throttles ``modify_assistant_message_async`` calls to avoid API spam.
+    """
+
+    def __init__(
+        self,
+        filenames: list[str],
+        original_text: str,
+        chat_service: ChatService,
+        log: logging.LoggerAdapter[logging.Logger],
+        min_publish_interval: float = 3.0,
+    ) -> None:
+        self._states: dict[str, _FileState] = {f: _FileState() for f in filenames}
+        self._original_text = original_text
+        self._chat_service = chat_service
+        self._log = log
+        self._lock = asyncio.Lock()
+        self._last_publish_time = 0.0
+        self._min_interval = min_publish_interval
+
+    async def update(
+        self,
+        filename: str,
+        phase: str,
+        *,
+        percent: int | None = None,
+        elapsed_seconds: float = 0.0,
+        retry_attempt: int = 0,
+        max_retries: int = 0,
+        force_publish: bool = False,
+    ) -> None:
+        async with self._lock:
+            state = self._states.get(filename)
+            if state is None:
+                return
+            state.phase = phase
+            state.percent = percent
+            state.elapsed_seconds = elapsed_seconds
+            state.retry_attempt = retry_attempt
+            state.max_retries = max_retries
+
+            now = time.monotonic()
+            should_publish = (
+                force_publish
+                or phase in ("done", "failed", "uploading")
+                or now - self._last_publish_time >= self._min_interval
+            )
+            if should_publish:
+                await self._publish()
+                self._last_publish_time = now
+
+    async def publish_initial(self) -> None:
+        """Send the first progress update (marks all files as pending)."""
+        async with self._lock:
+            for state in self._states.values():
+                state.phase = "downloading"
+            await self._publish()
+            self._last_publish_time = time.monotonic()
+
+    async def _publish(self) -> None:
+        text = self._build_progress_text()
+        try:
+            await self._chat_service.modify_assistant_message_async(content=text)
+        except Exception:
+            self._log.debug("Failed to publish progress update", exc_info=True)
+
+    def _build_progress_text(self) -> str:
+        text = self._original_text
+
+        for filename, state in self._states.items():
+            if state.phase == "pending":
+                continue
+            progress = self._format_inline(filename, state)
+            pattern = rf"!?\[.*?\]\(sandbox:/mnt/data/{re.escape(filename)}\)"
+            text = re.sub(pattern, progress, text)
+
+        active = {
+            f: s for f, s in self._states.items() if s.phase not in ("done", "pending")
+        }
+        if active:
+            lines = ["---", "Preparing files:"]
+            for filename, state in active.items():
+                lines.append(f"- {filename} — {self._format_summary(state)}")
+            text = text.rstrip() + "\n\n" + "\n".join(lines)
+
+        return text
+
+    @staticmethod
+    def _format_inline(filename: str, state: _FileState) -> str:
+        if state.phase == "downloading":
+            base = f"Downloading {filename}..."
+            if state.retry_attempt > 0:
+                base += f" retry {state.retry_attempt}/{state.max_retries}"
+            if state.percent is not None:
+                return f"{base} {state.percent}%"
+            if state.elapsed_seconds > 0:
+                return f"{base} ({int(state.elapsed_seconds)}s)"
+            return base
+        if state.phase == "uploading":
+            return f"Uploading {filename}..."
+        if state.phase == "failed":
+            return "File could not be generated. Please try again."
+        return filename
+
+    @staticmethod
+    def _format_summary(state: _FileState) -> str:
+        if state.phase == "downloading":
+            base = "Downloading"
+            if state.retry_attempt > 0:
+                base += f" (retry {state.retry_attempt}/{state.max_retries})"
+            if state.percent is not None:
+                return f"{base} {state.percent}%"
+            if state.elapsed_seconds > 0:
+                return f"{base} ({int(state.elapsed_seconds)}s)"
+            return f"{base}..."
+        if state.phase == "uploading":
+            return "Uploading..."
+        if state.phase == "failed":
+            return "Failed"
+        return "Pending"
 
 
 class DisplayCodeInterpreterFilesPostProcessor(
@@ -182,10 +327,21 @@ class DisplayCodeInterpreterFilesPostProcessor(
             )
             self._content_map = {}
 
+        tracker: _FileProgressTracker | None = None
+        if container_files and self._chat_service is not None:
+            tracker = _FileProgressTracker(
+                filenames=[cf.filename for cf in container_files],
+                original_text=loop_response.message.text or "",
+                chat_service=self._chat_service,
+                log=self._log,
+                min_publish_interval=self._config.progress_update_interval,
+            )
+            await tracker.publish_initial()
+
         semaphore = asyncio.Semaphore(self._config.max_concurrent_file_downloads)
         tasks = [
             self._download_and_upload_container_files_to_knowledge_base(
-                citation, semaphore
+                citation, semaphore, tracker
             )
             for citation in container_files
         ]
@@ -195,6 +351,8 @@ class DisplayCodeInterpreterFilesPostProcessor(
             self._content_map[citation.filename] = (
                 result.content_id if result is not None else None
             )
+            if result is None and tracker:
+                await tracker.update(citation.filename, "failed", force_publish=True)
 
         succeeded = {f: cid for f, cid in self._content_map.items() if cid is not None}
         failed = [f for f, cid in self._content_map.items() if cid is None]
@@ -411,6 +569,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         self,
         container_file: AnnotationContainerFileCitation,
         semaphore: asyncio.Semaphore,
+        tracker: _FileProgressTracker | None = None,
     ) -> _ContentInfo | None:
         async with semaphore:
             self._log.info(
@@ -419,17 +578,21 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 container_file.container_id,
                 container_file.file_id,
             )
-            retry = self._build_retry()
-            file_content = await retry(
-                self._client.containers.files.content.retrieve,
-                container_id=container_file.container_id,
-                file_id=container_file.file_id,
+
+            file_bytes = await self._download_file_bytes_with_progress(
+                container_file, tracker
             )
+
             self._log.info(
                 "Downloaded container file '%s' (%d bytes)",
                 container_file.filename,
-                len(file_content.content),
+                len(file_bytes),
             )
+
+            if tracker:
+                await tracker.update(
+                    container_file.filename, "uploading", force_publish=True
+                )
 
             mime = guess_type(container_file.filename)[0] or "text/plain"
             self._log.info(
@@ -441,12 +604,17 @@ class DisplayCodeInterpreterFilesPostProcessor(
             assert self._chat_service is not None  # Checked in __init__
             content = await self._build_retry()(
                 self._chat_service.upload_to_chat_from_bytes_async,
-                content=file_content.content,
+                content=file_bytes,
                 content_name=container_file.filename,
                 mime_type=mime,
                 skip_ingestion=True,
                 hide_in_chat=True,
             )
+
+            if tracker:
+                await tracker.update(
+                    container_file.filename, "done", force_publish=True
+                )
 
             self._log.info(
                 "Uploaded '%s' — content_id=%s",
@@ -454,6 +622,96 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 content.id,
             )
             return _ContentInfo(filename=container_file.filename, content_id=content.id)
+
+    async def _download_file_bytes_with_progress(
+        self,
+        container_file: AnnotationContainerFileCitation,
+        tracker: _FileProgressTracker | None,
+    ) -> bytes:
+        """Download container file with streaming progress and manual retry loop.
+
+        Uses ``with_streaming_response`` so we can read ``content-length``
+        and report download percentage.  Falls back to elapsed-time display
+        when the header is absent.
+        """
+        max_attempts = 1 + self._config.max_download_retries
+        download_start = time.monotonic()
+        last_exception: Exception | None = None
+
+        for attempt_num in range(1, max_attempts + 1):
+            retry_num = attempt_num - 1
+            try:
+                if retry_num > 0:
+                    delay = self._config.download_retry_base_delay * (2**retry_num)
+                    self._log.warning(
+                        "Retrying download of '%s' (attempt %d/%d) after %.1fs",
+                        container_file.filename,
+                        attempt_num,
+                        max_attempts,
+                        delay,
+                    )
+                    if tracker:
+                        await tracker.update(
+                            container_file.filename,
+                            "downloading",
+                            elapsed_seconds=time.monotonic() - download_start,
+                            retry_attempt=retry_num,
+                            max_retries=self._config.max_download_retries,
+                            force_publish=True,
+                        )
+                    await asyncio.sleep(delay)
+
+                return await self._stream_download_bytes(
+                    container_file, tracker, retry_num, download_start
+                )
+            except Exception as exc:
+                last_exception = exc
+                self._log.warning(
+                    "Download attempt %d/%d failed for '%s': %s",
+                    attempt_num,
+                    max_attempts,
+                    container_file.filename,
+                    exc,
+                )
+
+        assert last_exception is not None
+        raise last_exception
+
+    async def _stream_download_bytes(
+        self,
+        container_file: AnnotationContainerFileCitation,
+        tracker: _FileProgressTracker | None,
+        retry_attempt: int,
+        download_start: float,
+    ) -> bytes:
+        """Stream-download a single container file, reporting chunk-level progress."""
+        async with (
+            self._client.containers.files.content.with_streaming_response.retrieve(
+                file_id=container_file.file_id,
+                container_id=container_file.container_id,
+            ) as response
+        ):
+            content_length = response.headers.get("content-length")
+            total = int(content_length) if content_length else None
+            chunks: list[bytes] = []
+            downloaded = 0
+            async for chunk in response.iter_bytes(
+                chunk_size=self._config.download_chunk_size
+            ):
+                chunks.append(chunk)
+                downloaded += len(chunk)
+                if tracker:
+                    pct = (downloaded * 100 // total) if total else None
+                    elapsed = time.monotonic() - download_start
+                    await tracker.update(
+                        container_file.filename,
+                        "downloading",
+                        percent=pct,
+                        elapsed_seconds=elapsed,
+                        retry_attempt=retry_attempt,
+                        max_retries=self._config.max_download_retries,
+                    )
+            return b"".join(chunks)
 
     async def _load_previous_files(self) -> dict[str, str]:
         if self._short_term_memory_manager is None:
