@@ -199,7 +199,9 @@ async def test_get_follow_up_question_suggestion_error_handling(
     language = "en"
 
     # Mock the language model to raise an exception
-    language_model_service.complete_async = AsyncMock(side_effect=Exception("Test error"))
+    language_model_service.complete_async = AsyncMock(
+        side_effect=Exception("Test error")
+    )
 
     # Act
     result = await service.get_follow_up_question_suggestion(

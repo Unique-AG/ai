@@ -64,7 +64,9 @@ class FollowUpPostprocessor(Postprocessor):
         if not self._text or len(self._text) == 0:
             return False
 
-        # Append the follow-up question suggestions to the loop response
+        if loop_response.message.text is None:
+            loop_response.message.text = ""
+
         loop_response.message.text += "\n\n" + self._text
         return True
 
