@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `_replace_container_file_citation` missing `!?` prefix — LLM using `![label](sandbox:...)` syntax for non-image files caused false "download failed" error despite successful upload
 - Wrap orphan code block upload in try/except to prevent failures from blocking file replacement
 - Add detailed logging throughout the citation pipeline (`run()`, download/upload, `apply_postprocessing_to_response()`) for production transparency: file counts, per-file outcomes, replacement summaries, and dangling-link detection
+- Improve user-facing error message when file generation permanently fails after retries — now reads "File could not be generated. Please try again." instead of generic "File download failed"
 
 ## [1.68.8] - 2026-04-04
 - Always render HTML code interpreter files with `HtmlRendering` block, independent of feature flags (`enable_html_rendering_un_15131` and `enable_code_execution_fence_un_17972`)

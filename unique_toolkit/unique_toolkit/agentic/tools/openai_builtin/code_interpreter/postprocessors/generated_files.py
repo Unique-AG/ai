@@ -60,8 +60,8 @@ class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
     )
 
     file_download_failed_message: str = Field(
-        default="⚠️ File download failed ...",
-        description="The message to display when a file download fails.",
+        default="⚠️ File could not be generated. Please try again.",
+        description="The message to display when a file download fails after all retry attempts.",
     )
     max_concurrent_file_downloads: int = Field(
         default=10,
