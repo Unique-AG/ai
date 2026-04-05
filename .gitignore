@@ -186,4 +186,7 @@ monorepo-ref
 .idea
 
 # Planning notes
-.planning/test_code_interpreter_retry.py
+.planning/
+
+# Stray test scripts with secrets
+test_code_interpreter_retry.py
