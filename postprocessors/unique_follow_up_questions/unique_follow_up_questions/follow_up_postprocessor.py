@@ -64,8 +64,9 @@ class FollowUpPostprocessor(Postprocessor):
         if not self._text or len(self._text) == 0:
             return False
 
-        # Append the follow-up question suggestions to the loop response
-        loop_response.message.text += "\n\n" + self._text
+        loop_response.message.text = (
+            (loop_response.message.text or "") + "\n\n" + self._text
+        )
         return True
 
     async def remove_from_text(self, text: str) -> str:
@@ -170,14 +171,14 @@ class FollowUpPostprocessor(Postprocessor):
         """
         try:
             if self._config.use_structured_output:
-                response = language_model_service.complete(
+                response = await language_model_service.complete_async(
                     messages=messages,
                     model_name=self._config.language_model.name,
                     structured_output_model=FollowUpQuestionsOutput,
                 )
                 parsed_content = response.choices[0].message.parsed
             else:
-                response = language_model_service.complete(
+                response = await language_model_service.complete_async(
                     messages=messages,
                     model_name=self._config.language_model.name,
                 )
