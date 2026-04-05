@@ -717,7 +717,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 retry_num = attempt_num - 1
                 try:
                     if retry_num > 0:
-                        delay = self._config.download_retry_base_delay * (2**retry_num)
+                        delay = self._config.download_retry_base_delay * (
+                            2 ** (retry_num - 1)
+                        )
                         self._log.warning(
                             "Retrying download of '%s' (attempt %d/%d) after %.1fs",
                             container_file.filename,
