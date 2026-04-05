@@ -1,6 +1,7 @@
 """Tests for code interpreter generated-files postprocessor (config, __init__, helpers)."""
 
 import logging
+import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -20,6 +21,8 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     _ensure_fences_are_standalone,
     _file_frontend_type,
     _file_title,
+    _FileProgressTracker,
+    _FileState,
     _inject_code_execution_fences,
     _replace_dangling_sandbox_links,
     _warn_missing_content_ids,
@@ -34,6 +37,32 @@ from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 
 GEN_FILES_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files.feature_flags"
+
+
+class _MockStreamResponse:
+    """Mock for ``AsyncStreamedBinaryAPIResponse`` from the OpenAI SDK.
+
+    Supports ``async with`` (context manager protocol) and ``iter_bytes``.
+    """
+
+    def __init__(self, data: bytes, content_length: int | None = None):
+        self._data = data
+        self.headers: dict[str, str] = {}
+        if content_length is not None:
+            self.headers["content-length"] = str(content_length)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        pass
+
+    async def iter_bytes(self, chunk_size: int = 8192):
+        for i in range(0, len(self._data), chunk_size):
+            yield self._data[i : i + chunk_size]
+
+    async def close(self):
+        pass
 
 
 @pytest.mark.ai
@@ -56,6 +85,8 @@ def test_display_code_interpreter_files_config__has_defaults__when_constructed_w
         == "⚠️ File could not be generated. Please try again."
     )
     assert config.max_concurrent_file_downloads == 10
+    assert config.progress_update_interval == 3.0
+    assert config.download_chunk_size == 8192
 
 
 @pytest.mark.ai
@@ -2230,23 +2261,21 @@ async def test_download_and_upload__returns_content_info__when_download_succeeds
     """
     Purpose: Verify that a transient download failure is retried and the method returns _ContentInfo.
     Why this matters: Exactly the scenario described in UN-18531 — concurrent pulls can fail once.
-    Setup summary: retrieve raises on call 1, succeeds on call 2; upload always succeeds.
+    Setup summary: streaming retrieve raises on call 1, succeeds on call 2; upload always succeeds.
     """
     import asyncio
 
     proc = _make_display_files_postprocessor()
     proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
         max_download_retries=2,
-        download_retry_base_delay=0,  # no real sleep in tests
+        download_retry_base_delay=0,
     )
     annotation = _make_annotation("chart.png")
     semaphore = asyncio.Semaphore(10)
 
-    mock_file_content = MagicMock()
-    mock_file_content.content = b"png-bytes"
-
-    proc._client.containers.files.content.retrieve = AsyncMock(
-        side_effect=[ConnectionError("transient"), mock_file_content]
+    mock_stream = _MockStreamResponse(b"png-bytes", content_length=9)
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        side_effect=[ConnectionError("transient"), mock_stream]
     )
     mock_upload_result = MagicMock()
     mock_upload_result.id = "cid_123"
@@ -2261,7 +2290,10 @@ async def test_download_and_upload__returns_content_info__when_download_succeeds
     assert result is not None
     assert result.filename == "chart.png"
     assert result.content_id == "cid_123"
-    assert proc._client.containers.files.content.retrieve.call_count == 2
+    assert (
+        proc._client.containers.files.content.with_streaming_response.retrieve.call_count
+        == 2
+    )
 
 
 @pytest.mark.ai
@@ -2272,7 +2304,7 @@ async def test_download_and_upload__returns_none__when_all_download_attempts_exh
     """
     Purpose: Verify that after all download retries are exhausted, failsafe_async returns None.
     Why this matters: Pipeline must not crash — None triggers the file_download_failed_message path.
-    Setup summary: retrieve always raises; assert None returned and upload never called.
+    Setup summary: streaming retrieve always raises; assert None returned and upload never called.
     """
     import asyncio
 
@@ -2284,7 +2316,7 @@ async def test_download_and_upload__returns_none__when_all_download_attempts_exh
     annotation = _make_annotation("report.pdf")
     semaphore = asyncio.Semaphore(10)
 
-    proc._client.containers.files.content.retrieve = AsyncMock(
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
         side_effect=RuntimeError("permanent failure")
     )
 
@@ -2294,7 +2326,8 @@ async def test_download_and_upload__returns_none__when_all_download_attempts_exh
 
     assert result is None
     assert (
-        proc._client.containers.files.content.retrieve.call_count == 2
+        proc._client.containers.files.content.with_streaming_response.retrieve.call_count
+        == 2
     )  # 1 + max_download_retries
     proc._chat_service.upload_to_chat_from_bytes_async.assert_not_called()
 
@@ -2307,7 +2340,7 @@ async def test_download_and_upload__returns_none__when_zero_retries_and_download
     """
     Purpose: Verify max_download_retries=0 means exactly 1 total download attempt.
     Why this matters: Operators can disable retries; must behave like the old single-attempt path.
-    Setup summary: retrieve fails once; max_download_retries=0; assert only 1 call.
+    Setup summary: streaming retrieve fails once; max_download_retries=0; assert only 1 call.
     """
     import asyncio
 
@@ -2319,7 +2352,7 @@ async def test_download_and_upload__returns_none__when_zero_retries_and_download
     annotation = _make_annotation("data.csv")
     semaphore = asyncio.Semaphore(10)
 
-    proc._client.containers.files.content.retrieve = AsyncMock(
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
         side_effect=ValueError("fail")
     )
 
@@ -2328,7 +2361,10 @@ async def test_download_and_upload__returns_none__when_zero_retries_and_download
     )
 
     assert result is None
-    assert proc._client.containers.files.content.retrieve.call_count == 1
+    assert (
+        proc._client.containers.files.content.with_streaming_response.retrieve.call_count
+        == 1
+    )
 
 
 @pytest.mark.ai
@@ -2339,7 +2375,7 @@ async def test_download_and_upload__returns_none__when_upload_fails_after_succes
     """
     Purpose: Verify upload is retried and failsafe returns None when all upload attempts fail.
     Why this matters: Transient upload failures should be retried with the same policy as downloads.
-    Setup summary: retrieve succeeds once; upload always raises; assert upload retried
+    Setup summary: streaming retrieve succeeds once; upload always raises; assert upload retried
     (1 + max_download_retries) times and download called exactly once.
     """
     import asyncio
@@ -2352,10 +2388,9 @@ async def test_download_and_upload__returns_none__when_upload_fails_after_succes
     annotation = _make_annotation("data.xlsx")
     semaphore = asyncio.Semaphore(10)
 
-    mock_file_content = MagicMock()
-    mock_file_content.content = b"xlsx-bytes"
-    proc._client.containers.files.content.retrieve = AsyncMock(
-        return_value=mock_file_content
+    mock_stream = _MockStreamResponse(b"xlsx-bytes", content_length=10)
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        return_value=mock_stream
     )
     proc._chat_service.upload_to_chat_from_bytes_async = AsyncMock(
         side_effect=RuntimeError("upload failed")
@@ -2366,7 +2401,405 @@ async def test_download_and_upload__returns_none__when_upload_fails_after_succes
     )
 
     assert result is None
-    assert proc._client.containers.files.content.retrieve.call_count == 1
+    assert (
+        proc._client.containers.files.content.with_streaming_response.retrieve.call_count
+        == 1
+    )
     assert (
         proc._chat_service.upload_to_chat_from_bytes_async.call_count == 3
     )  # 1 + max_download_retries
+
+
+# ============================================================================
+# Tests for _FileProgressTracker
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_file_state__has_correct_defaults() -> None:
+    state = _FileState()
+    assert state.phase == "pending"
+    assert state.percent is None
+    assert state.elapsed_seconds == 0.0
+    assert state.retry_attempt == 0
+    assert state.max_retries == 0
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_inline__downloading_with_percent() -> None:
+    state = _FileState(phase="downloading", percent=42, elapsed_seconds=5.0)
+    result = _FileProgressTracker._format_inline("report.xlsx", state)
+    assert result == "Downloading report.xlsx... 42%"
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_inline__downloading_without_content_length() -> (
+    None
+):
+    state = _FileState(phase="downloading", percent=None, elapsed_seconds=15.0)
+    result = _FileProgressTracker._format_inline("report.xlsx", state)
+    assert result == "Downloading report.xlsx... (15s)"
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_inline__downloading_with_retry() -> None:
+    state = _FileState(
+        phase="downloading",
+        percent=25,
+        elapsed_seconds=10.0,
+        retry_attempt=2,
+        max_retries=3,
+    )
+    result = _FileProgressTracker._format_inline("report.xlsx", state)
+    assert result == "Downloading report.xlsx... retry 2/3 25%"
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_inline__uploading() -> None:
+    state = _FileState(phase="uploading")
+    result = _FileProgressTracker._format_inline("report.xlsx", state)
+    assert result == "Uploading report.xlsx..."
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_inline__failed() -> None:
+    state = _FileState(phase="failed")
+    result = _FileProgressTracker._format_inline("report.xlsx", state)
+    assert "could not be generated" in result.lower() or "failed" in result.lower()
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_summary__downloading_with_percent() -> None:
+    state = _FileState(phase="downloading", percent=42)
+    result = _FileProgressTracker._format_summary(state)
+    assert result == "Downloading 42%"
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_summary__downloading_with_retry() -> None:
+    state = _FileState(
+        phase="downloading",
+        percent=None,
+        elapsed_seconds=20.0,
+        retry_attempt=1,
+        max_retries=2,
+    )
+    result = _FileProgressTracker._format_summary(state)
+    assert "retry 1/2" in result
+    assert "20s" in result
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_summary__uploading() -> None:
+    state = _FileState(phase="uploading")
+    assert _FileProgressTracker._format_summary(state) == "Uploading..."
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_summary__failed() -> None:
+    state = _FileState(phase="failed")
+    assert _FileProgressTracker._format_summary(state) == "Failed"
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__build_progress_text__replaces_sandbox_links_inline() -> (
+    None
+):
+    """Verify sandbox links are replaced with inline progress text."""
+    chat_service = MagicMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["chart.png", "data.xlsx"],
+        original_text="See [chart](sandbox:/mnt/data/chart.png) and [data](sandbox:/mnt/data/data.xlsx).",
+        chat_service=chat_service,
+        log=log,
+    )
+    tracker._states["chart.png"].phase = "downloading"
+    tracker._states["chart.png"].percent = 50
+    tracker._states["data.xlsx"].phase = "uploading"
+
+    text = tracker._build_progress_text()
+
+    assert "Downloading chart.png... 50%" in text
+    assert "Uploading data.xlsx..." in text
+    assert "sandbox" not in text
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__build_progress_text__appends_summary_for_active_files() -> (
+    None
+):
+    """Verify a summary block is appended for files not yet done."""
+    chat_service = MagicMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="See [a](sandbox:/mnt/data/a.png).",
+        chat_service=chat_service,
+        log=log,
+    )
+    tracker._states["a.png"].phase = "downloading"
+    tracker._states["a.png"].percent = 75
+
+    text = tracker._build_progress_text()
+
+    assert "---" in text
+    assert "Preparing files:" in text
+    assert "a.png" in text.split("---")[1]
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__build_progress_text__no_summary_when_all_done() -> None:
+    """No summary block when every file is done."""
+    chat_service = MagicMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="See [a](sandbox:/mnt/data/a.png).",
+        chat_service=chat_service,
+        log=log,
+    )
+    tracker._states["a.png"].phase = "done"
+
+    text = tracker._build_progress_text()
+
+    assert "---" not in text
+    assert "Preparing files:" not in text
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__publish_initial__sets_downloading_and_publishes() -> (
+    None
+):
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png", "b.xlsx"],
+        original_text="[a](sandbox:/mnt/data/a.png) [b](sandbox:/mnt/data/b.xlsx)",
+        chat_service=chat_service,
+        log=log,
+    )
+
+    await tracker.publish_initial()
+
+    assert tracker._states["a.png"].phase == "downloading"
+    assert tracker._states["b.xlsx"].phase == "downloading"
+    chat_service.modify_assistant_message_async.assert_awaited_once()
+    published_text = chat_service.modify_assistant_message_async.call_args.kwargs[
+        "content"
+    ]
+    assert "Downloading a.png..." in published_text
+    assert "Downloading b.xlsx..." in published_text
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__update__throttles_publishes() -> None:
+    """Verify that rapid updates within the interval don't trigger extra publishes."""
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=100.0,
+    )
+    tracker._last_publish_time = time.monotonic()
+
+    await tracker.update("a.png", "downloading", percent=10)
+    await tracker.update("a.png", "downloading", percent=20)
+    await tracker.update("a.png", "downloading", percent=30)
+
+    chat_service.modify_assistant_message_async.assert_not_awaited()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__update__force_publish_overrides_throttle() -> (
+    None
+):
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=100.0,
+    )
+    tracker._last_publish_time = time.monotonic()
+
+    await tracker.update("a.png", "uploading", force_publish=True)
+
+    chat_service.modify_assistant_message_async.assert_awaited_once()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__update__done_phase_always_publishes() -> None:
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=100.0,
+    )
+    tracker._last_publish_time = time.monotonic()
+
+    await tracker.update("a.png", "done")
+
+    chat_service.modify_assistant_message_async.assert_awaited_once()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__publish_survives_exception() -> None:
+    """If modify_assistant_message_async fails, the tracker must not crash."""
+    chat_service = AsyncMock()
+    chat_service.modify_assistant_message_async.side_effect = RuntimeError("API error")
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=0.0,
+    )
+
+    await tracker.update("a.png", "downloading", percent=50)
+
+
+# ============================================================================
+# Tests for streaming download with progress
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_stream_download_bytes__reports_percentage__when_content_length_present() -> (
+    None
+):
+    """Verify tracker.update receives correct percentage when content-length is set."""
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        download_chunk_size=5,
+    )
+    annotation = _make_annotation("file.bin")
+    data = b"0123456789"
+    mock_stream = _MockStreamResponse(data, content_length=len(data))
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        return_value=mock_stream
+    )
+
+    tracker = MagicMock()
+    tracker.update = AsyncMock()
+
+    result = await proc._stream_download_bytes(annotation, tracker, 0, time.monotonic())
+
+    assert result == data
+    assert tracker.update.await_count == 2
+    first_call_kwargs = tracker.update.call_args_list[0].kwargs
+    assert first_call_kwargs["percent"] == 50
+    second_call_kwargs = tracker.update.call_args_list[1].kwargs
+    assert second_call_kwargs["percent"] == 100
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_stream_download_bytes__reports_none_percent__when_no_content_length() -> (
+    None
+):
+    """Verify tracker.update receives percent=None when content-length is absent."""
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        download_chunk_size=100,
+    )
+    annotation = _make_annotation("file.bin")
+    data = b"hello"
+    mock_stream = _MockStreamResponse(data, content_length=None)
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        return_value=mock_stream
+    )
+
+    tracker = MagicMock()
+    tracker.update = AsyncMock()
+
+    result = await proc._stream_download_bytes(annotation, tracker, 0, time.monotonic())
+
+    assert result == data
+    assert tracker.update.await_count >= 1
+    for call in tracker.update.call_args_list:
+        assert call.kwargs["percent"] is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_with_progress__reports_retry_attempt_to_tracker() -> None:
+    """Verify that on retry, the tracker receives the retry attempt number."""
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        max_download_retries=2,
+        download_retry_base_delay=0,
+        download_chunk_size=100,
+    )
+    annotation = _make_annotation("file.bin")
+    mock_stream = _MockStreamResponse(b"data", content_length=4)
+
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        side_effect=[ConnectionError("fail"), mock_stream]
+    )
+
+    tracker = MagicMock()
+    tracker.update = AsyncMock()
+
+    result = await proc._download_file_bytes_with_progress(annotation, tracker)
+
+    assert result == b"data"
+    retry_updates = [
+        c for c in tracker.update.call_args_list if c.kwargs.get("retry_attempt", 0) > 0
+    ]
+    assert len(retry_updates) >= 1
+    assert retry_updates[0].kwargs["retry_attempt"] == 1
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_and_upload__tracker_receives_upload_and_done__on_success() -> (
+    None
+):
+    """Verify the tracker is updated to 'uploading' then 'done' on a successful pipeline."""
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        download_retry_base_delay=0,
+    )
+    annotation = _make_annotation("chart.png")
+    semaphore = asyncio.Semaphore(10)
+    mock_stream = _MockStreamResponse(b"png-bytes", content_length=9)
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        return_value=mock_stream
+    )
+    mock_upload_result = MagicMock()
+    mock_upload_result.id = "cid_ok"
+    proc._chat_service.upload_to_chat_from_bytes_async = AsyncMock(
+        return_value=mock_upload_result
+    )
+
+    tracker = MagicMock()
+    tracker.update = AsyncMock()
+
+    result = await proc._download_and_upload_container_files_to_knowledge_base(
+        annotation, semaphore, tracker
+    )
+
+    assert result is not None
+    phases = [c.args[1] for c in tracker.update.call_args_list]
+    assert "uploading" in phases
+    assert "done" in phases
