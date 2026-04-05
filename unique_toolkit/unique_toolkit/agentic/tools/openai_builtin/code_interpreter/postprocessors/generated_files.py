@@ -756,7 +756,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 ticker_task.cancel()
                 try:
                     await ticker_task
-                except asyncio.CancelledError:
+                except BaseException:
                     pass
 
     async def _stream_download_bytes(
