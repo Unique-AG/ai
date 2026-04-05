@@ -41,6 +41,14 @@ from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 logger = logging.getLogger(__name__)
 
 
+class _ChatLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
+    """LoggerAdapter that prefixes every message with ``[chat_id=…]``."""
+
+    def process(self, msg: str, kwargs):  # type: ignore[override]
+        extra = dict(self.extra) if self.extra else {}  # type: ignore[arg-type]
+        return f"[chat_id={extra.get('chat_id', 'n/a')}] {msg}", kwargs
+
+
 class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
     model_config = get_configuration_dict()
     upload_to_chat: SkipJsonSchema[bool] = Field(
@@ -53,8 +61,8 @@ class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
     )
 
     file_download_failed_message: str = Field(
-        default="⚠️ File download failed ...",
-        description="The message to display when a file download fails.",
+        default="⚠️ File could not be generated. Please try again.",
+        description="The message to display when a file download fails after all retry attempts.",
     )
     max_concurrent_file_downloads: int = Field(
         default=10,
@@ -122,6 +130,10 @@ class DisplayCodeInterpreterFilesPostProcessor(
         if self._chat_service is None:
             raise ValueError("ChatService is required if uploadToChat is True")
 
+        self._log: logging.LoggerAdapter[logging.Logger] = _ChatLoggerAdapter(
+            logger, {"chat_id": chat_id or "n/a"}
+        )
+
         self._orphan_code_blocks: list[CodeInterpreterBlock] = []
         self._short_term_memory_manager = None
         if chat_id is not None and user_id is not None and company_id is not None:
@@ -140,23 +152,33 @@ class DisplayCodeInterpreterFilesPostProcessor(
         return AsyncRetrying(
             stop=stop_after_attempt(1 + self._config.max_download_retries),
             wait=wait_exponential(multiplier=self._config.download_retry_base_delay),
-            before_sleep=before_sleep_log(logger, logging.WARNING),
+            before_sleep=before_sleep_log(self._log, logging.WARNING),  # type: ignore[arg-type]
             reraise=True,
         )
 
     @override
     async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:
-        logger.info("Fetching and adding code interpreter files to the response")
+        self._log.info("run() started — fetching and uploading code interpreter files")
 
         container_files = loop_response.container_files
-        logger.info("Found %s container files", len(container_files))
+        self._log.info(
+            "run() found %d container file annotation(s): %s",
+            len(container_files),
+            [cf.filename for cf in container_files],
+        )
 
         try:
             self._content_map: dict[str, str | None] = await self._load_previous_files()  # type: ignore
+            if self._content_map:
+                self._log.info(
+                    "run() loaded %d previous file(s) from short-term memory: %s",
+                    len(self._content_map),
+                    list(self._content_map.keys()),
+                )
         except Exception:
-            logger.exception(
-                "Failed to load previous code interpreter files from short-term "
-                "memory; proceeding without previous file context."
+            self._log.exception(
+                "run() failed to load previous files from short-term memory; "
+                "proceeding without previous file context."
             )
             self._content_map = {}
 
@@ -170,10 +192,20 @@ class DisplayCodeInterpreterFilesPostProcessor(
         results = await asyncio.gather(*tasks)
 
         for citation, result in zip(container_files, results):
-            # Overwrite if file has been re-generated
             self._content_map[citation.filename] = (
                 result.content_id if result is not None else None
             )
+
+        succeeded = {f: cid for f, cid in self._content_map.items() if cid is not None}
+        failed = [f for f, cid in self._content_map.items() if cid is None]
+        self._log.info(
+            "run() download/upload complete — %d succeeded, %d failed. "
+            "succeeded=%s, failed=%s",
+            len(succeeded),
+            len(failed),
+            list(succeeded.keys()),
+            failed,
+        )
 
         try:
             await self._save_generated_files(
@@ -184,9 +216,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 ]
             )
         except Exception:
-            logger.exception(
-                "Failed to save generated code interpreter files to short-term "
-                "memory; file replacement will still proceed."
+            self._log.exception(
+                "run() failed to save generated files to short-term memory; "
+                "file replacement will still proceed."
             )
 
         try:
@@ -196,19 +228,39 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 self._orphan_code_blocks = await self._upload_orphan_code_as_txt(
                     loop_response
                 )
+                if self._orphan_code_blocks:
+                    self._log.info(
+                        "run() produced %d orphan code block(s)",
+                        len(self._orphan_code_blocks),
+                    )
             else:
                 self._orphan_code_blocks = []
         except Exception:
-            logger.exception(
-                "Failed to process orphan code blocks; "
+            self._log.exception(
+                "run() failed to process orphan code blocks; "
                 "file replacement will still proceed."
             )
             self._orphan_code_blocks = []
+
+        self._log.info(
+            "run() finished — content_map has %d entries (%d with content_id, %d failed)",
+            len(self._content_map),
+            len(succeeded),
+            len(failed),
+        )
 
     @override
     def apply_postprocessing_to_response(
         self, loop_response: ResponsesLanguageModelStreamResponse
     ) -> bool:
+        self._log.info(
+            "apply_postprocessing started — %d file(s) in content_map, fence_ff=%s",
+            len(self._content_map),
+            feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+                self._company_id
+            ),
+        )
+
         if loop_response.message.references is None:
             loop_response.message.references = []
         if loop_response.message.text is None:
@@ -220,6 +272,10 @@ class DisplayCodeInterpreterFilesPostProcessor(
             self._company_id
         )
 
+        replaced_files: list[str] = []
+        missed_files: list[str] = []
+        error_files: list[str] = []
+
         for filename, content_id in self._content_map.items():
             if content_id is None:
                 loop_response.message.text, replaced = _replace_container_file_error(
@@ -228,12 +284,14 @@ class DisplayCodeInterpreterFilesPostProcessor(
                     error_message=self._config.file_download_failed_message,
                 )
                 changed |= replaced
+                error_files.append(filename)
                 continue
 
-            is_image = (guess_type(filename)[0] or "").startswith("image/")
-            is_html = (guess_type(filename)[0] or "") == "text/html"
+            mime = guess_type(filename)[0] or ""
+            is_image = mime.startswith("image/")
+            is_html = mime == "text/html"
+            file_type = "image" if is_image else ("html" if is_html else "document")
 
-            # Images
             if is_image:
                 loop_response.message.text, replaced = (
                     _replace_container_image_citation(
@@ -262,6 +320,17 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 changed |= replaced
 
+            if replaced:
+                replaced_files.append(filename)
+                self._log.info(
+                    "Replaced sandbox link for '%s' (type=%s, content_id=%s)",
+                    filename,
+                    file_type,
+                    content_id,
+                )
+            else:
+                missed_files.append(filename)
+
             is_html_rendered = is_html
             if replaced and not (is_image or is_html_rendered or fence_ff_on):
                 loop_response.message.references.append(
@@ -275,15 +344,30 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 )
                 ref_number += 1
 
+        self._log.info(
+            "Stage-1 replacement summary — replaced=%s, missed=%s, error=%s",
+            replaced_files,
+            missed_files,
+            error_files,
+        )
+
         if fence_ff_on:
             code_blocks = _build_code_blocks(loop_response, self._content_map)
+            self._log.info(
+                "Fence injection — %d code block(s), files: %s",
+                len(code_blocks),
+                [f.filename for b in code_blocks for f in b.files],
+            )
             _warn_unmatched_code_blocks(self._content_map, code_blocks)
             text_before = loop_response.message.text
             loop_response.message.text = _inject_code_execution_fences(
                 loop_response.message.text,
                 code_blocks,
             )
-            changed |= loop_response.message.text != text_before
+            fences_changed = loop_response.message.text != text_before
+            changed |= fences_changed
+            if fences_changed:
+                self._log.info("Fence injection modified the message text")
 
             if self._orphan_code_blocks:
                 fence_id = _get_next_fence_id(loop_response.message.text)
@@ -292,12 +376,29 @@ class DisplayCodeInterpreterFilesPostProcessor(
                     loop_response.message.text.rstrip() + "\n\n" + orphan_fences
                 )
                 changed = True
+                self._log.info(
+                    "Appended %d orphan fence(s)", len(self._orphan_code_blocks)
+                )
 
         _warn_missing_content_ids(loop_response.message.text, self._content_map)
         loop_response.message.text, dangling_replaced = _replace_dangling_sandbox_links(
             loop_response.message.text, self._config.file_download_failed_message
         )
         changed |= dangling_replaced
+        if dangling_replaced:
+            self._log.warning(
+                "apply_postprocessing found and replaced dangling sandbox links"
+            )
+
+        self._log.info(
+            "apply_postprocessing finished — changed=%s, replaced=%d, missed=%d, "
+            "error=%d, dangling_cleaned=%s",
+            changed,
+            len(replaced_files),
+            len(missed_files),
+            len(error_files),
+            dangling_replaced,
+        )
 
         return changed
 
@@ -312,16 +413,29 @@ class DisplayCodeInterpreterFilesPostProcessor(
         semaphore: asyncio.Semaphore,
     ) -> _ContentInfo | None:
         async with semaphore:
+            self._log.info(
+                "Downloading container file '%s' (container=%s, file_id=%s)",
+                container_file.filename,
+                container_file.container_id,
+                container_file.file_id,
+            )
             retry = self._build_retry()
             file_content = await retry(
                 self._client.containers.files.content.retrieve,
                 container_id=container_file.container_id,
                 file_id=container_file.file_id,
             )
-
-            logger.info(
-                "Uploading file content for %s to knowledge base",
+            self._log.info(
+                "Downloaded container file '%s' (%d bytes)",
                 container_file.filename,
+                len(file_content.content),
+            )
+
+            mime = guess_type(container_file.filename)[0] or "text/plain"
+            self._log.info(
+                "Uploading '%s' to knowledge base (mime=%s)",
+                container_file.filename,
+                mime,
             )
 
             assert self._chat_service is not None  # Checked in __init__
@@ -329,29 +443,34 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 self._chat_service.upload_to_chat_from_bytes_async,
                 content=file_content.content,
                 content_name=container_file.filename,
-                mime_type=guess_type(container_file.filename)[0] or "text/plain",
+                mime_type=mime,
                 skip_ingestion=True,
                 hide_in_chat=True,
             )
 
+            self._log.info(
+                "Uploaded '%s' — content_id=%s",
+                container_file.filename,
+                content.id,
+            )
             return _ContentInfo(filename=container_file.filename, content_id=content.id)
 
     async def _load_previous_files(self) -> dict[str, str]:
         if self._short_term_memory_manager is None:
             return {}
 
-        logger.info(
+        self._log.info(
             "Loading previously generated code interpreter files from short term memory"
         )
         memory = await self._short_term_memory_manager.load_async()
 
         if memory is None:
-            logger.info(
+            self._log.info(
                 "No previously generated code interpreter files found in short term memory"
             )
             return {}
 
-        logger.info(
+        self._log.info(
             "Found %s previously generated code interpreter files", len(memory.root)
         )
 
@@ -414,7 +533,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                     hide_in_chat=True,
                 )
             except Exception:
-                logger.exception(
+                self._log.exception(
                     "Failed to upload orphan code block as txt for call %d ('%s'); "
                     "falling back to legacy code block display.",
                     i,
@@ -430,7 +549,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
             orphan_blocks.append(
                 CodeInterpreterBlock(code=call.code, files=[orphan_file])
             )
-            logger.info(
+            self._log.info(
                 "Uploaded orphan code block as '%s' (content_id=%s)",
                 filename,
                 content.id,

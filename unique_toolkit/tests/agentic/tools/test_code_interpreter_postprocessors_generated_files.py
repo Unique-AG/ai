@@ -51,7 +51,10 @@ def test_display_code_interpreter_files_config__has_defaults__when_constructed_w
     # Assert
     assert config.upload_to_chat is True
     assert config.upload_scope_id == "<SCOPE_ID_PLACEHOLDER>"
-    assert config.file_download_failed_message == "⚠️ File download failed ..."
+    assert (
+        config.file_download_failed_message
+        == "⚠️ File could not be generated. Please try again."
+    )
     assert config.max_concurrent_file_downloads == 10
 
 
