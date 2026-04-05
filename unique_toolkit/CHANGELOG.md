@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.69.0] - 2026-03-23
+- Add async file tree resolution to `KnowledgeBaseService`: `resolve_visible_file_paths_async`, `display_path_tree`, `extract_scope_ids`, `get_content_infos_async`, `get_folder_info_async`
+- Add concurrent scope ID translation via `_translate_scope_ids_async` with configurable `max_concurrent_requests`
+- Remove sync `resolve_visible_file_tree` and `_resolve_visible_file_tree` methods (⚠️ breaking)
 ## [1.68.10] - 2026-04-05
 - Add detailed structured logging throughout the code interpreter citation pipeline (`run()`, download/upload, `apply_postprocessing_to_response()`) for production transparency: file counts, per-file outcomes, replacement summaries, and dangling-link detection
 - Add `_ChatLoggerAdapter` so all instance-method log messages are prefixed with `[chat_id=…]` for per-conversation traceability
