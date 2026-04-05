@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from mimetypes import guess_type
 from typing import NamedTuple, override
 
+import httpx
 from openai import AsyncOpenAI
 from openai.types.responses import ResponseCodeInterpreterToolCall
 from openai.types.responses.response_output_text import AnnotationContainerFileCitation
@@ -85,6 +86,12 @@ class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
     download_chunk_size: int = Field(
         default=8192,
         description="Chunk size in bytes for streaming container file downloads.",
+    )
+    download_read_timeout: float = Field(
+        default=120.0,
+        description="HTTP read timeout in seconds for container file downloads. "
+        "Applies per SDK attempt. The OpenAI SDK default of 600s is too generous "
+        "for small generated files; a shorter timeout lets us retry sooner.",
     )
 
 
@@ -174,6 +181,22 @@ class _FileProgressTracker:
                 or now - self._last_publish_time >= self._min_interval
             )
             if should_publish:
+                await self._publish()
+                self._last_publish_time = now
+
+    async def tick_elapsed(self, filename: str, elapsed_seconds: float) -> None:
+        """Publish an elapsed-time update without changing percent or retry state.
+
+        Used by the background ticker to show time-based progress while the
+        OpenAI API hasn't started returning bytes yet.
+        """
+        async with self._lock:
+            state = self._states.get(filename)
+            if state is None or state.phase != "downloading":
+                return
+            state.elapsed_seconds = elapsed_seconds
+            now = time.monotonic()
+            if now - self._last_publish_time >= self._min_interval:
                 await self._publish()
                 self._last_publish_time = now
 
@@ -303,6 +326,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
     @override
     async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:
+        run_t0 = time.monotonic()
         self._log.info("run() started — fetching and uploading code interpreter files")
 
         container_files = loop_response.container_files
@@ -312,6 +336,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
             [cf.filename for cf in container_files],
         )
 
+        phase_t0 = time.monotonic()
         try:
             self._content_map: dict[str, str | None] = await self._load_previous_files()  # type: ignore
             if self._content_map:
@@ -326,6 +351,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 "proceeding without previous file context."
             )
             self._content_map = {}
+        load_ms = (time.monotonic() - phase_t0) * 1000
 
         tracker: _FileProgressTracker | None = None
         if container_files and self._chat_service is not None:
@@ -338,6 +364,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
             )
             await tracker.publish_initial()
 
+        phase_t0 = time.monotonic()
         semaphore = asyncio.Semaphore(self._config.max_concurrent_file_downloads)
         tasks = [
             self._download_and_upload_container_files_to_knowledge_base(
@@ -346,6 +373,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
             for citation in container_files
         ]
         results = await asyncio.gather(*tasks)
+        download_upload_ms = (time.monotonic() - phase_t0) * 1000
 
         for citation, result in zip(container_files, results):
             self._content_map[citation.filename] = (
@@ -365,6 +393,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
             failed,
         )
 
+        phase_t0 = time.monotonic()
         try:
             await self._save_generated_files(
                 [
@@ -378,7 +407,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 "run() failed to save generated files to short-term memory; "
                 "file replacement will still proceed."
             )
+        save_ms = (time.monotonic() - phase_t0) * 1000
 
+        phase_t0 = time.monotonic()
         try:
             if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
                 self._company_id
@@ -399,18 +430,28 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 "file replacement will still proceed."
             )
             self._orphan_code_blocks = []
+        orphan_ms = (time.monotonic() - phase_t0) * 1000
 
+        total_ms = (time.monotonic() - run_t0) * 1000
         self._log.info(
-            "run() finished — content_map has %d entries (%d with content_id, %d failed)",
+            "run() finished — content_map has %d entries (%d ok, %d failed). "
+            "Timing: total=%.0fms, load_stm=%.0fms, download_upload=%.0fms, "
+            "save_stm=%.0fms, orphan=%.0fms",
             len(self._content_map),
             len(succeeded),
             len(failed),
+            total_ms,
+            load_ms,
+            download_upload_ms,
+            save_ms,
+            orphan_ms,
         )
 
     @override
     def apply_postprocessing_to_response(
         self, loop_response: ResponsesLanguageModelStreamResponse
     ) -> bool:
+        apply_t0 = time.monotonic()
         self._log.info(
             "apply_postprocessing started — %d file(s) in content_map, fence_ff=%s",
             len(self._content_map),
@@ -548,14 +589,16 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 "apply_postprocessing found and replaced dangling sandbox links"
             )
 
+        apply_ms = (time.monotonic() - apply_t0) * 1000
         self._log.info(
             "apply_postprocessing finished — changed=%s, replaced=%d, missed=%d, "
-            "error=%d, dangling_cleaned=%s",
+            "error=%d, dangling_cleaned=%s (%.0fms)",
             changed,
             len(replaced_files),
             len(missed_files),
             len(error_files),
             dangling_replaced,
+            apply_ms,
         )
 
         return changed
@@ -572,6 +615,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         tracker: _FileProgressTracker | None = None,
     ) -> _ContentInfo | None:
         async with semaphore:
+            pipeline_t0 = time.monotonic()
             self._log.info(
                 "Downloading container file '%s' (container=%s, file_id=%s)",
                 container_file.filename,
@@ -579,14 +623,17 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 container_file.file_id,
             )
 
+            download_t0 = time.monotonic()
             file_bytes = await self._download_file_bytes_with_progress(
                 container_file, tracker
             )
+            download_ms = (time.monotonic() - download_t0) * 1000
 
             self._log.info(
-                "Downloaded container file '%s' (%d bytes)",
+                "Downloaded container file '%s' (%d bytes, %.0fms)",
                 container_file.filename,
                 len(file_bytes),
+                download_ms,
             )
 
             if tracker:
@@ -596,12 +643,14 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
             mime = guess_type(container_file.filename)[0] or "text/plain"
             self._log.info(
-                "Uploading '%s' to knowledge base (mime=%s)",
+                "Uploading '%s' to knowledge base (mime=%s, %d bytes)",
                 container_file.filename,
                 mime,
+                len(file_bytes),
             )
 
             assert self._chat_service is not None  # Checked in __init__
+            upload_t0 = time.monotonic()
             content = await self._build_retry()(
                 self._chat_service.upload_to_chat_from_bytes_async,
                 content=file_bytes,
@@ -610,16 +659,22 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 skip_ingestion=True,
                 hide_in_chat=True,
             )
+            upload_ms = (time.monotonic() - upload_t0) * 1000
 
             if tracker:
                 await tracker.update(
                     container_file.filename, "done", force_publish=True
                 )
 
+            pipeline_ms = (time.monotonic() - pipeline_t0) * 1000
             self._log.info(
-                "Uploaded '%s' — content_id=%s",
+                "Uploaded '%s' — content_id=%s. "
+                "Timing: download=%.0fms, upload=%.0fms, pipeline=%.0fms",
                 container_file.filename,
                 content.id,
+                download_ms,
+                upload_ms,
+                pipeline_ms,
             )
             return _ContentInfo(filename=container_file.filename, content_id=content.id)
 
@@ -633,49 +688,78 @@ class DisplayCodeInterpreterFilesPostProcessor(
         Uses ``with_streaming_response`` so we can read ``content-length``
         and report download percentage.  Falls back to elapsed-time display
         when the header is absent.
+
+        A background ticker task publishes elapsed-time updates at regular
+        intervals even when the OpenAI API is slow to return the first byte.
         """
         max_attempts = 1 + self._config.max_download_retries
         download_start = time.monotonic()
         last_exception: Exception | None = None
 
-        for attempt_num in range(1, max_attempts + 1):
-            retry_num = attempt_num - 1
-            try:
-                if retry_num > 0:
-                    delay = self._config.download_retry_base_delay * (2**retry_num)
-                    self._log.warning(
-                        "Retrying download of '%s' (attempt %d/%d) after %.1fs",
+        ticker_task: asyncio.Task[None] | None = None
+        if tracker:
+
+            async def _ticker() -> None:
+                while True:
+                    await asyncio.sleep(self._config.progress_update_interval)
+                    elapsed = time.monotonic() - download_start
+                    self._log.info(
+                        "Still downloading '%s' (%.0fs elapsed)",
                         container_file.filename,
+                        elapsed,
+                    )
+                    await tracker.tick_elapsed(container_file.filename, elapsed)
+
+            ticker_task = asyncio.create_task(_ticker())
+
+        try:
+            for attempt_num in range(1, max_attempts + 1):
+                retry_num = attempt_num - 1
+                try:
+                    if retry_num > 0:
+                        delay = self._config.download_retry_base_delay * (
+                            2 ** (retry_num - 1)
+                        )
+                        self._log.warning(
+                            "Retrying download of '%s' (attempt %d/%d) after %.1fs",
+                            container_file.filename,
+                            attempt_num,
+                            max_attempts,
+                            delay,
+                        )
+                        if tracker:
+                            await tracker.update(
+                                container_file.filename,
+                                "downloading",
+                                elapsed_seconds=time.monotonic() - download_start,
+                                retry_attempt=retry_num,
+                                max_retries=self._config.max_download_retries,
+                                force_publish=True,
+                            )
+                        await asyncio.sleep(delay)
+
+                    return await self._stream_download_bytes(
+                        container_file, tracker, retry_num, download_start
+                    )
+                except Exception as exc:
+                    last_exception = exc
+                    self._log.warning(
+                        "Download attempt %d/%d failed for '%s': %s",
                         attempt_num,
                         max_attempts,
-                        delay,
+                        container_file.filename,
+                        exc,
                     )
-                    if tracker:
-                        await tracker.update(
-                            container_file.filename,
-                            "downloading",
-                            elapsed_seconds=time.monotonic() - download_start,
-                            retry_attempt=retry_num,
-                            max_retries=self._config.max_download_retries,
-                            force_publish=True,
-                        )
-                    await asyncio.sleep(delay)
 
-                return await self._stream_download_bytes(
-                    container_file, tracker, retry_num, download_start
-                )
-            except Exception as exc:
-                last_exception = exc
-                self._log.warning(
-                    "Download attempt %d/%d failed for '%s': %s",
-                    attempt_num,
-                    max_attempts,
-                    container_file.filename,
-                    exc,
-                )
-
-        assert last_exception is not None
-        raise last_exception
+            assert last_exception is not None
+            raise last_exception
+        finally:
+            if ticker_task is not None:
+                ticker_task.cancel()
+                try:
+                    await ticker_task
+                except BaseException:
+                    pass
 
     async def _stream_download_bytes(
         self,
@@ -684,13 +768,30 @@ class DisplayCodeInterpreterFilesPostProcessor(
         retry_attempt: int,
         download_start: float,
     ) -> bytes:
-        """Stream-download a single container file, reporting chunk-level progress."""
-        async with (
-            self._client.containers.files.content.with_streaming_response.retrieve(
-                file_id=container_file.file_id,
-                container_id=container_file.container_id,
-            ) as response
-        ):
+        """Stream-download a single container file, reporting chunk-level progress.
+
+        SDK-level retries are disabled (``max_retries=0``) so that only our
+        manual retry loop retries, with full visibility in logs and progress
+        tracker.  A shorter read timeout avoids waiting 10 minutes on a
+        stalled connection.
+        """
+        t0 = time.monotonic()
+        async with self._client.with_options(
+            max_retries=0,
+            timeout=httpx.Timeout(5.0, read=self._config.download_read_timeout),
+        ).containers.files.content.with_streaming_response.retrieve(
+            file_id=container_file.file_id,
+            container_id=container_file.container_id,
+        ) as response:
+            first_byte_ms = (time.monotonic() - t0) * 1000
+            self._log.info(
+                "Stream opened for '%s' — first-byte latency=%.0fms, "
+                "content-length=%s, status=%s",
+                container_file.filename,
+                first_byte_ms,
+                response.headers.get("content-length", "unknown"),
+                response.status_code,
+            )
             content_length = response.headers.get("content-length")
             total = int(content_length) if content_length else None
             chunks: list[bytes] = []
@@ -711,6 +812,13 @@ class DisplayCodeInterpreterFilesPostProcessor(
                         retry_attempt=retry_attempt,
                         max_retries=self._config.max_download_retries,
                     )
+            transfer_ms = (time.monotonic() - t0) * 1000 - first_byte_ms
+            self._log.info(
+                "Stream complete for '%s' — transfer=%.0fms, total=%d bytes",
+                container_file.filename,
+                transfer_ms,
+                downloaded,
+            )
             return b"".join(chunks)
 
     async def _load_previous_files(self) -> dict[str, str]:
@@ -720,16 +828,22 @@ class DisplayCodeInterpreterFilesPostProcessor(
         self._log.info(
             "Loading previously generated code interpreter files from short term memory"
         )
+        t0 = time.monotonic()
         memory = await self._short_term_memory_manager.load_async()
+        elapsed_ms = (time.monotonic() - t0) * 1000
 
         if memory is None:
             self._log.info(
-                "No previously generated code interpreter files found in short term memory"
+                "No previously generated code interpreter files found "
+                "in short term memory (%.0fms)",
+                elapsed_ms,
             )
             return {}
 
         self._log.info(
-            "Found %s previously generated code interpreter files", len(memory.root)
+            "Found %s previously generated code interpreter files (%.0fms)",
+            len(memory.root),
+            elapsed_ms,
         )
 
         return {content.filename: content.content_id for content in memory.root}
@@ -738,8 +852,14 @@ class DisplayCodeInterpreterFilesPostProcessor(
         if self._short_term_memory_manager is None or len(content_infos) == 0:
             return
 
+        t0 = time.monotonic()
         await self._short_term_memory_manager.save_async(
             _DisplayedFilesShortTermMemorySchema(root=content_infos)
+        )
+        self._log.info(
+            "Saved %d generated file(s) to short term memory (%.0fms)",
+            len(content_infos),
+            (time.monotonic() - t0) * 1000,
         )
 
     async def _upload_orphan_code_as_txt(

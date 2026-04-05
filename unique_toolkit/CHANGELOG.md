@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.68.12] - 2026-04-05
+- Disable OpenAI SDK built-in retries (`max_retries=0`) for container file downloads to eliminate silent double-retry compounding — only the manual retry loop with full logging now retries
+- Add configurable `download_read_timeout` (default 120s) for container file downloads, down from the SDK default of 600s, to fail faster on stalled connections
+- Add background elapsed-time ticker that publishes progress updates even when the OpenAI API is slow to return the first byte
+- Add comprehensive timing instrumentation to all critical-path functions: `run()` phase breakdown (load_stm, download_upload, save_stm, orphan), per-file pipeline (download/upload split), first-byte latency, stream transfer time, and `apply_postprocessing` duration
+- Log swallowed exceptions in `PersistentShortMemoryManager` — failed short-term memory lookups now log the exception type and message instead of being silently discarded
+
 ## [1.68.11] - 2026-04-05
 - Add real-time file download/upload progress reporting to code interpreter postprocessor — users see inline progress (percentage or elapsed time), retry indicators, and a summary block while files are being prepared
 - Switch container file downloads from buffered to streaming (`with_streaming_response`) to enable chunk-level progress tracking and percentage display when `content-length` is available
