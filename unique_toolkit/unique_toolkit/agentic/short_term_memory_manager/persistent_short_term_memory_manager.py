@@ -92,6 +92,7 @@ class PersistentShortMemoryManager(Generic[TSchema]):
                     "Short term memory lookup failed with %s: %s",
                     type(result.exception).__name__,
                     result.exception,
+                    exc_info=result.exception,
                 )
         else:
             self._log_found()
@@ -111,6 +112,7 @@ class PersistentShortMemoryManager(Generic[TSchema]):
                     "Short term memory lookup failed with %s: %s",
                     type(result.exception).__name__,
                     result.exception,
+                    exc_info=result.exception,
                 )
         else:
             self._log_found()
