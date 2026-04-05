@@ -186,4 +186,4 @@ monorepo-ref
 .idea
 
 # Planning notes
-.planning/
+.planning/test_code_interpreter_retry.py
