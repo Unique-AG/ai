@@ -85,7 +85,16 @@ class PersistentShortMemoryManager(Generic[TSchema]):
             self._short_term_memory_name,
         )
 
-        self._log_not_found() if not result.success else self._log_found()
+        if not result.success:
+            self._log_not_found()
+            if result.exception is not None:
+                logger.warning(
+                    "Short term memory lookup failed with %s: %s",
+                    type(result.exception).__name__,
+                    result.exception,
+                )
+        else:
+            self._log_found()
 
         return result.unpack(default=None)
 
@@ -95,7 +104,16 @@ class PersistentShortMemoryManager(Generic[TSchema]):
             self._short_term_memory_name,
         )
 
-        self._log_not_found() if not result.success else self._log_found()
+        if not result.success:
+            self._log_not_found()
+            if result.exception is not None:
+                logger.warning(
+                    "Short term memory lookup failed with %s: %s",
+                    type(result.exception).__name__,
+                    result.exception,
+                )
+        else:
+            self._log_found()
 
         return result.unpack(default=None)
 

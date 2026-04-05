@@ -48,6 +48,7 @@ class _MockStreamResponse:
     def __init__(self, data: bytes, content_length: int | None = None):
         self._data = data
         self.headers: dict[str, str] = {}
+        self.status_code: int = 200
         if content_length is not None:
             self.headers["content-length"] = str(content_length)
 
@@ -87,6 +88,7 @@ def test_display_code_interpreter_files_config__has_defaults__when_constructed_w
     assert config.max_concurrent_file_downloads == 10
     assert config.progress_update_interval == 3.0
     assert config.download_chunk_size == 8192
+    assert config.download_read_timeout == 120.0
 
 
 @pytest.mark.ai
@@ -488,8 +490,10 @@ def _make_display_files_postprocessor(
     company_id: str = "co-test",
 ) -> DisplayCodeInterpreterFilesPostProcessor:
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    client = MagicMock()
+    client.with_options.return_value = client
     return DisplayCodeInterpreterFilesPostProcessor(
-        client=MagicMock(),
+        client=client,
         content_service=MagicMock(),
         config=config,
         chat_service=MagicMock(),
@@ -2674,6 +2678,217 @@ async def test_file_progress_tracker__publish_survives_exception() -> None:
 
 
 # ============================================================================
+# Tests for tick_elapsed (background ticker elapsed-time updates)
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__tick_elapsed__updates_elapsed_and_publishes() -> (
+    None
+):
+    """tick_elapsed should update elapsed_seconds and publish when interval allows."""
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=0.0,
+    )
+    await tracker.publish_initial()
+    chat_service.modify_assistant_message_async.reset_mock()
+
+    await tracker.tick_elapsed("a.png", 15.0)
+
+    chat_service.modify_assistant_message_async.assert_awaited_once()
+    call_kwargs = chat_service.modify_assistant_message_async.call_args.kwargs
+    assert "(15s)" in call_kwargs["content"]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__tick_elapsed__respects_throttling() -> None:
+    """tick_elapsed should not publish when within the throttle interval."""
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=100.0,
+    )
+    await tracker.publish_initial()
+    chat_service.modify_assistant_message_async.reset_mock()
+
+    await tracker.tick_elapsed("a.png", 5.0)
+    await tracker.tick_elapsed("a.png", 10.0)
+
+    chat_service.modify_assistant_message_async.assert_not_awaited()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__tick_elapsed__preserves_percent_and_retry() -> (
+    None
+):
+    """tick_elapsed should only update elapsed_seconds, not percent or retry state."""
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=0.0,
+    )
+    await tracker.publish_initial()
+
+    await tracker.update(
+        "a.png", "downloading", percent=42, retry_attempt=1, max_retries=3
+    )
+    await tracker.tick_elapsed("a.png", 20.0)
+
+    state = tracker._states["a.png"]
+    assert state.percent == 42
+    assert state.retry_attempt == 1
+    assert state.max_retries == 3
+    assert state.elapsed_seconds == 20.0
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__tick_elapsed__skips_non_downloading_phase() -> (
+    None
+):
+    """tick_elapsed should be a no-op when the file is not in the downloading phase."""
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=0.0,
+    )
+    await tracker.update("a.png", "uploading", force_publish=True)
+    chat_service.modify_assistant_message_async.reset_mock()
+
+    await tracker.tick_elapsed("a.png", 99.0)
+
+    chat_service.modify_assistant_message_async.assert_not_awaited()
+    assert tracker._states["a.png"].elapsed_seconds != 99.0
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__tick_elapsed__skips_unknown_filename() -> None:
+    """tick_elapsed should be a no-op for filenames not in the tracker."""
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=0.0,
+    )
+    await tracker.publish_initial()
+    chat_service.modify_assistant_message_async.reset_mock()
+
+    await tracker.tick_elapsed("unknown.txt", 10.0)
+
+    chat_service.modify_assistant_message_async.assert_not_awaited()
+
+
+# ============================================================================
+# Tests for background ticker in _download_file_bytes_with_progress
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_with_progress__ticker_publishes_elapsed_during_slow_api() -> (
+    None
+):
+    """Verify the background ticker calls tick_elapsed while the API is slow to respond."""
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        download_chunk_size=100,
+        progress_update_interval=0.05,
+    )
+    annotation = _make_annotation("slow.xlsx")
+
+    event = asyncio.Event()
+
+    class _SlowStreamResponse:
+        def __init__(self):
+            self.headers = {"content-length": "4"}
+            self.status_code = 200
+
+        async def __aenter__(self):
+            await event.wait()
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def iter_bytes(self, chunk_size=None):
+            yield b"data"
+
+    slow_stream = _SlowStreamResponse()
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        return_value=slow_stream
+    )
+
+    tracker = MagicMock()
+    tracker.update = AsyncMock()
+    tracker.tick_elapsed = AsyncMock()
+
+    async def run_download():
+        return await proc._download_file_bytes_with_progress(annotation, tracker)
+
+    task = asyncio.create_task(run_download())
+    await asyncio.sleep(0.15)
+    event.set()
+    result = await task
+
+    assert result == b"data"
+    assert tracker.tick_elapsed.await_count >= 1
+    first_call = tracker.tick_elapsed.call_args_list[0]
+    assert first_call.args[0] == "slow.xlsx"
+    assert first_call.args[1] > 0
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_with_progress__ticker_cancelled_after_success() -> None:
+    """Verify the background ticker is cancelled after a successful download."""
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        download_chunk_size=100,
+        progress_update_interval=100.0,
+    )
+    annotation = _make_annotation("fast.bin")
+    mock_stream = _MockStreamResponse(b"data", content_length=4)
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        return_value=mock_stream
+    )
+
+    tracker = MagicMock()
+    tracker.update = AsyncMock()
+    tracker.tick_elapsed = AsyncMock()
+
+    result = await proc._download_file_bytes_with_progress(annotation, tracker)
+
+    assert result == b"data"
+
+
+# ============================================================================
 # Tests for streaming download with progress
 # ============================================================================
 
@@ -2747,6 +2962,7 @@ async def test_download_with_progress__reports_retry_attempt_to_tracker() -> Non
         max_download_retries=2,
         download_retry_base_delay=0,
         download_chunk_size=100,
+        progress_update_interval=100.0,
     )
     annotation = _make_annotation("file.bin")
     mock_stream = _MockStreamResponse(b"data", content_length=4)
@@ -2757,6 +2973,7 @@ async def test_download_with_progress__reports_retry_attempt_to_tracker() -> Non
 
     tracker = MagicMock()
     tracker.update = AsyncMock()
+    tracker.tick_elapsed = AsyncMock()
 
     result = await proc._download_file_bytes_with_progress(annotation, tracker)
 
@@ -2779,6 +2996,7 @@ async def test_download_and_upload__tracker_receives_upload_and_done__on_success
     proc = _make_display_files_postprocessor()
     proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
         download_retry_base_delay=0,
+        progress_update_interval=100.0,
     )
     annotation = _make_annotation("chart.png")
     semaphore = asyncio.Semaphore(10)
@@ -2794,6 +3012,7 @@ async def test_download_and_upload__tracker_receives_upload_and_done__on_success
 
     tracker = MagicMock()
     tracker.update = AsyncMock()
+    tracker.tick_elapsed = AsyncMock()
 
     result = await proc._download_and_upload_container_files_to_knowledge_base(
         annotation, semaphore, tracker
