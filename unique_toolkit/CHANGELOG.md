@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.68.10] - 2026-04-05
+- Add detailed structured logging throughout the code interpreter citation pipeline (`run()`, download/upload, `apply_postprocessing_to_response()`) for production transparency: file counts, per-file outcomes, replacement summaries, and dangling-link detection
+- Add `_ChatLoggerAdapter` so all instance-method log messages are prefixed with `[chat_id=…]` for per-conversation traceability
+- Improve user-facing error message when file generation permanently fails after retries — now reads "File could not be generated. Please try again." instead of generic "File download failed"
+
 ## [1.68.9] - 2026-04-04
 - Fix intermittent sandbox URL replacement failures in code interpreter postprocessor caused by transient short-term memory errors crashing `run()` and preventing `apply_postprocessing_to_response()` from executing
 - Add retry with exponential backoff to file upload calls (download already had retry)
