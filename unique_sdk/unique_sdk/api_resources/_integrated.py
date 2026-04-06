@@ -193,7 +193,7 @@ class Integrated(APIResource["Integrated"]):
         """
         return cast(
             "Integrated.ResponsesStreamResult",
-            cls._static_request(
+            await cls._static_request_async(
                 "post",
                 "/integrated/chat/stream-responses",
                 user_id,

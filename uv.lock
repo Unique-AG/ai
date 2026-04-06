@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-23T02:10:04.50991Z"
+exclude-newer = "2026-03-23T03:07:11.841149Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5356,7 +5356,7 @@ dev = []
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.99"
+version = "0.10.100"
 source = { editable = "unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
