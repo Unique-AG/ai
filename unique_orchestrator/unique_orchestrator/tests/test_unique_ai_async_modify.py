@@ -1,6 +1,6 @@
 """Tests for async modify_assistant_message calls in UniqueAI.run() and _process_plan()."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
