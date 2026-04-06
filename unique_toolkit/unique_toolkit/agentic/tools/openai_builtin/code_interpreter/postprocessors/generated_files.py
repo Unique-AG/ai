@@ -164,7 +164,9 @@ class _FileProgressTracker:
         max_retries: int = 0,
         force_publish: bool = False,
     ) -> None:
+        lock_wait_t0 = time.monotonic()
         async with self._lock:
+            lock_wait_ms = (time.monotonic() - lock_wait_t0) * 1000
             state = self._states.get(filename)
             if state is None:
                 return
@@ -181,8 +183,31 @@ class _FileProgressTracker:
                 or now - self._last_publish_time >= self._min_interval
             )
             if should_publish:
+                publish_t0 = time.monotonic()
                 await self._publish()
+                publish_ms = (time.monotonic() - publish_t0) * 1000
                 self._last_publish_time = now
+                if lock_wait_ms > 100 or publish_ms > 500:
+                    lock_held_ms = (
+                        time.monotonic() - lock_wait_t0
+                    ) * 1000 - lock_wait_ms
+                    self._log.warning(
+                        "Tracker.update('%s', phase=%s): "
+                        "lock_wait=%.0fms, publish=%.0fms, "
+                        "lock_held=%.0fms",
+                        filename,
+                        phase,
+                        lock_wait_ms,
+                        publish_ms,
+                        lock_held_ms,
+                    )
+            elif lock_wait_ms > 100:
+                self._log.warning(
+                    "Tracker.update('%s', phase=%s): lock_wait=%.0fms (no publish)",
+                    filename,
+                    phase,
+                    lock_wait_ms,
+                )
 
     async def tick_elapsed(self, filename: str, elapsed_seconds: float) -> None:
         """Publish an elapsed-time update without changing percent or retry state.
@@ -190,15 +215,38 @@ class _FileProgressTracker:
         Used by the background ticker to show time-based progress while the
         OpenAI API hasn't started returning bytes yet.
         """
+        lock_wait_t0 = time.monotonic()
         async with self._lock:
+            lock_wait_ms = (time.monotonic() - lock_wait_t0) * 1000
             state = self._states.get(filename)
             if state is None or state.phase != "downloading":
                 return
             state.elapsed_seconds = elapsed_seconds
             now = time.monotonic()
             if now - self._last_publish_time >= self._min_interval:
+                publish_t0 = time.monotonic()
                 await self._publish()
+                publish_ms = (time.monotonic() - publish_t0) * 1000
                 self._last_publish_time = now
+                if lock_wait_ms > 100 or publish_ms > 500:
+                    lock_held_ms = (
+                        time.monotonic() - lock_wait_t0
+                    ) * 1000 - lock_wait_ms
+                    self._log.warning(
+                        "Tracker.tick_elapsed('%s'): "
+                        "lock_wait=%.0fms, publish=%.0fms, "
+                        "lock_held=%.0fms",
+                        filename,
+                        lock_wait_ms,
+                        publish_ms,
+                        lock_held_ms,
+                    )
+            elif lock_wait_ms > 100:
+                self._log.warning(
+                    "Tracker.tick_elapsed('%s'): lock_wait=%.0fms (no publish)",
+                    filename,
+                    lock_wait_ms,
+                )
 
     async def publish_initial(self) -> None:
         """Send the first progress update (marks all files as pending)."""
@@ -211,7 +259,15 @@ class _FileProgressTracker:
     async def _publish(self) -> None:
         text = self._build_progress_text()
         try:
+            t0 = time.monotonic()
             await self._chat_service.modify_assistant_message_async(content=text)
+            publish_ms = (time.monotonic() - t0) * 1000
+            if publish_ms > 500:
+                self._log.warning(
+                    "modify_assistant_message_async took %.0fms "
+                    "(SDK singleton / backend contention suspected)",
+                    publish_ms,
+                )
         except Exception:
             self._log.debug("Failed to publish progress update", exc_info=True)
 
@@ -660,6 +716,13 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 hide_in_chat=True,
             )
             upload_ms = (time.monotonic() - upload_t0) * 1000
+            if upload_ms > 2000:
+                self._log.warning(
+                    "SDK upload for '%s' took %.0fms — "
+                    "backend contention or slow blob storage suspected",
+                    container_file.filename,
+                    upload_ms,
+                )
 
             if tracker:
                 await tracker.update(
@@ -796,14 +859,26 @@ class DisplayCodeInterpreterFilesPostProcessor(
             total = int(content_length) if content_length else None
             chunks: list[bytes] = []
             downloaded = 0
+            last_chunk_time = time.monotonic()
             async for chunk in response.iter_bytes(
                 chunk_size=self._config.download_chunk_size
             ):
+                now = time.monotonic()
+                chunk_gap_ms = (now - last_chunk_time) * 1000
+                if chunk_gap_ms > 500:
+                    self._log.warning(
+                        "Download chunk gap for '%s': %.0fms "
+                        "(downloaded=%d bytes so far)",
+                        container_file.filename,
+                        chunk_gap_ms,
+                        downloaded,
+                    )
                 chunks.append(chunk)
                 downloaded += len(chunk)
                 if tracker:
                     pct = (downloaded * 100 // total) if total else None
                     elapsed = time.monotonic() - download_start
+                    update_t0 = time.monotonic()
                     await tracker.update(
                         container_file.filename,
                         "downloading",
@@ -812,6 +887,15 @@ class DisplayCodeInterpreterFilesPostProcessor(
                         retry_attempt=retry_attempt,
                         max_retries=self._config.max_download_retries,
                     )
+                    update_ms = (time.monotonic() - update_t0) * 1000
+                    if update_ms > 200:
+                        self._log.warning(
+                            "tracker.update() blocked download stream for '%s' "
+                            "for %.0fms (lock contention or slow modify_message)",
+                            container_file.filename,
+                            update_ms,
+                        )
+                last_chunk_time = time.monotonic()
             transfer_ms = (time.monotonic() - t0) * 1000 - first_byte_ms
             self._log.info(
                 "Stream complete for '%s' — transfer=%.0fms, total=%d bytes",
