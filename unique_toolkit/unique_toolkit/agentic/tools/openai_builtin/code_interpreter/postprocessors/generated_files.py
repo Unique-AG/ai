@@ -200,8 +200,7 @@ class _FileProgressTracker:
                     )
             elif lock_wait_ms > 100:
                 self._log.warning(
-                    "Tracker.update('%s', phase=%s): "
-                    "lock_wait=%.0fms (no publish)",
+                    "Tracker.update('%s', phase=%s): lock_wait=%.0fms (no publish)",
                     filename,
                     phase,
                     lock_wait_ms,
@@ -238,8 +237,7 @@ class _FileProgressTracker:
                     )
             elif lock_wait_ms > 100:
                 self._log.warning(
-                    "Tracker.tick_elapsed('%s'): "
-                    "lock_wait=%.0fms (no publish)",
+                    "Tracker.tick_elapsed('%s'): lock_wait=%.0fms (no publish)",
                     filename,
                     lock_wait_ms,
                 )
