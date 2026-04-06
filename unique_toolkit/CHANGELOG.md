@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.68.13] - 2026-04-06
+- Add concurrency diagnostic logging to code interpreter postprocessor: chunk gap detection, `tracker.update()` blocking measurement, lock contention and publish timing in `_FileProgressTracker`, `modify_assistant_message_async` latency warnings, and SDK upload duration warnings
+
 ## [1.68.12] - 2026-04-05
 - Disable OpenAI SDK built-in retries (`max_retries=0`) for container file downloads to eliminate silent double-retry compounding — only the manual retry loop with full logging now retries
 - Add configurable `download_read_timeout` (default 120s) for container file downloads, down from the SDK default of 600s, to fail faster on stalled connections
