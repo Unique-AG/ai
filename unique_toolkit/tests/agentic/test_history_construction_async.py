@@ -113,7 +113,7 @@ async def test_get_chat_history_with_contents_async_dedup_user_message():
     )
 
     assert isinstance(result, ChatHistoryWithContent)
-    assert len(list(result)) == 1
+    assert len(result.root) == 1
 
 
 # ---------------------------------------------------------------------------

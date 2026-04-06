@@ -89,7 +89,8 @@ class QwenLoopIterationRunner(BasicLoopIterationRunner):
     async def _process_response(
         self, response: LanguageModelStreamResponse
     ) -> LanguageModelStreamResponse:
-        if "</tool_call>" == response.message.text.strip():
+        message_text = response.message.text or ""
+        if "</tool_call>" == message_text.strip():
             _LOGGER.warning(
                 "Response contains only <tool_call>. This is not allowed. Returning empty response."
             )

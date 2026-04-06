@@ -77,12 +77,6 @@ class ChatHistoryWithContent(RootModel):
 
         return cls(root=grouped_elements)
 
-    def __iter__(self):
-        return iter(self.root)
-
-    def __getitem__(self, item):
-        return self.root[item]
-
 
 def get_chat_history_with_contents(
     user_message: ChatEventUserMessage,
@@ -94,7 +88,7 @@ def get_chat_history_with_contents(
         id=user_message.id,
         chat_id=chat_id,
         text=user_message.text,
-        originalText=user_message.original_text,
+        original_text=user_message.original_text,
         role=ChatRole.USER,
         gpt_request=None,
         created_at=datetime.fromisoformat(user_message.created_at),
@@ -128,7 +122,7 @@ async def get_chat_history_with_contents_async(
         id=user_message.id,
         chat_id=chat_id,
         text=user_message.text,
-        originalText=user_message.original_text,
+        original_text=user_message.original_text,
         role=ChatRole.USER,
         gpt_request=None,
         created_at=datetime.fromisoformat(user_message.created_at),
@@ -327,7 +321,7 @@ def get_full_history_with_contents(
     )
 
     builder = LanguageModelMessages([]).builder()
-    for c in grouped_elements:
+    for c in grouped_elements.root:
         # LanguageModelUserMessage has no field original_text
         text = c.original_text if c.original_text else c.content
         if text is None:
@@ -364,7 +358,7 @@ async def get_full_history_with_contents_async(
     )
 
     builder = LanguageModelMessages([]).builder()
-    for c in grouped_elements:
+    for c in grouped_elements.root:
         text = c.original_text if c.original_text else c.content
         if text is None:
             if c.role == ChatRole.USER:
@@ -442,7 +436,7 @@ def get_full_history_with_contents_and_tool_calls(
     )
 
     builder = LanguageModelMessages([]).builder()
-    for c in grouped_elements:
+    for c in grouped_elements.root:
         text = c.original_text if c.original_text else c.content
         if text is None:
             if c.role == ChatRole.USER:
@@ -576,7 +570,7 @@ async def get_full_history_with_contents_and_tool_calls_async(
     )
 
     builder = LanguageModelMessages([]).builder()
-    for c in grouped_elements:
+    for c in grouped_elements.root:
         text = c.original_text if c.original_text else c.content
         if text is None:
             if c.role == ChatRole.USER:
