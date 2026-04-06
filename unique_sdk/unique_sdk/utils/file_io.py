@@ -167,7 +167,7 @@ async def wait_for_ingestion_completion(
     """
     max_attempts = int(max_wait // poll_interval)
     for _ in range(max_attempts):
-        searched_content = Content.search(
+        searched_content = await Content.search_async(
             user_id=user_id,
             company_id=company_id,
             where={"id": {"equals": content_id}},

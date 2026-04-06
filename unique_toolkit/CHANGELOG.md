@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.68.14] - 2026-04-06
+- Replace synchronous blocking SDK calls with async counterparts in the agent loop critical path: `get_full_history` → `get_full_history_async`, `get_message_tools` → `get_message_tools_async`, `search_contents` → `search_contents_async`, `download_content_to_bytes` → `download_content_to_bytes_async` in history construction
+- Replace sync `modify_assistant_message` with async in Qwen loop runner
+- Replace sync `MCP.call_tool` with `MCP.call_tool_async` in MCP tool wrapper
+
 ## [1.68.13] - 2026-04-06
 - Add concurrency diagnostic logging to code interpreter postprocessor: chunk gap detection, `tracker.update()` blocking measurement, lock contention and publish timing in `_FileProgressTracker`, `modify_assistant_message_async` latency warnings, and SDK upload duration warnings
 
