@@ -86,13 +86,15 @@ async def test_get_full_history_with_contents_and_tool_calls_async():
     content_service = MagicMock()
     content_service.search_contents_async = AsyncMock(return_value=[])
 
-    result, max_src, src_map = (
-        await get_full_history_with_contents_and_tool_calls_async(
-            user_message=_make_user_message(),
-            chat_id="chat_1",
-            chat_service=chat_service,
-            content_service=content_service,
-        )
+    (
+        result,
+        max_src,
+        src_map,
+    ) = await get_full_history_with_contents_and_tool_calls_async(
+        user_message=_make_user_message(),
+        chat_id="chat_1",
+        chat_service=chat_service,
+        content_service=content_service,
     )
 
     assert isinstance(result, LanguageModelMessages)
