@@ -195,7 +195,7 @@ class UniqueAI:
         if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
             self._event.company_id
         ):
-            self._chat_service.modify_assistant_message(
+            await self._chat_service.modify_assistant_message_async(
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )
 
@@ -358,7 +358,9 @@ class UniqueAI:
 
         if loop_response.is_empty():
             self._logger.debug("Empty model response, exiting loop.")
-            self._chat_service.modify_assistant_message(content=EMPTY_MESSAGE_WARNING)
+            await self._chat_service.modify_assistant_message_async(
+                content=EMPTY_MESSAGE_WARNING
+            )
             return True
 
         call_tools = len(loop_response.tool_calls or []) > 0

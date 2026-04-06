@@ -77,12 +77,6 @@ class ChatHistoryWithContent(RootModel):
 
         return cls(root=grouped_elements)
 
-    def __iter__(self):
-        return iter(self.root)
-
-    def __getitem__(self, item):
-        return self.root[item]
-
 
 def get_chat_history_with_contents(
     user_message: ChatEventUserMessage,
@@ -94,7 +88,7 @@ def get_chat_history_with_contents(
         id=user_message.id,
         chat_id=chat_id,
         text=user_message.text,
-        originalText=user_message.original_text,
+        original_text=user_message.original_text,
         role=ChatRole.USER,
         gpt_request=None,
         created_at=datetime.fromisoformat(user_message.created_at),
@@ -105,6 +99,40 @@ def get_chat_history_with_contents(
         chat_history.append(last_user_message)
 
     chat_contents = content_service.search_contents(
+        where={
+            "ownerId": {
+                "equals": chat_id,
+            },
+        },
+    )
+
+    return ChatHistoryWithContent.from_chat_history_and_contents(
+        chat_history,
+        chat_contents,
+    )
+
+
+async def get_chat_history_with_contents_async(
+    user_message: ChatEventUserMessage,
+    chat_id: str,
+    chat_history: list[ChatMessage],
+    content_service: ContentService,
+) -> ChatHistoryWithContent:
+    last_user_message = ChatMessage(
+        id=user_message.id,
+        chat_id=chat_id,
+        text=user_message.text,
+        original_text=user_message.original_text,
+        role=ChatRole.USER,
+        gpt_request=None,
+        created_at=datetime.fromisoformat(user_message.created_at),
+    )
+    if len(chat_history) > 0 and last_user_message.id == chat_history[-1].id:
+        pass
+    else:
+        chat_history.append(last_user_message)
+
+    chat_contents = await content_service.search_contents_async(
         where={
             "ownerId": {
                 "equals": chat_id,
@@ -138,6 +166,29 @@ def download_encoded_images(
                 base64_encoded_images.append(image_string)
             except Exception as e:
                 print(e)
+    return base64_encoded_images
+
+
+async def download_encoded_images_async(
+    contents: list[Content],
+    content_service: ContentService,
+    chat_id: str,
+) -> list[str]:
+    base64_encoded_images = []
+    for im in contents:
+        if FileUtils.is_image_content(im.key):
+            try:
+                file_bytes = await content_service.download_content_to_bytes_async(
+                    content_id=im.id,
+                    chat_id=chat_id,
+                )
+
+                mime_type, _ = mimetypes.guess_type(im.key)
+                encoded_string = base64.b64encode(file_bytes).decode("utf-8")
+                image_string = f"data:{mime_type};base64," + encoded_string
+                base64_encoded_images.append(image_string)
+            except Exception as e:
+                _LOGGER.warning("Failed to download image %s: %s", im.key, e)
     return base64_encoded_images
 
 
@@ -212,6 +263,48 @@ def _append_element_to_builder(
         )
 
 
+async def _append_element_to_builder_async(
+    builder: MessagesBuilder,
+    c: ChatMessageWithContents,
+    text: str,
+    include_images: ImageContentInclusion,
+    file_content_serialization_type: FileContentSerialization,
+    content_service: ContentService,
+    chat_id: str,
+) -> None:
+    if len(c.contents) > 0:
+        file_contents = [co for co in c.contents if FileUtils.is_file_content(co.key)]
+        image_contents = [co for co in c.contents if FileUtils.is_image_content(co.key)]
+        content = (
+            text
+            + "\n\n"
+            + file_content_serialization(
+                file_contents,
+                file_content_serialization_type,
+            )
+        ).strip()
+        if include_images and len(image_contents) > 0:
+            builder.image_message_append(
+                content=content,
+                images=await download_encoded_images_async(
+                    contents=image_contents,
+                    content_service=content_service,
+                    chat_id=chat_id,
+                ),
+                role=map_chat_llm_message_role[c.role],
+            )
+        else:
+            builder.message_append(
+                role=map_chat_llm_message_role[c.role],
+                content=content,
+            )
+    else:
+        builder.message_append(
+            role=map_chat_llm_message_role[c.role],
+            content=text,
+        )
+
+
 def get_full_history_with_contents(
     user_message: ChatEventUserMessage,
     chat_id: str,
@@ -228,7 +321,7 @@ def get_full_history_with_contents(
     )
 
     builder = LanguageModelMessages([]).builder()
-    for c in grouped_elements:
+    for c in grouped_elements.root:
         # LanguageModelUserMessage has no field original_text
         text = c.original_text if c.original_text else c.content
         if text is None:
@@ -238,6 +331,42 @@ def get_full_history_with_contents(
                 )
             text = ""
         _append_element_to_builder(
+            builder=builder,
+            c=c,
+            text=text,
+            include_images=include_images,
+            file_content_serialization_type=file_content_serialization_type,
+            content_service=content_service,
+            chat_id=chat_id,
+        )
+    return builder.build()
+
+
+async def get_full_history_with_contents_async(
+    user_message: ChatEventUserMessage,
+    chat_id: str,
+    chat_service: ChatService,
+    content_service: ContentService,
+    include_images: ImageContentInclusion = ImageContentInclusion.ALL,
+    file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+) -> LanguageModelMessages:
+    grouped_elements = await get_chat_history_with_contents_async(
+        user_message=user_message,
+        chat_id=chat_id,
+        chat_history=await chat_service.get_full_history_async(),
+        content_service=content_service,
+    )
+
+    builder = LanguageModelMessages([]).builder()
+    for c in grouped_elements.root:
+        text = c.original_text if c.original_text else c.content
+        if text is None:
+            if c.role == ChatRole.USER:
+                raise ValueError(
+                    "Content or original_text of LanguageModelMessages should exist.",
+                )
+            text = ""
+        await _append_element_to_builder_async(
             builder=builder,
             c=c,
             text=text,
@@ -307,7 +436,7 @@ def get_full_history_with_contents_and_tool_calls(
     )
 
     builder = LanguageModelMessages([]).builder()
-    for c in grouped_elements:
+    for c in grouped_elements.root:
         text = c.original_text if c.original_text else c.content
         if text is None:
             if c.role == ChatRole.USER:
@@ -380,6 +509,122 @@ def get_full_history_with_contents_and_tool_calls(
             continue
 
         _append_element_to_builder(
+            builder=builder,
+            c=c,
+            text=text,
+            include_images=include_images,
+            file_content_serialization_type=file_content_serialization_type,
+            content_service=content_service,
+            chat_id=chat_id,
+        )
+    return builder.build(), max_source_number, source_map
+
+
+async def get_full_history_with_contents_and_tool_calls_async(
+    *,
+    user_message: ChatEventUserMessage,
+    chat_id: str,
+    chat_service: ChatService,
+    content_service: ContentService,
+    include_images: ImageContentInclusion = ImageContentInclusion.ALL,
+    file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+) -> tuple[LanguageModelMessages, int, dict[int, "ContentChunk"]]:
+    """Async version of get_full_history_with_contents_and_tool_calls."""
+    from unique_toolkit.agentic.history_manager.utils import (
+        build_source_map_from_tool_calls,
+        compute_max_source_number_from_tool_calls,
+    )
+    from unique_toolkit.content.schemas import (
+        ContentChunk as ContentChunk,  # noqa: F811
+    )
+
+    chat_history = await chat_service.get_full_history_async()
+
+    assistant_message_ids = [
+        msg.id for msg in chat_history if msg.role == ChatRole.ASSISTANT and msg.id
+    ]
+    all_tool_calls: list[ChatMessageTool] = []
+    tool_calls_by_message: dict[str, list[ChatMessageTool]] = {}
+    if assistant_message_ids:
+        try:
+            all_tool_calls = await chat_service.get_message_tools_async(
+                message_ids=assistant_message_ids,
+            )
+            for tc in all_tool_calls:
+                if tc.message_id:
+                    tool_calls_by_message.setdefault(tc.message_id, []).append(tc)
+        except Exception:
+            _LOGGER.warning(
+                "Failed to batch-load tool calls, falling back to empty", exc_info=True
+            )
+    max_source_number = compute_max_source_number_from_tool_calls(all_tool_calls)
+    source_map: dict[int, ContentChunk] = build_source_map_from_tool_calls(
+        all_tool_calls
+    )
+
+    grouped_elements = await get_chat_history_with_contents_async(
+        user_message=user_message,
+        chat_id=chat_id,
+        chat_history=chat_history,
+        content_service=content_service,
+    )
+
+    builder = LanguageModelMessages([]).builder()
+    for c in grouped_elements.root:
+        text = c.original_text if c.original_text else c.content
+        if text is None:
+            if c.role == ChatRole.USER:
+                raise ValueError(
+                    "Content or original_text of LanguageModelMessages should exist.",
+                )
+            text = ""
+
+        if c.role == ChatRole.ASSISTANT and c.id and c.id in tool_calls_by_message:
+            tc_records = sorted(
+                tool_calls_by_message[c.id],
+                key=lambda tc: (tc.round_index, tc.sequence_index),
+            )
+            if tc_records:
+                for _round, round_group in groupby(
+                    tc_records, key=lambda tc: tc.round_index
+                ):
+                    round_tcs = list(round_group)
+                    round_tcs_with_response = [
+                        tc
+                        for tc in round_tcs
+                        if tc.response and tc.response.content is not None
+                    ]
+                    if not round_tcs_with_response:
+                        continue
+                    fns = [
+                        LanguageModelFunction(
+                            id=tc.external_tool_call_id,
+                            name=tc.function_name,
+                            arguments=tc.arguments,
+                        )
+                        for tc in round_tcs_with_response
+                    ]
+                    builder.messages.append(
+                        LanguageModelAssistantMessage.from_functions(tool_calls=fns)
+                    )
+                    for fn, tc in zip(fns, round_tcs_with_response):
+                        builder.messages.append(
+                            LanguageModelToolMessage(
+                                tool_call_id=fn.id,
+                                content=tc.response.content,  # type: ignore[union-attr]
+                                name=tc.function_name,
+                            )
+                        )
+
+        had_tool_calls = (
+            c.role == ChatRole.ASSISTANT
+            and c.id is not None
+            and c.id in tool_calls_by_message
+        )
+        if had_tool_calls and not text:
+            continue
+
+        await _append_element_to_builder_async(
             builder=builder,
             c=c,
             text=text,

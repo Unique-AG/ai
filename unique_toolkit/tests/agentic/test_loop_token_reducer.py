@@ -1159,7 +1159,7 @@ def test_get_encoder__uses_model_get_encoder_AI(
 # Integration-style Tests (still unit tests but test larger flows)
 @pytest.mark.ai
 @patch(
-    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_async"
 )
 @patch.object(LoopTokenReducer, "_count_message_tokens")
 async def test_get_history_for_model_call__returns_messages__when_under_limit_AI(
@@ -1196,7 +1196,7 @@ async def test_get_history_for_model_call__returns_messages__when_under_limit_AI
 
 @pytest.mark.ai
 @patch(
-    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_async"
 )
 @patch.object(LoopTokenReducer, "_count_message_tokens")
 async def test_get_history_for_model_call__appends_image_urls_to_user_message__when_provided_AI(
@@ -1249,7 +1249,7 @@ async def test_get_history_for_model_call__appends_image_urls_to_user_message__w
 # Feature flag path tests
 @pytest.mark.ai
 @patch(
-    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents"
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_async"
 )
 @patch.object(LoopTokenReducer, "_count_message_tokens")
 async def test_get_history_from_db__calls_without_tool_calls__when_persistence_disabled_AI(
@@ -1261,12 +1261,12 @@ async def test_get_history_from_db__calls_without_tool_calls__when_persistence_d
     language_model_info: LanguageModelInfo,
 ) -> None:
     """
-    Purpose: Verify get_history_from_db calls get_full_history_with_contents (not the tool-call
+    Purpose: Verify get_history_from_db calls get_full_history_with_contents_async (not the tool-call
         variant) when enable_tool_call_persistence=False.
     Why this matters: With the flag off, we must avoid the DB round-trip that loads ToolCall
         records, keeping the code path identical to before the feature was introduced.
     Setup summary: LoopTokenReducer constructed with enable_tool_call_persistence=False;
-        assert get_full_history_with_contents is called once.
+        assert get_full_history_with_contents_async is called once.
     """
     reducer = LoopTokenReducer(
         logger=mock_logger,
@@ -1298,7 +1298,7 @@ async def test_get_history_from_db__calls_without_tool_calls__when_persistence_d
 
 @pytest.mark.ai
 @patch(
-    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls"
+    "unique_toolkit.agentic.history_manager.loop_token_reducer.get_full_history_with_contents_and_tool_calls_async"
 )
 @patch.object(LoopTokenReducer, "_count_message_tokens")
 async def test_get_history_from_db__calls_with_tool_calls__when_persistence_enabled_AI(
@@ -1310,12 +1310,12 @@ async def test_get_history_from_db__calls_with_tool_calls__when_persistence_enab
     language_model_info: LanguageModelInfo,
 ) -> None:
     """
-    Purpose: Verify get_history_from_db calls get_full_history_with_contents_and_tool_calls
+    Purpose: Verify get_history_from_db calls get_full_history_with_contents_and_tool_calls_async
         when enable_tool_call_persistence=True.
     Why this matters: With the flag on, prior-turn tool call records must be loaded from the
         DB so that source numbering can continue from where the last turn left off.
     Setup summary: LoopTokenReducer constructed with enable_tool_call_persistence=True;
-        assert get_full_history_with_contents_and_tool_calls is called and max_db_source_number
+        assert get_full_history_with_contents_and_tool_calls_async is called and max_db_source_number
         is populated from its return value.
     """
     reducer = LoopTokenReducer(
