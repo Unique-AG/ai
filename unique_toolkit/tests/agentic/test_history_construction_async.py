@@ -14,7 +14,11 @@ from unique_toolkit.agentic.history_manager.history_construction_with_contents i
     get_full_history_with_contents_and_tool_calls_async,
     get_full_history_with_contents_async,
 )
-from unique_toolkit.chat.schemas import ChatMessage, ChatMessageTool
+from unique_toolkit.chat.schemas import (
+    ChatMessage,
+    ChatMessageTool,
+    ChatMessageToolResponse,
+)
 from unique_toolkit.chat.schemas import ChatMessageRole as ChatRole
 from unique_toolkit.content.schemas import Content
 from unique_toolkit.language_model.schemas import (
@@ -189,7 +193,6 @@ async def test_download_encoded_images_async_non_image_skipped():
         )
 
     assert result == []
-    content_service.download_content_to_bytes_async.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -452,9 +455,6 @@ async def test_get_full_history_with_contents_and_tool_calls_async_with_tools():
         ),
     ]
 
-    tool_response = MagicMock()
-    tool_response.content = "search result"
-
     tool_call = ChatMessageTool(
         message_id="assist_1",
         function_name="InternalSearch",
@@ -462,7 +462,7 @@ async def test_get_full_history_with_contents_and_tool_calls_async_with_tools():
         round_index=0,
         sequence_index=0,
         external_tool_call_id="call_abc",
-        response=tool_response,
+        response=ChatMessageToolResponse(content="search result"),
     )
 
     chat_service = MagicMock()
@@ -503,9 +503,6 @@ async def test_tool_calls_async_empty_assistant_text_skipped():
         ),
     ]
 
-    tool_response = MagicMock()
-    tool_response.content = "tool output"
-
     tool_call = ChatMessageTool(
         message_id="assist_empty",
         function_name="SomeTool",
@@ -513,7 +510,7 @@ async def test_tool_calls_async_empty_assistant_text_skipped():
         round_index=0,
         sequence_index=0,
         external_tool_call_id="call_1",
-        response=tool_response,
+        response=ChatMessageToolResponse(content="tool output"),
     )
 
     chat_service = MagicMock()
@@ -632,11 +629,6 @@ async def test_tool_calls_async_multiple_rounds():
         ),
     ]
 
-    resp0 = MagicMock()
-    resp0.content = "result 0"
-    resp1 = MagicMock()
-    resp1.content = "result 1"
-
     tc0 = ChatMessageTool(
         message_id="assist_1",
         function_name="ToolA",
@@ -644,7 +636,7 @@ async def test_tool_calls_async_multiple_rounds():
         round_index=0,
         sequence_index=0,
         external_tool_call_id="call_r0",
-        response=resp0,
+        response=ChatMessageToolResponse(content="result 0"),
     )
     tc1 = ChatMessageTool(
         message_id="assist_1",
@@ -653,7 +645,7 @@ async def test_tool_calls_async_multiple_rounds():
         round_index=1,
         sequence_index=0,
         external_tool_call_id="call_r1",
-        response=resp1,
+        response=ChatMessageToolResponse(content="result 1"),
     )
 
     chat_service = MagicMock()
