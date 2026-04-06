@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.100] - 2026-04-06
+- Fix `Integrated.responses_stream_async` blocking the asyncio event loop by calling synchronous `_static_request` instead of `await _static_request_async` — concurrent coroutines (STM lookups, file downloads, other API calls) were starved for 60-75s per LLM call
+
 ## [0.10.99] - 2026-04-02
 - Add `ScheduledTask` API resource with full CRUD operations (create, list, retrieve, modify, delete) and async variants
 - Add `schedule` CLI command group with `list`, `get`, `create`, `update`, `delete` subcommands for both one-shot and interactive REPL modes
