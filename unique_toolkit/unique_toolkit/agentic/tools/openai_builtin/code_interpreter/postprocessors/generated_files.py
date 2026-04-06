@@ -186,17 +186,20 @@ class _FileProgressTracker:
                 publish_t0 = time.monotonic()
                 await self._publish()
                 publish_ms = (time.monotonic() - publish_t0) * 1000
-                self._last_publish_time = time.monotonic()
+                self._last_publish_time = now
                 if lock_wait_ms > 100 or publish_ms > 500:
+                    lock_held_ms = (
+                        time.monotonic() - lock_wait_t0
+                    ) * 1000 - lock_wait_ms
                     self._log.warning(
                         "Tracker.update('%s', phase=%s): "
                         "lock_wait=%.0fms, publish=%.0fms, "
-                        "total_lock_held=%.0fms",
+                        "lock_held=%.0fms",
                         filename,
                         phase,
                         lock_wait_ms,
                         publish_ms,
-                        (time.monotonic() - lock_wait_t0) * 1000,
+                        lock_held_ms,
                     )
             elif lock_wait_ms > 100:
                 self._log.warning(
@@ -224,16 +227,19 @@ class _FileProgressTracker:
                 publish_t0 = time.monotonic()
                 await self._publish()
                 publish_ms = (time.monotonic() - publish_t0) * 1000
-                self._last_publish_time = time.monotonic()
+                self._last_publish_time = now
                 if lock_wait_ms > 100 or publish_ms > 500:
+                    lock_held_ms = (
+                        time.monotonic() - lock_wait_t0
+                    ) * 1000 - lock_wait_ms
                     self._log.warning(
                         "Tracker.tick_elapsed('%s'): "
                         "lock_wait=%.0fms, publish=%.0fms, "
-                        "total_lock_held=%.0fms",
+                        "lock_held=%.0fms",
                         filename,
                         lock_wait_ms,
                         publish_ms,
-                        (time.monotonic() - lock_wait_t0) * 1000,
+                        lock_held_ms,
                     )
             elif lock_wait_ms > 100:
                 self._log.warning(
