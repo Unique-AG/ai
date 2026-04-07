@@ -10,7 +10,7 @@ inputs:
     required: false
     default: '3.11'
   install_args:
-    description: 'Additional arguments for uv sync (e.g., --with fastapi)'
+    description: 'Extra names to install (e.g., "--extra fastapi --extra monitoring")'
     required: false
     default: ''
   test_args:
@@ -33,7 +33,10 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
-      run: uv sync --inexact ${{ inputs.install_args }}
+      run: |
+        # Extract extra names from "--extra foo --extra bar" → "foo,bar"
+        EXTRAS=$(echo "${{ inputs.install_args }}" | grep -oP '(?<=--extra )\w+' | paste -sd ',' -)
+        uv pip install ".[${EXTRAS}]"
 
     - name: Run pytest
       shell: bash
