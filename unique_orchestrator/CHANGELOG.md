@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.0] - 2026-04-07
+- Add TodoWriteTool wiring: `TodoConfig` in `ExperimentalConfig`, generalized `_inject_experimental_tools()` for dynamic tool discovery via `_tool_name`/`_tool_module` ClassVar
+- Raise `LIMIT_MAX_LOOP_ITERATIONS` from 10 to 50 and default `max_loop_iterations` from 5 to 30 for multi-step task tracking
+- Gate "Triggered Tool Calls" Steps panel entry behind `TodoConfig.show_triggered_tool_calls` toggle
+
 ## [1.20.4] - 2026-04-03
 - Fix: skip hallucination evaluation when code interpreter is used, preventing false-positive assessments on code-execution-grounded answers
 
