@@ -105,9 +105,11 @@ class InternalSearchService:
                 feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
                     self.company_id
                 )
-                and self.selected_uploaded_files
             ):
-                return True
+                if len(self.selected_uploaded_files) > 0:
+                    return True
+                else:
+                    return False
             chat_files = await self.get_uploaded_files()
             if len(chat_files) > 0:
                 return True
@@ -169,10 +171,12 @@ class InternalSearchService:
             feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
                 self.company_id
             )
-            and self.selected_uploaded_files
             and chat_only
         ):
-            content_ids = self.selected_uploaded_files
+            if len(self.selected_uploaded_files) > 0:
+                content_ids = self.selected_uploaded_files
+            else:
+                content_ids = []
 
         # Run all searches in parallel
         results = await asyncio.gather(
