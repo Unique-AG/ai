@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.101] - 2026-04-06
+- Fix all `async def` methods in `AgenticTable` that incorrectly called synchronous `_static_request` instead of `await _static_request_async`, blocking the event loop
+- Fix `wait_for_ingestion_completion` to use `Content.search_async` instead of synchronous `Content.search`
+
 ## [0.10.100] - 2026-04-06
 - Fix `Integrated.responses_stream_async` blocking the asyncio event loop by calling synchronous `_static_request` instead of `await _static_request_async` — concurrent coroutines (STM lookups, file downloads, other API calls) were starved for 60-75s per LLM call
 

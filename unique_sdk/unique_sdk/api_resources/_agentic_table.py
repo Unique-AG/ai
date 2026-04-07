@@ -198,7 +198,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         url = f"/magic-table/{params['tableId']}/cell"
         return cast(
             "AgenticTableCell",
-            cls._static_request(
+            await cls._static_request_async(
                 "post",
                 url,
                 user_id,
@@ -241,7 +241,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         url = f"/magic-table/{params['tableId']}/activity"
         return cast(
             "AgenticTableCell",
-            cls._static_request(
+            await cls._static_request_async(
                 "post",
                 url,
                 user_id,
@@ -261,7 +261,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         url = f"/magic-table/{params['tableId']}/artifact"
         return cast(
             "AgenticTableCell",
-            cls._static_request(
+            await cls._static_request_async(
                 "post",
                 url,
                 user_id,
@@ -280,7 +280,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         url = f"/magic-table/{params['tableId']}"
         return cast(
             "AgenticTable.UpdateSheetResponse",
-            cls._static_request("post", url, user_id, company_id, params),
+            await cls._static_request_async("post", url, user_id, company_id, params),
         )
 
     @classmethod
@@ -293,7 +293,9 @@ class AgenticTable(APIResource["AgenticTable"]):
         url = f"/magic-table/{params['tableId']}/column/metadata"
         # Remove tableId from params
         params.pop("tableId")
-        response = cls._static_request("post", url, user_id, company_id, params)
+        response = await cls._static_request_async(
+            "post", url, user_id, company_id, params
+        )
         return cast(
             ColumnMetadataUpdateStatus,
             response,
@@ -309,7 +311,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         url = f"/magic-table/{params['tableId']}"
         return cast(
             AgenticTableSheet,
-            cls._static_request("get", url, user_id, company_id, params),
+            await cls._static_request_async("get", url, user_id, company_id, params),
         )
 
     @classmethod
@@ -334,7 +336,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         url = f"/magic-table/{params['tableId']}/cell/metadata"
         return cast(
             "ColumnMetadataUpdateStatus",
-            cls._static_request("post", url, user_id, company_id, params),
+            await cls._static_request_async("post", url, user_id, company_id, params),
         )
 
     @classmethod
@@ -346,8 +348,6 @@ class AgenticTable(APIResource["AgenticTable"]):
         cells: list[AgenticTableCell],
     ) -> ColumnMetadataUpdateStatus:
         url = f"/magic-table/{tableId}/cells/bulk-upsert"
-        # Map AgenticTableCell to PublicAgenticTableCellDto; use direct access so
-        # missing required fields raise KeyError and we re-raise a clear ValueError.
         try:
             params_api = {
                 "cells": [
@@ -363,7 +363,9 @@ class AgenticTable(APIResource["AgenticTable"]):
             raise ValueError(f"Invalid data or missing required fields: {e}")
         return cast(
             "ColumnMetadataUpdateStatus",
-            cls._static_request("post", url, user_id, company_id, params=params_api),
+            await cls._static_request_async(
+                "post", url, user_id, company_id, params=params_api
+            ),
         )
 
     @classmethod
@@ -376,7 +378,7 @@ class AgenticTable(APIResource["AgenticTable"]):
         url = f"/magic-table/{params['tableId']}/rows/bulk-update-status"
         return cast(
             "ColumnMetadataUpdateStatus",
-            cls._static_request(
+            await cls._static_request_async(
                 "post",
                 url,
                 user_id,
