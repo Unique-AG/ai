@@ -1005,3 +1005,13 @@ class TestParallelModeConfig:
         result = config.effective_system_prompt
         assert custom_prompt in result
         assert _PARALLEL_EXECUTION_RULES.strip() in result
+
+    def test_parallel_mode_preserves_custom_tool_description(self) -> None:
+        custom = "My custom tool description."
+        config = TodoConfig(parallel_mode=True, tool_description=custom)
+        assert config.effective_tool_description == custom
+
+    def test_parallel_mode_preserves_custom_execution_reminder(self) -> None:
+        custom = "My custom reminder."
+        config = TodoConfig(parallel_mode=True, execution_reminder=custom)
+        assert config.effective_execution_reminder == custom
