@@ -7,7 +7,7 @@ import unique_toolkit.monitoring.registry as registry_module
 from unique_toolkit.monitoring.registry import (
     MetricNamespace,
     get_metrics,
-    track_block,
+    metric_scope,
     track_execution,
 )
 
@@ -28,7 +28,7 @@ def fresh_registry(monkeypatch: pytest.MonkeyPatch) -> CollectorRegistry:
 
 @pytest.fixture
 def test_metrics(fresh_registry: CollectorRegistry):
-    """Provide a pair of (duration Histogram, errors Counter) for track_block() tests."""
+    """Provide a pair of (duration Histogram, errors Counter) for metric_scope() tests."""
     duration = Histogram(
         "test_duration_seconds", "Test duration", ["op"], registry=fresh_registry
     )
@@ -137,22 +137,22 @@ def test_get_metrics__includes_registered_metric(
 
 
 # ---------------------------------------------------------------------------
-# track_block()
+# metric_scope()
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.ai
 def test_track__records_duration__on_success(test_metrics) -> None:
     """
-    Purpose: Verify track_block() observes a duration measurement after a successful block.
+    Purpose: Verify metric_scope() observes a duration measurement after a successful block.
     Why this matters: Without duration recording, latency dashboards show no data.
-    Setup summary: Run a trivial block inside track_block(), assert histogram sample count increases.
+    Setup summary: Run a trivial block inside metric_scope(), assert histogram sample count increases.
     """
     duration, _ = test_metrics
 
     before = duration.labels(op="test")._sum.get()
 
-    with track_block(duration, op="test"):
+    with metric_scope(duration, op="test"):
         pass
 
     after = duration.labels(op="test")._sum.get()
@@ -162,14 +162,14 @@ def test_track__records_duration__on_success(test_metrics) -> None:
 @pytest.mark.ai
 def test_track__records_error__on_exception(test_metrics) -> None:
     """
-    Purpose: Verify track_block() increments the error counter when the block raises.
+    Purpose: Verify metric_scope() increments the error counter when the block raises.
     Why this matters: Without error recording, failures are invisible in Prometheus dashboards.
-    Setup summary: Raise ValueError inside track_block(), assert errors counter incremented with correct labels.
+    Setup summary: Raise ValueError inside metric_scope(), assert errors counter incremented with correct labels.
     """
     duration, errors = test_metrics
 
     with pytest.raises(ValueError):
-        with track_block(duration, errors, op="test"):
+        with metric_scope(duration, errors, op="test"):
             raise ValueError("boom")
 
     count = errors.labels(op="test", error_type="ValueError")._value.get()
@@ -179,16 +179,16 @@ def test_track__records_error__on_exception(test_metrics) -> None:
 @pytest.mark.ai
 def test_track__still_records_duration__on_exception(test_metrics) -> None:
     """
-    Purpose: Verify track_block() records duration even when the block raises an exception.
+    Purpose: Verify metric_scope() records duration even when the block raises an exception.
     Why this matters: Latency data for failed requests is valuable for debugging.
-    Setup summary: Raise inside track_block(), assert duration histogram still observed.
+    Setup summary: Raise inside metric_scope(), assert duration histogram still observed.
     """
     duration, errors = test_metrics
 
     before = duration.labels(op="test")._sum.get()
 
     with pytest.raises(RuntimeError):
-        with track_block(duration, errors, op="test"):
+        with metric_scope(duration, errors, op="test"):
             raise RuntimeError("fail")
 
     after = duration.labels(op="test")._sum.get()
@@ -201,14 +201,14 @@ def test_track__no_errors_counter__does_not_raise__on_exception(
     test_metrics,
 ) -> None:
     """
-    Purpose: Verify track_block() works without an errors counter (errors=None).
+    Purpose: Verify metric_scope() works without an errors counter (errors=None).
     Why this matters: Some call sites only care about duration, not errors — errors=None must be safe.
-    Setup summary: Pass errors=None to track_block(), raise inside block, assert original exception propagates.
+    Setup summary: Pass errors=None to metric_scope(), raise inside block, assert original exception propagates.
     """
     duration, _ = test_metrics
 
     with pytest.raises(KeyError):
-        with track_block(duration, op="test"):
+        with metric_scope(duration, op="test"):
             raise KeyError("missing")
 
 
