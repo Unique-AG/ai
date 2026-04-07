@@ -433,21 +433,21 @@ class TestLogStep:
 
         await tool.run(tc)
 
-        tool._message_step_logger.create_or_update_message_log.assert_called_once()
-        call_kwargs = tool._message_step_logger.create_or_update_message_log.call_args[
-            1
-        ]
-        assert call_kwargs["header"] == "Progress"
+        calls = tool._message_step_logger.create_or_update_message_log.call_args_list
+        assert len(calls) == 2  # plan + progress
+        assert calls[0][1]["header"] == "Progress"
+        assert calls[1][1]["header"] == "Progress"
 
     @pytest.mark.asyncio
-    async def test_progress_message_shows_counts_when_no_in_progress(self) -> None:
-        """When no item is in_progress, _log_step shows a counts-based summary."""
+    async def test_plan_log_shows_numbered_items_with_icons(self) -> None:
+        """On first call, _log_step creates a plan entry with status icons."""
         tool = _make_tool()
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Done", "status": "completed"},
-                    {"id": "t2", "content": "Todo", "status": "pending"},
+                    {"id": "t1", "content": "Research APIs", "status": "pending"},
+                    {"id": "t2", "content": "Write code", "status": "pending"},
+                    {"id": "t3", "content": "Write tests", "status": "pending"},
                 ],
                 "merge": False,
             }
@@ -455,17 +455,58 @@ class TestLogStep:
 
         await tool.run(tc)
 
-        call_kwargs = tool._message_step_logger.create_or_update_message_log.call_args[
-            1
-        ]
-        progress = call_kwargs["progress_message"]
-        assert "2 items" in progress
-        assert "1 completed" in progress
-        assert "1 pending" in progress
+        plan_kwargs = (
+            tool._message_step_logger.create_or_update_message_log.call_args_list[0][1]
+        )
+        expected = (
+            "0/3 completed\n○ 1. Research APIs\n○ 2. Write code\n○ 3. Write tests"
+        )
+        assert plan_kwargs["progress_message"] == expected
+        assert plan_kwargs["active_message_log"] is None
 
     @pytest.mark.asyncio
-    async def test_progress_message_shows_active_form_when_in_progress(self) -> None:
-        """When an item is in_progress, _log_step shows its active_form."""
+    async def test_plan_log_updates_icons_on_progress(self) -> None:
+        """Plan entry updates with ✓/→/○ as items change status."""
+        tool = _make_tool()
+        sentinel = MagicMock()
+        tool._message_step_logger.create_or_update_message_log.return_value = sentinel
+
+        tc1 = _make_tool_call(
+            {
+                "todos": [
+                    {"id": "t1", "content": "Research APIs", "status": "pending"},
+                    {"id": "t2", "content": "Write code", "status": "pending"},
+                ],
+                "merge": False,
+            }
+        )
+        await tool.run(tc1)
+
+        tc2 = _make_tool_call(
+            {
+                "todos": [
+                    {"id": "t1", "status": "completed"},
+                    {
+                        "id": "t2",
+                        "status": "in_progress",
+                        "active_form": "Writing code",
+                    },
+                ],
+                "merge": True,
+            }
+        )
+        await tool.run(tc2)
+
+        plan_kwargs = (
+            tool._message_step_logger.create_or_update_message_log.call_args_list[2][1]
+        )
+        expected = "1/2 completed\n✓ 1. Research APIs\n→ 2. Writing code"
+        assert plan_kwargs["progress_message"] == expected
+        assert plan_kwargs["active_message_log"] is sentinel
+
+    @pytest.mark.asyncio
+    async def test_progress_log_shows_compact_format(self) -> None:
+        """Progress entry shows active_form + counts."""
         tool = _make_tool()
         tc = _make_tool_call(
             {
@@ -484,14 +525,37 @@ class TestLogStep:
 
         await tool.run(tc)
 
-        call_kwargs = tool._message_step_logger.create_or_update_message_log.call_args[
-            1
-        ]
-        assert call_kwargs["progress_message"] == "Searching documents"
+        progress_kwargs = (
+            tool._message_step_logger.create_or_update_message_log.call_args_list[1][1]
+        )
+        assert (
+            progress_kwargs["progress_message"] == "Searching documents (0/2 completed)"
+        )
 
     @pytest.mark.asyncio
-    async def test_progress_message_falls_back_to_content(self) -> None:
-        """When in_progress item has no active_form, _log_step shows content."""
+    async def test_progress_log_shows_counts_when_no_in_progress(self) -> None:
+        """When no item is in_progress, progress entry shows counts only."""
+        tool = _make_tool()
+        tc = _make_tool_call(
+            {
+                "todos": [
+                    {"id": "t1", "content": "Done", "status": "completed"},
+                    {"id": "t2", "content": "Todo", "status": "pending"},
+                ],
+                "merge": False,
+            }
+        )
+
+        await tool.run(tc)
+
+        progress_kwargs = (
+            tool._message_step_logger.create_or_update_message_log.call_args_list[1][1]
+        )
+        assert progress_kwargs["progress_message"] == "1/2 completed"
+
+    @pytest.mark.asyncio
+    async def test_progress_log_falls_back_to_content_without_active_form(self) -> None:
+        """When in_progress item lacks active_form, progress shows content."""
         tool = _make_tool()
         tc = _make_tool_call(
             {
@@ -504,10 +568,10 @@ class TestLogStep:
 
         await tool.run(tc)
 
-        call_kwargs = tool._message_step_logger.create_or_update_message_log.call_args[
-            1
-        ]
-        assert call_kwargs["progress_message"] == "Search docs"
+        progress_kwargs = (
+            tool._message_step_logger.create_or_update_message_log.call_args_list[1][1]
+        )
+        assert progress_kwargs["progress_message"] == "Search docs (0/1 completed)"
 
     @pytest.mark.asyncio
     async def test_status_running_when_active_items(self) -> None:
@@ -521,10 +585,9 @@ class TestLogStep:
 
         await tool.run(tc)
 
-        call_kwargs = tool._message_step_logger.create_or_update_message_log.call_args[
-            1
-        ]
-        assert call_kwargs["status"] == MessageLogStatus.RUNNING
+        calls = tool._message_step_logger.create_or_update_message_log.call_args_list
+        for call in calls:
+            assert call[1]["status"] == MessageLogStatus.RUNNING
 
     @pytest.mark.asyncio
     async def test_status_completed_when_all_terminal(self) -> None:
@@ -541,14 +604,35 @@ class TestLogStep:
 
         await tool.run(tc)
 
-        call_kwargs = tool._message_step_logger.create_or_update_message_log.call_args[
-            1
-        ]
-        assert call_kwargs["status"] == MessageLogStatus.COMPLETED
+        calls = tool._message_step_logger.create_or_update_message_log.call_args_list
+        for call in calls:
+            assert call[1]["status"] == MessageLogStatus.COMPLETED
 
     @pytest.mark.asyncio
-    async def test_reuses_message_log_across_calls(self) -> None:
-        """Second run() passes the MessageLog from the first call as active_message_log."""
+    async def test_plan_log_shows_cancelled_icon(self) -> None:
+        """Cancelled items use ✗ icon in the plan entry."""
+        tool = _make_tool()
+        tc = _make_tool_call(
+            {
+                "todos": [
+                    {"id": "t1", "content": "Dropped", "status": "cancelled"},
+                    {"id": "t2", "content": "Done", "status": "completed"},
+                ],
+                "merge": False,
+            }
+        )
+
+        await tool.run(tc)
+
+        plan_kwargs = (
+            tool._message_step_logger.create_or_update_message_log.call_args_list[0][1]
+        )
+        assert "✗ 1. Dropped" in plan_kwargs["progress_message"]
+        assert "✓ 2. Done" in plan_kwargs["progress_message"]
+
+    @pytest.mark.asyncio
+    async def test_reuses_both_logs_across_calls(self) -> None:
+        """Second run() passes both plan and progress logs as active_message_log."""
         tool = _make_tool()
         sentinel = MagicMock()
         tool._message_step_logger.create_or_update_message_log.return_value = sentinel
@@ -566,10 +650,13 @@ class TestLogStep:
         )
         await tool.run(tc2)
 
-        second_call_kwargs = (
-            tool._message_step_logger.create_or_update_message_log.call_args_list[1][1]
-        )
-        assert second_call_kwargs["active_message_log"] is sentinel
+        calls = tool._message_step_logger.create_or_update_message_log.call_args_list
+        # 2 calls per run = 4 total
+        assert len(calls) == 4
+        # Second run's plan call reuses sentinel
+        assert calls[2][1]["active_message_log"] is sentinel
+        # Second run's progress call reuses sentinel
+        assert calls[3][1]["active_message_log"] is sentinel
 
     @pytest.mark.asyncio
     async def test_log_step_failure_does_not_break_run(self) -> None:

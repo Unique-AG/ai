@@ -49,6 +49,7 @@ class TodoWriteTool(Tool[TodoConfig]):
             )
         )
         self._cached_state: TodoList | None = None
+        self._plan_log: MessageLog | None = None
         self._message_log: MessageLog | None = None
 
     def display_name(self) -> str:
@@ -149,40 +150,68 @@ class TodoWriteTool(Tool[TodoConfig]):
         )
 
     async def _log_step(self, state: TodoList) -> None:
-        """Write a Steps panel entry summarising the current todo state.
+        """Write Steps panel entries summarising the current todo state.
 
-        Uses the active_form of in-progress items as the progress message
-        when available, falling back to a counts-based summary.
+        Maintains two entries:
+        - A *plan* log created on the first call showing a numbered list of
+          all items. This entry persists and is updated with status indicators
+          (✓/→/○) so the user always sees the full picture.
+        - A *progress* log showing compact status: the active_form of the
+          current in-progress item plus a completion count.
         """
         try:
             counts = state.status_counts()
+            completed = counts.get("completed", 0)
+            total = counts.get("total", 0)
+
+            all_done = not counts.get("in_progress") and not counts.get("pending")
+
+            if total > 0:
+                _STATUS_ICON = {
+                    TodoStatus.COMPLETED: "✓",
+                    TodoStatus.IN_PROGRESS: "→",
+                    TodoStatus.CANCELLED: "✗",
+                    TodoStatus.PENDING: "○",
+                }
+                lines = []
+                for i, t in enumerate(state.todos, 1):
+                    icon = _STATUS_ICON.get(t.status, "○")
+                    if t.status == TodoStatus.IN_PROGRESS:
+                        label = t.active_form or t.content
+                    else:
+                        label = t.content
+                    lines.append(f"{icon} {i}. {label}")
+                plan_text = "\n".join(lines)
+
+                self._plan_log = self._message_step_logger.create_or_update_message_log(
+                    active_message_log=self._plan_log,
+                    header=self.display_name(),
+                    progress_message=f"{completed}/{total} completed\n{plan_text}",
+                    status=(
+                        MessageLogStatus.COMPLETED
+                        if all_done
+                        else MessageLogStatus.RUNNING
+                    ),
+                )
+
+            counts_text = f"{completed}/{total} completed"
             in_progress_items = [
                 t for t in state.todos if t.status == TodoStatus.IN_PROGRESS
             ]
-
             if in_progress_items:
                 active = in_progress_items[0]
-                progress = active.active_form or active.content
+                activity = active.active_form or active.content
+                progress = f"{activity} ({counts_text})"
             else:
-                parts = []
-                for key in ("completed", "in_progress", "pending", "cancelled"):
-                    if counts.get(key):
-                        parts.append(f"{counts[key]} {key}")
-                detail = ", ".join(parts) if parts else "empty"
-                total = counts.get("total", 0)
-                progress = f"{total} items ({detail})"
-
-            status = (
-                MessageLogStatus.COMPLETED
-                if not counts.get("in_progress") and not counts.get("pending")
-                else MessageLogStatus.RUNNING
-            )
+                progress = counts_text
 
             self._message_log = self._message_step_logger.create_or_update_message_log(
                 active_message_log=self._message_log,
                 header=self.display_name(),
                 progress_message=progress,
-                status=status,
+                status=(
+                    MessageLogStatus.COMPLETED if all_done else MessageLogStatus.RUNNING
+                ),
             )
         except Exception:
             logger.debug("TodoWriteTool: failed to write step log", exc_info=True)
