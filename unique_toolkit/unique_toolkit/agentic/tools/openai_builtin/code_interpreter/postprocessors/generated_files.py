@@ -1029,9 +1029,7 @@ def _collect_stdout(call: ResponseCodeInterpreterToolCall) -> str:
 
 def _get_next_fence_id(text: str) -> int:
     """Return the next available fence id by scanning existing fences in the text."""
-    existing = re.findall(
-        r"````(?:imgWithSource|fileWithSource|htmlWithSource)\(id='(\d+)'", text
-    )
+    existing = re.findall(r"````(?:imgWithSource|fileWithSource)\(id='(\d+)'", text)
     if not existing:
         return 1
     return max(int(fid) for fid in existing) + 1
@@ -1119,9 +1117,12 @@ def _build_file_fence(file: CodeInterpreterFile, code: str, fence_id: int) -> st
     content_id, a title derived from the filename, the type, and the
     escaped source code.
 
+    HTML is not emitted here in normal flow: it is rendered via ``HtmlRendering`` blocks
+    in message text and excluded from fence injection. If ``type="html"`` is passed (e.g.
+    orphan path), fall through to ``fileWithSource`` like other non-image artifacts.
+
     Format (4 backticks so inner code backticks never close the fence):
       ````imgWithSource(id='{n}', contentId='{id}', title="{title}", code="{escaped_code}")````
-      ````htmlWithSource(id='{n}', contentId='{id}', title="{title}", code="{escaped_code}")````
       ````fileWithSource(id='{n}', contentId='{id}', title="{title}", type="{type}", code="{escaped_code}")````
     """
     title = _file_title(file.filename)
@@ -1129,8 +1130,6 @@ def _build_file_fence(file: CodeInterpreterFile, code: str, fence_id: int) -> st
     outer = "````"
     if file.type == "image":
         tag = f"imgWithSource(id='{fence_id}', contentId='{file.content_id}', title=\"{title}\", code=\"{escaped}\")"
-    elif file.type == "html":
-        tag = f"htmlWithSource(id='{fence_id}', contentId='{file.content_id}', title=\"{title}\", code=\"{escaped}\")"
     else:
         ftype = _file_frontend_type(file.filename)
         tag = f'fileWithSource(id=\'{fence_id}\', contentId=\'{file.content_id}\', title="{title}", type="{ftype}", code="{escaped}")'
@@ -1154,7 +1153,7 @@ def _inline_ref_pattern(file: CodeInterpreterFile) -> re.Pattern[str]:
 
 
 _FENCE_BLOCK_START = re.compile(
-    r"^[^\n`]+?(````(?:imgWithSource|fileWithSource|htmlWithSource)\()",
+    r"^[^\n`]+?(````(?:imgWithSource|fileWithSource)\()",
     re.MULTILINE,
 )
 
@@ -1164,9 +1163,9 @@ _FENCE_BLOCK_START = re.compile(
 #   - cross-line: 1 or 2 newlines optionally surrounded by horizontal whitespace
 #     (list-item linebreak, or blank-line paragraph gap)
 _CONSECUTIVE_FENCES_RE = re.compile(
-    r"(````(?:imgWithSource|fileWithSource|htmlWithSource)\([^\n]*\)````)"
+    r"(````(?:imgWithSource|fileWithSource)\([^\n]*\)````)"
     r"(?:[^\n`]*|[ \t]*\n{1,2}[ \t]*)"
-    r"(?=````(?:imgWithSource|fileWithSource|htmlWithSource)\()"
+    r"(?=````(?:imgWithSource|fileWithSource)\()"
 )
 
 
