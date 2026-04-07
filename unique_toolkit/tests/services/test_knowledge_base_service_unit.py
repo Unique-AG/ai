@@ -1408,72 +1408,6 @@ class TestKnowledgeBaseServiceFolderManagement:
         assert isinstance(result, list)
         assert all(isinstance(scope_id, str) for scope_id in result)
 
-    @pytest.mark.ai
-    @patch.object(KnowledgeBaseService, "get_paginated_content_infos")
-    @patch.object(KnowledgeBaseService, "get_folder_info")
-    def test_resolve_visible_file_tree__returns_paths__from_content_infos(
-        self,
-        mock_get_folder: Mock,
-        mock_get_paginated: Mock,
-        base_kb_service: KnowledgeBaseService,
-    ) -> None:
-        """
-        Purpose: Verify resolve_visible_file_tree returns list of visible folder paths.
-        Why this matters: Enables displaying folder structure to users.
-        Setup summary: Mock content infos with folder metadata, call resolve_visible_file_tree, assert paths returned.
-        """
-        # Arrange
-        content_info = ContentInfo(
-            id="cont_test",
-            object="content",
-            key="test.txt",
-            byte_size=100,
-            mime_type="text/plain",
-            owner_id="test_user",
-            created_at=datetime(2024, 1, 1, 0, 0, 0),
-            updated_at=datetime(2024, 1, 1, 0, 0, 0),
-            metadata={"folderIdPath": "uniquepathid://scope1/scope2"},
-        )
-
-        mock_get_paginated.return_value = PaginatedContentInfos(
-            object="list",
-            content_infos=[content_info],
-            total_count=1,
-        )
-
-        folder1 = FolderInfo(
-            id="scope1",
-            name="folder1",
-            parent_id=None,
-            ingestion_config={},
-            created_at=None,
-            updated_at=None,
-            external_id=None,
-        )
-        folder2 = FolderInfo(
-            id="scope2",
-            name="folder2",
-            parent_id="scope1",
-            ingestion_config={},
-            created_at=None,
-            updated_at=None,
-            external_id=None,
-        )
-
-        def folder_info_side_effect(scope_id: str) -> FolderInfo:
-            if scope_id == "scope1":
-                return folder1
-            return folder2
-
-        mock_get_folder.side_effect = folder_info_side_effect
-
-        # Act
-        result = base_kb_service.resolve_visible_file_tree()
-
-        # Assert
-        assert isinstance(result, list)
-        assert all(isinstance(path, str) for path in result)
-
 
 class TestKnowledgeBaseServiceMetadata:
     """Test cases for metadata management methods."""
@@ -1979,86 +1913,6 @@ class TestKnowledgeBaseServiceEdgeCases:
     """Test cases for edge cases and private method behaviors."""
 
     @pytest.mark.ai
-    @patch.object(KnowledgeBaseService, "get_paginated_content_infos")
-    @patch.object(KnowledgeBaseService, "get_folder_info")
-    def test_resolve_visible_file_tree__handles_fullpath_metadata(
-        self,
-        mock_get_folder: Mock,
-        mock_get_paginated: Mock,
-        base_kb_service: KnowledgeBaseService,
-    ) -> None:
-        """
-        Purpose: Verify resolve_visible_file_tree handles content with {FullPath} metadata.
-        Why this matters: Different metadata formats must be supported for path resolution.
-        Setup summary: Create ContentInfo with {FullPath} metadata, call resolve_visible_file_tree, assert path returned.
-        """
-        # Arrange
-        content_info = ContentInfo(
-            id="cont_test",
-            object="content",
-            key="test.txt",
-            byte_size=100,
-            mime_type="text/plain",
-            owner_id="test_user",
-            created_at=datetime(2024, 1, 1, 0, 0, 0),
-            updated_at=datetime(2024, 1, 1, 0, 0, 0),
-            metadata={"{FullPath}": "/folder1/folder2"},
-        )
-
-        mock_get_paginated.return_value = PaginatedContentInfos(
-            object="list",
-            content_infos=[content_info],
-            total_count=1,
-        )
-
-        # Act
-        result = base_kb_service.resolve_visible_file_tree()
-
-        # Assert
-        assert isinstance(result, list)
-        assert "/folder1/folder2" in result or "/folder1/folder2" in [p for p in result]
-
-    @pytest.mark.ai
-    @patch.object(KnowledgeBaseService, "get_paginated_content_infos")
-    @patch.object(KnowledgeBaseService, "get_folder_info")
-    def test_resolve_visible_file_tree__raises_exception__when_scope_id_not_found(
-        self,
-        mock_get_folder: Mock,
-        mock_get_paginated: Mock,
-        base_kb_service: KnowledgeBaseService,
-    ) -> None:
-        """
-        Purpose: Verify resolve_visible_file_tree raises exception when scope ID is not found.
-        Why this matters: Ensures errors are properly propagated when folder information is missing.
-        Setup summary: Create ContentInfo with folderIdPath but missing scope IDs, call resolve_visible_file_tree, verify exception raised.
-        """
-        # Arrange
-        content_info = ContentInfo(
-            id="cont_test",
-            object="content",
-            key="test.txt",
-            byte_size=100,
-            mime_type="text/plain",
-            owner_id="test_user",
-            created_at=datetime(2024, 1, 1, 0, 0, 0),
-            updated_at=datetime(2024, 1, 1, 0, 0, 0),
-            metadata={"folderIdPath": "uniquepathid://unknown_scope"},
-        )
-
-        mock_get_paginated.return_value = PaginatedContentInfos(
-            object="list",
-            content_infos=[content_info],
-            total_count=1,
-        )
-
-        # Mock get_folder_info to raise exception for unknown scope
-        mock_get_folder.side_effect = Exception("Folder not found")
-
-        # Act & Assert - Should raise exception when scope ID not found
-        with pytest.raises(Exception, match="Folder not found"):
-            base_kb_service.resolve_visible_file_tree()
-
-    @pytest.mark.ai
     @patch.object(KnowledgeBaseService, "get_folder_info")
     def test_get_folder_path__handles_root_folder__with_no_parent(
         self,
@@ -2363,3 +2217,862 @@ class TestKnowledgeBaseServiceFromContext:
         """
         svc = KnowledgeBaseService.from_context(auth_only_context)
         assert isinstance(svc, KnowledgeBaseService)
+
+
+# ---------------------------------------------------------------------------
+# Tests: File Tree Resolution
+# ---------------------------------------------------------------------------
+
+
+def _make_content_info(
+    key: str = "file.txt",
+    metadata: dict[str, Any] | None = None,
+) -> ContentInfo:
+    return ContentInfo(
+        id="cont_" + key.replace(".", "_"),
+        object="content",
+        key=key,
+        byte_size=100,
+        mime_type="text/plain",
+        owner_id="test_user",
+        created_at=datetime(2024, 1, 1),
+        updated_at=datetime(2024, 1, 1),
+        metadata=metadata,
+    )
+
+
+class TestKnowledgeBaseServiceGetPaginatedContentInfosAsync:
+    """Test cases for KnowledgeBaseService.get_paginated_content_infos_async."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch("unique_toolkit.services.knowledge_base.get_content_info_async")
+    async def test_get_paginated_content_infos_async__forwards_all_params(
+        self,
+        mock_get_content_info: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify all parameters are forwarded to the underlying SDK function.
+        Why this matters: Incorrect forwarding silently drops filters or pagination args.
+        Setup summary: Call with all params; assert SDK function receives them plus user/company IDs.
+        """
+        mock_get_content_info.return_value = PaginatedContentInfos(
+            object="list", content_infos=[], total_count=0
+        )
+
+        await base_kb_service.get_paginated_content_infos_async(
+            metadata_filter={"env": "test"},
+            skip=10,
+            take=50,
+            file_path="/docs/readme.md",
+        )
+
+        mock_get_content_info.assert_called_once_with(
+            user_id="test_user",
+            company_id="test_company",
+            metadata_filter={"env": "test"},
+            skip=10,
+            take=50,
+            file_path="/docs/readme.md",
+        )
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch("unique_toolkit.services.knowledge_base.get_content_info_async")
+    async def test_get_paginated_content_infos_async__returns_paginated_result(
+        self,
+        mock_get_content_info: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify the SDK return value is passed through unchanged.
+        Why this matters: Callers depend on the PaginatedContentInfos contract.
+        Setup summary: Mock returns a PaginatedContentInfos; assert same object returned.
+        """
+        expected = PaginatedContentInfos(
+            object="list",
+            content_infos=[_make_content_info(key="a.txt")],
+            total_count=1,
+        )
+        mock_get_content_info.return_value = expected
+
+        result = await base_kb_service.get_paginated_content_infos_async()
+
+        assert result is expected
+
+
+class TestKnowledgeBaseServiceGetFolderInfoAsync:
+    """Test cases for KnowledgeBaseService.get_folder_info_async."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch("unique_toolkit.services.knowledge_base.get_folder_info_async")
+    async def test_get_folder_info_async__returns_folder_info(
+        self,
+        mock_get_folder_info: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify FolderInfo is returned for a valid scope ID.
+        Why this matters: Folder info is required for scope ID translation.
+        Setup summary: Mock SDK function; assert FolderInfo returned.
+        """
+        expected = FolderInfo(
+            id="scope_1",
+            name="Documents",
+            parent_id=None,
+            ingestion_config={},
+            created_at=None,
+            updated_at=None,
+            external_id=None,
+        )
+        mock_get_folder_info.return_value = expected
+
+        result = await base_kb_service.get_folder_info_async(scope_id="scope_1")
+
+        assert result is expected
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch("unique_toolkit.services.knowledge_base.get_folder_info_async")
+    async def test_get_folder_info_async__forwards_credentials_and_scope_id(
+        self,
+        mock_get_folder_info: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify user_id, company_id, and scope_id are forwarded correctly.
+        Why this matters: Wrong credentials would return another tenant's folder data.
+        Setup summary: Call with scope_id; assert SDK function called with correct args.
+        """
+        mock_get_folder_info.return_value = FolderInfo(
+            id="scope_x",
+            name="folder",
+            parent_id=None,
+            ingestion_config={},
+            created_at=None,
+            updated_at=None,
+            external_id=None,
+        )
+
+        await base_kb_service.get_folder_info_async(scope_id="scope_x")
+
+        mock_get_folder_info.assert_called_once_with(
+            user_id="test_user",
+            company_id="test_company",
+            scope_id="scope_x",
+        )
+
+
+class TestKnowledgeBaseServiceGetContentInfosAsync:
+    """Test cases for KnowledgeBaseService.get_content_infos_async."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "get_paginated_content_infos_async")
+    async def test_get_content_infos_async__fetches_and_flattens_all_pages(
+        self,
+        mock_paginated: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify all pages are fetched and content infos are flattened into one list.
+        Why this matters: Core pagination logic; incomplete fetching means missing content.
+        Setup summary: total_count=250, step_size=100 -> 3 pages; assert all items collected.
+        """
+        page1 = [_make_content_info(key=f"p1_{i}.txt") for i in range(100)]
+        page2 = [_make_content_info(key=f"p2_{i}.txt") for i in range(100)]
+        page3 = [_make_content_info(key=f"p3_{i}.txt") for i in range(50)]
+
+        mock_paginated.side_effect = [
+            PaginatedContentInfos(object="list", content_infos=[], total_count=250),
+            PaginatedContentInfos(object="list", content_infos=page1, total_count=250),
+            PaginatedContentInfos(object="list", content_infos=page2, total_count=250),
+            PaginatedContentInfos(object="list", content_infos=page3, total_count=250),
+        ]
+
+        result = await base_kb_service.get_content_infos_async(step_size=100)
+
+        assert len(result) == 250
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "get_paginated_content_infos_async")
+    async def test_get_content_infos_async__returns_empty__when_total_count_zero(
+        self,
+        mock_paginated: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify empty list returned when no content exists.
+        Why this matters: Edge case; empty knowledge base must not crash.
+        Setup summary: total_count=0; assert empty list and no page fetches.
+        """
+        mock_paginated.return_value = PaginatedContentInfos(
+            object="list", content_infos=[], total_count=0
+        )
+
+        result = await base_kb_service.get_content_infos_async()
+
+        assert result == []
+        mock_paginated.assert_called_once()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "get_paginated_content_infos_async")
+    async def test_get_content_infos_async__forwards_metadata_filter(
+        self,
+        mock_paginated: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify metadata_filter is forwarded to both the count call and page calls.
+        Why this matters: Missing filter returns unscoped content from other contexts.
+        Setup summary: Call with metadata_filter; assert all calls include it.
+        """
+        mock_paginated.side_effect = [
+            PaginatedContentInfos(object="list", content_infos=[], total_count=50),
+            PaginatedContentInfos(
+                object="list",
+                content_infos=[_make_content_info()],
+                total_count=50,
+            ),
+        ]
+
+        await base_kb_service.get_content_infos_async(metadata_filter={"env": "prod"})
+
+        for call in mock_paginated.call_args_list:
+            assert call.kwargs["metadata_filter"] == {"env": "prod"}
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "get_paginated_content_infos_async")
+    async def test_get_content_infos_async__handles_page_exception_gracefully(
+        self,
+        mock_paginated: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify a failed page fetch does not crash; partial results are returned.
+        Why this matters: Resilience — one failed page should not discard all other pages.
+        Setup summary: 2 pages, second raises; assert first page's items returned.
+        """
+        good_items = [_make_content_info(key="good.txt")]
+
+        async def side_effect(**kwargs: Any) -> PaginatedContentInfos:
+            if kwargs.get("take") == 1:
+                return PaginatedContentInfos(
+                    object="list", content_infos=[], total_count=200
+                )
+            if kwargs.get("skip") == 0:
+                return PaginatedContentInfos(
+                    object="list", content_infos=good_items, total_count=200
+                )
+            raise ConnectionError("page fetch failed")
+
+        mock_paginated.side_effect = side_effect
+
+        result = await base_kb_service.get_content_infos_async(step_size=100)
+
+        assert len(result) == 1
+        assert result[0].key == "good.txt"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "get_paginated_content_infos_async")
+    async def test_get_content_infos_async__respects_step_size(
+        self,
+        mock_paginated: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify step_size controls page size and number of fetches.
+        Why this matters: Incorrect step_size handling causes missing or duplicate items.
+        Setup summary: total_count=150, step_size=50 -> 3 page fetches with correct skip/take.
+        """
+        items = [_make_content_info(key=f"f{i}.txt") for i in range(50)]
+
+        mock_paginated.side_effect = [
+            PaginatedContentInfos(object="list", content_infos=[], total_count=150),
+            PaginatedContentInfos(object="list", content_infos=items, total_count=150),
+            PaginatedContentInfos(object="list", content_infos=items, total_count=150),
+            PaginatedContentInfos(object="list", content_infos=items, total_count=150),
+        ]
+
+        result = await base_kb_service.get_content_infos_async(step_size=50)
+
+        assert len(result) == 150
+        page_calls = mock_paginated.call_args_list[1:]
+        assert len(page_calls) == 3
+        skips = sorted(call.kwargs["skip"] for call in page_calls)
+        assert skips == [0, 50, 100]
+        for call in page_calls:
+            assert call.kwargs["take"] == 50
+
+
+class TestKnowledgeBaseServiceExtractScopeIds:
+    """Test cases for KnowledgeBaseService.extract_scope_ids."""
+
+    @pytest.mark.ai
+    def test_extract_scope_ids__returns_ids__from_folder_id_path(self) -> None:
+        """
+        Purpose: Verify scope IDs are extracted from folderIdPath metadata.
+        Why this matters: Scope IDs are needed to resolve folder names for display.
+        Setup summary: Two content infos with different folderIdPaths; assert union of IDs returned.
+        """
+        content_infos = [
+            _make_content_info(
+                key="a.txt",
+                metadata={"folderIdPath": "uniquepathid://id1/id2"},
+            ),
+            _make_content_info(
+                key="b.txt",
+                metadata={"folderIdPath": "uniquepathid://id2/id3"},
+            ),
+        ]
+        result = KnowledgeBaseService.extract_scope_ids(content_infos)
+        assert result == {"id1", "id2", "id3"}
+
+    @pytest.mark.ai
+    def test_extract_scope_ids__returns_empty_set__when_no_metadata(self) -> None:
+        """
+        Purpose: Verify empty set returned when content has no metadata.
+        Why this matters: Graceful handling of content without folder info prevents crashes.
+        Setup summary: Content info with metadata=None; assert empty set.
+        """
+        content_infos = [_make_content_info(key="a.txt", metadata=None)]
+        result = KnowledgeBaseService.extract_scope_ids(content_infos)
+        assert result == set()
+
+    @pytest.mark.ai
+    def test_extract_scope_ids__returns_empty_set__when_no_folder_id_path(self) -> None:
+        """
+        Purpose: Verify empty set when metadata exists but folderIdPath is absent.
+        Why this matters: Not all content has a folder path; method must handle gracefully.
+        Setup summary: Content info with metadata missing folderIdPath; assert empty set.
+        """
+        content_infos = [_make_content_info(key="a.txt", metadata={"other": "value"})]
+        result = KnowledgeBaseService.extract_scope_ids(content_infos)
+        assert result == set()
+
+    @pytest.mark.ai
+    def test_extract_scope_ids__skips_empty_segments(self) -> None:
+        """
+        Purpose: Verify empty segments from leading/trailing slashes are filtered out.
+        Why this matters: The uniquepathid:// prefix leaves an empty segment after split.
+        Setup summary: folderIdPath with trailing slash; assert no empty strings in result.
+        """
+        content_infos = [
+            _make_content_info(
+                key="a.txt",
+                metadata={"folderIdPath": "uniquepathid://id1/id2/"},
+            ),
+        ]
+        result = KnowledgeBaseService.extract_scope_ids(content_infos)
+        assert result == {"id1", "id2"}
+        assert "" not in result
+
+    @pytest.mark.ai
+    def test_extract_scope_ids__returns_empty_set__for_empty_list(self) -> None:
+        """
+        Purpose: Verify empty set returned for empty input.
+        Why this matters: Edge case; callers may pass empty content lists.
+        Setup summary: Empty content_infos list; assert empty set.
+        """
+        result = KnowledgeBaseService.extract_scope_ids([])
+        assert result == set()
+
+    @pytest.mark.ai
+    def test_extract_scope_ids__ignores_non_string_folder_id_path(self) -> None:
+        """
+        Purpose: Verify non-string folderIdPath values are ignored.
+        Why this matters: Metadata may contain unexpected types; method must not crash.
+        Setup summary: folderIdPath set to an integer; assert empty set.
+        """
+        content_infos = [
+            _make_content_info(key="a.txt", metadata={"folderIdPath": 12345}),
+        ]
+        result = KnowledgeBaseService.extract_scope_ids(content_infos)
+        assert result == set()
+
+    @pytest.mark.ai
+    def test_extract_scope_ids__deduplicates_across_content_infos(self) -> None:
+        """
+        Purpose: Verify duplicate scope IDs across content items are deduplicated.
+        Why this matters: Reduces redundant API calls during translation.
+        Setup summary: Two content infos sharing the same scope IDs; assert set has no duplicates.
+        """
+        content_infos = [
+            _make_content_info(
+                key="a.txt",
+                metadata={"folderIdPath": "uniquepathid://shared_id/unique_a"},
+            ),
+            _make_content_info(
+                key="b.txt",
+                metadata={"folderIdPath": "uniquepathid://shared_id/unique_b"},
+            ),
+        ]
+        result = KnowledgeBaseService.extract_scope_ids(content_infos)
+        assert result == {"shared_id", "unique_a", "unique_b"}
+
+
+class TestKnowledgeBaseServiceTranslateScopeIdAsync:
+    """Test cases for KnowledgeBaseService._translate_scope_id_async."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch("unique_toolkit.services.knowledge_base.get_folder_info_async")
+    async def test_translate_scope_id__returns_folder_name__on_success(
+        self,
+        mock_get_folder_info: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify folder name is returned for a valid scope ID.
+        Why this matters: Core path resolution depends on translating IDs to names.
+        Setup summary: Mock get_folder_info_async to return a folder; assert name returned.
+        """
+        mock_get_folder_info.return_value = FolderInfo(
+            id="scope_1",
+            name="Documents",
+            parent_id=None,
+            ingestion_config={},
+            created_at=None,
+            updated_at=None,
+            external_id=None,
+        )
+
+        result = await base_kb_service._translate_scope_id_async("scope_1")
+
+        assert result == "Documents"
+        mock_get_folder_info.assert_called_once()
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch("unique_toolkit.services.knowledge_base.get_folder_info_async")
+    async def test_translate_scope_id__returns_none__on_exception(
+        self,
+        mock_get_folder_info: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify None is returned when folder lookup fails.
+        Why this matters: Graceful degradation prevents one bad scope ID from crashing the whole resolution.
+        Setup summary: Mock get_folder_info_async to raise; assert None returned without exception.
+        """
+        mock_get_folder_info.side_effect = Exception("Not found")
+
+        result = await base_kb_service._translate_scope_id_async("bad_scope")
+
+        assert result is None
+
+
+class TestKnowledgeBaseServiceTranslateScopeIdsAsync:
+    """Test cases for KnowledgeBaseService._translate_scope_ids_async."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_translate_scope_ids__returns_mapping__for_all_ids(
+        self,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify all scope IDs are translated to folder names concurrently.
+        Why this matters: Batch translation with concurrency is the performance-critical path.
+        Setup summary: Patch _translate_scope_id_async to return deterministic names; assert full mapping.
+        """
+
+        async def mock_translate(scope_id: str) -> str:
+            return f"folder_{scope_id}"
+
+        with patch.object(
+            base_kb_service, "_translate_scope_id_async", side_effect=mock_translate
+        ):
+            result = await base_kb_service._translate_scope_ids_async(
+                {"id1", "id2", "id3"}
+            )
+
+        assert len(result) == 3
+        assert result["id1"] == "folder_id1"
+        assert result["id2"] == "folder_id2"
+        assert result["id3"] == "folder_id3"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_translate_scope_ids__excludes_failed_ids__from_mapping(
+        self,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify failed translations are excluded from the result mapping.
+        Why this matters: Callers fall back to raw scope IDs for unresolved entries.
+        Setup summary: Mock returns None for one ID; assert it is absent from result.
+        """
+
+        async def mock_translate(scope_id: str) -> str | None:
+            if scope_id == "bad_id":
+                return None
+            return f"folder_{scope_id}"
+
+        with patch.object(
+            base_kb_service, "_translate_scope_id_async", side_effect=mock_translate
+        ):
+            result = await base_kb_service._translate_scope_ids_async(
+                {"good_id", "bad_id"}
+            )
+
+        assert "good_id" in result
+        assert "bad_id" not in result
+        assert result["good_id"] == "folder_good_id"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_translate_scope_ids__returns_empty_dict__for_empty_input(
+        self,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify empty dict returned for empty scope IDs.
+        Why this matters: Edge case; content may have no folder paths at all.
+        Setup summary: Empty set input; assert empty dict.
+        """
+        result = await base_kb_service._translate_scope_ids_async(set())
+        assert result == {}
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_translate_scope_ids__respects_concurrency_limit(
+        self,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify the semaphore limits concurrent requests.
+        Why this matters: Prevents overwhelming the API with too many concurrent calls.
+        Setup summary: Set max_concurrent_requests=2, track concurrency with counter; assert max never exceeded.
+        """
+        import asyncio
+
+        max_observed_concurrency = 0
+        current_concurrency = 0
+        lock = asyncio.Lock()
+
+        async def mock_translate(scope_id: str) -> str:
+            nonlocal max_observed_concurrency, current_concurrency
+            async with lock:
+                current_concurrency += 1
+                max_observed_concurrency = max(
+                    max_observed_concurrency, current_concurrency
+                )
+            await asyncio.sleep(0.01)
+            async with lock:
+                current_concurrency -= 1
+            return f"folder_{scope_id}"
+
+        with patch.object(
+            base_kb_service, "_translate_scope_id_async", side_effect=mock_translate
+        ):
+            await base_kb_service._translate_scope_ids_async(
+                {"a", "b", "c", "d", "e"},
+                max_concurrent_requests=2,
+            )
+
+        assert max_observed_concurrency <= 2
+
+
+class TestKnowledgeBaseServiceResolveVisibleFilePathsAsync:
+    """Test cases for KnowledgeBaseService.resolve_visible_file_paths_async."""
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_async")
+    @patch.object(KnowledgeBaseService, "get_content_infos_async")
+    async def test_resolve_visible_file_paths__uses_folder_id_path(
+        self,
+        mock_get_content_infos: AsyncMock,
+        mock_translate: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify file paths are resolved using folderIdPath metadata.
+        Why this matters: Primary path resolution for content ingested through standard connectors.
+        Setup summary: Mock content with folderIdPath; mock translation; assert folder + filename path.
+        """
+        mock_get_content_infos.return_value = [
+            _make_content_info(
+                key="report.pdf",
+                metadata={"folderIdPath": "uniquepathid://scope_a/scope_b"},
+            ),
+        ]
+        mock_translate.return_value = {"scope_a": "Documents", "scope_b": "Reports"}
+
+        result = await base_kb_service.resolve_visible_file_paths_async()
+
+        assert result == [["Documents", "Reports", "report.pdf"]]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_async")
+    @patch.object(KnowledgeBaseService, "get_content_infos_async")
+    async def test_resolve_visible_file_paths__falls_back_to_no_folder_path(
+        self,
+        mock_get_content_infos: AsyncMock,
+        mock_translate: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify fallback when neither {FullPath} nor folderIdPath is present.
+        Why this matters: Content without folder metadata must still appear in results.
+        Setup summary: Content with empty metadata; assert _no_folder_path sentinel used.
+        """
+        mock_get_content_infos.return_value = [
+            _make_content_info(key="orphan.txt", metadata={}),
+        ]
+        mock_translate.return_value = {}
+
+        result = await base_kb_service.resolve_visible_file_paths_async()
+
+        assert result == [["_no_folder_path", "orphan.txt"]]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_async")
+    @patch.object(KnowledgeBaseService, "get_content_infos_async")
+    async def test_resolve_visible_file_paths__falls_back__when_metadata_is_none(
+        self,
+        mock_get_content_infos: AsyncMock,
+        mock_translate: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify fallback when metadata is None.
+        Why this matters: Metadata field is optional; None must not cause AttributeError.
+        Setup summary: Content with metadata=None; assert _no_folder_path sentinel used.
+        """
+        mock_get_content_infos.return_value = [
+            _make_content_info(key="no_meta.txt", metadata=None),
+        ]
+        mock_translate.return_value = {}
+
+        result = await base_kb_service.resolve_visible_file_paths_async()
+
+        assert result == [["_no_folder_path", "no_meta.txt"]]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_async")
+    @patch.object(KnowledgeBaseService, "get_content_infos_async")
+    async def test_resolve_visible_file_paths__uses_raw_scope_id__when_translation_missing(
+        self,
+        mock_get_content_infos: AsyncMock,
+        mock_translate: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify raw scope ID is used when translation fails for that ID.
+        Why this matters: Partial translation failures should degrade gracefully, not crash.
+        Setup summary: Translation mapping missing one scope ID; assert raw ID used as fallback.
+        """
+        mock_get_content_infos.return_value = [
+            _make_content_info(
+                key="file.txt",
+                metadata={"folderIdPath": "uniquepathid://known/unknown"},
+            ),
+        ]
+        mock_translate.return_value = {"known": "ResolvedFolder"}
+
+        result = await base_kb_service.resolve_visible_file_paths_async()
+
+        assert result == [["ResolvedFolder", "unknown", "file.txt"]]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_async")
+    @patch.object(KnowledgeBaseService, "get_content_infos_async")
+    async def test_resolve_visible_file_paths__returns_empty_list__for_no_content(
+        self,
+        mock_get_content_infos: AsyncMock,
+        mock_translate: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify empty list returned when no content exists.
+        Why this matters: Callers iterating over results must handle empty gracefully.
+        Setup summary: Mock returns empty content list; assert empty result.
+        """
+        mock_get_content_infos.return_value = []
+        mock_translate.return_value = {}
+
+        result = await base_kb_service.resolve_visible_file_paths_async()
+
+        assert result == []
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_async")
+    @patch.object(KnowledgeBaseService, "get_content_infos_async")
+    async def test_resolve_visible_file_paths__passes_metadata_filter(
+        self,
+        mock_get_content_infos: AsyncMock,
+        mock_translate: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify metadata_filter parameter is forwarded to get_content_infos_async.
+        Why this matters: Callers may want to narrow the scope of resolved paths.
+        Setup summary: Call with metadata_filter; assert it is passed through.
+        """
+        mock_get_content_infos.return_value = []
+        mock_translate.return_value = {}
+
+        await base_kb_service.resolve_visible_file_paths_async(
+            metadata_filter={"env": "prod"}
+        )
+
+        mock_get_content_infos.assert_called_once_with(metadata_filter={"env": "prod"})
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_async")
+    @patch.object(KnowledgeBaseService, "get_content_infos_async")
+    async def test_resolve_visible_file_paths__handles_mixed_content(
+        self,
+        mock_get_content_infos: AsyncMock,
+        mock_translate: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify mixed content (folderIdPath and no metadata) handled together.
+        Why this matters: Real-world content mixes metadata types; all branches must coexist.
+        Setup summary: Three content items with different metadata types; assert each resolved correctly.
+        """
+        mock_get_content_infos.return_value = [
+            _make_content_info(
+                key="uploaded.pdf",
+                metadata={"folderIdPath": "uniquepathid://scope_x/scope_y"},
+            ),
+            _make_content_info(
+                key="another.doc",
+                metadata={"folderIdPath": "uniquepathid://scope_x"},
+            ),
+            _make_content_info(key="orphan.txt", metadata={}),
+        ]
+        mock_translate.return_value = {"scope_x": "Uploads", "scope_y": "Reports"}
+
+        result = await base_kb_service.resolve_visible_file_paths_async()
+
+        assert len(result) == 3
+        assert result[0] == ["Uploads", "Reports", "uploaded.pdf"]
+        assert result[1] == ["Uploads", "another.doc"]
+        assert result[2] == ["_no_folder_path", "orphan.txt"]
+
+
+class TestKnowledgeBaseServiceDisplayPathTree:
+    """Test cases for KnowledgeBaseService.display_path_tree."""
+
+    @pytest.mark.ai
+    def test_display_path_tree__renders_simple_tree(self) -> None:
+        """
+        Purpose: Verify basic tree rendering with shared parent.
+        Why this matters: Core display functionality for file tree visualization.
+        Setup summary: Two paths sharing a parent; assert tree-style output with connectors.
+        """
+        paths = [["docs", "api"], ["docs", "guides"], ["src"]]
+        result = KnowledgeBaseService.display_path_tree(paths)
+
+        assert "." in result
+        assert "docs" in result
+        assert "api" in result
+        assert "guides" in result
+        assert "src" in result
+        assert "├── " in result or "└── " in result
+
+    @pytest.mark.ai
+    def test_display_path_tree__returns_root_only__for_empty_paths(self) -> None:
+        """
+        Purpose: Verify only root name returned when no paths provided.
+        Why this matters: Empty knowledge bases should not crash the display.
+        Setup summary: Empty paths list; assert only root name returned.
+        """
+        result = KnowledgeBaseService.display_path_tree([])
+        assert result == "."
+
+    @pytest.mark.ai
+    def test_display_path_tree__uses_custom_root_name(self) -> None:
+        """
+        Purpose: Verify custom root_name is used in output.
+        Why this matters: Callers may want to display a meaningful root label.
+        Setup summary: Custom root name; assert it appears in output.
+        """
+        result = KnowledgeBaseService.display_path_tree(
+            [["a"]], root_name="Knowledge Base"
+        )
+        assert result.startswith("Knowledge Base")
+
+    @pytest.mark.ai
+    def test_display_path_tree__renders_deeply_nested_paths(self) -> None:
+        """
+        Purpose: Verify deep nesting is correctly indented.
+        Why this matters: Real folder structures can be deeply nested.
+        Setup summary: Path with 4 levels; assert all segments appear in output.
+        """
+        paths = [["a", "b", "c", "d"]]
+        result = KnowledgeBaseService.display_path_tree(paths)
+
+        for segment in ["a", "b", "c", "d"]:
+            assert segment in result
+
+    @pytest.mark.ai
+    def test_display_path_tree__sorts_folders_before_files(self) -> None:
+        """
+        Purpose: Verify folders (nodes with children) appear before files (leaf nodes).
+        Why this matters: Consistent ordering improves readability of tree output.
+        Setup summary: Mix of folder and file at same level; assert folder listed first.
+        """
+        paths = [["z_file"], ["a_folder", "child"]]
+        result = KnowledgeBaseService.display_path_tree(paths)
+
+        lines = result.split("\n")
+        folder_line_idx = next(i for i, line in enumerate(lines) if "a_folder" in line)
+        file_line_idx = next(i for i, line in enumerate(lines) if "z_file" in line)
+        assert folder_line_idx < file_line_idx
+
+    @pytest.mark.ai
+    def test_display_path_tree__handles_single_file(self) -> None:
+        """
+        Purpose: Verify single-file tree renders correctly.
+        Why this matters: Simplest non-empty case must work.
+        Setup summary: One path with one segment; assert └── connector used.
+        """
+        result = KnowledgeBaseService.display_path_tree([["only_file.txt"]])
+        assert "└── only_file.txt" in result
+
+    @pytest.mark.ai
+    def test_display_path_tree__skips_empty_segments(self) -> None:
+        """
+        Purpose: Verify empty strings in path segments are filtered out.
+        Why this matters: Upstream may produce empty segments from split operations.
+        Setup summary: Path with empty strings; assert they don't appear in output.
+        """
+        paths = [["", "folder", "", "file.txt"]]
+        result = KnowledgeBaseService.display_path_tree(paths)
+
+        assert "folder" in result
+        assert "file.txt" in result
+        lines = [ln.strip() for ln in result.split("\n") if ln.strip()]
+        for line in lines:
+            stripped = line.lstrip("│├└── ─\u00a0 ")
+            if stripped:
+                assert stripped != ""
+
+    @pytest.mark.ai
+    def test_display_path_tree__merges_shared_prefixes(self) -> None:
+        """
+        Purpose: Verify paths sharing a common prefix are merged in the tree.
+        Why this matters: Tree display must not duplicate shared folders.
+        Setup summary: Two paths sharing root folder; count occurrences of shared folder name.
+        """
+        paths = [["shared", "a.txt"], ["shared", "b.txt"]]
+        result = KnowledgeBaseService.display_path_tree(paths)
+
+        assert result.count("shared") == 1

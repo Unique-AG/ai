@@ -23,7 +23,9 @@ from unique_toolkit.content.functions import (
     download_content_to_bytes_async,
     download_content_to_file_by_id,
     get_content_info,
+    get_content_info_async,
     get_folder_info,
+    get_folder_info_async,
     search_content_chunks,
     search_content_chunks_async,
     search_contents,
@@ -685,6 +687,80 @@ class KnowledgeBaseService:
             file_path=file_path,
         )
 
+    async def get_paginated_content_infos_async(
+        self,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+        skip: int | None = None,
+        take: int | None = None,
+        file_path: str | None = None,
+    ) -> PaginatedContentInfos:
+        return await get_content_info_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            metadata_filter=metadata_filter,
+            skip=skip,
+            take=take,
+            file_path=file_path,
+        )
+
+    async def get_content_infos_async(
+        self,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+        step_size: int = 100,
+        max_concurrent_requests: int = 10,
+    ) -> list[ContentInfo]:
+        """
+        Fetches all content infos from the knowledge base using parallel pagination.
+        The API limits responses to 100 items per request, so this method fetches
+        the total count first, then retrieves all pages concurrently (bounded by
+        ``max_concurrent_requests`` to avoid rate limiting or connection exhaustion).
+
+        Args:
+            metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
+            step_size (int): Number of items per page. Defaults to 100.
+            max_concurrent_requests (int): Maximum number of concurrent API calls.
+                Defaults to 10.
+
+        Returns:
+            list[ContentInfo]: All content infos visible to the user.
+        """
+
+        info_for_count_of_total_content = await self.get_paginated_content_infos_async(
+            metadata_filter=metadata_filter,
+            take=1,
+        )
+
+        total_count = info_for_count_of_total_content.total_count
+
+        semaphore = asyncio.Semaphore(max_concurrent_requests)
+
+        async def _fetch_page(skip: int) -> PaginatedContentInfos:
+            async with semaphore:
+                return await self.get_paginated_content_infos_async(
+                    metadata_filter=metadata_filter,
+                    skip=skip,
+                    take=step_size,
+                )
+
+        results: list[PaginatedContentInfos | BaseException] = await asyncio.gather(
+            *[_fetch_page(i) for i in range(0, total_count, step_size)],
+            return_exceptions=True,
+        )
+
+        # Log any exceptions that occurred during parallel fetching
+        for result in results:
+            if isinstance(result, BaseException):
+                _LOGGER.error("Error fetching paginated content infos", exc_info=result)
+
+        return [
+            content_info
+            for result in results
+            if not isinstance(result, BaseException)
+            for content_info in result.content_infos
+        ]
+
     def get_file_names_in_folder(self, *, scope_id: str) -> list[str]:
         """
         Get the list of file names in a knowledge base folder
@@ -717,71 +793,178 @@ class KnowledgeBaseService:
             scope_id=scope_id,
         )
 
-    def _resolve_visible_file_tree(self, content_infos: list[ContentInfo]) -> list[str]:
-        # collect all scope ids
-        folder_id_paths: set[str] = set()
-        known_folder_paths: set[str] = set()
-        for content_info in content_infos:
-            if (
-                content_info.metadata
-                and content_info.metadata.get(r"{FullPath}") is not None
-            ):
-                known_folder_paths.add(str(content_info.metadata.get(r"{FullPath}")))
-                continue
-
-            if (
-                content_info.metadata
-                and content_info.metadata.get("folderIdPath") is not None
-            ):
-                folder_id_paths.add(str(content_info.metadata.get("folderIdPath")))
-
-        scope_ids: set[str] = set()
-        for fp in folder_id_paths:
-            scope_ids_list = set(fp.replace("uniquepathid://", "").split("/"))
-            scope_ids.update(scope_ids_list)
-
-        scope_id_to_folder_name: dict[str, str] = {}
-        for scope_id in scope_ids:
-            folder_info = self.get_folder_info(
-                scope_id=scope_id,
-            )
-            scope_id_to_folder_name[scope_id] = folder_info.name
-
-        folder_paths: set[str] = set()
-        for folder_id_path in folder_id_paths:
-            scope_ids_list = folder_id_path.replace("uniquepathid://", "").split("/")
-
-            if all(scope_id in scope_id_to_folder_name for scope_id in scope_ids_list):
-                folder_path = [
-                    scope_id_to_folder_name[scope_id] for scope_id in scope_ids_list
-                ]
-                folder_paths.add("/".join(folder_path))
-
-        return [
-            p if p.startswith("/") else f"/{p}"
-            for p in folder_paths.union(known_folder_paths)
-        ]
-
-    def resolve_visible_file_tree(
-        self, *, metadata_filter: dict[str, Any] | None = None
-    ) -> list[str]:
-        """
-        Resolves the visible file tree for the knowledge base for the current user.
-
-        Args:
-            metadata_filter (dict[str, Any] | None): The metadata filter to use. Defaults to None.
-
-        Returns:
-            list[str]: The visible file tree.
-
-
-
-        """
-        info = self.get_paginated_content_infos(
-            metadata_filter=metadata_filter,
+    async def get_folder_info_async(
+        self,
+        *,
+        scope_id: str,
+    ) -> FolderInfo:
+        return await get_folder_info_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            scope_id=scope_id,
         )
 
-        return self._resolve_visible_file_tree(content_infos=info.content_infos)
+    # File Tree Resolution
+    # ------------------------------------------------------------------------------------------------
+
+    @staticmethod
+    def extract_scope_ids(content_infos: list[ContentInfo]) -> set[str]:
+        """Extracts all unique scope IDs from the ``folderIdPath`` metadata field.
+
+        Args:
+            content_infos: The content infos to extract scope IDs from.
+
+        Returns:
+            set[str]: All unique scope IDs found across content infos.
+        """
+        scope_ids: set[str] = set()
+        for content_info in content_infos:
+            metadata = content_info.metadata
+            if (
+                metadata
+                and (folder_id_path := metadata.get("folderIdPath")) is not None
+                and isinstance(folder_id_path, str)
+            ):
+                for sid in folder_id_path.replace("uniquepathid://", "").split("/"):
+                    if sid:
+                        scope_ids.add(sid)
+        return scope_ids
+
+    async def _translate_scope_id_async(self, scope_id: str) -> str | None:
+        """Resolve a single scope ID to its folder name.
+
+        Returns the folder name, or ``None`` if the lookup fails.
+        """
+        try:
+            folder_info = await self.get_folder_info_async(scope_id=scope_id)
+            return folder_info.name
+        except Exception as e:
+            _LOGGER.warning(
+                f"Could not resolve folder for scope_id {scope_id}", exc_info=e
+            )
+            return None
+
+    async def _translate_scope_ids_async(
+        self,
+        scope_ids: set[str],
+        *,
+        max_concurrent_requests: int = 25,
+    ) -> dict[str, str]:
+        """Translate a set of scope IDs to folder names concurrently.
+
+        Scope IDs that cannot be resolved are silently omitted from the result.
+
+        Args:
+            scope_ids: The scope IDs to translate.
+            max_concurrent_requests: Maximum number of concurrent API calls.
+                Defaults to 25.
+
+        Returns:
+            dict[str, str]: Mapping from scope ID to folder name.
+        """
+        scope_id_list = list(scope_ids)
+        semaphore = asyncio.Semaphore(max_concurrent_requests)
+
+        async def _resolve(sid: str) -> str | None:
+            async with semaphore:
+                return await self._translate_scope_id_async(sid)
+
+        results = await asyncio.gather(*[_resolve(sid) for sid in scope_id_list])
+        return {
+            sid: name for sid, name in zip(scope_id_list, results) if name is not None
+        }
+
+    async def resolve_visible_file_paths_async(
+        self,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+    ) -> list[list[str]]:
+        """Resolves file paths visible to the current user asynchronously.
+
+        Each path is returned as a list of segments (folder names followed by filename).
+        E.g. ``[["Documents", "Reports", "report.pdf"], ["Images", "photo.jpg"]]``
+
+        Args:
+            metadata_filter: Optional metadata filter to narrow the content scope.
+
+        Returns:
+            list[list[str]]: Each inner list is ``[folder1, folder2, ..., filename]``.
+        """
+        content_infos = await self.get_content_infos_async(
+            metadata_filter=metadata_filter
+        )
+
+        scope_ids = self.extract_scope_ids(content_infos)
+        scope_id_to_folder_name = await self._translate_scope_ids_async(scope_ids)
+
+        file_paths: list[list[str]] = []
+        for content_info in content_infos:
+            metadata = content_info.metadata
+
+            if (
+                metadata
+                and (folder_id_path := metadata.get("folderIdPath")) is not None
+                and isinstance(folder_id_path, str)
+            ):
+                file_path = [
+                    scope_id_to_folder_name.get(sid, sid)
+                    for sid in folder_id_path.replace("uniquepathid://", "").split("/")
+                    if sid
+                ]
+            else:
+                file_path = ["_no_folder_path"]
+
+            file_path.append(content_info.key)
+            file_paths.append(file_path)
+
+        return file_paths
+
+    @staticmethod
+    def display_path_tree(paths: list[list[str]], root_name: str = ".") -> str:
+        """Renders a list of path segment lists as a ``tree``-style string.
+
+        Args:
+            paths: List of path lists, e.g. ``[["a", "b"], ["a", "c"], ["d"]]``.
+            root_name: Name to show for the root node. Defaults to ``"."``.
+
+        Returns:
+            String representation of the tree.
+
+        Example::
+
+            >>> KnowledgeBaseService.display_path_tree(
+            ...     [["docs", "api"], ["docs", "guides"], ["src"]]
+            ... )
+            .
+            ├── docs
+            │   ├── api
+            │   └── guides
+            └── src
+        """
+        if not paths:
+            return root_name
+
+        tree: dict[str, dict] = {}
+        for path in paths:
+            current = tree
+            for segment in path:
+                if segment:
+                    current = current.setdefault(segment, {})
+
+        def _render(node: dict, prefix: str = "") -> list[str]:
+            lines: list[str] = []
+            folders = sorted(k for k in node if node[k])
+            files = sorted(k for k in node if not node[k])
+            children = folders + files
+            for i, name in enumerate(children):
+                last = i == len(children) - 1
+                connector = "└── " if last else "├── "
+                lines.append(prefix + connector + name)
+                child_prefix = prefix + ("    " if last else "│   ")
+                lines.extend(_render(node[name], child_prefix))
+            return lines
+
+        return "\n".join([root_name] + _render(tree))
 
     def _pop_forbidden_metadata_keys(self, metadata: dict[str, Any]) -> dict[str, Any]:
         forbidden_keys = [
