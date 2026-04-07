@@ -77,7 +77,7 @@ def mock_streaming_handler() -> MagicMock:
 def mock_chat_service() -> MagicMock:
     """Provide a mock chat service."""
     service = MagicMock()
-    service.modify_assistant_message = MagicMock()
+    service.modify_assistant_message_async = AsyncMock()
     return service
 
 
@@ -653,7 +653,9 @@ class TestQwenProcessResponse:
 
         # Assert
         assert result.message.text == ""
-        mock_chat_service.modify_assistant_message.assert_called_once_with(content="")
+        mock_chat_service.modify_assistant_message_async.assert_called_once_with(
+            content=""
+        )
 
     @pytest.mark.ai
     @patch(
@@ -686,7 +688,7 @@ class TestQwenProcessResponse:
 
         # Assert
         assert result.message.text == ""
-        mock_chat_service.modify_assistant_message.assert_called_once()
+        mock_chat_service.modify_assistant_message_async.assert_called_once()
 
     @pytest.mark.ai
     @patch(
@@ -719,7 +721,7 @@ class TestQwenProcessResponse:
 
         # Assert
         assert result.message.text == "Normal response text"
-        mock_chat_service.modify_assistant_message.assert_not_called()
+        mock_chat_service.modify_assistant_message_async.assert_not_called()
 
     @pytest.mark.ai
     @patch(
@@ -754,7 +756,7 @@ class TestQwenProcessResponse:
 
         # Assert
         assert result.message.text == "Some text before </tool_call>"
-        mock_chat_service.modify_assistant_message.assert_not_called()
+        mock_chat_service.modify_assistant_message_async.assert_not_called()
 
 
 # Edge case tests
