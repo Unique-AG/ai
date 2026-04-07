@@ -2814,6 +2814,65 @@ class TestKnowledgeBaseServiceResolveVisibleFilePathsAsync:
     @pytest.mark.asyncio
     @patch.object(KnowledgeBaseService, "_translate_scope_ids_async")
     @patch.object(KnowledgeBaseService, "get_content_infos_async")
+    async def test_resolve_visible_file_paths__uses_full_path_metadata(
+        self,
+        mock_get_content_infos: AsyncMock,
+        mock_translate: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify {FullPath} metadata is used for confluence-ingested documents.
+        Why this matters: Confluence connector provides a direct path; folderIdPath may not be present.
+        Setup summary: Mock content with {FullPath}; assert path segments extracted correctly.
+
+        Note: The duplicate filename in the expected result ("page.html" appears twice)
+        reflects the current implementation which always appends content_info.key.
+        Whether {FullPath} already includes the filename is an open question.
+        """
+        mock_get_content_infos.return_value = [
+            _make_content_info(
+                key="page.html",
+                metadata={r"{FullPath}": "/Space/Section/page.html"},
+            ),
+        ]
+        mock_translate.return_value = {}
+
+        result = await base_kb_service.resolve_visible_file_paths_async()
+
+        assert result == [["Space", "Section", "page.html", "page.html"]]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_async")
+    @patch.object(KnowledgeBaseService, "get_content_infos_async")
+    async def test_resolve_visible_file_paths__full_path_filters_empty_segments(
+        self,
+        mock_get_content_infos: AsyncMock,
+        mock_translate: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify leading slash in {FullPath} does not produce empty path segments.
+        Why this matters: Empty segments cause double-slash issues for callers joining paths.
+        Setup summary: {FullPath} starting with /; assert no empty strings in result.
+        """
+        mock_get_content_infos.return_value = [
+            _make_content_info(
+                key="doc.txt",
+                metadata={r"{FullPath}": "/folder1/folder2"},
+            ),
+        ]
+        mock_translate.return_value = {}
+
+        result = await base_kb_service.resolve_visible_file_paths_async()
+
+        assert "" not in result[0]
+        assert result[0][0] == "folder1"
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_async")
+    @patch.object(KnowledgeBaseService, "get_content_infos_async")
     async def test_resolve_visible_file_paths__falls_back_to_no_folder_path(
         self,
         mock_get_content_infos: AsyncMock,
@@ -2942,28 +3001,28 @@ class TestKnowledgeBaseServiceResolveVisibleFilePathsAsync:
         base_kb_service: KnowledgeBaseService,
     ) -> None:
         """
-        Purpose: Verify mixed content (folderIdPath and no metadata) handled together.
-        Why this matters: Real-world content mixes metadata types; all branches must coexist.
+        Purpose: Verify mixed content (FullPath, folderIdPath, no metadata) handled together.
+        Why this matters: Real-world content mixes connector types; all branches must coexist.
         Setup summary: Three content items with different metadata types; assert each resolved correctly.
         """
         mock_get_content_infos.return_value = [
             _make_content_info(
-                key="uploaded.pdf",
-                metadata={"folderIdPath": "uniquepathid://scope_x/scope_y"},
+                key="confluence.html",
+                metadata={r"{FullPath}": "/wiki/page"},
             ),
             _make_content_info(
-                key="another.doc",
+                key="uploaded.pdf",
                 metadata={"folderIdPath": "uniquepathid://scope_x"},
             ),
             _make_content_info(key="orphan.txt", metadata={}),
         ]
-        mock_translate.return_value = {"scope_x": "Uploads", "scope_y": "Reports"}
+        mock_translate.return_value = {"scope_x": "Uploads"}
 
         result = await base_kb_service.resolve_visible_file_paths_async()
 
         assert len(result) == 3
-        assert result[0] == ["Uploads", "Reports", "uploaded.pdf"]
-        assert result[1] == ["Uploads", "another.doc"]
+        assert result[0] == ["wiki", "page", "confluence.html"]
+        assert result[1] == ["Uploads", "uploaded.pdf"]
         assert result[2] == ["_no_folder_path", "orphan.txt"]
 
 
