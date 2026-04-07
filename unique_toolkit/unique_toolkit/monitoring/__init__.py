@@ -20,7 +20,7 @@ if _MONITORING_AVAILABLE:
         REGISTRY,
         MetricNamespace,
         get_metrics,
-        track_block,
+        metric_scope,
         track_execution,
     )
 
@@ -29,7 +29,7 @@ if _MONITORING_AVAILABLE:
         "MetricNamespace",
         "MetricsMiddleware",
         "get_metrics",
-        "track_block",
+        "metric_scope",
         "track_execution",
         "_MONITORING_AVAILABLE",
     ]

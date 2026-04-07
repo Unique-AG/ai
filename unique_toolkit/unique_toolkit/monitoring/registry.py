@@ -48,19 +48,19 @@ class MetricNamespace:
 
 
 @contextmanager
-def track_block(duration: Histogram, errors: Counter | None = None, **labels):
+def metric_scope(duration: Histogram, errors: Counter | None = None, **labels):
     """Context manager that auto-times a block and records metrics.
 
     Use when labels are dynamic (determined at runtime).
 
     Example — search engine with dynamic engine label::
 
-        with track_block(search_duration, search_errors, engine=self.engine_name):
+        with metric_scope(search_duration, search_errors, engine=self.engine_name):
             results = await self._execute_search(query)
 
     Example — LLM call with purpose label::
 
-        with track_block(llm_duration, llm_errors, purpose="snippet_judge"):
+        with metric_scope(llm_duration, llm_errors, purpose="snippet_judge"):
             response = await lm_service.complete_async(...)
     """
     start = time.perf_counter()
@@ -94,12 +94,12 @@ def track_execution(
     def decorator(func):
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
-            with track_block(duration, errors, **labels):
+            with metric_scope(duration, errors, **labels):
                 return await func(*args, **kwargs)
 
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
-            with track_block(duration, errors, **labels):
+            with metric_scope(duration, errors, **labels):
                 return func(*args, **kwargs)
 
         return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
