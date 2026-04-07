@@ -24,7 +24,7 @@ async def _simple_app(scope, receive, send):
     await send({"type": "http.response.body", "body": b""})
 
 
-async def _app_with_status(status: int):
+def _app_with_status(status: int):
     """Return an ASGI app that responds with a specific status code."""
 
     async def app(scope, receive, send):
