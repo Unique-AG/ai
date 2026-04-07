@@ -445,7 +445,6 @@ def test_metrics_endpoint__returns_prometheus_format__bytes(
     response = client.get("/metrics")
 
     assert response.status_code == 200
-    # Prometheus text format contains TYPE declarations
-    assert (
-        "# HELP" in response.text or response.text == "" or response.content is not None
-    )
+    # Prometheus text format uses "# HELP" and "# TYPE" declarations
+    assert "# HELP" in response.text
+    assert "# TYPE" in response.text
