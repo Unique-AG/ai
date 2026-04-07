@@ -26,12 +26,6 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = []
 
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-markers = [
-    "ai: AI-generated tests",
-]
-
 [tool.basedpyright]
 # Type checking mode: "off", "basic", "standard", "strict", "recommended", or "all"
 typeCheckingMode = "standard"

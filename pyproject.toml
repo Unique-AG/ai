@@ -65,3 +65,23 @@ members = [
     "connectors/*",
     "tutorials/mcp/mcp_test",
 ]
+
+# Shared pytest defaults for the uv workspace. Workspace packages should not define
+# [tool.pytest.ini_options] so pytest discovers this file when
+# running from a package directory. Package-only overrides (e.g. coverage flags)
+# belong in [tool.poe.tasks] or local conftest helpers.
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+asyncio_mode = "auto"
+markers = [
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "unit: unit tests",
+    "serial: tests that must run serially",
+    "verified: AI-generated tests with human verification",
+    "wip: work in progress tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]

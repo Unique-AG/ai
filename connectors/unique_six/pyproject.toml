@@ -53,17 +53,3 @@ extend_exclude = ["tests", "conftest.py"]
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["python-dotenv", "unique-toolkit", "pyopenssl"]
-
-[tool.pytest.ini_options]
-addopts = "--strict-markers"
-asyncio_mode = "auto"
-markers = [
-    "unit: for unit tests",
-    "integration: for integration tests that require API credentials",
-    "serial",
-    "asyncio: for async tests",
-    "ai: AI-authored test",
-]
-filterwarnings = [
-    "ignore:DeprecationWarning",
-]
