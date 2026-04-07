@@ -44,7 +44,7 @@ runs:
         with open('pyproject.toml', 'rb') as f:
             data = tomllib.load(f)
         sources = data.get('tool', {}).get('uv', {}).get('sources', {})
-        pkgs = [name for name, src in sources.items() if src.get('workspace')]
+        pkgs = [name for name, src in sources.items() if src.get('workspace') or 'path' in src]
         print(' '.join(pkgs))
         ")
         REINSTALL_ARGS=""
