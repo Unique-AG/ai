@@ -178,10 +178,10 @@ def _build_common(
     content_service = ContentService.from_event(event)
 
     uploaded_documents = content_service.get_documents_uploaded_to_chat()
+    additional = event.payload.additional_parameters
     if feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
         event.company_id
     ):
-        additional = event.payload.additional_parameters
         if additional and additional.selected_uploaded_files:
             selected_ids = set(additional.selected_uploaded_file_ids)
             uploaded_documents = [
