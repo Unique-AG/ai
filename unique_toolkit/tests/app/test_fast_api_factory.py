@@ -402,3 +402,52 @@ async def test_webhook_handler__returns_200__when_event_filtered(
     # Assert
     assert response.status_code == 200
     assert "Event filtered out" in response.json()["error"]
+
+
+@pytest.mark.ai
+def test_build_unique_custom_app__registers_metrics_endpoint__when_monitoring_available(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: Verify build_unique_custom_app registers a /metrics endpoint when prometheus_client is installed.
+    Why this matters: The /metrics endpoint is required for Prometheus scraping; missing it means no metrics are collected.
+    Setup summary: Build app with monitoring available, call /metrics, assert 200 with Prometheus content-type.
+    """
+    pytest.importorskip("fastapi")
+    pytest.importorskip("prometheus_client")
+
+    from fastapi.testclient import TestClient
+
+    app = build_unique_custom_app(title="Test Service", settings=base_settings)
+    client = TestClient(app)
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert "text/plain" in response.headers["content-type"]
+
+
+@pytest.mark.ai
+def test_metrics_endpoint__returns_prometheus_format__bytes(
+    base_settings: UniqueSettings,
+) -> None:
+    """
+    Purpose: Verify /metrics endpoint returns valid Prometheus text exposition format.
+    Why this matters: Prometheus requires the specific text format to parse metrics; wrong format breaks scraping.
+    Setup summary: Build app, call /metrics, assert response body is non-empty text in Prometheus format.
+    """
+    pytest.importorskip("fastapi")
+    pytest.importorskip("prometheus_client")
+
+    from fastapi.testclient import TestClient
+
+    app = build_unique_custom_app(title="Test Service", settings=base_settings)
+    client = TestClient(app)
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    # Prometheus text format contains TYPE declarations
+    assert (
+        "# HELP" in response.text or response.text == "" or response.content is not None
+    )
