@@ -669,6 +669,33 @@ class TestLogToolCalls:
         )
 
     @pytest.mark.ai
+    def test_log_tool_calls__suppresses_log_entry__when_show_triggered_tool_calls_disabled(
+        self, mock_unique_ai: UniqueAI
+    ) -> None:
+        """Verify that _log_tool_calls does not create a message log entry
+        when show_triggered_tool_calls is False, but still adds to history."""
+        # Arrange
+        mock_tool = MagicMock(spec=["name", "display_name"])
+        mock_tool.name = "search_tool"
+        mock_tool.display_name.return_value = "Search Tool"
+
+        mock_unique_ai._tool_manager.available_tools = [mock_tool]
+        mock_unique_ai._config.agent.experimental.todo_tracking.show_triggered_tool_calls = False
+
+        mock_tool_call = MagicMock(spec=["name"])
+        mock_tool_call.name = "search_tool"
+
+        # Act
+        mock_unique_ai._log_tool_calls([mock_tool_call])
+
+        # Assert — history is always updated
+        assert mock_unique_ai._history_manager.add_tool_call.call_count == 1
+        # But no log entry should be created
+        assert (
+            mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 0
+        )
+
+    @pytest.mark.ai
     def test_log_tool_calls__excludes_deep_research_from_count__when_called_multiple_times(
         self, mock_unique_ai: UniqueAI
     ) -> None:

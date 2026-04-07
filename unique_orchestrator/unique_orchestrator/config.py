@@ -135,7 +135,7 @@ class UniqueAISpaceConfig(SpaceConfigBase):
 UniqueAISpaceConfig.model_rebuild()
 
 LIMIT_MAX_TOOL_CALLS_PER_ITERATION = 50
-LIMIT_MAX_LOOP_ITERATIONS = 10
+LIMIT_MAX_LOOP_ITERATIONS = 50
 
 _MODEL_FAMILIES = ("qwen", "mistral")
 
@@ -360,7 +360,7 @@ class ExperimentalConfig(BaseToolConfig):
 class UniqueAIAgentConfig(BaseToolConfig):
     max_loop_iterations: Annotated[
         int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
-    ] = 5
+    ] = 30
 
     input_token_distribution: HistoryConfig = Field(
         default=HistoryConfig(),

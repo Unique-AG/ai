@@ -640,7 +640,10 @@ class UniqueAI:
                 f"{display_name} ({count}x)" if count > 1 else f"{display_name}"
             )
 
-        if tool_calls_logs:
+        show_tool_calls = (
+            self._config.agent.experimental.todo_tracking.show_triggered_tool_calls
+        )
+        if tool_calls_logs and show_tool_calls:
             tool_calls_logs_to_string = "\n - ".join(tool_calls_logs)
             self._message_step_logger.create_message_log_entry(
                 text=f"**Triggered Tool Calls:**\n - {tool_calls_logs_to_string}",
