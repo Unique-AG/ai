@@ -901,12 +901,7 @@ class KnowledgeBaseService:
         for content_info in content_infos:
             metadata = content_info.metadata
 
-            # TODO: verify (1) {FullPath} is present for documents ingested via confluence connector, and
-            #  (2) whether {FullPath} includes the filename — if so, appending
-            #  content_info.key below produces a duplicate final segment.
-            if metadata and (full_path := metadata.get(r"{FullPath}")) is not None:
-                file_path = [s for s in str(full_path).split("/") if s]
-            elif (
+            if (
                 metadata
                 and (folder_id_path := metadata.get("folderIdPath")) is not None
                 and isinstance(folder_id_path, str)
