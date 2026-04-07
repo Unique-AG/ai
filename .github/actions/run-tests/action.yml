@@ -27,7 +27,7 @@ runs:
         package_dir: ${{ inputs.package_dir }}
         python_version: ${{ inputs.python_version }}
 
-    - name: Install extra dependencies
+    - name: Install extra dependencies from PyPI
       if: inputs.install_args != ''
       shell: bash
       working-directory: ${{ inputs.package_dir }}
@@ -36,7 +36,26 @@ runs:
       run: |
         # Extract extra names from "--extra foo --extra bar" → "foo,bar"
         EXTRAS=$(echo "${{ inputs.install_args }}" | grep -oP '(?<=--extra )\w+' | paste -sd ',' -)
-        uv pip install ".[${EXTRAS}]"
+
+        # Find workspace-sourced deps in this package's pyproject.toml.
+        # These were installed from local paths by setup-uv; reinstall them
+        # from PyPI to test against released versions (SDK must be published
+        # before toolkit can be released, so the PyPI version always exists).
+        WORKSPACE_PKGS=$(python3 -c "
+        import tomllib
+        with open('pyproject.toml', 'rb') as f:
+            data = tomllib.load(f)
+        sources = data.get('tool', {}).get('uv', {}).get('sources', {})
+        pkgs = [name for name, src in sources.items() if src.get('workspace')]
+        print(' '.join(pkgs))
+        ")
+
+        REINSTALL_ARGS=""
+        for pkg in $WORKSPACE_PKGS; do
+          REINSTALL_ARGS="$REINSTALL_ARGS --reinstall-package $pkg"
+        done
+
+        uv pip install $REINSTALL_ARGS ".[${EXTRAS}]"
 
     - name: Run pytest
       shell: bash
