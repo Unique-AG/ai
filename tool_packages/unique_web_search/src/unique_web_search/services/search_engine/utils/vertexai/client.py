@@ -6,17 +6,13 @@ from google.auth import load_credentials_from_dict
 from google.genai._api_client import BaseApiClient
 from google.genai.client import AsyncClient
 
-from unique_web_search.services.search_engine.utils.vertexai.exceptions import (
-    VertexAICredentialNotFoundException,
-)
 from unique_web_search.settings import env_settings
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def _get_vertexai_base_api_client() -> BaseApiClient:
-    if env_settings.vertexai_service_account_credentials is None:
-        raise VertexAICredentialNotFoundException()
+def _get_base_api_client_from_service_account():
+    assert env_settings.vertexai_service_account_credentials is not None
 
     scopes = env_settings.vertexai_service_account_scopes or [
         "https://www.googleapis.com/auth/cloud-platform"
@@ -28,7 +24,27 @@ def _get_vertexai_base_api_client() -> BaseApiClient:
     credentials, project_id = load_credentials_from_dict(
         service_account_info, scopes=scopes
     )
-    return BaseApiClient(vertexai=True, credentials=credentials, project=project_id)
+    return BaseApiClient(
+        vertexai=True,
+        credentials=credentials,
+        project=project_id,
+    )
+
+
+def _get_base_api_client_from_adc() -> BaseApiClient:
+    """Build client using Application Default Credentials (Workload Identity, etc.)."""
+    return BaseApiClient(
+        vertexai=True,
+    )
+
+
+def _get_vertexai_base_api_client() -> BaseApiClient:
+    if env_settings.vertexai_service_account_credentials is not None:
+        _LOGGER.info("Using explicit service account credentials for VertexAI")
+        return _get_base_api_client_from_service_account()
+
+    _LOGGER.info("No explicit credentials; falling back to ADC for VertexAI")
+    return _get_base_api_client_from_adc()
 
 
 def get_vertex_client() -> AsyncClient | None:
