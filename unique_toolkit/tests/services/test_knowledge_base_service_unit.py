@@ -2918,7 +2918,10 @@ class TestKnowledgeBaseServiceResolveVisibleFilePathsAsync:
 
         result = await base_kb_service.resolve_visible_file_paths_async()
 
-        assert result == [["Documents", "Reports", "report.pdf"]]
+        assert len(result) == 1
+        content_info, file_path = result[0]
+        assert file_path == ["Documents", "Reports", "report.pdf"]
+        assert content_info.key == "report.pdf"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -2942,7 +2945,8 @@ class TestKnowledgeBaseServiceResolveVisibleFilePathsAsync:
 
         result = await base_kb_service.resolve_visible_file_paths_async()
 
-        assert result == [["_no_folder_path", "orphan.txt"]]
+        assert len(result) == 1
+        assert result[0][1] == ["_no_folder_path", "orphan.txt"]
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -2966,7 +2970,8 @@ class TestKnowledgeBaseServiceResolveVisibleFilePathsAsync:
 
         result = await base_kb_service.resolve_visible_file_paths_async()
 
-        assert result == [["_no_folder_path", "no_meta.txt"]]
+        assert len(result) == 1
+        assert result[0][1] == ["_no_folder_path", "no_meta.txt"]
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -2993,7 +2998,8 @@ class TestKnowledgeBaseServiceResolveVisibleFilePathsAsync:
 
         result = await base_kb_service.resolve_visible_file_paths_async()
 
-        assert result == [["ResolvedFolder", "unknown", "file.txt"]]
+        assert len(result) == 1
+        assert result[0][1] == ["ResolvedFolder", "unknown", "file.txt"]
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -3072,9 +3078,10 @@ class TestKnowledgeBaseServiceResolveVisibleFilePathsAsync:
         result = await base_kb_service.resolve_visible_file_paths_async()
 
         assert len(result) == 3
-        assert result[0] == ["Uploads", "Reports", "uploaded.pdf"]
-        assert result[1] == ["Uploads", "another.doc"]
-        assert result[2] == ["_no_folder_path", "orphan.txt"]
+        assert result[0][1] == ["Uploads", "Reports", "uploaded.pdf"]
+        assert result[0][0].key == "uploaded.pdf"
+        assert result[1][1] == ["Uploads", "another.doc"]
+        assert result[2][1] == ["_no_folder_path", "orphan.txt"]
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -3101,7 +3108,8 @@ class TestKnowledgeBaseServiceResolveVisibleFilePathsAsync:
 
         result = await base_kb_service.resolve_visible_file_paths_async()
 
-        assert result == [["_no_folder_path", "bad_meta.txt"]]
+        assert len(result) == 1
+        assert result[0][1] == ["_no_folder_path", "bad_meta.txt"]
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -3128,7 +3136,8 @@ class TestKnowledgeBaseServiceResolveVisibleFilePathsAsync:
 
         result = await base_kb_service.resolve_visible_file_paths_async()
 
-        assert result == [["scope_a", "scope_b", "file.txt"]]
+        assert len(result) == 1
+        assert result[0][1] == ["scope_a", "scope_b", "file.txt"]
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -3155,142 +3164,5 @@ class TestKnowledgeBaseServiceResolveVisibleFilePathsAsync:
 
         result = await base_kb_service.resolve_visible_file_paths_async()
 
-        assert result == [["Folder", ""]]
-
-
-class TestKnowledgeBaseServiceDisplayPathTree:
-    """Test cases for KnowledgeBaseService.display_path_tree."""
-
-    @pytest.mark.ai
-    def test_display_path_tree__renders_simple_tree(self) -> None:
-        """
-        Purpose: Verify basic tree rendering with shared parent.
-        Why this matters: Core display functionality for file tree visualization.
-        Setup summary: Two paths sharing a parent; assert tree-style output with connectors.
-        """
-        paths = [["docs", "api"], ["docs", "guides"], ["src"]]
-        result = KnowledgeBaseService.display_path_tree(paths)
-
-        assert "." in result
-        assert "docs" in result
-        assert "api" in result
-        assert "guides" in result
-        assert "src" in result
-        assert "├── " in result or "└── " in result
-
-    @pytest.mark.ai
-    def test_display_path_tree__returns_root_only__for_empty_paths(self) -> None:
-        """
-        Purpose: Verify only root name returned when no paths provided.
-        Why this matters: Empty knowledge bases should not crash the display.
-        Setup summary: Empty paths list; assert only root name returned.
-        """
-        result = KnowledgeBaseService.display_path_tree([])
-        assert result == "."
-
-    @pytest.mark.ai
-    def test_display_path_tree__uses_custom_root_name(self) -> None:
-        """
-        Purpose: Verify custom root_name is used in output.
-        Why this matters: Callers may want to display a meaningful root label.
-        Setup summary: Custom root name; assert it appears in output.
-        """
-        result = KnowledgeBaseService.display_path_tree(
-            [["a"]], root_name="Knowledge Base"
-        )
-        assert result.startswith("Knowledge Base")
-
-    @pytest.mark.ai
-    def test_display_path_tree__renders_deeply_nested_paths(self) -> None:
-        """
-        Purpose: Verify deep nesting is correctly indented.
-        Why this matters: Real folder structures can be deeply nested.
-        Setup summary: Path with 4 levels; assert all segments appear in output.
-        """
-        paths = [["a", "b", "c", "d"]]
-        result = KnowledgeBaseService.display_path_tree(paths)
-
-        for segment in ["a", "b", "c", "d"]:
-            assert segment in result
-
-    @pytest.mark.ai
-    def test_display_path_tree__sorts_folders_before_files(self) -> None:
-        """
-        Purpose: Verify folders (nodes with children) appear before files (leaf nodes).
-        Why this matters: Consistent ordering improves readability of tree output.
-        Setup summary: Mix of folder and file at same level; assert folder listed first.
-        """
-        paths = [["z_file"], ["a_folder", "child"]]
-        result = KnowledgeBaseService.display_path_tree(paths)
-
-        lines = result.split("\n")
-        folder_line_idx = next(i for i, line in enumerate(lines) if "a_folder" in line)
-        file_line_idx = next(i for i, line in enumerate(lines) if "z_file" in line)
-        assert folder_line_idx < file_line_idx
-
-    @pytest.mark.ai
-    def test_display_path_tree__handles_single_file(self) -> None:
-        """
-        Purpose: Verify single-file tree renders correctly.
-        Why this matters: Simplest non-empty case must work.
-        Setup summary: One path with one segment; assert └── connector used.
-        """
-        result = KnowledgeBaseService.display_path_tree([["only_file.txt"]])
-        assert "└── only_file.txt" in result
-
-    @pytest.mark.ai
-    def test_display_path_tree__skips_empty_segments(self) -> None:
-        """
-        Purpose: Verify empty strings in path segments are filtered out.
-        Why this matters: Upstream may produce empty segments from split operations.
-        Setup summary: Path with empty strings; assert they don't appear in output.
-        """
-        paths = [["", "folder", "", "file.txt"]]
-        result = KnowledgeBaseService.display_path_tree(paths)
-
-        assert "folder" in result
-        assert "file.txt" in result
-        lines = [ln.strip() for ln in result.split("\n") if ln.strip()]
-        for line in lines:
-            stripped = line.lstrip("│├└── ─\u00a0 ")
-            if stripped:
-                assert stripped != ""
-
-    @pytest.mark.ai
-    def test_display_path_tree__merges_shared_prefixes(self) -> None:
-        """
-        Purpose: Verify paths sharing a common prefix are merged in the tree.
-        Why this matters: Tree display must not duplicate shared folders.
-        Setup summary: Two paths sharing root folder; count occurrences of shared folder name.
-        """
-        paths = [["shared", "a.txt"], ["shared", "b.txt"]]
-        result = KnowledgeBaseService.display_path_tree(paths)
-
-        assert result.count("shared") == 1
-
-    @pytest.mark.ai
-    def test_display_path_tree__renders_root_only__for_all_empty_paths(self) -> None:
-        """
-        Purpose: Verify all-empty paths produce only the root node.
-        Why this matters: Empty inner lists are no-ops in tree building; output must not break.
-        Setup summary: Three empty path lists; assert only root returned.
-        """
-        result = KnowledgeBaseService.display_path_tree([[], [], []])
-        assert result == "."
-
-    @pytest.mark.ai
-    def test_display_path_tree__sorts_multiple_flat_files(self) -> None:
-        """
-        Purpose: Verify multiple root-level files are sorted alphabetically.
-        Why this matters: Consistent ordering when all entries are leaf nodes at root level.
-        Setup summary: Three single-segment paths in unsorted order; assert alphabetical output.
-        """
-        paths = [["c_file.txt"], ["a_file.txt"], ["b_file.txt"]]
-        result = KnowledgeBaseService.display_path_tree(paths)
-
-        lines = result.split("\n")
-        file_lines = [ln for ln in lines if "file.txt" in ln]
-        assert len(file_lines) == 3
-        assert "a_file.txt" in file_lines[0]
-        assert "b_file.txt" in file_lines[1]
-        assert "c_file.txt" in file_lines[2]
+        assert len(result) == 1
+        assert result[0][1] == ["Folder", ""]
