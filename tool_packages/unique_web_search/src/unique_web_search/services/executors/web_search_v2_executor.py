@@ -4,7 +4,7 @@ from time import time
 
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
-from unique_toolkit.monitoring import track
+from unique_toolkit.monitoring import metric_scope
 
 from unique_web_search.metrics import (
     crawl_duration,
@@ -125,7 +125,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
 
         await self._message_log_callback.log_queries([step.query_or_url])
-        with track(search_duration, search_errors, engine=engine):
+        with metric_scope(search_duration, search_errors, engine=engine):
             results = await self.search_service.search(step.query_or_url)
         search_total.labels(engine=engine).inc()
         await self._message_log_callback.log_web_search_results(results)
@@ -161,7 +161,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         crawler = self.crawler_service.config.crawler_type.value
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
-        with track(crawl_duration, crawl_errors, crawler=crawler):
+        with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
             crawl_results = await self.crawler_service.crawl(
                 [result.url for result in results]
             )
@@ -198,7 +198,7 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
 
-        with track(crawl_duration, crawl_errors, crawler=crawler):
+        with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
             results = await self.crawler_service.crawl([step.query_or_url])
         await self._message_log_callback.log_web_search_results(
             [

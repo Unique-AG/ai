@@ -9,7 +9,7 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.language_model.builder import MessagesBuilder
-from unique_toolkit.monitoring import track
+from unique_toolkit.monitoring import metric_scope
 
 from unique_web_search.metrics import (
     crawl_duration,
@@ -235,7 +235,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
 
     async def _refine_query(self, query: str) -> tuple[list[str], str]:
         start_time = time()
-        with track(llm_duration, llm_errors, purpose="query_refinement"):
+        with metric_scope(llm_duration, llm_errors, purpose="query_refinement"):
             refined_query = await query_generation_agent(
                 query,
                 self.language_model_service,
@@ -275,7 +275,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         engine = self.search_service.config.search_engine_name.value
         start_time = time()
         _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
-        with track(search_duration, search_errors, engine=engine):
+        with metric_scope(search_duration, search_errors, engine=engine):
             search_results = await self.search_service.search(
                 query, date_restrict=date_restrict
             )
@@ -304,7 +304,7 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         crawler = self.crawler_service.config.crawler_type.value
         start_time = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
-        with track(crawl_duration, crawl_errors, crawler=crawler):
+        with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
             crawl_results = await self.crawler_service.crawl(
                 [result.url for result in web_search_results]
             )

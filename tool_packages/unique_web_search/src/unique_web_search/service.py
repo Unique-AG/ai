@@ -20,7 +20,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
 )
-from unique_toolkit.monitoring import track
+from unique_toolkit.monitoring import metric_scope
 
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.metrics import tool_duration, tool_empty_results, tool_errors
@@ -193,7 +193,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
                         ),
                     )
 
-            with track(tool_duration, tool_errors, executor_version=executor_version):
+            with metric_scope(
+                tool_duration, tool_errors, executor_version=executor_version
+            ):
                 content_chunks = await executor.run()
 
             debug_info.num_chunks_in_final_prompts = len(content_chunks)

@@ -7,7 +7,7 @@ from time import time
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.content.schemas import ContentMetadata
 from unique_toolkit.language_model import LanguageModelFunction
-from unique_toolkit.monitoring import track
+from unique_toolkit.monitoring import metric_scope
 
 from unique_web_search.metrics import (
     llm_duration,
@@ -183,7 +183,7 @@ class WebSearchV3Executor(WebSearchV2Executor):
         _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
 
         await self._message_log_callback.log_queries([step.query_or_url])
-        with track(search_duration, search_errors, engine=engine):
+        with metric_scope(search_duration, search_errors, engine=engine):
             results = await self.search_service.search(step.query_or_url)
         search_total.labels(engine=engine).inc()
         await self._message_log_callback.log_web_search_results(results)
@@ -222,7 +222,7 @@ class WebSearchV3Executor(WebSearchV2Executor):
             f"Company {self.company_id} Running global snippet judge to narrow results"
         )
         try:
-            with track(llm_duration, llm_errors, purpose="snippet_judge"):
+            with metric_scope(llm_duration, llm_errors, purpose="snippet_judge"):
                 selected = await select_relevant(
                     objective=self.tool_parameters.objective,
                     results=results,

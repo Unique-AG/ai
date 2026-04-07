@@ -8,7 +8,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
 )
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
-from unique_toolkit.monitoring import track
+from unique_toolkit.monitoring import metric_scope
 
 from unique_web_search.metrics import llm_duration, llm_errors
 from unique_web_search.schema import (
@@ -104,7 +104,7 @@ class BaseWebSearchExecutor(ABC):
         _LOGGER.info(
             f"Company {self.company_id} Content processing with {self.content_processor.config.active_processing_strategies}"
         )
-        with track(llm_duration, llm_errors, purpose="content_processing"):
+        with metric_scope(llm_duration, llm_errors, purpose="content_processing"):
             content_results = await self.content_processor.run(
                 objective, web_search_results
             )
