@@ -249,10 +249,15 @@ class TodoConfig(BaseToolConfig):
     def effective_system_prompt(self) -> str:
         if not self.parallel_mode:
             return self.system_prompt
-        return self.system_prompt.replace(
-            _SEQUENTIAL_EXECUTION_RULES.strip(),
-            _PARALLEL_EXECUTION_RULES.strip(),
-        )
+
+        sequential_rules = _SEQUENTIAL_EXECUTION_RULES.strip()
+        parallel_rules = _PARALLEL_EXECUTION_RULES.strip()
+
+        if sequential_rules in self.system_prompt:
+            return self.system_prompt.replace(sequential_rules, parallel_rules)
+        if parallel_rules in self.system_prompt:
+            return self.system_prompt
+        return f"{self.system_prompt.rstrip()}\n\n## Execution Rules\n\n{parallel_rules}"
 
     @property
     def effective_execution_reminder(self) -> str:
