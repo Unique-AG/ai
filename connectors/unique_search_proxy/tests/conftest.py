@@ -1,4 +1,13 @@
-import pytest
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+_web = Path(__file__).resolve().parent.parent / "web"
+if _web.is_dir() and str(_web) not in sys.path:
+    sys.path.insert(0, str(_web))
+
+import pytest  # noqa: E402
 
 
 @pytest.fixture
