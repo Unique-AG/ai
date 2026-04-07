@@ -170,10 +170,8 @@ def test_build_unique_custom_app__registers_health_check__at_root_path(
     mock_fastapi.return_value = mock_app
     # Act
     build_unique_custom_app(title="Test App", settings=base_settings)
-    # Assert
-    mock_app.get.assert_called_once_with(path="/")
-    # Verify the handler is registered
-    assert mock_app.get.call_count == 1
+    # Assert — app.get is called for both "/" and "/metrics" when monitoring is available
+    mock_app.get.assert_any_call(path="/")
 
 
 @pytest.mark.ai
