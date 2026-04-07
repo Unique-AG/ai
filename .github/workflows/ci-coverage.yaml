@@ -85,5 +85,6 @@ jobs:
         with:
           package_dir: ${{ matrix.dir }}
           python_version: ${{ matrix.python }}
+          install_args: ${{ matrix.install_args }}
           base_ref: origin/${{ github.base_ref || 'main' }}
           min_coverage: ${{ matrix.min_coverage }}
