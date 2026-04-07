@@ -3,6 +3,9 @@
 # =============================================================================
 FROM python:3.12-slim-bookworm@sha256:31c0807da611e2e377a2e9b566ad4eb038ac5a5838cbbbe6f2262259b5dc77a0
 
+# Default matches .github/actions/setup-uv (local builds); CI passes --build-arg from setup-uv output.
+ARG UV_VERSION=0.11.2
+
 ENV PYTHONFAULTHANDLER=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONHASHSEED=random \
@@ -14,7 +17,7 @@ ENV PYTHONFAULTHANDLER=1 \
 
 # Create user and install uv
 RUN useradd -m appuser && \
-    pip install --no-cache-dir "uv==0.10.11"
+    pip install --no-cache-dir "uv==${UV_VERSION}"
 
 # Copy only requirements to cache them in docker layer
 WORKDIR /app
