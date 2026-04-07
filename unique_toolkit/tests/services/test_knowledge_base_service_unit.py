@@ -2510,6 +2510,76 @@ class TestKnowledgeBaseServiceGetContentInfosAsync:
         for call in page_calls:
             assert call.kwargs["take"] == 50
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "get_paginated_content_infos_async")
+    async def test_get_content_infos_async__returns_empty__when_all_pages_fail(
+        self,
+        mock_paginated: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify empty list returned when every page fetch fails.
+        Why this matters: Total failure must not crash; errors should be logged.
+        Setup summary: total_count=200, both pages raise; assert empty list.
+        """
+
+        async def side_effect(**kwargs: Any) -> PaginatedContentInfos:
+            if kwargs.get("take") == 1:
+                return PaginatedContentInfos(
+                    object="list", content_infos=[], total_count=200
+                )
+            raise ConnectionError("all pages failed")
+
+        mock_paginated.side_effect = side_effect
+
+        result = await base_kb_service.get_content_infos_async(step_size=100)
+
+        assert result == []
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "get_paginated_content_infos_async")
+    async def test_get_content_infos_async__fetches_exactly_one_page__when_count_equals_step(
+        self,
+        mock_paginated: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify exactly one page fetched when total_count equals step_size.
+        Why this matters: Boundary condition; off-by-one could produce 0 or 2 page fetches.
+        Setup summary: total_count=100, step_size=100; assert single page fetch.
+        """
+        items = [_make_content_info(key=f"f{i}.txt") for i in range(100)]
+
+        mock_paginated.side_effect = [
+            PaginatedContentInfos(object="list", content_infos=[], total_count=100),
+            PaginatedContentInfos(object="list", content_infos=items, total_count=100),
+        ]
+
+        result = await base_kb_service.get_content_infos_async(step_size=100)
+
+        assert len(result) == 100
+        assert mock_paginated.call_count == 2
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "get_paginated_content_infos_async")
+    async def test_get_content_infos_async__propagates_exception__when_count_call_fails(
+        self,
+        mock_paginated: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify exception propagates when the initial count call fails.
+        Why this matters: No partial result is possible without knowing total_count.
+        Setup summary: Mock count call to raise; assert exception propagates to caller.
+        """
+        mock_paginated.side_effect = ConnectionError("API down")
+
+        with pytest.raises(ConnectionError, match="API down"):
+            await base_kb_service.get_content_infos_async()
+
 
 class TestKnowledgeBaseServiceExtractScopeIds:
     """Test cases for KnowledgeBaseService.extract_scope_ids."""
@@ -2615,6 +2685,22 @@ class TestKnowledgeBaseServiceExtractScopeIds:
         ]
         result = KnowledgeBaseService.extract_scope_ids(content_infos)
         assert result == {"shared_id", "unique_a", "unique_b"}
+
+    @pytest.mark.ai
+    def test_extract_scope_ids__handles_folder_id_path__without_prefix(self) -> None:
+        """
+        Purpose: Verify extraction works when folderIdPath lacks the uniquepathid:// prefix.
+        Why this matters: Data may not always include the prefix; .replace() is a no-op in that case.
+        Setup summary: folderIdPath without prefix; assert IDs still extracted.
+        """
+        content_infos = [
+            _make_content_info(
+                key="a.txt",
+                metadata={"folderIdPath": "id1/id2"},
+            ),
+        ]
+        result = KnowledgeBaseService.extract_scope_ids(content_infos)
+        assert result == {"id1", "id2"}
 
 
 class TestKnowledgeBaseServiceTranslateScopeIdAsync:
@@ -2778,6 +2864,30 @@ class TestKnowledgeBaseServiceTranslateScopeIdsAsync:
             )
 
         assert max_observed_concurrency <= 2
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_translate_scope_ids__returns_empty_dict__when_all_fail(
+        self,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify empty dict returned when every translation fails.
+        Why this matters: Complete translation failure must not crash; callers use raw IDs as fallback.
+        Setup summary: Mock returns None for all IDs; assert empty dict.
+        """
+
+        async def mock_translate(scope_id: str) -> None:
+            return None
+
+        with patch.object(
+            base_kb_service, "_translate_scope_id_async", side_effect=mock_translate
+        ):
+            result = await base_kb_service._translate_scope_ids_async(
+                {"id1", "id2", "id3"}
+            )
+
+        assert result == {}
 
 
 class TestKnowledgeBaseServiceResolveVisibleFilePathsAsync:
@@ -2966,6 +3076,87 @@ class TestKnowledgeBaseServiceResolveVisibleFilePathsAsync:
         assert result[1] == ["Uploads", "another.doc"]
         assert result[2] == ["_no_folder_path", "orphan.txt"]
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_async")
+    @patch.object(KnowledgeBaseService, "get_content_infos_async")
+    async def test_resolve_visible_file_paths__falls_back__when_folder_id_path_is_non_string(
+        self,
+        mock_get_content_infos: AsyncMock,
+        mock_translate: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify fallback when folderIdPath is a non-string type.
+        Why this matters: The isinstance guard must route non-string values to the else branch.
+        Setup summary: folderIdPath set to integer; assert _no_folder_path sentinel used.
+        """
+        mock_get_content_infos.return_value = [
+            _make_content_info(
+                key="bad_meta.txt",
+                metadata={"folderIdPath": 12345},
+            ),
+        ]
+        mock_translate.return_value = {}
+
+        result = await base_kb_service.resolve_visible_file_paths_async()
+
+        assert result == [["_no_folder_path", "bad_meta.txt"]]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_async")
+    @patch.object(KnowledgeBaseService, "get_content_infos_async")
+    async def test_resolve_visible_file_paths__uses_all_raw_ids__when_all_translations_fail(
+        self,
+        mock_get_content_infos: AsyncMock,
+        mock_translate: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify raw scope IDs used for all segments when translation returns empty.
+        Why this matters: Complete translation failure must degrade gracefully, not crash.
+        Setup summary: Translation returns empty dict; assert raw IDs appear in path.
+        """
+        mock_get_content_infos.return_value = [
+            _make_content_info(
+                key="file.txt",
+                metadata={"folderIdPath": "uniquepathid://scope_a/scope_b"},
+            ),
+        ]
+        mock_translate.return_value = {}
+
+        result = await base_kb_service.resolve_visible_file_paths_async()
+
+        assert result == [["scope_a", "scope_b", "file.txt"]]
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    @patch.object(KnowledgeBaseService, "_translate_scope_ids_async")
+    @patch.object(KnowledgeBaseService, "get_content_infos_async")
+    async def test_resolve_visible_file_paths__appends_empty_key__when_key_is_empty(
+        self,
+        mock_get_content_infos: AsyncMock,
+        mock_translate: AsyncMock,
+        base_kb_service: KnowledgeBaseService,
+    ) -> None:
+        """
+        Purpose: Verify empty content key is appended as-is without crashing.
+        Why this matters: Malformed data must not cause exceptions; empty key flows through.
+        Setup summary: Content with key=""; assert path ends with empty string.
+        """
+        mock_get_content_infos.return_value = [
+            _make_content_info(
+                key="",
+                metadata={"folderIdPath": "uniquepathid://scope_a"},
+            ),
+        ]
+        mock_translate.return_value = {"scope_a": "Folder"}
+
+        result = await base_kb_service.resolve_visible_file_paths_async()
+
+        assert result == [["Folder", ""]]
+
 
 class TestKnowledgeBaseServiceDisplayPathTree:
     """Test cases for KnowledgeBaseService.display_path_tree."""
@@ -3076,3 +3267,30 @@ class TestKnowledgeBaseServiceDisplayPathTree:
         result = KnowledgeBaseService.display_path_tree(paths)
 
         assert result.count("shared") == 1
+
+    @pytest.mark.ai
+    def test_display_path_tree__renders_root_only__for_all_empty_paths(self) -> None:
+        """
+        Purpose: Verify all-empty paths produce only the root node.
+        Why this matters: Empty inner lists are no-ops in tree building; output must not break.
+        Setup summary: Three empty path lists; assert only root returned.
+        """
+        result = KnowledgeBaseService.display_path_tree([[], [], []])
+        assert result == "."
+
+    @pytest.mark.ai
+    def test_display_path_tree__sorts_multiple_flat_files(self) -> None:
+        """
+        Purpose: Verify multiple root-level files are sorted alphabetically.
+        Why this matters: Consistent ordering when all entries are leaf nodes at root level.
+        Setup summary: Three single-segment paths in unsorted order; assert alphabetical output.
+        """
+        paths = [["c_file.txt"], ["a_file.txt"], ["b_file.txt"]]
+        result = KnowledgeBaseService.display_path_tree(paths)
+
+        lines = result.split("\n")
+        file_lines = [ln for ln in lines if "file.txt" in ln]
+        assert len(file_lines) == 3
+        assert "a_file.txt" in file_lines[0]
+        assert "b_file.txt" in file_lines[1]
+        assert "c_file.txt" in file_lines[2]
