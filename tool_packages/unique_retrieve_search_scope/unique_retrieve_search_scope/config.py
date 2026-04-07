@@ -1,10 +1,17 @@
-from typing import Annotated
+from enum import Enum
+from typing import Annotated, Literal
 
 from pydantic import Field
 from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
+
+
+class DisplayMode(str, Enum):
+    """How the file list is presented to the agent."""
+    flat = "flat"
+    tree = "tree"
 
 DEFAULT_TOOL_DESCRIPTION = (
     "Retrieves the list of all file names that are currently searchable "
@@ -55,6 +62,17 @@ class RetrieveSearchScopeConfig(BaseToolConfig):
         default=False,
         description="Enable the RetrieveSearchScope tool.",
     )
+
+    display_mode: DisplayMode = Field(
+        default=DisplayMode.flat,
+        description=(
+            "How to present the file list. "
+            "'flat' returns only file names; "
+            "'tree' returns the full folder hierarchy."
+        ),
+    )
+
+    
 
     tool_description: Annotated[
         str,

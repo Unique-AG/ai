@@ -11,7 +11,7 @@ from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 from unique_toolkit.services.factory import UniqueServiceFactory
 
-from unique_retrieve_search_scope.config import RetrieveSearchScopeConfig
+from unique_retrieve_search_scope.config import DisplayMode, RetrieveSearchScopeConfig
 
 _LOGGER = getLogger(__name__)
 
@@ -32,8 +32,16 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
             parameters={"type": "object", "properties": {}},
         )
 
+    @override
     def tool_description_for_system_prompt(self) -> str:
-        return self.config.tool_description_for_system_prompt
+        prompt = self.config.tool_description_for_system_prompt
+        if self.config.display_mode == DisplayMode.tree:
+            prompt = prompt.replace(
+                "Returns all file names that are in the currently searchable knowledge base.",
+                "Returns a folder tree of all files in the currently searchable knowledge base, "
+                "showing how they are nested in the directory structure.",
+            )
+        return prompt
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return []
@@ -58,8 +66,6 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
-        # TODO: Replace with tool_manager.exclude_tool() once available to
-        # prevent the LLM from seeing the tool after the first call entirely.
         if await self._has_prior_response_in_history():
             return ToolCallResponse(
                 id=tool_call.id or "unknown_id",
