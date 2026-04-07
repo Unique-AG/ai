@@ -25,6 +25,7 @@ from unique_toolkit.agentic.tools.experimental.todo.config import (
     _DEFAULT_SYSTEM_PROMPT,
     _DEFAULT_TOOL_DESCRIPTION,
     _PARALLEL_EXECUTION_REMINDER,
+    _PARALLEL_EXECUTION_RULES,
     _PARALLEL_TOOL_DESCRIPTION,
     TodoConfig,
 )
@@ -995,3 +996,12 @@ class TestParallelModeConfig:
 
         response = await tool.run(tc)
         assert response.system_reminder == _PARALLEL_EXECUTION_REMINDER
+
+    def test_parallel_mode_appends_rules_when_prompt_customized(self) -> None:
+        """When system_prompt is customized and no longer contains the
+        sequential rules substring, parallel execution rules are appended."""
+        custom_prompt = "You are a helpful assistant. Do your best."
+        config = TodoConfig(parallel_mode=True, system_prompt=custom_prompt)
+        result = config.effective_system_prompt
+        assert custom_prompt in result
+        assert _PARALLEL_EXECUTION_RULES.strip() in result

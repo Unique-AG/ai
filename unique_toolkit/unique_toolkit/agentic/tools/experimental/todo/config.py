@@ -1,9 +1,12 @@
+import logging
 from typing import Annotated, ClassVar
 
 from pydantic import Field
 
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_TOOL_DESCRIPTION = """\
 Create or update a task list to track progress. Use for any task involving \
@@ -249,10 +252,19 @@ class TodoConfig(BaseToolConfig):
     def effective_system_prompt(self) -> str:
         if not self.parallel_mode:
             return self.system_prompt
-        return self.system_prompt.replace(
-            _SEQUENTIAL_EXECUTION_RULES.strip(),
+        target = _SEQUENTIAL_EXECUTION_RULES.strip()
+        result = self.system_prompt.replace(
+            target,
             _PARALLEL_EXECUTION_RULES.strip(),
         )
+        if result == self.system_prompt and target not in self.system_prompt:
+            logger.warning(
+                "parallel_mode is enabled but the system_prompt was customized "
+                "and no longer contains the sequential execution rules. "
+                "Appending parallel execution rules to the end."
+            )
+            result = self.system_prompt + "\n\n" + _PARALLEL_EXECUTION_RULES.strip()
+        return result
 
     @property
     def effective_execution_reminder(self) -> str:
