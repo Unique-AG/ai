@@ -187,6 +187,21 @@ class TodoConfig(BaseToolConfig):
         "nudge the agent to verify its work. Set to 0 to disable.",
     )
 
+    show_triggered_tool_calls: Annotated[
+        bool,
+        RJSFMetaTag.BooleanWidget.checkbox(
+            help=(
+                "Show a 'Triggered Tool Calls' entry in the Steps panel "
+                "listing which tools the agent called each iteration. "
+                "Disable to reduce noise when the tool's own log entries "
+                "already provide enough visibility."
+            ),
+        ),
+    ] = Field(
+        default=True,
+        description="Show triggered tool call summaries in the Steps panel.",
+    )
+
     display_name: str = Field(
         default="Progress",
         description="Human-readable label shown in the UI (Steps panel, tool progress).",
