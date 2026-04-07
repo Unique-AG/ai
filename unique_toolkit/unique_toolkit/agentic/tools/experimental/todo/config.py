@@ -239,10 +239,18 @@ class TodoConfig(BaseToolConfig):
         "Keeps the agent working autonomously until all items are done.",
     )
 
+    def _is_default(self, field_name: str) -> bool:
+        return getattr(self, field_name) == self.model_fields[field_name].default
+
     @property
     def effective_tool_description(self) -> str:
-        if self.parallel_mode:
+        if self.parallel_mode and self._is_default("tool_description"):
             return _PARALLEL_TOOL_DESCRIPTION
+        if self.parallel_mode:
+            logger.warning(
+                "parallel_mode is enabled but tool_description was customized. "
+                "Using custom value as-is."
+            )
         return self.tool_description
 
     @property
@@ -256,6 +264,11 @@ class TodoConfig(BaseToolConfig):
 
     @property
     def effective_execution_reminder(self) -> str:
-        if self.parallel_mode:
+        if self.parallel_mode and self._is_default("execution_reminder"):
             return _PARALLEL_EXECUTION_REMINDER
+        if self.parallel_mode:
+            logger.warning(
+                "parallel_mode is enabled but execution_reminder was customized. "
+                "Using custom value as-is."
+            )
         return self.execution_reminder
