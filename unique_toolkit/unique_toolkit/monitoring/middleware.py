@@ -79,9 +79,6 @@ class MetricsMiddleware:
 
         try:
             await self.app(scope, receive, send_wrapper)
-        except Exception:
-            # App crashed — status stays "500", metrics still recorded in finally
-            raise
         finally:
             duration = time.perf_counter() - start
             _http_requests_in_progress.labels(method=method).dec()
