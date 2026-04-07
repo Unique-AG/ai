@@ -57,6 +57,9 @@ fastapi = [
     "starlette>=0.49.1",
     "uvicorn>=0.37.0,<0.38",
 ]
+monitoring = [
+    "prometheus_client>=0.24.1,<1",
+]
 
 [build-system]
 requires = ["uv_build>=0.8.14,<0.9.0"]

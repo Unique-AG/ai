@@ -63,6 +63,21 @@ def build_unique_custom_app(
         """Health check endpoint."""
         return JSONResponse(content={"status": "healthy", "service": title})
 
+    from unique_toolkit.monitoring import _MONITORING_AVAILABLE
+
+    if _MONITORING_AVAILABLE:
+        from starlette.responses import Response as StarletteResponse
+
+        from unique_toolkit.monitoring import get_metrics
+
+        @app.get(path="/metrics")
+        async def metrics_endpoint() -> StarletteResponse:
+            """Prometheus metrics endpoint."""
+            return StarletteResponse(
+                content=get_metrics(),
+                media_type="text/plain; version=0.0.4; charset=utf-8",
+            )
+
     @app.post(path=webhook_path)
     async def webhook_handler(
         request: Request, background_tasks: BackgroundTasks
