@@ -23,6 +23,9 @@ class Content(APIResource["Content"]):
     key: str
     url: str | None
     title: str | None
+    description: str | None
+    mimeType: str | None
+    createdAt: str
     updatedAt: str
     chunks: list["Content.Chunk"] | None
     metadata: dict[str, Any] | None
@@ -30,6 +33,8 @@ class Content(APIResource["Content"]):
     readUrl: str | None
     expiredAt: str | None
     appliedIngestionConfig: dict[str, Any] | None
+    ingestionState: str
+    object: str
 
     class QueryMode(Enum):
         Default = "default"
@@ -79,6 +84,7 @@ class Content(APIResource["Content"]):
         ownerId: "Content.StringFilter | None"
         title: "Content.StringNullableFilter | None"
         url: "Content.StringNullableFilter | None"
+        parentId: "Content.StringNullableFilter | None"
 
     class SearchParams(RequestOptions):
         where: "Content.ContentWhereInput"
@@ -184,24 +190,28 @@ class Content(APIResource["Content"]):
         key: str
         url: str | None
         title: str | None
-        metadata: dict[str, Any] | None
-        mimeType: str
         description: str | None
-        byteSize: int
-        ownerId: str
+        metadata: dict[str, Any] | None
+        byteSize: int | None
+        mimeType: str | None
+        ownerId: str | None
+        ingestionState: str | None
         createdAt: str
         updatedAt: str
         expiresAt: str | None
         deletedAt: str | None
         expiredAt: str | None
+        object: NotRequired[str]
 
     class PaginatedContentInfo(TypedDict):
         contentInfo: list["Content.ContentInfo"]
         totalCount: int
+        object: NotRequired[str]
 
     class PaginatedContentInfos(TypedDict):
         contentInfos: list["Content.ContentInfo"]
         totalCount: int
+        object: NotRequired[str]
 
     class DeleteParams(RequestOptions):
         contentId: NotRequired[str]
