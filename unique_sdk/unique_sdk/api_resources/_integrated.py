@@ -40,12 +40,23 @@ class Integrated(APIResource["Integrated"]):
         return "integrated"
 
     class SearchResult(TypedDict, total=False):
+        """Payload item for ``searchContext`` on integrated chat/responses routes.
+
+        Field alignment with node-chat public chunk DTO:
+        [PublicChunkDto](https://github.com/Unique-AG/monorepo/blob/master/next/services/node-chat/src/public-api/2023-12-06/dtos/chunk/public-chunk.dto.ts).
+        """
+
         id: str
         chunkId: str
         key: str
-        title: NotRequired["str"]
-        description: NotRequired["str"]
-        url: NotRequired["str"]
+        title: NotRequired[str | None]
+        description: NotRequired[str]
+        url: NotRequired[str | None]
+        text: NotRequired[str]
+        startPage: NotRequired[int | None]
+        endPage: NotRequired[int | None]
+        order: NotRequired[int]
+        object: NotRequired[str | None]
 
     class ChatCompletionRequestMessage(TypedDict, total=False):
         role: Literal["system", "user", "assistant"]
