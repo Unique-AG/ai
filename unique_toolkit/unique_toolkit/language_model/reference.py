@@ -2,6 +2,9 @@ import re
 
 from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
+from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
+    NORMALIZATION_PATTERNS,
+)
 
 
 def add_references_to_message(
@@ -74,62 +77,13 @@ def _add_references(
 
 
 def _preprocess_message(text: str) -> str:
-    """Preprocess message text to normalize reference formats."""
-    # Remove user & assistant references: XML format '[<user>]', '[\<user>]', etc.
-    patterns = [
-        (r"\[(\\)?(<)?user(>)?\]", ""),
-        (r"\[(\\)?(<)?assistant(>)?\]", ""),
-        (r"source[\s]?\[(\\)?(<)?conversation(>)?\]", "the previous conversation"),
-        (r"\[(\\)?(<)?previous[_,\s]conversation(>)?\]", ""),
-        (r"\[(\\)?(<)?past[_,\s]conversation(>)?\]", ""),
-        (r"\[(\\)?(<)?previous[_,\s]?answer(>)?\]", ""),
-        (r"\[(\\)?(<)?previous[_,\s]question(>)?\]", ""),
-        (r"\[(\\)?(<)?conversation(>)?\]", ""),
-        (r"\[(\\)?(<)?none(>)?\]", ""),
-    ]
+    """Normalize reference formats to the canonical ``[N]`` bracket notation.
 
-    for pattern, replacement in patterns:
-        text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
-
-    # Replace XML format '[<source XX>]', '[<sourceXX>]' and '[\<sourceXX>]' with [XX]
-    text = re.sub(r"\[(\\)?<source[\s]?(\d+)>\]", r"[\2]", text)
-
-    # Replace format 'source XX', 'source_X' and 'sourceXX' references with XX, where XX is a number
-    text = re.sub(r"source[\s_]?(\d+)", r"[\1]", text)
-
-    # Replace 'source_number="X"' with X, where X is a number
-    text = re.sub(r"source_number=\"(\d+)\"", r"[\1]", text)
-
-    # Make all references non-bold
-    text = re.sub(r"\[\*\*(\d+)\*\*\]", r"[\1]", text)
-
-    # Replace 'SOURCEXX' and 'SOURCE XX' with [XX]
-    text = re.sub(r"source[\s]?(\d+)", r"[\1]", text, flags=re.IGNORECASE)
-
-    # Replace 'SOURCE n°X' with [XX]
-    text = re.sub(r"source[\s]?n°(\d+)", r"[\1]", text, flags=re.IGNORECASE)
-
-    # Replace '[<[XX]>]' and '[\<[XX]>]' with [XX]
-    text = re.sub(r"\[(\\)?\[?<\[(\d+)\]?\]>\]", r"[\2]", text)
-
-    # Replace '[source: X, Y, Z]' with [X][Y][Z], where X,Y,Z are numbers
-    def replace_source_colon(match):
-        numbers = re.findall(r"\d+", match.group(0))
-        return "".join(f"[{n}]" for n in numbers)
-
-    text = re.sub(r"\[source:\s*([\d,\s]+)\]", replace_source_colon, text)
-
-    # Replace '[[A], [B], ...]', '[[A], B, C, ...]', and '[X, Y, Z]' with [A][B][C]... where A,B,C are numbers
-    def replace_combined_brackets(match):
-        numbers = re.findall(r"\d+", match.group(0))
-        return "".join(f"[{n}]" for n in numbers)
-
-    text = re.sub(
-        r"(?:\[\[(\d+)\](?:,\s*(?:\[)?\d+(?:\])?)*\]|\[([\d,\s]+)\])",
-        replace_combined_brackets,
-        text,
-    )
-
+    Patterns are imported from ``NORMALIZATION_PATTERNS`` in ``pattern_replacer``
+    (the single source of truth shared with the streaming replacer).
+    """
+    for pattern, replacement in NORMALIZATION_PATTERNS:
+        text = re.sub(pattern, replacement, text)
     return text
 
 
