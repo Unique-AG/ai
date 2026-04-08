@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-27T08:03:09.848121Z"
+exclude-newer = "2026-03-27T08:04:03.657529Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -26,7 +26,6 @@ requests = "2026-04-08T22:00:00Z"
 [manifest]
 members = [
     "ai-monorepo",
-    "core",
     "unique-deep-research",
     "unique-follow-up-questions",
     "unique-internal-search",
@@ -34,6 +33,7 @@ members = [
     "unique-orchestrator",
     "unique-quartr",
     "unique-sdk",
+    "unique-search-proxy",
     "unique-six",
     "unique-stock-ticker",
     "unique-swot",
@@ -820,38 +820,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/33/68/7ad4e4b7c19ea4881
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a9/fe/bce5ec796db178879c286332dbb285cadf9e94f1989df4647afa8c1867ae/copier-9.14.2-py3-none-any.whl", hash = "sha256:f27e65944b33cf5ab62ca0da5bd76c450754dbd5269db567c501c29c6417f6a6", size = 59756, upload-time = "2026-04-09T12:42:15.441Z" },
 ]
-
-[[package]]
-name = "core"
-version = "0.2.0"
-source = { editable = "connectors/unique_search_proxy" }
-dependencies = [
-    { name = "fastapi" },
-    { name = "google-auth" },
-    { name = "google-cloud-aiplatform" },
-    { name = "google-generativeai" },
-    { name = "httpx" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "python-dotenv" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "fastapi", specifier = ">=0.115.0,<1.0.0" },
-    { name = "google-auth", specifier = ">=2.43.0,<3.0.0" },
-    { name = "google-cloud-aiplatform", specifier = ">=1.128.0,<2.0.0" },
-    { name = "google-generativeai", specifier = ">=0.8.5,<0.9.0" },
-    { name = "httpx", specifier = ">=0.28.0,<0.29.0" },
-    { name = "pydantic", specifier = ">=2.12.5,<3.0.0" },
-    { name = "pydantic-settings", specifier = ">=2.12.0,<3.0.0" },
-    { name = "python-dotenv", specifier = ">=1.2.1,<2.0.0" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0,<1.0.0" },
-]
-
-[package.metadata.requires-dev]
-dev = []
 
 [[package]]
 name = "coverage"
@@ -5386,6 +5354,38 @@ requires-dist = [
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
 ]
 provides-extras = ["openai"]
+
+[package.metadata.requires-dev]
+dev = []
+
+[[package]]
+name = "unique-search-proxy"
+version = "0.2.0"
+source = { editable = "connectors/unique_search_proxy" }
+dependencies = [
+    { name = "fastapi" },
+    { name = "google-auth" },
+    { name = "google-cloud-aiplatform" },
+    { name = "google-generativeai" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "python-dotenv" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.115.0,<1.0.0" },
+    { name = "google-auth", specifier = ">=2.43.0,<3.0.0" },
+    { name = "google-cloud-aiplatform", specifier = ">=1.128.0,<2.0.0" },
+    { name = "google-generativeai", specifier = ">=0.8.5,<0.9.0" },
+    { name = "httpx", specifier = ">=0.28.0,<0.29.0" },
+    { name = "pydantic", specifier = ">=2.12.5,<3.0.0" },
+    { name = "pydantic-settings", specifier = ">=2.12.0,<3.0.0" },
+    { name = "python-dotenv", specifier = ">=1.2.1,<2.0.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.32.0,<1.0.0" },
+]
 
 [package.metadata.requires-dev]
 dev = []

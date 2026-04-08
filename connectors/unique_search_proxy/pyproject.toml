@@ -1,5 +1,5 @@
 [project]
-name = "core"
+name = "unique-search-proxy"
 version = "0.2.0"
 description = "Web Search Proxy implementation"
 authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]
