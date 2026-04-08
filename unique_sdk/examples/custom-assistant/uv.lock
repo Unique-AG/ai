@@ -630,7 +630,7 @@ wheels = [
 
 [[package]]
 name = "langchain-core"
-version = "1.2.17"
+version = "1.2.28"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jsonpatch" },
@@ -642,9 +642,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "uuid-utils" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1d/93/36226f593df52b871fc24d494c274f3a6b2ac76763a2806e7d35611634a1/langchain_core-1.2.17.tar.gz", hash = "sha256:54aa267f3311e347fb2e50951fe08e53761cebfb999ab80e6748d70525bbe872", size = 836130, upload-time = "2026-03-02T22:47:55.846Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/a4/317a1a3ac1df33a64adb3670bf88bbe3b3d5baa274db6863a979db472897/langchain_core-1.2.28.tar.gz", hash = "sha256:271a3d8bd618f795fdeba112b0753980457fc90537c46a0c11998516a74dc2cb", size = 846119, upload-time = "2026-04-08T18:19:34.867Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/90/073f33ab383a62908eca7ea699586dfea280e77182176e33199c80ddf22a/langchain_core-1.2.17-py3-none-any.whl", hash = "sha256:bf6bd6ce503874e9c2da1669a69383e967c3de1ea808921d19a9a6bff1a9fbbe", size = 502727, upload-time = "2026-03-02T22:47:54.537Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/92/32f785f077c7e898da97064f113c73fbd9ad55d1e2169cf3a391b183dedb/langchain_core-1.2.28-py3-none-any.whl", hash = "sha256:80764232581eaf8057bcefa71dbf8adc1f6a28d257ebd8b95ba9b8b452e8c6ac", size = 508727, upload-time = "2026-04-08T18:19:32.823Z" },
 ]
 
 [[package]]
@@ -1723,11 +1723,12 @@ wheels = [
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.84"
+version = "0.10.101"
 source = { editable = "../../" }
 dependencies = [
     { name = "aiohttp" },
     { name = "anyio" },
+    { name = "click" },
     { name = "httpx" },
     { name = "regex" },
     { name = "requests" },
@@ -1739,6 +1740,7 @@ dependencies = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9.0,<4" },
     { name = "anyio", specifier = ">=4.0.0,<5" },
+    { name = "click", specifier = ">=8.1.0,<9" },
     { name = "httpx", specifier = ">=0.28.0,<0.29" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=1.105.0,<2" },
     { name = "regex", specifier = ">=2024.5.15" },
@@ -1749,18 +1751,7 @@ requires-dist = [
 provides-extras = ["openai"]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "basedpyright", specifier = ">=1.35.0,<2" },
-    { name = "deptry", specifier = ">=0.24.0,<0.25" },
-    { name = "ipykernel", specifier = ">=7.1.0,<8" },
-    { name = "poethepoet", specifier = ">=0.32.0,<0.33" },
-    { name = "pytest", specifier = ">=8.0,<9" },
-    { name = "pytest-asyncio", specifier = ">=0.24.0,<0.25" },
-    { name = "pytest-cov", specifier = ">=4.1.0,<5" },
-    { name = "python-dotenv", specifier = ">=1.1.0,<2" },
-    { name = "ruff", specifier = "==0.11.7" },
-    { name = "tox", specifier = ">=4.11.4,<5" },
-]
+dev = []
 
 [[package]]
 name = "urllib3"
