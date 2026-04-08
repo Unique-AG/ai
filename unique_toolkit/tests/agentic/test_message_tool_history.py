@@ -227,6 +227,7 @@ class TestGetFullHistoryWithContentsAndToolCalls:
         mock_get_contents.return_value = ChatHistoryWithContent(
             root=[
                 ChatMessageWithContents(
+                    id="msg1",
                     chat_id="chat1",
                     role=ChatMessageRole.USER,
                     text="hello",
@@ -242,6 +243,7 @@ class TestGetFullHistoryWithContentsAndToolCalls:
                     created_at=datetime(2026, 1, 1, 0, 0, 1),
                 ),
                 ChatMessageWithContents(
+                    id="msg3",
                     chat_id="chat1",
                     role=ChatMessageRole.USER,
                     text="follow up",
@@ -321,6 +323,7 @@ class TestGetFullHistoryWithContentsAndToolCalls:
 
         content_messages.append(
             ChatMessageWithContents(
+                id="user_followup",
                 chat_id="chat1",
                 role=ChatMessageRole.USER,
                 text=user_follow_up,
@@ -657,6 +660,7 @@ class TestGetFullHistoryWithContentsAndToolCalls:
                     created_at=datetime(2026, 1, 1, 0, 0, 0),
                 ),
                 ChatMessageWithContents(
+                    id="u1",
                     chat_id="chat1",
                     role=ChatMessageRole.USER,
                     text="hi",
@@ -714,10 +718,11 @@ class TestGetFullHistoryWithContentsAndToolCalls:
         mock_get_contents.return_value = ChatHistoryWithContent(
             root=[
                 ChatMessageWithContents(
+                    id="um1",
                     chat_id="chat1",
                     role=ChatMessageRole.USER,
                     text="Hello",
-                    originalText="Hello",
+                    original_text="Hello",
                     created_at=datetime(2026, 1, 1, 0, 0, 0),
                 ),
             ]
