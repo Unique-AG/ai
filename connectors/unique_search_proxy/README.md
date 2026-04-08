@@ -46,7 +46,7 @@ VERTEXAI_SERVICE_ACCOUNT_CREDENTIALS=path/to/credentials.json
 
 **Development:**
 ```bash
-uv run python app.py
+uv run python -m unique_search_proxy.app
 ```
 
 **Production:**
@@ -188,6 +188,23 @@ Leverages Google's Gemini models with web grounding for AI-enhanced search resul
 
 ---
 
+## Project Structure
+
+```
+connectors/unique_search_proxy/
+├── unique_search_proxy/          # Python package
+│   ├── app.py                    # FastAPI application
+│   ├── settings.py               # Global settings
+│   └── core/                     # Search engine implementations
+│       ├── schema.py             # Shared schemas
+│       ├── google_search/        # Google Custom Search backend
+│       └── vertexai/             # Vertex AI (Gemini) backend
+├── tests/                        # Test suite
+├── Dockerfile
+├── entrypoint.sh
+└── pyproject.toml
+```
+
 ## Architecture
 
 ```
@@ -242,16 +259,19 @@ The service includes a production-ready `entrypoint.sh` that uses Uvicorn:
 
 ```bash
 # Run with hot reload
-uv run uvicorn app:app --reload --port 2349
-
-# Or simply
-uv run python app.py
+uv run uvicorn unique_search_proxy.app:app --reload --port 2349
 
 # Format code
 uv run ruff format .
 
 # Lint
 uv run ruff check .
+
+# Run tests
+uv run pytest
+
+# Type check
+uv run basedpyright
 ```
 
 ## License
