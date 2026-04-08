@@ -10,12 +10,11 @@ def filter_uploaded_documents_by_selection(
     additional_parameters: ChatEventAdditionalParameters | None,
     company_id: str,
 ) -> list[Content]:
-    """Return only the documents the user has actively selected, when applicable.
+    """Return only the documents the user has actively selected.
 
     Returns *all* documents unchanged when:
     - the feature flag is disabled for ``company_id``,
-    - ``additional_parameters`` is ``None``, or
-    - the selection list is empty (user has not pinned specific files).
+    - ``additional_parameters`` is ``None``.
     """
     if not feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(company_id):
         return documents
