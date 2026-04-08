@@ -10,8 +10,8 @@ from unique_toolkit._common.token.token_counting import (
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
     FileContentSerialization,
-    get_full_history_with_contents,
-    get_full_history_with_contents_and_tool_calls,
+    get_full_history_with_contents_and_tool_calls_async,
+    get_full_history_with_contents_async,
 )
 from unique_toolkit.agentic.history_manager.utils import serialize_tool_content_json
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
@@ -312,19 +312,21 @@ class LoopTokenReducer:
             else FileContentSerialization.FILE_NAME
         )
         if self._enable_tool_call_persistence:
-            full_history, max_src, src_map = (
-                get_full_history_with_contents_and_tool_calls(
-                    user_message=self._user_message,
-                    chat_id=self._chat_id,
-                    chat_service=self._chat_service,
-                    content_service=self._content_service,
-                    file_content_serialization_type=file_content_serialization_type,
-                )
+            (
+                full_history,
+                max_src,
+                src_map,
+            ) = await get_full_history_with_contents_and_tool_calls_async(
+                user_message=self._user_message,
+                chat_id=self._chat_id,
+                chat_service=self._chat_service,
+                content_service=self._content_service,
+                file_content_serialization_type=file_content_serialization_type,
             )
             self._max_db_source_number = max_src
             self._db_source_map = src_map
         else:
-            full_history = get_full_history_with_contents(
+            full_history = await get_full_history_with_contents_async(
                 user_message=self._user_message,
                 chat_id=self._chat_id,
                 chat_service=self._chat_service,

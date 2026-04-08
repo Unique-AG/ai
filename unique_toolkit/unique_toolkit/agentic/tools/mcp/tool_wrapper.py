@@ -377,7 +377,10 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
     async def _call_mcp_tool_via_sdk(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call MCP tool via SDK to public API"""
         try:
-            result = unique_sdk.MCP.call_tool(
+            self.logger.info(
+                f"Calling MCP tool {self.name} with arguments: {arguments}"
+            )
+            result = await unique_sdk.MCP.call_tool_async(
                 user_id=self._event.user_id,
                 company_id=self._event.company_id,
                 name=self.name,
@@ -386,9 +389,6 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 arguments=arguments,
             )
 
-            self.logger.info(
-                f"Calling MCP tool {self.name} with arguments: {arguments}"
-            )
             self.logger.debug(f"Result: {result}")
 
             return result
