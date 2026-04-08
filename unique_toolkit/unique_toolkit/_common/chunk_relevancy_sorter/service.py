@@ -3,7 +3,7 @@ import time
 from collections import Counter
 from typing import Any, overload
 
-from typing_extensions import deprecated
+from typing_extensions import Self, deprecated
 
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
@@ -39,6 +39,7 @@ from unique_toolkit.agentic.evaluation.schemas import (
 )
 from unique_toolkit.app.performance.async_tasks import run_async_tasks_parallel
 from unique_toolkit.app.schemas import BaseEvent, ChatEvent
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.language_model.infos import LanguageModelInfo
 
@@ -83,6 +84,13 @@ class ChunkRelevancySorter:
     @classmethod
     def from_event(cls, event: ChatEvent | BaseEvent):
         return cls(company_id=event.company_id, user_id=event.user_id)
+
+    @classmethod
+    def from_settings(cls, settings: UniqueSettings) -> Self:
+        return cls(
+            company_id=settings.authcontext.get_confidential_company_id(),
+            user_id=settings.authcontext.get_confidential_user_id(),
+        )
 
     async def run(
         self,
