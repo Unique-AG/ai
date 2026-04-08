@@ -914,11 +914,12 @@ def test_build_file_fence__document__uses_fileWithSource_tag() -> None:
 
 
 @pytest.mark.ai
-def test_build_file_fence__html__produces_htmlWithSource() -> None:
+def test_build_file_fence__html__falls_through_to_fileWithSource() -> None:
     """
-    Purpose: HTML files produce an htmlWithSource fence (not fileWithSource).
-    Why this matters: When the fence FF is on, HTML is injected as htmlWithSource
-    so the frontend can render it in-place rather than as a download link.
+    Purpose: HTML ``CodeInterpreterFile`` passed to ``_build_file_fence`` uses
+    ``fileWithSource`` (not a dedicated HTML fence tag).
+    Why this matters: In normal flow HTML is shown via ``HtmlRendering`` blocks and is
+    excluded from fence injection; this path only applies to edge cases (e.g. orphans).
     """
     file = CodeInterpreterFile(
         filename="report.html", content_id="cont_html1", type="html"
@@ -926,9 +927,9 @@ def test_build_file_fence__html__produces_htmlWithSource() -> None:
     fence = _build_file_fence(
         file, 'open("/mnt/data/report.html", "w").write("<html></html>")', fence_id=3
     )
-    assert fence.startswith("````htmlWithSource(")
+    assert fence.startswith("````fileWithSource(")
     assert "cont_html1" in fence
-    assert "fileWithSource" not in fence
+    assert "htmlWithSource" not in fence
 
 
 @pytest.mark.ai
