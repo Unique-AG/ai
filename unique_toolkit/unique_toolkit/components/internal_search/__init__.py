@@ -1,4 +1,6 @@
 from .base import (
+    DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED,
+    DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED,
     HasChunkRelevancySorter,
     InternalSearchBaseService,
     InternalSearchConfig,
@@ -29,6 +31,8 @@ __all__ = [
     "InternalSearchState",
     "SearchStringResult",
     "TInternalSearchDeps",
+    "DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED",
+    "DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED",
     # chat
     "ChatInternalSearchDeps",
     "ChatInternalSearchService",
