@@ -48,6 +48,7 @@ from unique_toolkit.protocols.support import (
 )
 
 from unique_orchestrator.config import UniqueAIConfig
+from unique_orchestrator.utils import filter_uploaded_documents_by_selection
 
 EMPTY_MESSAGE_WARNING = (
     "⚠️ **The language model was unable to produce an output.**\n"
@@ -480,6 +481,11 @@ class UniqueAI:
             sub_agent_referencing_instructions = None
 
         uploaded_documents = self._content_service.get_documents_uploaded_to_chat()
+        uploaded_documents = filter_uploaded_documents_by_selection(
+            documents=uploaded_documents,
+            additional_parameters=self._event.payload.additional_parameters,
+            company_id=self._event.company_id,
+        )
         uploaded_documents_expired = [
             doc
             for doc in uploaded_documents
