@@ -2,9 +2,18 @@ import logging
 import re
 
 from pydantic import BaseModel
+from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content.schemas import ContentChunk
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def extract_selected_uploaded_file_ids(event: ChatEvent) -> list[str]:
+    """Extract selected uploaded file IDs from the event's additional parameters."""
+    additional = event.payload.additional_parameters
+    if not additional:
+        return []
+    return additional.selected_uploaded_file_ids
 
 
 class SearchStringResult(BaseModel):

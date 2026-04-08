@@ -46,6 +46,7 @@ from unique_internal_search.utils import (
     SearchStringResult,
     append_metadata_in_chunks,
     clean_search_string,
+    extract_selected_uploaded_file_ids,
     interleave_search_results_round_robin,
 )
 
@@ -104,10 +105,7 @@ class InternalSearchService:
             if feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
                 self.company_id
             ):
-                if len(self.selected_uploaded_files) > 0:
-                    return True
-                else:
-                    return False
+                return len(self.selected_uploaded_files) > 0
             chat_files = await self.get_uploaded_files()
             if len(chat_files) > 0:
                 return True
@@ -171,10 +169,7 @@ class InternalSearchService:
             )
             and chat_only
         ):
-            if len(self.selected_uploaded_files) > 0:
-                content_ids = self.selected_uploaded_files
-            else:
-                content_ids = []
+            content_ids = self.selected_uploaded_files
 
         # Run all searches in parallel
         results = await asyncio.gather(
@@ -446,17 +441,12 @@ class InternalSearchTool(Tool[InternalSearchConfig], InternalSearchService):
 
         content_service = ContentService.from_event(self.event)
         chunk_relevancy_sorter = ChunkRelevancySorter.from_event(self.event)
-        # Determing chat_id if possible
-        selected_uploaded_files: list[str] = []
+        selected_uploaded_files = extract_selected_uploaded_file_ids(self.event)
         if isinstance(self.event, (ChatEvent, Event)):
             if self.event.payload.correlation:
-                # Use parent chat id if correlation is present
                 chat_id = self.event.payload.correlation.parent_chat_id
             else:
                 chat_id = self.event.payload.chat_id
-            additional = self.event.payload.additional_parameters
-            if additional and additional.selected_uploaded_files:
-                selected_uploaded_files = additional.selected_uploaded_file_ids
         else:
             chat_id = None
         self._display_name = kwargs.get("display_name", "Internal Search")

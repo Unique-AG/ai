@@ -20,6 +20,7 @@ from unique_toolkit.language_model.schemas import (
 
 from unique_internal_search.service import InternalSearchTool
 from unique_internal_search.uploaded_search.config import UploadedSearchConfig
+from unique_internal_search.utils import extract_selected_uploaded_file_ids
 
 
 class UploadedSearchTool(Tool[UploadedSearchConfig]):
@@ -43,12 +44,9 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
             config, event, None, *args, **kwargs
         )
         self._internal_search_tool._display_name = self._display_name
-        self._selected_uploaded_files: list[str] = []
+        self._selected_uploaded_files = extract_selected_uploaded_file_ids(event)
         if isinstance(event, ChatEvent):
             self._user_query = event.payload.user_message.text
-            additional = event.payload.additional_parameters
-            if additional and additional.selected_uploaded_files:
-                self._selected_uploaded_files = additional.selected_uploaded_file_ids
         else:
             self._user_query = None
 
@@ -80,11 +78,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         if feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
             self._company_id
         ):
-            if len(self._selected_uploaded_files) > 0:
-                selected_ids = set(self._selected_uploaded_files)
-                documents = [doc for doc in documents if doc.id in selected_ids]
-            else:
-                documents = []
+            documents = [doc for doc in documents if doc.id in self._selected_uploaded_files]
         now = datetime.now(timezone.utc)
 
         valid_documents = [
