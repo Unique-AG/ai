@@ -106,12 +106,12 @@ class Space(APIResource["Space"]):
         """
 
         name: str
-        description: str | None
-        url: str | None
         sequenceNumber: int
-        originalIndex: list[int] | None
         sourceId: str
         source: str
+        description: NotRequired[str | None]
+        url: NotRequired[str | None]
+        originalIndex: NotRequired[list[int] | None]
 
     class Assessment(TypedDict):
         """
@@ -149,6 +149,7 @@ class Space(APIResource["Space"]):
         updatedAt: str | None
         startedStreamingAt: str | None
         stoppedStreamingAt: str | None
+        userAbortedAt: str | None
         references: list["Space.Reference"] | None
         assessment: list["Space.Assessment"] | None
 
@@ -167,6 +168,7 @@ class Space(APIResource["Space"]):
         id: str
         title: str | None
         createdAt: str
+        object: NotRequired[str]
 
     class GetAllMessagesResponse(TypedDict):
         """
