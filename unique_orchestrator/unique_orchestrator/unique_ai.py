@@ -480,15 +480,6 @@ class UniqueAI:
             sub_agent_referencing_instructions = None
 
         uploaded_documents = self._content_service.get_documents_uploaded_to_chat()
-        additional = self._event.payload.additional_parameters
-        if feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
-            self._event.company_id
-        ):
-            if additional and additional.selected_uploaded_files:
-                selected_ids = set(additional.selected_uploaded_file_ids)
-                uploaded_documents = [
-                    doc for doc in uploaded_documents if doc.id in selected_ids
-                ]
         uploaded_documents_expired = [
             doc
             for doc in uploaded_documents
