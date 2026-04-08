@@ -209,7 +209,7 @@ class TestInternalSearchService:
             chat_id="chat_123",
             logger=mock_logger,
             company_id="company_123",
-            selected_uploaded_files=["content_1", "content_2"],
+            selected_uploaded_file_ids=["content_1", "content_2"],
         )
         mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
@@ -249,7 +249,7 @@ class TestInternalSearchService:
             chat_id="chat_123",
             logger=mock_logger,
             company_id="company_123",
-            selected_uploaded_files=["content_1", "content_2"],
+            selected_uploaded_file_ids=["content_1", "content_2"],
         )
         mock_content_service.search_contents_async = AsyncMock(return_value=[])
 
@@ -290,7 +290,7 @@ class TestInternalSearchService:
             chat_id="chat_123",
             logger=mock_logger,
             company_id="company_123",
-            selected_uploaded_files=selected_files,
+            selected_uploaded_file_ids=selected_files,
         )
         mock_content_service.search_content_chunks_async = AsyncMock(
             return_value=sample_content_chunks
@@ -332,7 +332,7 @@ class TestInternalSearchService:
             chat_id="chat_123",
             logger=mock_logger,
             company_id="company_123",
-            selected_uploaded_files=["content_1", "content_2"],
+            selected_uploaded_file_ids=["content_1", "content_2"],
         )
         mock_content_service.search_content_chunks_async = AsyncMock(
             return_value=sample_content_chunks
