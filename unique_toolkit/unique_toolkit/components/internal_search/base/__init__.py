@@ -1,4 +1,8 @@
-from .config import InternalSearchConfig
+from .config import (
+    DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED,
+    DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED,
+    InternalSearchConfig,
+)
 from .schemas import (
     HasChunkRelevancySorter,
     InternalSearchProgressMessage,
@@ -28,4 +32,6 @@ __all__ = [
     "interleave_search_results_round_robin",
     "SearchStringResult",
     "TInternalSearchDeps",
+    "DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED",
+    "DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED",
 ]
