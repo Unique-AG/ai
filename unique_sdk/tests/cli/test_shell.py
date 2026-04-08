@@ -161,10 +161,12 @@ class TestShellFolderOps:
         mock.return_value = {
             "id": "scope_abc",
             "name": "New",
-            "ingestionConfig": {},
+            "ingestionConfig": {"uniqueIngestionMode": "INGESTION"},
             "createdAt": "2025-01-01T00:00:00Z",
             "updatedAt": "2025-03-01T10:00:00Z",
             "parentId": "scope_root",
+            "externalId": None,
+            "scopeAccess": [],
         }
         out = _capture(_shell("/R", "scope_r"), "mvdir Q1 New")
         assert "Renamed" in out

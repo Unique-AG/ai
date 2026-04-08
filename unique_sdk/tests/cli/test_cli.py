@@ -75,10 +75,12 @@ class TestClickCLI:
         mock.return_value = {
             "id": "scope_abc",
             "name": "New",
-            "ingestionConfig": {},
+            "ingestionConfig": {"uniqueIngestionMode": "INGESTION"},
             "createdAt": "2025-01-01T00:00:00Z",
             "updatedAt": "2025-03-01T10:00:00Z",
             "parentId": "scope_root",
+            "externalId": None,
+            "scopeAccess": [],
         }
         runner = CliRunner()
         result = runner.invoke(main, ["mvdir", "scope_abc", "New"])
