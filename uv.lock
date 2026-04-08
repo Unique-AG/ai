@@ -785,7 +785,7 @@ wheels = [
 
 [[package]]
 name = "core"
-version = "0.1.4"
+version = "0.1.5"
 source = { editable = "connectors/unique_search_proxy" }
 dependencies = [
     { name = "fastapi" },
