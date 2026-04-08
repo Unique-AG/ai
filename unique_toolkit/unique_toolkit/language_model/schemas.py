@@ -265,7 +265,10 @@ class LanguageModelMessage(BaseModel, ABC):
     @abstractmethod
     def to_openai(
         self, mode: Literal["completions", "responses"] = "completions"
-    ) -> ChatCompletionMessageParam | ResponseInputItemParam: ...
+    ) -> ChatCompletionMessageParam | ResponseInputItemParam:
+        raise NotImplementedError(
+            "Subclasses must implement this. This class should not be used directly"
+        )
 
 
 class LanguageModelSystemMessage(LanguageModelMessage):
@@ -477,7 +480,7 @@ class LanguageModelToolMessage(LanguageModelMessage):
 # with the addition of the builder
 
 LanguageModelMessageOptions = (
-    LanguageModelMessage  # This should not be here
+    LanguageModelMessage  # TODO: Ideally we remove this
     | LanguageModelToolMessage
     | LanguageModelAssistantMessage
     | LanguageModelSystemMessage
