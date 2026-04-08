@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-24T14:54:04.96012Z"
+exclude-newer = "2026-03-25T06:37:19.245411Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5493,7 +5493,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-version = "1.69.0"
+version = "1.69.2"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
