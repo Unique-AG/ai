@@ -3,8 +3,8 @@ from .internal_search import (
     ChatInternalSearchDeps,
     ChatInternalSearchService,
     HasChunkRelevancySorter,
-    InternalSearchBaseService,
     InternalSearchConfig,
+    InternalSearchExecutionBaseService,
     InternalSearchProgressMessage,
     InternalSearchResult,
     InternalSearchStage,
@@ -24,7 +24,7 @@ __all__ = [
     # internal search — base
     "HasChunkRelevancySorter",
     "InternalSearchConfig",
-    "InternalSearchBaseService",
+    "InternalSearchExecutionBaseService",
     "InternalSearchProgressMessage",
     "InternalSearchResult",
     "InternalSearchStage",

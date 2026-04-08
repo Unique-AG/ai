@@ -5,7 +5,7 @@ from unique_toolkit.components.internal_search.base import (
     SearchStringResult,
 )
 from unique_toolkit.components.internal_search.base.service import (
-    InternalSearchBaseService,
+    InternalSearchExecutionBaseService,
 )
 from unique_toolkit.components.internal_search.chat.schemas import (
     ChatInternalSearchDeps,
@@ -13,7 +13,9 @@ from unique_toolkit.components.internal_search.chat.schemas import (
 from unique_toolkit.services import UniqueServiceFactory
 
 
-class ChatInternalSearchService(InternalSearchBaseService[ChatInternalSearchDeps]):
+class ChatInternalSearchService(
+    InternalSearchExecutionBaseService[ChatInternalSearchDeps]
+):
     _dependencies: ChatInternalSearchDeps
 
     def _make_dependencies(

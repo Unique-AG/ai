@@ -7,7 +7,7 @@ from unique_toolkit.components.internal_search.base import (
     SearchStringResult,
 )
 from unique_toolkit.components.internal_search.base.service import (
-    InternalSearchBaseService,
+    InternalSearchExecutionBaseService,
 )
 from unique_toolkit.components.internal_search.knowledge_base.config import (
     KnowledgeBaseInternalSearchConfig,
@@ -21,7 +21,7 @@ from unique_toolkit.services import UniqueServiceFactory
 
 
 class KnowledgeBaseInternalSearchService(
-    InternalSearchBaseService[KnowledgeBaseInternalSearchDeps]
+    InternalSearchExecutionBaseService[KnowledgeBaseInternalSearchDeps]
 ):
     _state: KnowledgeBaseInternalSearchState
     _dependencies: KnowledgeBaseInternalSearchDeps

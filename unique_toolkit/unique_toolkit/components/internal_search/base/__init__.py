@@ -8,7 +8,7 @@ from .schemas import (
     SearchStringResult,
     TInternalSearchDeps,
 )
-from .service import InternalSearchBaseService
+from .service import InternalSearchExecutionBaseService
 from .utils import (
     append_metadata_in_chunks,
     clean_search_string,
@@ -20,7 +20,7 @@ __all__ = [
     "clean_search_string",
     "HasChunkRelevancySorter",
     "InternalSearchConfig",
-    "InternalSearchBaseService",
+    "InternalSearchExecutionBaseService",
     "InternalSearchProgressMessage",
     "InternalSearchResult",
     "InternalSearchStage",
