@@ -32,7 +32,7 @@ from unique_toolkit.content import (
 )
 
 
-class InternalSearchExecutionBaseService(
+class InternalSearchBaseService(
     BaseService[
         InternalSearchResult,
         InternalSearchConfig,
@@ -197,4 +197,4 @@ class InternalSearchExecutionBaseService(
         )
 
 
-__all__ = ["InternalSearchExecutionBaseService"]
+__all__ = ["InternalSearchBaseService"]
