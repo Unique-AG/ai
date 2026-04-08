@@ -1,7 +1,7 @@
 from .base import (
     HasChunkRelevancySorter,
+    InternalSearchBaseService,
     InternalSearchConfig,
-    InternalSearchExecutionBaseService,
     InternalSearchProgressMessage,
     InternalSearchResult,
     InternalSearchStage,
@@ -22,7 +22,7 @@ __all__ = [
     # base
     "HasChunkRelevancySorter",
     "InternalSearchConfig",
-    "InternalSearchExecutionBaseService",
+    "InternalSearchBaseService",
     "InternalSearchProgressMessage",
     "InternalSearchResult",
     "InternalSearchStage",
