@@ -6,20 +6,23 @@ Target of the method is to extend the step tracking on all levels of the tool.
 
 from collections import defaultdict
 from logging import getLogger
+from typing import Literal
 
 from unique_toolkit.chat.schemas import (
     MessageLog,
     MessageLogDetails,
+    MessageLogEvent,
     MessageLogStatus,
     MessageLogUncitedReferences,
 )
 from unique_toolkit.chat.service import ChatService
-from unique_toolkit.content.schemas import ContentReference
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
 
 _LOGGER = getLogger(__name__)
 
 # Per-request counters for message log ordering - keyed by message_id
-# This is a mandatory global variable since we have in the system a bug which makes it impossible to use it as a proper class variable.
+# This is a mandatory global variable since we have in the system a bug
+# which makes it impossible to use it as a proper class variable.
 _request_counters = defaultdict(int)
 
 
@@ -65,7 +68,7 @@ class MessageStepLogger:
         status: MessageLogStatus = MessageLogStatus.COMPLETED,
         details: MessageLogDetails | None = None,
         references: list[ContentReference] = [],
-    ) -> MessageLog | None:
+    ) -> MessageLog:
         """
         Create a full message log entry with question, hits, and references.
         The created message log entry is returned. If the message log entry is not created, None is returned.
@@ -74,7 +77,10 @@ class MessageStepLogger:
             _LOGGER.warning(
                 "Assistant message id is not set. Skipping message log entry creation."
             )
-            return
+            raise ValueError(
+                "Assistant message id is not set. Skipping message log entry creation."
+            )
+
         return self._chat_service.create_message_log(
             message_id=self._chat_service._assistant_message_id,
             text=text,
@@ -124,7 +130,7 @@ class MessageStepLogger:
         status: MessageLogStatus = MessageLogStatus.RUNNING,
         details: MessageLogDetails | None = None,
         references: list[ContentReference] | None = [],
-    ) -> MessageLog | None:
+    ) -> MessageLog:
         """
         Create a new message log entry or update an existing one.
 
@@ -175,7 +181,7 @@ class MessageStepLogger:
         status: MessageLogStatus = MessageLogStatus.COMPLETED,
         details: MessageLogDetails | None = None,
         references: list[ContentReference] = [],
-    ) -> MessageLog | None:
+    ) -> MessageLog:
         """
         Create a full message log entry with question, hits, and references.
         The created message log entry is returned. If the message log entry is not created, None is returned.
@@ -234,7 +240,7 @@ class MessageStepLogger:
         status: MessageLogStatus = MessageLogStatus.RUNNING,
         details: MessageLogDetails | None = None,
         references: list[ContentReference] | None = [],
-    ) -> MessageLog | None:
+    ) -> MessageLog:
         """
         Create a new message log entry or update an existing one.
 
@@ -277,3 +283,38 @@ class MessageStepLogger:
                 details=details,
                 references=references,
             )
+
+    async def display_search_in_message_log(
+        self,
+        *,
+        search_queries: list[str],
+        active_message_log: MessageLog | None,
+        progress_message: str | None = None,
+        chunks: list[ContentChunk] | None = None,
+        status: MessageLogStatus = MessageLogStatus.RUNNING,
+        search_type: Literal["InternalSearch", "WebSearch"] = "InternalSearch",
+    ) -> MessageLog | None:
+        if chunks is None:
+            chunks = []
+
+        return self.create_or_update_message_log(
+            active_message_log=active_message_log,
+            header=search_type,
+            progress_message=progress_message,
+            details=MessageLogDetails(
+                data=[
+                    MessageLogEvent(
+                        type=search_type,
+                        text=search_query,
+                    )
+                    for search_query in search_queries
+                ]
+            ),
+            references=[
+                content_chunk.to_reference(
+                    source="internal", sequence_number_override=count
+                )
+                for count, content_chunk in enumerate(chunks)
+            ],
+            status=status,
+        )
