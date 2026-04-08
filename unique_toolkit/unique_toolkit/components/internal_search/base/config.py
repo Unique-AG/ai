@@ -100,4 +100,8 @@ class InternalSearchConfig(BaseModel):
     )
 
 
-__all__ = ["InternalSearchConfig"]
+__all__ = [
+    "InternalSearchConfig",
+    "DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED",
+    "DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED",
+]
