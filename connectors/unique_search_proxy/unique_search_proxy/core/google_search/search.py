@@ -4,14 +4,14 @@ from typing import Literal
 from httpx import AsyncClient, Response
 from pydantic import BaseModel, Field
 
-from core.google_search.exceptions import (
+from unique_search_proxy.core.google_search.exceptions import (
     GoogleSearchAPIEndpointNotSetException,
     GoogleSearchAPIKeyNotSetException,
     GoogleSearchEngineIDNotSetException,
 )
-from core.google_search.schema import GoogleSearchQueryParams
-from core.google_search.settings import GoogleSearchSettings
-from core.schema import (
+from unique_search_proxy.core.google_search.schema import GoogleSearchQueryParams
+from unique_search_proxy.core.google_search.settings import GoogleSearchSettings
+from unique_search_proxy.core.schema import (
     SearchEngineType,
     SearchRequest,
     WebSearchResult,

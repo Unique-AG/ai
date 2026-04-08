@@ -1,9 +1,10 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from core.schema import WebSearchResult, WebSearchResults
-from core.vertexai.helpers import _resolve_url, resolve_all
 from httpx import HTTPError
+
+from unique_search_proxy.core.schema import WebSearchResult, WebSearchResults
+from unique_search_proxy.core.vertexai.helpers import _resolve_url, resolve_all
 
 
 class TestResolveUrl:
@@ -62,7 +63,7 @@ class TestResolveAll:
         mock_client.head.side_effect = [mock_resp_a, mock_resp_b]
 
         with patch(
-            "core.vertexai.helpers.AsyncClient",
+            "unique_search_proxy.core.vertexai.helpers.AsyncClient",
         ) as mock_cls:
             mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)

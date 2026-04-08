@@ -35,7 +35,8 @@ COPY requirements.txt pyproject.toml ./
 RUN uv venv && uv pip install --require-hashes -r requirements.txt
 
 # Copy application code
-COPY web/ ./
+COPY unique_search_proxy/ ./unique_search_proxy/
+COPY entrypoint.sh ./
 
 # Set ownership and permissions
 RUN chown -R appuser:appuser /app && \

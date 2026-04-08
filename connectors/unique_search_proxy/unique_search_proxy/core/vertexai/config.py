@@ -1,7 +1,7 @@
 from google.genai import types
 from pydantic import BaseModel
 
-from core.vertexai.prompts import (
+from unique_search_proxy.core.vertexai.prompts import (
     VERTEX_GROUNDING_SYSTEM_INSTRUCTION,
     VERTEX_STRUCTURED_RESULTS_SYSTEM_INSTRUCTION,
 )
