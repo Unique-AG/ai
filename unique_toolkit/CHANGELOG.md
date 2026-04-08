@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.69.4] - 2026-04-08
+- Make `LanguageModelMessage` an abstract base class with `@abstractmethod` for `to_openai()` to prevent direct instantiation
+- Move `LanguageModelMessageRole` enum to `language_model.schemas` (includes `TOOL` role, separate from `ChatMessageRole`)
+- Simplify `ChatMessage`: remove unused `ToolCall` class and `tool_calls` field, make `id` required, remove `TOOL` role from `ChatMessageRole`
+- Deprecate `map_to_chat_messages()` in favor of `ChatMessage.model_validate()`
+- Add `to_openai()` method to `LanguageModelMessages` container for batch conversion
+- Add `@override` decorators to concrete `to_openai` implementations
+- Raise `ValueError` for unknown message roles instead of falling back to base class
+
 ## [1.69.3] - 2026-04-08
 - Add number zero to allowed tool name pattern
 
