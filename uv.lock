@@ -5274,7 +5274,7 @@ dev = []
 
 [[package]]
 name = "unique-orchestrator"
-version = "1.20.5"
+version = "1.20.4"
 source = { editable = "unique_orchestrator" }
 dependencies = [
     { name = "jinja2" },

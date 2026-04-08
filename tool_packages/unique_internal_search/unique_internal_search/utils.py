@@ -8,12 +8,12 @@ from unique_toolkit.content.schemas import ContentChunk
 _LOGGER = logging.getLogger(__name__)
 
 
-def extract_selected_uploaded_file_ids(event: ChatEvent) -> list[str]:
+def extract_selected_uploaded_file_ids(event: ChatEvent) -> list[str] | None:
     """Extract selected uploaded file IDs from the event's additional parameters."""
     additional = event.payload.additional_parameters
     if not additional:
-        return []
-    return additional.selected_uploaded_file_ids
+        return None
+    return [file.id for file in additional.selected_uploaded_files]
 
 
 class SearchStringResult(BaseModel):
