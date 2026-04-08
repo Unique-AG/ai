@@ -643,8 +643,8 @@ class LanguageModelToolParameters(BaseModel):
 class LanguageModelTool(BaseModel):
     name: str = Field(
         ...,
-        pattern=r"^[a-zA-Z1-9_-]+$",
-        description="Name must adhere to the pattern ^[a-zA-Z_-]+$",
+        pattern=r"^[a-zA-Z0-9_-]+$",
+        description="Name must adhere to the pattern ^[a-zA-Z0-9_-]+$",
     )
     description: str
     parameters: (
@@ -658,8 +658,8 @@ class LanguageModelTool(BaseModel):
 class LanguageModelToolDescription(BaseModel):
     name: str = Field(
         ...,
-        pattern=r"^[a-zA-Z1-9_-]+$",
-        description="Name must adhere to the pattern ^[a-zA-Z1-9_-]+$",
+        pattern=r"^[a-zA-Z0-9_-]+$",
+        description="Name must adhere to the pattern ^[a-zA-Z0-9_-]+$",
     )
     description: str = Field(
         ...,
