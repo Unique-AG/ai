@@ -332,10 +332,11 @@ if [ "$SKIP_TESTS" = false ]; then
     # Extract package name from PACKAGE directory (e.g., unique_toolkit from unique_toolkit/)
     PACKAGE_NAME=$(basename "$PACKAGE")
     PACKAGE_NORM="${PACKAGE%/}"
+    PACKAGE_REL="${PACKAGE_NORM#"$REPO_ROOT"/}"
 
     # pytest-cov --cov= must match importable top-level package names. unique_search_proxy
     # publishes as project "core" with code under web/: core, app, settings.
-    if [ "$PACKAGE_NORM" = "connectors/unique_search_proxy" ]; then
+    if [ "$PACKAGE_REL" = "connectors/unique_search_proxy" ]; then
         PYTEST_COV_ARGS=(--cov=core --cov=app --cov=settings)
     else
         PYTEST_COV_ARGS=(--cov="$PACKAGE_NAME")
