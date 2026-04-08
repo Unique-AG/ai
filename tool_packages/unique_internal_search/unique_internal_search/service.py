@@ -63,7 +63,7 @@ class InternalSearchService:
         message_step_logger: MessageStepLogger | None = None,
         display_name: str = "Internal Search",
         language_model_orchestrator: "LanguageModelInfo | None" = None,
-        selected_uploaded_file_ids: list[str] | None = None,
+        selected_uploaded_file_ids: list[str],
     ):
         self.config = config
         self.content_service = content_service
@@ -77,7 +77,7 @@ class InternalSearchService:
         self._active_message_log: MessageLog | None = None
         # TODO: Propagate orchestrator LLM into tool initialization in separate PR
         self.language_model_orchestrator = language_model_orchestrator
-        self.selected_uploaded_file_ids: list[str] | None = selected_uploaded_file_ids
+        self.selected_uploaded_file_ids: list[str] = selected_uploaded_file_ids
 
     async def post_progress_message(self, message: str, *args, **kwargs):
         pass
@@ -104,7 +104,7 @@ class InternalSearchService:
         if self.config.scope_to_chat_on_upload:
             if feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
                 self.company_id
-            ) and self.selected_uploaded_file_ids is not None:
+            ):
                 return len(self.selected_uploaded_file_ids) > 0
             chat_files = await self.get_uploaded_files()
             if len(chat_files) > 0:
@@ -168,7 +168,6 @@ class InternalSearchService:
                 self.company_id
             )
             and chat_only
-            and self.selected_uploaded_file_ids is not None
         ):
             content_ids = self.selected_uploaded_file_ids
 
