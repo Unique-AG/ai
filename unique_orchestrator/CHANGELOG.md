@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.5] - 2026-04-06
+- Fix sync `modify_assistant_message` calls inside async `run()` and `_process_plan()` blocking the event loop — replaced with `modify_assistant_message_async`
+
 ## [1.20.4] - 2026-04-03
 - Fix: skip hallucination evaluation when code interpreter is used, preventing false-positive assessments on code-execution-grounded answers
 
