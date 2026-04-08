@@ -1,6 +1,6 @@
 [project]
 name = "unique_quartr"
-version = "0.2.9"
+version = "0.2.10"
 description = "Unique Quartr API client"
 authors = [
     { name = "Rami Azouz", email = "rami.ext@unique.ch" },

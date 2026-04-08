@@ -331,7 +331,16 @@ if [ "$SKIP_TESTS" = false ]; then
     print_info "Running tests with coverage..."
     # Extract package name from PACKAGE directory (e.g., unique_toolkit from unique_toolkit/)
     PACKAGE_NAME=$(basename "$PACKAGE")
-    
+    PACKAGE_NORM="${PACKAGE%/}"
+
+    # pytest-cov --cov= must match importable top-level package names. unique_search_proxy
+    # publishes as project "core" with code under web/: core, app, settings.
+    if [ "$PACKAGE_NORM" = "connectors/unique_search_proxy" ]; then
+        PYTEST_COV_ARGS=(--cov=core --cov=app --cov=settings)
+    else
+        PYTEST_COV_ARGS=(--cov="$PACKAGE_NAME")
+    fi
+
     # Find tests directory - try multiple locations
     if [ -d "tests" ]; then
         TESTS_DIR="tests/"
@@ -345,7 +354,7 @@ if [ "$SKIP_TESTS" = false ]; then
     
     print_info "Running tests from: $TESTS_DIR"
     $RUNNER pytest \
-        --cov="$PACKAGE_NAME" \
+        "${PYTEST_COV_ARGS[@]}" \
         --cov-report=xml \
         --cov-report=term \
         "$TESTS_DIR" || {
