@@ -4,7 +4,7 @@ from typing import Any, Callable, Generic, TypeVar
 from google.genai import types
 from pydantic import BaseModel
 
-from core.vertexai.exceptions import (
+from unique_search_proxy.core.vertexai.exceptions import (
     VertexAIContentResponseEmptyException,
 )
 

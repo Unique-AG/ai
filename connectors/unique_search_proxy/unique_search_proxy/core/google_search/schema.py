@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from core.schema import camelized_model_config
+from unique_search_proxy.core.schema import camelized_model_config
 
 
 class GoogleSearchQueryParams(BaseModel):

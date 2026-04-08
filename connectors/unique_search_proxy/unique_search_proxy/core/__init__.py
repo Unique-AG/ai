@@ -2,9 +2,9 @@ from typing import Annotated, Any, Protocol
 
 from pydantic import Field
 
-from core.google_search import GoogleSearch, GoogleSearchRequest
-from core.schema import SearchEngineType, WebSearchResult
-from core.vertexai import VertexAiRequest, VertexAISearchEngine
+from unique_search_proxy.core.google_search import GoogleSearch, GoogleSearchRequest
+from unique_search_proxy.core.schema import SearchEngineType, WebSearchResult
+from unique_search_proxy.core.vertexai import VertexAiRequest, VertexAISearchEngine
 
 
 class SearchEngine(Protocol):
