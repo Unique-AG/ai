@@ -78,7 +78,9 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         if feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
             self._company_id
         ):
-            documents = [doc for doc in documents if doc.id in self._selected_uploaded_files]
+            documents = [
+                doc for doc in documents if doc.id in self._selected_uploaded_files
+            ]
         now = datetime.now(timezone.utc)
 
         valid_documents = [

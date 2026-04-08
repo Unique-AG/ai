@@ -11,7 +11,7 @@ _LOGGER = logging.getLogger(__name__)
 def extract_selected_uploaded_file_ids(event: ChatEvent) -> list[str]:
     """Extract selected uploaded file IDs from the event's additional parameters."""
     additional = event.payload.additional_parameters
-    if not additional: # ToDo [UN-19076]: Additional parameters are never None. 
+    if not additional:  # ToDo [UN-19076]: Additional parameters are never None.
         return []
     return additional.selected_uploaded_file_ids
 
