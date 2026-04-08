@@ -57,6 +57,7 @@ class InternalSearchResult(BaseModel):
 
 
 __all__ = [
+    "HasChunkRelevancySorter",
     "InternalSearchProgressMessage",
     "InternalSearchResult",
     "InternalSearchStage",

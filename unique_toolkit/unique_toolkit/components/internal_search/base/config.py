@@ -98,3 +98,6 @@ class InternalSearchConfig(BaseModel):
         ge=1,
         description="The maximum number of search strings to perform in a single tool call.",
     )
+
+
+__all__ = ["InternalSearchConfig"]

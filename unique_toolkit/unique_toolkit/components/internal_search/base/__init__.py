@@ -1,4 +1,6 @@
+from .config import InternalSearchConfig
 from .schemas import (
+    HasChunkRelevancySorter,
     InternalSearchProgressMessage,
     InternalSearchResult,
     InternalSearchStage,
@@ -6,14 +8,24 @@ from .schemas import (
     SearchStringResult,
     TInternalSearchDeps,
 )
-from .utils import clean_search_string
+from .service import InternalSearchExecutionBaseService
+from .utils import (
+    append_metadata_in_chunks,
+    clean_search_string,
+    interleave_search_results_round_robin,
+)
 
 __all__ = [
+    "append_metadata_in_chunks",
     "clean_search_string",
+    "HasChunkRelevancySorter",
+    "InternalSearchConfig",
+    "InternalSearchExecutionBaseService",
     "InternalSearchProgressMessage",
     "InternalSearchResult",
-    "InternalSearchState",
     "InternalSearchStage",
+    "InternalSearchState",
+    "interleave_search_results_round_robin",
     "SearchStringResult",
     "TInternalSearchDeps",
 ]

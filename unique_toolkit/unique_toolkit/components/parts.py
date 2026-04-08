@@ -164,3 +164,6 @@ class BaseService(
     @cached_property
     def logger(self) -> logging.Logger:
         return logging.getLogger(f"{type(self).__module__}.{type(self).__qualname__}")
+
+
+__all__ = ["BaseService"]
