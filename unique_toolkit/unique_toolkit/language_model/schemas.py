@@ -284,12 +284,12 @@ class LanguageModelSystemMessage(LanguageModelMessage):
     ) -> ChatCompletionSystemMessageParam: ...
 
     @overload
-    def to_openai(self, mode: Literal["responses"]) -> ResponseInputItemParam: ...
+    def to_openai(self, mode: Literal["responses"]) -> EasyInputMessageParam: ...
 
     @override
     def to_openai(
         self, mode: Literal["completions", "responses"] = "completions"
-    ) -> ChatCompletionSystemMessageParam | ResponseInputItemParam:
+    ) -> ChatCompletionSystemMessageParam | EasyInputMessageParam:
         content = self.content or ""
         if not isinstance(content, str):
             raise ValueError("Content must be a string")
