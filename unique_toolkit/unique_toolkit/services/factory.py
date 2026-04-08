@@ -104,7 +104,12 @@ class UniqueServiceFactory:
 
     def chunk_relevancy_sorter(self, **kwargs: Any) -> ChunkRelevancySorter:
         """Create a :class:`ChunkRelevancySorter` using the pre-bound context."""
-        return self.get("ChunkRelevancySorter", **kwargs)
+        # issue with circular imports - need to use this
+        from unique_toolkit._common.chunk_relevancy_sorter.service import (
+            ChunkRelevancySorter as _ChunkRelevancySorter,
+        )
+
+        return _ChunkRelevancySorter.from_settings(self._settings, **kwargs)
 
     # ── Class-level registry operations ──────────────────────────────────────
 
@@ -133,8 +138,10 @@ class UniqueServiceFactory:
     def register_known_services(cls) -> None:
         """Register the stable toolkit services with the factory.
 
-        Currently registers :class:`KnowledgeBaseService`, :class:`ChatService`,
-        and :class:`ChunkRelevancySorter`.
+        Currently registers :class:`KnowledgeBaseService` and :class:`ChatService`.
+        :class:`ChunkRelevancySorter` is intentionally excluded to avoid circular
+        imports at package init time — use the ``chunk_relevancy_sorter()``
+        convenience method instead.
 
         Experimental services (under :mod:`unique_toolkit.experimental`) are
         intentionally **not** registered here or via any factory helper — their
@@ -142,17 +149,10 @@ class UniqueServiceFactory:
         example, :meth:`Identity.from_settings`) so that the experimental
         dependency is visible at every call site.
         """
-        from unique_toolkit._common.chunk_relevancy_sorter.service import (
-            ChunkRelevancySorter,
-        )
         from unique_toolkit.services.chat_service import ChatService
         from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
-        for service_class in [
-            KnowledgeBaseService,
-            ChatService,
-            ChunkRelevancySorter,
-        ]:
+        for service_class in [KnowledgeBaseService, ChatService]:
             if service_class.__name__ not in cls._registry:
                 cls.register(service_class=service_class)
 
