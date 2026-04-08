@@ -26,7 +26,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
 
         mock_feature_flags = MagicMock()
         monkeypatch.setattr(
-            "unique_orchestrator.unique_ai.feature_flags", mock_feature_flags
+            "unique_orchestrator.utils.feature_flags", mock_feature_flags
         )
 
         mock_logger = MagicMock()
@@ -91,7 +91,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
             docs
         )
 
-        from unique_orchestrator.unique_ai import feature_flags
+        from unique_orchestrator.utils import feature_flags
 
         feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
 
@@ -113,7 +113,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
             docs
         )
 
-        from unique_orchestrator.unique_ai import feature_flags
+        from unique_orchestrator.utils import feature_flags
 
         feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
 
@@ -132,7 +132,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
             docs
         )
 
-        from unique_orchestrator.unique_ai import feature_flags
+        from unique_orchestrator.utils import feature_flags
 
         feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
 
@@ -153,7 +153,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
             docs
         )
 
-        from unique_orchestrator.unique_ai import feature_flags
+        from unique_orchestrator.utils import feature_flags
 
         feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = False
 
@@ -175,7 +175,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
             docs
         )
 
-        from unique_orchestrator.unique_ai import feature_flags
+        from unique_orchestrator.utils import feature_flags
 
         feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
 

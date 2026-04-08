@@ -7,6 +7,7 @@ import pytest
 from unique_orchestrator.config import UniqueAIConfig
 
 MODULE = "unique_orchestrator.unique_ai_builder"
+UTILS_MODULE = "unique_orchestrator.utils"
 
 
 def _make_doc(doc_id: str) -> MagicMock:
@@ -67,7 +68,7 @@ class TestBuildCommonSelectedUploadedFiles:
 
         mock_ff = MagicMock()
         mock_ff.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
-        monkeypatch.setattr(f"{MODULE}.feature_flags", mock_ff)
+        monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
 
         additional = MagicMock()
         additional.selected_uploaded_files = [MagicMock(id="a"), MagicMock(id="c")]
@@ -94,7 +95,7 @@ class TestBuildCommonSelectedUploadedFiles:
 
         mock_ff = MagicMock()
         mock_ff.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
-        monkeypatch.setattr(f"{MODULE}.feature_flags", mock_ff)
+        monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
 
         event = _make_event(additional_parameters=None)
 
@@ -118,7 +119,7 @@ class TestBuildCommonSelectedUploadedFiles:
 
         mock_ff = MagicMock()
         mock_ff.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
-        monkeypatch.setattr(f"{MODULE}.feature_flags", mock_ff)
+        monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
 
         additional = MagicMock()
         additional.selected_uploaded_files = []
@@ -144,7 +145,7 @@ class TestBuildCommonSelectedUploadedFiles:
 
         mock_ff = MagicMock()
         mock_ff.enable_selected_uploaded_files_un_18470.is_enabled.return_value = False
-        monkeypatch.setattr(f"{MODULE}.feature_flags", mock_ff)
+        monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
 
         additional = MagicMock()
         additional.selected_uploaded_files = [MagicMock(id="a")]
@@ -171,7 +172,7 @@ class TestBuildCommonSelectedUploadedFiles:
 
         mock_ff = MagicMock()
         mock_ff.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
-        monkeypatch.setattr(f"{MODULE}.feature_flags", mock_ff)
+        monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
 
         additional = MagicMock()
         additional.selected_uploaded_files = [MagicMock(id="y")]

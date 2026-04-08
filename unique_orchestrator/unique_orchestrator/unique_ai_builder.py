@@ -24,7 +24,6 @@ from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManag
 from unique_toolkit.agentic.evaluation.hallucination.hallucination_evaluation import (
     HallucinationEvaluation,
 )
-from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager import (
     history_manager as history_manager_module,
 )
@@ -83,6 +82,7 @@ from unique_orchestrator._builders.open_file_setup import (
 )
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
+from unique_orchestrator.utils import filter_uploaded_documents_by_selection
 
 
 class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
@@ -178,15 +178,11 @@ def _build_common(
     content_service = ContentService.from_event(event)
 
     uploaded_documents = content_service.get_documents_uploaded_to_chat()
-    additional = event.payload.additional_parameters
-    if feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
-        event.company_id
-    ):
-        if additional and additional.selected_uploaded_files:
-            selected_ids = set(additional.selected_uploaded_file_ids)
-            uploaded_documents = [
-                doc for doc in uploaded_documents if doc.id in selected_ids
-            ]
+    uploaded_documents = filter_uploaded_documents_by_selection(
+        documents=uploaded_documents,
+        additional_parameters=event.payload.additional_parameters,
+        company_id=event.company_id,
+    )
 
     response_watcher = SubAgentResponseWatcher()
 
