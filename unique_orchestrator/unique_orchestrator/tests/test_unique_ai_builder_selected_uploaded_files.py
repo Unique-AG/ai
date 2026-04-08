@@ -105,7 +105,7 @@ class TestBuildCommonSelectedUploadedFiles:
         assert result_ids == ["a", "b", "c"]
 
     @pytest.mark.ai
-    def test_keeps_all_documents_when_selected_uploaded_files_is_empty(
+    def test_returns_no_documents_when_selected_uploaded_files_is_empty(
         self, monkeypatch: pytest.MonkeyPatch, _patch_constructors: None
     ) -> None:
         from unique_orchestrator.unique_ai_builder import _build_common
@@ -123,12 +123,13 @@ class TestBuildCommonSelectedUploadedFiles:
 
         additional = MagicMock()
         additional.selected_uploaded_files = []
+        additional.selected_uploaded_file_ids = []
         event = _make_event(additional_parameters=additional)
 
         result = _build_common(event, MagicMock(), UniqueAIConfig())
 
         result_ids = [doc.id for doc in result.uploaded_documents]
-        assert result_ids == ["a", "b"]
+        assert result_ids == []
 
     @pytest.mark.ai
     def test_keeps_all_documents_when_feature_flag_disabled(

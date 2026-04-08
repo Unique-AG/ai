@@ -124,7 +124,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_no_filtering_when_selected_uploaded_files_is_empty(
+    async def test_filters_all_when_selected_uploaded_files_is_empty(
         self, mock_unique_ai: UniqueAI
     ) -> None:
         docs = [_make_expired_doc("a"), _make_expired_doc("b")]
@@ -138,10 +138,11 @@ class TestRenderSystemPromptSelectedUploadedFiles:
 
         additional = MagicMock()
         additional.selected_uploaded_files = []
+        additional.selected_uploaded_file_ids = []
         mock_unique_ai._event.payload.additional_parameters = additional
 
         result = await mock_unique_ai._render_system_prompt()
-        assert result == "2"
+        assert result == "0"
 
     @pytest.mark.ai
     @pytest.mark.asyncio
