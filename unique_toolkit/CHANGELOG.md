@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [1.69.3] - 2026-04-08
+- Chore: centralize pytest marker and async configuration to workspace root pyproject.toml
+
 ## [1.69.2] - 2026-04-08
 - Code interpreter (UN-17972 / UN-17927): remove dead `htmlWithSource` fence generation and regex handling; HTML stays on the unconditional `HtmlRendering` markdown path from #1361 (all prior `HtmlRendering` edge-case fixes remain on `main`)
 

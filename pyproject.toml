@@ -78,9 +78,7 @@ markers = [
     "asyncio: asyncio tests",
     "integration: integration tests that require API access or credentials",
     "unit: unit tests",
-    "serial: tests that must run serially",
     "verified: AI-generated tests with human verification",
-    "wip: work in progress tests",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",

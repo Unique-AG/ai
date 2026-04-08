@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.1.6] - 2026-04-08
+- Chore: centralize pytest marker and async configuration to workspace root pyproject.toml; move coverage flags to poe test task; add sys.path conftest helper for web/ imports
+
 ## [0.1.5] - 2026-04-07
 - Build: align Docker-installed uv with CI by passing `UV_VERSION` from `setup-uv` (`uv-version` output); default `ARG` remains for local `docker build`
 
