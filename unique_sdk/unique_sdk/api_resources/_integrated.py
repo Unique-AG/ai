@@ -40,19 +40,18 @@ class Integrated(APIResource["Integrated"]):
         return "integrated"
 
     class SearchResult(TypedDict, total=False):
-        """Payload item for ``searchContext`` on integrated chat/responses routes."""
+        """Payload item for ``searchContext`` on integrated chat/responses routes.
+        Reduced data compared to ``Search`` object as backend holds the content.
+
+        """
 
         id: str
         chunkId: str
         key: str
         title: NotRequired[str | None]
-        description: NotRequired[str]
+        description: NotRequired[str | None]
         url: NotRequired[str | None]
-        text: NotRequired[str]
-        startPage: NotRequired[int | None]
-        endPage: NotRequired[int | None]
-        order: NotRequired[int]
-        object: NotRequired[str | None]
+        internallyStoredAt: NotRequired[str | None]
 
     class ChatCompletionRequestMessage(TypedDict, total=False):
         role: Literal["system", "user", "assistant"]
