@@ -63,7 +63,7 @@ class InternalSearchService:
         message_step_logger: MessageStepLogger | None = None,
         display_name: str = "Internal Search",
         language_model_orchestrator: "LanguageModelInfo | None" = None,
-        selected_uploaded_file_ids: list[str],
+        selected_uploaded_file_ids: list[str] | None = None,
     ):
         self.config = config
         self.content_service = content_service
@@ -77,7 +77,7 @@ class InternalSearchService:
         self._active_message_log: MessageLog | None = None
         # TODO: Propagate orchestrator LLM into tool initialization in separate PR
         self.language_model_orchestrator = language_model_orchestrator
-        self.selected_uploaded_file_ids: list[str] = selected_uploaded_file_ids
+        self.selected_uploaded_file_ids: list[str] = selected_uploaded_file_ids or []
 
     async def post_progress_message(self, message: str, *args, **kwargs):
         pass
