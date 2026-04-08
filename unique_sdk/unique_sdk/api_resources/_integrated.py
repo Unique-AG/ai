@@ -40,11 +40,7 @@ class Integrated(APIResource["Integrated"]):
         return "integrated"
 
     class SearchResult(TypedDict, total=False):
-        """Payload item for ``searchContext`` on integrated chat/responses routes.
-
-        Field alignment with node-chat public chunk DTO:
-        [PublicChunkDto](https://github.com/Unique-AG/monorepo/blob/master/next/services/node-chat/src/public-api/2023-12-06/dtos/chunk/public-chunk.dto.ts).
-        """
+        """Payload item for ``searchContext`` on integrated chat/responses routes."""
 
         id: str
         chunkId: str
