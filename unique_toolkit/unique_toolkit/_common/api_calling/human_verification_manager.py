@@ -332,6 +332,7 @@ if __name__ == "__main__":
     )
 
     last_assistant_message = ChatMessage(
+        id="123",
         role=ChatMessageRole.ASSISTANT,
         text=api_call.confirmation.payload_hash,
         chat_id="123",

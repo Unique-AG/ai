@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Self
 
 from unique_toolkit.language_model import (
@@ -12,6 +13,8 @@ from unique_toolkit.language_model import (
     LanguageModelUserMessage,
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class MessagesBuilder:
     def __init__(self):
@@ -22,8 +25,24 @@ class MessagesBuilder:
         return self
 
     def message_append(self, role: LanguageModelMessageRole, content: str):
-        message = LanguageModelMessage(role=role, content=content)
-        self.messages.append(message)
+        message = None
+        match role:
+            case LanguageModelMessageRole.SYSTEM:
+                message = LanguageModelSystemMessage(content=content)
+            case LanguageModelMessageRole.USER:
+                message = LanguageModelUserMessage(content=content)
+            case LanguageModelMessageRole.ASSISTANT:
+                message = LanguageModelAssistantMessage(content=content)
+            case LanguageModelMessageRole.TOOL:
+                logging.warning(
+                    "Tool messages are not supported in the builder as messages"
+                )
+
+        if message:
+            self.messages.append(message)
+        else:
+            _LOGGER.warning(f"Invalid message role: {role}")
+
         return self
 
     def system_message_append(self, content: str) -> Self:
@@ -54,12 +73,22 @@ class MessagesBuilder:
                 for image in images
             ],
         )
+        message = None
+        match role:
+            case LanguageModelMessageRole.SYSTEM:
+                message = LanguageModelSystemMessage(content=final_content)
+            case LanguageModelMessageRole.USER:
+                message = LanguageModelUserMessage(content=final_content)
+            case LanguageModelMessageRole.ASSISTANT:
+                message = LanguageModelAssistantMessage(content=final_content)
+            case LanguageModelMessageRole.TOOL:
+                pass
 
-        message = LanguageModelMessage(
-            role=role,
-            content=final_content,
-        )
-        self.messages.append(message)
+        if message:
+            self.messages.append(message)
+        else:
+            _LOGGER.warning(f"Invalid message role: {role}")
+
         return self
 
     def assistant_message_append(
