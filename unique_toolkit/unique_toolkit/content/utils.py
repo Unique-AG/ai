@@ -10,7 +10,12 @@ import tiktoken
 import unique_sdk
 from typing_extensions import deprecated
 
-from unique_toolkit.content.schemas import Content, ContentChunk, ContentMetadata
+from unique_toolkit.content.schemas import (
+    Content,
+    ContentChunk,
+    ContentMetadata,
+    ContentReference,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -167,6 +172,57 @@ def _generate_pages_postfix(chunks: list[ContentChunk]) -> str:
         " : " + ",".join(str(p) for p in page_numbers) if page_numbers else ""
     )
     return pages_postfix
+
+
+def content_chunk_to_reference(
+    chunk: ContentChunk,
+    sequence_number: int,
+    original_index: list[int] | None = None,
+) -> ContentReference:
+    """Convert a ``ContentChunk`` into a ``ContentReference`` with page-number info.
+
+    When using ``modify_assistant_message`` (the message-update path) instead
+    of streaming via ``complete_with_references``, the backend does **not**
+    automatically create references from ``searchContext``.  This helper
+    replicates the reference format that the backend streaming path produces
+    so that page numbers appear in the frontend reference chips.
+
+    Conventions applied:
+
+    * **source_id** — ``{content_id}_{chunk_id}`` (matches the backend
+      ``ReferenceService`` and ``ReferenceManager`` lookup).
+    * **source** — ``"node-ingestion-chunks"``.
+    * **name** — document title/key with a `` : 1,2,3`` page-number postfix
+      (same format as the backend ``generatePagesPostfix``).
+    * **url** — ``unique://content/{content_id}`` for internally stored
+      content, or the chunk's own URL if present.
+
+    Args:
+        chunk: The content chunk to convert.
+        sequence_number: The 1-based sequence number shown in the ``<sup>``
+            tag in the message text.
+        original_index: Optional list of bracket indices (``[N]``) in the
+            message text that this reference corresponds to.
+
+    Returns:
+        A ``ContentReference`` ready to pass to ``modify_assistant_message``.
+    """
+    name = chunk.title or chunk.key or ""
+    pages_postfix = _generate_pages_postfix([chunk])
+    if pages_postfix:
+        name = f"{name}{pages_postfix}"
+
+    source_id = f"{chunk.id}_{chunk.chunk_id}" if chunk.chunk_id else chunk.id
+    url = chunk.url if chunk.url else f"unique://content/{chunk.id}"
+
+    return ContentReference(
+        name=name,
+        sequence_number=sequence_number,
+        source_id=source_id,
+        source="node-ingestion-chunks",
+        url=url,
+        original_index=original_index or [],
+    )
 
 
 def pick_content_chunks_for_token_window(

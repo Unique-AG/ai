@@ -29,6 +29,7 @@ The `unique_toolkit.content` module encompasses all content-related functionalit
 ::: unique_toolkit.content.functions.download_content
 
 ### Utilities
+::: unique_toolkit.content.utils.content_chunk_to_reference
 ::: unique_toolkit.content.utils.sort_content_chunks
 ::: unique_toolkit.content.utils.merge_content_chunks
 ::: unique_toolkit.content.utils.count_tokens
