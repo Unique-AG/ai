@@ -109,7 +109,7 @@ poetry.lock
 # Tutorials and examples keep their own lockfiles locally but they are
 # not tracked in git to avoid Dependabot noise for non-production code.
 **/uv.lock
-!uv.lock
+!/uv.lock
 **/package-lock.json
 
 # pdm
