@@ -307,14 +307,18 @@ class LanguageModelInfo(BaseModel):
 
     default_options: dict[str, Any] = {}
 
-    supported_reasoning_efforts: list[ReasoningEffort] = []
+    supported_reasoning_efforts: list[ReasoningEffort] | None = None
 
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
 
     @model_validator(mode="after")
     def _ensure_supported_efforts_if_default_set(self) -> Self:
         effort = self.default_options.get("reasoning_effort")
-        if effort is not None and not self.supported_reasoning_efforts:
+        if (
+            effort is not None
+            and self.supported_reasoning_efforts is not None
+            and len(self.supported_reasoning_efforts) == 0
+        ):
             _LOGGER.warning(
                 "Model %r has default_options['reasoning_effort']=%r but "
                 "supported_reasoning_efforts is empty; setting it to [%r]. "
@@ -344,12 +348,26 @@ class LanguageModelInfo(BaseModel):
     ) -> tuple[float, ReasoningEffort | None]:
         """Resolve temperature and reasoning_effort together for this model.
 
+        Three-state semantics for ``supported_reasoning_efforts``:
+
+        * ``None``  -- unknown capabilities (pass-through): accept any effort,
+          apply defaults, clamp temperature.
+        * ``[]``    -- model explicitly has no reasoning support: drop any
+          caller-provided effort with a warning.
+        * ``[...]`` -- validate effort against this specific list.
+
         Scenarios handled in order:
 
+        0. Unknown model (supported_reasoning_efforts is None):
+           - Apply default_options["reasoning_effort"] if no effort supplied.
+           - Pass effort through unchanged (no validation).
+           - Force temperature to 1.0 if effort is active (non-"none").
+           - Temperature is clamped to declared bounds or [0, inf).
+
         1. Model does not participate in reasoning_effort
-           (supported_reasoning_efforts is empty):
+           (supported_reasoning_efforts is []):
            - If the caller provided an effort, warn and drop it (return None).
-           - Temperature is clamped to declared bounds.
+           - Temperature is clamped to declared bounds or [0, inf).
 
         2. No effort supplied and model has a default_options["reasoning_effort"]:
            - Silently apply the model default.
@@ -360,10 +378,9 @@ class LanguageModelInfo(BaseModel):
 
         4. Active reasoning forces temperature to 1.0 (API requirement).
 
-        After scenarios 1–4, temperature is clamped to the model's declared bounds.
-        Models without declared bounds fall back to the OpenAI-documented global range
-        [0, 2]. Invalid declared bounds are intentionally NOT corrected here —
-        a misconfigured model definition should surface as a visible bug.
+        After scenarios 0–4, temperature is clamped to the model's declared
+        bounds.  Models without declared bounds fall back to [0, inf) — only
+        negative temperatures are rejected.
 
         Returns (resolved_temperature, resolved_reasoning_effort).
         """
@@ -376,10 +393,27 @@ class LanguageModelInfo(BaseModel):
         supported_efforts = self.supported_reasoning_efforts
         temperature_bounds = self.temperature_bounds
 
+        # --- Scenario 0: unknown model (pass-through) ---
+        if supported_efforts is None:
+            if not is_reasoning_effort_set:
+                default = self.default_options.get("reasoning_effort")
+                if default is not None:
+                    reasoning_effort = default
+                    wants_active_reasoning = default != "none"
+
+            resolved = (
+                to_reasoning_effort(reasoning_effort)
+                if reasoning_effort is not None
+                else None
+            )
+
+            if wants_active_reasoning:
+                return 1.0, resolved
+
+            return self._clamp_temperature(temperature, temperature_bounds), resolved
+
         # --- Scenario 1: model has no reasoning_effort concept ---
-        # Empty supported_reasoning_efforts means reasoning is not applicable for this
-        # model; drop any caller-provided effort so the API doesn't reject the call.
-        if not supported_efforts:
+        if len(supported_efforts) == 0:
             if is_reasoning_effort_set:
                 _LOGGER.warning(
                     "reasoning_effort '%s' was provided but model %s does not "
@@ -398,7 +432,6 @@ class LanguageModelInfo(BaseModel):
                     wants_active_reasoning = default != "none"
             elif reasoning_effort not in supported_efforts:
                 # --- Scenario 3: effort not in the model's declared list ---
-                # Warn and fallback to first (i.e. lightest) supported effort level.
                 fallback_effort = supported_efforts[0]
                 _LOGGER.warning(
                     "reasoning_effort '%s' is not supported by %s "
@@ -411,37 +444,37 @@ class LanguageModelInfo(BaseModel):
                 reasoning_effort = fallback_effort
                 wants_active_reasoning = fallback_effort != "none"
 
-        # By this point reasoning_effort is either None or a value from supported_reasoning_efforts,
-        # which are always valid ReasoningEffort entries — to_reasoning_effort will not return None.
         resolved = (
             to_reasoning_effort(reasoning_effort)
             if reasoning_effort is not None
             else None
         )
 
-        # --- Scenario 3: active reasoning forces temperature to 1.0 ---
+        # --- Scenario 4: active reasoning forces temperature to 1.0 ---
         if wants_active_reasoning:
             return 1.0, resolved
 
-        # --- No reasoning: clamp temperature to model bounds ---
-        # Fall back to the OpenAI-documented global range [0, 2] for models without
-        # declared bounds (e.g. GPT-4o, GPT-4 Turbo). This catches clearly invalid
-        # values while still allowing temperature > 1.0 where the API accepts it.
-        lo, hi = 0.0, 2.0
+        return self._clamp_temperature(temperature, temperature_bounds), resolved
+
+    @staticmethod
+    def _clamp_temperature(
+        temperature: float,
+        temperature_bounds: "TemperatureBounds | None",
+    ) -> float:
+        lo = 0.0
+        hi = float("inf")
         if temperature_bounds is not None:
             lo = temperature_bounds.min_temperature
             hi = temperature_bounds.max_temperature
 
         if temperature < lo or temperature > hi:
             _LOGGER.warning(
-                "temperature %.2f is out of bounds [%.2f, %.2f] for %s; "
-                "it will be clamped.",
+                "temperature %.2f is out of bounds [%.2f, %.2f]; it will be clamped.",
                 temperature,
                 lo,
                 hi,
-                self.name,
             )
-        return round(max(lo, min(hi, temperature)), 2), resolved
+        return round(max(lo, min(hi, temperature)), 2)
 
     @classmethod
     @lru_cache(maxsize=1)
@@ -541,6 +574,7 @@ class LanguageModelInfo(BaseModel):
                     info_cutoff_at=date(2021, 9, 1),
                     published_at=date(2023, 1, 25),
                     retirement_at=date(5, 3, 31),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.AZURE_GPT_4_0613:
                 return cls(
@@ -557,6 +591,7 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2023, 6, 13),
                     deprecated_at=date(2024, 10, 1),
                     retirement_at=date(2025, 6, 6),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.AZURE_GPT_4_32K_0613:
                 return cls(
@@ -573,6 +608,7 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2023, 6, 13),
                     deprecated_at=date(2024, 10, 1),
                     retirement_at=date(2025, 6, 6),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.AZURE_GPT_5_2025_0807:
                 return cls(
@@ -685,6 +721,7 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2025, 8, 7),
                     deprecated_at=date(2026, 8, 7),
                     retirement_at=date(2026, 8, 7),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.AZURE_GPT_5_PRO_2025_1006:
                 return cls(
@@ -999,6 +1036,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 12, 1),
                     published_at=date(2024, 4, 9),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.AZURE_GPT_4o_2024_0513:
                 return cls(
@@ -1019,6 +1057,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 5, 13),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.AZURE_GPT_4o_2024_0806:
                 return cls(
@@ -1040,6 +1079,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 8, 6),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.AZURE_GPT_4o_2024_1120:
                 return cls(
@@ -1061,6 +1101,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 11, 20),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.AZURE_GPT_4o_MINI_2024_0718:
                 return cls(
@@ -1081,6 +1122,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2024, 7, 18),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.AZURE_o1_MINI_2024_0912:
                 return cls(
@@ -1104,6 +1146,7 @@ class LanguageModelInfo(BaseModel):
                     temperature_bounds=TemperatureBounds(
                         min_temperature=1.0, max_temperature=1.0
                     ),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.AZURE_o1_2024_1217:
                 return cls(
@@ -1222,6 +1265,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2023, 10, 1),
                     published_at=date(2025, 2, 27),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.AZURE_GPT_41_2025_0414:
                 return cls(
@@ -1242,6 +1286,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 5, 31),
                     published_at=date(2025, 4, 14),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.AZURE_GPT_41_MINI_2025_0414:
                 return cls(
@@ -1262,6 +1307,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 5, 31),
                     published_at=date(2025, 4, 14),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.AZURE_GPT_41_NANO_2025_0414:
                 return cls(
@@ -1282,6 +1328,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 5, 31),
                     published_at=date(2025, 4, 14),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.AZURE_MODEL_ROUTER_2025_1118:
                 return cls(
@@ -1302,6 +1349,7 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=272_000,
                         token_limit_output=32_768,
                     ),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET:
                 return cls(
@@ -1321,6 +1369,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 10, 31),
                     published_at=date(2025, 2, 24),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_3_7_SONNET_THINKING:
                 return cls(
@@ -1341,6 +1390,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 10, 31),
                     published_at=date(2025, 2, 24),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_HAIKU_4_5:
                 return cls(
@@ -1361,6 +1411,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 2, 1),
                     published_at=date(2025, 10, 1),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4:
                 return cls(
@@ -1381,6 +1432,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 3, 1),
                     published_at=date(2025, 5, 1),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_5:
                 return cls(
@@ -1401,6 +1453,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 7, 1),
                     published_at=date(2025, 9, 29),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_SONNET_4_6:
                 return cls(
@@ -1421,6 +1474,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2026, 1, 1),
                     published_at=date(2026, 2, 17),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4:
                 return cls(
@@ -1441,6 +1495,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 3, 1),
                     published_at=date(2025, 5, 1),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_1:
                 return cls(
@@ -1461,6 +1516,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 3, 1),
                     published_at=date(2025, 5, 1),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_5:
                 return cls(
@@ -1481,6 +1537,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 8, 1),
                     published_at=date(2025, 11, 13),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_6:
                 return cls(
@@ -1501,6 +1558,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 8, 1),
                     published_at=date(2026, 2, 5),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GEMINI_2_0_FLASH:
                 return cls(
@@ -1520,6 +1578,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 8, 1),
                     published_at=date(2025, 2, 1),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GEMINI_2_5_FLASH:
                 return cls(
@@ -1539,6 +1598,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 4, 1),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GEMINI_2_5_FLASH_LITE:
                 return cls(
@@ -1558,6 +1618,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 7, 1),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GEMINI_2_5_FLASH_LITE_PREVIEW_0617:
                 return cls(
@@ -1577,6 +1638,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 6, 17),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GEMINI_2_5_FLASH_PREVIEW_0520:
                 return cls(
@@ -1596,6 +1658,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 4, 1),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GEMINI_2_5_PRO:
                 return cls(
@@ -1615,6 +1678,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 6, 17),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GEMINI_2_5_PRO_EXP_0325:
                 return cls(
@@ -1634,6 +1698,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 3, 1),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GEMINI_2_5_PRO_PREVIEW_0605:
                 return cls(
@@ -1653,6 +1718,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 6, 5),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GEMINI_3_1_PRO_PREVIEW:
                 return cls(
@@ -1672,6 +1738,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2026, 1, 19),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GEMINI_3_FLASH_PREVIEW:
                 return cls(
@@ -1691,6 +1758,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 12, 17),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GEMINI_3_PRO_PREVIEW:
                 return cls(
@@ -1710,6 +1778,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 1, day=1),
                     published_at=date(2025, 11, 13),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GROK_4_1_FAST_NON_REASONING:
                 return cls(
@@ -1730,6 +1799,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 11, day=4),
                     published_at=date(2025, 11, 19),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GROK_4_1_FAST_REASONING:
                 return cls(
@@ -1751,6 +1821,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2024, 11, day=4),
                     published_at=date(2025, 11, 19),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_5:
                 return cls(
@@ -1863,6 +1934,7 @@ class LanguageModelInfo(BaseModel):
                     published_at=date(2025, 8, 7),
                     deprecated_at=date(2026, 8, 7),
                     retirement_at=date(2026, 8, 7),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_5_PRO:
                 return cls(
@@ -2146,6 +2218,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     published_at=date(2025, 4, 16),
                     info_cutoff_at=date(2024, 6, 1),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_OPENAI_O3_PRO:
                 return cls(
@@ -2210,6 +2283,7 @@ class LanguageModelInfo(BaseModel):
                     ),
                     published_at=date(2025, 4, 16),
                     info_cutoff_at=date(2024, 6, 1),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_4_1_MINI:
                 return cls(
@@ -2230,6 +2304,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
                     ],
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_OPENAI_GPT_4_1_NANO:
                 return cls(
@@ -2250,6 +2325,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STRUCTURED_OUTPUT,
                         ModelCapabilities.VISION,
                     ],
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_DEEPSEEK_R1:
                 return cls(
@@ -2267,6 +2343,7 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=64_000, token_limit_output=4_000
                     ),
                     published_at=date(2025, 1, 25),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_DEEPSEEK_V3:
                 return cls(
@@ -2283,6 +2360,7 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=128_000, token_limit_output=4_000
                     ),
                     published_at=date(2025, 8, 1),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_QWEN_3:
                 return cls(
@@ -2300,6 +2378,7 @@ class LanguageModelInfo(BaseModel):
                     token_limits=LanguageModelTokenLimits(
                         token_limit_input=256_000, token_limit_output=32_768
                     ),
+                    supported_reasoning_efforts=[],
                 )
             case LanguageModelName.LITELLM_QWEN_3_THINKING:
                 return cls(
@@ -2317,6 +2396,7 @@ class LanguageModelInfo(BaseModel):
                         token_limit_input=256_000, token_limit_output=32_768
                     ),
                     published_at=date(2025, 7, 25),
+                    supported_reasoning_efforts=[],
                 )
 
             case _:

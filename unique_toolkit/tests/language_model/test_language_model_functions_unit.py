@@ -178,11 +178,13 @@ def test_resolve_temp_and_reasoning_clamps_temperature():
     assert model.resolve_temp_and_reasoning(-0.5, None) == (0.0, "none")
 
 
-def test_resolve_temp_and_reasoning_boundless_known_model_allows_up_to_2():
-    """Models without declared temperature_bounds fall back to [0, 2], not [0, 1]."""
+def test_resolve_temp_and_reasoning_boundless_known_model_no_upper_clamp():
+    """Models without declared temperature_bounds fall back to [0, inf) — only negatives
+    are rejected."""
     model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120)
     assert model.resolve_temp_and_reasoning(1.5, None) == (1.5, None)
-    assert model.resolve_temp_and_reasoning(2.5, None) == (2.0, None)
+    assert model.resolve_temp_and_reasoning(2.5, None) == (2.5, None)
+    assert model.resolve_temp_and_reasoning(10.0, None) == (10.0, None)
     assert model.resolve_temp_and_reasoning(-0.1, None) == (0.0, None)
 
 
@@ -247,8 +249,7 @@ def test_resolve_temp_and_reasoning_applies_model_default_when_no_effort_supplie
 
 
 def test_resolve_temp_and_reasoning_drops_effort_for_non_reasoning_model(caplog):
-    """Scenario 1: model with supported_reasoning_efforts=None warns and drops the effort."""
-    # GPT-4o does not participate in the reasoning_effort paradigm
+    """Scenario 1: model with supported_reasoning_efforts=[] warns and drops the effort."""
     model = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_4o_2024_1120)
 
     with caplog.at_level(logging.WARNING, logger="unique_toolkit.language_model.infos"):
@@ -368,3 +369,96 @@ def test_validator_does_not_modify_explicit_supported_efforts():
 
     assert model.supported_reasoning_efforts == ["medium", "high"]
     assert "xhigh" not in model.supported_reasoning_efforts
+
+
+def test_validator_does_not_fire_on_none():
+    """When supported_reasoning_efforts is None (unknown model), the validator
+    must not fire even if default_options has reasoning_effort."""
+    model = LanguageModelInfo(
+        name="unknown-model",
+        version="v1",
+        token_limits={"token_limit_input": 128000, "token_limit_output": 16384},
+        default_options={"reasoning_effort": "high"},
+    )
+
+    assert model.supported_reasoning_efforts is None
+
+
+def test_resolve_unknown_model_passes_effort_through():
+    """Scenario 0: unknown model (supported_reasoning_efforts=None) passes any
+    effort through unchanged."""
+    model = LanguageModelInfo(
+        name="unknown-model",
+        version="v1",
+        token_limits={"token_limit_input": 128000, "token_limit_output": 16384},
+    )
+    assert model.supported_reasoning_efforts is None
+
+    temp, effort = model.resolve_temp_and_reasoning(0.7, "medium")
+    assert effort == "medium"
+    assert temp == 1.0
+
+    temp, effort = model.resolve_temp_and_reasoning(0.7, "xhigh")
+    assert effort == "xhigh"
+    assert temp == 1.0
+
+
+def test_resolve_unknown_model_applies_default():
+    """Scenario 0 + default: unknown model applies default_options effort
+    when none is supplied."""
+    model = LanguageModelInfo(
+        name="unknown-model",
+        version="v1",
+        token_limits={"token_limit_input": 128000, "token_limit_output": 16384},
+        default_options={"reasoning_effort": "high"},
+    )
+
+    temp, effort = model.resolve_temp_and_reasoning(0.5, None)
+    assert effort == "high"
+    assert temp == 1.0
+
+
+def test_resolve_unknown_model_effort_none_does_not_force_temp():
+    """Scenario 0: unknown model with effort="none" does not force temp to 1.0."""
+    model = LanguageModelInfo(
+        name="unknown-model",
+        version="v1",
+        token_limits={"token_limit_input": 128000, "token_limit_output": 16384},
+    )
+
+    temp, effort = model.resolve_temp_and_reasoning(0.7, "none")
+    assert effort == "none"
+    assert temp == 0.7
+
+
+def test_resolve_unknown_model_no_upper_temp_clamp():
+    """Scenario 0: unknown model without temperature_bounds allows temp > 2."""
+    model = LanguageModelInfo(
+        name="unknown-model",
+        version="v1",
+        token_limits={"token_limit_input": 128000, "token_limit_output": 16384},
+    )
+
+    temp, effort = model.resolve_temp_and_reasoning(5.0, None)
+    assert temp == 5.0
+    assert effort is None
+
+    temp, effort = model.resolve_temp_and_reasoning(-1.0, None)
+    assert temp == 0.0
+    assert effort is None
+
+
+def test_resolve_unknown_model_respects_declared_bounds():
+    """Scenario 0: unknown model WITH declared temperature_bounds respects them."""
+    model = LanguageModelInfo(
+        name="unknown-model",
+        version="v1",
+        token_limits={"token_limit_input": 128000, "token_limit_output": 16384},
+        temperature_bounds={"min_temperature": 0.0, "max_temperature": 1.5},
+    )
+
+    temp, effort = model.resolve_temp_and_reasoning(2.0, None)
+    assert temp == 1.5
+
+    temp, effort = model.resolve_temp_and_reasoning(1.0, None)
+    assert temp == 1.0
