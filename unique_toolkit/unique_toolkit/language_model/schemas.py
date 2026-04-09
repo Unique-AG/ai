@@ -262,6 +262,16 @@ class LanguageModelMessage(BaseModel, ABC):
 
         return format_message(self.role.capitalize(), message=message, num_tabs=1)
 
+    @overload
+    @abstractmethod
+    def to_openai(
+        self, mode: Literal["completions"] = "completions"
+    ) -> ChatCompletionMessageParam: ...
+
+    @overload
+    @abstractmethod
+    def to_openai(self, mode: Literal["responses"]) -> ResponseInputItemParam: ...
+
     @abstractmethod
     def to_openai(
         self, mode: Literal["completions", "responses"] = "completions"
@@ -541,10 +551,20 @@ class LanguageModelMessages(RootModel):
         builder.messages = self.root.copy()  # Start with existing messages
         return builder
 
+    @overload
+    def to_openai(self, mode: Literal["responses"]) -> list[ResponseInputItemParam]: ...
+
+    @overload
+    def to_openai(
+        self, mode: Literal["completions"] = "completions"
+    ) -> list[ChatCompletionMessageParam]: ...
+
     def to_openai(
         self, mode: Literal["completions", "responses"] = "completions"
-    ) -> list[ChatCompletionMessageParam | ResponseInputItemParam]:
-        return [message.to_openai(mode=mode) for message in self.root]
+    ) -> list[ChatCompletionMessageParam] | list[ResponseInputItemParam]:
+        if mode == "responses":
+            return [message.to_openai(mode="responses") for message in self.root]
+        return [message.to_openai(mode="completions") for message in self.root]
 
 
 # This seems similar to
