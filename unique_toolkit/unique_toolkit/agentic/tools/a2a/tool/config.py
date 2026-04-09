@@ -3,7 +3,6 @@ from enum import StrEnum
 from typing import Annotated, Generic, Literal, TypeVar
 
 from pydantic import Field, field_validator
-from pydantic.json_schema import SkipJsonSchema
 from pydantic.main import BaseModel
 
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
@@ -141,14 +140,14 @@ class SubAgentToolConfig(BaseToolConfig):
         default="",
         description="Format information that will be included in the system prompt to guide response formatting.",
     )
-    tool_description_for_user_prompt: SkipJsonSchema[
-        Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=2)]
+    tool_description_for_user_prompt: Annotated[
+        str, RJSFMetaTag.SpecialWidget.hidden()
     ] = Field(
         default="",
         description="Description of the tool that will be included in the user prompt.",
     )
-    tool_format_information_for_user_prompt: SkipJsonSchema[
-        Annotated[str, RJSFMetaTag.StringWidget.textarea(rows=2)]
+    tool_format_information_for_user_prompt: Annotated[
+        str, RJSFMetaTag.SpecialWidget.hidden()
     ] = Field(
         default="",
         description="Format information that will be included in the user prompt to guide response formatting.",
