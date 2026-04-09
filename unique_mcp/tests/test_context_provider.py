@@ -200,6 +200,22 @@ class TestGetContext:
 
 
 @pytest.mark.ai
+class TestGetRequestMeta:
+    def test_returns_meta_when_present(self, provider):
+        with patch(
+            f"{_MOD}._read_meta",
+            return_value={"unique.app/chat-id": "chat-1"},
+        ):
+            meta = provider.get_request_meta()
+        assert meta == {"unique.app/chat-id": "chat-1"}
+
+    def test_returns_none_when_absent(self, provider):
+        with patch(f"{_MOD}._read_meta", return_value=None):
+            meta = provider.get_request_meta()
+        assert meta is None
+
+
+@pytest.mark.ai
 class TestGetUserinfo:
     @pytest.mark.asyncio
     async def test_returns_full_userinfo(self, provider):
