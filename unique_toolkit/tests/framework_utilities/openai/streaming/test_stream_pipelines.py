@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -12,7 +14,6 @@ from openai.types.chat.chat_completion_chunk import (
     Choice,
     ChoiceDelta,
     ChoiceDeltaToolCall,
-    ChoiceDeltaToolCallFunction,
 )
 from openai.types.responses import (
     ResponseFunctionCallArgumentsDoneEvent,
@@ -36,7 +37,9 @@ from unique_toolkit.app.unique_settings import (
 from unique_toolkit.framework_utilities.openai.streaming.pipeline.chat_completions.stream_pipeline import (
     ChatCompletionStreamPipeline,
 )
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.protocols import TextState
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.protocols import (
+    TextState,
+)
 from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.completed_handler import (
     ResponsesCompletedHandler,
     _extract_usage,
@@ -47,7 +50,10 @@ from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.stre
 from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.tool_call_handler import (
     ResponsesToolCallHandler,
 )
-from unique_toolkit.language_model.schemas import LanguageModelFunction, LanguageModelTokenUsage
+from unique_toolkit.language_model.schemas import (
+    LanguageModelFunction,
+    LanguageModelTokenUsage,
+)
 
 
 def _settings_with_chat() -> UniqueSettings:
@@ -142,7 +148,9 @@ async def test_chat_completion_stream_pipeline__on_event__forwards_to_both_handl
     text_h = _FakeChatTextHandler(settings=settings)
     tool_h = _FakeChatToolHandler()
     pipe = ChatCompletionStreamPipeline(
-        text_handler=text_h, tool_call_handler=tool_h, settings=settings
+        text_handler=text_h,
+        tool_call_handler=tool_h,
+        settings=settings,
     )
     chunk = _chat_chunk(content="hi")
     await pipe.on_event(chunk, index=2)
@@ -161,10 +169,11 @@ async def test_chat_completion_stream_pipeline__on_stream_end__sets_completed_at
     settings = _settings_with_chat()
     text_h = _FakeChatTextHandler(settings=settings)
     pipe = ChatCompletionStreamPipeline(text_handler=text_h, settings=settings)
-    with patch(
-        "unique_toolkit.framework_utilities.openai.streaming.pipeline.chat_completions.stream_pipeline.unique_sdk.Message.modify_async",
-        new_callable=AsyncMock,
-    ) as modify:
+    mod_path = (
+        "unique_toolkit.framework_utilities.openai.streaming.pipeline."
+        "chat_completions.stream_pipeline.unique_sdk.Message.modify_async"
+    )
+    with patch(mod_path, new_callable=AsyncMock) as modify:
         await pipe.on_stream_end()
     modify.assert_called_once()
     kwargs = modify.call_args.kwargs
@@ -203,14 +212,12 @@ def test_chat_completion_stream_pipeline__build_result__includes_tool_calls():
     tool_fn = LanguageModelFunction(name="t", arguments={"a": 1})
     tool_h = _FakeChatToolHandler(tools=[tool_fn])
     pipe = ChatCompletionStreamPipeline(
-        text_handler=text_h, tool_call_handler=tool_h, settings=settings
+        text_handler=text_h,
+        tool_call_handler=tool_h,
+        settings=settings,
     )
-    from datetime import datetime, timezone
-
     created = datetime.now(timezone.utc)
-    result = pipe.build_result(
-        message_id="m1", chat_id="c1", created_at=created
-    )
+    result = pipe.build_result(message_id="m1", chat_id="c1", created_at=created)
     assert result.message.text == "hello"
     assert result.tool_calls == [tool_fn]
 
@@ -255,7 +262,7 @@ class _FakeCompleted:
     events: list[object] = field(default_factory=list)
     ends: int = 0
     usage: LanguageModelTokenUsage | None = None
-    output: list = field(default_factory=list)
+    output: list[Any] = field(default_factory=list)
 
     async def on_completed(self, event: object) -> None:
         self.events.append(event)
@@ -266,7 +273,7 @@ class _FakeCompleted:
     def get_usage(self) -> LanguageModelTokenUsage | None:
         return self.usage
 
-    def get_output(self) -> list:
+    def get_output(self) -> list[Any]:
         return self.output
 
     def reset(self) -> None:
@@ -296,9 +303,7 @@ async def test_responses_stream_pipeline__on_event__routes_text_delta():
     """
     text_h = _FakeResponsesText()
     done_h = _FakeCompleted()
-    pipe = ResponsesStreamPipeline(
-        text_handler=text_h, completed_handler=done_h
-    )
+    pipe = ResponsesStreamPipeline(text_handler=text_h, completed_handler=done_h)
     ev = _text_delta("abc")
     await pipe.on_event(ev)
     assert text_h.deltas == [ev]
@@ -356,9 +361,7 @@ async def test_responses_stream_pipeline__on_stream_end__invokes_all_handlers():
     """
     text_h = _FakeResponsesText()
     done_h = _FakeCompleted()
-    pipe = ResponsesStreamPipeline(
-        text_handler=text_h, completed_handler=done_h
-    )
+    pipe = ResponsesStreamPipeline(text_handler=text_h, completed_handler=done_h)
     await pipe.on_stream_end()
     assert text_h.ends == 1
     assert done_h.ends == 1
@@ -373,9 +376,7 @@ async def test_responses_completed_handler__on_completed__extracts_usage_and_out
     Setup summary: Build minimal event object; on_completed; assert usage and output list.
     """
     handler = ResponsesCompletedHandler()
-    usage_obj = SimpleNamespace(
-        input_tokens=3, output_tokens=5, total_tokens=8
-    )
+    usage_obj = SimpleNamespace(input_tokens=3, output_tokens=5, total_tokens=8)
     out_item = object()
     response = SimpleNamespace(usage=usage_obj, output=[out_item])
     event = SimpleNamespace(response=response)
@@ -406,8 +407,6 @@ def test_responses_stream_pipeline__build_result__includes_usage_and_original_te
     Why this matters: Streaming API consumers need a single aggregate result object.
     Setup summary: Wire fakes with usage/output set; build_result; assert fields on DTO.
     """
-    from datetime import datetime, timezone
-
     text_h = _FakeResponsesText()
     text_h.state = TextState(full_text="n", original_text="orig")
     done_h = _FakeCompleted()
@@ -415,10 +414,8 @@ def test_responses_stream_pipeline__build_result__includes_usage_and_original_te
         prompt_tokens=1, completion_tokens=2, total_tokens=3
     )
     marker = object()
-    done_h.output = [marker]  # type: ignore[list-item]
-    pipe = ResponsesStreamPipeline(
-        text_handler=text_h, completed_handler=done_h
-    )
+    done_h.output = [marker]
+    pipe = ResponsesStreamPipeline(text_handler=text_h, completed_handler=done_h)
     created = datetime.now(timezone.utc)
     r = pipe.build_result(message_id="m", chat_id="c", created_at=created)
     assert r.message.text == "n"

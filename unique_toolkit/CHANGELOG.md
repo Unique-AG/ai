@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.69.5] - 2026-04-09
+- Add pytest coverage for OpenAI streaming (`StreamingPatternReplacer`, Chat Completions / Responses stream pipelines, batch reference normalization)
+
 ## [1.69.4] - 2026-04-08
 - Make `LanguageModelMessage` an abstract base class with `@abstractmethod` for `to_openai()` to prevent direct instantiation
 - Move `LanguageModelMessageRole` enum to `language_model.schemas` (includes `TOOL` role, separate from `ChatMessageRole`)
