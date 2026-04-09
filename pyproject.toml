@@ -27,7 +27,7 @@ dev = [
     "poethepoet>=0.32.0,<0.33",
     # migrated from per-package dev groups
     "python-dotenv>=1.1.0,<2",
-    "openai>=1.105.0,<2",
+    "openai>=1.105.0,<3",
     "isort>=6.0.1,<7",
     "opik>=1.8.42,<2",
 ]
@@ -47,9 +47,29 @@ docs = [
 
 [tool.uv]
 exclude-newer = "2 weeks"
+constraint-dependencies = [
+    "aiohttp>=3.13.4",
+    "cryptography>=46.0.7",
+    "deepdiff>=8.6.2",
+    "fastmcp>=3.2.0",
+    "langchain-core>=1.2.28",
+    "litellm>=1.83.0",
+    "requests>=2.33.0",
+]
 
 [tool.uv.exclude-newer-package]
 "unique-toolkit" = false
+# Temporary overrides: the constraint-dependencies above enforce security floors
+# that are too recent for the 2-week exclude-newer window on some Python version
+# splits. Remove these once the constrained versions are older than 2 weeks.
+aiohttp = "2026-04-08"
+cryptography = "2026-04-08"
+deepdiff = "2026-04-08"
+fastmcp = "2026-04-08"
+langchain-core = "2026-04-09"
+litellm = "2026-04-09"
+openai = "2026-04-09"
+requests = "2026-04-08"
 
 [tool.uv.sources]
 unique-toolkit = { workspace = true }

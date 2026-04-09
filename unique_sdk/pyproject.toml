@@ -1,6 +1,6 @@
 [project]
 name = "unique_sdk"
-version = "0.10.101"
+version = "0.11.0"
 description = ""
 readme = "README.md"
 license = { text = "MIT" }
@@ -29,7 +29,7 @@ unique-cli = "unique_sdk.cli.cli:main"
 
 [project.optional-dependencies]
 openai = [
-    "openai>=1.105.0,<2",
+    "openai>=1.105.0,<3",
 ]
 
 [build-system]
