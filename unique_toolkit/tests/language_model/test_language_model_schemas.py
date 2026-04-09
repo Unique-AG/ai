@@ -600,3 +600,52 @@ class TestLanguageModelMessagesModelValidator:
         assert len(messages.root) == 1
         assert isinstance(messages.root[0], LanguageModelSystemMessage)
         assert messages.root[0].content == "Single message"
+
+
+class TestLanguageModelMessagesToOpenAI:
+    """Test the to_openai method on LanguageModelMessages container."""
+
+    def test_AI_to_openai_completions_mode_default(self):
+        """
+        Test to_openai returns ChatCompletionMessageParam list in completions mode.
+
+        Verifies the default mode converts each message via to_openai(mode="completions").
+        """
+        messages = LanguageModelMessages(
+            [
+                LanguageModelSystemMessage(content="System prompt"),
+                LanguageModelUserMessage(content="User question"),
+                LanguageModelAssistantMessage(content="Assistant answer"),
+            ]
+        )
+
+        result = messages.to_openai()
+
+        assert len(result) == 3
+        assert result[0]["role"] == "system"
+        assert result[0]["content"] == "System prompt"
+        assert result[1]["role"] == "user"
+        assert result[1]["content"] == "User question"
+        assert result[2]["role"] == "assistant"
+        assert result[2]["content"] == "Assistant answer"
+
+    def test_AI_to_openai_responses_mode(self):
+        """
+        Test to_openai returns ResponseInputItemParam list in responses mode.
+
+        Verifies mode="responses" converts each message via to_openai(mode="responses").
+        """
+        messages = LanguageModelMessages(
+            [
+                LanguageModelSystemMessage(content="System prompt"),
+                LanguageModelUserMessage(content="User question"),
+            ]
+        )
+
+        result = messages.to_openai(mode="responses")
+
+        assert len(result) == 2
+        assert result[0]["role"] == "system"
+        assert result[0]["content"] == "System prompt"
+        assert result[1]["role"] == "user"
+        assert result[1]["content"] == "User question"
