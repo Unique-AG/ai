@@ -229,7 +229,7 @@ def webhook():
     event = None
     payload = request.data
 
-    app._LOGGER.info("Received webhook request.")
+    app.logger.info("Received webhook request.")
 
     try:
         event = json.loads(payload)
@@ -255,7 +255,7 @@ def webhook():
             print("⚠️  Webhook signature verification failed. " + str(e))
             return jsonify(success=False), HTTPStatus.BAD_REQUEST
 
-    app._LOGGER.debug("Request headers: %s", request.headers)
+    app.logger.debug("Request headers: %s", request.headers)
     pprint(event)
 
     if event and event["event"] == "unique.chat.user-message.created":
@@ -266,6 +266,6 @@ def webhook():
         handle_module_message(event["payload"], event["userId"], event["companyId"])
     else:
         # Unexpected event type
-        app._LOGGER.error("Unhandled event type {}".format(event["type"]))
+        app.logger.error("Unhandled event type {}".format(event["type"]))
 
     return jsonify(success=True)
