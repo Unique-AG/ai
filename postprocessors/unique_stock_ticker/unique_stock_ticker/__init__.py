@@ -17,6 +17,8 @@ from unique_stock_ticker.integrated import (
     retrieve_tickers_and_plot_history,
 )
 from unique_stock_ticker.plot.backend import (
+    HtmlPlottingBackend,
+    HtmlTickerPlotConfig,
     NextPlottingBackend,
     NextTickerPlotConfig,
     PlotlyPlottingBackend,
@@ -42,10 +44,12 @@ __all__ = [
     "StockTickerDataRetrievalConfig",
     "find_and_plot_history_for_tickers",
     "find_history_for_tickers",
+    "HtmlPlottingBackend",
     "NextPlottingBackend",
     "PlotlyPlottingBackend",
     "PlottingBackend",
     "PlottingBackendName",
+    "HtmlTickerPlotConfig",
     "PlotlyTickerPlotConfig",
     "NextTickerPlotConfig",
     "get_stock_ticker_service",

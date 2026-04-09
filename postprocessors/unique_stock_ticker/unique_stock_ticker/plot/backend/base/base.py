@@ -13,6 +13,7 @@ from unique_stock_ticker.plot.backend.base.schema import (
 class PlottingBackendName(StrEnum):
     PLOTLY = "plotly"
     NEXT = "next"
+    HTML = "html"
 
 
 T = TypeVar("T", bound=PlottingBackendName)

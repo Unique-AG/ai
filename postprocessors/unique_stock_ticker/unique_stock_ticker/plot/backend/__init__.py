@@ -8,6 +8,10 @@ from unique_stock_ticker.plot.backend.base import (
     StockInfo,
     StockMetric,
 )
+from unique_stock_ticker.plot.backend.html import (
+    HtmlPlottingBackend,
+    HtmlTickerPlotConfig,
+)
 from unique_stock_ticker.plot.backend.next import (
     NextPlottingBackend,
     NextTickerPlotConfig,
@@ -25,6 +29,8 @@ __all__ = [
     "StockHistoryPlotPayload",
     "NextPlottingBackend",
     "NextTickerPlotConfig",
+    "HtmlPlottingBackend",
+    "HtmlTickerPlotConfig",
     "PlotlyPlottingBackend",
     "PlotlyTickerPlotConfig",
     "StockInfo",

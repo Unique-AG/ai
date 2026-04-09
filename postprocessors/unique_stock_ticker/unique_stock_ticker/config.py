@@ -16,6 +16,7 @@ from unique_toolkit.language_model.infos import LanguageModelInfo
 
 from unique_stock_ticker.detection.config import StockTickerDetectionConfig
 from unique_stock_ticker.detection.memory import StockTickerMemoryConfig
+from unique_stock_ticker.plot.backend.html import HtmlTickerPlotConfig
 from unique_stock_ticker.plot.backend.next import NextTickerPlotConfig
 from unique_stock_ticker.plot.backend.plotly.plotly import PlotlyTickerPlotConfig
 from unique_stock_ticker.plot.config import StockTickerDataRetrievalConfig
@@ -47,9 +48,9 @@ class StockTickerConfigOld(BaseModel):
         default_factory=lambda: date(date.today().year, 1, 1)  # Start of year
     )
     period: timedelta = timedelta(minutes=30)
-    plots_config: NextTickerPlotConfig | PlotlyTickerPlotConfig = Field(
-        default=PlotlyTickerPlotConfig(), discriminator="name"
-    )
+    plots_config: (
+        NextTickerPlotConfig | PlotlyTickerPlotConfig | HtmlTickerPlotConfig
+    ) = Field(default=PlotlyTickerPlotConfig(), discriminator="name")
 
 
 class StockTickerConfig(BaseModel):
@@ -59,9 +60,9 @@ class StockTickerConfig(BaseModel):
         StockTickerDataRetrievalConfig()
     )
     detection_config: StockTickerDetectionConfig = StockTickerDetectionConfig()
-    plotting_config: NextTickerPlotConfig | PlotlyTickerPlotConfig = Field(
-        default=PlotlyTickerPlotConfig(), discriminator="name"
-    )
+    plotting_config: (
+        NextTickerPlotConfig | PlotlyTickerPlotConfig | HtmlTickerPlotConfig
+    ) = Field(default=PlotlyTickerPlotConfig(), discriminator="name")
     enabled: bool = Field(
         default=False,
         description="Whether to enable stock ticker detection.",

@@ -6,6 +6,7 @@ from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
 
 from unique_stock_ticker.config import StockTickerConfig
 from unique_stock_ticker.integrated import retrieve_tickers_and_plot_history
+from unique_stock_ticker.plot.backend.base.base import PlottingBackendName
 
 
 class StockTickerPostprocessor(Postprocessor):
@@ -47,4 +48,6 @@ class StockTickerPostprocessor(Postprocessor):
         return True
 
     async def remove_from_text(self, text: str) -> str:
+        if self._config.plotting_config.name == PlottingBackendName.HTML:
+            return re.sub(r"```HtmlRendering[\s\S]*?```", "", text)
         return re.sub(r"```financialChart[\s\S]*?```", "", text)
