@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-26T12:30:21.969106Z"
+exclude-newer = "2026-03-26T12:37:05.352434Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5178,7 +5178,7 @@ wheels = [
 
 [[package]]
 name = "unique-deep-research"
-version = "3.5.5"
+version = "3.6.0"
 source = { editable = "tool_packages/unique_deep_research" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -5291,7 +5291,7 @@ dev = []
 
 [[package]]
 name = "unique-orchestrator"
-version = "1.20.7"
+version = "1.21.0"
 source = { editable = "unique_orchestrator" }
 dependencies = [
     { name = "jinja2" },
@@ -5353,7 +5353,7 @@ dev = []
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.101"
+version = "0.11.0"
 source = { editable = "unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
@@ -5481,7 +5481,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-version = "1.69.8"
+version = "1.70.0"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },

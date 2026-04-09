@@ -1,6 +1,6 @@
 [project]
 name = "unique_deep_research"
-version = "3.5.5"
+version = "3.6.0"
 description = "Deep Research Tool for complex research tasks"
 readme = "README.md"
 license = { text = "Proprietary" }
