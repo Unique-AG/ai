@@ -112,9 +112,9 @@ def webhook():
 
         chat_service.modify_assistant_message(set_completed_at=True)
 
-    except Exception as e:
+    except Exception:
         error_message = "Error generating response"
-        _LOGGER.error(f"{error_message}: {e}")
+        _LOGGER.exception(error_message)
         chat_service.modify_assistant_message(
             content=error_message, set_completed_at=True
         )
