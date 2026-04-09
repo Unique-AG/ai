@@ -340,50 +340,6 @@ def test_supported_reasoning_efforts_set_correctly():
     assert deepseek.supported_reasoning_efforts == []
 
 
-def test_validator_backfills_supported_efforts_when_empty(caplog):
-    """When default_options has reasoning_effort but supported_reasoning_efforts is empty,
-    the validator auto-populates supported_reasoning_efforts from the default."""
-    with caplog.at_level(logging.WARNING, logger="unique_toolkit.language_model.infos"):
-        model = LanguageModelInfo(
-            name="test-model",
-            version="v1",
-            token_limits={"token_limit_input": 128000, "token_limit_output": 16384},
-            default_options={"reasoning_effort": "high"},
-            supported_reasoning_efforts=[],
-        )
-
-    assert model.supported_reasoning_efforts == ["high"]
-    assert "supported_reasoning_efforts is empty" in caplog.text
-
-
-def test_validator_does_not_modify_explicit_supported_efforts():
-    """When supported_reasoning_efforts is explicitly set (non-empty), the validator
-    does not add the default even if it is missing from the list."""
-    model = LanguageModelInfo(
-        name="test-model",
-        version="v1",
-        token_limits={"token_limit_input": 128000, "token_limit_output": 16384},
-        default_options={"reasoning_effort": "xhigh"},
-        supported_reasoning_efforts=["medium", "high"],
-    )
-
-    assert model.supported_reasoning_efforts == ["medium", "high"]
-    assert "xhigh" not in model.supported_reasoning_efforts
-
-
-def test_validator_does_not_fire_on_none():
-    """When supported_reasoning_efforts is None (unknown model), the validator
-    must not fire even if default_options has reasoning_effort."""
-    model = LanguageModelInfo(
-        name="unknown-model",
-        version="v1",
-        token_limits={"token_limit_input": 128000, "token_limit_output": 16384},
-        default_options={"reasoning_effort": "high"},
-    )
-
-    assert model.supported_reasoning_efforts is None
-
-
 def test_resolve_unknown_model_passes_effort_through():
     """Scenario 0: unknown model (supported_reasoning_efforts=None) passes any
     effort through unchanged."""
