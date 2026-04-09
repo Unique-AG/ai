@@ -129,6 +129,7 @@ class RJSFMetaTag:
             description: str | None = None,
             help: str | None = None,
             class_names: str | None = None,
+            empty_value: str = "",
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a text field (default for strings)."""
@@ -142,6 +143,7 @@ class RJSFMetaTag:
                 "ui:description": description,
                 "ui:help": help,
                 "ui:classNames": class_names,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -157,6 +159,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str = "",
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a textarea field."""
@@ -169,6 +172,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emtpyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -183,6 +187,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str = "",
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a password field."""
@@ -194,6 +199,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -206,6 +212,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str = "",
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a color picker field."""
@@ -215,6 +222,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -229,6 +237,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str = "",
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create an email field."""
@@ -240,6 +249,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -254,6 +264,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str = "",
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a URL field."""
@@ -265,6 +276,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -277,6 +289,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str | None = None,
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a date field."""
@@ -286,6 +299,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -298,6 +312,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str | None = None,
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a datetime field."""
@@ -307,6 +322,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -319,6 +335,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str | None = None,
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a time field."""
@@ -328,6 +345,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -341,6 +359,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str = "",
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a file upload field."""
@@ -351,6 +370,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
