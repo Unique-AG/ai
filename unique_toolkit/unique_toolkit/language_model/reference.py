@@ -2,7 +2,6 @@ import re
 
 from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
-from unique_toolkit.content.utils import content_chunk_to_reference
 
 
 def add_references_to_message(
@@ -205,13 +204,11 @@ def _find_references(
             found_reference.original_index.append(number)
             continue
 
-        ref = content_chunk_to_reference(
-            chunk=search,
+        ref = search.to_reference(
             sequence_number=sequence_number,
             original_index=[number],
+            message_id=message_id,
         )
-        ref.id = search.id
-        ref.message_id = message_id
         references.append(ref)
         sequence_number += 1
 

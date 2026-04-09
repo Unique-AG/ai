@@ -276,15 +276,17 @@ chat_service.complete_with_references(
 
 When you use `complete_with_references` (streaming), the backend automatically creates references from the `content_chunks` you pass — including page numbers derived from each chunk's `start_page` and `end_page`. However, when you use `modify_assistant_message` directly, references are persisted exactly as you provide them with no server-side enrichment. This means page numbers are lost unless you explicitly include them.
 
-The `content_chunk_to_reference` utility bridges this gap. It converts a `ContentChunk` into a `ContentReference` that follows the same conventions the backend uses during streaming, so that page numbers appear in the reference chips.
+Use **`ContentChunk.to_reference(...)`** to bridge this gap. It returns a `ContentReference` that follows the same conventions the backend uses during streaming, so that page numbers appear in the reference chips. The module-level **`content_chunk_to_reference`** function in `unique_toolkit.content.utils` is equivalent if you prefer a functional style.
 
 ```python
-from unique_toolkit.content import content_chunk_to_reference
+from unique_toolkit.content import ContentChunk
 
 references = [
-    content_chunk_to_reference(chunk, sequence_number=i + 1, original_index=[i])
+    chunk.to_reference(sequence_number=i + 1, original_index=[i])
     for i, chunk in enumerate(chunks)
 ]
+# Pass message_id=... when references are tied to a specific chat message, e.g.
+# chunk.to_reference(..., message_id=assistant_message_id)
 
 chat_service.modify_assistant_message(
     content="The answer based on the sources <sup>1</sup><sup>2</sup>",
@@ -319,7 +321,7 @@ Each reference will have the document title with a page postfix (e.g. `"Annual R
 
     **Message update path:** The toolkit sends only `name`, `url`, `sequenceNumber`, `sourceId`, and `source` via `map_references`. The backend does a plain `createMany` — no bracket parsing, no chunk lookup, no page enrichment.
 
-    **What `content_chunk_to_reference` does:** It replicates the server-side logic on the client side:
+    **What `ContentChunk.to_reference` does:** It replicates the server-side logic on the client side:
 
     - **`source_id`** uses the `{content_id}_{chunk_id}` convention, which the `ReferenceManager` relies on to map references back to chunks.
     - **`name`** includes the ` : 1,2,3` page postfix, matching the backend's `generatePagesPostfix`.

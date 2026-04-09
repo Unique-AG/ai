@@ -314,14 +314,14 @@ class TestFindReferences:
         assert refs[0].name == "document.pdf"
 
     @pytest.mark.ai
-    def test_find_references__no_title_or_key__produces_empty_name(self):
+    def test_find_references__no_title_or_key__uses_content_id_fallback_name(self):
         """
         Purpose: Verifies that when both title and key are None the reference
-        is still created (with an empty name) rather than raising.
-        Why this matters: Edge-case content with no metadata must not crash
-        the reference pipeline; an empty chip is preferable to a 500 error.
-        Setup summary: Chunk with title=None and key=None; assert one
-        reference is returned with empty name and correct id.
+        is still created with a stable display name derived from the content id.
+        Why this matters: Matches dedup logic in _find_references and avoids
+        empty reference names.
+        Setup summary: Chunk with title=None and key=None; assert one reference
+        with name ``Content {id}`` and correct id/message_id.
         """
         ctx = [_chunk(id="cont_xyz", title=None, key=None)]
         refs = _find_references(
@@ -332,4 +332,5 @@ class TestFindReferences:
 
         assert len(refs) == 1
         assert refs[0].id == "cont_xyz"
-        assert refs[0].name == ""
+        assert refs[0].message_id == "msg_1"
+        assert refs[0].name == "Content cont_xyz"

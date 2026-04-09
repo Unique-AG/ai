@@ -283,9 +283,11 @@ class TestContentChunkToReference:
             start_page=3,
             end_page=5,
         )
-        ref = content_chunk_to_reference(chunk, sequence_number=1)
+        ref = chunk.to_reference(sequence_number=1)
 
         assert isinstance(ref, ContentReference)
+        assert ref.id == "cont_123"
+        assert ref.message_id == ""
         assert ref.name == "Report.pdf : 3,4,5"
         assert ref.sequence_number == 1
         assert ref.source_id == "cont_123_chunk_abc"
@@ -302,7 +304,7 @@ class TestContentChunkToReference:
             start_page=None,
             end_page=None,
         )
-        ref = content_chunk_to_reference(chunk, sequence_number=2)
+        ref = chunk.to_reference(sequence_number=2)
 
         assert ref.name == "NoPagesDoc.pdf"
         assert ref.url == "unique://content/cont_456"
@@ -317,7 +319,7 @@ class TestContentChunkToReference:
             start_page=None,
             end_page=5,
         )
-        ref = content_chunk_to_reference(chunk, sequence_number=1)
+        ref = chunk.to_reference(sequence_number=1)
 
         assert ref.name == "Partial.pdf"
 
@@ -331,7 +333,7 @@ class TestContentChunkToReference:
             start_page=3,
             end_page=None,
         )
-        ref = content_chunk_to_reference(chunk, sequence_number=1)
+        ref = chunk.to_reference(sequence_number=1)
 
         assert ref.name == "HalfPage.pdf : 3"
 
@@ -345,7 +347,7 @@ class TestContentChunkToReference:
             url="https://example.com/page",
             internally_stored_at=None,
         )
-        ref = content_chunk_to_reference(chunk, sequence_number=1)
+        ref = chunk.to_reference(sequence_number=1)
 
         assert ref.url == "https://example.com/page"
 
@@ -361,7 +363,7 @@ class TestContentChunkToReference:
             url="https://example.com/stored",
             internally_stored_at=datetime(2024, 7, 22, 11, 51, 40),
         )
-        ref = content_chunk_to_reference(chunk, sequence_number=1)
+        ref = chunk.to_reference(sequence_number=1)
 
         assert ref.url == "unique://content/cont_int"
 
@@ -374,7 +376,7 @@ class TestContentChunkToReference:
             order=1,
             url=None,
         )
-        ref = content_chunk_to_reference(chunk, sequence_number=1)
+        ref = chunk.to_reference(sequence_number=1)
 
         assert ref.url == "unique://content/cont_no_url"
 
@@ -385,7 +387,7 @@ class TestContentChunkToReference:
             text="text",
             order=1,
         )
-        ref = content_chunk_to_reference(chunk, sequence_number=1)
+        ref = chunk.to_reference(sequence_number=1)
 
         assert ref.source_id == "cont_only"
 
@@ -397,9 +399,7 @@ class TestContentChunkToReference:
             text="text",
             order=1,
         )
-        ref = content_chunk_to_reference(
-            chunk, sequence_number=3, original_index=[1, 4]
-        )
+        ref = chunk.to_reference(sequence_number=3, original_index=[1, 4])
 
         assert ref.original_index == [1, 4]
         assert ref.sequence_number == 3
@@ -414,6 +414,49 @@ class TestContentChunkToReference:
             start_page=1,
             end_page=1,
         )
-        ref = content_chunk_to_reference(chunk, sequence_number=1)
+        ref = chunk.to_reference(sequence_number=1)
 
         assert ref.name == "document.pdf : 1"
+
+    def test_sets_message_id_when_provided(self):
+        chunk = ContentChunk(
+            id="cont_msg",
+            chunk_id="chunk_msg",
+            title="Doc",
+            text="text",
+            order=1,
+        )
+        ref = chunk.to_reference(sequence_number=1, message_id="msg_abc")
+
+        assert ref.id == "cont_msg"
+        assert ref.message_id == "msg_abc"
+
+    def test_falls_back_to_content_id_when_no_title_or_key(self):
+        chunk = ContentChunk(
+            id="cont_noname",
+            chunk_id="chunk_x",
+            text="text",
+            order=1,
+            start_page=2,
+            end_page=2,
+        )
+        ref = chunk.to_reference(sequence_number=1)
+
+        assert ref.name == "Content cont_noname : 2"
+
+    def test_to_reference_matches_content_chunk_to_reference(self):
+        chunk = ContentChunk(
+            id="cont_delegate",
+            chunk_id="chunk_del",
+            title="T",
+            text="t",
+            order=1,
+        )
+        via_fn = content_chunk_to_reference(
+            chunk, sequence_number=2, original_index=[3], message_id="m1"
+        )
+        via_method = chunk.to_reference(
+            sequence_number=2, original_index=[3], message_id="m1"
+        )
+
+        assert via_method.model_dump() == via_fn.model_dump()
