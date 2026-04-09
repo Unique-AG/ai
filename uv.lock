@@ -8,11 +8,12 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-26T13:17:48.092093Z"
+exclude-newer = "2026-03-26T13:53:53.22408Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
 unique-toolkit = false
+copier = "2026-04-09T22:00:00Z"
 langchain-core = "2026-04-09T22:00:00Z"
 openai = "2026-04-09T22:00:00Z"
 deepdiff = "2026-04-08T22:00:00Z"
@@ -41,6 +42,7 @@ members = [
 ]
 constraints = [
     { name = "aiohttp", specifier = ">=3.13.4" },
+    { name = "copier", specifier = ">=9.14.1" },
     { name = "cryptography", specifier = ">=46.0.7" },
     { name = "deepdiff", specifier = ">=8.6.2" },
     { name = "fastmcp", specifier = ">=3.2.0" },
@@ -797,7 +799,7 @@ wheels = [
 
 [[package]]
 name = "copier"
-version = "9.14.0"
+version = "9.14.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama" },
@@ -814,9 +816,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "questionary" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cb/35/42b9e1c2b4adab0ebb788eae1f1800fa5f481ff5552a6e58c3d953dd11c0/copier-9.14.0.tar.gz", hash = "sha256:4d1b6a19538a5d170f913afb7682fe745c74b35c84085890809cb8d8d4d8fe7a", size = 618593, upload-time = "2026-03-13T15:55:30.796Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/68/7ad4e4b7c19ea4881244f04db01c1b5a2a720292673458fe338a2581cf72/copier-9.14.2.tar.gz", hash = "sha256:dc268f94964a6ddd076128a53a5e037932795dbc456991b1d423afcb66deef0f", size = 625629, upload-time = "2026-04-09T12:42:17.061Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/df/91/4a151c94320458895049a3e23b7b2cfc08953c60b14892de837e8eb51d0a/copier-9.14.0-py3-none-any.whl", hash = "sha256:e12a18cfef22e67254e5229f0b4bdab85e1e3e82926e448226be0b70d0f4de53", size = 59425, upload-time = "2026-03-13T15:55:29.273Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/fe/bce5ec796db178879c286332dbb285cadf9e94f1989df4647afa8c1867ae/copier-9.14.2-py3-none-any.whl", hash = "sha256:f27e65944b33cf5ab62ca0da5bd76c450754dbd5269db567c501c29c6417f6a6", size = 59756, upload-time = "2026-04-09T12:42:15.441Z" },
 ]
 
 [[package]]
