@@ -29,7 +29,7 @@ unique-cli = "unique_sdk.cli.cli:main"
 
 [project.optional-dependencies]
 openai = [
-    "openai>=1.105.0,<2",
+    "openai>=1.105.0,<3",
 ]
 
 [build-system]
