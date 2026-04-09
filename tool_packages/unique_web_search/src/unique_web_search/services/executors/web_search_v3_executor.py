@@ -7,7 +7,15 @@ from time import time
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.content.schemas import ContentMetadata
 from unique_toolkit.language_model import LanguageModelFunction
+from unique_toolkit.monitoring import metric_scope
 
+from unique_web_search.metrics import (
+    llm_duration,
+    llm_errors,
+    search_duration,
+    search_errors,
+    search_total,
+)
 from unique_web_search.schema import Step, StepDebugInfo, StepType, WebSearchPlan
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
@@ -170,11 +178,14 @@ class WebSearchV3Executor(WebSearchV2Executor):
             )
         )
 
+        engine = self.search_service.config.search_engine_name.value
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
 
         await self._message_log_callback.log_queries([step.query_or_url])
-        results = await self.search_service.search(step.query_or_url)
+        with metric_scope(search_duration, search_errors, engine=engine):
+            search_total.labels(engine=engine).inc()
+            results = await self.search_service.search(step.query_or_url)
         await self._message_log_callback.log_web_search_results(results)
 
         delta_time = time() - time_start
@@ -211,13 +222,14 @@ class WebSearchV3Executor(WebSearchV2Executor):
             f"Company {self.company_id} Running global snippet judge to narrow results"
         )
         try:
-            selected = await select_relevant(
-                objective=self.tool_parameters.objective,
-                results=results,
-                language_model_service=self.language_model_service,
-                language_model=self.language_model,
-                config=self.snippet_judge_config,
-            )
+            with metric_scope(llm_duration, llm_errors, purpose="snippet_judge"):
+                selected = await select_relevant(
+                    objective=self.tool_parameters.objective,
+                    results=results,
+                    language_model_service=self.language_model_service,
+                    language_model=self.language_model,
+                    config=self.snippet_judge_config,
+                )
             _LOGGER.info(
                 f"Company {self.company_id} Snippet judge selected {len(selected)} results from {number_before_judge}"
             )

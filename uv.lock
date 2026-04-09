@@ -5572,7 +5572,7 @@ dev = []
 
 [[package]]
 name = "unique-web-search"
-version = "1.15.3"
+version = "1.15.4"
 source = { editable = "tool_packages/unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },
@@ -5595,7 +5595,7 @@ dependencies = [
     { name = "timeout-decorator" },
     { name = "typing-extensions" },
     { name = "unidecode" },
-    { name = "unique-toolkit" },
+    { name = "unique-toolkit", extra = ["monitoring"] },
 ]
 
 [package.metadata]
@@ -5620,7 +5620,7 @@ requires-dist = [
     { name = "timeout-decorator", specifier = ">=0.5.0,<1" },
     { name = "typing-extensions", specifier = ">=4.14.1,<5" },
     { name = "unidecode", specifier = ">=1.4.0,<2" },
-    { name = "unique-toolkit", editable = "unique_toolkit" },
+    { name = "unique-toolkit", extras = ["monitoring"], editable = "unique_toolkit" },
 ]
 
 [package.metadata.requires-dev]

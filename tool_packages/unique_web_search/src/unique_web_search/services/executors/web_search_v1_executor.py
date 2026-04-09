@@ -9,7 +9,17 @@ from unique_toolkit._common.validators import LMI
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.language_model.builder import MessagesBuilder
+from unique_toolkit.monitoring import metric_scope
 
+from unique_web_search.metrics import (
+    crawl_duration,
+    crawl_errors,
+    llm_duration,
+    llm_errors,
+    search_duration,
+    search_errors,
+    search_total,
+)
 from unique_web_search.schema import StepDebugInfo, WebSearchToolParameters
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
@@ -225,13 +235,14 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
 
     async def _refine_query(self, query: str) -> tuple[list[str], str]:
         start_time = time()
-        refined_query = await query_generation_agent(
-            query,
-            self.language_model_service,
-            self.language_model,
-            self.refine_query_system_prompt,
-            self.mode,
-        )
+        with metric_scope(llm_duration, llm_errors, purpose="query_refinement"):
+            refined_query = await query_generation_agent(
+                query,
+                self.language_model_service,
+                self.language_model,
+                self.refine_query_system_prompt,
+                self.mode,
+            )
         end_time = time()
         delta_time = end_time - start_time
 
@@ -261,11 +272,14 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
     async def _search(
         self, query: str, date_restrict: str | None
     ) -> list[WebSearchResult]:
+        engine = self.search_service.config.search_engine_name.value
         start_time = time()
         _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
-        search_results = await self.search_service.search(
-            query, date_restrict=date_restrict
-        )
+        with metric_scope(search_duration, search_errors, engine=engine):
+            search_total.labels(engine=engine).inc()
+            search_results = await self.search_service.search(
+                query, date_restrict=date_restrict
+            )
         end_time = time()
         delta_time = end_time - start_time
         _LOGGER.info(
@@ -287,11 +301,13 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         return search_results
 
     async def _crawl(self, web_search_results: list[WebSearchResult]) -> list[str]:
+        crawler = self.crawler_service.config.crawler_type.value
         start_time = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
-        crawl_results = await self.crawler_service.crawl(
-            [result.url for result in web_search_results]
-        )
+        with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
+            crawl_results = await self.crawler_service.crawl(
+                [result.url for result in web_search_results]
+            )
         end_time = time()
         delta_time = end_time - start_time
         _LOGGER.info(

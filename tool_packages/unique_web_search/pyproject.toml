@@ -1,6 +1,6 @@
 [project]
 name = "unique_web_search"
-version = "1.15.3"
+version = "1.15.4"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
@@ -23,7 +23,7 @@ dependencies = [
     "unidecode>=1.4.0,<2",
     "azure-ai-projects>=1.0.0,<2",
     "azure-identity>=1.25.0,<2",
-    "unique-toolkit>=1.66.1,<2",
+    "unique-toolkit[monitoring]>=1.69.6,<2",
     "azure-core>=1.36.0,<2",
     "google-cloud-aiplatform>=1.128.0,<2",
     "google-auth>=2.43.0,<3",
@@ -72,6 +72,5 @@ target-version = "py312"
 [tool.ruff.lint]
 extend-select = ["I"]
 
-# [tool.uv.sources]
-# unique-sdk = { path = "../../unique-sdk", editable = true }
-# unique_toolkit = { path = "../../unique_toolkit", editable = true }
+[tool.uv.sources]
+unique-toolkit = { workspace = true }
