@@ -1667,3 +1667,41 @@ def test_AI_ui_schema_for_model__pipe_union_with_annotated_models__resolves_anyo
         "ui:order": ["case"],
     }
     assert schema == expected
+
+
+@pytest.mark.ai
+def test_AI_ui_schema_for_model__sub_agent_tool_config__produces_correct_widgets() -> (
+    None
+):
+    """
+    Purpose: Verify SubAgentToolConfig RJSF annotations produce correct uiSchema.
+    Why this matters: SubAgentToolConfig uses RJSFMetaTag for form fields; correct
+        uiSchema ensures the tool config form renders properly in the UI.
+    Setup summary: Call ui_schema_for_model on SubAgentToolConfig, assert
+        RJSF-annotated fields have the expected widget type and options.
+    """
+    from unique_toolkit.agentic.tools.a2a.tool.config import SubAgentToolConfig
+
+    schema = ui_schema_for_model(SubAgentToolConfig)
+
+    textarea_fields = {
+        "tool_description_for_system_prompt": 3,
+        "tool_description": 5,
+        "tool_format_information_for_system_prompt": 2,
+        "param_description_sub_agent_user_message": 1,
+        "tool_input_json_schema": 5,
+    }
+    for field, rows in textarea_fields.items():
+        assert field in schema, f"Expected {field} in schema"
+        assert schema[field]["ui:widget"] == "textarea"
+        assert schema[field]["ui:options"] == {"rows": rows}
+
+    hidden_fields = [
+        "assistant_id",
+        "chat_id",
+        "tool_description_for_user_prompt",
+        "tool_format_information_for_user_prompt",
+    ]
+    for field in hidden_fields:
+        assert field in schema, f"Expected {field} in schema"
+        assert schema[field]["ui:widget"] == "hidden"
