@@ -52,7 +52,7 @@ class InternalSearchBaseService(
         return instance
 
     def bind_settings(self, settings: UniqueSettings) -> Self:
-        context: UniqueContext = UniqueContext.from_settings(settings)
+        context: UniqueContext = settings.context
         self._context = context
         self._dependencies = self._make_dependencies(settings, context)
         self.reset_state()  # check if really needed

@@ -51,6 +51,27 @@ def _make_service(config: InternalSearchConfig | None = None) -> _ConcreteSearch
     return svc
 
 
+@pytest.mark.verified
+def test_bind_settings__uses_settings_context_and_resets_state():
+    """
+    Purpose: Verifies that bind_settings preserves the full request context from settings.
+    Why this matters: Rebuilding context from settings can drop chat context, which breaks
+        chat-aware internal-search services.
+    Setup summary: Service with populated state and a settings object carrying a context;
+        bind_settings should use that exact context and reset the state.
+    """
+    svc = _make_service()
+    existing_context = MagicMock(spec=UniqueContext)
+    settings = MagicMock(spec=UniqueSettings)
+    settings.context = existing_context
+    svc._state.search_queries = ["stale"]
+
+    svc.bind_settings(settings)
+
+    assert svc.context is existing_context
+    assert svc.state.search_queries == []
+
+
 # ---------------------------------------------------------------------------
 # InternalSearchState.get_max_tokens
 # ---------------------------------------------------------------------------
@@ -79,6 +100,31 @@ def test_get_max_tokens__uses_fallback_when_tokens_unset():
     """
     state = InternalSearchState(search_queries=["q"])
     assert state.get_max_tokens(percentage=0.5, fallback=30_000) == 30_000
+
+
+@pytest.mark.verified
+def test_internal_search_state__content_ids_defaults_to_none():
+    """
+    Purpose: Verifies that content_ids defaults to None in the base InternalSearchState.
+    Why this matters: content_ids is an optional narrowing filter; it must not be applied
+        unless explicitly set by the caller.
+    Setup summary: Instantiate state with only required fields; assert content_ids is None.
+    """
+    state = InternalSearchState(search_queries=["q"])
+    assert state.content_ids is None
+
+
+@pytest.mark.verified
+def test_internal_search_state__content_ids_can_be_set():
+    """
+    Purpose: Verifies that content_ids can be set on the base state and is accessible.
+    Why this matters: Both KB and chat variants use content_ids from the base state;
+        if assignment silently fails, searches would ignore the filter.
+    Setup summary: Instantiate state then assign content_ids; assert the value is preserved.
+    """
+    state = InternalSearchState(search_queries=["q"])
+    state.content_ids = ["doc-1", "doc-2"]
+    assert state.content_ids == ["doc-1", "doc-2"]
 
 
 # ---------------------------------------------------------------------------
