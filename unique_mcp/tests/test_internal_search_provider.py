@@ -26,8 +26,6 @@ from unique_mcp.internal_search.provider import (
     ChatInternalSearchToolProvider,
     KnowledgeBaseInternalSearchToolProvider,
     _format_tool_result,
-    build_chat_internal_search_service,
-    build_knowledge_base_internal_search_service,
 )
 
 
@@ -43,7 +41,11 @@ def _base_settings() -> UniqueSettings:
 
 
 @pytest.mark.ai
-def test_build_chat_internal_search_service__binds_settings_with_placeholders():
+def test_chat_provider__build_service_binds_settings_with_placeholders():
+    provider = ChatInternalSearchToolProvider(
+        config=ChatInternalSearchMcpConfig(),
+        context_provider=MagicMock(),
+    )
     request_meta = InternalSearchRequestMeta.from_request_meta(
         {"unique.app/chat-id": "chat-1"}
     )
@@ -54,8 +56,7 @@ def test_build_chat_internal_search_service__binds_settings_with_placeholders():
         "unique_mcp.internal_search.provider.ChatInternalSearchService.from_config",
         return_value=fake_service,
     ):
-        service = build_chat_internal_search_service(
-            config=ChatInternalSearchMcpConfig(),
+        service = provider._build_service(
             settings=_base_settings(),
             request_meta=request_meta,
         )
@@ -110,7 +111,11 @@ def test_kb_provider__populate_state_sets_content_ids_and_metadata_override():
 
 
 @pytest.mark.ai
-def test_build_knowledge_base_internal_search_service__binds_settings():
+def test_kb_provider__build_service_binds_settings():
+    provider = KnowledgeBaseInternalSearchToolProvider(
+        config=KnowledgeBaseInternalSearchMcpConfig(),
+        context_provider=MagicMock(),
+    )
     fake_service = MagicMock()
     fake_service.bind_settings.return_value = fake_service
 
@@ -118,10 +123,7 @@ def test_build_knowledge_base_internal_search_service__binds_settings():
         "unique_mcp.internal_search.provider.KnowledgeBaseInternalSearchService.from_config",
         return_value=fake_service,
     ):
-        service = build_knowledge_base_internal_search_service(
-            config=KnowledgeBaseInternalSearchMcpConfig(),
-            settings=_base_settings(),
-        )
+        service = provider._build_service(settings=_base_settings())
 
     fake_service.bind_settings.assert_called_once()
     assert service is fake_service

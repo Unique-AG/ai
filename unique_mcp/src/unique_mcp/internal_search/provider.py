@@ -78,34 +78,6 @@ def _format_tool_result(
     )
 
 
-def build_chat_internal_search_service(
-    *,
-    config: ChatInternalSearchMcpConfig,
-    settings: UniqueSettings,
-    request_meta: InternalSearchRequestMeta,
-) -> ChatInternalSearchService:
-    chat_settings = UniqueSettings(
-        auth=settings.authcontext,
-        app=settings.app,
-        api=settings.api,
-        chat_event_filter_options=settings.chat_event_filter_options,
-        chat=request_meta.to_chat_context(),
-    )
-    return ChatInternalSearchService.from_config(config.execution_config).bind_settings(
-        chat_settings
-    )
-
-
-def build_knowledge_base_internal_search_service(
-    *,
-    config: KnowledgeBaseInternalSearchMcpConfig,
-    settings: UniqueSettings,
-) -> KnowledgeBaseInternalSearchService:
-    return KnowledgeBaseInternalSearchService.from_config(
-        config.execution_config
-    ).bind_settings(settings)
-
-
 class ChatInternalSearchToolProvider(BaseProvider):
     _config: ChatInternalSearchMcpConfig
     _context_provider: UniqueContextProvider
@@ -118,6 +90,23 @@ class ChatInternalSearchToolProvider(BaseProvider):
     ) -> None:
         self._config = config
         self._context_provider = context_provider
+
+    def _build_service(
+        self,
+        *,
+        settings: UniqueSettings,
+        request_meta: InternalSearchRequestMeta,
+    ) -> ChatInternalSearchService:
+        chat_settings = UniqueSettings(
+            auth=settings.authcontext,
+            app=settings.app,
+            api=settings.api,
+            chat_event_filter_options=settings.chat_event_filter_options,
+            chat=request_meta.to_chat_context(),
+        )
+        return ChatInternalSearchService.from_config(
+            self._config.execution_config
+        ).bind_settings(chat_settings)
 
     @override
     def register(self, *, mcp: FastMCP) -> None:
@@ -136,8 +125,7 @@ class ChatInternalSearchToolProvider(BaseProvider):
             request_meta = InternalSearchRequestMeta.from_request_meta(
                 self._context_provider.get_request_meta()
             )
-            service = build_chat_internal_search_service(
-                config=self._config,
+            service = self._build_service(
                 settings=settings,
                 request_meta=request_meta,
             )
@@ -164,6 +152,13 @@ class KnowledgeBaseInternalSearchToolProvider(BaseProvider):
         self._config = config
         self._context_provider = context_provider
 
+    def _build_service(
+        self, *, settings: UniqueSettings
+    ) -> KnowledgeBaseInternalSearchService:
+        return KnowledgeBaseInternalSearchService.from_config(
+            self._config.execution_config
+        ).bind_settings(settings)
+
     @override
     def register(self, *, mcp: FastMCP) -> None:
         @mcp.tool(
@@ -181,10 +176,7 @@ class KnowledgeBaseInternalSearchToolProvider(BaseProvider):
             request_meta = InternalSearchRequestMeta.from_request_meta(
                 self._context_provider.get_request_meta()
             )
-            service = build_knowledge_base_internal_search_service(
-                config=self._config,
-                settings=settings,
-            )
+            service = self._build_service(settings=settings)
             _populate_common_state(
                 service=service,
                 search_string=search_string,
@@ -202,6 +194,4 @@ class KnowledgeBaseInternalSearchToolProvider(BaseProvider):
 __all__ = [
     "ChatInternalSearchToolProvider",
     "KnowledgeBaseInternalSearchToolProvider",
-    "build_chat_internal_search_service",
-    "build_knowledge_base_internal_search_service",
 ]
