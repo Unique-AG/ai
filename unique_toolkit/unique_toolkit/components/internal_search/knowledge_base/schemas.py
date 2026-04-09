@@ -37,7 +37,6 @@ class KnowledgeBaseInternalSearchDeps:
 
 @dataclass
 class KnowledgeBaseInternalSearchState(InternalSearchState):
-    content_ids: list[str] | None = None
     metadata_filter_override: dict[str, Any] | None | _UnsetType = field(
         default_factory=lambda: UNSET
     )
