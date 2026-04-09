@@ -77,14 +77,11 @@ class ContentChunk(BaseModel):
     def to_reference(
         self,
         sequence_number: int,
-        original_index: list[int] | None = None,
         *,
+        original_index: list[int] | None = None,
         message_id: str = "",
     ) -> ContentReference:
         """Convert this chunk into a :class:`ContentReference` with page-number info.
-
-        Prefer this method over :func:`unique_toolkit.content.utils.content_chunk_to_reference`
-        in application code.
 
         When using ``modify_assistant_message`` (the message-update path) instead of
         streaming via ``complete_with_references``, the backend does **not**
