@@ -102,13 +102,10 @@ class InternalSearchService:
         if self.config.chat_only:
             return True
         if self.config.scope_to_chat_on_upload:
-            if (
-                feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
-                    self.company_id
-                )
-                and self.selected_uploaded_files
+            if feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
+                self.company_id
             ):
-                return True
+                return len(self.selected_uploaded_file_ids) > 0
             chat_files = await self.get_uploaded_files()
             if len(chat_files) > 0:
                 return True
