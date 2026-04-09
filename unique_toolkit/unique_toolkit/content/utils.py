@@ -139,27 +139,11 @@ def _generate_pages_postfix(chunks: list[ContentChunk]) -> str:
     - string: A string of page numbers separated by commas, prefixed with " : ".
     """
 
-    def gen_all_numbers_in_between(start, end) -> list[int]:
-        """
-        Generates a list of all numbers between start and end, inclusive.
-        If start or end is -1, it behaves as follows:
-        - If both start and end are -1, it returns an empty list.
-        - If only end is -1, it returns a list containing only the start.
-        - If start is -1, it returns an empty list.
-
-        Parameters:
-        - start (int): The starting page number.
-        - end (int): The ending page number.
-
-        Returns:
-        - list: A list of numbers from start to end, inclusive.
-        """
-        if start == -1 and end == -1:
+    def gen_all_numbers_in_between(start: int | None, end: int | None) -> list[int]:
+        if start is None or start == -1:
             return []
-        if end == -1:
+        if end is None or end == -1:
             return [start]
-        if start == -1:
-            return []
         return list(range(start, end + 1))
 
     page_numbers_array = [
@@ -194,8 +178,9 @@ def content_chunk_to_reference(
     * **source** — ``"node-ingestion-chunks"``.
     * **name** — document title/key with a `` : 1,2,3`` page-number postfix
       (same format as the backend ``generatePagesPostfix``).
-    * **url** — ``unique://content/{content_id}`` for internally stored
-      content, or the chunk's own URL if present.
+    * **url** — the chunk's own URL when it has one and is **not**
+      internally stored; otherwise ``unique://content/{content_id}``
+      (matches the ``internally_stored_at`` guard in the streaming path).
 
     Args:
         chunk: The content chunk to convert.
@@ -213,7 +198,11 @@ def content_chunk_to_reference(
         name = f"{name}{pages_postfix}"
 
     source_id = f"{chunk.id}_{chunk.chunk_id}" if chunk.chunk_id else chunk.id
-    url = chunk.url if chunk.url else f"unique://content/{chunk.id}"
+    url = (
+        chunk.url
+        if chunk.url and not chunk.internally_stored_at
+        else f"unique://content/{chunk.id}"
+    )
 
     return ContentReference(
         name=name,

@@ -2,9 +2,10 @@ from unittest.mock import patch
 
 import pytest
 
-from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.content.utils import (
     _apply_ingestion_upload_url_override,
+    content_chunk_to_reference,
     count_tokens,
     map_content,
     map_content_chunk,
@@ -269,3 +270,150 @@ class TestApplyIngestionUploadUrlOverride:
         ):
             result = _apply_ingestion_upload_url_override(write_url)
         assert result == "https://internal/upload?key=xyz"
+
+
+class TestContentChunkToReference:
+    def test_basic_reference_with_pages(self):
+        chunk = ContentChunk(
+            id="cont_123",
+            chunk_id="chunk_abc",
+            title="Report.pdf",
+            text="some text",
+            order=1,
+            start_page=3,
+            end_page=5,
+        )
+        ref = content_chunk_to_reference(chunk, sequence_number=1)
+
+        assert isinstance(ref, ContentReference)
+        assert ref.name == "Report.pdf : 3,4,5"
+        assert ref.sequence_number == 1
+        assert ref.source_id == "cont_123_chunk_abc"
+        assert ref.source == "node-ingestion-chunks"
+        assert ref.url == "unique://content/cont_123"
+
+    def test_none_pages_do_not_crash(self):
+        chunk = ContentChunk(
+            id="cont_456",
+            chunk_id="chunk_def",
+            title="NoPagesDoc.pdf",
+            text="text",
+            order=1,
+            start_page=None,
+            end_page=None,
+        )
+        ref = content_chunk_to_reference(chunk, sequence_number=2)
+
+        assert ref.name == "NoPagesDoc.pdf"
+        assert ref.url == "unique://content/cont_456"
+
+    def test_none_start_page_with_valid_end_page(self):
+        chunk = ContentChunk(
+            id="cont_789",
+            chunk_id="chunk_ghi",
+            title="Partial.pdf",
+            text="text",
+            order=1,
+            start_page=None,
+            end_page=5,
+        )
+        ref = content_chunk_to_reference(chunk, sequence_number=1)
+
+        assert ref.name == "Partial.pdf"
+
+    def test_valid_start_page_with_none_end_page(self):
+        chunk = ContentChunk(
+            id="cont_aaa",
+            chunk_id="chunk_bbb",
+            title="HalfPage.pdf",
+            text="text",
+            order=1,
+            start_page=3,
+            end_page=None,
+        )
+        ref = content_chunk_to_reference(chunk, sequence_number=1)
+
+        assert ref.name == "HalfPage.pdf : 3"
+
+    def test_url_uses_chunk_url_when_not_internally_stored(self):
+        chunk = ContentChunk(
+            id="cont_ext",
+            chunk_id="chunk_ext",
+            title="Web Page",
+            text="text",
+            order=1,
+            url="https://example.com/page",
+            internally_stored_at=None,
+        )
+        ref = content_chunk_to_reference(chunk, sequence_number=1)
+
+        assert ref.url == "https://example.com/page"
+
+    def test_url_falls_back_to_unique_when_internally_stored(self):
+        from datetime import datetime
+
+        chunk = ContentChunk(
+            id="cont_int",
+            chunk_id="chunk_int",
+            title="Stored Doc",
+            text="text",
+            order=1,
+            url="https://example.com/stored",
+            internally_stored_at=datetime(2024, 7, 22, 11, 51, 40),
+        )
+        ref = content_chunk_to_reference(chunk, sequence_number=1)
+
+        assert ref.url == "unique://content/cont_int"
+
+    def test_url_falls_back_when_no_url(self):
+        chunk = ContentChunk(
+            id="cont_no_url",
+            chunk_id="chunk_no",
+            title="No URL",
+            text="text",
+            order=1,
+            url=None,
+        )
+        ref = content_chunk_to_reference(chunk, sequence_number=1)
+
+        assert ref.url == "unique://content/cont_no_url"
+
+    def test_source_id_without_chunk_id(self):
+        chunk = ContentChunk(
+            id="cont_only",
+            title="Doc",
+            text="text",
+            order=1,
+        )
+        ref = content_chunk_to_reference(chunk, sequence_number=1)
+
+        assert ref.source_id == "cont_only"
+
+    def test_original_index_passed_through(self):
+        chunk = ContentChunk(
+            id="cont_idx",
+            chunk_id="chunk_idx",
+            title="Doc",
+            text="text",
+            order=1,
+        )
+        ref = content_chunk_to_reference(
+            chunk, sequence_number=3, original_index=[1, 4]
+        )
+
+        assert ref.original_index == [1, 4]
+        assert ref.sequence_number == 3
+
+    def test_falls_back_to_key_when_no_title(self):
+        chunk = ContentChunk(
+            id="cont_key",
+            chunk_id="chunk_key",
+            key="document.pdf",
+            text="text",
+            order=1,
+            start_page=1,
+            end_page=1,
+        )
+        ref = content_chunk_to_reference(chunk, sequence_number=1)
+
+        assert ref.name == "document.pdf : 1"
