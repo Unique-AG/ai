@@ -52,6 +52,7 @@ class TestRJSFMetaTag:
             "ui:disabled": False,
             "ui:readonly": False,
             "ui:autofocus": False,
+            "ui:emptyValue": "",
         }
         assert tag.attrs == expected
 
@@ -77,6 +78,7 @@ class TestRJSFMetaTag:
             "ui:description": "Enter your full name",
             "ui:help": "This field is required",
             "ui:classNames": "form-control",
+            "ui:emptyValue": "",
         }
         assert tag.attrs == expected
 
@@ -91,13 +93,19 @@ class TestRJSFMetaTag:
             "ui:disabled": False,
             "ui:readonly": False,
             "ui:autofocus": False,
+            "ui:emptyValue": "",
         }
         assert tag.attrs == expected
 
     def test_textarea_basic(self):
         """Test basic textarea creation."""
         tag = RJSFMetaTag.StringWidget.textarea()
-        expected = {"ui:widget": "textarea", "ui:disabled": False, "ui:readonly": False}
+        expected = {
+            "ui:widget": "textarea",
+            "ui:disabled": False,
+            "ui:readonly": False,
+            "ui:emptyValue": "",
+        }
         assert tag.attrs == expected
 
     def test_textarea_with_rows(self):
@@ -109,6 +117,7 @@ class TestRJSFMetaTag:
             "ui:disabled": False,
             "ui:readonly": False,
             "ui:options": {"rows": 5},
+            "ui:emptyValue": "",
         }
         assert tag.attrs == expected
 
@@ -174,19 +183,34 @@ class TestRJSFMetaTag:
     def test_password_basic(self):
         """Test basic password field creation."""
         tag = RJSFMetaTag.StringWidget.password()
-        expected = {"ui:widget": "password", "ui:disabled": False, "ui:readonly": False}
+        expected = {
+            "ui:widget": "password",
+            "ui:disabled": False,
+            "ui:readonly": False,
+            "ui:emptyValue": "",
+        }
         assert tag.attrs == expected
 
     def test_email_basic(self):
         """Test basic email field creation."""
         tag = RJSFMetaTag.StringWidget.email()
-        expected = {"ui:widget": "email", "ui:disabled": False, "ui:readonly": False}
+        expected = {
+            "ui:widget": "email",
+            "ui:disabled": False,
+            "ui:readonly": False,
+            "ui:emptyValue": "",
+        }
         assert tag.attrs == expected
 
     def test_url_basic(self):
         """Test basic URL field creation."""
         tag = RJSFMetaTag.StringWidget.url()
-        expected = {"ui:widget": "uri", "ui:disabled": False, "ui:readonly": False}
+        expected = {
+            "ui:widget": "uri",
+            "ui:disabled": False,
+            "ui:readonly": False,
+            "ui:emptyValue": "",
+        }
         assert tag.attrs == expected
 
     def test_date_basic(self):
@@ -210,13 +234,13 @@ class TestRJSFMetaTag:
     def test_color_basic(self):
         """Test basic color picker creation."""
         tag = RJSFMetaTag.StringWidget.color()
-        expected = {"ui:widget": "color", "ui:disabled": False}
+        expected = {"ui:widget": "color", "ui:disabled": False, "ui:emptyValue": ""}
         assert tag.attrs == expected
 
     def test_file_basic(self):
         """Test basic file upload creation."""
         tag = RJSFMetaTag.StringWidget.file()
-        expected = {"ui:widget": "file", "ui:disabled": False}
+        expected = {"ui:widget": "file", "ui:disabled": False, "ui:emptyValue": ""}
         assert tag.attrs == expected
 
     def test_file_with_accept(self):
@@ -226,6 +250,7 @@ class TestRJSFMetaTag:
             "ui:widget": "file",
             "ui:disabled": False,
             "ui:options": {"accept": ".pdf,.doc,.docx"},
+            "ui:emptyValue": "",
         }
         assert tag.attrs == expected
 
@@ -361,6 +386,7 @@ class TestRJSFMetaTag:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
                 {"type": "null"},
             ],
@@ -415,6 +441,7 @@ class TestRJSFMetaTag:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
                 {"ui:title": "Optional Test Field", "type": "null"},
             ],
@@ -437,6 +464,7 @@ class TestRJSFMetaTag:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
                 {
                     "ui:widget": "updown",
@@ -472,6 +500,7 @@ class TestRJSFMetaTag:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
                 {
                     "ui:widget": "updown",
@@ -514,6 +543,7 @@ class TestRJSFMetaTag:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
                 {
                     "ui:widget": "updown",
@@ -546,6 +576,7 @@ class TestRJSFMetaTag:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
                 {
                     "ui:widget": "updown",
@@ -591,6 +622,7 @@ class TestHelperFunctions:
             "ui:disabled": False,
             "ui:readonly": False,
             "ui:autofocus": False,  # From first tag
+            "ui:emptyValue": "",
         }
         assert result == expected
 
@@ -690,6 +722,7 @@ class TestUISchemaForModel:
                 "ui:disabled": False,
                 "ui:readonly": False,
                 "ui:autofocus": False,
+                "ui:emptyValue": "",
             },
             "age": {
                 "ui:widget": "updown",
@@ -724,6 +757,7 @@ class TestUISchemaForModel:
                 "ui:disabled": False,
                 "ui:readonly": False,
                 "ui:autofocus": False,
+                "ui:emptyValue": "",
             },
             "address": {
                 "ui:title": "Address",
@@ -734,6 +768,7 @@ class TestUISchemaForModel:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
                 "city": {
                     "ui:widget": "text",
@@ -741,6 +776,7 @@ class TestUISchemaForModel:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
                 "ui:order": ["street", "city"],
             },
@@ -777,6 +813,7 @@ class TestUISchemaForModel:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
             },
             "ui:order": ["items", "tags"],
@@ -810,6 +847,7 @@ class TestUISchemaForModel:
                     "ui:disabled": False,
                     "ui:readonly": False,
                     "ui:autofocus": False,
+                    "ui:emptyValue": "",
                 },
             },
             "ui:order": ["prefs", "settings"],
@@ -857,12 +895,14 @@ class TestUISchemaForModel:
                 "ui:disabled": False,
                 "ui:readonly": False,
                 "ui:autofocus": False,
+                "ui:emptyValue": "",
             },
             "optional_field": {
                 "ui:widget": "text",
                 "ui:disabled": False,
                 "ui:readonly": False,
                 "ui:autofocus": False,
+                "ui:emptyValue": "",
             },
             "ui:order": ["name", "optional_field"],
         }
@@ -897,6 +937,7 @@ class TestUISchemaForModel:
                 "ui:disabled": False,
                 "ui:readonly": False,
                 "ui:autofocus": False,
+                "ui:emptyValue": "",
             },
             "age": {
                 "ui:widget": "updown",
@@ -915,6 +956,7 @@ class TestUISchemaForModel:
                         "ui:disabled": False,
                         "ui:readonly": False,
                         "ui:autofocus": False,
+                        "ui:emptyValue": "",
                     },
                     "zip_code": {
                         "ui:widget": "text",
@@ -922,6 +964,7 @@ class TestUISchemaForModel:
                         "ui:disabled": False,
                         "ui:readonly": False,
                         "ui:autofocus": False,
+                        "ui:emptyValue": "",
                     },
                     "ui:order": ["street", "zip_code"],
                 },
@@ -1199,6 +1242,7 @@ class TestExampleFromFile:
                         "ui:disabled": False,
                         "ui:readonly": False,
                         "ui:autofocus": False,
+                        "ui:emptyValue": "",
                     },
                     {"ui:title": "No name provided", "type": "null"},
                 ],
@@ -1264,6 +1308,7 @@ class TestExampleFromFile:
                         "ui:disabled": False,
                         "ui:readonly": False,
                         "ui:autofocus": False,
+                        "ui:emptyValue": "",
                     },
                     {
                         "ui:widget": "updown",
@@ -1285,6 +1330,7 @@ class TestExampleFromFile:
                         "ui:disabled": False,
                         "ui:readonly": False,
                         "ui:autofocus": False,
+                        "ui:emptyValue": "",
                     },
                     {
                         "ui:widget": "updown",
@@ -1658,6 +1704,7 @@ def test_AI_ui_schema_for_model__pipe_union_with_annotated_models__resolves_anyo
                         "ui:disabled": True,
                         "ui:readonly": False,
                         "ui:autofocus": False,
+                        "ui:emptyValue": "",
                     },
                     "a": {},
                     "ui:order": ["name", "a"],
@@ -1667,6 +1714,45 @@ def test_AI_ui_schema_for_model__pipe_union_with_annotated_models__resolves_anyo
         "ui:order": ["case"],
     }
     assert schema == expected
+
+
+@pytest.mark.ai
+def test_AI_ui_schema_for_model__default_string_empty_value__plain_str_fields() -> None:
+    """
+    Purpose: Verify ``default_string_empty_value`` injects ``ui:emptyValue`` for bare
+        ``str`` annotations (no ``Annotated[..., RJSFMetaTag]``).
+    Why this matters: Teams often use plain ``str`` on models while still wanting RJSF
+        to treat cleared inputs as a defined empty value.
+    Setup summary: Define plain ``str`` / ``list[str]`` / ``dict[str, str]`` / ``Union``
+        fields, call ``ui_schema_for_model`` with ``default_string_empty_value`` set,
+        assert ``ui:emptyValue`` appears only where the leaf type is ``str`` and assert
+        omitted kwarg leaves schemas unchanged for plain strings.
+    """
+
+    class Inner(BaseModel):
+        detail: str
+
+    class PlainStrModel(BaseModel):
+        title: str
+        items: list[str]
+        labels: dict[str, str]
+        either: str | int
+        nested: Inner
+
+    schema_default = ui_schema_for_model(PlainStrModel, default_string_empty_value="")
+    assert schema_default["title"] == {"ui:emptyValue": ""}
+    assert schema_default["items"]["items"] == {"ui:emptyValue": ""}
+    assert schema_default["labels"]["additionalProperties"] == {"ui:emptyValue": ""}
+    assert schema_default["either"]["anyOf"] == [
+        {"ui:emptyValue": ""},
+        {},
+    ]
+    assert schema_default["nested"]["detail"] == {"ui:emptyValue": ""}
+
+    schema_null = ui_schema_for_model(PlainStrModel, default_string_empty_value=None)
+    assert schema_null["title"] == {"ui:emptyValue": None}
+
+    assert ui_schema_for_model(PlainStrModel)["title"] == {}
 
 
 @pytest.mark.ai
