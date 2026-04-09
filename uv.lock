@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-26T10:31:35.297914Z"
+exclude-newer = "2026-03-26T10:30:19.013314Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5228,7 +5228,7 @@ dev = [{ name = "unique-sdk", editable = "unique_sdk" }]
 
 [[package]]
 name = "unique-internal-search"
-version = "1.2.38"
+version = "1.2.39"
 source = { editable = "tool_packages/unique_internal_search" }
 dependencies = [
     { name = "pydantic" },
