@@ -37,6 +37,7 @@ class ChatInternalSearchService(
             reranker_config=self._config.reranker_config,
             search_language=self._config.search_language,
             score_threshold=self._config.score_threshold,
+            content_ids=self._state.content_ids,
         )
         return SearchStringResult(
             query=query,
