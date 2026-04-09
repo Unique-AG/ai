@@ -79,6 +79,10 @@ class UniqueContextProvider:
         """Per-request UniqueContext (auth only, no chat)."""
         return UniqueContext(auth=await self._resolve_auth())
 
+    def get_request_meta(self) -> dict[str, Any] | None:
+        """Raw MCP request ``_meta`` for the active request, if present."""
+        return _read_meta()
+
     async def get_userinfo(self) -> dict[str, Any]:
         """Full Zitadel userinfo for the current request's token.
 
