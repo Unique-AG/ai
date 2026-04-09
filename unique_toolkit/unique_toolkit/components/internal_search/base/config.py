@@ -7,6 +7,7 @@ from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
 )
+from unique_toolkit._common.config_checker import register_config
 from unique_toolkit.agentic.history_manager.history_manager import DeactivatedNone
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.content.schemas import ContentRerankerConfig, ContentSearchType
@@ -29,6 +30,7 @@ def _search_limit_factory(data: dict[str, Any]) -> int:
 
 
 # TODO [UN-17521]: remove _remap_legacy_fields once ftsSearchLanguage is fully migrated
+@register_config()
 class InternalSearchConfig(BaseModel):
     """Execution-only search config. No tool UI, prompts, or evaluation fields."""
 
