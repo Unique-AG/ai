@@ -5,9 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.11.1] - 2026-04-08
+## [0.11.2] - 2026-04-08
 - Fix `Integrated.SearchResult` TypedDict to match node-chat `SearchResultDto`: add `internallyStoredAt`, make `description` nullable
 - Fix `Search` class to match node-chat `PublicSearchDto`: add `internallyStoredAt` and `object` fields, make `key` non-nullable
+## [0.11.1] - 2026-04-09
+- Fix stack trace exposure in custom-assistant example: return generic error messages instead of `str(e)` in HTTP responses
+
 ## [0.11.0] - 2026-04-09
 - Widen `openai` dependency upper bound from `<2` to `<3` to allow openai SDK v2.x (required for litellm security fix)
 
