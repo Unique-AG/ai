@@ -30,10 +30,9 @@ tool_empty_results = m.counter(
 
 # LLM / Processing (P2)
 llm_duration = m.histogram("llm_duration_seconds", "LLM call duration", ["purpose"])
-llm_tokens = m.counter(
-    "llm_token_usage_total", "Tokens consumed", ["purpose", "direction"]
+llm_errors = m.counter(
+    "llm_errors_total", "LLM call failures", ["purpose", "error_type"]
 )
-llm_errors = m.counter("llm_errors_total", "LLM call failures", ["purpose"])
 
 # Crawl / Scrape (P3)
 crawl_duration = m.histogram("crawl_duration_seconds", "Crawl latency", ["crawler"])

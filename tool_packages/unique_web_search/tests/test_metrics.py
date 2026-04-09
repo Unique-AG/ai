@@ -19,6 +19,7 @@ def test_metrics__exports_histograms_and_counters__for_instrumented_paths() -> N
     assert isinstance(metrics_module.tool_duration, Histogram)
     assert isinstance(metrics_module.tool_errors, Counter)
     assert isinstance(metrics_module.llm_duration, Histogram)
+    assert isinstance(metrics_module.llm_errors, Counter)
     assert isinstance(metrics_module.crawl_duration, Histogram)
     assert isinstance(metrics_module.crawl_errors, Counter)
 
@@ -39,3 +40,26 @@ def test_metrics__metric_scope__observes_duration_and_exposes_metrics() -> None:
 
     body = get_metrics()
     assert b"unique_web_search_search_duration_seconds" in body
+
+
+@pytest.mark.ai
+def test_metrics__metric_scope_llm_errors_on_exception__records_error_type_label() -> (
+    None
+):
+    """
+    Purpose: Ensure `llm_errors` declares `error_type` so `metric_scope` can increment on failure.
+    Why this matters: A label mismatch raises `ValueError` from prometheus_client and hides the real error.
+    Setup summary: Raise inside `metric_scope` with `llm_errors`; assert exposition includes purpose and exception type.
+    """
+    with pytest.raises(RuntimeError, match="expected failure"):
+        with metric_scope(
+            metrics_module.llm_duration,
+            metrics_module.llm_errors,
+            purpose="pytest_llm_errors",
+        ):
+            raise RuntimeError("expected failure")
+
+    body = get_metrics()
+    assert b"unique_web_search_llm_errors_total" in body
+    assert b"pytest_llm_errors" in body
+    assert b"RuntimeError" in body

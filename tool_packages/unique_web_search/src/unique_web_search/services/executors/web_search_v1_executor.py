@@ -276,10 +276,10 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         start_time = time()
         _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
         with metric_scope(search_duration, search_errors, engine=engine):
+            search_total.labels(engine=engine).inc()
             search_results = await self.search_service.search(
                 query, date_restrict=date_restrict
             )
-        search_total.labels(engine=engine).inc()
         end_time = time()
         delta_time = end_time - start_time
         _LOGGER.info(

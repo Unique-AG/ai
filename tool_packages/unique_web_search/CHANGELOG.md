@@ -11,7 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `[tool.uv.sources]`: resolve `unique-toolkit` via `{ workspace = true }` like other workspace members (required for root `uv lock`)
 
 ### Added
-- Tests for Prometheus metric definitions and `metric_scope` integration with package histograms
+- Tests for Prometheus metric definitions and `metric_scope` integration with package histograms (including `llm_errors` with `error_type` on exception)
+
+### Fixed
+- `llm_errors_total`: add `error_type` label so `metric_scope` error recording matches Prometheus label set (avoids `ValueError` masking real LLM failures)
+- `search_total`: increment inside the search `metric_scope` so attempts are counted when the search API raises
+- Remove unused `llm_token_usage_total` metric until token usage is wired
 
 ## [1.15.3] - 2026-04-07
 ### Changed
