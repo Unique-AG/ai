@@ -215,7 +215,7 @@ class TestInternalSearchService:
 
         # Act
         mock_flags = Mock()
-        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
+        mock_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = (
             True
         )
         with patch("unique_internal_search.service.feature_flags", mock_flags):
@@ -255,7 +255,7 @@ class TestInternalSearchService:
 
         # Act
         mock_flags = Mock()
-        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
+        mock_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = (
             False
         )
         with patch("unique_internal_search.service.feature_flags", mock_flags):
@@ -299,7 +299,7 @@ class TestInternalSearchService:
 
         # Act
         mock_flags = Mock()
-        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
+        mock_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = (
             True
         )
         with patch("unique_internal_search.service.feature_flags", mock_flags):
@@ -341,7 +341,7 @@ class TestInternalSearchService:
 
         # Act
         mock_flags = Mock()
-        mock_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = (
+        mock_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = (
             False
         )
         with patch("unique_internal_search.service.feature_flags", mock_flags):

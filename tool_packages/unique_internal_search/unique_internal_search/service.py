@@ -102,7 +102,7 @@ class InternalSearchService:
         if self.config.chat_only:
             return True
         if self.config.scope_to_chat_on_upload:
-            if feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
+            if feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
                 self.company_id
             ):
                 return len(self.selected_uploaded_file_ids) > 0
@@ -164,7 +164,7 @@ class InternalSearchService:
             metadata_filter = None
 
         if (
-            feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(
+            feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
                 self.company_id
             )
             and chat_only
