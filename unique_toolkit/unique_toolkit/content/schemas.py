@@ -104,6 +104,8 @@ class ContentChunk(BaseModel):
         * **name** — document title/key with a `` : 1,2,3`` page-number postfix
           (same format as the backend ``generatePagesPostfix``); if neither title
           nor key is set, ``Content {content_id}`` (matches reference dedup logic).
+          Postfix is not doubled when ``title``/``key`` already include it (e.g. after
+          ``sort_content_chunks`` / ``merge_content_chunks``).
         * **url** — the chunk's own URL when it has one and is **not**
           internally stored; otherwise ``unique://content/{content_id}``
           (matches the ``internally_stored_at`` guard in the streaming path).

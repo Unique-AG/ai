@@ -5483,7 +5483,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-version = "1.70.1"
+version = "1.70.2"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },

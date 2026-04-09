@@ -218,6 +218,9 @@ def content_chunk_to_reference(
     * **name** — document title/key with a `` : 1,2,3`` page-number postfix
       (same format as the backend ``generatePagesPostfix``); if neither title
       nor key is set, ``Content {content_id}`` (matches reference dedup logic).
+      If ``title``/``key`` already end with that postfix (e.g. after
+      ``sort_content_chunks`` / ``merge_content_chunks``), it is not appended
+      twice.
     * **url** — the chunk's own URL when it has one and is **not**
       internally stored; otherwise ``unique://content/{content_id}``
       (matches the ``internally_stored_at`` guard in the streaming path).
@@ -235,7 +238,9 @@ def content_chunk_to_reference(
     """
     name = chunk.title or chunk.key or f"Content {chunk.id}"
     pages_postfix = _generate_pages_postfix([chunk])
-    if pages_postfix:
+    # sort_content_chunks / merge_content_chunks may already have appended the same
+    # postfix to title or key; avoid "Report : 1,2 : 1,2".
+    if pages_postfix and not name.endswith(pages_postfix):
         name = f"{name}{pages_postfix}"
 
     source_id = f"{chunk.id}_{chunk.chunk_id}" if chunk.chunk_id else chunk.id

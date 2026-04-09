@@ -444,6 +444,22 @@ class TestContentChunkToReference:
 
         assert ref.name == "Content cont_noname : 2"
 
+    def test_does_not_double_pages_postfix_when_title_already_includes_it(self):
+        """Chunks from sort_content_chunks / merge have title/key mutated in place."""
+        chunk = ContentChunk(
+            id="cont_sorted",
+            chunk_id="chunk_s",
+            title="Annual Report : 1,2,3",
+            text="text",
+            order=1,
+            start_page=1,
+            end_page=3,
+        )
+        ref = chunk.to_reference(sequence_number=1)
+
+        assert ref.name == "Annual Report : 1,2,3"
+        assert ref.name.count(" : 1,2,3") == 1
+
     def test_to_reference_matches_content_chunk_to_reference(self):
         chunk = ContentChunk(
             id="cont_delegate",
