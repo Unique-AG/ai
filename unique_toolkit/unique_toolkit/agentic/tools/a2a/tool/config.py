@@ -9,7 +9,6 @@ from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
-
 class SubAgentSystemReminderType(StrEnum):
     FIXED = "fixed"
     REGEXP = "regexp"
@@ -125,7 +124,7 @@ class SubAgentToolConfig(BaseToolConfig):
         return v if v is not None else []
 
     tool_description_for_system_prompt: Annotated[
-        str, RJSFMetaTag.StringWidget.textarea(rows=5)
+        str, RJSFMetaTag.StringWidget.textarea(rows=3)
     ] = Field(
         default="",
         description="Description of the tool that will be included in the system prompt.",
@@ -134,29 +133,30 @@ class SubAgentToolConfig(BaseToolConfig):
         default="",
         description="Description of the tool that will be included in the tools sent to the model.",
     )
-    param_description_sub_agent_user_message: Annotated[
-        str, RJSFMetaTag.StringWidget.textarea(rows=5)
-    ] = Field(
-        default=DEFAULT_PARAM_DESCRIPTION_SUB_AGENT_USER_MESSAGE,
-        description="Description of the user message parameter that will be sent to the model.",
-    )
     tool_format_information_for_system_prompt: Annotated[
-        str, RJSFMetaTag.StringWidget.textarea(rows=5)
+        str, RJSFMetaTag.StringWidget.textarea(rows=2)
     ] = Field(
         default="",
         description="Format information that will be included in the system prompt to guide response formatting.",
     )
     tool_description_for_user_prompt: Annotated[
-        str, RJSFMetaTag.StringWidget.textarea(rows=5)
+        str, RJSFMetaTag.StringWidget.textarea(rows=2)
     ] = Field(
         default="",
         description="Description of the tool that will be included in the user prompt.",
     )
     tool_format_information_for_user_prompt: Annotated[
-        str, RJSFMetaTag.StringWidget.textarea(rows=5)
+        str, RJSFMetaTag.StringWidget.textarea(rows=2)
     ] = Field(
         default="",
         description="Format information that will be included in the user prompt to guide response formatting.",
+    )
+    param_description_sub_agent_user_message: Annotated[
+        str, RJSFMetaTag.StringWidget.textarea(rows=1)
+    ] = Field(
+        default=DEFAULT_PARAM_DESCRIPTION_SUB_AGENT_USER_MESSAGE,
+        title="Parameter Description Sub Agent Message",
+        description="Description of the message parameter extracted by the orchestrator and sent as the input message to the sub-agent.",
     )
 
     poll_interval: float = Field(
