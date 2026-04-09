@@ -2,12 +2,12 @@ from logging import getLogger
 from typing import Annotated, Any
 
 from pydantic import BaseModel, Field, model_validator
-from pydantic.json_schema import SkipJsonSchema
 
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
 )
 from unique_toolkit._common.config_checker import register_config
+from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.pydantic_helpers import DeactivatedNone
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.content.schemas import ContentRerankerConfig, ContentSearchType
@@ -49,7 +49,7 @@ class InternalSearchConfig(BaseModel):
         default=ContentSearchType.COMBINED,
         description="The type of search to perform. Two possible values: `COMBINED` or `VECTOR`.",
     )
-    max_tokens_for_sources: SkipJsonSchema[int] = Field(
+    max_tokens_for_sources: Annotated[int, RJSFMetaTag.SpecialWidget.hidden()] = Field(
         default=30_000,
         description="The maximum number of tokens to use for the sources.",
     )
