@@ -5,17 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.42] - 2026-04-15
-- Chore: standardize pytest configuration across workspace packages
-
-## [1.2.41] - 2026-04-14
-- Chore: add `importlib` import mode to pytest config to prevent namespace collisions
-- Chore: update `exclude-newer-package` timestamps and lockfile refresh
-
-## [1.2.40] - 2026-04-10
-- Fix `AttributeError` in `extract_selected_uploaded_file_ids` when payload lacks `additional_parameters` (e.g. magic table events from RfpAgent)
-- Add regression test using `MagicTableBasePayload` spec to guard against future breakage
-
 ## [1.2.39] - 2026-04-09
 - changing FF from enable_selected_uploaded_files_un_18470 to enable_selected_uploaded_files_un_18215
 
