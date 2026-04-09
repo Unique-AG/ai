@@ -67,7 +67,7 @@ class TestBuildCommonSelectedUploadedFiles:
         )
 
         mock_ff = MagicMock()
-        mock_ff.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
+        mock_ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
         monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
 
         additional = MagicMock()
@@ -94,7 +94,7 @@ class TestBuildCommonSelectedUploadedFiles:
         )
 
         mock_ff = MagicMock()
-        mock_ff.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
+        mock_ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
         monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
 
         event = _make_event(additional_parameters=None)
@@ -118,7 +118,7 @@ class TestBuildCommonSelectedUploadedFiles:
         )
 
         mock_ff = MagicMock()
-        mock_ff.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
+        mock_ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
         monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
 
         additional = MagicMock()
@@ -145,7 +145,7 @@ class TestBuildCommonSelectedUploadedFiles:
         )
 
         mock_ff = MagicMock()
-        mock_ff.enable_selected_uploaded_files_un_18470.is_enabled.return_value = False
+        mock_ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = False
         monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
 
         additional = MagicMock()
@@ -172,7 +172,7 @@ class TestBuildCommonSelectedUploadedFiles:
         )
 
         mock_ff = MagicMock()
-        mock_ff.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
+        mock_ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
         monkeypatch.setattr(f"{UTILS_MODULE}.feature_flags", mock_ff)
 
         additional = MagicMock()
