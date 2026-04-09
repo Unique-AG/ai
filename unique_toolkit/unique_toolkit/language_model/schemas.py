@@ -1,6 +1,5 @@
 import json
 import math
-from abc import ABC, abstractmethod
 from enum import StrEnum
 from typing import Any, Literal, Self, TypeVar, override
 from uuid import uuid4
@@ -248,7 +247,7 @@ class LanguageModelFunctionCall(BaseModel):
         return assistant_message
 
 
-class LanguageModelMessage(BaseModel, ABC):
+class LanguageModelMessage(BaseModel):
     model_config = model_config
     role: LanguageModelMessageRole
     content: str | list[dict] | None = None
@@ -263,16 +262,13 @@ class LanguageModelMessage(BaseModel, ABC):
         return format_message(self.role.capitalize(), message=message, num_tabs=1)
 
     @overload
-    @abstractmethod
     def to_openai(
         self, mode: Literal["completions"] = "completions"
     ) -> ChatCompletionMessageParam: ...
 
     @overload
-    @abstractmethod
     def to_openai(self, mode: Literal["responses"]) -> ResponseInputItemParam: ...
 
-    @abstractmethod
     def to_openai(
         self, mode: Literal["completions", "responses"] = "completions"
     ) -> ChatCompletionMessageParam | ResponseInputItemParam:
@@ -497,6 +493,31 @@ LanguageModelMessageOptions = (
     | LanguageModelUserMessage
 )
 
+LanguageModelMessageTypes = (
+    LanguageModelAssistantMessage
+    | LanguageModelUserMessage
+    | LanguageModelSystemMessage
+    | LanguageModelToolMessage
+)
+
+
+def _language_model_message_to_subtype(
+    message: LanguageModelMessage,
+) -> LanguageModelMessageTypes:
+    """Narrow a plain ``LanguageModelMessage`` to the concrete subtype for ``role``."""
+    match message.role:
+        case LanguageModelMessageRole.ASSISTANT:
+            return LanguageModelAssistantMessage(content=message.content)
+        case LanguageModelMessageRole.SYSTEM:
+            return LanguageModelSystemMessage(content=message.content)
+        case LanguageModelMessageRole.USER:
+            return LanguageModelUserMessage(content=message.content)
+        case LanguageModelMessageRole.TOOL:
+            raise ValueError(
+                "Cannot convert a base LanguageModelMessage with role tool; "
+                "use LanguageModelToolMessage with name and tool_call_id."
+            )
+
 
 class LanguageModelMessages(RootModel):
     root: list[LanguageModelMessageOptions]
@@ -562,9 +583,16 @@ class LanguageModelMessages(RootModel):
     def to_openai(
         self, mode: Literal["completions", "responses"] = "completions"
     ) -> list[ChatCompletionMessageParam] | list[ResponseInputItemParam]:
+        messages = [
+            _language_model_message_to_subtype(m)
+            if isinstance(m, LanguageModelMessage)
+            else m
+            for m in self.root
+        ]
+
         if mode == "responses":
-            return [message.to_openai(mode="responses") for message in self.root]
-        return [message.to_openai(mode="completions") for message in self.root]
+            return [message.to_openai(mode="responses") for message in messages]
+        return [message.to_openai(mode="completions") for message in messages]
 
 
 # This seems similar to
