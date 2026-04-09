@@ -583,9 +583,10 @@ class LanguageModelMessages(RootModel):
     def to_openai(
         self, mode: Literal["completions", "responses"] = "completions"
     ) -> list[ChatCompletionMessageParam] | list[ResponseInputItemParam]:
+        # Use exact-type check: isinstance would match subclasses and would strip
         messages = [
             _language_model_message_to_subtype(m)
-            if isinstance(m, LanguageModelMessage)
+            if type(m) is LanguageModelMessage
             else m
             for m in self.root
         ]
