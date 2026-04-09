@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.4] - 2026-04-09
+### Changed
+- Depend on `unique-toolkit[monitoring]>=1.69.6` so `prometheus_client` is installed transitively and metrics instrumentation always resolves
+- `[tool.uv.sources]`: resolve `unique-toolkit` via `{ workspace = true }` like other workspace members (required for root `uv lock`)
+
+### Added
+- Tests for Prometheus metric definitions and `metric_scope` integration with package histograms
+
 ## [1.15.3] - 2026-04-07
 ### Changed
 - VertexAI client now falls back to Application Default Credentials (ADC) when no explicit service account credentials are configured, enabling Workload Identity and other ambient credential flows
