@@ -1,11 +1,13 @@
 import json
 import math
-from typing import Any, Literal, Self, TypeVar
+from enum import StrEnum
+from typing import Any, Literal, Self, TypeVar, override
 from uuid import uuid4
 
 from humps import camelize
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
+    ChatCompletionMessageParam,
     ChatCompletionSystemMessageParam,
     ChatCompletionToolMessageParam,
     ChatCompletionUserMessageParam,
@@ -20,6 +22,7 @@ from openai.types.responses import (
     FunctionToolParam,
     ResponseCodeInterpreterToolCall,
     ResponseFunctionToolCallParam,
+    ResponseInputItemParam,
     ResponseOutputItem,
     ResponseOutputMessage,
 )
@@ -40,7 +43,6 @@ from pydantic import (
 from typing_extensions import deprecated, overload
 
 from unique_toolkit.chat.schemas import ChatMessage
-from unique_toolkit.chat.schemas import ChatMessageRole as LanguageModelMessageRole
 from unique_toolkit.language_model._responses_api_utils import (
     convert_user_message_content_to_responses_api,
 )
@@ -52,6 +54,13 @@ model_config = ConfigDict(
     populate_by_name=True,
     arbitrary_types_allowed=True,
 )
+
+
+class LanguageModelMessageRole(StrEnum):
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
+    USER = "user"
+    TOOL = "tool"
 
 
 # Backward compatibility alias — use ChatMessage directly.
@@ -252,6 +261,21 @@ class LanguageModelMessage(BaseModel):
 
         return format_message(self.role.capitalize(), message=message, num_tabs=1)
 
+    @overload
+    def to_openai(
+        self, mode: Literal["completions"] = "completions"
+    ) -> ChatCompletionMessageParam: ...
+
+    @overload
+    def to_openai(self, mode: Literal["responses"]) -> ResponseInputItemParam: ...
+
+    def to_openai(
+        self, mode: Literal["completions", "responses"] = "completions"
+    ) -> ChatCompletionMessageParam | ResponseInputItemParam:
+        raise NotImplementedError(
+            "Subclasses must implement this. This class should not be used directly"
+        )
+
 
 class LanguageModelSystemMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.SYSTEM
@@ -268,6 +292,7 @@ class LanguageModelSystemMessage(LanguageModelMessage):
     @overload
     def to_openai(self, mode: Literal["responses"]) -> EasyInputMessageParam: ...
 
+    @override
     def to_openai(
         self, mode: Literal["completions", "responses"] = "completions"
     ) -> ChatCompletionSystemMessageParam | EasyInputMessageParam:
@@ -296,11 +321,12 @@ class LanguageModelUserMessage(LanguageModelMessage):
     ) -> ChatCompletionUserMessageParam: ...
 
     @overload
-    def to_openai(self, mode: Literal["responses"]) -> EasyInputMessageParam: ...
+    def to_openai(self, mode: Literal["responses"]) -> ResponseInputItemParam: ...
 
+    @override
     def to_openai(
         self, mode: Literal["completions", "responses"] = "completions"
-    ) -> ChatCompletionUserMessageParam | EasyInputMessageParam:
+    ) -> ChatCompletionUserMessageParam | ResponseInputItemParam:
         if self.content is None:
             content = ""
         else:
@@ -370,16 +396,12 @@ class LanguageModelAssistantMessage(LanguageModelMessage):
     ) -> ChatCompletionAssistantMessageParam: ...
 
     @overload
-    def to_openai(
-        self, mode: Literal["responses"]
-    ) -> list[EasyInputMessageParam | ResponseFunctionToolCallParam]: ...
+    def to_openai(self, mode: Literal["responses"]) -> EasyInputMessageParam: ...
 
+    @override
     def to_openai(
         self, mode: Literal["completions", "responses"] = "completions"
-    ) -> (
-        ChatCompletionAssistantMessageParam
-        | list[EasyInputMessageParam | ResponseFunctionToolCallParam]
-    ):
+    ) -> ChatCompletionAssistantMessageParam | EasyInputMessageParam:
         content = self.content or ""
         if not isinstance(content, str):
             raise ValueError("Content must be a string")
@@ -437,6 +459,7 @@ class LanguageModelToolMessage(LanguageModelMessage):
     @overload
     def to_openai(self, mode: Literal["responses"]) -> FunctionCallOutput: ...
 
+    @override
     def to_openai(
         self, mode: Literal["completions", "responses"] = "completions"
     ) -> ChatCompletionToolMessageParam | FunctionCallOutput:
@@ -463,12 +486,37 @@ class LanguageModelToolMessage(LanguageModelMessage):
 # with the addition of the builder
 
 LanguageModelMessageOptions = (
-    LanguageModelMessage
+    LanguageModelMessage  # TODO: Ideally we remove this
     | LanguageModelToolMessage
     | LanguageModelAssistantMessage
     | LanguageModelSystemMessage
     | LanguageModelUserMessage
 )
+
+LanguageModelMessageTypes = (
+    LanguageModelAssistantMessage
+    | LanguageModelUserMessage
+    | LanguageModelSystemMessage
+    | LanguageModelToolMessage
+)
+
+
+def _language_model_message_to_subtype(
+    message: LanguageModelMessage,
+) -> LanguageModelMessageTypes:
+    """Narrow a plain ``LanguageModelMessage`` to the concrete subtype for ``role``."""
+    match message.role:
+        case LanguageModelMessageRole.ASSISTANT:
+            return LanguageModelAssistantMessage(content=message.content)
+        case LanguageModelMessageRole.SYSTEM:
+            return LanguageModelSystemMessage(content=message.content)
+        case LanguageModelMessageRole.USER:
+            return LanguageModelUserMessage(content=message.content)
+        case LanguageModelMessageRole.TOOL:
+            raise ValueError(
+                "Cannot convert a base LanguageModelMessage with role tool; "
+                "use LanguageModelToolMessage with name and tool_call_id."
+            )
 
 
 class LanguageModelMessages(RootModel):
@@ -501,8 +549,7 @@ class LanguageModelMessages(RootModel):
                 elif role == "tool":
                     converted_messages.append(LanguageModelToolMessage(**item))
                 else:
-                    # Fallback to base LanguageModelMessage
-                    converted_messages.append(LanguageModelMessage(**item))
+                    raise ValueError(f"Unknown message role: {item.get('role')!r}")
             else:
                 # If it's already a message object, keep it as is
                 converted_messages.append(item)
@@ -524,6 +571,29 @@ class LanguageModelMessages(RootModel):
         builder = MessagesBuilder()
         builder.messages = self.root.copy()  # Start with existing messages
         return builder
+
+    @overload
+    def to_openai(self, mode: Literal["responses"]) -> list[ResponseInputItemParam]: ...
+
+    @overload
+    def to_openai(
+        self, mode: Literal["completions"] = "completions"
+    ) -> list[ChatCompletionMessageParam]: ...
+
+    def to_openai(
+        self, mode: Literal["completions", "responses"] = "completions"
+    ) -> list[ChatCompletionMessageParam] | list[ResponseInputItemParam]:
+        # Use exact-type check: isinstance would match subclasses and would strip
+        messages = [
+            _language_model_message_to_subtype(m)
+            if type(m) is LanguageModelMessage
+            else m
+            for m in self.root
+        ]
+
+        if mode == "responses":
+            return [message.to_openai(mode="responses") for message in messages]
+        return [message.to_openai(mode="completions") for message in messages]
 
 
 # This seems similar to

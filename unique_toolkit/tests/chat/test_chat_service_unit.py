@@ -27,13 +27,12 @@ from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
-    LanguageModelMessage,
-    LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelStreamResponse,
     LanguageModelTool,
     LanguageModelToolParameterProperty,
     LanguageModelToolParameters,
+    LanguageModelUserMessage,
 )
 
 mocked_datetime = "2024-08-08 12:00:00.000000"
@@ -285,6 +284,7 @@ class TestChatServiceUnit:
     def test_create_assistant_message(self, mock_create):
         # Test with update completedAt
         mock_create.return_value = {
+            "id": "new_assistant_msg",
             "content": "New assistant message",
             "role": "assistant",
             "chatId": "chatId123",
@@ -329,6 +329,7 @@ class TestChatServiceUnit:
 
         # Test without update completedAt
         mock_create.return_value = {
+            "id": "new_assistant_msg",
             "content": "New assistant message",
             "role": "assistant",
             "chatId": "chatId123",
@@ -579,6 +580,7 @@ class TestChatServiceUnit:
     async def test_create_assistant_message_async(self, mock_create):
         # Test with update completedAt
         mock_create.return_value = {
+            "id": "new_assistant_msg",
             "content": "New assistant message",
             "chat_id": "chatId123",
             "role": "ASSISTANT",
@@ -627,6 +629,7 @@ class TestChatServiceUnit:
 
         # Test without update completedAt
         mock_create.return_value = {
+            "id": "new_assistant_msg",
             "content": "New assistant message",
             "role": "assistant",
             "chatId": "chatId123",
@@ -907,7 +910,7 @@ class TestChatServiceUnit:
                 id="id",
                 chat_id="",
                 previous_message_id="previous_message_id",
-                role=LanguageModelMessageRole.ASSISTANT,
+                role=ChatMessageRole.ASSISTANT,
                 text="test",
             )
         )
@@ -949,7 +952,7 @@ class TestChatServiceUnit:
                 id="id",
                 chat_id="",
                 previous_message_id="previous_message_id",
-                role=LanguageModelMessageRole.ASSISTANT,
+                role=ChatMessageRole.ASSISTANT,
                 text="test",
             )
         )
@@ -1131,8 +1134,7 @@ class TestChatServiceUnit:
     def test_stream_complete_with_tool(self, mock_stream):
         messages = LanguageModelMessages(
             [
-                LanguageModelMessage(
-                    role=LanguageModelMessageRole.USER,
+                LanguageModelUserMessage(
                     content="What's the weather in New York?",
                 )
             ]
@@ -1247,8 +1249,7 @@ class TestChatServiceUnit:
     async def test_stream_complete_with_tool_async(self, mock_stream):
         messages = LanguageModelMessages(
             [
-                LanguageModelMessage(
-                    role=LanguageModelMessageRole.USER,
+                LanguageModelUserMessage(
                     content="What's the weather in New York?",
                 )
             ]

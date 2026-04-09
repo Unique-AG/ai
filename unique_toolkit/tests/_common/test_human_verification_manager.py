@@ -144,6 +144,7 @@ def assistant_message_with_hash(test_payload: ApiPayload) -> ChatMessage:
     """
     payload_hash = hashlib.sha256(test_payload.model_dump_json().encode()).hexdigest()
     return ChatMessage(
+        id="123",
         role=ChatMessageRole.ASSISTANT,
         text=f"Please confirm: {payload_hash}",
         chat_id="test-chat-123",
@@ -301,6 +302,7 @@ def test_detect_api_calls__returns_none__with_mismatched_hash_AI(
     # Arrange
     user_message = base_manager._create_next_user_message(test_payload)
     wrong_assistant_message = ChatMessage(
+        id="123",
         role=ChatMessageRole.ASSISTANT,
         text="Please confirm: wrong_hash_here",
         chat_id="test-chat-123",
@@ -360,6 +362,7 @@ def test_verify_human_verification__returns_true__with_matching_hash_AI(
         time_stamp=datetime.now(),
     )
     assistant_message = ChatMessage(
+        id="123",
         role=ChatMessageRole.ASSISTANT,
         text="Please confirm: abc123",
         chat_id="test-chat",
@@ -388,6 +391,7 @@ def test_verify_human_verification__returns_false__with_non_assistant_role_AI(
         time_stamp=datetime.now(),
     )
     user_message = ChatMessage(
+        id="123",
         role=ChatMessageRole.USER,
         text="Please confirm: abc123",
         chat_id="test-chat",
@@ -416,6 +420,7 @@ def test_verify_human_verification__returns_false__with_empty_content_AI(
         time_stamp=datetime.now(),
     )
     assistant_message = ChatMessage(
+        id="123",
         role=ChatMessageRole.ASSISTANT,
         text=None,
         chat_id="test-chat",
@@ -526,6 +531,7 @@ def test_detect_api_calls__merges_environment_params__with_user_confirmation_AI(
 
     # Create assistant message with correct hash
     assistant_message = ChatMessage(
+        id="123",
         role=ChatMessageRole.ASSISTANT,
         text=f"Please confirm: {verification_data.confirmation.payload_hash}",
         chat_id="test-chat",

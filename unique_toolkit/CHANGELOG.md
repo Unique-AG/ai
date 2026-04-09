@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.70.0] - 2026-04-09
+- Widen `openai` dependency upper bound from `<2` to `<3` to allow openai SDK v2.x (required for litellm security fix)
+
+## [1.69.8] - 2026-04-09
+- Remove `ABC` / `@abstractmethod` from `LanguageModelMessage` so the base model can be instantiated again
+- Add `LanguageModelMessageTypes` and `_language_model_message_to_subtype()` to map a plain message to the concrete type for its role
+- Update `LanguageModelMessages.to_openai()` to coerce base `LanguageModelMessage` instances via that helper before calling `to_openai` (tool role raises unless `LanguageModelToolMessage` is used)
+
+## [1.69.7] - 2026-04-09
+- changing FF from enable_selected_uploaded_files_un_18470 to enable_selected_uploaded_files_un_18215
+
+## [1.69.6] - 2026-04-09
+- Update sub agent config
+
+## [1.69.5] - 2026-04-09
+- Add `ToolCall` class and `tool_calls`, `tool_call_id` fields to `ChatMessage` for tool call persistence
+- Add `TOOL` role to `ChatMessageRole` enum
+- Add `check_tool_call_ids_for_tool_role` validator to ensure `tool_call_id` is required when role is `tool`
+
+## [1.69.4] - 2026-04-08
+- Make `LanguageModelMessage` an abstract base class with `@abstractmethod` for `to_openai()` to prevent direct instantiation
+- Move `LanguageModelMessageRole` enum to `language_model.schemas` (includes `TOOL` role, separate from `ChatMessageRole`)
+- Simplify `ChatMessage`: remove unused `ToolCall` class and `tool_calls` field, make `id` required, remove `TOOL` role from `ChatMessageRole`
+- Deprecate `map_to_chat_messages()` in favor of `ChatMessage.model_validate()`
+- Add `to_openai()` method to `LanguageModelMessages` container for batch conversion
+- Add `@override` decorators to concrete `to_openai` implementations
+- Raise `ValueError` for unknown message roles instead of falling back to base class
+
 ## [1.69.3] - 2026-04-08
 - Add number zero to allowed tool name pattern
 
