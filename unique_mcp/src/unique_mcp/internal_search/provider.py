@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, override
 
 from fastmcp import FastMCP
 from fastmcp.dependencies import Depends
 from mcp.types import CallToolResult, TextContent
 from pydantic import Field
-from typing_extensions import override
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.components.internal_search import (
     ChatInternalSearchService,
