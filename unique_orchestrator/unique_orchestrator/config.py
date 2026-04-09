@@ -36,6 +36,9 @@ from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServic
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
+from unique_toolkit.agentic.tools.experimental.skill_tool.config import (
+    SkillToolConfig,
+)
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
@@ -347,6 +350,8 @@ class ExperimentalConfig(BaseToolConfig):
     responses_api_config: SkipJsonSchema[ResponsesApiConfig] = ResponsesApiConfig()
 
     open_file_tool_config: OpenFileToolConfig = OpenFileToolConfig()
+
+    skill_tool_config: SkillToolConfig = SkillToolConfig()
 
     use_responses_api: bool = Field(
         default=False,
