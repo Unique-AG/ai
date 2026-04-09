@@ -93,7 +93,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
 
         from unique_orchestrator.utils import feature_flags
 
-        feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
+        feature_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
 
         additional = MagicMock()
         additional.selected_uploaded_files = [MagicMock(id="a"), MagicMock(id="c")]
@@ -115,7 +115,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
 
         from unique_orchestrator.utils import feature_flags
 
-        feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
+        feature_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
 
         mock_unique_ai._event.payload.additional_parameters = None
 
@@ -134,7 +134,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
 
         from unique_orchestrator.utils import feature_flags
 
-        feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
+        feature_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
 
         additional = MagicMock()
         additional.selected_uploaded_files = []
@@ -156,7 +156,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
 
         from unique_orchestrator.utils import feature_flags
 
-        feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = False
+        feature_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = False
 
         additional = MagicMock()
         additional.selected_uploaded_files = [MagicMock(id="a")]
@@ -178,7 +178,7 @@ class TestRenderSystemPromptSelectedUploadedFiles:
 
         from unique_orchestrator.utils import feature_flags
 
-        feature_flags.enable_selected_uploaded_files_un_18470.is_enabled.return_value = True
+        feature_flags.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
 
         additional = MagicMock()
         additional.selected_uploaded_files = [MagicMock(id="y")]
