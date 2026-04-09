@@ -190,12 +190,15 @@ def _find_references(
 
         # Dedup on base name (without page postfix) so that multiple
         # chunks from the same document merge into one reference.
+        # Restrict to the same content id so unrelated titles like "Budget" and
+        # "Budget : Q1" on different documents do not merge via startswith.
         base_name = search.title or search.key or f"Content {search.id}"
         found_reference = next(
             (
                 r
                 for r in references
-                if r.name == base_name or r.name.startswith(base_name + " : ")
+                if r.id == search.id
+                and (r.name == base_name or r.name.startswith(base_name + " : "))
             ),
             None,
         )

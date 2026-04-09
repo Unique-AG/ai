@@ -134,6 +134,43 @@ class TestFindReferences:
         assert refs[0].original_index == [1, 2]
 
     @pytest.mark.ai
+    def test_find_references__similar_title_prefix_different_content__no_false_merge(
+        self,
+    ):
+        """
+        Purpose: Verifies that titles where one is a prefix of another ("Budget"
+        vs "Budget : Q1") do not merge when they belong to different content ids.
+        Why this matters: startswith-based dedup would incorrectly collapse
+        citations across documents.
+        Setup summary: Two chunks with different ids; assert two references.
+        """
+        ctx = [
+            _chunk(
+                id="cont_a",
+                chunk_id="chunk_a",
+                title="Budget",
+                start_page=1,
+                end_page=1,
+            ),
+            _chunk(
+                id="cont_b",
+                chunk_id="chunk_b",
+                title="Budget : Q1",
+                start_page=1,
+                end_page=1,
+            ),
+        ]
+        refs = _find_references(
+            text="See [1] and [2].",
+            search_context=ctx,
+            message_id="msg_1",
+        )
+
+        assert len(refs) == 2
+        assert refs[0].id == "cont_a"
+        assert refs[1].id == "cont_b"
+
+    @pytest.mark.ai
     def test_find_references__out_of_range_bracket__ignored(self):
         """
         Purpose: Verifies that a bracket index exceeding the search context

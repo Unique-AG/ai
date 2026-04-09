@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.70.3] - 2026-04-09
+- Fix `_find_references` deduplication: only merge references when the content id matches, so titles like `Budget` and `Budget : Q1` on different documents are not collapsed via `startswith`
+
 ## [1.70.2] - 2026-04-09
 - Avoid duplicate page postfix in reference names when `title`/`key` already include the postfix from `sort_content_chunks` / `merge_content_chunks` (`content_chunk_to_reference` / `ContentChunk.to_reference`)
 
