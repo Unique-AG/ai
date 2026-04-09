@@ -18,14 +18,20 @@ callable receiving a ``re.Match`` and returning a string."""
 NormalizationPattern = tuple[str | re.Pattern[str], NormalizationReplacement]
 
 
-def _expand_source_list(match: re.Match[str]) -> str:
-    """Expand ``[source: 1, 2, 3]`` or ``[[1], [2], [3]]`` into ``<sup>1</sup><sup>2</sup><sup>3</sup>``."""
+def _expand_source_list_to_sup(match: re.Match[str]) -> str:
+    """Expand ``[source: 1, 2, 3]`` into ``<sup>1</sup><sup>2</sup><sup>3</sup>``."""
     numbers = re.findall(r"\d+", match.group(0))
     return "".join(f"<sup>{n}</sup>" for n in numbers)
 
 
-NORMALIZATION_PATTERNS: list[NormalizationPattern] = [
-    # ── Strip non-source references (all case-insensitive) ─────────────
+def _expand_source_list_to_brackets(match: re.Match[str]) -> str:
+    """Expand ``[source: 1, 2, 3]`` into ``[1][2][3]``."""
+    numbers = re.findall(r"\d+", match.group(0))
+    return "".join(f"[{n}]" for n in numbers)
+
+
+# ── Patterns shared by streaming and batch (strip non-source refs) ────────
+_STRIP_NON_SOURCE_PATTERNS: list[NormalizationPattern] = [
     (r"(?i)\[(\\)?(<)?user(>)?\]", ""),
     (r"(?i)\[(\\)?(<)?assistant(>)?\]", ""),
     (r"(?i)source[\s]?\[(\\)?(<)?conversation(>)?\]", "the previous conversation"),
@@ -35,7 +41,11 @@ NORMALIZATION_PATTERNS: list[NormalizationPattern] = [
     (r"(?i)\[(\\)?(<)?previous[_,\s]question(>)?\]", ""),
     (r"(?i)\[(\\)?(<)?conversation(>)?\]", ""),
     (r"(?i)\[(\\)?(<)?none(>)?\]", ""),
-    # ── Normalise source references to <sup>N</sup> ─────────────────────
+]
+
+NORMALIZATION_PATTERNS: list[NormalizationPattern] = [
+    *_STRIP_NON_SOURCE_PATTERNS,
+    # ── Normalise source references to <sup>N</sup> (streaming) ─────────
     # Bracket-consuming variants first so the outer [...] are removed too.
     # The bare fallbacks use (?<!\[) so they don't fire mid-stream when the
     # buffer holds "[source1" before the closing "]" has arrived — that would
@@ -55,14 +65,37 @@ NORMALIZATION_PATTERNS: list[NormalizationPattern] = [
     (r"(?i)source[\s]?n°(\d+)", r"<sup>\1</sup>"),
     (r"\[(\\)?\[?<\[(\d+)\]?\]>\]", r"<sup>\2</sup>"),
     # ── Multi-source references (callable replacements) ────────────────
-    (r"\[source:\s*([\d,\s]+)\]", _expand_source_list),
+    (r"\[source:\s*([\d,\s]+)\]", _expand_source_list_to_sup),
     (
         r"(?:\[\[(\d+)\](?:,\s*(?:\[)?\d+(?:\])?)*\]|\[([\d,\s]+)\])",
-        _expand_source_list,
+        _expand_source_list_to_sup,
     ),
 ]
 """Normalisation rules that convert model-emitted citation formats
-to the canonical ``<sup>N</sup>`` superscript notation."""
+to the canonical ``<sup>N</sup>`` superscript notation (for streaming)."""
+
+BATCH_NORMALIZATION_PATTERNS: list[NormalizationPattern] = [
+    *_STRIP_NON_SOURCE_PATTERNS,
+    # ── Normalise source references to [N] (batch processing) ───────────
+    # Batch path needs [N] so _extract_numbers_in_brackets and
+    # _add_footnotes_to_text can work correctly.
+    (r"\[(\\)?<source[\s]?(\d+)>\]", r"[\2]"),  # [<source0>] → [0]
+    (r"(?i)\[source[\s_]?(\d+)\]", r"[\1]"),  # [source0] → [0]
+    (r"(?<!\[)source[\s_]?(\d+)", r"[\1]"),  # source0 → [0]
+    (r'source_number="(\d+)"', r"[\1]"),
+    (r"\[\*\*(\d+)\*\*\]", r"[\1]"),  # [**1**] → [1]
+    (r"(?i)(?<!\[)source[\s]?(\d+)", r"[\1]"),  # SOURCE0 → [0]
+    (r"(?i)source[\s]?n°(\d+)", r"[\1]"),  # SOURCE n°1 → [1]
+    (r"\[(\\)?\[?<\[(\d+)\]?\]>\]", r"[\2]"),
+    # ── Multi-source references ────────────────────────────────────────
+    (r"\[source:\s*([\d,\s]+)\]", _expand_source_list_to_brackets),
+    (
+        r"(?:\[\[(\d+)\](?:,\s*(?:\[)?\d+(?:\])?)*\]|\[([\d,\s]+)\])",
+        _expand_source_list_to_brackets,
+    ),
+]
+"""Normalisation rules that convert model-emitted citation formats
+to the canonical ``[N]`` bracket notation (for batch processing)."""
 
 NORMALIZATION_MAX_MATCH_LENGTH = 80
 """Upper bound on characters any single pattern can match.  Sized for

@@ -41,9 +41,18 @@ class StreamingReplacerProtocol(Protocol):
         ...
 ```
 
-## NORMALIZATION_PATTERNS
+## Pattern Lists
 
-The canonical pattern list converts model-emitted citations to `<sup>N</sup>`:
+Two pattern lists serve different output needs:
+
+| List | Output | Use Case |
+|------|--------|----------|
+| `NORMALIZATION_PATTERNS` | `<sup>N</sup>` | Streaming (direct to UI) |
+| `BATCH_NORMALIZATION_PATTERNS` | `[N]` | Batch (needs post-processing) |
+
+### NORMALIZATION_PATTERNS (Streaming)
+
+Converts model-emitted citations directly to `<sup>N</sup>`:
 
 | Input Pattern | Output |
 |--------------|--------|

@@ -3,7 +3,7 @@ import re
 from unique_toolkit.chat.schemas import ChatMessage
 from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
-    NORMALIZATION_PATTERNS,
+    BATCH_NORMALIZATION_PATTERNS,
 )
 
 
@@ -79,10 +79,12 @@ def _add_references(
 def _preprocess_message(text: str) -> str:
     """Normalize reference formats to the canonical ``[N]`` bracket notation.
 
-    Patterns are imported from ``NORMALIZATION_PATTERNS`` in ``pattern_replacer``
-    (the single source of truth shared with the streaming replacer).
+    Patterns are imported from ``BATCH_NORMALIZATION_PATTERNS`` in ``pattern_replacer``.
+    The batch path outputs ``[N]`` so downstream functions can extract and convert
+    to ``<sup>N</sup>``. The streaming path uses ``NORMALIZATION_PATTERNS`` which
+    outputs ``<sup>N</sup>`` directly.
     """
-    for pattern, replacement in NORMALIZATION_PATTERNS:
+    for pattern, replacement in BATCH_NORMALIZATION_PATTERNS:
         text = re.sub(pattern, replacement, text)
     return text
 
