@@ -7,7 +7,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from unique_toolkit.components.internal_search.base.config import InternalSearchConfig
-from unique_toolkit.components.internal_search.base.schemas import SearchStringResult
+from unique_toolkit.components.internal_search.base.schemas import (
+    InternalSearchState,
+    SearchStringResult,
+)
 from unique_toolkit.components.internal_search.chat.schemas import (
     ChatInternalSearchDeps,
 )
@@ -60,21 +63,28 @@ def test_make_dependencies__raises_without_chat_context():
     svc = ChatInternalSearchService.from_config(InternalSearchConfig())
     mock_context = MagicMock()
     mock_context.chat = None
+    mock_settings = MagicMock()
+    mock_settings.context = mock_context
 
-    with (
-        pytest.raises(RuntimeError, match="chat context"),
-        pytest.MonkeyPatch().context() as mp,
-    ):
-        mp.setattr(
-            "unique_toolkit.components.internal_search.chat.service.UniqueContext.from_settings",
-            lambda s: mock_context,
-        )
-        svc.bind_settings(MagicMock())
+    with pytest.raises(RuntimeError, match="chat context"):
+        svc.bind_settings(mock_settings)
 
 
 # ---------------------------------------------------------------------------
 # _search_single_query — delegates correctly to ChatService
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.verified
+def test_reset_state__creates_base_state():
+    """
+    Purpose: Verifies that reset_state initialises a valid InternalSearchState.
+    Why this matters: The state must be ready for use before any search query is issued.
+    Setup summary: After reset_state, assert state is an InternalSearchState with empty queries.
+    """
+    svc, _, _ = _make_service()
+    assert isinstance(svc._state, InternalSearchState)
+    assert svc._state.search_queries == []
 
 
 @pytest.mark.verified
@@ -105,8 +115,27 @@ async def test_search_single_query__calls_chat_service_with_correct_args(make_ch
         reranker_config=cfg.reranker_config,
         search_language="german",
         score_threshold=0.3,
+        content_ids=None,
     )
     assert result == SearchStringResult(query="my query", chunks=chunks)
+
+
+@pytest.mark.verified
+async def test_search_single_query__forwards_content_ids_when_set():
+    """
+    Purpose: Verifies that content_ids from the base state are forwarded to ChatService.
+    Why this matters: content_ids is the mechanism for scoping chat searches to specific
+        uploaded files; not forwarding it silently ignores the caller's intent.
+    Setup summary: State with two content IDs; assert ChatService receives them unchanged.
+    """
+    svc, mock_chat_svc, _ = _make_service()
+    svc._state.content_ids = ["file-1", "file-2"]
+    mock_chat_svc.search_content_chunks_async = AsyncMock(return_value=[])
+
+    await svc._search_single_query(query="uploaded file query")
+
+    call_kwargs = mock_chat_svc.search_content_chunks_async.call_args.kwargs
+    assert call_kwargs["content_ids"] == ["file-1", "file-2"]
 
 
 @pytest.mark.verified

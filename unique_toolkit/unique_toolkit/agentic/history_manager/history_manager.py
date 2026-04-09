@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from unique_toolkit._common.feature_flags.schema import (
     FeatureExtendedSourceSerialization,
 )
+from unique_toolkit._common.pydantic_helpers import DeactivatedNone
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.agentic.history_manager.loop_token_reducer import LoopTokenReducer
 from unique_toolkit.agentic.history_manager.utils import (
@@ -29,11 +30,6 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelToolMessage,
 )
-
-DeactivatedNone = Annotated[
-    None,
-    Field(title="Deactivated", description="None"),
-]
 
 
 class UploadedContentConfig(BaseModel):

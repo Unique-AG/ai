@@ -8,7 +8,7 @@ from unique_toolkit._common.chunk_relevancy_sorter.config import (
     ChunkRelevancySortConfig,
 )
 from unique_toolkit._common.config_checker import register_config
-from unique_toolkit.agentic.history_manager.history_manager import DeactivatedNone
+from unique_toolkit._common.pydantic_helpers import DeactivatedNone
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.content.schemas import ContentRerankerConfig, ContentSearchType
 
@@ -58,10 +58,6 @@ class InternalSearchConfig(BaseModel):
         description="The percentage of the maximum input tokens of the language model to use for the tool response.",
         ge=0.0,
         le=1.0,
-    )
-    scope_ids: Annotated[list[str], Field(title="Active")] | DeactivatedNone = Field(
-        default=None,
-        description="The scope ids to use for the search.",
     )
     chunked_sources: bool = Field(
         default=True,

@@ -54,8 +54,8 @@ def _make_service(
 def test_reset_state__creates_kb_state():
     """
     Purpose: Verifies that reset_state initialises KnowledgeBaseInternalSearchState, not the base class.
-    Why this matters: The KB subclass extends state with content_ids and metadata_filter_override;
-        using the wrong state type would silently lose those fields.
+    Why this matters: The KB subclass extends state with metadata_filter_override;
+        using the wrong state type would silently lose that field.
     Setup summary: After reset_state, assert state is a KnowledgeBaseInternalSearchState instance
         with UNSET as the default metadata_filter_override.
     """

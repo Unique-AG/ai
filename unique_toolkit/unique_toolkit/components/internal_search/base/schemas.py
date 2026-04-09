@@ -44,6 +44,7 @@ class InternalSearchState:
     search_queries: list[str]
     language_model_info: LanguageModelInfo | None = None
     language_model_max_input_tokens: int | None = None
+    content_ids: list[str] | None = None
 
     def get_max_tokens(self, *, percentage: float, fallback: int) -> int:
         if self.language_model_max_input_tokens is not None:
