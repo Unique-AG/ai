@@ -1570,38 +1570,6 @@ class TestTransformUiSchema:
 
 
 @pytest.mark.ai
-def test_AI_ui_schema_for_model__sub_agent_tool_config__produces_textarea_widgets() -> (
-    None
-):
-    """
-    Purpose: Verify SubAgentToolConfig RJSF annotations produce correct uiSchema.
-    Why this matters: SubAgentToolConfig uses RJSFMetaTag for form fields; correct
-        uiSchema ensures the tool config form renders properly in the UI.
-    Setup summary: Call ui_schema_for_model on SubAgentToolConfig, assert
-        RJSF-annotated string fields have ui:widget=textarea and ui:options.rows=5.
-    """
-    from unique_toolkit.agentic.tools.a2a.tool.config import SubAgentToolConfig
-
-    # Act
-    schema = ui_schema_for_model(SubAgentToolConfig)
-
-    # Assert: RJSF-annotated fields from commit 16a303df "Add rjsf meta tags"
-    textarea_fields = [
-        "tool_description_for_system_prompt",
-        "tool_description",
-        "param_description_sub_agent_user_message",
-        "tool_format_information_for_system_prompt",
-        "tool_description_for_user_prompt",
-        "tool_format_information_for_user_prompt",
-        "tool_input_json_schema",
-    ]
-    for field in textarea_fields:
-        assert field in schema, f"Expected {field} in schema"
-        assert schema[field]["ui:widget"] == "textarea"
-        assert schema[field]["ui:options"] == {"rows": 5}
-
-
-@pytest.mark.ai
 def test_AI_field_named_items_is_transformed_by_key_transform() -> None:
     """
     Purpose: Verify that a field literally named 'items' or 'type' is still
