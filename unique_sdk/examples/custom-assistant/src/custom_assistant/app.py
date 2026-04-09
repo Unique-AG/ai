@@ -33,7 +33,7 @@ dictConfig(
 )
 
 app = Flask(__name__)
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 @app.route("/")
@@ -60,9 +60,10 @@ def search():
             jsonify({"message": "Invalid request", "params": e.params}), e.http_status
         )
     except unique_sdk.UniqueError as e:
+        _LOGGER.exception("UniqueError in search")
         return make_response(jsonify({"error": "Service error"}), e.http_status)
     except Exception:
-        logger.exception("Unexpected error in search")
+        _LOGGER.exception("Unexpected error in search")
         return jsonify(
             {"error": "Internal server error"}
         ), HTTPStatus.INTERNAL_SERVER_ERROR
@@ -85,9 +86,10 @@ def search_string():
             jsonify({"message": "Invalid request", "params": e.params}), e.http_status
         )
     except unique_sdk.UniqueError as e:
+        _LOGGER.exception("UniqueError in search_string")
         return make_response(jsonify({"error": "Service error"}), e.http_status)
     except Exception:
-        logger.exception("Unexpected error in search_string")
+        _LOGGER.exception("Unexpected error in search_string")
         return jsonify(
             {"error": "Internal server error"}
         ), HTTPStatus.INTERNAL_SERVER_ERROR
@@ -111,9 +113,10 @@ def azure_openai_chat_completion():
             jsonify({"message": "Invalid request", "params": e.params}), e.http_status
         )
     except unique_sdk.UniqueError as e:
+        _LOGGER.exception("UniqueError in azure_openai_chat_completion")
         return make_response(jsonify({"error": "Service error"}), e.http_status)
     except Exception:
-        logger.exception("Unexpected error in azure_openai_chat_completion")
+        _LOGGER.exception("Unexpected error in azure_openai_chat_completion")
         return jsonify(
             {"error": "Internal server error"}
         ), HTTPStatus.INTERNAL_SERVER_ERROR
@@ -137,9 +140,10 @@ def litellm_chat_completion():
             jsonify({"message": "Invalid request", "params": e.params}), e.http_status
         )
     except unique_sdk.UniqueError as e:
+        _LOGGER.exception("UniqueError in litellm_chat_completion")
         return make_response(jsonify({"error": "Service error"}), e.http_status)
     except Exception:
-        logger.exception("Unexpected error in litellm_chat_completion")
+        _LOGGER.exception("Unexpected error in litellm_chat_completion")
         return jsonify(
             {"error": "Internal server error"}
         ), HTTPStatus.INTERNAL_SERVER_ERROR
@@ -156,9 +160,10 @@ def chat_messages(chat_id: str):
 
         return jsonify(messages)
     except unique_sdk.UniqueError as e:
+        _LOGGER.exception("UniqueError in chat_messages")
         return make_response(jsonify({"error": "Service error"}), e.http_status)
     except Exception:
-        logger.exception("Unexpected error in chat_messages")
+        _LOGGER.exception("Unexpected error in chat_messages")
         return jsonify(
             {"error": "Internal server error"}
         ), HTTPStatus.INTERNAL_SERVER_ERROR
@@ -224,7 +229,7 @@ def webhook():
     event = None
     payload = request.data
 
-    app.logger.info("Received webhook request.")
+    app._LOGGER.info("Received webhook request.")
 
     try:
         event = json.loads(payload)
@@ -250,7 +255,7 @@ def webhook():
             print("⚠️  Webhook signature verification failed. " + str(e))
             return jsonify(success=False), HTTPStatus.BAD_REQUEST
 
-    app.logger.debug("Request headers: %s", request.headers)
+    app._LOGGER.debug("Request headers: %s", request.headers)
     pprint(event)
 
     if event and event["event"] == "unique.chat.user-message.created":
@@ -261,6 +266,6 @@ def webhook():
         handle_module_message(event["payload"], event["userId"], event["companyId"])
     else:
         # Unexpected event type
-        app.logger.error("Unhandled event type {}".format(event["type"]))
+        app._LOGGER.error("Unhandled event type {}".format(event["type"]))
 
     return jsonify(success=True)
