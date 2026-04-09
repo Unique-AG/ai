@@ -649,7 +649,7 @@ def to_reasoning_effort(value: str) -> ReasoningEffort:
             )
 
 
-def reasoning_effort_to_openai(effort: ReasoningEffort) -> OpenAIReasoningEffort:
+def reasoning_effort_to_openai(effort: str) -> OpenAIReasoningEffort:
     """Convert our ReasoningEffort to the OpenAI SDK's type at the API boundary.
 
     A cast is required because OpenAIReasoningEffort is generated from an older OpenAPI spec

@@ -326,7 +326,7 @@ class LanguageModelInfo(BaseModel):
         self,
         temperature: float,
         reasoning_effort: str | None,
-    ) -> tuple[float, ReasoningEffort | None]:
+    ) -> tuple[float, str | None]:
         """Resolve temperature and reasoning_effort together for this model.
 
         Three-state semantics for ``supported_reasoning_efforts``:
@@ -382,16 +382,12 @@ class LanguageModelInfo(BaseModel):
                     reasoning_effort = default
                     wants_active_reasoning = default != "none"
 
-            resolved = (
-                to_reasoning_effort(reasoning_effort)
-                if reasoning_effort is not None
-                else None
-            )
-
             if wants_active_reasoning:
-                return 1.0, resolved
+                return 1.0, reasoning_effort
 
-            return self._clamp_temperature(temperature, temperature_bounds), resolved
+            return self._clamp_temperature(
+                temperature, temperature_bounds
+            ), reasoning_effort
 
         # --- Scenario 1: model has no reasoning_effort concept ---
         if len(supported_efforts) == 0:

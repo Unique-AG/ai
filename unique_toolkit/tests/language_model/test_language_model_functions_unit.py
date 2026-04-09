@@ -342,7 +342,7 @@ def test_supported_reasoning_efforts_set_correctly():
 
 def test_resolve_unknown_model_passes_effort_through():
     """Scenario 0: unknown model (supported_reasoning_efforts=None) passes any
-    effort through unchanged."""
+    effort through unchanged, including values not in ReasoningEffort."""
     model = LanguageModelInfo(
         name="unknown-model",
         version="v1",
@@ -352,6 +352,10 @@ def test_resolve_unknown_model_passes_effort_through():
 
     temp, effort = model.resolve_temp_and_reasoning(0.7, "medium")
     assert effort == "medium"
+    assert temp == 1.0
+
+    temp, effort = model.resolve_temp_and_reasoning(0.7, "ultra_custom_effort")
+    assert effort == "ultra_custom_effort"
     assert temp == 1.0
 
     temp, effort = model.resolve_temp_and_reasoning(0.7, "xhigh")
