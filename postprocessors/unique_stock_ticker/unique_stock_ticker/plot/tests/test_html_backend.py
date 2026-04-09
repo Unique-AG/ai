@@ -1,6 +1,6 @@
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import patch
 
 from unique_stock_ticker.plot.backend.base.schema import (
     MetricName,
@@ -78,21 +78,26 @@ def test_html_plotting_backend__uploads_html_and_returns_rendering_block() -> No
     Setup summary: Mock chat uploads, plot a sample payload, and assert both the uploaded file metadata and returned rendering block are correct.
     """
     # Arrange
-    chat_service = MagicMock()
-    chat_service.upload_to_chat_from_bytes.return_value = SimpleNamespace(
-        id="content-123"
-    )
     backend = HtmlPlottingBackend(
         config=HtmlTickerPlotConfig(render_width=840, render_height=620),
-        chat_service=chat_service,
+        company_id="company-123",
+        user_id="user-123",
+        chat_id="chat-123",
     )
 
     # Act
-    rendering_block = backend.plot([_build_payload()])
+    with patch(
+        "unique_stock_ticker.plot.backend.html.upload_content_from_bytes",
+        return_value=SimpleNamespace(id="content-123"),
+    ) as upload_content:
+        rendering_block = backend.plot([_build_payload()])
 
     # Assert
-    chat_service.upload_to_chat_from_bytes.assert_called_once()
-    _, kwargs = chat_service.upload_to_chat_from_bytes.call_args
+    upload_content.assert_called_once()
+    _, kwargs = upload_content.call_args
+    assert kwargs["user_id"] == "user-123"
+    assert kwargs["company_id"] == "company-123"
+    assert kwargs["chat_id"] == "chat-123"
     assert kwargs["content_name"] == "stock_dashboard_aapl.html"
     assert kwargs["mime_type"] == "text/html"
     assert kwargs["skip_ingestion"] is True

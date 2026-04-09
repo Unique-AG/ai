@@ -3,7 +3,7 @@ import re
 from typing import Literal
 
 from typing_extensions import override
-from unique_toolkit.services.chat_service import ChatService
+from unique_toolkit.content.functions import upload_content_from_bytes
 
 from unique_stock_ticker.plot.backend.base import (
     PlottingBackend,
@@ -516,9 +516,17 @@ class HtmlTickerPlotConfig(PlottingBackendConfig):
 
 
 class HtmlPlottingBackend(PlottingBackend[HtmlTickerPlotConfig]):
-    def __init__(self, config: HtmlTickerPlotConfig, chat_service: ChatService):
+    def __init__(
+        self,
+        config: HtmlTickerPlotConfig,
+        company_id: str,
+        user_id: str,
+        chat_id: str,
+    ):
         super().__init__(config)
-        self._chat_service = chat_service
+        self._company_id = company_id
+        self._user_id = user_id
+        self._chat_id = chat_id
 
     @override
     def plot(
@@ -531,10 +539,13 @@ class HtmlPlottingBackend(PlottingBackend[HtmlTickerPlotConfig]):
             html_content = render_stock_dashboard_html(payload)
             ticker_slug = _sanitize_filename_fragment(payload.info.ticker.lower())
             filename = f"{self.config.filename_prefix}_{ticker_slug}.html"
-            content = self._chat_service.upload_to_chat_from_bytes(
+            content = upload_content_from_bytes(
+                user_id=self._user_id,
+                company_id=self._company_id,
                 content=html_content.encode("utf-8"),
                 content_name=filename,
                 mime_type="text/html",
+                chat_id=self._chat_id,
                 skip_ingestion=True,
                 hide_in_chat=True,
             )
