@@ -7,6 +7,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
     LanguageModelFunction,
     LanguageModelFunctionCall,
+    LanguageModelMessage,
     LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelResponse,
@@ -649,3 +650,140 @@ class TestLanguageModelMessagesToOpenAI:
         assert result[0]["content"] == "System prompt"
         assert result[1]["role"] == "user"
         assert result[1]["content"] == "User question"
+
+    def test_AI_to_openai_preserves_concrete_subclass_fields(self, valid_tool_calls):
+        """
+        Subclasses of LanguageModelMessage must not be passed through
+        _language_model_message_to_subtype, which only copies content and would drop
+        tool_calls, name, and tool_call_id.
+        """
+        assistant = LanguageModelFunctionCall.create_assistant_message_from_tool_calls(
+            valid_tool_calls
+        )
+        tool_msg = LanguageModelToolMessage(
+            name="function_1",
+            tool_call_id="func_1",
+            content='{"ok": true}',
+        )
+        messages = LanguageModelMessages([assistant, tool_msg])
+
+        result = messages.to_openai()
+
+        assert len(result) == 2
+        assert result[0].get("tool_calls") is not None
+        assert len(result[0]["tool_calls"]) == 2
+        assert result[1]["role"] == "tool"
+        assert result[1]["tool_call_id"] == "func_1"
+        assert result[1]["content"] == '{"ok": true}'
+
+    def test_AI_to_openai_coerces_plain_base_message_only(self):
+        """
+        Only exact LanguageModelMessage instances are coerced to a concrete type;
+        validated plain user messages still convert to OpenAI params.
+        """
+        plain = LanguageModelMessage(
+            role=LanguageModelMessageRole.USER,
+            content="hello",
+        )
+        messages = LanguageModelMessages([plain])
+
+        result = messages.to_openai()
+
+        assert len(result) == 1
+        assert result[0]["role"] == "user"
+        assert result[0]["content"] == "hello"
+
+    def test_AI_to_openai_coerces_plain_system_and_assistant(self):
+        """
+        Plain base messages for system and assistant roles map to the right concrete
+        types so to_openai runs the proper implementation.
+        """
+        messages = LanguageModelMessages(
+            [
+                LanguageModelMessage(
+                    role=LanguageModelMessageRole.SYSTEM,
+                    content="You are helpful.",
+                ),
+                LanguageModelMessage(
+                    role=LanguageModelMessageRole.ASSISTANT,
+                    content="Understood.",
+                ),
+            ]
+        )
+
+        result = messages.to_openai()
+
+        assert len(result) == 2
+        assert result[0]["role"] == "system"
+        assert result[0]["content"] == "You are helpful."
+        assert result[1]["role"] == "assistant"
+        assert result[1]["content"] == "Understood."
+
+    def test_AI_to_openai_plain_tool_role_raises(self):
+        """
+        A base LanguageModelMessage with role tool cannot be coerced (missing name /
+        tool_call_id); callers must use LanguageModelToolMessage.
+        """
+        messages = LanguageModelMessages(
+            [
+                LanguageModelMessage(
+                    role=LanguageModelMessageRole.TOOL,
+                    content="result",
+                ),
+            ]
+        )
+
+        with pytest.raises(ValueError, match="LanguageModelToolMessage"):
+            messages.to_openai()
+
+    def test_AI_to_openai_mixed_plain_user_and_concrete_assistant_with_tools(
+        self, valid_tool_calls
+    ):
+        """
+        A mix of exact-type base messages and concrete subclasses: only the former
+        are rebuilt; assistant tool_calls must survive conversion.
+        """
+        plain_user = LanguageModelMessage(
+            role=LanguageModelMessageRole.USER,
+            content="Call the tools",
+        )
+        assistant = LanguageModelFunctionCall.create_assistant_message_from_tool_calls(
+            valid_tool_calls
+        )
+        messages = LanguageModelMessages([plain_user, assistant])
+
+        result = messages.to_openai()
+
+        assert len(result) == 2
+        assert result[0]["role"] == "user"
+        assert result[0]["content"] == "Call the tools"
+        assert result[1].get("tool_calls") is not None
+        assert len(result[1]["tool_calls"]) == 2
+
+    def test_AI_to_openai_subclass_user_not_rebuilt_as_plain_user(self):
+        """
+        LanguageModelUserMessage is a subclass of LanguageModelMessage; it must not
+        go through _language_model_message_to_subtype (identity type check).
+        """
+        multimodal: list[dict] = [{"type": "text", "text": "hello"}]
+        user = LanguageModelUserMessage(content=multimodal)
+        messages = LanguageModelMessages([user])
+
+        result = messages.to_openai()
+
+        assert len(result) == 1
+        assert result[0]["role"] == "user"
+        assert result[0]["content"] == multimodal
+
+    def test_AI_to_openai_responses_mode_with_plain_base_message(self):
+        """Coercion applies before per-message to_openai in responses mode."""
+        plain = LanguageModelMessage(
+            role=LanguageModelMessageRole.USER,
+            content="hi",
+        )
+        messages = LanguageModelMessages([plain])
+
+        result = messages.to_openai(mode="responses")
+
+        assert len(result) == 1
+        assert result[0]["role"] == "user"
