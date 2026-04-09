@@ -312,21 +312,18 @@ class LanguageModelInfo(BaseModel):
     _ENV_VAR: ClassVar[str] = "LANGUAGE_MODEL_INFOS"
 
     @model_validator(mode="after")
-    def _ensure_default_effort_in_supported(self) -> Self:
+    def _ensure_supported_efforts_if_default_set(self) -> Self:
         effort = self.default_options.get("reasoning_effort")
-        if effort is not None and effort not in self.supported_reasoning_efforts:
+        if effort is not None and not self.supported_reasoning_efforts:
             _LOGGER.warning(
-                "Model %r has default_options['reasoning_effort']=%r which is "
-                "not in supported_reasoning_efforts=%r; prepending it automatically. "
+                "Model %r has default_options['reasoning_effort']=%r but "
+                "supported_reasoning_efforts is empty; setting it to [%r]. "
                 "Consider setting supported_reasoning_efforts explicitly.",
                 self.name,
                 effort,
-                self.supported_reasoning_efforts,
-            )
-            self.supported_reasoning_efforts = [
                 effort,
-                *self.supported_reasoning_efforts,
-            ]
+            )
+            self.supported_reasoning_efforts = [effort]
         return self
 
     def get_encoder(self) -> TypeEncoder:
