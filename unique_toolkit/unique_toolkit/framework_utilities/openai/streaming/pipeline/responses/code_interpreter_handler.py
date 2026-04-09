@@ -104,7 +104,7 @@ class ResponsesCodeInterpreterHandler:
             assert self._settings.context.chat is not None, (
                 "Chat is required to retrieve the message"
             )
-            message = unique_sdk.Message.retrieve(
+            message = await unique_sdk.Message.retrieve_async(
                 id=self._settings.context.chat.last_assistant_message_id,
                 company_id=self._settings.context.auth.company_id.get_secret_value(),
                 user_id=self._settings.context.auth.user_id.get_secret_value(),
