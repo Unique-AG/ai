@@ -16,7 +16,7 @@ def filter_uploaded_documents_by_selection(
     - the feature flag is disabled for ``company_id``,
     - ``additional_parameters`` is ``None``.
     """
-    if not feature_flags.enable_selected_uploaded_files_un_18470.is_enabled(company_id):
+    if not feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(company_id):
         return documents
 
     if additional_parameters is None:
