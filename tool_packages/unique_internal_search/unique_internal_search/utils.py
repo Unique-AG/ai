@@ -10,10 +10,15 @@ _LOGGER = logging.getLogger(__name__)
 
 def extract_selected_uploaded_file_ids(event: ChatEvent) -> list[str]:
     """Extract selected uploaded file IDs from the event's additional parameters."""
-    additional = event.payload.additional_parameters
-    if not additional:  # ToDo [UN-19076]: Additional parameters are never None.
-        return []
-    return additional.selected_uploaded_file_ids
+    if (
+        hasattr(event.payload, "additional_parameters")
+        and event.payload.additional_parameters
+    ):
+        # Need to check if the parameter exists, magic table payload does not have this parameter.
+        additional = event.payload.additional_parameters
+        return additional.selected_uploaded_file_ids
+    else:
+        return []  # ToDo [UN-19076]: Additional parameters are never None.
 
 
 class SearchStringResult(BaseModel):
