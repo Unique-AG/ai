@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.70.4] - 2026-04-10
+- Code interpreter postprocessor (`generated_files.py`): dangling `sandbox:/mnt/data/...` markdown links are replaced with a per-file notice naming the file and suggesting regeneration, instead of the generic download-failure message
+- Orphan code-execution runs (no container file output, fence feature flag `enable_code_execution_fence_un_17972`): uploaded `.txt` artifacts are attached as `ContentReference` entries in `message.references` instead of appending `fileWithSource` fences to `message.text`; remove unused `_build_orphan_fences` and `_get_next_fence_id`
+
 ## [1.70.3] - 2026-04-10
 - Add optional `default_string_empty_value` to `ui_schema_for_model` so bare `str` fields (and `str` items, dict values, union branches, nested models) can get `ui:emptyValue` without `Annotated[..., RJSFMetaTag]`
 - Fix `RJSFMetaTag.StringWidget.textarea`: emit `ui:emptyValue` under the correct key (was `ui:emtpyValue`)
