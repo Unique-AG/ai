@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import json
 import math
 from enum import StrEnum
-from typing import Any, Literal, Self, TypeVar, override
+from typing import Any, Literal, Self, TypeVar, cast, override
 from uuid import uuid4
 
 from humps import camelize
@@ -28,6 +30,7 @@ from openai.types.responses import (
 )
 from openai.types.responses.response_input_param import FunctionCallOutput
 from openai.types.responses.response_output_text import AnnotationContainerFileCitation
+from openai.types.shared_params import ReasoningEffort as OpenAIReasoningEffort
 from openai.types.shared_params.function_definition import FunctionDefinition
 from pydantic import (
     BaseModel,
@@ -626,6 +629,34 @@ class LanguageModelResponse(BaseModel):
         )
 
         return cls(choices=[choice])
+
+
+# The OpenAI SDK's ReasoningEffort type alias is generated from an older OpenAPI spec and is
+# missing values that the API actually supports (e.g. "xhigh", "none"). We define our own
+# complete type here as the source of truth.
+ReasoningEffort = Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+
+
+def to_reasoning_effort(value: str) -> ReasoningEffort:
+    """Narrow a raw string to ReasoningEffort, raising ValueError for unrecognised values."""
+    match value:
+        case "none" | "minimal" | "low" | "medium" | "high" | "xhigh":
+            return value
+        case _:
+            raise ValueError(
+                f"Unknown reasoning_effort {value!r}. "
+                f"Supported values: none, minimal, low, medium, high, xhigh."
+            )
+
+
+def reasoning_effort_to_openai(effort: str) -> OpenAIReasoningEffort:
+    """Convert our ReasoningEffort to the OpenAI SDK's type at the API boundary.
+
+    A cast is required because OpenAIReasoningEffort is generated from an older OpenAPI spec
+    that does not yet include all values present in our ReasoningEffort. The cast is safe:
+    the API accepts these values even though the SDK type does not list them.
+    """
+    return cast(OpenAIReasoningEffort, effort)
 
 
 # This is tailored for unique and only used in language model info

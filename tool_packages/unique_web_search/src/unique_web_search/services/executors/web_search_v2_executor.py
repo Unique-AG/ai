@@ -4,7 +4,15 @@ from time import time
 
 from unique_toolkit.content import ContentChunk
 from unique_toolkit.language_model import LanguageModelFunction
+from unique_toolkit.monitoring import metric_scope
 
+from unique_web_search.metrics import (
+    crawl_duration,
+    crawl_errors,
+    search_duration,
+    search_errors,
+    search_total,
+)
 from unique_web_search.schema import (
     Step,
     StepDebugInfo,
@@ -112,11 +120,14 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             )
         )
 
+        engine = self.search_service.config.search_engine_name.value
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
 
         await self._message_log_callback.log_queries([step.query_or_url])
-        results = await self.search_service.search(step.query_or_url)
+        with metric_scope(search_duration, search_errors, engine=engine):
+            search_total.labels(engine=engine).inc()
+            results = await self.search_service.search(step.query_or_url)
         await self._message_log_callback.log_web_search_results(results)
 
         delta_time = time() - time_start
@@ -147,11 +158,13 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
         self, step_name: str, results: list[WebSearchResult]
     ) -> list[WebSearchResult]:
         """Crawl URLs for the given search results and fill content. Call when results non-empty."""
+        crawler = self.crawler_service.config.crawler_type.value
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
-        crawl_results = await self.crawler_service.crawl(
-            [result.url for result in results]
-        )
+        with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
+            crawl_results = await self.crawler_service.crawl(
+                [result.url for result in results]
+            )
         delta_time = time() - time_start
         for result, content in zip(results, crawl_results):
             result.content = content
@@ -181,10 +194,12 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
                 config=step.model_dump(),
             )
         )
+        crawler = self.crawler_service.config.crawler_type.value
         time_start = time()
         _LOGGER.info(f"Company {self.company_id} Crawling with {self.crawler_service}")
 
-        results = await self.crawler_service.crawl([step.query_or_url])
+        with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
+            results = await self.crawler_service.crawl([step.query_or_url])
         await self._message_log_callback.log_web_search_results(
             [
                 WebSearchResult(

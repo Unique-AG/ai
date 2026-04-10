@@ -874,6 +874,26 @@ def test_file_frontend_type__returns_pdf__for_pdf() -> None:
 
 
 @pytest.mark.ai
+def test_file_frontend_type__returns_word__for_docx() -> None:
+    assert _file_frontend_type("report.docx") == "word"
+
+
+@pytest.mark.ai
+def test_file_frontend_type__returns_word__for_doc() -> None:
+    assert _file_frontend_type("report.doc") == "word"
+
+
+@pytest.mark.ai
+def test_file_frontend_type__returns_powerpoint__for_pptx() -> None:
+    assert _file_frontend_type("slides.pptx") == "powerpoint"
+
+
+@pytest.mark.ai
+def test_file_frontend_type__returns_powerpoint__for_ppt() -> None:
+    assert _file_frontend_type("slides.ppt") == "powerpoint"
+
+
+@pytest.mark.ai
 def test_file_frontend_type__returns_document__for_unknown() -> None:
     assert _file_frontend_type("output.xyz") == "document"
 
