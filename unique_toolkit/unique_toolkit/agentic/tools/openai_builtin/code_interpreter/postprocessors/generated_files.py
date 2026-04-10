@@ -9,7 +9,6 @@ from typing import NamedTuple, override
 
 import httpx
 from openai import AsyncOpenAI
-from openai.types.responses import ResponseCodeInterpreterToolCall
 from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 from pydantic import BaseModel, Field, RootModel
 from pydantic.json_schema import SkipJsonSchema
@@ -1035,13 +1034,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
             )
 
         return orphan_blocks
-
-
-def _collect_stdout(call: ResponseCodeInterpreterToolCall) -> str:
-    """Collect all stdout logs from a code interpreter call's outputs."""
-    if not call.outputs:
-        return ""
-    return "\n".join(output.logs for output in call.outputs if output.type == "logs")
 
 
 def _get_file_type(filename: str) -> CodeInterpreterFileType:

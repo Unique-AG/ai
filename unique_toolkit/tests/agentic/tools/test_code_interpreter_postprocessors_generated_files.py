@@ -17,7 +17,6 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     DisplayCodeInterpreterFilesPostProcessorConfig,
     _build_code_blocks,
     _build_file_fence,
-    _collect_stdout,
     _ensure_fences_are_standalone,
     _file_frontend_type,
     _file_title,
@@ -1688,97 +1687,6 @@ def test_warn_unmatched_code_blocks__skips_none_content_ids(caplog) -> None:
 
 
 # ============================================================================
-# Tests for _collect_stdout
-# ============================================================================
-
-
-def _make_logs_output(logs: str) -> MagicMock:
-    """Build a mock output item with type='logs' and the given logs string."""
-    output = MagicMock()
-    output.type = "logs"
-    output.logs = logs
-    return output
-
-
-def _make_image_output() -> MagicMock:
-    """Build a mock output item with type='image' (should be ignored by _collect_stdout)."""
-    output = MagicMock()
-    output.type = "image"
-    return output
-
-
-def _make_call(outputs: list | None) -> ResponseCodeInterpreterToolCall:
-    """Build a minimal ResponseCodeInterpreterToolCall with the given outputs list."""
-    call = MagicMock(spec=ResponseCodeInterpreterToolCall)
-    call.outputs = outputs
-    return call
-
-
-@pytest.mark.ai
-def test_collect_stdout__returns_empty_string__when_outputs_is_none() -> None:
-    """
-    Purpose: Verify _collect_stdout returns '' when the call has no outputs (include not set).
-    Why this matters: When the Responses API is called without include=["code_interpreter_call.outputs"],
-    call.outputs is None; we must not crash and must fall back to source code.
-    """
-    call = _make_call(outputs=None)
-    assert _collect_stdout(call) == ""
-
-
-@pytest.mark.ai
-def test_collect_stdout__returns_empty_string__when_outputs_is_empty_list() -> None:
-    """
-    Purpose: Verify _collect_stdout returns '' for an empty outputs list.
-    Why this matters: Empty list is a valid API response when code produces no stdout.
-    """
-    call = _make_call(outputs=[])
-    assert _collect_stdout(call) == ""
-
-
-@pytest.mark.ai
-def test_collect_stdout__returns_logs__when_single_logs_output() -> None:
-    """
-    Purpose: Verify _collect_stdout extracts the logs text from a single logs output item.
-    Why this matters: Core happy-path for log extraction (orphan .txt uploads use source code, not stdout).
-    """
-    call = _make_call(outputs=[_make_logs_output("Hello, world!")])
-    assert _collect_stdout(call) == "Hello, world!"
-
-
-@pytest.mark.ai
-def test_collect_stdout__joins_multiple_logs_outputs__with_newline() -> None:
-    """
-    Purpose: Verify _collect_stdout joins multiple logs outputs with newlines.
-    Why this matters: Code interpreter may emit several log chunks; they must be
-    concatenated in order so the txt file is readable.
-    """
-    call = _make_call(
-        outputs=[
-            _make_logs_output("line 1"),
-            _make_logs_output("line 2"),
-            _make_logs_output("line 3"),
-        ]
-    )
-    assert _collect_stdout(call) == "line 1\nline 2\nline 3"
-
-
-@pytest.mark.ai
-def test_collect_stdout__ignores_non_logs_outputs() -> None:
-    """
-    Purpose: Verify _collect_stdout skips image (and other non-logs) output items.
-    Why this matters: Code interpreter outputs can include images; those must not
-    be included in the stdout text.
-    """
-    call = _make_call(
-        outputs=[
-            _make_logs_output("stdout text"),
-            _make_image_output(),
-        ]
-    )
-    assert _collect_stdout(call) == "stdout text"
-
-
-# ============================================================================
 # Tests for orphan path and run()
 # ============================================================================
 
@@ -2152,7 +2060,10 @@ async def test_upload_orphan_code_as_txt__uploads_source_code_not_stdout() -> No
     source = "x = 40 + 2\nprint(x)\n"
     call = MagicMock(spec=ResponseCodeInterpreterToolCall)
     call.code = source
-    call.outputs = [_make_logs_output("42")]
+    stdout_output = MagicMock()
+    stdout_output.type = "logs"
+    stdout_output.logs = "42"
+    call.outputs = [stdout_output]
     lr = MagicMock(spec=ResponsesLanguageModelStreamResponse)
     lr.container_files = []
     lr.code_interpreter_calls = [call]
