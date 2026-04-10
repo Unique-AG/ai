@@ -957,13 +957,12 @@ class DisplayCodeInterpreterFilesPostProcessor(
     async def _upload_orphan_code_as_txt(
         self, loop_response: ResponsesLanguageModelStreamResponse
     ) -> list[CodeInterpreterBlock]:
-        """Upload stdout (or code) from calls that produced no container files as .txt artifacts.
+        """Upload source **code** from calls that produced no container files as .txt artifacts.
 
         When code interpreter runs but generates no files or images, the response
         text has no sandbox links for fence injection to hook onto.  This method
-        converts those "orphan" calls into downloadable .txt files so the fence
-        postprocessor can attach a fileWithSource component and the new Code
-        Execution UI is shown instead of the legacy <details> block.
+        converts those "orphan" calls into downloadable .txt files (the executed
+        code, not stdout) so the postprocessor can attach a reference for download.
 
         Called only when the fence feature flag is enabled.  Skipped entirely if
         any container files were produced (normal fencing handles those).
@@ -984,13 +983,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
             if not call.code:
                 continue
 
-            # Code interpreter logs are only present on each code_interpreter_call when
-            # the create/retrieve request sets include=["code_interpreter_call.outputs"]
-            # (see OpenAI Responses API `include` and manual examples in
-            # docs/manual_examples_for_docs/code_execution_openai_client.py).  If
-            # `outputs` is omitted, call.outputs is null and we fall back to the
-            # source code as the downloadable txt.
-            txt_content = _collect_stdout(call) or call.code
+            # Always persist the executed source as the downloadable .txt (not stdout),
+            # so the attachment matches what ran in the sandbox.
+            txt_content = call.code
             filename = f"code_{i + 1}.txt" if use_numeric_suffix else "code.txt"
 
             try:

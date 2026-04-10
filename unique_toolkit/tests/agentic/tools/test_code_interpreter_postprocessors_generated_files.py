@@ -1730,7 +1730,7 @@ def test_collect_stdout__returns_empty_string__when_outputs_is_empty_list() -> N
 def test_collect_stdout__returns_logs__when_single_logs_output() -> None:
     """
     Purpose: Verify _collect_stdout extracts the logs text from a single logs output item.
-    Why this matters: Core happy-path: stdout from a print() call should become the txt content.
+    Why this matters: Core happy-path for log extraction (orphan .txt uploads use source code, not stdout).
     """
     call = _make_call(outputs=[_make_logs_output("Hello, world!")])
     assert _collect_stdout(call) == "Hello, world!"
@@ -2130,6 +2130,39 @@ async def test_upload_orphan_code_as_txt__skips_call_without_code() -> None:
     lr.container_files = []
     lr.code_interpreter_calls = [call_no_code]
     assert await proc._upload_orphan_code_as_txt(lr) == []
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_upload_orphan_code_as_txt__uploads_source_code_not_stdout() -> None:
+    """
+    Purpose: Orphan .txt attachments must contain the executed source, not interpreter stdout.
+    Why this matters: stdout (e.g. print output) differs from code; users expect `code.txt` to
+    match what ran in the sandbox.
+    """
+    source = "x = 40 + 2\nprint(x)\n"
+    call = MagicMock(spec=ResponseCodeInterpreterToolCall)
+    call.code = source
+    call.outputs = [_make_logs_output("42")]
+    lr = MagicMock(spec=ResponsesLanguageModelStreamResponse)
+    lr.container_files = []
+    lr.code_interpreter_calls = [call]
+    chat = AsyncMock()
+    chat.upload_to_chat_from_bytes_async = AsyncMock(
+        return_value=MagicMock(id="cid-orphan-code")
+    )
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=chat,
+        company_id="co1",
+    )
+    blocks = await proc._upload_orphan_code_as_txt(lr)
+    assert len(blocks) == 1
+    chat.upload_to_chat_from_bytes_async.assert_awaited_once()
+    kwargs = chat.upload_to_chat_from_bytes_async.await_args.kwargs
+    assert kwargs["content"] == source.encode("utf-8")
 
 
 @pytest.mark.ai

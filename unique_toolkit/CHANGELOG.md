@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.70.5] - 2026-04-10
+- Code interpreter orphan `.txt` uploads (`_upload_orphan_code_as_txt`): file body is always the executed **source code**, not stdout from `code_interpreter_call.outputs`
+
 ## [1.70.4] - 2026-04-10
 - Code interpreter postprocessor (`generated_files.py`): dangling `sandbox:/mnt/data/...` markdown links are replaced with a per-file notice naming the file and suggesting regeneration, instead of the generic download-failure message
 - Orphan code-execution runs (no container file output, fence feature flag `enable_code_execution_fence_un_17972`): uploaded `.txt` artifacts are attached as `ContentReference` entries in `message.references` instead of appending `fileWithSource` fences to `message.text`; remove unused `_build_orphan_fences` and `_get_next_fence_id`
