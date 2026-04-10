@@ -14,12 +14,12 @@ from unique_web_search.schema import StepDebugInfo, WebSearchToolParameters
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
 )
-from unique_web_search.services.executors.v1.config import RefineQueryMode
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
     ExecutorConfiguration,
     ExecutorServiceContext,
 )
+from unique_web_search.services.executors.v1.config import RefineQueryMode
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )

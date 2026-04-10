@@ -116,11 +116,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
     def _resolve_search_engine_mode(self) -> SearchEngineMode:
         """Derive the search-engine mode, respecting CustomAPI overrides."""
         cfg = self.search_engine_service.config
-        override = (
-            cfg.search_engine_mode
-            if isinstance(cfg, CustomAPIConfig)
-            else None
-        )
+        override = cfg.search_engine_mode if isinstance(cfg, CustomAPIConfig) else None
         return get_search_engine_mode(cfg.search_engine_name, override=override)
 
     @override
@@ -157,16 +153,18 @@ class WebSearchTool(Tool[WebSearchConfig]):
             "date_string": datetime.now().strftime("%A %B %d, %Y"),
             "search_engine_mode": engine_mode.value,
             "tool_parameters_schema": WebSearchPlan.schema_hint(engine_mode),
-            "example_simple": WebSearchPlan.build_example_simple(engine_mode)
-            .model_dump_json(indent=2),
-            "example_complex": WebSearchPlan.build_example_complex(engine_mode)
-            .model_dump_json(indent=2),
+            "example_simple": WebSearchPlan.build_example_simple(
+                engine_mode
+            ).model_dump_json(indent=2),
+            "example_complex": WebSearchPlan.build_example_complex(
+                engine_mode
+            ).model_dump_json(indent=2),
         }
 
         if mode_config.mode == WebSearchMode.V3:
-            render_vars["example_fsi"] = (
-                WebSearchPlan.build_example_fsi(engine_mode).model_dump_json(indent=2)
-            )
+            render_vars["example_fsi"] = WebSearchPlan.build_example_fsi(
+                engine_mode
+            ).model_dump_json(indent=2)
 
         return template.render(**render_vars)
 
