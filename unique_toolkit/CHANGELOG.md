@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.70.2] - 2026-04-10
-- Fix: add `powerpoint` type mapping for `.pptx` / `.ppt` in `_file_frontend_type`; previously these emitted `type="document"` in `fileWithSource` fences instead of `type="powerpoint"`
+- Fix (UN-17927): add `powerpoint` type mapping for `.pptx` / `.ppt` in `_file_frontend_type`; previously these emitted `type="document"` in `fileWithSource` fences instead of `type="powerpoint"`
 
 ## [1.70.1] - 2026-04-09
 - Add three-state `supported_reasoning_efforts` per model: `None` (unknown — pass-through), `[]` (no reasoning), `[...]` (validated list incl. `xhigh`)
