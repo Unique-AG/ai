@@ -160,11 +160,11 @@ class SubAgentToolConfig(BaseToolConfig):
         description="Description of the message parameter extracted by the orchestrator and sent as the input message to the sub-agent.",
     )
 
-    poll_interval: float = Field(
+    poll_interval: Annotated[float, RJSFMetaTag.NumberWidget.updown()] = Field(
         default=1.0,
         description="Time interval in seconds between polling attempts when waiting for sub-agent response.",
     )
-    max_wait: float = Field(
+    max_wait: Annotated[float, RJSFMetaTag.NumberWidget.updown()] = Field(
         default=120.0,
         description="Maximum time in seconds to wait for the sub-agent response before timing out.",
     )

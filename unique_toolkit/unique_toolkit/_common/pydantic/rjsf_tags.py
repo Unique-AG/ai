@@ -23,6 +23,9 @@ from typing_extensions import get_type_hints
 
 _UNION_ORIGINS = {Union, types.UnionType}
 
+# Sentinel: omit ``default_string_empty_value`` so plain ``str`` fields stay unchanged.
+_DEFAULT_STRING_EMPTY_VALUE_UNSET = object()
+
 
 class CustomWidgetName(StrEnum):
     """Mirrors TypeScript CustomWidgetName. Keep in sync when extending."""
@@ -129,6 +132,7 @@ class RJSFMetaTag:
             description: str | None = None,
             help: str | None = None,
             class_names: str | None = None,
+            empty_value: str = "",
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a text field (default for strings)."""
@@ -142,6 +146,7 @@ class RJSFMetaTag:
                 "ui:description": description,
                 "ui:help": help,
                 "ui:classNames": class_names,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -157,6 +162,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str = "",
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a textarea field."""
@@ -169,6 +175,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -183,6 +190,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str = "",
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a password field."""
@@ -194,6 +202,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -206,6 +215,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str = "",
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a color picker field."""
@@ -215,6 +225,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -229,6 +240,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str = "",
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create an email field."""
@@ -240,6 +252,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -254,6 +267,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str = "",
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a URL field."""
@@ -265,6 +279,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -277,6 +292,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str | None = None,
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a date field."""
@@ -286,6 +302,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -298,6 +315,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str | None = None,
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a datetime field."""
@@ -307,6 +325,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -319,6 +338,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str | None = None,
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a time field."""
@@ -328,6 +348,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -341,6 +362,7 @@ class RJSFMetaTag:
             title: str | None = None,
             description: str | None = None,
             help: str | None = None,
+            empty_value: str = "",
             **kwargs: Any,
         ) -> RJSFMetaTag:
             """Create a file upload field."""
@@ -351,6 +373,7 @@ class RJSFMetaTag:
                 "ui:title": title,
                 "ui:description": description,
                 "ui:help": help,
+                "ui:emptyValue": empty_value,
                 **kwargs,
             }
             return RJSFMetaTag({k: v for k, v in attrs.items() if v is not None})
@@ -820,12 +843,26 @@ def _is_pyd_model(t: Any) -> bool:
         return False
 
 
+def _maybe_set_string_empty_value(
+    node: dict[str, Any],
+    base: Any,
+    default_string_empty_value: Any,
+) -> None:
+    """Set ``ui:emptyValue`` for plain ``str`` fields when requested and not already set."""
+    if default_string_empty_value is _DEFAULT_STRING_EMPTY_VALUE_UNSET:
+        return
+    if base is not str or "ui:emptyValue" in node:
+        return
+    node["ui:emptyValue"] = default_string_empty_value
+
+
 # --------- Build RJSF-style uiSchema dict from a model *type* ----------
 def ui_schema_for_model(
     model_cls: type[BaseModel],
     *,
     key_transform: Callable[[str], str] | None = None,
     value_transform: Callable[[str], str] | None = None,
+    default_string_empty_value: Any = _DEFAULT_STRING_EMPTY_VALUE_UNSET,
 ) -> dict[str, Any]:
     """
     Generate a React JSON Schema Form (RJSF) uiSchema from a Pydantic model.
@@ -853,6 +890,14 @@ def ui_schema_for_model(
             **string values inside ``ui:order`` lists**.  Defaults to
             *key_transform* when not provided, since ``ui:order`` values
             must match the (transformed) property names.
+        default_string_empty_value: When not omitted, ``ui:emptyValue`` is
+            added for every plain ``str`` field (including ``list[str]``
+            items, ``dict`` values, and ``Union`` branches) that does not
+            already define ``ui:emptyValue`` (for example via
+            ``Annotated[..., RJSFMetaTag...]``). Use this so bare ``str``
+            annotations get RJSF empty-input behaviour without repeating
+            metadata. Pass ``None`` to emit JSON ``null`` as the empty
+            value.
 
     Returns:
         A dictionary representing the RJSF uiSchema with the structure:
@@ -899,7 +944,12 @@ def ui_schema_for_model(
 
         # Nested model -> inline children
         if _is_pyd_model(base):
-            node.update(ui_schema_for_model(base))
+            node.update(
+                ui_schema_for_model(
+                    base,
+                    default_string_empty_value=default_string_empty_value,
+                )
+            )
 
         # Array-like -> items
         elif origin in (list, set, tuple):
@@ -911,7 +961,15 @@ def ui_schema_for_model(
             if item_meta:
                 item_node.update(item_meta)
             if _is_pyd_model(item_base):
-                item_node.update(ui_schema_for_model(item_base))
+                item_node.update(
+                    ui_schema_for_model(
+                        item_base,
+                        default_string_empty_value=default_string_empty_value,
+                    )
+                )
+            _maybe_set_string_empty_value(
+                item_node, item_base, default_string_empty_value
+            )
             node["items"] = item_node
 
         # Dict -> additionalProperties (value side)
@@ -924,7 +982,15 @@ def ui_schema_for_model(
             if val_meta:
                 val_node.update(val_meta)
             if _is_pyd_model(val_base):
-                val_node.update(ui_schema_for_model(val_base))
+                val_node.update(
+                    ui_schema_for_model(
+                        val_base,
+                        default_string_empty_value=default_string_empty_value,
+                    )
+                )
+            _maybe_set_string_empty_value(
+                val_node, val_base, default_string_empty_value
+            )
             node["additionalProperties"] = val_node
 
         # Union -> anyOf branches
@@ -938,7 +1004,13 @@ def ui_schema_for_model(
                 if alt_meta:
                     branch.update(alt_meta)
                 if _is_pyd_model(alt_b):
-                    branch.update(ui_schema_for_model(alt_b))
+                    branch.update(
+                        ui_schema_for_model(
+                            alt_b,
+                            default_string_empty_value=default_string_empty_value,
+                        )
+                    )
+                _maybe_set_string_empty_value(branch, alt_b, default_string_empty_value)
                 branches.append(branch)
             if branches:
                 # Check if the metadata already has an anyOf structure (from Union composer)
@@ -950,6 +1022,7 @@ def ui_schema_for_model(
                     node["anyOf"] = branches
 
         # Scalars: node already has metadata if any
+        _maybe_set_string_empty_value(node, base, default_string_empty_value)
 
         ui[fname] = node
 
