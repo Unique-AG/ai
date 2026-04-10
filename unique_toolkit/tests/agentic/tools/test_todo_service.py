@@ -21,13 +21,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from unique_toolkit.agentic.tools.experimental.todo.config import (
-    _DEFAULT_SYSTEM_PROMPT,
-    _DEFAULT_TOOL_DESCRIPTION,
-    _PARALLEL_EXECUTION_REMINDER,
-    _PARALLEL_EXECUTION_RULES,
-    _PARALLEL_TOOL_DESCRIPTION,
-    TodoConfig,
+from unique_toolkit._common.utils.jinja.render import render_template
+from unique_toolkit.agentic.tools.experimental.todo.config import TodoConfig
+from unique_toolkit.agentic.tools.experimental.todo.prompts import (
+    EXECUTION_REMINDER_TEMPLATE,
+    SYSTEM_PROMPT_TEMPLATE,
+    TOOL_DESCRIPTION_TEMPLATE,
 )
 from unique_toolkit.agentic.tools.experimental.todo.schemas import (
     TodoItem,
@@ -740,7 +739,8 @@ class TestTodoWriteToolConfig:
     def test_default_system_prompt(self) -> None:
         tool = _make_tool()
         prompt = tool.tool_description_for_system_prompt()
-        assert prompt == _DEFAULT_SYSTEM_PROMPT
+        expected = render_template(SYSTEM_PROMPT_TEMPLATE, parallel_mode=False)
+        assert prompt == expected
         assert "todo_write" in prompt
 
     def test_custom_system_prompt(self) -> None:
@@ -999,42 +999,50 @@ class TestVerificationNudge:
 
 
 class TestParallelModeConfig:
-    """Tests for parallel_mode toggling descriptions and reminders."""
+    """Tests for parallel_mode toggling descriptions and reminders via Jinja templates."""
 
     def test_default_is_sequential(self) -> None:
         config = TodoConfig()
         assert config.parallel_mode is False
 
     def test_sequential_tool_description(self) -> None:
-        config = TodoConfig(parallel_mode=False)
-        assert config.effective_tool_description == _DEFAULT_TOOL_DESCRIPTION
+        tool = _make_tool(config=TodoConfig(parallel_mode=False))
+        desc = tool.tool_description()
+        expected = render_template(TOOL_DESCRIPTION_TEMPLATE, parallel_mode=False)
+        assert desc.description == expected
+        assert "Mark exactly one item" in desc.description
 
     def test_parallel_tool_description(self) -> None:
-        config = TodoConfig(parallel_mode=True)
-        assert config.effective_tool_description == _PARALLEL_TOOL_DESCRIPTION
-
-    def test_sequential_execution_reminder(self) -> None:
-        config = TodoConfig(parallel_mode=False)
-        assert "Mark exactly one item" in config.effective_execution_reminder
-
-    def test_parallel_execution_reminder(self) -> None:
-        config = TodoConfig(parallel_mode=True)
-        assert config.effective_execution_reminder == _PARALLEL_EXECUTION_REMINDER
-
-    @pytest.mark.asyncio
-    async def test_tool_uses_effective_description(self) -> None:
         tool = _make_tool(config=TodoConfig(parallel_mode=True))
         desc = tool.tool_description()
-        assert desc.description == _PARALLEL_TOOL_DESCRIPTION
+        expected = render_template(TOOL_DESCRIPTION_TEMPLATE, parallel_mode=True)
+        assert desc.description == expected
+        assert "multiple items in_progress" in desc.description
 
-    @pytest.mark.asyncio
-    async def test_tool_uses_effective_system_prompt(self) -> None:
+    def test_sequential_execution_reminder(self) -> None:
+        rendered = render_template(EXECUTION_REMINDER_TEMPLATE, parallel_mode=False)
+        assert "Mark exactly one item" in rendered
+        assert "todo_write call alongside" not in rendered
+
+    def test_parallel_execution_reminder(self) -> None:
+        rendered = render_template(EXECUTION_REMINDER_TEMPLATE, parallel_mode=True)
+        assert "todo_write call alongside" in rendered
+        assert "Mark exactly one item" not in rendered
+
+    def test_tool_uses_parallel_description(self) -> None:
+        tool = _make_tool(config=TodoConfig(parallel_mode=True))
+        desc = tool.tool_description()
+        expected = render_template(TOOL_DESCRIPTION_TEMPLATE, parallel_mode=True)
+        assert desc.description == expected
+
+    def test_tool_uses_parallel_system_prompt(self) -> None:
         tool = _make_tool(config=TodoConfig(parallel_mode=True))
         prompt = tool.tool_description_for_system_prompt()
         assert "parallel" in prompt.lower()
+        assert "Mark exactly ONE item as in_progress at a time" not in prompt
 
     @pytest.mark.asyncio
-    async def test_tool_uses_effective_reminder_in_response(self) -> None:
+    async def test_tool_uses_parallel_reminder_in_response(self) -> None:
         tool = _make_tool(config=TodoConfig(parallel_mode=True))
         tc = _make_tool_call(
             {
@@ -1046,23 +1054,38 @@ class TestParallelModeConfig:
         )
 
         response = await tool.run(tc)
-        assert response.system_reminder == _PARALLEL_EXECUTION_REMINDER
+        expected = render_template(EXECUTION_REMINDER_TEMPLATE, parallel_mode=True)
+        assert response.system_reminder == expected
 
-    def test_parallel_mode_appends_rules_when_prompt_customized(self) -> None:
-        """When system_prompt is customized and no longer contains the
-        sequential rules substring, parallel execution rules are appended."""
-        custom_prompt = "You are a helpful assistant. Do your best."
-        config = TodoConfig(parallel_mode=True, system_prompt=custom_prompt)
-        result = config.effective_system_prompt
-        assert custom_prompt in result
-        assert _PARALLEL_EXECUTION_RULES.strip() in result
+    def test_custom_prompt_rendered_as_jinja(self) -> None:
+        """Custom templates with Jinja syntax are rendered with parallel_mode."""
+        custom = "Mode: {% if parallel_mode %}parallel{% else %}sequential{% endif %}"
+        config = TodoConfig(parallel_mode=True, system_prompt=custom)
+        tool = _make_tool(config=config)
+        assert tool.tool_description_for_system_prompt() == "Mode: parallel"
 
-    def test_parallel_mode_preserves_custom_tool_description(self) -> None:
+    def test_custom_tool_description_rendered(self) -> None:
         custom = "My custom tool description."
-        config = TodoConfig(parallel_mode=True, tool_description=custom)
-        assert config.effective_tool_description == custom
+        tool = _make_tool(
+            config=TodoConfig(parallel_mode=True, tool_description=custom)
+        )
+        desc = tool.tool_description()
+        assert desc.description == custom
 
-    def test_parallel_mode_preserves_custom_execution_reminder(self) -> None:
+    @pytest.mark.asyncio
+    async def test_custom_execution_reminder_rendered(self) -> None:
         custom = "My custom reminder."
-        config = TodoConfig(parallel_mode=True, execution_reminder=custom)
-        assert config.effective_execution_reminder == custom
+        tool = _make_tool(
+            config=TodoConfig(parallel_mode=True, execution_reminder=custom)
+        )
+        tc = _make_tool_call(
+            {
+                "todos": [
+                    {"id": "t1", "content": "Task", "status": "pending"},
+                ],
+                "merge": False,
+            }
+        )
+
+        response = await tool.run(tc)
+        assert response.system_reminder == custom
