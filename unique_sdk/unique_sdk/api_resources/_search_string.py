@@ -8,7 +8,7 @@ from unique_sdk._util import classproperty
 
 
 class HistoryMessage(TypedDict):
-    role: Literal["system", "user", "assistant"]
+    role: str
     text: str
 
 
@@ -17,17 +17,14 @@ class SearchString(APIResource["SearchString"]):
     def OBJECT_NAME(cls) -> Literal["search.search-string"]:
         return "search.search-string"
 
+    searchString: str
+    object: str
+
     class CreateParams(RequestOptions):
         prompt: str
-        chatId: NotRequired["str"]
+        chatId: NotRequired[str]
         messages: NotRequired[list[HistoryMessage]]
-        languageModel: NotRequired[
-            Literal[
-                "AZURE_GPT_4_0613",
-                "AZURE_GPT_4_32K_0613",
-                "AZURE_GPT_4_TURBO_1106",
-            ]
-        ]
+        languageModel: NotRequired[str]
 
     @classmethod
     def create(
