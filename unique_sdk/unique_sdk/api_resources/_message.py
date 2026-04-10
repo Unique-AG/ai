@@ -27,12 +27,29 @@ class Message(APIResource["Message"]):
 
     class Reference(TypedDict):
         name: str
-        description: str | None
-        url: str | None
         sequenceNumber: int
-        originalIndex: list[int] | None
         sourceId: str
         source: str
+        description: NotRequired[str | None]
+        url: NotRequired[str | None]
+        originalIndex: NotRequired[list[int] | None]
+
+    class Assessment(TypedDict):
+        """Assessment row attached to a message."""
+
+        id: str
+        createdAt: str
+        updatedAt: str
+        messageId: str
+        status: str
+        explanation: str | None
+        label: str | None
+        type: str | None
+        title: str | None
+        companyId: str
+        userId: str
+        isVisible: bool
+        createdBy: str | None
 
     class Correlation(TypedDict):
         parentMessageId: str
@@ -42,11 +59,12 @@ class Message(APIResource["Message"]):
     class CreateParams(RequestOptions):
         chatId: str
         assistantId: str
-        role: Literal["ASSISTANT"]
+        role: Literal["ASSISTANT", "USER"]
         text: NotRequired[str | None]
-        references: list["Message.Reference"] | None
-        debugInfo: dict[str, Any] | None
-        completedAt: datetime | None
+        references: NotRequired[list["Message.Reference"] | None]
+        gptRequest: NotRequired[dict[str, Any] | None]
+        debugInfo: NotRequired[dict[str, Any] | None]
+        completedAt: NotRequired[datetime | None]
         correlation: NotRequired["Message.Correlation | None"]
 
     class ModifyParams(RequestOptions):
@@ -74,11 +92,19 @@ class Message(APIResource["Message"]):
 
     chatId: str
     text: str | None
+    originalText: str | None
     role: Literal["SYSTEM", "USER", "ASSISTANT"]
     gptRequest: dict[str, Any] | None
     debugInfo: dict[str, Any] | None
+    completedAt: datetime | None
+    createdAt: datetime | None
+    updatedAt: datetime | None
     startedStreamingAt: datetime | None
     stoppedStreamingAt: datetime | None
+    userAbortedAt: datetime | None
+    references: list["Message.Reference"] | None
+    assessment: list["Message.Assessment"] | None
+    object: str
 
     @classmethod
     def list(
