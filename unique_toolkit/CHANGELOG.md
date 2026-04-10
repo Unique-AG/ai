@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.70.4] - 2026-04-10
 - Code interpreter postprocessing: when the model generates a file but omits `sandbox:/mnt/data/...` in the assistant message, append a fallback line `📎 [filename](unique://content/<content_id>)` instead of silently dropping the file (image, HTML, and document paths)
 - `_warn_unmatched_code_blocks` now returns `{filename: content_id}` for files with no code-block match; `apply_postprocessing_to_response` logs them when the code-execution fence feature flag is on
+- Fix: wrap code-interpreter `_upload_files_to_container` download and `containers.files.create` with tenacity exponential backoff (same pattern as generated-files postprocessor) so transient network or throttling does not leave the container without chat-uploaded files; log retries at WARNING and success at INFO
 
 ## [1.70.3] - 2026-04-10
 - Add optional `default_string_empty_value` to `ui_schema_for_model` so bare `str` fields (and `str` items, dict values, union branches, nested models) can get `ui:emptyValue` without `Annotated[..., RJSFMetaTag]`
