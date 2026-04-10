@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.22.0] - 2026-04-09
+- Raise `LIMIT_MAX_LOOP_ITERATIONS` from 10 to 100 and default `max_loop_iterations` from 5 to 50 to support multi-step agent workflows
+
 ## [1.21.0] - 2026-04-09
 - Widen `openai` dependency upper bound from `<2` to `<3` to allow openai SDK v2.x (required for litellm security fix)
 
