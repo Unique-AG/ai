@@ -36,6 +36,58 @@ class Tool(ABC, Generic[ConfigType]):
     name: str
     settings: ToolBuildConfig
 
+    @overload
+    def __init__(self, config: ConfigType) -> None: ...
+
+    @overload
+    @deprecated("Use Tool(name, settings) instead")
+    def __init__(
+        self,
+        config: ConfigType,
+        event: ChatEvent,
+        tool_progress_reporter: ToolProgressReporter | None = ...,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        config: ConfigType,
+        event: ChatEvent | None = None,
+        tool_progress_reporter: ToolProgressReporter | None = None,
+    ) -> None:
+        """Initialize the tool.
+
+        Preferred (decoupled): `Tool(config)` — configuration only.
+
+        Backward compatible: `Tool(config, event, tool_progress_reporter)` — creates
+        deprecated chat_service, language_model_service, message_step_logger for
+        legacy subclasses.
+        """
+        self.settings = ToolBuildConfig(
+            name=self.name,
+            tool_type=self.name,
+            configuration=config,
+        )
+
+        self.config = config
+        module_name = "default overwrite for module name"
+        self.logger = getLogger(f"{module_name}.{__name__}")
+        self.debug_info: dict = {}
+
+        if event is not None:
+            from unique_toolkit.agentic.message_log_manager.service import (
+                MessageStepLogger,
+            )
+            from unique_toolkit.chat.service import ChatService
+            from unique_toolkit.language_model.service import LanguageModelService
+
+            self._event = event
+            self._tool_progress_reporter = tool_progress_reporter
+            self._chat_service = ChatService(event)
+            self._language_model_service = LanguageModelService.from_event(event)
+            self._message_step_logger = MessageStepLogger(
+                chat_service=self._chat_service,
+            )
+
     def display_name(self) -> str:
         """The display name of the tool."""
         return self.settings.display_name
@@ -139,56 +191,6 @@ class Tool(ABC, Generic[ConfigType]):
             tool_user_prompt=self.tool_description_for_user_prompt(),
             tool_format_information_for_user_prompt=self.tool_format_information_for_user_prompt(),
         )
-
-    @overload
-    def __init__(self, config: ConfigType) -> None: ...
-
-    @overload
-    def __init__(
-        self,
-        config: ConfigType,
-        event: ChatEvent,
-        tool_progress_reporter: ToolProgressReporter | None = ...,
-    ) -> None: ...
-
-    def __init__(
-        self,
-        config: ConfigType,
-        event: ChatEvent | None = None,
-        tool_progress_reporter: ToolProgressReporter | None = None,
-    ) -> None:
-        """Initialize the tool.
-
-        Preferred (decoupled): `Tool(config)` — configuration only.
-
-        Backward compatible: `Tool(config, event, tool_progress_reporter)` — creates
-        deprecated chat_service, language_model_service, message_step_logger for
-        legacy subclasses.
-        """
-        self.settings = ToolBuildConfig(
-            name=self.name,
-            configuration=config,
-        )
-
-        self.config = config
-        module_name = "default overwrite for module name"
-        self.logger = getLogger(f"{module_name}.{__name__}")
-        self.debug_info: dict = {}
-
-        if event is not None:
-            from unique_toolkit.agentic.message_log_manager.service import (
-                MessageStepLogger,
-            )
-            from unique_toolkit.chat.service import ChatService
-            from unique_toolkit.language_model.service import LanguageModelService
-
-            self._event = event
-            self._tool_progress_reporter = tool_progress_reporter
-            self._chat_service = ChatService(event)
-            self._language_model_service = LanguageModelService.from_event(event)
-            self._message_step_logger = MessageStepLogger(
-                chat_service=self._chat_service,
-            )
 
     @property
     @deprecated(

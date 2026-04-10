@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import asyncio
 import time
 from logging import Logger, getLogger
-from typing import Generic, Literal, TypeVar, overload
+from typing import Generic, Iterable, Literal, TypeVar, cast, overload
 
 from openai.types.chat import (
     ChatCompletionNamedToolChoiceParam,
@@ -11,7 +13,7 @@ from openai.types.responses import (
     ToolParam,
     response_create_params,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from unique_toolkit._common.execution import (
     Result,
@@ -48,6 +50,111 @@ class ToolManagerConfig(BaseModel):
         ge=1,
         description="Maximum number of tool calls that can be executed in one iteration.",
     )
+
+
+class ToolManagerState(BaseModel):
+    """Snapshot of tool-manager runtime data.
+
+    Transitions are **functional**: methods like :meth:`with_added_tool` return a new
+    instance; :class:`_ToolManager` applies them via :meth:`_ToolManager._replace_state`.
+    """
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    tool_choices: list[str] = Field(
+        default_factory=list,
+        description="User/session tool choice names; may grow via add_forced_tool.",
+    )
+    disabled_tools: list[str] = Field(
+        default_factory=list,
+        description="Tool names disabled for this event.",
+    )
+    exclusive_tools: list[str] = Field(
+        default_factory=list,
+        description="Names of tools configured as exclusive (from ToolBuildConfig).",
+    )
+    tool_evaluation_check_list: set[EvaluationMetricName] = Field(
+        default_factory=set,
+        description="Accumulated evaluation metrics from executed tools.",
+    )
+
+    tools: list[Tool | OpenAIBuiltInTool] = Field(
+        default_factory=list,
+        description="Active tools offered to the model after filtering.",
+    )
+    internal_tools: list[Tool] = Field(
+        default_factory=list,
+        description="Tools built from ToolFactory for this session.",
+    )
+    mcp_tools: list[Tool] = Field(
+        default_factory=list,
+        description="MCP-backed tools from MCPManager.",
+    )
+    sub_agents: list[SubAgentTool] = Field(
+        default_factory=list,
+        description="Sub-agent tools from A2AManager.",
+    )
+    builtin_tools: list[OpenAIBuiltInTool] = Field(
+        default_factory=list,
+        description="OpenAI built-in tools (Responses API only).",
+    )
+    available_tools: list[Tool | OpenAIBuiltInTool] = Field(
+        default_factory=list,
+        description="Union of internal, MCP, sub-agent, and built-in tools before choice filtering.",
+    )
+
+    def with_added_tool(self, tool: Tool) -> ToolManagerState:
+        """Return a new state with ``tool`` appended to internal, available, and active lists."""
+        return self.model_copy(
+            update={
+                "internal_tools": [*self.internal_tools, tool],
+                "available_tools": [*self.available_tools, tool],
+                "tools": [*self.tools, tool],
+            }
+        )
+
+    def without_tool_named(self, name: str) -> tuple[ToolManagerState, bool]:
+        """Return a new state with ``name`` removed from all tool lists; ``found`` if anything changed."""
+        filtered_tools = [t for t in self.tools if t.name != name]
+        filtered_internal = [t for t in self.internal_tools if t.name != name]
+        filtered_mcp = [t for t in self.mcp_tools if t.name != name]
+        filtered_sub = [t for t in self.sub_agents if t.name != name]
+        filtered_builtin = [t for t in self.builtin_tools if t.name != name]
+        filtered_available = [t for t in self.available_tools if t.name != name]
+        found = (
+            len(filtered_tools) != len(self.tools)
+            or len(filtered_internal) != len(self.internal_tools)
+            or len(filtered_mcp) != len(self.mcp_tools)
+            or len(filtered_sub) != len(self.sub_agents)
+            or len(filtered_builtin) != len(self.builtin_tools)
+            or len(filtered_available) != len(self.available_tools)
+        )
+        return (
+            self.model_copy(
+                update={
+                    "tools": filtered_tools,
+                    "internal_tools": filtered_internal,
+                    "mcp_tools": filtered_mcp,
+                    "sub_agents": filtered_sub,
+                    "builtin_tools": filtered_builtin,
+                    "available_tools": filtered_available,
+                }
+            ),
+            found,
+        )
+
+    def with_tool_choice(self, name: str) -> ToolManagerState:
+        """Return a new state with ``name`` appended to ``tool_choices`` if missing."""
+        if name in self.tool_choices:
+            return self
+        return self.model_copy(update={"tool_choices": [*self.tool_choices, name]})
+
+    def with_evaluation_checks(
+        self, checks: Iterable[EvaluationMetricName]
+    ) -> ToolManagerState:
+        """Return a new state merging evaluation metrics into ``tool_evaluation_check_list``."""
+        merged = set(self.tool_evaluation_check_list) | set(checks)
+        return self.model_copy(update={"tool_evaluation_check_list": merged})
 
 
 _ApiMode = TypeVar("_ApiMode", Literal["completions"], Literal["responses"])
@@ -88,48 +195,44 @@ class _ToolManager(Generic[_ApiMode]):
         self._logger = logger
         self._config = config
         self._tool_progress_reporter = tool_progress_reporter
-        self._tools: list[Tool | OpenAIBuiltInTool] = []
-        self._tool_choices = event.payload.tool_choices
-        self._disabled_tools = event.payload.disabled_tools
-        self._exclusive_tools = [
-            tool.name for tool in self._config.tools if tool.is_exclusive
-        ]
-        # this needs to be a set of strings to avoid duplicates
-        self._tool_evaluation_check_list: set[EvaluationMetricName] = set()
         self._mcp_manager = mcp_manager
         self._a2a_manager = a2a_manager
         self._builtin_tool_manager = builtin_tool_manager
         self._api_mode = api_mode
+        self._state = ToolManagerState(
+            tool_choices=list(event.payload.tool_choices),
+            disabled_tools=list(event.payload.disabled_tools),
+            exclusive_tools=[
+                tool.name for tool in self._config.tools if tool.is_exclusive
+            ],
+        )
         self._init__tools(event)
 
-    def _init__tools(self, event: ChatEvent) -> None:
-        tool_choices = self._tool_choices
-        tool_configs = self._config.tools
+    def _replace_state(self, new_state: ToolManagerState) -> None:
+        self._state = new_state
+
+    def _build_initialized_state(self, event: ChatEvent) -> ToolManagerState:
+        """Assemble tool lists and active set; does not mutate ``self._state``."""
+        base = self._state
         self._logger.info("Initializing tool definitions...")
-        self._logger.info(f"Tool choices: {tool_choices}")
+        self._logger.info(f"Tool choices: {base.tool_choices}")
 
         tool_configs, sub_agents = self._a2a_manager.get_all_sub_agents(
-            tool_configs, event
+            self._config.tools, event
         )
-        self._sub_agents = sub_agents
 
-        registered_tool_names = set(t.name for t in self._sub_agents)
+        registered_tool_names = {t.name for t in sub_agents}
 
-        self._builtin_tools = []
+        builtin_tools: list[OpenAIBuiltInTool] = []
         if self._builtin_tool_manager is not None and self._api_mode == "responses":
-            self._builtin_tools = (
-                self._builtin_tool_manager.get_all_openai_builtin_tools()
-            )
+            builtin_tools = self._builtin_tool_manager.get_all_openai_builtin_tools()
 
-        registered_tool_names.update(t.name for t in self._builtin_tools)
+        registered_tool_names.update(t.name for t in builtin_tools)
 
-        # Get MCP tools (these are already properly instantiated)
-        self._mcp_tools = self._mcp_manager.get_all_mcp_tools()
+        mcp_tools = self._mcp_manager.get_all_mcp_tools()
+        registered_tool_names.update(t.name for t in mcp_tools)
 
-        registered_tool_names.update(t.name for t in self._mcp_tools)
-
-        # Build internal tools from configurations
-        self._internal_tools = [
+        internal_tools = [
             ToolFactory.build_tool_with_settings(
                 t.name,
                 t,
@@ -138,37 +241,62 @@ class _ToolManager(Generic[_ApiMode]):
                 tool_progress_reporter=self._tool_progress_reporter,
             )
             for t in tool_configs
-            if t.name not in registered_tool_names  # Skip already handled tools
-            and t.name not in OpenAIBuiltInToolName  # Safeguard
+            if t.name not in registered_tool_names
+            and t.name not in OpenAIBuiltInToolName
         ]
 
-        # Combine all types of tools
-        self.available_tools = (
-            self._internal_tools
-            + self._mcp_tools
-            + self._sub_agents
-            + self._builtin_tools
+        available_tools = cast(
+            list[Tool | OpenAIBuiltInTool],
+            [*internal_tools, *mcp_tools, *sub_agents, *builtin_tools],
         )
 
-        for t in self.available_tools:
+        active: list[Tool | OpenAIBuiltInTool] = []
+        for t in available_tools:
             if not t.is_enabled():
                 continue
-            if t.name in self._disabled_tools:
+            if t.name in base.disabled_tools:
                 continue
-            # if tool choices are given, only include those tools
-            if len(self._tool_choices) > 0 and t.name not in self._tool_choices:
+            if len(base.tool_choices) > 0 and t.name not in base.tool_choices:
                 if t.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
-                    self._tools.append(t)
+                    active.append(t)
                 continue
-            # is the tool exclusive and has been choosen by the user?
-            if t.is_exclusive() and len(tool_choices) > 0 and t.name in tool_choices:
-                self._tools = [t]  # override all other tools
-                break
-            # if the tool is exclusive but no tool choices are given, skip it
+            if (
+                t.is_exclusive()
+                and len(base.tool_choices) > 0
+                and t.name in base.tool_choices
+            ):
+                return ToolManagerState(
+                    tool_choices=base.tool_choices,
+                    disabled_tools=base.disabled_tools,
+                    exclusive_tools=base.exclusive_tools,
+                    tool_evaluation_check_list=base.tool_evaluation_check_list,
+                    sub_agents=sub_agents,
+                    builtin_tools=builtin_tools,
+                    mcp_tools=mcp_tools,
+                    internal_tools=internal_tools,
+                    available_tools=available_tools,
+                    tools=[t],
+                )
             if t.is_exclusive():
                 continue
 
-            self._tools.append(t)
+            active.append(t)
+
+        return ToolManagerState(
+            tool_choices=base.tool_choices,
+            disabled_tools=base.disabled_tools,
+            exclusive_tools=base.exclusive_tools,
+            tool_evaluation_check_list=base.tool_evaluation_check_list,
+            sub_agents=sub_agents,
+            builtin_tools=builtin_tools,
+            mcp_tools=mcp_tools,
+            internal_tools=internal_tools,
+            available_tools=available_tools,
+            tools=active,
+        )
+
+    def _init__tools(self, event: ChatEvent) -> None:
+        self._replace_state(self._build_initialized_state(event))
 
     def filter_tool_calls(
         self,
@@ -178,10 +306,10 @@ class _ToolManager(Generic[_ApiMode]):
         filtered_calls = []
 
         # Build sets for efficient lookup
-        internal_tool_names = {tool.name for tool in self._internal_tools}
-        mcp_tool_names = {tool.name for tool in self._mcp_tools}
-        sub_agent_names = {tool.name for tool in self._sub_agents}
-        builtin_tool_names = {tool.name for tool in self._builtin_tools}
+        internal_tool_names = {tool.name for tool in self._state.internal_tools}
+        mcp_tool_names = {tool.name for tool in self._state.mcp_tools}
+        sub_agent_names = {tool.name for tool in self._state.sub_agents}
+        builtin_tool_names = {tool.name for tool in self._state.builtin_tools}
 
         for tool_call in tool_calls:
             if "internal" in tool_types and tool_call.name in internal_tool_names:
@@ -198,20 +326,32 @@ class _ToolManager(Generic[_ApiMode]):
         return filtered_calls
 
     @property
+    def state(self) -> ToolManagerState:
+        return self._state
+
+    @property
+    def available_tools(self) -> list[Tool | OpenAIBuiltInTool]:
+        return self._state.available_tools
+
+    @available_tools.setter
+    def available_tools(self, value: list[Tool | OpenAIBuiltInTool]) -> None:
+        self._replace_state(self._state.model_copy(update={"available_tools": value}))
+
+    @property
     def sub_agents(self) -> list[SubAgentTool]:
-        return self._sub_agents
+        return self._state.sub_agents
 
     def log_loaded_tools(self):
-        self._logger.info(f"Loaded tools: {[tool.name for tool in self._tools]}")
+        self._logger.info(f"Loaded tools: {[tool.name for tool in self._state.tools]}")
 
     def get_tool_choices(self) -> list[str]:
-        return self._tool_choices.copy()
+        return self._state.tool_choices.copy()
 
     def get_exclusive_tools(self) -> list[str]:
-        return self._exclusive_tools.copy()
+        return self._state.exclusive_tools.copy()
 
     def get_tool_prompts(self) -> list[ToolPrompts]:
-        return [tool.get_tool_prompts() for tool in self._tools]
+        return [tool.get_tool_prompts() for tool in self._state.tools]
 
     def add_tool(self, tool: Tool) -> None:
         """Inject an externally constructed tool into the manager.
@@ -219,9 +359,7 @@ class _ToolManager(Generic[_ApiMode]):
         Use this for tools that require custom constructor arguments (e.g. a
         shared registry) that cannot be built through ToolFactory.
         """
-        self._internal_tools.append(tool)
-        self.available_tools.append(tool)
-        self._tools.append(tool)
+        self._replace_state(self._state.with_added_tool(tool))
 
     def exclude_tool(self, name: str) -> bool:
         """Exclude a tool by name from the active tool set.
@@ -230,38 +368,8 @@ class _ToolManager(Generic[_ApiMode]):
         longer be offered to the model or executed.  Returns True if the tool
         was present in at least one list.
         """
-        found = False
-
-        filtered_tools = [tool for tool in self._tools if tool.name != name]
-        found = found or len(filtered_tools) != len(self._tools)
-        self._tools = filtered_tools
-
-        filtered_internal_tools = [
-            tool for tool in self._internal_tools if tool.name != name
-        ]
-        found = found or len(filtered_internal_tools) != len(self._internal_tools)
-        self._internal_tools = filtered_internal_tools
-
-        filtered_mcp_tools = [tool for tool in self._mcp_tools if tool.name != name]
-        found = found or len(filtered_mcp_tools) != len(self._mcp_tools)
-        self._mcp_tools = filtered_mcp_tools
-
-        filtered_sub_agents = [tool for tool in self._sub_agents if tool.name != name]
-        found = found or len(filtered_sub_agents) != len(self._sub_agents)
-        self._sub_agents = filtered_sub_agents
-
-        filtered_builtin_tools = [
-            tool for tool in self._builtin_tools if tool.name != name
-        ]
-        found = found or len(filtered_builtin_tools) != len(self._builtin_tools)
-        self._builtin_tools = filtered_builtin_tools
-
-        filtered_available_tools = [
-            tool for tool in self.available_tools if tool.name != name
-        ]
-        found = found or len(filtered_available_tools) != len(self.available_tools)
-        self.available_tools = filtered_available_tools
-
+        new_state, found = self._state.without_tool_named(name)
+        self._replace_state(new_state)
         return found
 
     def add_forced_tool(self, name):
@@ -269,8 +377,7 @@ class _ToolManager(Generic[_ApiMode]):
         if not tool:
             raise ValueError(f"Tool {name} not found")
 
-        if tool.name not in self._tool_choices:
-            self._tool_choices.append(tool.name)
+        self._replace_state(self._state.with_tool_choice(tool.name))
 
     def does_a_tool_take_control(self, tool_calls: list[LanguageModelFunction]) -> bool:
         for tool_call in tool_calls:
@@ -280,7 +387,7 @@ class _ToolManager(Generic[_ApiMode]):
         return False
 
     def get_evaluation_check_list(self) -> list[EvaluationMetricName]:
-        return list(self._tool_evaluation_check_list)
+        return list(self._state.tool_evaluation_check_list)
 
     async def execute_selected_tools(
         self,
@@ -352,7 +459,7 @@ class _ToolManager(Generic[_ApiMode]):
             tool_response.debug_info["execution_time_s"] = tool_execution_time
 
             evaluation_checks = tool_instance.evaluation_check_list()
-            self._tool_evaluation_check_list.update(evaluation_checks)
+            self._replace_state(self._state.with_evaluation_checks(evaluation_checks))
 
             return tool_response
 
@@ -433,7 +540,7 @@ class _ToolManager(Generic[_ApiMode]):
     ) -> Tool | OpenAIBuiltInTool | None: ...
 
     def get_tool_by_name(self, name: str) -> Tool | OpenAIBuiltInTool | None:
-        for tool in self._tools:
+        for tool in self._state.tools:
             if tool.name == name:
                 return tool
         return None
@@ -447,7 +554,7 @@ class _ToolManager(Generic[_ApiMode]):
     ) -> list[Tool | OpenAIBuiltInTool]: ...
 
     def get_tools(self) -> list[Tool] | list[Tool | OpenAIBuiltInTool]:
-        return self._tools.copy()
+        return self._state.tools.copy()
 
     @overload
     def get_forced_tools(
@@ -467,8 +574,8 @@ class _ToolManager(Generic[_ApiMode]):
     ):
         return [
             _convert_to_forced_tool(t.name, mode=self._api_mode)
-            for t in self._tools
-            if t.name in self._tool_choices
+            for t in self._state.tools
+            if t.name in self._state.tool_choices
         ]  # type: ignore
 
     @overload
@@ -487,7 +594,7 @@ class _ToolManager(Generic[_ApiMode]):
         list[LanguageModelToolDescription]
         | list[LanguageModelToolDescription | ToolParam]
     ):
-        return [tool.tool_description() for tool in self._tools]
+        return [tool.tool_description() for tool in self._state.tools]
 
 
 def _convert_to_forced_tool(

@@ -1,10 +1,11 @@
-from typing import TYPE_CHECKING, Callable
+from __future__ import annotations
 
-from unique_toolkit.agentic.tools.schemas import BaseToolConfig
-from unique_toolkit.agentic.tools.tool import Tool
+from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
     from unique_toolkit.agentic.tools.config import ToolBuildConfig
+    from unique_toolkit.agentic.tools.schemas import BaseToolConfig
+    from unique_toolkit.agentic.tools.tool import Tool
 
 
 class ToolFactory:
@@ -31,7 +32,7 @@ class ToolFactory:
 
     @classmethod
     def build_tool_with_settings(
-        cls, tool_name: str, settings: "ToolBuildConfig", *args, **kwargs
+        cls, tool_name: str, settings: ToolBuildConfig, *args, **kwargs
     ) -> Tool[BaseToolConfig]:
         tool = cls.tool_map[tool_name](*args, **kwargs)
         tool.settings = settings
@@ -42,3 +43,22 @@ class ToolFactory:
         if tool_name not in cls.tool_config_map:
             raise ValueError(f"Tool {tool_name} not found")
         return cls.tool_config_map[tool_name](**kwargs)
+
+    @classmethod
+    def resolve_tool_configuration(
+        cls, tool_name: str, configuration: Any
+    ) -> BaseToolConfig:
+        """Coerce ``configuration`` to the registered model for ``tool_name``.
+
+        Used by :mod:`unique_toolkit.agentic.tools.tool_build_payload` when building
+        a ``ToolBuildConfig`` from wire data: accepts a plain dict (via
+        ``build_tool_config``) or an already-instantiated config of the correct type.
+        """
+        if isinstance(configuration, dict):
+            return cls.build_tool_config(tool_name, **configuration)
+        expected = cls.tool_config_map[tool_name]
+        assert isinstance(
+            configuration,
+            expected,  # type: ignore[arg-type]
+        )
+        return configuration
