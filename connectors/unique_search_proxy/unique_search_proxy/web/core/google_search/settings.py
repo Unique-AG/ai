@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from unique_search_proxy.settings import get_env_path
+from unique_search_proxy.web.settings import get_env_path
 
 
 class GoogleSearchSettings(BaseSettings):

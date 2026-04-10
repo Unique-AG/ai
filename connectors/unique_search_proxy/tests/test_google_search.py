@@ -3,12 +3,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import Response
 
-from unique_search_proxy.core.google_search.exceptions import (
+from unique_search_proxy.web.core.google_search.exceptions import (
     GoogleSearchAPIEndpointNotSetException,
     GoogleSearchAPIKeyNotSetException,
     GoogleSearchEngineIDNotSetException,
 )
-from unique_search_proxy.core.google_search.search import (
+from unique_search_proxy.web.core.google_search.search import (
     GoogleSearch,
     GoogleSearchParams,
     _map_google_search_response_to_web_search_result,
@@ -182,7 +182,7 @@ class TestGoogleSearchSearch:
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch(
-            "unique_search_proxy.core.google_search.search.AsyncClient",
+            "unique_search_proxy.web.core.google_search.search.AsyncClient",
             return_value=mock_client,
         ):
             results = await gs.search("test query")
@@ -221,7 +221,7 @@ class TestGoogleSearchSearch:
                 pass
 
         with patch(
-            "unique_search_proxy.core.google_search.search.AsyncClient",
+            "unique_search_proxy.web.core.google_search.search.AsyncClient",
             return_value=FakeClient(),
         ):
             await gs.search("query")

@@ -1,10 +1,10 @@
 import pytest
 
-from unique_search_proxy.core.vertexai.config import (
+from unique_search_proxy.web.core.vertexai.config import (
     get_vertex_grounding_config,
     get_vertex_structured_results_config,
 )
-from unique_search_proxy.core.vertexai.prompts import (
+from unique_search_proxy.web.core.vertexai.prompts import (
     VERTEX_GROUNDING_SYSTEM_INSTRUCTION,
     VERTEX_STRUCTURED_RESULTS_SYSTEM_INSTRUCTION,
 )

@@ -1,9 +1,9 @@
 import pytest
 
-from unique_search_proxy.core import get_search_engine
-from unique_search_proxy.core.google_search.search import GoogleSearch
-from unique_search_proxy.core.schema import SearchEngineType
-from unique_search_proxy.core.vertexai.search import VertexAISearchEngine
+from unique_search_proxy.web.core import get_search_engine
+from unique_search_proxy.web.core.google_search.search import GoogleSearch
+from unique_search_proxy.web.core.schema import SearchEngineType
+from unique_search_proxy.web.core.vertexai.search import VertexAISearchEngine
 
 
 class TestGetSearchEngine:

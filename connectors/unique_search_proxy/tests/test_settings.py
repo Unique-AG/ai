@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from unique_search_proxy.settings import get_env_path
+from unique_search_proxy.web.settings import get_env_path
 
 
 class TestGetEnvPath:
