@@ -1,7 +1,8 @@
 from enum import StrEnum
-from typing import Annotated, Any, Generic
+from typing import Annotated, Any, Generic, Literal
 
 from pydantic import (
+    AliasChoices,
     BaseModel,
     BeforeValidator,
     Field,
@@ -11,10 +12,17 @@ from pydantic import (
 )
 from typing_extensions import TypeVar
 
+from unique_toolkit._common.pydantic.rjsf_tags import (
+    RJSFMetaTag,
+)
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
+from unique_toolkit.agentic.tools.tool_build_payload import normalize_tool_build_payload
 
-T = TypeVar("T", bound=BaseToolConfig, default=BaseToolConfig)
+ToolConfigModel = TypeVar(
+    "ToolConfigModel", bound=BaseToolConfig, default=BaseToolConfig
+)
+ToolTypeType = TypeVar("ToolTypeType", bound=str, default=str)
 
 
 class ToolIcon(StrEnum):
@@ -48,13 +56,17 @@ def handle_undefined_icon(value: Any) -> ToolIcon:
         return ToolIcon.BOOK
 
 
-class ToolBuildConfig(BaseModel, Generic[T]):
+class ToolBuildConfig(BaseModel, Generic[ToolConfigModel, ToolTypeType]):
     model_config = get_configuration_dict()
     """Main tool configuration"""
 
-    name: str
-    configuration: T
+    name: Annotated[str, RJSFMetaTag.SpecialWidget.hidden()] = Field(
+        pattern=r"^[a-zA-Z0-9_-]+$"
+    )
+    tool_type: Annotated[ToolTypeType, RJSFMetaTag.SpecialWidget.hidden()]
+
     display_name: str = ""
+
     icon: Annotated[ToolIcon, BeforeValidator(handle_undefined_icon)] = Field(
         default=ToolIcon.BOOK,
         description="The icon name that will be used to display the tool in the user interface.",
@@ -66,9 +78,19 @@ class ToolBuildConfig(BaseModel, Generic[T]):
         default=False,
         description="This tool must be chosen by the user and no other tools are used for this iteration.",
     )
-    is_sub_agent: bool = False
 
-    is_enabled: bool = Field(default=True)
+    is_enabled: Annotated[bool, RJSFMetaTag.SpecialWidget.hidden()] = Field(
+        default=True
+    )
+
+    is_sub_agent: Annotated[bool, RJSFMetaTag.SpecialWidget.hidden()] = Field(
+        default=False,
+        validation_alias=AliasChoices("is_sub_agent", "is_subagent", "isSubAgent"),
+    )
+
+    configuration: ToolConfigModel = Field(
+        default_factory=lambda: ToolConfigModel(),
+    )
 
     @model_validator(mode="before")
     def initialize_config_based_on_tool_name(
@@ -76,56 +98,34 @@ class ToolBuildConfig(BaseModel, Generic[T]):
         value: Any,
         info: ValidationInfo,
     ) -> Any:
-        """Check the given values for."""
+        """Delegate wire-format normalization to ``tool_build_payload`` (factory lives there)."""
         if not isinstance(value, dict):
             return value
-
-        is_mcp_tool = value.get("mcp_source_id", "") != ""
-        mcp_configuration = value.get("configuration", {})
-
-        # Import at runtime to avoid circular imports
-        from unique_toolkit.agentic.tools.mcp.models import MCPToolConfig
-
-        if (
-            isinstance(mcp_configuration, MCPToolConfig)
-            and mcp_configuration.mcp_source_id
-        ):
-            return value
-        if is_mcp_tool:
-            # For MCP tools, skip ToolFactory validation
-            # Configuration can remain as a dict
-            return value
-
-        is_sub_agent_tool = (
-            value.get("is_sub_agent") or value.get("isSubAgent") or False
-        )
-
-        configuration = value.get("configuration", {})
-
-        if is_sub_agent_tool:
-            from unique_toolkit.agentic.tools.a2a import ExtendedSubAgentToolConfig
-
-            config = ExtendedSubAgentToolConfig.model_validate(configuration)
-        elif isinstance(configuration, dict):
-            # Local import to avoid circular import at module import time
-            from unique_toolkit.agentic.tools.factory import ToolFactory
-
-            config = ToolFactory.build_tool_config(
-                value["name"],
-                **configuration,
-            )
-        else:
-            # Check that the type of config matches the tool name
-            from unique_toolkit.agentic.tools.factory import ToolFactory
-
-            assert isinstance(
-                configuration,
-                ToolFactory.tool_config_map[value["name"]],  # type: ignore
-            )
-            config = configuration
-        value["configuration"] = config
-        return value
+        return normalize_tool_build_payload(value)
 
     @field_serializer("configuration")
-    def serialize_config(self, value: T) -> dict[str, Any]:
+    def serialize_config(self, value: ToolConfigModel) -> dict[str, Any]:
         return value.__class__.model_dump(value)
+
+
+if __name__ == "__main__":
+    from unique_toolkit.agentic.tools.factory import ToolFactory
+    from unique_toolkit.agentic.tools.tool import Tool
+
+    class MyConfig(BaseToolConfig):
+        a: int = 1
+
+    class MyToolBuildConfig(ToolBuildConfig[MyConfig, Literal["MyTool"]]):
+        name: str = Field(default="MyTool")
+        tool_type: Literal["MyTool"] = Field(default="MyTool")
+
+    class MyTool(Tool[MyConfig]):
+        def __init__(self, name: str, settings: MyToolBuildConfig) -> None:
+            super().__init__(name, settings)
+
+        def execute(self, input: str) -> str:
+            return "Hello, world!"
+
+    ToolFactory.register_tool(MyTool, MyConfig)
+
+    test = MyToolBuildConfig(configuration=MyConfig(a=1))

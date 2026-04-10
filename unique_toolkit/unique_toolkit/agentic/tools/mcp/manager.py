@@ -56,6 +56,7 @@ class MCPManager:
                     )
                     wrapper.settings = ToolBuildConfig(  # TODO: this must be refactored to behave like the other tools.
                         name=tool.name,
+                        tool_type=tool.name,
                         configuration=config,
                         display_name=tool.title or tool.name,
                         is_exclusive=False,
