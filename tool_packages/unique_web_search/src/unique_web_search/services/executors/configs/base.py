@@ -23,7 +23,7 @@ class WebSearchMode(StrEnum):
         return [
             "V1 — Simple keyword searches with optional query refinement",
             "V2 — AI-planned multi-step research (search and read pages in sequence)",
-            "V3 (beta) — Like V2, but pre-filters results by relevance (snippet judge) before fetching full pages",
+            "V3 (Experimental) — Like V2, but pre-filters results by relevance (snippet judge) before fetching full pages",
         ]
 
     @classmethod
