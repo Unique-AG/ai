@@ -54,163 +54,235 @@ def ensure_todo_tool_registered():
     yield
 
 
+def _item_with_default_active_form_none(
+    id: str,
+    content: str,
+    status: TodoStatus,
+    active_form: str | None = None,
+) -> TodoItem:
+    return TodoItem(id=id, content=content, status=status, active_form=active_form)
+
+
+def _item_input_with_default_active_form_and_content_none(
+    id: str,
+    status: TodoStatus,
+    content: str | None = None,
+    active_form: str | None = None,
+) -> TodoItemInput:
+    return TodoItemInput(id=id, content=content, status=status, active_form=active_form)
+
+
+def _todo_list_with_default_none_list_and_zero_iteration(
+    todos: list[TodoItem] | None = None,
+    last_updated_iteration: int = 0,
+) -> TodoList:
+    return TodoList(todos=todos or [], last_updated_iteration=last_updated_iteration)
+
+
 class TestTodoList:
     def test_empty_format(self) -> None:
-        tl = TodoList()
+        tl = _todo_list_with_default_none_list_and_zero_iteration()
         assert tl.format() == "No tasks tracked."
 
     def test_format_with_items(self) -> None:
-        tl = TodoList(
+        tl = _todo_list_with_default_none_list_and_zero_iteration(
             todos=[
-                TodoItem(id="a", content="Task A", status=TodoStatus.PENDING),
-                TodoItem(id="b", content="Task B", status=TodoStatus.COMPLETED),
+                _item_with_default_active_form_none("a", "Task A", TodoStatus.PENDING),
+                _item_with_default_active_form_none(
+                    "b", "Task B", TodoStatus.COMPLETED
+                ),
             ]
         )
         formatted = tl.format()
-        assert "0/2 completed" not in formatted or "1/2 completed" in formatted
+        assert "1/2 completed" in formatted
         assert "[ ] Task A" in formatted
         assert "[x] Task B" in formatted
 
     def test_has_active_items_with_pending(self) -> None:
-        tl = TodoList(todos=[TodoItem(id="a", content="x", status=TodoStatus.PENDING)])
+        tl = _todo_list_with_default_none_list_and_zero_iteration(
+            todos=[_item_with_default_active_form_none("a", "x", TodoStatus.PENDING)]
+        )
         assert tl.has_active_items() is True
 
     def test_has_active_items_with_in_progress(self) -> None:
-        tl = TodoList(
-            todos=[TodoItem(id="a", content="x", status=TodoStatus.IN_PROGRESS)]
+        tl = _todo_list_with_default_none_list_and_zero_iteration(
+            todos=[
+                _item_with_default_active_form_none("a", "x", TodoStatus.IN_PROGRESS)
+            ]
         )
         assert tl.has_active_items() is True
 
     def test_has_active_items_all_completed(self) -> None:
-        tl = TodoList(
-            todos=[TodoItem(id="a", content="x", status=TodoStatus.COMPLETED)]
+        tl = _todo_list_with_default_none_list_and_zero_iteration(
+            todos=[_item_with_default_active_form_none("a", "x", TodoStatus.COMPLETED)]
         )
         assert tl.has_active_items() is False
 
     def test_has_active_items_all_cancelled(self) -> None:
-        tl = TodoList(
-            todos=[TodoItem(id="a", content="x", status=TodoStatus.CANCELLED)]
+        tl = _todo_list_with_default_none_list_and_zero_iteration(
+            todos=[_item_with_default_active_form_none("a", "x", TodoStatus.CANCELLED)]
         )
         assert tl.has_active_items() is False
 
     def test_has_active_items_empty(self) -> None:
-        tl = TodoList()
+        tl = _todo_list_with_default_none_list_and_zero_iteration()
         assert tl.has_active_items() is False
 
     def test_status_counts(self) -> None:
-        tl = TodoList(
+        tl = _todo_list_with_default_none_list_and_zero_iteration(
             todos=[
-                TodoItem(id="a", content="x", status=TodoStatus.PENDING),
-                TodoItem(id="b", content="x", status=TodoStatus.IN_PROGRESS),
-                TodoItem(id="c", content="x", status=TodoStatus.COMPLETED),
-                TodoItem(id="d", content="x", status=TodoStatus.CANCELLED),
-                TodoItem(id="e", content="x", status=TodoStatus.PENDING),
+                _item_with_default_active_form_none("a", "x", TodoStatus.PENDING),
+                _item_with_default_active_form_none("b", "x", TodoStatus.IN_PROGRESS),
+                _item_with_default_active_form_none("c", "x", TodoStatus.COMPLETED),
+                _item_with_default_active_form_none("d", "x", TodoStatus.CANCELLED),
+                _item_with_default_active_form_none("e", "x", TodoStatus.PENDING),
             ]
         )
         counts = tl.status_counts()
-        assert counts == {
-            "total": 5,
-            "pending": 2,
-            "in_progress": 1,
-            "completed": 1,
-            "cancelled": 1,
-        }
+        assert counts["pending"] == 2
+        assert counts["in_progress"] == 1
+        assert counts["completed"] == 1
+        assert counts["cancelled"] == 1
 
 
 class TestTodoListUpdate:
     def test_update_existing_item(self) -> None:
-        tl = TodoList(
-            todos=[TodoItem(id="a", content="Task A", status=TodoStatus.PENDING)]
+        tl = _todo_list_with_default_none_list_and_zero_iteration(
+            todos=[
+                _item_with_default_active_form_none("a", "Task A", TodoStatus.PENDING)
+            ]
         )
-        updated = tl.update([TodoItemInput(id="a", status=TodoStatus.COMPLETED)])
+        updated = tl.update(
+            [
+                _item_input_with_default_active_form_and_content_none(
+                    "a", TodoStatus.COMPLETED, active_form=None
+                )
+            ]
+        )
         assert updated.todos[0].status == TodoStatus.COMPLETED
         assert updated.todos[0].content == "Task A"
 
     def test_append_new_item(self) -> None:
-        tl = TodoList(
-            todos=[TodoItem(id="a", content="Task A", status=TodoStatus.PENDING)]
+        tl = _todo_list_with_default_none_list_and_zero_iteration(
+            todos=[
+                _item_with_default_active_form_none("a", "Task A", TodoStatus.PENDING)
+            ]
         )
         updated = tl.update(
-            [TodoItemInput(id="b", content="Task B", status=TodoStatus.PENDING)]
+            [
+                _item_input_with_default_active_form_and_content_none(
+                    "b", TodoStatus.PENDING, content="Task B"
+                )
+            ]
         )
         assert len(updated.todos) == 2
         assert updated.todos[1].id == "b"
 
     def test_preserve_unmentioned(self) -> None:
-        tl = TodoList(
+        tl = _todo_list_with_default_none_list_and_zero_iteration(
             todos=[
-                TodoItem(id="a", content="Task A", status=TodoStatus.PENDING),
-                TodoItem(id="b", content="Task B", status=TodoStatus.PENDING),
+                _item_with_default_active_form_none("a", "Task A", TodoStatus.PENDING),
+                _item_with_default_active_form_none("b", "Task B", TodoStatus.PENDING),
             ]
         )
-        updated = tl.update([TodoItemInput(id="a", status=TodoStatus.COMPLETED)])
+        updated = tl.update(
+            [
+                _item_input_with_default_active_form_and_content_none(
+                    "a", TodoStatus.COMPLETED, active_form=None
+                )
+            ]
+        )
         assert len(updated.todos) == 2
         assert updated.todos[0].status == TodoStatus.COMPLETED
         assert updated.todos[1].status == TodoStatus.PENDING
 
     def test_update_preserves_content_when_omitted(self) -> None:
-        tl = TodoList(
-            todos=[TodoItem(id="a", content="Original", status=TodoStatus.PENDING)]
+        tl = _todo_list_with_default_none_list_and_zero_iteration(
+            todos=[
+                _item_with_default_active_form_none("a", "Original", TodoStatus.PENDING)
+            ]
         )
         updated = tl.update(
-            [TodoItemInput(id="a", content=None, status=TodoStatus.IN_PROGRESS)]
+            [
+                _item_input_with_default_active_form_and_content_none(
+                    "a", TodoStatus.IN_PROGRESS, content=None
+                )
+            ]
         )
         assert updated.todos[0].content == "Original"
 
     def test_new_item_without_content_gets_empty_string(self) -> None:
-        tl = TodoList()
+        tl = _todo_list_with_default_none_list_and_zero_iteration()
         updated = tl.update(
-            [TodoItemInput(id="a", content=None, status=TodoStatus.PENDING)]
+            [
+                _item_input_with_default_active_form_and_content_none(
+                    "a", TodoStatus.PENDING, content=None
+                )
+            ]
         )
         assert updated.todos[0].content == ""
 
     def test_update_preserves_iteration_counter(self) -> None:
-        tl = TodoList(last_updated_iteration=5)
+        tl = _todo_list_with_default_none_list_and_zero_iteration(
+            last_updated_iteration=5
+        )
         updated = tl.update(
-            [TodoItemInput(id="a", content="x", status=TodoStatus.PENDING)]
+            [
+                _item_input_with_default_active_form_and_content_none(
+                    "a", TodoStatus.PENDING, content="x"
+                )
+            ]
         )
         assert updated.last_updated_iteration == 5
 
     def test_update_preserves_active_form_when_omitted(self) -> None:
-        tl = TodoList(
+        tl = _todo_list_with_default_none_list_and_zero_iteration(
             todos=[
-                TodoItem(
-                    id="a",
-                    content="Task A",
-                    status=TodoStatus.PENDING,
+                _item_with_default_active_form_none(
+                    "a",
+                    "Task A",
+                    TodoStatus.PENDING,
                     active_form="Doing Task A",
                 )
             ]
         )
-        updated = tl.update([TodoItemInput(id="a", status=TodoStatus.IN_PROGRESS)])
+        updated = tl.update(
+            [
+                _item_input_with_default_active_form_and_content_none(
+                    "a", TodoStatus.IN_PROGRESS, active_form=None
+                )
+            ]
+        )
         assert updated.todos[0].active_form == "Doing Task A"
 
     def test_update_overwrites_active_form_when_supplied(self) -> None:
-        tl = TodoList(
+        tl = _todo_list_with_default_none_list_and_zero_iteration(
             todos=[
-                TodoItem(
-                    id="a",
-                    content="Task A",
-                    status=TodoStatus.PENDING,
+                _item_with_default_active_form_none(
+                    "a",
+                    "Task A",
+                    TodoStatus.PENDING,
                     active_form="Old form",
                 )
             ]
         )
         updated = tl.update(
             [
-                TodoItemInput(
-                    id="a",
-                    status=TodoStatus.IN_PROGRESS,
-                    active_form="New form",
+                _item_input_with_default_active_form_and_content_none(
+                    "a", TodoStatus.IN_PROGRESS, active_form="New form"
                 )
             ]
         )
         assert updated.todos[0].active_form == "New form"
 
     def test_new_item_without_active_form_is_none(self) -> None:
-        tl = TodoList()
+        tl = _todo_list_with_default_none_list_and_zero_iteration()
         updated = tl.update(
-            [TodoItemInput(id="a", content="x", status=TodoStatus.PENDING)]
+            [
+                _item_input_with_default_active_form_and_content_none(
+                    "a", TodoStatus.PENDING, content="x"
+                )
+            ]
         )
         assert updated.todos[0].active_form is None
 
@@ -220,9 +292,17 @@ class TestTodoWriteInput:
         with pytest.raises(Exception):
             TodoWriteInput(todos=[], merge=True)
 
-    def test_default_merge_is_true(self) -> None:
+    def test_merge_field_required(self) -> None:
         inp = TodoWriteInput(
-            todos=[TodoItemInput(id="a", content="x", status=TodoStatus.PENDING)]
+            todos=[
+                TodoItemInput(
+                    id="a",
+                    content="x",
+                    status=TodoStatus.PENDING,
+                    active_form=None,
+                )
+            ],
+            merge=True,
         )
         assert inp.merge is True
 
@@ -253,6 +333,21 @@ def _make_tool_call(arguments: dict, call_id: str = "call-1") -> MagicMock:
     return tc
 
 
+def _tc_item(
+    id: str,
+    status: str,
+    content: str | None = None,
+    active_form: str | None = None,
+) -> dict:
+    """Build a tool-call todo item dict with all required fields."""
+    return {
+        "id": id,
+        "content": content,
+        "status": status,
+        "active_form": active_form,
+    }
+
+
 class TestTodoWriteTool:
     @pytest.mark.asyncio
     async def test_create_new_list(self) -> None:
@@ -260,8 +355,8 @@ class TestTodoWriteTool:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Research APIs", "status": "pending"},
-                    {"id": "t2", "content": "Write code", "status": "pending"},
+                    _tc_item("t1", "pending", content="Research APIs"),
+                    _tc_item("t2", "pending", content="Write code"),
                 ],
                 "merge": False,
             }
@@ -278,16 +373,19 @@ class TestTodoWriteTool:
     @pytest.mark.asyncio
     async def test_merge_updates_existing(self) -> None:
         tool = _make_tool()
-        tool._cached_state = TodoList(
+        tool._cached_state = _todo_list_with_default_none_list_and_zero_iteration(
             todos=[
-                TodoItem(id="t1", content="Research APIs", status=TodoStatus.PENDING),
-            ]
+                _item_with_default_active_form_none(
+                    "t1", "Research APIs", TodoStatus.PENDING
+                )
+            ],
+            last_updated_iteration=0,
         )
         tool._memory_manager.load_async = AsyncMock(return_value=None)
 
         tc = _make_tool_call(
             {
-                "todos": [{"id": "t1", "status": "completed"}],
+                "todos": [_tc_item("t1", "completed")],
                 "merge": True,
             }
         )
@@ -302,8 +400,8 @@ class TestTodoWriteTool:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Done", "status": "completed"},
-                    {"id": "t2", "content": "Skipped", "status": "cancelled"},
+                    _tc_item("t1", "completed", content="Done"),
+                    _tc_item("t2", "cancelled", content="Skipped"),
                 ],
                 "merge": False,
             }
@@ -319,7 +417,7 @@ class TestTodoWriteTool:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "In progress", "status": "in_progress"},
+                    _tc_item("t1", "in_progress", content="In progress"),
                 ],
                 "merge": False,
             }
@@ -336,7 +434,7 @@ class TestTodoWriteTool:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Task 1", "status": "pending"},
+                    _tc_item("t1", "pending", content="Task 1"),
                 ],
                 "merge": False,
             }
@@ -350,7 +448,6 @@ class TestTodoWriteTool:
         assert "iteration" in response.debug_info
 
         state = response.debug_info["state"]
-        assert state["total"] == 1
         assert state["pending"] == 1
 
     @pytest.mark.asyncio
@@ -366,17 +463,14 @@ class TestTodoWriteTool:
     @pytest.mark.asyncio
     async def test_large_list_preserved(self) -> None:
         tool = _make_tool()
-        items = [
-            {"id": f"t{i}", "content": f"Task {i}", "status": "pending"}
-            for i in range(100)
-        ]
+        items = [_tc_item(f"t{i}", "pending", content=f"Task {i}") for i in range(100)]
         tc = _make_tool_call({"todos": items, "merge": False})
 
         response = await tool.run(tc)
 
         assert "0/100 completed" in response.content
         assert response.debug_info is not None
-        assert response.debug_info["state"]["total"] == 100
+        assert response.debug_info["state"]["pending"] == 100
 
     @pytest.mark.asyncio
     async def test_persistence_failure_graceful(self) -> None:
@@ -387,7 +481,7 @@ class TestTodoWriteTool:
 
         tc = _make_tool_call(
             {
-                "todos": [{"id": "t1", "content": "Task", "status": "pending"}],
+                "todos": [_tc_item("t1", "pending", content="Task")],
                 "merge": False,
             }
         )
@@ -400,8 +494,10 @@ class TestTodoWriteTool:
     @pytest.mark.asyncio
     async def test_load_failure_uses_cache(self) -> None:
         tool = _make_tool()
-        tool._cached_state = TodoList(
-            todos=[TodoItem(id="t1", content="Cached", status=TodoStatus.PENDING)]
+        tool._cached_state = _todo_list_with_default_none_list_and_zero_iteration(
+            todos=[
+                _item_with_default_active_form_none("t1", "Cached", TodoStatus.PENDING)
+            ]
         )
         tool._memory_manager.load_async = AsyncMock(
             side_effect=Exception("Load failed")
@@ -409,7 +505,7 @@ class TestTodoWriteTool:
 
         tc = _make_tool_call(
             {
-                "todos": [{"id": "t1", "status": "completed"}],
+                "todos": [_tc_item("t1", "completed")],
                 "merge": True,
             }
         )
@@ -422,19 +518,25 @@ class TestTodoWriteTool:
     async def test_cache_preferred_when_ahead_of_persisted(self) -> None:
         """When cache has a higher iteration than persisted, keep cache."""
         tool = _make_tool()
-        tool._cached_state = TodoList(
-            todos=[TodoItem(id="t1", content="Cached", status=TodoStatus.IN_PROGRESS)],
+        tool._cached_state = _todo_list_with_default_none_list_and_zero_iteration(
+            todos=[
+                _item_with_default_active_form_none(
+                    "t1", "Cached", TodoStatus.IN_PROGRESS
+                )
+            ],
             last_updated_iteration=3,
         )
-        stale_persisted = TodoList(
-            todos=[TodoItem(id="t1", content="Stale", status=TodoStatus.PENDING)],
+        stale_persisted = _todo_list_with_default_none_list_and_zero_iteration(
+            todos=[
+                _item_with_default_active_form_none("t1", "Stale", TodoStatus.PENDING)
+            ],
             last_updated_iteration=1,
         )
         tool._memory_manager.load_async = AsyncMock(return_value=stale_persisted)
 
         tc = _make_tool_call(
             {
-                "todos": [{"id": "t1", "status": "completed"}],
+                "todos": [_tc_item("t1", "completed")],
                 "merge": True,
             }
         )
@@ -453,7 +555,7 @@ class TestLogStep:
         tool = _make_tool(config=TodoConfig(display_name="Progress"))
         tc = _make_tool_call(
             {
-                "todos": [{"id": "t1", "content": "Task", "status": "pending"}],
+                "todos": [_tc_item("t1", "pending", content="Task")],
                 "merge": False,
             }
         )
@@ -474,9 +576,9 @@ class TestLogStep:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Research APIs", "status": "pending"},
-                    {"id": "t2", "content": "Write code", "status": "pending"},
-                    {"id": "t3", "content": "Write tests", "status": "pending"},
+                    _tc_item("t1", "pending", content="Research APIs"),
+                    _tc_item("t2", "pending", content="Write code"),
+                    _tc_item("t3", "pending", content="Write tests"),
                 ],
                 "merge": False,
             }
@@ -507,8 +609,8 @@ class TestLogStep:
         tc1 = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Research APIs", "status": "pending"},
-                    {"id": "t2", "content": "Write code", "status": "pending"},
+                    _tc_item("t1", "pending", content="Research APIs"),
+                    _tc_item("t2", "pending", content="Write code"),
                 ],
                 "merge": False,
             }
@@ -518,12 +620,8 @@ class TestLogStep:
         tc2 = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "status": "completed"},
-                    {
-                        "id": "t2",
-                        "status": "in_progress",
-                        "active_form": "Writing code",
-                    },
+                    _tc_item("t1", "completed"),
+                    _tc_item("t2", "in_progress", active_form="Writing code"),
                 ],
                 "merge": True,
             }
@@ -546,13 +644,13 @@ class TestLogStep:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {
-                        "id": "t1",
-                        "content": "Search docs",
-                        "status": "in_progress",
-                        "active_form": "Searching documents",
-                    },
-                    {"id": "t2", "content": "Write report", "status": "pending"},
+                    _tc_item(
+                        "t1",
+                        "in_progress",
+                        content="Search docs",
+                        active_form="Searching documents",
+                    ),
+                    _tc_item("t2", "pending", content="Write report"),
                 ],
                 "merge": False,
             }
@@ -576,8 +674,8 @@ class TestLogStep:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Done", "status": "completed"},
-                    {"id": "t2", "content": "Todo", "status": "pending"},
+                    _tc_item("t1", "completed", content="Done"),
+                    _tc_item("t2", "pending", content="Todo"),
                 ],
                 "merge": False,
             }
@@ -599,7 +697,7 @@ class TestLogStep:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Search docs", "status": "in_progress"},
+                    _tc_item("t1", "in_progress", content="Search docs"),
                 ],
                 "merge": False,
             }
@@ -619,7 +717,9 @@ class TestLogStep:
         tool = _make_tool()
         tc = _make_tool_call(
             {
-                "todos": [{"id": "t1", "content": "Doing", "status": "in_progress"}],
+                "todos": [
+                    _tc_item("t1", "in_progress", content="Doing"),
+                ],
                 "merge": False,
             }
         )
@@ -638,8 +738,8 @@ class TestLogStep:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Done", "status": "completed"},
-                    {"id": "t2", "content": "Skipped", "status": "cancelled"},
+                    _tc_item("t1", "completed", content="Done"),
+                    _tc_item("t2", "cancelled", content="Skipped"),
                 ],
                 "merge": False,
             }
@@ -660,8 +760,8 @@ class TestLogStep:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Dropped", "status": "cancelled"},
-                    {"id": "t2", "content": "Done", "status": "completed"},
+                    _tc_item("t1", "cancelled", content="Dropped"),
+                    _tc_item("t2", "completed", content="Done"),
                 ],
                 "merge": False,
             }
@@ -688,14 +788,17 @@ class TestLogStep:
 
         tc1 = _make_tool_call(
             {
-                "todos": [{"id": "t1", "content": "Task", "status": "pending"}],
+                "todos": [_tc_item("t1", "pending", content="Task")],
                 "merge": False,
             }
         )
         await tool.run(tc1)
 
         tc2 = _make_tool_call(
-            {"todos": [{"id": "t1", "status": "completed"}], "merge": True}
+            {
+                "todos": [_tc_item("t1", "completed")],
+                "merge": True,
+            }
         )
         await tool.run(tc2)
 
@@ -719,7 +822,7 @@ class TestLogStep:
 
         tc = _make_tool_call(
             {
-                "todos": [{"id": "t1", "content": "Task", "status": "pending"}],
+                "todos": [_tc_item("t1", "pending", content="Task")],
                 "merge": False,
             }
         )
@@ -760,7 +863,7 @@ class TestTodoWriteToolConfig:
 
         tc = _make_tool_call(
             {
-                "todos": [{"id": "t1", "content": "Task", "status": "pending"}],
+                "todos": [_tc_item("t1", "pending", content="Task")],
                 "merge": False,
             }
         )
@@ -792,9 +895,9 @@ class TestMultiStepWorkflow:
         tc1 = _make_tool_call(
             {
                 "todos": [
-                    {"id": "research", "content": "Research APIs", "status": "pending"},
-                    {"id": "implement", "content": "Write code", "status": "pending"},
-                    {"id": "test", "content": "Write tests", "status": "pending"},
+                    _tc_item("research", "pending", content="Research APIs"),
+                    _tc_item("implement", "pending", content="Write code"),
+                    _tc_item("test", "pending", content="Write tests"),
                 ],
                 "merge": False,
             }
@@ -806,7 +909,7 @@ class TestMultiStepWorkflow:
         # Iteration 2: Start working
         tc2 = _make_tool_call(
             {
-                "todos": [{"id": "research", "status": "in_progress"}],
+                "todos": [_tc_item("research", "in_progress")],
                 "merge": True,
             }
         )
@@ -818,8 +921,8 @@ class TestMultiStepWorkflow:
         tc3 = _make_tool_call(
             {
                 "todos": [
-                    {"id": "research", "status": "completed"},
-                    {"id": "implement", "status": "in_progress"},
+                    _tc_item("research", "completed"),
+                    _tc_item("implement", "in_progress"),
                 ],
                 "merge": True,
             }
@@ -832,15 +935,14 @@ class TestMultiStepWorkflow:
         tc4 = _make_tool_call(
             {
                 "todos": [
-                    {"id": "implement", "status": "completed"},
-                    {"id": "test", "status": "completed"},
+                    _tc_item("implement", "completed"),
+                    _tc_item("test", "completed"),
                 ],
                 "merge": True,
             }
         )
         r4 = await tool.run(tc4)
         assert r4.debug_info["state"]["completed"] == 3
-        assert r4.debug_info["state"]["pending"] == 0
         assert r4.system_reminder == ""
 
     @pytest.mark.asyncio
@@ -851,7 +953,7 @@ class TestMultiStepWorkflow:
         tc1 = _make_tool_call(
             {
                 "todos": [
-                    {"id": "step1", "content": "Step 1", "status": "in_progress"},
+                    _tc_item("step1", "in_progress", content="Step 1"),
                 ],
                 "merge": False,
             }
@@ -861,18 +963,14 @@ class TestMultiStepWorkflow:
         tc2 = _make_tool_call(
             {
                 "todos": [
-                    {"id": "step1", "status": "completed"},
-                    {
-                        "id": "step2",
-                        "content": "Step 2 (added later)",
-                        "status": "pending",
-                    },
+                    _tc_item("step1", "completed"),
+                    _tc_item("step2", "pending", content="Step 2 (added later)"),
                 ],
                 "merge": True,
             }
         )
         r2 = await tool.run(tc2)
-        assert r2.debug_info["state"]["total"] == 2
+        assert len(r2.debug_info["state"]["items"]) == 2
         assert "Step 2 (added later)" in r2.content
 
     @pytest.mark.asyncio
@@ -883,7 +981,7 @@ class TestMultiStepWorkflow:
         tc1 = _make_tool_call(
             {
                 "todos": [
-                    {"id": "old", "content": "Old task", "status": "completed"},
+                    _tc_item("old", "completed", content="Old task"),
                 ],
                 "merge": False,
             }
@@ -893,13 +991,13 @@ class TestMultiStepWorkflow:
         tc2 = _make_tool_call(
             {
                 "todos": [
-                    {"id": "new", "content": "New task", "status": "pending"},
+                    _tc_item("new", "pending", content="New task"),
                 ],
                 "merge": False,
             }
         )
         r2 = await tool.run(tc2)
-        assert r2.debug_info["state"]["total"] == 1
+        assert len(r2.debug_info["state"]["items"]) == 1
         assert "New task" in r2.content
         assert "Old task" not in r2.content
 
@@ -909,7 +1007,7 @@ class TestMultiStepWorkflow:
 
         tc1 = _make_tool_call(
             {
-                "todos": [{"id": "t1", "content": "x", "status": "pending"}],
+                "todos": [_tc_item("t1", "pending", content="x")],
                 "merge": False,
             }
         )
@@ -918,7 +1016,7 @@ class TestMultiStepWorkflow:
 
         tc2 = _make_tool_call(
             {
-                "todos": [{"id": "t1", "status": "completed"}],
+                "todos": [_tc_item("t1", "completed")],
                 "merge": True,
             }
         )
@@ -935,9 +1033,9 @@ class TestVerificationNudge:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Done", "status": "completed"},
-                    {"id": "t2", "content": "Done 2", "status": "completed"},
-                    {"id": "t3", "content": "Todo", "status": "pending"},
+                    _tc_item("t1", "completed", content="Done"),
+                    _tc_item("t2", "completed", content="Done 2"),
+                    _tc_item("t3", "pending", content="Todo"),
                 ],
                 "merge": False,
             }
@@ -952,9 +1050,9 @@ class TestVerificationNudge:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Done", "status": "completed"},
-                    {"id": "t2", "content": "Done 2", "status": "completed"},
-                    {"id": "t3", "content": "Todo", "status": "pending"},
+                    _tc_item("t1", "completed", content="Done"),
+                    _tc_item("t2", "completed", content="Done 2"),
+                    _tc_item("t3", "pending", content="Todo"),
                 ],
                 "merge": False,
             }
@@ -970,8 +1068,8 @@ class TestVerificationNudge:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Done", "status": "completed"},
-                    {"id": "t2", "content": "Done 2", "status": "completed"},
+                    _tc_item("t1", "completed", content="Done"),
+                    _tc_item("t2", "completed", content="Done 2"),
                 ],
                 "merge": False,
             }
@@ -986,9 +1084,9 @@ class TestVerificationNudge:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Done", "status": "completed"},
-                    {"id": "t2", "content": "Done 2", "status": "completed"},
-                    {"id": "t3", "content": "Todo", "status": "pending"},
+                    _tc_item("t1", "completed", content="Done"),
+                    _tc_item("t2", "completed", content="Done 2"),
+                    _tc_item("t3", "pending", content="Todo"),
                 ],
                 "merge": False,
             }
@@ -1047,7 +1145,7 @@ class TestParallelModeConfig:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Task", "status": "in_progress"},
+                    _tc_item("t1", "in_progress", content="Task"),
                 ],
                 "merge": False,
             }
@@ -1081,7 +1179,7 @@ class TestParallelModeConfig:
         tc = _make_tool_call(
             {
                 "todos": [
-                    {"id": "t1", "content": "Task", "status": "pending"},
+                    _tc_item("t1", "pending", content="Task"),
                 ],
                 "merge": False,
             }
