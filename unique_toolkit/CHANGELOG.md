@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.77.0] - 2026-04-20
+- Add experimental `TodoWriteTool` for agent-side task tracking with persistent short-term memory, configurable Jinja prompts (RJSF-tagged for admin UI), sequential-first execution mode with optional parallel, `active_form` for live status display, verification nudge, and Steps panel logging with status icons
+
 ## [1.76.0] - 2026-04-20
 - Enable `basedpyright` type-checking at `recommended` mode with zero-error CI enforcement
 - Fix type annotations across toolkit (type arguments, null guards, SDK parameter types)
@@ -47,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Chore: add `importlib` import mode to pytest config to prevent namespace collisions
 - Chore: update `exclude-newer-package` timestamps and lockfile refresh
 
-## [1.71.0] - 2026-04-13
+## [1.71.0] - 2026-04-14
 - Add `is_ingested` helper method on `Content`
 
 ## [1.70.8] - 2026-04-13
@@ -131,7 +134,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.69.0] - 2026-04-07
 - Add optional `[monitoring]` extra with Prometheus support: `MetricNamespace`, `track()`, `MetricsMiddleware`, `get_metrics()`
-- Add experimental `TodoWriteTool` for agent-side task tracking with persistent short-term memory, configurable prompts (RJSF-tagged for admin UI), sequential-first execution mode with optional parallel, `active_form` for live status display, verification nudge, and dual Steps panel logging (plan log with status icons + compact progress log)
 
 ## [1.68.13] - 2026-04-06
 - Add concurrency diagnostic logging to code interpreter postprocessor: chunk gap detection, `tracker.update()` blocking measurement, lock contention and publish timing in `_FileProgressTracker`, `modify_assistant_message_async` latency warnings, and SDK upload duration warnings
@@ -212,8 +214,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.66.0] - 2026-03-30
 - Add `applied_ingestion_config` to `Content` schema
-- Todo task tracking: add `TodoWriteTool` for agent-side task tracking with two-phase workflow (clarification → autonomous execution), `system_reminder` on tool responses, structured `debug_info`, and configurable prompts via `TodoConfig`
-- Todo tracking prompts (`system_prompt`, `execution_reminder`) can be overridden from the admin UI for experimentation without code changes
 
 ## [1.65.2] - 2026-03-30
 - Remove experimental open pdf tool

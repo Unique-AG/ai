@@ -57,7 +57,7 @@ class TodoWriteTool(Tool[TodoConfig]):
 
     def tool_description(self) -> LanguageModelToolDescription:
         return LanguageModelToolDescription(
-            name="todo_write",
+            name=self.name,
             description=self.config.effective_tool_description,
             parameters=TodoWriteInput.model_json_schema(),
         )
