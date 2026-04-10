@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.70.3] - 2026-04-10
+- Add optional `default_string_empty_value` to `ui_schema_for_model` so bare `str` fields (and `str` items, dict values, union branches, nested models) can get `ui:emptyValue` without `Annotated[..., RJSFMetaTag]`
+- Fix `RJSFMetaTag.StringWidget.textarea`: emit `ui:emptyValue` under the correct key (was `ui:emtpyValue`)
+
+## [1.70.2] - 2026-04-10
+- Fix (UN-17927): add `powerpoint` type mapping for `.pptx` / `.ppt` in `_file_frontend_type`; previously these emitted `type="document"` in `fileWithSource` fences instead of `type="powerpoint"`
+
 ## [1.70.1] - 2026-04-09
 - Add three-state `supported_reasoning_efforts` per model: `None` (unknown — pass-through), `[]` (no reasoning), `[...]` (validated list incl. `xhigh`)
 - Add `resolve_temp_and_reasoning` instance method centralising validation, defaults, and clamping for both API paths
