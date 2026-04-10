@@ -12,7 +12,7 @@ dependencies = [
     "pydantic>=2.8.2,<3",
     "typing-extensions>=4.9.0,<5",
     "jinja2>=3.1.0,<4",
-    "unique-toolkit>=1.73.0,<2",
+    "unique-toolkit>=1.68.6,<2",
     "unique-stock-ticker>=1.1.1,<2",
     "unique-follow-up-questions>=1.1.2,<2",
     "unique-internal-search>=1.2.22,<2",
@@ -65,21 +65,6 @@ depcheck = "deptry ."
 coverage = "pytest --cov=unique_orchestrator --cov-report=term-missing"
 ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
 ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
-
-[tool.pytest.ini_options]
-addopts = "--strict-markers --import-mode=importlib"
-asyncio_mode = "auto"
-markers = [
-    "ai: AI-authored or AI-generated tests",
-    "asyncio: asyncio tests",
-    "integration: integration tests that require API access or credentials",
-    "serial: tests that must run serially",
-    "unit: unit tests",
-    "verified: AI-generated tests with human verification",
-]
-filterwarnings = [
-    "ignore::DeprecationWarning",
-]
 
 [tool.deptry]
 known_first_party = ["unique_orchestrator", "unique_toolkit", "unique_stock_ticker", "unique_follow_up_questions", "unique_internal_search", "unique_deep_research", "unique_web_search", "unique_swot"]
