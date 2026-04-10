@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.70.4] - 2026-04-10
+- Code interpreter postprocessing: when the model generates a file but omits `sandbox:/mnt/data/...` in the assistant message, append a fallback line `📎 [filename](unique://content/<content_id>)` instead of silently dropping the file (image, HTML, and document paths)
+- `_warn_unmatched_code_blocks` now returns `{filename: content_id}` for files with no code-block match; `apply_postprocessing_to_response` logs them when the code-execution fence feature flag is on
+
 ## [1.70.3] - 2026-04-10
 - Add optional `default_string_empty_value` to `ui_schema_for_model` so bare `str` fields (and `str` items, dict values, union branches, nested models) can get `ui:emptyValue` without `Annotated[..., RJSFMetaTag]`
 - Fix `RJSFMetaTag.StringWidget.textarea`: emit `ui:emptyValue` under the correct key (was `ui:emtpyValue`)
