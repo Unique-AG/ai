@@ -9,7 +9,6 @@ from typing import NamedTuple, override
 
 import httpx
 from openai import AsyncOpenAI
-from openai.types.responses import ResponseCodeInterpreterToolCall
 from openai.types.responses.response_output_text import AnnotationContainerFileCitation
 from pydantic import BaseModel, Field, RootModel
 from pydantic.json_schema import SkipJsonSchema
@@ -639,19 +638,27 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 self._log.info("Fence injection modified the message text")
 
             if self._orphan_code_blocks:
-                fence_id = _get_next_fence_id(loop_response.message.text)
-                orphan_fences = _build_orphan_fences(self._orphan_code_blocks, fence_id)
-                loop_response.message.text = (
-                    loop_response.message.text.rstrip() + "\n\n" + orphan_fences
-                )
+                for block in self._orphan_code_blocks:
+                    for file in block.files:
+                        loop_response.message.references.append(
+                            ContentReference(
+                                sequence_number=ref_number,
+                                source_id=file.content_id,
+                                source="node-ingestion-chunks",
+                                url=f"unique://content/{file.content_id}",
+                                name=file.filename,
+                            )
+                        )
+                        ref_number += 1
                 changed = True
                 self._log.info(
-                    "Appended %d orphan fence(s)", len(self._orphan_code_blocks)
+                    "Added %d orphan code block(s) to message references",
+                    len(self._orphan_code_blocks),
                 )
 
         _warn_missing_content_ids(loop_response.message.text, self._content_map)
         loop_response.message.text, dangling_replaced = _replace_dangling_sandbox_links(
-            loop_response.message.text, self._config.file_download_failed_message
+            loop_response.message.text
         )
         changed |= dangling_replaced
         if dangling_replaced:
@@ -963,13 +970,12 @@ class DisplayCodeInterpreterFilesPostProcessor(
     async def _upload_orphan_code_as_txt(
         self, loop_response: ResponsesLanguageModelStreamResponse
     ) -> list[CodeInterpreterBlock]:
-        """Upload stdout (or code) from calls that produced no container files as .txt artifacts.
+        """Upload source **code** from calls that produced no container files as .txt artifacts.
 
         When code interpreter runs but generates no files or images, the response
         text has no sandbox links for fence injection to hook onto.  This method
-        converts those "orphan" calls into downloadable .txt files so the fence
-        postprocessor can attach a fileWithSource component and the new Code
-        Execution UI is shown instead of the legacy <details> block.
+        converts those "orphan" calls into downloadable .txt files (the executed
+        code, not stdout) so the postprocessor can attach a reference for download.
 
         Called only when the fence feature flag is enabled.  Skipped entirely if
         any container files were produced (normal fencing handles those).
@@ -990,13 +996,9 @@ class DisplayCodeInterpreterFilesPostProcessor(
             if not call.code:
                 continue
 
-            # Code interpreter logs are only present on each code_interpreter_call when
-            # the create/retrieve request sets include=["code_interpreter_call.outputs"]
-            # (see OpenAI Responses API `include` and manual examples in
-            # docs/manual_examples_for_docs/code_execution_openai_client.py).  If
-            # `outputs` is omitted, call.outputs is null and we fall back to the
-            # source code as the downloadable txt.
-            txt_content = _collect_stdout(call) or call.code
+            # Always persist the executed source as the downloadable .txt (not stdout),
+            # so the attachment matches what ran in the sandbox.
+            txt_content = call.code
             filename = f"code_{i + 1}.txt" if use_numeric_suffix else "code.txt"
 
             try:
@@ -1032,38 +1034,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
             )
 
         return orphan_blocks
-
-
-def _collect_stdout(call: ResponseCodeInterpreterToolCall) -> str:
-    """Collect all stdout logs from a code interpreter call's outputs."""
-    if not call.outputs:
-        return ""
-    return "\n".join(output.logs for output in call.outputs if output.type == "logs")
-
-
-def _get_next_fence_id(text: str) -> int:
-    """Return the next available fence id by scanning existing fences in the text."""
-    existing = re.findall(r"````(?:imgWithSource|fileWithSource)\(id='(\d+)'", text)
-    if not existing:
-        return 1
-    return max(int(fid) for fid in existing) + 1
-
-
-def _build_orphan_fences(
-    blocks: list[CodeInterpreterBlock], start_fence_id: int
-) -> str:
-    """Build concatenated fence text for orphan code blocks.
-
-    Orphan blocks have no inline ref in the message text, so their fences are
-    appended directly rather than injected via pattern replacement.
-    """
-    fence_id = start_fence_id
-    parts: list[str] = []
-    for block in blocks:
-        for file in block.files:
-            parts.append(_build_file_fence(file, block.code, fence_id))
-            fence_id += 1
-    return "\n".join(parts)
 
 
 def _get_file_type(filename: str) -> CodeInterpreterFileType:
@@ -1397,27 +1367,35 @@ def _warn_missing_content_ids(text: str, content_map: dict[str, str | None]) -> 
 # so the entire `[label](sandbox://...)` token can be replaced rather than just the URL.
 _SANDBOX_MARKDOWN_LINK_RE = re.compile(r"!?\[.*?\]\(sandbox:/mnt/data/\S+?\)")
 
+# Extracts the bare filename from a sandbox URL like `sandbox:/mnt/data/foo.csv`.
+_SANDBOX_FILENAME_RE = re.compile(r"sandbox:/mnt/data/([^)\s]+)")
 
-def _replace_dangling_sandbox_links(text: str, error_message: str) -> tuple[str, bool]:
-    """Replace any remaining sandbox:/mnt/data/ markdown links with an error message.
+
+def _replace_dangling_sandbox_links(text: str) -> tuple[str, bool]:
+    """Replace any remaining sandbox:/mnt/data/ markdown links with a per-file notice.
 
     A dangling link means either the LLM hallucinated a file reference (the sandbox
     link appears in the text but no matching container file annotation was emitted by
     OpenAI), or the link format did not match the expected regex in stage-1.  In both
     cases the user would see a broken link; this function replaces each such link with
-    the configured error message and logs a warning so the incident is visible in logs.
+    an actionable message that names the specific file, and logs a warning so the
+    incident is visible in production logs.
     """
-    matches = _SANDBOX_MARKDOWN_LINK_RE.findall(text)
-    if not matches:
+    if not _SANDBOX_MARKDOWN_LINK_RE.search(text):
         return text, False
-    for match in matches:
+
+    def _replacement(m: re.Match[str]) -> str:
+        filename_match = _SANDBOX_FILENAME_RE.search(m.group())
+        filename = filename_match.group(1) if filename_match else "the file"
         logger.warning(
             "Dangling sandbox link found in final text: '%s'. "
             "The file was either never uploaded or the link format did not match "
-            "the expected pattern — replacing with error message.",
-            match,
+            "the expected pattern — replacing with per-file notice.",
+            m.group(),
         )
-    return _SANDBOX_MARKDOWN_LINK_RE.sub(error_message, text), True
+        return f"⚠️ The file *{filename}* could not be retrieved. You can ask me to regenerate it."
+
+    return _SANDBOX_MARKDOWN_LINK_RE.sub(_replacement, text), True
 
 
 def _warn_unmatched_code_blocks(
