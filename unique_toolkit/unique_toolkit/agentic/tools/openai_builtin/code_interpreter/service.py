@@ -6,6 +6,12 @@ from typing import Any, override
 from openai import AsyncOpenAI, BaseModel, NotFoundError
 from openai.types.responses import ResponseCodeInterpreterToolCall, ResponseIncludable
 from openai.types.responses.tool_param import CodeInterpreter
+from tenacity import (
+    AsyncRetrying,
+    before_sleep_log,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from unique_toolkit import ContentService, ShortTermMemoryService
 from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
@@ -25,6 +31,25 @@ from unique_toolkit.content.schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
+_UPLOAD_MAX_RETRIES = 2
+_UPLOAD_RETRY_BASE_DELAY = 0.5
+
+
+def _build_upload_retry() -> AsyncRetrying:
+    """Exponential-backoff retry policy for transient upload/download failures.
+
+    Matches the pattern used in the ``DisplayCodeInterpreterFilesPostProcessor``
+    so that every outbound I/O call gets the same behaviour: up to
+    ``_UPLOAD_MAX_RETRIES`` extra attempts, doubling the wait each time,
+    with a WARNING log before each sleep.
+    """
+    return AsyncRetrying(
+        stop=stop_after_attempt(1 + _UPLOAD_MAX_RETRIES),
+        wait=wait_exponential(multiplier=_UPLOAD_RETRY_BASE_DELAY),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True,
+    )
 
 
 _SHORT_TERM_MEMORY_NAME = "container_code_execution"
@@ -127,17 +152,34 @@ async def _upload_files_to_container(
 
         if upload:
             logger.info(
-                "Uploding file %s to container %s", file.id, memory.container_id
+                "Uploading file %s (%s) to container %s",
+                file.id,
+                file.key,
+                memory.container_id,
             )
-            file_content = await content_service.download_content_to_bytes_async(
-                content_id=file.id, chat_id=chat_id
+            file_content = await _build_upload_retry()(
+                content_service.download_content_to_bytes_async,
+                content_id=file.id,
+                chat_id=chat_id,
             )
-
-            openai_file = await client.containers.files.create(
+            logger.info(
+                "Downloaded %d bytes for file %s; uploading to container %s",
+                len(file_content),
+                file.id,
+                container_id,
+            )
+            openai_file = await _build_upload_retry()(
+                client.containers.files.create,
                 container_id=container_id,
                 file=(file.key, file_content),
             )
             memory.file_ids[file.id] = openai_file.id
+            logger.info(
+                "File %s successfully uploaded as OpenAI file %s in container %s",
+                file.id,
+                openai_file.id,
+                container_id,
+            )
 
     return memory
 
