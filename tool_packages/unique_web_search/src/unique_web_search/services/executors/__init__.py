@@ -3,13 +3,13 @@ from unique_web_search.services.executors.context import (
     ExecutorConfiguration,
     ExecutorServiceContext,
 )
-from unique_web_search.services.executors.web_search_v1_executor import (
+from unique_web_search.services.executors.v1.executor import (
     WebSearchV1Executor,
 )
-from unique_web_search.services.executors.web_search_v2_executor import (
+from unique_web_search.services.executors.v2.executor import (
     WebSearchV2Executor,
 )
-from unique_web_search.services.executors.web_search_v3_executor import (
+from unique_web_search.services.executors.v3.executor import (
     WebSearchV3Executor,
 )
 

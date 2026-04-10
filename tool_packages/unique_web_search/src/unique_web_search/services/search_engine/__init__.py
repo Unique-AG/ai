@@ -7,7 +7,9 @@ from unique_toolkit import LanguageModelService
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
     SearchEngine,
+    SearchEngineMode,
     SearchEngineType,
+    get_search_engine_mode,
 )
 from unique_web_search.services.search_engine.bing import (
     BingSearch,
@@ -123,7 +125,9 @@ def get_default_search_engine_config(
 
 
 __all__ = [
+    "SearchEngineMode",
     "SearchEngineType",
+    "get_search_engine_mode",
     "FireCrawlConfig",
     "FireCrawlSearch",
     "GoogleConfig",
@@ -139,7 +143,6 @@ __all__ = [
     "get_search_engine_service",
     "BaseSearchEngineConfig",
     "SearchEngine",
-    "SearchEngineType",
     "get_search_engine_config_types_from_names",
     "get_default_search_engine_config",
     "VertexAIConfig",

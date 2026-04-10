@@ -175,7 +175,7 @@ class WebSearchConfig(BaseToolConfig):
     )
     web_search_mode_config_v3: WebSearchV3Config = Field(
         default_factory=WebSearchV3Config,
-        title="Search Mode V3 Settings",
+        title="Search Mode V3 Settings [Experimental]",
         description="Settings for V3: pre-filter search results by relevance (snippet judge) before fetching full pages.",
     )
 

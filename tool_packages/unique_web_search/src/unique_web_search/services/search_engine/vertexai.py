@@ -5,7 +5,6 @@ from typing import Annotated, Literal
 from httpx import AsyncClient, HTTPError
 from pydantic import Field
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
-
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
     SearchEngine,

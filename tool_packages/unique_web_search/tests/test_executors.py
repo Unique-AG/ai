@@ -12,17 +12,17 @@ from unique_web_search.schema import (
     WebSearchPlan,
     WebSearchToolParameters,
 )
-from unique_web_search.services.executors.configs import RefineQueryMode
-from unique_web_search.services.executors.web_search_v1_executor import (
+from unique_web_search.services.executors.v1.config import RefineQueryMode
+from unique_web_search.services.executors.v1.executor import (
     RefinedQueries,
     RefinedQuery,
     WebSearchV1Executor,
     query_generation_agent,
 )
-from unique_web_search.services.executors.web_search_v2_executor import (
+from unique_web_search.services.executors.v2.executor import (
     WebSearchV2Executor,
 )
-from unique_web_search.services.executors.web_search_v3_executor import (
+from unique_web_search.services.executors.v3.executor import (
     WebSearchV3Executor,
 )
 from unique_web_search.services.search_engine.schema import WebSearchResult
@@ -817,7 +817,7 @@ class TestWebSearchV3ExecutorExecuteSearchStep:
         judge_config = SnippetJudgeConfig(max_urls_to_select=2)
 
         with patch(
-            "unique_web_search.services.executors.web_search_v3_executor.select_relevant",
+            "unique_web_search.services.executors.v3.executor.select_relevant",
             new_callable=AsyncMock,
             return_value=selected_by_judge,
         ) as mocked_select_relevant:

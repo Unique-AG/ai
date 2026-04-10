@@ -10,11 +10,11 @@ from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_web_search.prompts import (
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3,
 )
-from unique_web_search.services.executors.configs.base import (
+from unique_web_search.services.executors.base_config import (
     BaseWebSearchModeConfig,
     WebSearchMode,
 )
-from unique_web_search.services.executors.configs.prompts import (
+from unique_web_search.services.executors.v3.prompts import (
     DEFAULT_TOOL_DESCRIPTION,
     DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
 )
@@ -43,10 +43,10 @@ class WebSearchV3Config(BaseWebSearchModeConfig[WebSearchMode.V3]):
     tool_description: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=len(DEFAULT_TOOL_DESCRIPTION["v3"].split("\n"))
+            rows=len(DEFAULT_TOOL_DESCRIPTION.split("\n"))
         ),
     ] = Field(
-        default=DEFAULT_TOOL_DESCRIPTION["v3"],
+        default=DEFAULT_TOOL_DESCRIPTION,
         title="Tool Description",
         description="Advanced: Description that helps the AI model decide when to use web search.",
     )
@@ -54,11 +54,11 @@ class WebSearchV3Config(BaseWebSearchModeConfig[WebSearchMode.V3]):
         str,
         RJSFMetaTag.StringWidget.textarea(
             rows=int(
-                len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT["v3"].split("\n")) / 2
+                len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT.split("\n")) / 2
             )
         ),
     ] = Field(
-        default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT["v3"],
+        default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
         title="Tool Description for System Prompt",
         description="Advanced: Description that helps the AI model decide when to use web search (V3).",
     )

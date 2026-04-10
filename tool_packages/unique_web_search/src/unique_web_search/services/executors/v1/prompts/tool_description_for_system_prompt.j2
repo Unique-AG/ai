@@ -1,0 +1,12 @@
+Use the `WebSearch` tool to access up-to-date information from the web or when responding to the user requires information about their location. Some examples of when to use the `WebSearch` tool include:
+- Local Information: Use the `WebSearch` tool to respond to questions that require information about the user's location, such as the weather, local businesses, or events.
+- Freshness: If up-to-date information on a topic could potentially change or enhance the answer, call the `WebSearch` tool any time you would otherwise refuse to answer a question because your knowledge might be out of date.
+- Niche Information: If the answer would benefit from detailed information not widely known or understood (which might be found on the internet), such as details about a small neighborhood, a less well-known company, or arcane regulations, use web sources directly rather than relying on the distilled knowledge from pretraining.
+- Accuracy: If the cost of a small mistake or outdated information is high (e.g., using an outdated version of a software library or not knowing the date of the next game for a sports team), then use the `WebSearch` tool.
+
+### Instruction Query Splitting
+You should split the user question into multiple queries when the user's question needs to be decomposed / rewritten to find different facts. Perform for each query an individual tool call. Avoid short queries that are extremely broad and will return unrelated results. Strip the search string of any extraneous details, e.g. instructions or unnecessary context. However, you must fill in relevant context from the rest of the conversation to make the question complete. E.g. "What was their age?" => "What was Kevin's age?" because the preceding conversation makes it clear that the user is talking about Kevin.
+
+Here are some examples of how to use the WebSearch tool:
+User: What was the GDP of France and Italy in the 1970s? => queries: ["france gdp 1970", "italy gdp 1970"] # Splitting of the query into 2 queries and perform 2 tool calls
+User: What does the report say about the GPT4 performance on MMLU? => queries: ["GPT4 performance on MMLU?"] # Simplify the query

@@ -14,7 +14,7 @@ from unique_web_search.schema import StepDebugInfo, WebSearchToolParameters
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
 )
-from unique_web_search.services.executors.configs import RefineQueryMode
+from unique_web_search.services.executors.v1.config import RefineQueryMode
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
     ExecutorConfiguration,
@@ -89,7 +89,6 @@ async def query_generation_agent(
     match mode:
         case RefineQueryMode.DEACTIVATED:
             _LOGGER.info("Query Refinement deactivated")
-            ### Early return for deactivated mode
             return RefinedQuery(
                 objective=query,
                 refined_query=query,
@@ -167,7 +166,6 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         elicitated_queries = await self._ff_elicitate_queries(refined_queries)
 
         web_search_results = []
-        # Pass query strings only - callback handles creating WebSearchLogEntry objects
 
         queries_wo_results = [
             query_params_to_human_string(refined_query, date_restrict)

@@ -1,0 +1,18 @@
+You're task consist of a query for a search engine.
+
+** Refine the query Guidelines **
+- The query should be a string that does not exceed 6 key words.
+- Never include temporal information in the refined query. There is a separate field for this purpose.
+- You may add the additional advanced syntax when relevant to refine the results:
+- Use quotes `"..."` for exact words (avoid doing it for phrases as it will dramatically reduce the number of results).
+- Use `-word` to exclude terms.
+- Use `site:domain.com` to restrict to a site.
+- Use `intitle:`, `inurl:` to target title/URL.
+- Use `OR` for alternatives, `*` as a wildcard.
+- Use `..` for number ranges (e.g., 2010..2020).
+- Use `AROUND(N)` to find terms close together.
+- Use `define:word` for definitions.
+- Combine operators for powerful filtering.
+
+** IMPORTANT **
+- You should not use any date restriction in the refined query.

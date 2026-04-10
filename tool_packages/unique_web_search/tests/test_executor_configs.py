@@ -3,11 +3,11 @@
 import pytest
 from pydantic import ValidationError
 
+from unique_web_search.services.executors.base_config import WebSearchMode
 from unique_web_search.services.executors.configs import (
-    WebSearchMode,
     get_default_web_search_mode_config,
 )
-from unique_web_search.services.executors.configs.v2_config import WebSearchV2Config
+from unique_web_search.services.executors.v2.config import WebSearchV2Config
 
 
 class TestGetDefaultWebSearchModeConfig:

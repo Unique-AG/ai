@@ -10,6 +10,11 @@ from unique_web_search.services.search_engine.schema import (
 )
 
 
+class SearchEngineMode(StrEnum):
+    STANDARD = "standard"
+    AGENT = "agent"
+
+
 class SearchEngineType(StrEnum):
     GOOGLE = "Google"
     JINA = "Jina"
@@ -20,6 +25,35 @@ class SearchEngineType(StrEnum):
     DUCKDUCKGO = "DuckDuckGo"
     VERTEXAI = "VertexAI"
     CUSTOM_API = "CustomAPI"
+
+
+_SEARCH_ENGINE_MODE_MAP: dict[SearchEngineType, SearchEngineMode] = {
+    SearchEngineType.GOOGLE: SearchEngineMode.STANDARD,
+    SearchEngineType.JINA: SearchEngineMode.STANDARD,
+    SearchEngineType.FIRECRAWL: SearchEngineMode.STANDARD,
+    SearchEngineType.TAVILY: SearchEngineMode.STANDARD,
+    SearchEngineType.BRAVE: SearchEngineMode.STANDARD,
+    SearchEngineType.DUCKDUCKGO: SearchEngineMode.STANDARD,
+    SearchEngineType.BING: SearchEngineMode.AGENT,
+    SearchEngineType.VERTEXAI: SearchEngineMode.AGENT,
+}
+
+
+def get_search_engine_mode(
+    engine_type: SearchEngineType,
+    *,
+    override: SearchEngineMode | None = None,
+) -> SearchEngineMode:
+    """Return the mode (standard vs agent) for a given search engine type.
+
+    Args:
+        engine_type: The search engine type to look up.
+        override: If provided, returned as-is (used by CustomAPI with a
+            user-configured mode).
+    """
+    if override is not None:
+        return override
+    return _SEARCH_ENGINE_MODE_MAP.get(engine_type, SearchEngineMode.STANDARD)
 
 
 _SearchEngineExposedName = {

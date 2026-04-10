@@ -60,9 +60,14 @@ class TestWebSearchToolDescription:
             WebSearchTool, "__init__", lambda self, config, *args, **kwargs: None
         )
 
+        from unique_web_search.services.search_engine.base import SearchEngineType
+
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
         tool.tool_parameter_calls = None  # type: ignore
+        mock_engine = Mock()
+        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        tool.search_engine_service = mock_engine
 
         result = tool.tool_description()
 
@@ -70,7 +75,7 @@ class TestWebSearchToolDescription:
         assert result.name == "WebSearch"
         assert hasattr(result, "description")
         assert result.description == "V2 tool description"
-        assert tool.tool_parameter_calls == WebSearchPlan
+        assert issubclass(tool.tool_parameter_calls, WebSearchPlan)
 
 
 class TestWebSearchToolDescriptionForSystemPrompt:
@@ -110,10 +115,12 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         mocker: Any,
     ) -> None:
         """
-        Purpose: Verify tool_description_for_system_prompt replaces $max_steps placeholder for V2.
-        Why this matters: V2 mode requires dynamic max_steps value in system prompt.
-        Setup summary: Mock WebSearchTool with V2 config containing $max_steps placeholder.
+        Purpose: Verify tool_description_for_system_prompt renders Jinja placeholders for V2.
+        Why this matters: V2 mode requires dynamic max_steps and engine-mode injection.
+        Setup summary: Mock WebSearchTool with V2 config containing Jinja placeholders.
         """
+        from unique_web_search.services.search_engine.base import SearchEngineType
+
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
@@ -124,11 +131,14 @@ class TestWebSearchToolDescriptionForSystemPrompt:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v2
+        mock_engine = Mock()
+        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        tool.search_engine_service = mock_engine
 
         result: str = tool.tool_description_for_system_prompt()
 
         assert isinstance(result, str)
-        assert result == "V2 system prompt with 5"
+        assert "V2 system prompt with 5" in result
 
     @pytest.mark.ai
     def test_tool_description_for_system_prompt__renders_jinja__when_mode_is_v3(
@@ -138,9 +148,11 @@ class TestWebSearchToolDescriptionForSystemPrompt:
     ) -> None:
         """
         Purpose: Verify tool_description_for_system_prompt renders Jinja placeholders for V3.
-        Why this matters: V3 uses dynamic date and max_steps injection, while V2 should not.
+        Why this matters: V3 uses dynamic date, max_steps, and engine-mode injection.
         Setup summary: Mock WebSearchTool with V3 config containing Jinja placeholders.
         """
+        from unique_web_search.services.search_engine.base import SearchEngineType
+
         mocker.patch("unique_web_search.service.get_search_engine_service")
         mocker.patch("unique_web_search.service.get_crawler_service")
         mocker.patch("unique_web_search.service.ChunkRelevancySorter")
@@ -151,6 +163,9 @@ class TestWebSearchToolDescriptionForSystemPrompt:
 
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v3
+        mock_engine = Mock()
+        mock_engine.config.search_engine_name = SearchEngineType.GOOGLE
+        tool.search_engine_service = mock_engine
 
         result: str = tool.tool_description_for_system_prompt()
 
@@ -263,7 +278,7 @@ class TestWebSearchToolGetExecutor:
         Why this matters: Ensures correct executor is selected for V2 mode.
         Setup summary: Mock WebSearchTool with V2 config and WebSearchPlan parameters.
         """
-        from unique_web_search.services.executors.web_search_v2_executor import (
+        from unique_web_search.services.executors.v2.executor import (
             WebSearchV2Executor,
         )
 
@@ -323,7 +338,7 @@ class TestWebSearchToolGetExecutor:
         Why this matters: Ensures correct executor is selected for V1 mode.
         Setup summary: Mock WebSearchTool with V1 config and WebSearchToolParameters.
         """
-        from unique_web_search.services.executors.web_search_v1_executor import (
+        from unique_web_search.services.executors.v1.executor import (
             WebSearchV1Executor,
         )
 

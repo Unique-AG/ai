@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 from time import time
 
-import jinja2
+from jinja2 import Template
 from typing_extensions import override
 from unique_toolkit._common.chunk_relevancy_sorter.service import ChunkRelevancySorter
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
@@ -48,7 +48,12 @@ from unique_web_search.services.executors.context import (
 )
 from unique_web_search.services.message_log import WebSearchMessageLogger
 from unique_web_search.services.query_elicitation import QueryElicitationService
-from unique_web_search.services.search_engine import get_search_engine_service
+from unique_web_search.services.search_engine import (
+    SearchEngineMode,
+    get_search_engine_mode,
+    get_search_engine_service,
+)
+from unique_web_search.services.search_engine.custom_api import CustomAPIConfig
 from unique_web_search.utils import (
     WebPageChunk,
     reduce_sources_to_token_limit,
@@ -108,6 +113,16 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         self.content_reducer = content_reducer
 
+    def _resolve_search_engine_mode(self) -> SearchEngineMode:
+        """Derive the search-engine mode, respecting CustomAPI overrides."""
+        cfg = self.search_engine_service.config
+        override = (
+            cfg.search_engine_mode
+            if isinstance(cfg, CustomAPIConfig)
+            else None
+        )
+        return get_search_engine_mode(cfg.search_engine_name, override=override)
+
     @override
     def tool_description(self) -> LanguageModelToolDescription:
         if self.config.web_search_mode_config.mode == WebSearchMode.V1:
@@ -116,7 +131,10 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 self.config.web_search_mode_config.tool_parameters_description.date_restrict_description,
             )
         else:
-            self.tool_parameter_calls = WebSearchPlan
+            engine_mode = self._resolve_search_engine_mode()
+            self.tool_parameter_calls = WebSearchPlan.with_search_engine_mode(
+                engine_mode
+            )
 
         tool_description = self.config.web_search_mode_config.tool_description
 
@@ -127,19 +145,30 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
     def tool_description_for_system_prompt(self) -> str:
-        if self.config.web_search_mode_config.mode == WebSearchMode.V3:
-            return jinja2.Template(
-                self.config.web_search_mode_config.tool_description_for_system_prompt
-            ).render(
-                max_steps=self.config.web_search_mode_config.max_steps,
-                date_string=datetime.now().strftime("%A %B %d, %Y"),
+        mode_config = self.config.web_search_mode_config
+        if mode_config.mode == WebSearchMode.V1:
+            return mode_config.tool_description_for_system_prompt
+
+        engine_mode = self._resolve_search_engine_mode()
+        template = Template(mode_config.tool_description_for_system_prompt)
+
+        render_vars: dict[str, object] = {
+            "max_steps": mode_config.max_steps,
+            "date_string": datetime.now().strftime("%A %B %d, %Y"),
+            "search_engine_mode": engine_mode.value,
+            "tool_parameters_schema": WebSearchPlan.schema_hint(engine_mode),
+            "example_simple": WebSearchPlan.build_example_simple(engine_mode)
+            .model_dump_json(indent=2),
+            "example_complex": WebSearchPlan.build_example_complex(engine_mode)
+            .model_dump_json(indent=2),
+        }
+
+        if mode_config.mode == WebSearchMode.V3:
+            render_vars["example_fsi"] = (
+                WebSearchPlan.build_example_fsi(engine_mode).model_dump_json(indent=2)
             )
-        if self.config.web_search_mode_config.mode == WebSearchMode.V2:
-            return self.config.web_search_mode_config.tool_description_for_system_prompt.replace(
-                "$max_steps",
-                str(self.config.web_search_mode_config.max_steps),
-            )
-        return self.config.web_search_mode_config.tool_description_for_system_prompt
+
+        return template.render(**render_vars)
 
     def tool_format_information_for_system_prompt(self) -> str:
         if self.config.web_search_active_mode == WebSearchMode.V3:
@@ -269,11 +298,10 @@ class WebSearchTool(Tool[WebSearchConfig]):
             tool_progress_reporter=self._ff_tool_progress_reporter(),
         )
 
+        search_config = self.config.web_search_mode_config
         if isinstance(parameters, WebSearchPlan):
-            mode = self.config.web_search_mode_config.mode
-            if mode == WebSearchMode.V3:
-                v3_config = self.config.web_search_mode_config
-                assert isinstance(v3_config, WebSearchV3Config)
+            if search_config.mode == WebSearchMode.V3:
+                assert isinstance(search_config, WebSearchV3Config)
 
                 return WebSearchV3Executor(
                     services=services,
@@ -281,29 +309,29 @@ class WebSearchTool(Tool[WebSearchConfig]):
                     callbacks=callbacks,
                     tool_call=tool_call,
                     tool_parameters=parameters,
-                    max_steps=v3_config.max_steps,
-                    snippet_judge_config=v3_config.snippet_judge_config,
+                    max_steps=search_config.max_steps,
+                    snippet_judge_config=search_config.snippet_judge_config,
                 )
-            assert mode == WebSearchMode.V2
+            assert search_config.mode == WebSearchMode.V2
             return WebSearchV2Executor(
                 services=services,
                 config=config,
                 callbacks=callbacks,
                 tool_call=tool_call,
                 tool_parameters=parameters,
-                max_steps=self.config.web_search_mode_config.max_steps,
+                max_steps=search_config.max_steps,
             )
         elif isinstance(parameters, WebSearchToolParameters):
-            assert self.config.web_search_mode_config.mode == WebSearchMode.V1
+            assert search_config.mode == WebSearchMode.V1
             return WebSearchV1Executor(
                 services=services,
                 config=config,
                 callbacks=callbacks,
                 tool_call=tool_call,
                 tool_parameters=parameters,
-                refine_query_system_prompt=self.config.web_search_mode_config.refine_query_mode.system_prompt,
-                mode=self.config.web_search_mode_config.refine_query_mode.mode,
-                max_queries=self.config.web_search_mode_config.max_queries,
+                refine_query_system_prompt=search_config.refine_query_mode.system_prompt,
+                mode=search_config.refine_query_mode.mode,
+                max_queries=search_config.max_queries,
             )
         else:
             raise ValueError(f"Invalid parameters: {parameters}")
