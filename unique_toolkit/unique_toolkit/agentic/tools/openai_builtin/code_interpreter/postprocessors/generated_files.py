@@ -587,7 +587,12 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 missed_files.append(filename)
 
             is_html_rendered = is_html
-            if replaced and not (is_image or is_html_rendered or fence_ff_on):
+            has_superscript = f"<sup>{ref_number}</sup>" in loop_response.message.text
+            if (
+                replaced
+                and has_superscript
+                and not (is_image or is_html_rendered or fence_ff_on)
+            ):
                 loop_response.message.references.append(
                     ContentReference(
                         sequence_number=ref_number,
@@ -613,7 +618,16 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 len(code_blocks),
                 [f.filename for b in code_blocks for f in b.files],
             )
-            _warn_unmatched_code_blocks(self._content_map, code_blocks)
+            unmatched_blocks = _warn_unmatched_code_blocks(
+                self._content_map, code_blocks
+            )
+            if unmatched_blocks:
+                self._log.info(
+                    "Fence path: %d file(s) have no code-block match and will appear "
+                    "as plain download links: %s",
+                    len(unmatched_blocks),
+                    list(unmatched_blocks),
+                )
             text_before = loop_response.message.text
             loop_response.message.text = _inject_code_execution_fences(
                 loop_response.message.text,
@@ -1395,7 +1409,7 @@ def _replace_dangling_sandbox_links(text: str) -> tuple[str, bool]:
 def _warn_unmatched_code_blocks(
     content_map: dict[str, str | None],
     code_blocks: list[CodeInterpreterBlock],
-) -> None:
+) -> dict[str, str]:
     """Warn for files that were uploaded but could not be matched to any code block.
 
     When the fence feature flag is on, every uploaded file should map to a code block
@@ -1403,8 +1417,13 @@ def _warn_unmatched_code_blocks(
     matched (e.g. the LLM used a variable for the output path rather than a literal
     string) it falls back to a plain unique://content/ link with no code context.
     The user can still download it, but the frontend artifact UI will not be shown.
+
+    Returns:
+        Mapping of filename → content_id for every file that could not be matched
+        to a code block.  Callers may use this to inject additional fallback links.
     """
     fenced_filenames = {f.filename for block in code_blocks for f in block.files}
+    unmatched: dict[str, str] = {}
     for filename, content_id in content_map.items():
         if content_id is None:
             continue
@@ -1420,6 +1439,8 @@ def _warn_unmatched_code_blocks(
                 content_id,
                 filename,
             )
+            unmatched[filename] = content_id
+    return unmatched
 
 
 def _get_next_ref_number(references: list[ContentReference] | None) -> int:
@@ -1460,11 +1481,12 @@ def _replace_container_image_citation(
     if not re.search(image_markdown, text):
         logger.warning(
             "No sandbox link found for image '%s' (content_id=%s); "
-            "file was uploaded but the LLM did not reference it — it will not be displayed.",
+            "file was uploaded but the LLM did not reference it — appending fallback link.",
             filename,
             content_id,
         )
-        return text, False
+        fallback = f"\n\n📎 [{filename}](unique://content/{content_id})"
+        return text + fallback, True
 
     logger.info("Inserting image citation for '%s'", filename)
     return re.sub(
@@ -1483,11 +1505,12 @@ def _replace_container_html_citation(
     if not re.search(html_markdown, text):
         logger.warning(
             "No sandbox link found for HTML file '%s' (content_id=%s); "
-            "file was uploaded but the LLM did not reference it — it will not be displayed.",
+            "file was uploaded but the LLM did not reference it — appending fallback link.",
             filename,
             content_id,
         )
-        return text, False
+        fallback = f"\n\n📎 [{filename}](unique://content/{content_id})"
+        return text + fallback, True
 
     logger.info("Inserting HTML rendering block for '%s'", filename)
     block = f"```HtmlRendering\n800px\n600px\n\nunique://content/{content_id}\n\n```"
@@ -1540,11 +1563,12 @@ def _replace_container_file_citation(
     if not re.search(file_markdown, text):
         logger.warning(
             "No sandbox link found for file '%s' (content_id=%s); "
-            "file was uploaded but the LLM did not reference it — it will not be displayed.",
+            "file was uploaded but the LLM did not reference it — appending fallback link.",
             filename,
             content_id,
         )
-        return text, False
+        fallback = f"\n\n📎 [{filename}](unique://content/{content_id})"
+        return text + fallback, True
 
     logger.info("Displaying file %s", filename)
     replacement = (

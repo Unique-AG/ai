@@ -1,7 +1,7 @@
 """Tests for OpenAICodeInterpreterTool (get_debug_info, get_required_include_params, get_tool_prompts)."""
 
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from openai.types.responses import ResponseCodeInterpreterToolCall
@@ -11,8 +11,11 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import 
     OpenAICodeInterpreterConfig,
 )
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service import (
+    CodeExecutionShortTermMemorySchema,
     OpenAICodeInterpreterTool,
+    _upload_files_to_container,
 )
+from unique_toolkit.content.schemas import Content
 
 
 @pytest.fixture
@@ -244,3 +247,88 @@ def test_get_required_include_params__returns_empty_list__when_ff_off() -> None:
         result = tool.get_required_include_params()
 
     assert result == []
+
+
+# ============================================================================
+# Tests for _upload_files_to_container (retry-wrapped download + create)
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_upload_files_to_container__downloads_and_creates__when_file_not_in_memory() -> (
+    None
+):
+    """
+    Purpose: Exercise the upload branch: download bytes from ContentService and
+    ``containers.files.create`` so diff coverage includes retry-wrapped I/O.
+    Why this matters: CI requires ≥60% coverage on changed lines in service.py.
+    """
+    memory = CodeExecutionShortTermMemorySchema(
+        container_id="ctr_test",
+        file_ids={},
+    )
+    uploaded = Content(id="cont_upload_1", key="data.csv")
+    content_service = MagicMock()
+    content_service.download_content_to_bytes_async = AsyncMock(
+        return_value=b"a,b\n1,2\n",
+    )
+    openai_file = MagicMock()
+    openai_file.id = "file_openai_1"
+    files_create = AsyncMock(return_value=openai_file)
+    client = MagicMock()
+    client.containers.files.create = files_create
+
+    result = await _upload_files_to_container(
+        client=client,
+        uploaded_files=[uploaded],
+        memory=memory,
+        content_service=content_service,
+        chat_id="chat_1",
+    )
+
+    assert result.file_ids["cont_upload_1"] == "file_openai_1"
+    content_service.download_content_to_bytes_async.assert_awaited_once_with(
+        content_id="cont_upload_1",
+        chat_id="chat_1",
+    )
+    files_create.assert_awaited_once()
+    assert files_create.await_args.kwargs["container_id"] == "ctr_test"
+    assert files_create.await_args.kwargs["file"] == ("data.csv", b"a,b\n1,2\n")
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_upload_files_to_container__retries_download__after_transient_error() -> (
+    None
+):
+    """
+    Purpose: Confirm tenacity retries ``download_content_to_bytes_async`` after a
+    transient failure before calling ``containers.files.create``.
+    """
+    memory = CodeExecutionShortTermMemorySchema(
+        container_id="ctr_retry",
+        file_ids={},
+    )
+    uploaded = Content(id="cont_retry_1", key="f.bin")
+    content_service = MagicMock()
+    content_service.download_content_to_bytes_async = AsyncMock(
+        side_effect=[ConnectionError("blip"), b"payload"],
+    )
+    openai_file = MagicMock()
+    openai_file.id = "file_after_retry"
+    files_create = AsyncMock(return_value=openai_file)
+    client = MagicMock()
+    client.containers.files.create = files_create
+
+    result = await _upload_files_to_container(
+        client=client,
+        uploaded_files=[uploaded],
+        memory=memory,
+        content_service=content_service,
+        chat_id="chat_retry",
+    )
+
+    assert result.file_ids["cont_retry_1"] == "file_after_retry"
+    assert content_service.download_content_to_bytes_async.await_count == 2
+    files_create.assert_awaited_once()
