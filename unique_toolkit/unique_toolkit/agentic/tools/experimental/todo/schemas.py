@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class TodoStatus(StrEnum):
@@ -24,8 +24,13 @@ _TERMINAL_STATUSES: frozenset[TodoStatus] = frozenset(
 )
 
 
+model_config = ConfigDict(extra="forbid")
+
+
 class TodoItem(BaseModel):
     """Stored todo item — always has content."""
+
+    model_config = model_config
 
     id: str = Field(
         description="Unique identifier for this TODO (model-generated, free-form string e.g. 'research-apis', 'step-1')",
@@ -33,7 +38,6 @@ class TodoItem(BaseModel):
     content: str = Field(description="Description of the task")
     status: TodoStatus
     active_form: str | None = Field(
-        default=None,
         description="Present-continuous form of the task shown as live status text "
         "(e.g. 'Searching documents', 'Analyzing results'). "
         "Provide when creating or updating an item.",
@@ -43,16 +47,15 @@ class TodoItem(BaseModel):
 class TodoItemInput(BaseModel):
     """Input todo item — content is optional for merge updates (status-only changes)."""
 
+    model_config = model_config
     id: str = Field(
         description="Unique identifier for this TODO (model-generated, free-form string e.g. 'research-apis', 'step-1')",
     )
     content: str | None = Field(
-        default=None,
         description="Description of the task. Required when creating new items, optional when updating existing ones via merge.",
     )
     status: TodoStatus
     active_form: str | None = Field(
-        default=None,
         description="Present-continuous form shown as live status text "
         "(e.g. 'Searching documents'). Provide for richer UI display.",
     )
@@ -61,8 +64,11 @@ class TodoItemInput(BaseModel):
 class TodoList(BaseModel):
     """Full TODO state for a session. Stored in ShortTermMemory."""
 
-    todos: list[TodoItem] = Field(default_factory=list)
-    last_updated_iteration: int = 0
+    model_config = model_config
+    todos: list[TodoItem] = Field(description="The list of todo items.")
+    last_updated_iteration: int = Field(
+        description="The iteration number of the last update."
+    )
 
     def update(self, incoming: list[TodoItemInput]) -> TodoList:
         """Update by ID: overwrite existing, append new, preserve unmentioned.
@@ -132,8 +138,10 @@ class TodoList(BaseModel):
 
 
 class TodoWriteInput(BaseModel):
-    todos: list[TodoItemInput] = Field(min_length=1)
+    model_config = model_config
+    todos: list[TodoItemInput] = Field(
+        min_length=1, description="The list of todo items to update."
+    )
     merge: bool = Field(
-        default=True,
         description="If true, merge with existing todos by ID. If false, replace entirely.",
     )
