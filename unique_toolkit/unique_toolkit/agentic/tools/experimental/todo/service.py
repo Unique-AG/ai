@@ -37,7 +37,7 @@ _STATUS_ICON = {
 
 
 class TodoWriteTool(Tool[TodoConfig]):
-    name: str = "todo_write"
+    name: str = "TodoWrite"
 
     def __init__(
         self,
