@@ -1,7 +1,7 @@
 from google.genai import types
 from google.genai.client import AsyncClient
 
-from core.vertexai.response_handler import (
+from unique_search_proxy.web.core.vertexai.response_handler import (
     PostProcessFunction,
     T,
 )
