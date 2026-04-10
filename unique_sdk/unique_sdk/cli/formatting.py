@@ -114,12 +114,12 @@ def format_search_results(results: list[Any]) -> str:
 
 def format_content_info(info: Content.ContentInfo) -> str:
     """Format a single content info record."""
-    rows = [
+    rows: list[list[str]] = [
         ["ID:", info.get("id", "?")],
         ["Title:", info.get("title") or info.get("key") or "?"],
-        ["MIME:", info.get("mimeType", "?")],
+        ["MIME:", info.get("mimeType") or "?"],
         ["Size:", _format_size(info.get("byteSize"))],
-        ["Owner:", info.get("ownerId", "?")],
+        ["Owner:", info.get("ownerId") or "?"],
         ["Created:", _format_date(info.get("createdAt"))],
         ["Updated:", _format_date(info.get("updatedAt"))],
     ]
