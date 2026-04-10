@@ -9,7 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from unique_search_proxy.core import (
+from unique_search_proxy.web.core import (
     SearchEngineRequestType,
     WebSearchResult,
     get_search_engine,

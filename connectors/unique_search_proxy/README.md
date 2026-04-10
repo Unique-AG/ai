@@ -46,25 +46,18 @@ VERTEXAI_SERVICE_ACCOUNT_CREDENTIALS=path/to/credentials.json
 
 **Development:**
 ```bash
-uv run python -m unique_search_proxy.app
+uv run python -m unique_search_proxy.web.app
 ```
 
-**Production:**
-```bash
-./entrypoint.sh
-```
+**Docker (from published package):**
 
-Or with custom configuration:
-```bash
-HOST=0.0.0.0 PORT=8080 WORKERS=4 ./entrypoint.sh
-```
+The container image is built from the `deploy/` directory and installs the package from PyPI:
 
-**Docker:**
 ```bash
-# Build the image
-docker build -t search-proxy .
+# Build locally (requires the package to be published first)
+docker build --build-arg PACKAGE_VERSION=0.2.0 -t search-proxy deploy/
 
-# Run the container (map port 8080 to host)
+# Run the container
 docker run --rm -p 8080:8080 search-proxy
 
 # With custom environment variables
@@ -192,18 +185,24 @@ Leverages Google's Gemini models with web grounding for AI-enhanced search resul
 
 ```
 connectors/unique_search_proxy/
-├── unique_search_proxy/          # Python package
-│   ├── app.py                    # FastAPI application
-│   ├── settings.py               # Global settings
-│   └── core/                     # Search engine implementations
-│       ├── schema.py             # Shared schemas
-│       ├── google_search/        # Google Custom Search backend
-│       └── vertexai/             # Vertex AI (Gemini) backend
+├── unique_search_proxy/          # Python package (published to PyPI)
+│   ├── __init__.py
+│   └── web/                      # Web search API sub-module
+│       ├── __init__.py
+│       ├── app.py                # FastAPI application
+│       ├── settings.py           # Global settings
+│       └── core/                 # Search engine implementations
+│           ├── schema.py         # Shared schemas
+│           ├── google_search/    # Google Custom Search backend
+│           └── vertexai/         # Vertex AI (Gemini) backend
 ├── tests/                        # Test suite
-├── Dockerfile
-├── entrypoint.sh
+├── deploy/                       # Container build artifacts
+│   ├── Dockerfile                # Installs from PyPI, not source
+│   └── entrypoint.sh
 └── pyproject.toml
 ```
+
+The package uses a sub-module hierarchy (`web/`) to support future extensions (e.g. `internal/` search) that can be deployed as separate containers from the same package.
 
 ## Architecture
 
@@ -245,7 +244,7 @@ All errors return a consistent format:
 
 ## Production Deployment
 
-The service includes a production-ready `entrypoint.sh` that uses Uvicorn:
+The service includes a production-ready `deploy/entrypoint.sh` that uses Uvicorn:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -259,7 +258,7 @@ The service includes a production-ready `entrypoint.sh` that uses Uvicorn:
 
 ```bash
 # Run with hot reload
-uv run uvicorn unique_search_proxy.app:app --reload --port 2349
+uv run uvicorn unique_search_proxy.web.app:app --reload --port 2349
 
 # Format code
 uv run ruff format .

@@ -3,10 +3,10 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import BaseModel
 
-from unique_search_proxy.core.vertexai.exceptions import (
+from unique_search_proxy.web.core.vertexai.exceptions import (
     VertexAIContentResponseEmptyException,
 )
-from unique_search_proxy.core.vertexai.response_handler import (
+from unique_search_proxy.web.core.vertexai.response_handler import (
     PostProcessFunction,
     _build_citation_links,
     _insert_citations_into_text,

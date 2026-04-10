@@ -15,9 +15,37 @@ on:
       - .github/workflows/unique_search_proxy-publish.yaml
 
 jobs:
+  publish-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+
+      - name: Get package version
+        id: version
+        working-directory: connectors/unique_search_proxy
+        run: |
+          VERSION=$(python3 -c "import tomllib; f=open('pyproject.toml', 'rb'); data=tomllib.load(f); print(data['project']['version'])")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Publish to PyPI
+        uses: ./.github/actions/publish-to-pypi-with-uv
+        with:
+          package_dir: connectors/unique_search_proxy
+          package_name: unique-search-proxy
+          python_version: '3.12'
+          check_version: 'true'
+          pypi_token: ${{ secrets.PYPI_TOKEN }}
+
   containerize:
+    needs: publish-package
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       packages: write
     env:
@@ -47,30 +75,38 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup uv
-        id: setup-uv
-        uses: ./.github/actions/setup-uv
-        with:
-          install_dependencies: 'false'
-
-      - name: Export locked requirements
-        # Generates requirements.txt from uv.lock with exact == version pins
-        # and sha256 hashes for every dependency (direct and transitive).
-        # --locked fails if uv.lock is out of date, so the export is always
-        # derived from the committed lockfile — never a fresh resolve.
-        run: uv export --locked --package unique-search-proxy --no-dev --no-emit-project -o connectors/unique_search_proxy/requirements.txt
-
       - name: Build and push container
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           build-args: |
-            UV_VERSION=${{ steps.setup-uv.outputs.uv-version }}
+            PACKAGE_VERSION=${{ needs.publish-package.outputs.version }}
           cache-from: type=registry,ref=${{ env.CHART_REPO }}:cache
           cache-to: type=registry,ref=${{ env.CHART_REPO }}:cache,mode=min
-          context: connectors/unique_search_proxy
-          file: connectors/unique_search_proxy/Dockerfile
+          context: connectors/unique_search_proxy/deploy
+          file: connectors/unique_search_proxy/deploy/Dockerfile
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
           provenance: false
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
+
+  validate-pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+
+      - name: Setup docker buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
+      - name: Validate Dockerfile builds
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          build-args: |
+            PACKAGE_VERSION=0.0.0-pr-validation
+          context: connectors/unique_search_proxy/deploy
+          file: connectors/unique_search_proxy/deploy/Dockerfile
+          platforms: linux/amd64
+          push: false

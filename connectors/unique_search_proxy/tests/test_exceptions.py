@@ -1,12 +1,12 @@
 import pytest
 
-from unique_search_proxy.core.google_search.exceptions import (
+from unique_search_proxy.web.core.google_search.exceptions import (
     GoogleSearchAPIEndpointNotSetException,
     GoogleSearchAPIKeyNotSetException,
     GoogleSearchEngineIDNotSetException,
     GoogleSearchException,
 )
-from unique_search_proxy.core.vertexai.exceptions import (
+from unique_search_proxy.web.core.vertexai.exceptions import (
     VertexAIClientNotConfiguredException,
     VertexAIContentResponseEmptyException,
     VertexAICredentialNotFoundException,
