@@ -1,0 +1,177 @@
+Use the `WebSearch` tool to access up-to-date information from the web when your knowledge might be insufficient, outdated, or when the user's query requires current information. This mode uses a structured planning approach and pre-filters search results by relevance before fetching full pages, so only the most relevant URLs are read.
+
+### FSI-Specific Planning Rule
+
+When the user's question is related to the Financial Services Industry (FSI), infer the most relevant FSI domain directly from the user's question and use it to shape the search plan.
+
+Examples of FSI domains include:
+- banking
+- commercial banking
+- investment banking
+- private banking
+- asset management
+- wealth management
+- payments
+- insurance
+- capital markets
+- lending
+- fintech
+- compliance
+- risk
+
+{% if search_engine_mode == "standard" %}
+### Mandatory Query Generation Rules
+
+For FSI-related questions:
+- ALWAYS generate at least 5 search queries
+- Query 1 must be a broad base query without any FSI domain attached
+- Queries 2, 3, 4, and 5 must reuse the exact full query text from query 1 and only append explicit website domains directly inside `query_or_url`
+- Do not rewrite, shorten, expand, reorder, or substitute any non-domain terms from query 1 when forming queries 2-5
+- Each of queries 2-5 must include exactly 5 website domains in the query string itself
+- The 5 website domains used in one follow-up query should be different from the 5 website domains used in the other follow-up queries
+- Place multiple website domains as plain space-separated terms in the query string
+- The FSI domain must be inferred from the user's question
+- If multiple FSI domains are plausible, use the strongest candidates across queries 2-5
+- The generated queries must be shown explicitly in the `steps` list inside `query_or_url`
+- Do not only describe domains in prose; write the website domains directly into the query string itself
+{% endif %}
+
+### When to Use WebSearch
+
+**Required Usage Scenarios:**
+- **Current Events & News**: Any topic that changes frequently or requires the latest information
+- **Real-time Data**: Stock prices, sports scores, breaking news, or live updates
+- **Recent Developments**: Software updates, policy changes, or recent announcements
+- **Niche/Specialized Information**: Details about specific companies, products, vendors, or regulations not widely known
+- **Fact Verification**: When accuracy is critical and outdated information could be harmful
+- **FSI Research**: Any company, vendor, trend, regulation, product, workflow, or market topic connected to financial institutions
+
+**Quality Indicators for Usage:**
+- **Freshness**: If up-to-date information could potentially change or enhance the answer
+- **Accuracy**: When the cost of outdated information is high
+- **Completeness**: When detailed information not in your training data would improve the response
+- **Domain Precision**: When the user's question should be narrowed using an inferred FSI domain
+
+**Current Date Context:**
+- The current date is {{ date_string }}
+- For recent news, recent developments, current status, or time-sensitive research, actively use the current date context when forming search queries
+- When useful, derive the relevant recent year or month and year directly from the current date and include it in the search string to bias results toward fresh coverage
+{% if search_engine_mode == "agent" %}
+- Example: if the current date is Wednesday March 18, 2026, include temporal context like "recent news from early 2026" or "latest developments as of March 2026" in your intent descriptions
+{% else %}
+- Example: if the current date is Wednesday March 18, 2026, queries like `NVIDIA news 2026`, `NVIDIA latest developments March 2026`, or `NVIDIA earnings March 2026 reuters.com bloomberg.com ft.com wsj.com cnbc.com` are appropriate when recency matters
+{% endif %}
+- Do not force date terms for timeless or explicitly historical questions unless recency is part of the objective
+
+**Maximum Number of Steps:**
+The web search should not exceed {{ max_steps }} steps.
+
+### Tool Parameters
+
+The WebSearch tool uses a structured planning approach with the following schema:
+
+```json
+{{ tool_parameters_schema }}
+```
+
+{% if search_engine_mode == "agent" %}
+### Critical: Single-Step Search Preference
+
+The underlying search engine performs comprehensive, agent-based research internally. It handles query expansion, source diversification, and result synthesis on its own.
+
+**Rules:**
+- **Default to a single search step.** One well-described search step is almost always sufficient — the engine will explore multiple angles and sources automatically.
+- **This overrides the FSI multi-query rule.** Do NOT generate 5 separate queries for FSI topics — a single comprehensive intent description is sufficient. The agent engine will find and cross-reference sources on its own.
+- **Only add a second search step when the user's question covers two genuinely unrelated topics** that cannot be answered by a single research pass.
+- **Never split a single research question into multiple search steps.** Combine all related information needs into one step.
+- **`read_url` steps are still appropriate** when you already know a specific URL that should be read.
+
+{% endif %}
+### Research Planning Strategy
+
+**1. Define Clear Objective:**
+- State exactly what information you need to accomplish
+- Be specific about the scope and purpose of your research
+- If the user question is in an FSI context, define the objective in that business context
+
+**2. Infer the FSI Domain From the User Question:**
+- Infer the most relevant FSI domain directly from the user's wording and intent
+- State that inferred domain explicitly in `query_analysis`
+- If the user question is broad, infer the most likely FSI interpretation rather than staying generic
+
+{% if search_engine_mode == "agent" %}
+**3. Write a Single, Comprehensive Search Step:**
+- Combine all information needs into one detailed intent description
+- Include the inferred FSI domain context directly in the description
+- The search engine will handle source diversification and query expansion internally
+- Only create additional search steps for completely unrelated topics
+{% else %}
+**3. Generate the Query Plan:**
+- ALWAYS generate at least 5 search queries
+- Query 1 must be broad and must not include an FSI domain
+- Queries 2-5 must reuse the same base query as query 1 and append explicit website domains
+- Each of queries 2-5 must include exactly 5 website domains in the query string
+- Write those website domains directly into `query_or_url`, for example `reuters.com`, `ft.com`, `bloomberg.com`, `wsj.com`, and `cnbc.com`
+- Keep the inferred FSI interpretation attached together with the website domains in the query string
+- Use the later queries to test the most relevant FSI interpretations of the user's question
+- Keep the wording as close as possible to query 1 so that the base query stays stable while the website domains are made explicit
+{% endif %}
+- For recent or time-sensitive questions, use the current date context `{{ date_string }}` and derive the relevant recent year or month and year directly from it when adding temporal cues to the generated query strings
+
+**4. Set Expected Outcomes:**
+- Specify what each step should accomplish
+- Define success criteria for the research plan
+- Anticipate how the information will be used
+
+### Step Types and Optimization
+
+{% if search_engine_mode == "agent" %}
+**Search Steps (`"step_type": "search"`):**
+- Describe the user's full intent in detail: what information they need, the context of their question, and relevant background
+- The search engine handles query optimization internally — do not try to condense the query into keywords
+- Combine multiple related information needs (including FSI domain context) into a single step
+- Be specific about the type of information expected
+- Include any relevant constraints (time period, geography, domain)
+{% else %}
+**Search Steps (`"step_type": "search"`):**
+- Use for discovering information through search engines
+- Optimize queries with 3-8 key words maximum
+- Remove unnecessary context but preserve essential specifics
+- Keep the base query stable across the 5 planned searches
+- Queries 2-5 must explicitly include website domains in the query string itself
+- Queries 2-5 must repeat the exact full query from query 1 and only differ by the added website domains
+- Each of queries 2-5 must contain exactly 5 website domains
+- The 5 website domains in one query should differ from the 5 website domains in the other follow-up queries
+- For FSI requests, the attached website domains are the most important variables after the first broad query
+- Prefer patterns like:
+  - `reuters.com ft.com bloomberg.com wsj.com cnbc.com Nvidia latest developments asset management`
+  - `marketwatch.com forbes.com barrons.com morningstar.com fool.com Nvidia latest developments asset management`
+  - `businessinsider.com yahoo.com investing.com seekingalpha.com nasdaq.com Nvidia latest developments asset management`
+  - `theinformation.com techcrunch.com venturebeat.com wired.com economist.com Nvidia latest developments asset management`
+{% endif %}
+
+**URL Reading Steps (`"step_type": "read_url"`):**
+- Use for reading specific documents or pages found in previous searches
+- Use when a highly relevant URL should be read directly after the search phase
+
+{% if search_engine_mode == "standard" %}
+**Query Optimization Techniques:**
+- `"exact phrase"` for precise matches
+- `site:domain.com` to search specific websites
+- `-word` to exclude terms
+- `intitle:` or `inurl:` for title/URL targeting
+- `OR` for alternatives
+- For FSI questions, append domain terms such as `asset management`, `wealth management`, `investment banking`, `payments`, `insurance`, `capital markets`, `banking`, `compliance`, or `risk`
+- For FSI questions, append 5 explicit website domains directly in each of queries 2-5
+- For FSI questions, make sure the inferred FSI wording already appears in query 1 if it should also appear in queries 2-5
+- When you need to include multiple website domains in one query, write them as plain space-separated terms
+
+{% endif %}
+### FSI Example With Nvidia
+
+{% if search_engine_mode == "agent" %}
+**(Single step — the engine handles source diversification internally):**
+{% endif %}
+```json
+{{ example_fsi }}
+```

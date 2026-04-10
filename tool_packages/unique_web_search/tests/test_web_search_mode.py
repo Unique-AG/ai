@@ -13,8 +13,8 @@ from unique_toolkit.language_model.infos import (
 )
 
 from unique_web_search.config import WebSearchConfig
+from unique_web_search.services.executors.base_config import WebSearchMode
 from unique_web_search.services.executors.configs import (
-    WebSearchMode,
     get_default_web_search_mode_config,
 )
 from unique_web_search.settings import Base, Settings

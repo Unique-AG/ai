@@ -130,7 +130,7 @@ def mock_web_search_config_v2():
     config.web_search_mode_config.mode = WebSearchMode.V2
     config.web_search_mode_config.tool_description = "V2 tool description"
     config.web_search_mode_config.tool_description_for_system_prompt = (
-        "V2 system prompt with $max_steps"
+        "V2 system prompt with {{ max_steps }}"
     )
     config.web_search_mode_config.max_steps = 5
     return config

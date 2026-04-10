@@ -6,11 +6,11 @@ from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 
-from unique_web_search.services.executors.configs.base import (
+from unique_web_search.services.executors.base_config import (
     BaseWebSearchModeConfig,
     WebSearchMode,
 )
-from unique_web_search.services.executors.configs.prompts import (
+from unique_web_search.services.executors.v1.prompts import (
     DEFAULT_TOOL_DESCRIPTION,
     DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
     REFINE_QUERY_SYSTEM_PROMPT,
@@ -97,10 +97,10 @@ class WebSearchV1Config(BaseWebSearchModeConfig[WebSearchMode.V1]):
     tool_description: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=int(len(DEFAULT_TOOL_DESCRIPTION["v1"].split("\n")))
+            rows=int(len(DEFAULT_TOOL_DESCRIPTION.split("\n")))
         ),
     ] = Field(
-        default=DEFAULT_TOOL_DESCRIPTION["v1"],
+        default=DEFAULT_TOOL_DESCRIPTION,
         title="Tool Description",
         description="Advanced: Description that helps the AI model decide when to use web search.",
     )
@@ -108,11 +108,11 @@ class WebSearchV1Config(BaseWebSearchModeConfig[WebSearchMode.V1]):
         str,
         RJSFMetaTag.StringWidget.textarea(
             rows=int(
-                len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT["v1"].split("\n")) / 2
+                len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT.split("\n")) / 2
             )
         ),
     ] = Field(
-        default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT["v1"],
+        default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
         title="Tool Description For System Prompt",
         description="Advanced: Detailed instructions for the AI model on how and when to use web search.",
     )

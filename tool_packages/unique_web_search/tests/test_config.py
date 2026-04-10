@@ -20,17 +20,15 @@ from unique_web_search.prompts import (
 )
 from unique_web_search.services.crawlers.base import CrawlerType
 from unique_web_search.services.crawlers.basic import BasicCrawlerConfig
-from unique_web_search.services.executors.configs import (
-    RefineQueryMode,
-    WebSearchMode,
-)
-from unique_web_search.services.executors.configs.v1_config import (
+from unique_web_search.services.executors.base_config import WebSearchMode
+from unique_web_search.services.executors.v1.config import (
     QueryRefinementConfig,
+    RefineQueryMode,
     WebSearchToolParametersDescriptionConfig,
     WebSearchV1Config,
 )
-from unique_web_search.services.executors.configs.v2_config import WebSearchV2Config
-from unique_web_search.services.executors.configs.v3_config import WebSearchV3Config
+from unique_web_search.services.executors.v2.config import WebSearchV2Config
+from unique_web_search.services.executors.v3.config import WebSearchV3Config
 from unique_web_search.services.search_engine.base import SearchEngineType
 from unique_web_search.services.search_engine.google import GoogleConfig
 
