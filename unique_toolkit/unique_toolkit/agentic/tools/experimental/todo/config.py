@@ -1,9 +1,12 @@
-from typing import Annotated, ClassVar
+import logging
+from typing import Annotated
 
 from pydantic import Field
 
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_TOOL_DESCRIPTION = """\
 Create or update a task list to track progress. Use for any task involving \
@@ -147,23 +150,6 @@ class TodoConfig(BaseToolConfig):
     (Experimental Settings) to customize the agent's task tracking behavior.
     """
 
-    _tool_name: ClassVar[str] = "todo_write"
-    _tool_module: ClassVar[str] = "unique_toolkit.agentic.tools.experimental.todo"
-
-    enabled: Annotated[
-        bool,
-        RJSFMetaTag.BooleanWidget.checkbox(
-            help=(
-                "Master switch for task tracking. When disabled, the "
-                "todo_write tool is not registered and none of the other "
-                "settings in this section take effect."
-            ),
-        ),
-    ] = Field(
-        default=False,
-        description="Enable task tracking for the agent.",
-    )
-
     parallel_mode: Annotated[
         bool,
         RJSFMetaTag.BooleanWidget.checkbox(
@@ -185,21 +171,6 @@ class TodoConfig(BaseToolConfig):
         ge=0,
         description="After this many tasks complete without a verification step, "
         "nudge the agent to verify its work. Set to 0 to disable.",
-    )
-
-    show_triggered_tool_calls: Annotated[
-        bool,
-        RJSFMetaTag.BooleanWidget.checkbox(
-            help=(
-                "Show a 'Triggered Tool Calls' entry in the Steps panel "
-                "listing which tools the agent called each iteration. "
-                "Disable to reduce noise when the tool's own log entries "
-                "already provide enough visibility."
-            ),
-        ),
-    ] = Field(
-        default=True,
-        description="Show triggered tool call summaries in the Steps panel.",
     )
 
     display_name: str = Field(
@@ -257,10 +228,19 @@ class TodoConfig(BaseToolConfig):
     def effective_system_prompt(self) -> str:
         if not self.parallel_mode:
             return self.system_prompt
-        return self.system_prompt.replace(
-            _SEQUENTIAL_EXECUTION_RULES.strip(),
+        target = _SEQUENTIAL_EXECUTION_RULES.strip()
+        result = self.system_prompt.replace(
+            target,
             _PARALLEL_EXECUTION_RULES.strip(),
         )
+        if result == self.system_prompt and target not in self.system_prompt:
+            logger.warning(
+                "parallel_mode is enabled but the system_prompt was customized "
+                "and no longer contains the sequential execution rules. "
+                "Appending parallel execution rules to the end."
+            )
+            result = self.system_prompt + "\n\n" + _PARALLEL_EXECUTION_RULES.strip()
+        return result
 
     @property
     def effective_execution_reminder(self) -> str:
