@@ -25,10 +25,12 @@ def _folder(
     return {
         "id": fid,
         "name": name,
-        "ingestionConfig": {},
+        "ingestionConfig": {"uniqueIngestionMode": "INGESTION"},
         "createdAt": "2025-01-01T00:00:00Z",
         "updatedAt": updated,
         "parentId": parent,
+        "externalId": None,
+        "scopeAccess": [],
     }
 
 

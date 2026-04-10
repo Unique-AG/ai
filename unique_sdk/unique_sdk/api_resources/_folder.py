@@ -28,6 +28,7 @@ class Folder(APIResource["Folder"]):
         type: Literal["READ", "WRITE"]
         entityType: Literal["USER", "GROUP"]
         createdAt: NotRequired[str]
+        object: NotRequired[str]
 
     class Children(TypedDict):
         """
@@ -59,6 +60,7 @@ class Folder(APIResource["Folder"]):
         uniqueIngestionMode: str
         vttConfig: NotRequired["Folder.VttConfig | None"]
         wordReadMode: NotRequired[str | None]
+        hideInChat: NotRequired[bool | None]
 
     class CreatedFolder(TypedDict):
         id: str
@@ -87,10 +89,13 @@ class Folder(APIResource["Folder"]):
         updatedAt: str | None
         parentId: str | None
         externalId: str | None
+        scopeAccess: list["Folder.ScopeAccess"]
+        object: NotRequired[str]
 
     class FolderInfos(TypedDict):
         folderInfos: list["Folder.FolderInfo"]
         totalCount: int
+        object: NotRequired[str]
 
     id: str
     name: str
@@ -182,6 +187,7 @@ class Folder(APIResource["Folder"]):
 
         successFolders: list["Folder.DeleteFolderResponse"]
         failedFolders: list["Folder.DeleteFolderResponse"]
+        object: NotRequired[str]
 
     class FolderPathResponse(TypedDict):
         """
@@ -189,6 +195,7 @@ class Folder(APIResource["Folder"]):
         """
 
         folderPath: str
+        object: NotRequired[str]
 
     @classmethod
     def get_folder_path(
