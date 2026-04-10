@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -113,18 +114,7 @@ class TodoList(BaseModel):
 
     def status_counts(self) -> dict[str, int]:
         """Return a dict of status counts for debug_info and logging."""
-        counts: dict[str, int] = {
-            "total": len(self.todos),
-            "completed": 0,
-            "in_progress": 0,
-            "pending": 0,
-            "cancelled": 0,
-        }
-        for t in self.todos:
-            key = t.status.value
-            if key in counts:
-                counts[key] += 1
-        return counts
+        return Counter(t.status.value for t in self.todos)
 
     def _format_lines(self) -> list[str]:
         return [
