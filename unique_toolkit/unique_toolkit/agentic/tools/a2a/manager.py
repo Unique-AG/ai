@@ -26,13 +26,7 @@ class A2AManager:
         sub_agents = []
 
         for tool_config in tool_configs:
-            if not tool_config.is_sub_agent:
-                continue
-
             if not isinstance(tool_config.configuration, SubAgentToolConfig):
-                self._logger.error(
-                    "tool_config.configuration must be of type SubAgentToolConfig"
-                )
                 continue
 
             sub_agent_tool_config = tool_config.configuration
@@ -49,7 +43,9 @@ class A2AManager:
             )
 
         filtered_tool_config = [
-            tool_config for tool_config in tool_configs if not tool_config.is_sub_agent
+            tool_config
+            for tool_config in tool_configs
+            if not isinstance(tool_config.configuration, SubAgentToolConfig)
         ]
 
         return filtered_tool_config, sub_agents
