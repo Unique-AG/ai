@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from logging import getLogger
 
+from unique_toolkit._common.utils.jinja.render import render_template
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
@@ -25,6 +26,9 @@ from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 logger = getLogger(__name__)
 
 
+MEMORY_KEY = "agent_todo_state"
+
+
 class TodoWriteTool(Tool[TodoConfig]):
     name: str = "todo_write"
 
@@ -45,7 +49,7 @@ class TodoWriteTool(Tool[TodoConfig]):
             PersistentShortMemoryManager(
                 short_term_memory_service=stm_service,
                 short_term_memory_schema=TodoList,
-                short_term_memory_name=config.memory_key,
+                short_term_memory_name=MEMORY_KEY,
             )
         )
         self._cached_state: TodoList | None = None
@@ -58,12 +62,18 @@ class TodoWriteTool(Tool[TodoConfig]):
     def tool_description(self) -> LanguageModelToolDescription:
         return LanguageModelToolDescription(
             name=self.name,
-            description=self.config.effective_tool_description,
+            description=render_template(
+                self.config.tool_description,
+                parallel_mode=self.config.parallel_mode,
+            ),
             parameters=TodoWriteInput.model_json_schema(),
         )
 
     def tool_description_for_system_prompt(self) -> str:
-        return self.config.effective_system_prompt
+        return render_template(
+            self.config.system_prompt,
+            parallel_mode=self.config.parallel_mode,
+        )
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         try:
@@ -133,7 +143,10 @@ class TodoWriteTool(Tool[TodoConfig]):
             id=tool_call.id,
             name=self.name,
             content=content,
-            system_reminder=self.config.effective_execution_reminder
+            system_reminder=render_template(
+                self.config.execution_reminder,
+                parallel_mode=self.config.parallel_mode,
+            )
             if current_state.has_active_items()
             else "",
             debug_info={
@@ -275,7 +288,7 @@ class TodoWriteTool(Tool[TodoConfig]):
             logger.debug("TodoWriteTool: using in-memory cached state")
             return self._cached_state
 
-        return TodoList()
+        return TodoList(todos=[], last_updated_iteration=0)
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return []
