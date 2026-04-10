@@ -5,8 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.20.6] - 2026-04-08
+## [1.21.1] - 2026-04-10
 - Chore: centralize pytest marker and async configuration to workspace root pyproject.toml
+
+## [1.21.0] - 2026-04-09
+- Widen `openai` dependency upper bound from `<2` to `<3` to allow openai SDK v2.x (required for litellm security fix)
+
+## [1.20.7] - 2026-04-09
+- changing FF from enable_selected_uploaded_files_un_18470 to enable_selected_uploaded_files_un_18215
+
+## [1.20.6] - 2026-04-08
+- Including logic for selected uploaded files
 
 ## [1.20.5] - 2026-04-06
 - Fix sync `modify_assistant_message` calls inside async `run()` and `_process_plan()` blocking the event loop — replaced with `modify_assistant_message_async`

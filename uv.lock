@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-27T08:09:32.976307Z"
+exclude-newer = "2026-03-27T08:15:47.750518Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5180,7 +5180,7 @@ wheels = [
 
 [[package]]
 name = "unique-deep-research"
-version = "3.5.6"
+version = "3.6.1"
 source = { editable = "tool_packages/unique_deep_research" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -5247,7 +5247,7 @@ dev = [{ name = "unique-sdk", editable = "unique_sdk" }]
 
 [[package]]
 name = "unique-internal-search"
-version = "1.2.38"
+version = "1.2.40"
 source = { editable = "tool_packages/unique_internal_search" }
 dependencies = [
     { name = "pydantic" },
@@ -5293,7 +5293,7 @@ dev = []
 
 [[package]]
 name = "unique-orchestrator"
-version = "1.20.6"
+version = "1.21.1"
 source = { editable = "unique_orchestrator" }
 dependencies = [
     { name = "jinja2" },
@@ -5355,7 +5355,7 @@ dev = []
 
 [[package]]
 name = "unique-sdk"
-version = "0.10.102"
+version = "0.11.2"
 source = { editable = "unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
@@ -5483,7 +5483,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-version = "1.69.3"
+version = "1.70.3"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -5574,7 +5574,7 @@ dev = []
 
 [[package]]
 name = "unique-web-search"
-version = "1.15.4"
+version = "1.15.5"
 source = { editable = "tool_packages/unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },
