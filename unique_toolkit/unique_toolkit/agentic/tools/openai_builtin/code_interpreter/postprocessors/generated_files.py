@@ -588,7 +588,11 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
             is_html_rendered = is_html
             has_superscript = f"<sup>{ref_number}</sup>" in loop_response.message.text
-            if replaced and has_superscript and not (is_image or is_html_rendered or fence_ff_on):
+            if (
+                replaced
+                and has_superscript
+                and not (is_image or is_html_rendered or fence_ff_on)
+            ):
                 loop_response.message.references.append(
                     ContentReference(
                         sequence_number=ref_number,
