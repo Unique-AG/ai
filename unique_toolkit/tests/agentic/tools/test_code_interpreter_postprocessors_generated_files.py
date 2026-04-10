@@ -1551,19 +1551,19 @@ def test_replace_dangling_sandbox_links__replaces_and_warns__when_sandbox_link_p
     caplog,
 ) -> None:
     """
-    Purpose: Verify that dangling sandbox links are replaced with the error message
-    and a WARNING is logged.
-    Why this matters: Without replacement the user sees a broken link; the warning
-    makes the incident visible in production logs.
+    Purpose: Verify that dangling sandbox links are replaced with a per-file notice
+    that names the file, and a WARNING is logged.
+    Why this matters: Without replacement the user sees a broken link; the named notice
+    gives actionable context and the warning makes the incident visible in production logs.
     """
     text = "Download: [chart](sandbox:/mnt/data/chart.png)"
-    error_msg = "⚠️ File download failed ..."
 
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        result, replaced = _replace_dangling_sandbox_links(text, error_msg)
+        result, replaced = _replace_dangling_sandbox_links(text)
 
     assert replaced is True
-    assert error_msg in result
+    assert "chart.png" in result
+    assert "could not be retrieved" in result
     assert "sandbox:/mnt/data/chart.png" not in result
     assert any(
         "sandbox:/mnt/data/chart.png" in r.message and r.levelno == logging.WARNING
@@ -1580,10 +1580,9 @@ def test_replace_dangling_sandbox_links__no_change__when_no_sandbox_link(
     sandbox links.
     """
     text = "Here is your result: ````imgWithSource(contentId='cont_1')````"
-    error_msg = "⚠️ File download failed ..."
 
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        result, replaced = _replace_dangling_sandbox_links(text, error_msg)
+        result, replaced = _replace_dangling_sandbox_links(text)
 
     assert replaced is False
     assert result == text
@@ -1751,29 +1750,8 @@ def test_collect_stdout__ignores_non_logs_outputs() -> None:
 
 
 # ============================================================================
-# Tests for orphan path, _get_next_fence_id, _build_orphan_fences, run()
+# Tests for orphan path and run()
 # ============================================================================
-
-
-@pytest.mark.ai
-def test_get_next_fence_id__returns_one__when_no_fences_in_text() -> None:
-    assert gen_mod._get_next_fence_id("plain text") == 1
-
-
-@pytest.mark.ai
-def test_get_next_fence_id__returns_max_plus_one__when_fences_in_text() -> None:
-    text = "x ````fileWithSource(id='2', contentId='a')```` y ````imgWithSource(id='5', contentId='b')````"
-    assert gen_mod._get_next_fence_id(text) == 6
-
-
-@pytest.mark.ai
-def test_build_orphan_fences__concatenates_file_fences() -> None:
-    f = CodeInterpreterFile(filename="code.txt", content_id="cid1", type="document")
-    block = CodeInterpreterBlock(code="print(1)", files=[f])
-    out = gen_mod._build_orphan_fences([block], start_fence_id=1)
-    assert "fileWithSource" in out
-    assert "cid1" in out
-    assert "print(1)" in out or "\\n" in out  # code may be escaped in fence
 
 
 @pytest.mark.ai
@@ -1811,15 +1789,15 @@ def test_apply_postprocessing__normalizes_none_message_text__to_empty_string(
 
 @pytest.mark.ai
 @patch(GEN_FILES_FF)
-def test_apply_postprocessing__orphan_path_appends_fence_but_not_references__when_ff_on(
+def test_apply_postprocessing__orphan_path_adds_reference_not_fence__when_ff_on(
     mock_ff: MagicMock,
 ) -> None:
     """
-    Purpose: Orphan blocks get fence text but NO ContentReference entries when fence FF is on.
-    Why this matters: Orphan artifacts are rendered via fences in message.text; adding them
-    to references would surface them as source citations, which is semantically wrong.
-    Setup summary: One orphan block with a document file, fence FF ON; assert fence text
-    added and references remain empty.
+    Purpose: Orphan blocks are surfaced as ContentReference entries, NOT as fence text.
+    Why this matters: Fence injection for orphan blocks produced confusing UI artefacts;
+    the references panel is the clean canonical place for downloadable code outputs.
+    Setup summary: One orphan block with a document file, fence FF ON; assert a
+    ContentReference is added for the file and no fence syntax appears in message.text.
     """
     mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
@@ -1848,8 +1826,13 @@ def test_apply_postprocessing__orphan_path_appends_fence_but_not_references__whe
     changed = proc.apply_postprocessing_to_response(loop)
     assert changed is True
     assert msg.text is not None
-    assert "fileWithSource" in msg.text
-    assert msg.references == []
+    assert "fileWithSource" not in msg.text
+    assert msg.references is not None
+    assert len(msg.references) == 1
+    ref = msg.references[0]
+    assert ref.source_id == "cont_orphan"
+    assert ref.name == "code.txt"
+    assert "cont_orphan" in ref.url
 
 
 @pytest.mark.ai
