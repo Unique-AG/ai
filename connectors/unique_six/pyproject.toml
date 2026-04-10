@@ -1,6 +1,6 @@
 [project]
 name = "unique_six"
-version = "0.1.6"
+version = "0.1.7"
 description = "Unique Six API client"
 authors = [
     { name = "Ahmed Jellouli", email = "ahmed.jellouli.ext@unique.ch" },
@@ -53,17 +53,3 @@ extend_exclude = ["tests", "conftest.py"]
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["python-dotenv", "unique-toolkit", "pyopenssl"]
-
-[tool.pytest.ini_options]
-addopts = "--strict-markers"
-asyncio_mode = "auto"
-markers = [
-    "unit: for unit tests",
-    "integration: for integration tests that require API credentials",
-    "serial",
-    "asyncio: for async tests",
-    "ai: AI-authored test",
-]
-filterwarnings = [
-    "ignore:DeprecationWarning",
-]

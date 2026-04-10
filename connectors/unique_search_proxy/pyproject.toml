@@ -1,6 +1,6 @@
 [project]
 name = "core"
-version = "0.1.5"
+version = "0.1.6"
 description = "Web Search Proxy implementation"
 authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]
 readme = "README.md"
@@ -47,15 +47,7 @@ known_first_party = ["core", "settings"]
 lint = "ruff check ."
 lint-fix = "ruff check . --fix"
 format = "ruff format ."
-test = "pytest"
+test = "pytest --cov=core --cov=app --cov=settings --cov-report=xml --cov-report=term-missing"
 typecheck = "basedpyright"
 depcheck = "deptry ."
-
-[tool.pytest.ini_options]
-pythonpath = ["web"]
-asyncio_mode = "auto"
-addopts = "--strict-markers --cov=core --cov=app --cov=settings --cov-report=xml --cov-report=term-missing"
-markers = [
-    "ai: AI-authored test",
-]
 
