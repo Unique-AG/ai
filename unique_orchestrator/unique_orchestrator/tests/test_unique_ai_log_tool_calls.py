@@ -729,3 +729,44 @@ class TestLogToolCalls:
         mock_unique_ai._message_step_logger.create_message_log_entry.assert_called_once_with(
             text="**Triggered Tool Calls:**\n - Search Tool (2x)", references=[]
         )
+
+    @pytest.mark.ai
+    def test_log_tool_calls__suppresses_entire_entry_when_show_triggered_false(
+        self, mock_unique_ai: UniqueAI
+    ) -> None:
+        """When any tool has config.show_triggered_tool_calls=False, the entire
+        'Triggered Tool Calls' step entry is suppressed — not just that tool's
+        name. Tool calls are still added to history."""
+        # Arrange
+        mock_config = MagicMock()
+        mock_config.show_triggered_tool_calls = False
+
+        mock_tool_1 = MagicMock(spec=["name", "display_name", "config"])
+        mock_tool_1.name = "TodoWrite"
+        mock_tool_1.display_name.return_value = "Progress"
+        mock_tool_1.config = mock_config
+
+        mock_tool_2 = MagicMock(spec=["name", "display_name"])
+        mock_tool_2.name = "search_tool"
+        mock_tool_2.display_name.return_value = "Search Tool"
+
+        mock_unique_ai._tool_manager.available_tools = [mock_tool_1, mock_tool_2]
+
+        mock_tool_call_1 = MagicMock(spec=["name"])
+        mock_tool_call_1.name = "TodoWrite"
+
+        mock_tool_call_2 = MagicMock(spec=["name"])
+        mock_tool_call_2.name = "search_tool"
+
+        tool_calls = [mock_tool_call_1, mock_tool_call_2]
+
+        # Act
+        mock_unique_ai._log_tool_calls(tool_calls)
+
+        # Assert — both added to history
+        assert mock_unique_ai._history_manager.add_tool_call.call_count == 2
+
+        # Entire step entry is suppressed
+        assert (
+            mock_unique_ai._message_step_logger.create_message_log_entry.call_count == 0
+        )
