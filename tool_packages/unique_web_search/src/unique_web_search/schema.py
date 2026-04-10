@@ -73,9 +73,7 @@ class WebSearchPlan(BaseModel):
     expected_outcome: str = Field(description="Expected outcome")
 
     @classmethod
-    def with_search_engine_mode(
-        cls, mode: SearchEngineMode
-    ) -> type[WebSearchPlan]:
+    def with_search_engine_mode(cls, mode: SearchEngineMode) -> type[WebSearchPlan]:
         """Build a ``WebSearchPlan`` variant whose ``Step.query_or_url``
         description is tailored to the search-engine mode."""
         if mode == SearchEngineMode.AGENT:
@@ -104,9 +102,9 @@ class WebSearchPlan(BaseModel):
         """
         PlanModel = cls.with_search_engine_mode(mode)
 
-        steps_inner_type = typing.get_args(
-            PlanModel.model_fields["steps"].annotation
-        )[0]
+        steps_inner_type = typing.get_args(PlanModel.model_fields["steps"].annotation)[
+            0
+        ]
 
         step_hint: dict[str, str] = {}
         for name, field in steps_inner_type.model_fields.items():
@@ -138,8 +136,7 @@ class WebSearchPlan(BaseModel):
         return WebSearchPlan(
             objective="Get current weather information for New York City",
             query_analysis=(
-                "Need current weather conditions, temperature, "
-                "and forecast for NYC"
+                "Need current weather conditions, temperature, and forecast for NYC"
             ),
             steps=[
                 Step(
@@ -164,8 +161,7 @@ class WebSearchPlan(BaseModel):
         if mode == SearchEngineMode.AGENT:
             return WebSearchPlan(
                 objective=(
-                    "Research Tesla's recent financial performance "
-                    "and market position"
+                    "Research Tesla's recent financial performance and market position"
                 ),
                 query_analysis=(
                     "Need latest quarterly results, stock performance, "
@@ -198,8 +194,7 @@ class WebSearchPlan(BaseModel):
 
         return WebSearchPlan(
             objective=(
-                "Research Tesla's recent financial performance "
-                "and market position"
+                "Research Tesla's recent financial performance and market position"
             ),
             query_analysis=(
                 "Need latest quarterly results, stock performance, "
@@ -228,7 +223,6 @@ class WebSearchPlan(BaseModel):
                 "stock performance, and market position"
             ),
         )
-
 
     @staticmethod
     def build_example_fsi(mode: SearchEngineMode) -> WebSearchPlan:
