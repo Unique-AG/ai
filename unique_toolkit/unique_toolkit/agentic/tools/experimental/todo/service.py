@@ -28,6 +28,13 @@ logger = getLogger(__name__)
 
 MEMORY_KEY = "agent_todo_state"
 
+_STATUS_ICON = {
+    TodoStatus.COMPLETED: "✓",
+    TodoStatus.IN_PROGRESS: "→",
+    TodoStatus.CANCELLED: "✗",
+    TodoStatus.PENDING: "○",
+}
+
 
 class TodoWriteTool(Tool[TodoConfig]):
     name: str = "todo_write"
@@ -175,17 +182,11 @@ class TodoWriteTool(Tool[TodoConfig]):
         try:
             counts = state.status_counts()
             completed = counts.get("completed", 0)
-            total = counts.get("total", 0)
+            total = len(state.todos)
 
             all_done = not counts.get("in_progress") and not counts.get("pending")
 
             if total > 0:
-                _STATUS_ICON = {
-                    TodoStatus.COMPLETED: "✓",
-                    TodoStatus.IN_PROGRESS: "→",
-                    TodoStatus.CANCELLED: "✗",
-                    TodoStatus.PENDING: "○",
-                }
                 lines = []
                 for i, t in enumerate(state.todos, 1):
                     icon = _STATUS_ICON.get(t.status, "○")
