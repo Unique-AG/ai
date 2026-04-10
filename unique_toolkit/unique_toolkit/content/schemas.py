@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, Optional
@@ -71,6 +73,63 @@ class ContentChunk(BaseModel):
     internally_stored_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    def to_reference(
+        self,
+        sequence_number: int,
+        *,
+        original_index: list[int] | None = None,
+        message_id: str = "",
+    ) -> ContentReference:
+        """Convert this chunk into a :class:`ContentReference` with page-number info.
+
+        When using ``modify_assistant_message`` (the message-update path) instead of
+        streaming via ``complete_with_references``, the backend does **not**
+        automatically create references from ``searchContext``. This method replicates
+        the reference format the backend streaming path produces so page numbers
+        appear in the frontend reference chips.
+
+        Conventions applied:
+
+        * **id** — this chunk's content id (``self.id``), aligned with streaming
+          reference persistence.
+        * **message_id** — optional; set when the reference belongs to a specific
+          chat message.
+        * **source_id** — ``{content_id}_{chunk_id}`` (matches the backend
+          ``ReferenceService`` and ``ReferenceManager`` lookup).
+        * **source** — ``"node-ingestion-chunks"``.
+        * **name** — document title/key with a `` : 1,2,3`` page-number postfix
+          (same format as the backend ``generatePagesPostfix``); if neither title
+          nor key is set, ``Content {content_id}`` (matches reference dedup logic).
+          Postfix is not doubled when ``title``/``key`` already include it (e.g. after
+          ``sort_content_chunks`` / ``merge_content_chunks``).
+        * **url** — the chunk's own URL when it has one and is **not**
+          internally stored; otherwise ``unique://content/{content_id}``
+          (matches the ``internally_stored_at`` guard in the streaming path).
+
+        Args:
+            sequence_number: The 1-based sequence number shown in the ``<sup>``
+                tag in the message text.
+            original_index: Optional list of bracket indices (``[N]``) in the
+                message text that this reference corresponds to.
+            message_id: The chat message id this reference belongs to, if any.
+
+        Returns:
+            A ``ContentReference`` ready to pass to ``modify_assistant_message``.
+
+        Note:
+            Implementation delegates to :func:`~unique_toolkit.content.utils.content_chunk_to_reference`
+            via a lazy import to avoid a circular import with
+            :mod:`unique_toolkit.content.utils`.
+        """
+        from unique_toolkit.content.utils import content_chunk_to_reference
+
+        return content_chunk_to_reference(
+            self,
+            sequence_number,
+            original_index,
+            message_id=message_id,
+        )
 
 
 class Content(BaseModel):

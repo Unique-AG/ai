@@ -188,36 +188,31 @@ def _find_references(
         if not search:
             continue
 
-        # Don't put the reference twice
-        reference_name = search.title or search.key or f"Content {search.id}"
+        # Dedup on base name (without page postfix) so that multiple
+        # chunks from the same document merge into one reference.
+        # Restrict to the same content id so unrelated titles like "Budget" and
+        # "Budget : Q1" on different documents do not merge via startswith.
+        base_name = search.title or search.key or f"Content {search.id}"
         found_reference = next(
-            (r for r in references if r.name == reference_name), None
+            (
+                r
+                for r in references
+                if r.id == search.id
+                and (r.name == base_name or r.name.startswith(base_name + " : "))
+            ),
+            None,
         )
 
         if found_reference:
             found_reference.original_index.append(number)
             continue
 
-        url = (
-            search.url
-            if search.url and not search.internally_stored_at
-            else f"unique://content/{search.id}"
+        ref = search.to_reference(
+            sequence_number=sequence_number,
+            original_index=[number],
+            message_id=message_id,
         )
-
-        references.append(
-            ContentReference(
-                name=reference_name,
-                url=url,
-                sequence_number=sequence_number,
-                original_index=[number],
-                source_id=f"{search.id}_{search.chunk_id}"
-                if search.chunk_id
-                else search.id,
-                source="node-ingestion-chunks",
-                message_id=message_id,
-                id=search.id,
-            )
-        )
+        references.append(ref)
         sequence_number += 1
 
     return references

@@ -28,6 +28,9 @@ The `unique_toolkit.content` module encompasses all content-related functionalit
 ::: unique_toolkit.content.functions.upload_content
 ::: unique_toolkit.content.functions.download_content
 
+### Reference from chunks
+::: unique_toolkit.content.schemas.ContentChunk.to_reference
+
 ### Utilities
 ::: unique_toolkit.content.utils.sort_content_chunks
 ::: unique_toolkit.content.utils.merge_content_chunks

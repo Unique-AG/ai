@@ -272,6 +272,62 @@ chat_service.complete_with_references(
 ```
 -->
 
+### Referencing Content Chunks on Message Update (with Page Numbers)
+
+When you use `complete_with_references` (streaming), the backend automatically creates references from the `content_chunks` you pass — including page numbers derived from each chunk's `start_page` and `end_page`. However, when you use `modify_assistant_message` directly, references are persisted exactly as you provide them with no server-side enrichment. This means page numbers are lost unless you explicitly include them.
+
+Use **`ContentChunk.to_reference(...)`** to bridge this gap. It returns a `ContentReference` that follows the same conventions the backend uses during streaming, so that page numbers appear in the reference chips. The module-level **`content_chunk_to_reference`** function in `unique_toolkit.content.utils` is equivalent if you prefer a functional style.
+
+```python
+from unique_toolkit.content import ContentChunk
+
+references = [
+    chunk.to_reference(sequence_number=i + 1, original_index=[i])
+    for i, chunk in enumerate(chunks)
+]
+# Pass message_id=... when references are tied to a specific chat message, e.g.
+# chunk.to_reference(..., message_id=assistant_message_id)
+
+chat_service.modify_assistant_message(
+    content="The answer based on the sources <sup>1</sup><sup>2</sup>",
+    references=references,
+)
+```
+
+Each reference will have the document title with a page postfix (e.g. `"Annual Report : 3,4,5"`), a `source_id` in the `{content_id}_{chunk_id}` format, and the `unique://content/{id}` URL — matching exactly what the streaming path produces.
+
+??? info "How References Work — Streaming vs Message Update"
+
+    The platform has two distinct code paths for persisting references, which explains why page numbers appear automatically with streaming but not with message update.
+
+    ```mermaid
+    sequenceDiagram
+        participant Toolkit as Python Toolkit
+        participant Backend as node-chat Backend
+        participant DB as Database
+
+        note over Toolkit,DB: Streaming path (complete_with_references)
+        Toolkit->>Backend: searchContext with startPage, endPage, chunkId
+        Backend->>Backend: ReferenceService.addReferencesToMessage
+        note right of Backend: Parses [N] brackets in LLM output,<br/>builds sourceId = contentId_chunkId,<br/>appends page postfix to name
+        Backend->>DB: referenceFacade.createMany (with pages in name)
+
+        note over Toolkit,DB: Message update path (modify_assistant_message)
+        Toolkit->>Backend: references with name, url, sequenceNumber, sourceId, source
+        Backend->>DB: referenceFacade.createMany (no enrichment)
+    ```
+
+    **Streaming path:** The toolkit converts your `ContentChunk` list into a `searchContext` that includes `startPage`, `endPage`, and `chunkId`. The backend's `ReferenceService` then parses `[0]`, `[1]`, etc. from the LLM output, looks up each index in the search context, builds `sourceId` as `{contentId}_{chunkId}`, appends a page postfix (e.g. ` : 3,4,5`) to the reference name, and persists the result.
+
+    **Message update path:** The toolkit sends only `name`, `url`, `sequenceNumber`, `sourceId`, and `source` via `map_references`. The backend does a plain `createMany` — no bracket parsing, no chunk lookup, no page enrichment.
+
+    **What `ContentChunk.to_reference` does:** It replicates the server-side logic on the client side:
+
+    - **`source_id`** uses the `{content_id}_{chunk_id}` convention, which the `ReferenceManager` relies on to map references back to chunks.
+    - **`name`** includes the ` : 1,2,3` page postfix, matching the backend's `generatePagesPostfix`.
+    - **`source`** is set to `"node-ingestion-chunks"`, the standard value used throughout the platform.
+    - **`url`** defaults to `unique://content/{content_id}` for internally stored documents.
+
 ??? example "Full Examples (Click to expand)"
     
     <!--codeinclude-->

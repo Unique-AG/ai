@@ -56,8 +56,8 @@ def test_reference_injection_resolves_references():
     assert "<sup>2</sup>" in text
     assert len(refs) == 2
     names = {r.name for r in refs}
-    assert "Title One" in names
-    assert "Title Two" in names
+    assert "Title One : 1" in names
+    assert "Title Two : 1" in names
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +106,7 @@ def test_pipeline_chains_transforms():
     assert "<sup>1</sup>" in text
     assert "[1]" not in text
     assert len(refs) == 1
-    assert refs[0].name == "Source A"
+    assert refs[0].name == "Source A : 1"
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +185,7 @@ async def test_stream_complete_with_references_text(mock_get_client):
 
     assert "<sup>1</sup>" in result.message.text
     assert len(result.message.references) == 1
-    assert result.message.references[0].name == "My Source"
+    assert result.message.references[0].name == "My Source : 1"
     assert result.message.original_text == "Hello [1] world"
     assert result.tool_calls is None
 
