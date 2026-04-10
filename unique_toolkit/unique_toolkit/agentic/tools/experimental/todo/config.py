@@ -1,5 +1,5 @@
 import logging
-from typing import Annotated, ClassVar
+from typing import Annotated
 
 from pydantic import Field
 
@@ -150,23 +150,6 @@ class TodoConfig(BaseToolConfig):
     (Experimental Settings) to customize the agent's task tracking behavior.
     """
 
-    _tool_name: ClassVar[str] = "todo_write"
-    _tool_module: ClassVar[str] = "unique_toolkit.agentic.tools.experimental.todo"
-
-    enabled: Annotated[
-        bool,
-        RJSFMetaTag.BooleanWidget.checkbox(
-            help=(
-                "Master switch for task tracking. When disabled, the "
-                "todo_write tool is not registered and none of the other "
-                "settings in this section take effect."
-            ),
-        ),
-    ] = Field(
-        default=False,
-        description="Enable task tracking for the agent.",
-    )
-
     parallel_mode: Annotated[
         bool,
         RJSFMetaTag.BooleanWidget.checkbox(
@@ -188,21 +171,6 @@ class TodoConfig(BaseToolConfig):
         ge=0,
         description="After this many tasks complete without a verification step, "
         "nudge the agent to verify its work. Set to 0 to disable.",
-    )
-
-    show_triggered_tool_calls: Annotated[
-        bool,
-        RJSFMetaTag.BooleanWidget.checkbox(
-            help=(
-                "Show a 'Triggered Tool Calls' entry in the Steps panel "
-                "listing which tools the agent called each iteration. "
-                "Disable to reduce noise when the tool's own log entries "
-                "already provide enough visibility."
-            ),
-        ),
-    ] = Field(
-        default=True,
-        description="Show triggered tool call summaries in the Steps panel.",
     )
 
     display_name: str = Field(

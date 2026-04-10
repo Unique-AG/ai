@@ -90,8 +90,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.66.0] - 2026-03-30
 - Add `applied_ingestion_config` to `Content` schema
-- Todo task tracking: add `TodoWriteTool` for agent-side task tracking with two-phase workflow (clarification → autonomous execution), `system_reminder` on tool responses, structured `debug_info`, and configurable prompts via `TodoConfig`
-- Todo tracking prompts (`system_prompt`, `execution_reminder`) can be overridden from the admin UI for experimentation without code changes
 
 ## [1.65.2] - 2026-03-30
 - Remove experimental open pdf tool
