@@ -183,15 +183,17 @@ class TodoWriteTool(Tool[TodoConfig]):
                     lines.append(f"{icon} {i}. {label}")
                 plan_text = "\n".join(lines)
 
-                self._plan_log = self._message_step_logger.create_or_update_message_log(
-                    active_message_log=self._plan_log,
-                    header=self.display_name(),
-                    progress_message=f"{completed}/{total} completed\n{plan_text}",
-                    status=(
-                        MessageLogStatus.COMPLETED
-                        if all_done
-                        else MessageLogStatus.RUNNING
-                    ),
+                self._plan_log = (
+                    await self._message_step_logger.create_or_update_message_log_async(
+                        active_message_log=self._plan_log,
+                        header=self.display_name(),
+                        progress_message=f"{completed}/{total} completed\n{plan_text}",
+                        status=(
+                            MessageLogStatus.COMPLETED
+                            if all_done
+                            else MessageLogStatus.RUNNING
+                        ),
+                    )
                 )
 
             counts_text = f"{completed}/{total} completed"
@@ -205,13 +207,17 @@ class TodoWriteTool(Tool[TodoConfig]):
             else:
                 progress = counts_text
 
-            self._message_log = self._message_step_logger.create_or_update_message_log(
-                active_message_log=self._message_log,
-                header=self.display_name(),
-                progress_message=progress,
-                status=(
-                    MessageLogStatus.COMPLETED if all_done else MessageLogStatus.RUNNING
-                ),
+            self._message_log = (
+                await self._message_step_logger.create_or_update_message_log_async(
+                    active_message_log=self._message_log,
+                    header=self.display_name(),
+                    progress_message=progress,
+                    status=(
+                        MessageLogStatus.COMPLETED
+                        if all_done
+                        else MessageLogStatus.RUNNING
+                    ),
+                )
             )
         except Exception:
             logger.debug("TodoWriteTool: failed to write step log", exc_info=True)
@@ -232,17 +238,38 @@ class TodoWriteTool(Tool[TodoConfig]):
         return content
 
     async def _load_state(self) -> TodoList:
-        """Load state from persistence, falling back to in-memory cache."""
+        """Load state from persistence, falling back to in-memory cache.
+
+        When both persisted and cached state exist, prefer whichever has the
+        higher ``last_updated_iteration`` — the cache may be ahead if a
+        previous ``save_async`` failed.
+        """
+        persisted: TodoList | None = None
         try:
             persisted = await self._memory_manager.load_async()
-            if persisted is not None:
-                self._cached_state = persisted
-                return persisted
         except Exception:
             logger.warning(
                 "TodoWriteTool: failed to load persisted state",
                 exc_info=True,
             )
+
+        if persisted is not None and self._cached_state is not None:
+            if (
+                self._cached_state.last_updated_iteration
+                > persisted.last_updated_iteration
+            ):
+                logger.info(
+                    "TodoWriteTool: cache (iter %d) is ahead of persisted (iter %d), keeping cache",
+                    self._cached_state.last_updated_iteration,
+                    persisted.last_updated_iteration,
+                )
+                return self._cached_state
+            self._cached_state = persisted
+            return persisted
+
+        if persisted is not None:
+            self._cached_state = persisted
+            return persisted
 
         if self._cached_state is not None:
             logger.debug("TodoWriteTool: using in-memory cached state")

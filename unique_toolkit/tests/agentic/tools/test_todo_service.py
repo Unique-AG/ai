@@ -243,6 +243,7 @@ def _make_tool(
     tool._memory_manager.load_async = AsyncMock(return_value=None)
     tool._memory_manager.save_async = AsyncMock()
     tool._message_step_logger = MagicMock()
+    tool._message_step_logger.create_or_update_message_log_async = AsyncMock()
     return tool
 
 
@@ -418,6 +419,32 @@ class TestTodoWriteTool:
 
         assert "[x] Cached" in response.content
 
+    @pytest.mark.asyncio
+    async def test_cache_preferred_when_ahead_of_persisted(self) -> None:
+        """When cache has a higher iteration than persisted, keep cache."""
+        tool = _make_tool()
+        tool._cached_state = TodoList(
+            todos=[TodoItem(id="t1", content="Cached", status=TodoStatus.IN_PROGRESS)],
+            last_updated_iteration=3,
+        )
+        stale_persisted = TodoList(
+            todos=[TodoItem(id="t1", content="Stale", status=TodoStatus.PENDING)],
+            last_updated_iteration=1,
+        )
+        tool._memory_manager.load_async = AsyncMock(return_value=stale_persisted)
+
+        tc = _make_tool_call(
+            {
+                "todos": [{"id": "t1", "status": "completed"}],
+                "merge": True,
+            }
+        )
+
+        response = await tool.run(tc)
+
+        assert "[x] Cached" in response.content
+        assert "Stale" not in response.content
+
 
 class TestLogStep:
     """Tests for _log_step() Steps panel integration."""
@@ -434,7 +461,9 @@ class TestLogStep:
 
         await tool.run(tc)
 
-        calls = tool._message_step_logger.create_or_update_message_log.call_args_list
+        calls = (
+            tool._message_step_logger.create_or_update_message_log_async.call_args_list
+        )
         assert len(calls) == 2  # plan + progress
         assert calls[0][1]["header"] == "Progress"
         assert calls[1][1]["header"] == "Progress"
@@ -457,7 +486,9 @@ class TestLogStep:
         await tool.run(tc)
 
         plan_kwargs = (
-            tool._message_step_logger.create_or_update_message_log.call_args_list[0][1]
+            tool._message_step_logger.create_or_update_message_log_async.call_args_list[
+                0
+            ][1]
         )
         expected = (
             "0/3 completed\n○ 1. Research APIs\n○ 2. Write code\n○ 3. Write tests"
@@ -470,7 +501,9 @@ class TestLogStep:
         """Plan entry updates with ✓/→/○ as items change status."""
         tool = _make_tool()
         sentinel = MagicMock()
-        tool._message_step_logger.create_or_update_message_log.return_value = sentinel
+        tool._message_step_logger.create_or_update_message_log_async.return_value = (
+            sentinel
+        )
 
         tc1 = _make_tool_call(
             {
@@ -499,7 +532,9 @@ class TestLogStep:
         await tool.run(tc2)
 
         plan_kwargs = (
-            tool._message_step_logger.create_or_update_message_log.call_args_list[2][1]
+            tool._message_step_logger.create_or_update_message_log_async.call_args_list[
+                2
+            ][1]
         )
         expected = "1/2 completed\n✓ 1. Research APIs\n→ 2. Writing code"
         assert plan_kwargs["progress_message"] == expected
@@ -527,7 +562,9 @@ class TestLogStep:
         await tool.run(tc)
 
         progress_kwargs = (
-            tool._message_step_logger.create_or_update_message_log.call_args_list[1][1]
+            tool._message_step_logger.create_or_update_message_log_async.call_args_list[
+                1
+            ][1]
         )
         assert (
             progress_kwargs["progress_message"] == "Searching documents (0/2 completed)"
@@ -550,7 +587,9 @@ class TestLogStep:
         await tool.run(tc)
 
         progress_kwargs = (
-            tool._message_step_logger.create_or_update_message_log.call_args_list[1][1]
+            tool._message_step_logger.create_or_update_message_log_async.call_args_list[
+                1
+            ][1]
         )
         assert progress_kwargs["progress_message"] == "1/2 completed"
 
@@ -570,7 +609,9 @@ class TestLogStep:
         await tool.run(tc)
 
         progress_kwargs = (
-            tool._message_step_logger.create_or_update_message_log.call_args_list[1][1]
+            tool._message_step_logger.create_or_update_message_log_async.call_args_list[
+                1
+            ][1]
         )
         assert progress_kwargs["progress_message"] == "Search docs (0/1 completed)"
 
@@ -586,7 +627,9 @@ class TestLogStep:
 
         await tool.run(tc)
 
-        calls = tool._message_step_logger.create_or_update_message_log.call_args_list
+        calls = (
+            tool._message_step_logger.create_or_update_message_log_async.call_args_list
+        )
         for call in calls:
             assert call[1]["status"] == MessageLogStatus.RUNNING
 
@@ -605,7 +648,9 @@ class TestLogStep:
 
         await tool.run(tc)
 
-        calls = tool._message_step_logger.create_or_update_message_log.call_args_list
+        calls = (
+            tool._message_step_logger.create_or_update_message_log_async.call_args_list
+        )
         for call in calls:
             assert call[1]["status"] == MessageLogStatus.COMPLETED
 
@@ -626,7 +671,9 @@ class TestLogStep:
         await tool.run(tc)
 
         plan_kwargs = (
-            tool._message_step_logger.create_or_update_message_log.call_args_list[0][1]
+            tool._message_step_logger.create_or_update_message_log_async.call_args_list[
+                0
+            ][1]
         )
         assert "✗ 1. Dropped" in plan_kwargs["progress_message"]
         assert "✓ 2. Done" in plan_kwargs["progress_message"]
@@ -636,7 +683,9 @@ class TestLogStep:
         """Second run() passes both plan and progress logs as active_message_log."""
         tool = _make_tool()
         sentinel = MagicMock()
-        tool._message_step_logger.create_or_update_message_log.return_value = sentinel
+        tool._message_step_logger.create_or_update_message_log_async.return_value = (
+            sentinel
+        )
 
         tc1 = _make_tool_call(
             {
@@ -651,7 +700,9 @@ class TestLogStep:
         )
         await tool.run(tc2)
 
-        calls = tool._message_step_logger.create_or_update_message_log.call_args_list
+        calls = (
+            tool._message_step_logger.create_or_update_message_log_async.call_args_list
+        )
         # 2 calls per run = 4 total
         assert len(calls) == 4
         # Second run's plan call reuses sentinel
@@ -663,8 +714,8 @@ class TestLogStep:
     async def test_log_step_failure_does_not_break_run(self) -> None:
         """_log_step exceptions are swallowed — run() still returns a valid response."""
         tool = _make_tool()
-        tool._message_step_logger.create_or_update_message_log.side_effect = Exception(
-            "Step log broken"
+        tool._message_step_logger.create_or_update_message_log_async.side_effect = (
+            Exception("Step log broken")
         )
 
         tc = _make_tool_call(
