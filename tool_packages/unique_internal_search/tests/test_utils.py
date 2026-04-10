@@ -1,5 +1,6 @@
 from unittest.mock import Mock
 
+from unique_toolkit.agentic_table.schemas import MagicTableBasePayload
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content.schemas import ContentChunk, ContentMetadata
 
@@ -43,6 +44,17 @@ class TestExtractSelectedUploadedFileIds:
         additional.selected_uploaded_file_ids = []
         event.payload = Mock()
         event.payload.additional_parameters = additional
+
+        result = extract_selected_uploaded_file_ids(event)
+
+        assert result == []
+
+    def test_returns_empty_list_when_payload_is_magic_table_without_additional_parameters(
+        self,
+    ):
+        """MagicTableBasePayload has no additional_parameters attribute."""
+        event = Mock(spec=ChatEvent)
+        event.payload = Mock(spec=MagicTableBasePayload)
 
         result = extract_selected_uploaded_file_ids(event)
 
