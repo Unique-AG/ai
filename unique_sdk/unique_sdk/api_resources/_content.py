@@ -168,11 +168,24 @@ class Content(APIResource["Content"]):
         ingestionState: str
 
     class Chunk(TypedDict):
+        """Chunk on the wire (content search, chunk mutations).
+
+        Field names match the public API / GraphQL ``Chunk`` type (camelCase).
+        Embedded chunks in some search responses may omit metadata; those entries
+        are optional. Full chunk records include ``contentId``, timestamps, and
+        ``object`` (typically ``\"chunk\"``).
+        """
+
         id: str
         text: str
-        startPage: int | None
-        endPage: int | None
-        order: int | None
+        contentId: NotRequired[str]
+        createdAt: NotRequired[str]
+        updatedAt: NotRequired[str]
+        object: NotRequired[str]
+        startPage: NotRequired[int | None]
+        endPage: NotRequired[int | None]
+        order: NotRequired[int | None]
+        model: NotRequired[str | None]
 
     class ContentInfo(TypedDict):
         """
