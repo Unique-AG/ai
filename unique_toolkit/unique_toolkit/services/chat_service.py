@@ -76,10 +76,13 @@ from unique_toolkit.chat.schemas import (
     MessageLogStatus,
     MessageLogUncitedReferences,
 )
+from unique_toolkit.content.constants import DEFAULT_SEARCH_LANGUAGE
 from unique_toolkit.content.functions import (
     download_content_to_bytes,
     download_content_to_bytes_async,
+    search_content_chunks_async,
     search_contents,
+    search_contents_async,
     upload_content_from_bytes,
     upload_content_from_bytes_async,
 )
@@ -87,6 +90,8 @@ from unique_toolkit.content.schemas import (
     Content,
     ContentChunk,
     ContentReference,
+    ContentRerankerConfig,
+    ContentSearchType,
 )
 from unique_toolkit.elicitation.service import ElicitationService
 from unique_toolkit.language_model.constants import (
@@ -1919,6 +1924,51 @@ class ChatService(ChatServiceDeprecated):
             if is_image_content(filename=c.key):
                 images.append(c)
         return images, files
+
+    async def search_content_chunks_async(
+        self,
+        *,
+        search_string: str,
+        search_type: ContentSearchType,
+        limit: int,
+        search_language: str = DEFAULT_SEARCH_LANGUAGE,
+        reranker_config: ContentRerankerConfig | None = None,
+        scope_ids: list[str] | None = None,
+        metadata_filter: dict | None = None,
+        content_ids: list[str] | None = None,
+        score_threshold: float | None = None,
+    ) -> list[ContentChunk]:
+        """Search content chunks scoped to this chat session (chat_only=True)."""
+        return await search_content_chunks_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._content_scope_chat_id,
+            search_string=search_string,
+            search_type=search_type,
+            limit=limit,
+            search_language=search_language,
+            reranker_config=reranker_config,
+            scope_ids=scope_ids,
+            chat_only=True,
+            metadata_filter=metadata_filter,
+            content_ids=content_ids,
+            score_threshold=score_threshold,
+        )
+
+    async def search_contents_async(
+        self,
+        *,
+        where: dict,
+        include_failed_content: bool = False,
+    ) -> list[Content]:
+        """Search content files uploaded to this chat session."""
+        return await search_contents_async(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            chat_id=self._content_scope_chat_id,
+            where=where,
+            include_failed_content=include_failed_content,
+        )
 
     # Short Term Memories
     ############################################################################
