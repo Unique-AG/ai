@@ -51,13 +51,26 @@ uv run python -m unique_search_proxy.web.app
 
 **Docker (from published package):**
 
-The container image is built from the `deploy/` directory and installs the package from PyPI:
+The container image is built from the `deploy/` directory. When the package is available on PyPI, pass its version:
 
 ```bash
-# Build locally (requires the package to be published first)
 docker build --build-arg PACKAGE_VERSION=0.2.0 -t search-proxy deploy/
+```
 
-# Run the container
+**Docker (from local source — no registry required):**
+
+Build a wheel first, copy it into `deploy/`, then reference it:
+
+```bash
+uv build --wheel --out-dir deploy/
+docker build \
+  --build-arg LOCAL_WHEEL=unique_search_proxy-0.2.0-py3-none-any.whl \
+  -t search-proxy deploy/
+```
+
+**Running the container:**
+
+```bash
 docker run --rm -p 8080:8080 search-proxy
 
 # With custom environment variables
@@ -197,7 +210,7 @@ connectors/unique_search_proxy/
 │           └── vertexai/         # Vertex AI (Gemini) backend
 ├── tests/                        # Test suite
 ├── deploy/                       # Container build artifacts
-│   ├── Dockerfile                # Installs from PyPI, not source
+│   ├── Dockerfile                # Supports PyPI install or local wheel
 │   └── entrypoint.sh
 └── pyproject.toml
 ```
