@@ -42,12 +42,14 @@ class Search(APIResource["Search"]):
     createdAt: str
     updatedAt: str
     url: str | None
+    key: str
     title: str | None
-    key: str | None
+    internallyStoredAt: str | None
     order: int
     startPage: int
     endPage: int
     metadata: dict[str, Any] | None
+    object: str
 
     @classmethod
     def create(
