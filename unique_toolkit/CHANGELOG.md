@@ -5,11 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.70.3] - 2026-04-09
-- Fix `_find_references` deduplication: only merge references when the content id matches, so titles like `Budget` and `Budget : Q1` on different documents are not collapsed via `startswith`
-
-## [1.70.2] - 2026-04-09
+## [1.70.2] - 2026-04-10
+- Add `content_chunk_to_reference` and `ContentChunk.to_reference` to build `ContentReference` from chunks with streaming-path parity (page postfix, `source_id`, `node-ingestion-chunks` source) for `modify_assistant_message`
+- Set `ContentReference` `id` and optional `message_id` during conversion; `_find_references` uses `ContentChunk.to_reference`
+- Treat `None` page fields safely in `_generate_pages_postfix` / `gen_all_numbers_in_between`; document usage and behavior
+- Use `Content {content_id}` as reference name when title and key are missing (aligned with reference dedup)
+- Prefer `ContentChunk.to_reference` in docs and examples; mkdocs lists the method under the content module
 - Avoid duplicate page postfix in reference names when `title`/`key` already include the postfix from `sort_content_chunks` / `merge_content_chunks` (`content_chunk_to_reference` / `ContentChunk.to_reference`)
+- Fix `_find_references` deduplication: only merge references when the content id matches, so titles like `Budget` and `Budget : Q1` on different documents are not collapsed via `startswith`
 
 ## [1.70.1] - 2026-04-09
 - Add three-state `supported_reasoning_efforts` per model: `None` (unknown — pass-through), `[]` (no reasoning), `[...]` (validated list incl. `xhigh`)
