@@ -1075,13 +1075,14 @@ def _file_frontend_type(filename: str) -> str:
     """Map filename to the type token the frontend expects in fileWithSource.
 
     Assumed enum (to be confirmed with frontend):
-      excel   → .xlsx / .xls
-      csv     → .csv
-      word    → .docx / .doc
-      pdf     → .pdf
-      html    → .html / .htm
-      image   → image/* MIME
-      document → fallback
+      excel       → .xlsx / .xls
+      csv         → .csv
+      word        → .docx / .doc
+      powerpoint  → .pptx / .ppt
+      pdf         → .pdf
+      html        → .html / .htm
+      image       → image/* MIME
+      document    → fallback
     """
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     mime = guess_type(filename)[0] or ""
@@ -1093,6 +1094,8 @@ def _file_frontend_type(filename: str) -> str:
         "csv": "csv",
         "docx": "word",
         "doc": "word",
+        "pptx": "powerpoint",
+        "ppt": "powerpoint",
         "pdf": "pdf",
         "html": "html",
         "htm": "html",
