@@ -1,19 +1,18 @@
 ---
 name: unique-websearch-cli
 description: >-
-  Search the web using the unique-websearch command-line tool. Use when
-  the user asks to search the public web, find web pages, or look up
-  information online. The search engine and crawler are determined by
-  environment variables -- the CLI always uses whichever single engine
-  and crawler are configured, not a choice of all engines.
+  Two-phase web search CLI: `search` returns URLs with snippets,
+  `crawl` fetches full page content for selected URLs. Designed
+  for AI-assisted workflows where a model selects which pages to
+  fetch after reviewing search snippets.
 ---
 
 # Unique WebSearch CLI
 
-Search the public web from the terminal. The search engine and crawler
-are **automatically determined** from environment variables, matching the
-server-side configuration. You do not choose the engine at invocation
-time -- it is always the one that is configured.
+Two-phase web search from the terminal. Phase 1 queries a search
+engine for URLs and snippets. Phase 2 crawls selected URLs to
+retrieve full page content. This separation lets an AI decide which
+pages are worth fetching before spending time on crawling.
 
 ## Setup
 
@@ -63,7 +62,7 @@ export FIRECRAWL_API_KEY="..."
 
 Create `~/.unique-websearch.json` to override non-secret settings like
 `fetch_size` or crawler `timeout`. The engine and crawler selection still
-comes from environment variables -- the JSON file only tunes their settings.
+comes from environment variables — the JSON file only tunes their settings.
 
 ```json
 {
@@ -77,36 +76,67 @@ If no config file exists, defaults are used (fetch_size: 50, timeout: 10).
 
 ## Usage
 
+### Phase 1 — Search
+
+Get URLs and snippets from the configured search engine:
+
 ```bash
-# Search with defaults (50 results, auto-configured engine + crawler)
-unique-websearch "quarterly earnings report 2025"
+unique-websearch search "quarterly earnings report 2025"
+unique-websearch search "AI regulation EU" -n 10
+unique-websearch search "python tutorial" --json
+```
 
-# Control number of results
-unique-websearch "AI regulation EU" -n 10
+JSON output for piping to other tools:
 
-# Fast mode -- URLs and snippets only, no page crawling
-unique-websearch "python asyncio tutorial" --no-crawl
+```bash
+unique-websearch search "query" --json | jq '.[].url'
+```
 
-# Use a project-specific config file
-unique-websearch "internal docs" --config ./project.json
+### Phase 2 — Crawl
+
+Fetch full page content for specific URLs:
+
+```bash
+unique-websearch crawl https://example.com https://other.com
+unique-websearch crawl --parallel 5 https://a.com https://b.com
+```
+
+Pipe URLs from search results:
+
+```bash
+unique-websearch search "query" --json | jq -r '.[].url' | unique-websearch crawl --stdin
 ```
 
 ## Command Reference
 
-```
-unique-websearch <query> [options]
-```
+### `unique-websearch search <query>`
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
 | `--fetch-size` | `-n` | 50 (or from config) | Number of results to fetch |
-| `--no-crawl` | | Off | Skip page crawling |
+| `--json` | | Off | Output as JSON array |
 | `--config` | `-c` | `~/.unique-websearch.json` | Config file path |
-| `--version` | | | Show version |
-| `--help` | | | Show help |
+
+### `unique-websearch crawl <url>...`
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--parallel` | `-p` | 10 | URLs to crawl concurrently per batch |
+| `--stdin` | | Off | Read URLs from stdin (one per line) |
+| `--json` | | Off | Output as JSON array |
+| `--config` | `-c` | `~/.unique-websearch.json` | Config file path |
+
+### Global options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--config` | `-c` | Config file path |
+| `--version` | | Show version |
+| `--help` | | Show help |
 
 ## Output Format
 
+### Search (text)
 ```
 Found 3 result(s):
 
@@ -117,20 +147,49 @@ Found 3 result(s):
   2. Another Relevant Result
      https://another.com/page
      More details about the search query topic...
-     --- crawled content ---
-     Full page content preview truncated to 200 characters...
 ```
 
-## How It Works
+### Search (JSON)
+```json
+[
+  {
+    "title": "Example Page Title",
+    "url": "https://example.com/article",
+    "snippet": "A short snippet describing the content..."
+  }
+]
+```
 
-1. The CLI reads `ACTIVE_SEARCH_ENGINES` to determine which single search
-   engine to use (e.g. Google, Brave, Tavily).
-2. The CLI reads `ACTIVE_INHOUSE_CRAWLERS` (plus API keys) to determine
-   the active crawler for fetching full page content.
-3. An optional JSON config file can override settings like `fetch_size`.
-4. The `--fetch-size` / `-n` flag overrides `fetch_size` per invocation.
-5. If the engine requires page scraping and `--no-crawl` is not set,
-   the first active crawler fetches full page content automatically.
+### Crawl (text)
+```
+Crawled 2 URL(s):
+
+  1. https://example.com/article
+     [4523 chars]
+     Full page content preview truncated to 500 characters...
+
+  2. https://other.com/page
+     [2891 chars]
+     Another page's content preview...
+```
+
+### Crawl (JSON)
+```json
+[
+  {
+    "url": "https://example.com/article",
+    "content": "Full page content as markdown...",
+    "error": null
+  }
+]
+```
+
+## Two-Phase Workflow for AI Agents
+
+1. Run `unique-websearch search "<query>" --json` to get candidate URLs.
+2. The AI reviews the titles and snippets to decide which URLs are relevant.
+3. Run `unique-websearch crawl <selected-urls>` to get full content.
+4. The AI processes the full page content.
 
 ## Install
 

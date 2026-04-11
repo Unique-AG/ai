@@ -205,26 +205,31 @@ def _build_crawler_config(
         raise CLIConfigError(f"Invalid crawler config: {e}") from e
 
 
-def load_websearch_config(
-    config_path: str | None = None,
-) -> tuple[SearchEngineConfigTypes, CrawlerConfigTypes]:
-    """Load engine + crawler configs, auto-detecting the config format.
+def _load_overrides(
+    config_path: str | None,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None, bool]:
+    """Return (engine_overrides, crawler_overrides, is_full_config).
 
-    When the config file contains a full ``WebSearchConfig`` (written by
-    the Claude Agent runner from the platform event), it is parsed via
-    ``WebSearchConfig.model_validate()`` and the engine/crawler configs
-    are extracted directly — no env-var based selection needed.
-
-    Otherwise falls back to the legacy path: engine and crawler are
-    selected via ``ACTIVE_SEARCH_ENGINES`` / ``ACTIVE_INHOUSE_CRAWLERS``
-    env vars, with optional JSON overrides for non-secret settings.
-
-    Args:
-        config_path: Explicit path to JSON config file (optional).
-
-    Returns:
-        Tuple of (search_engine_config, crawler_config).
+    When a full platform config is detected, the caller should use
+    ``_parse_full_config`` instead of the override dicts.
     """
+    path = _resolve_config_path(config_path)
+    if path is None:
+        return None, None, False
+
+    data = _load_json(path)
+    _LOGGER.info("Loaded CLI config from %s", path)
+
+    if _is_full_platform_config(data):
+        return None, None, True
+
+    return data.get("search_engine_config"), data.get("crawler_config"), False
+
+
+def load_search_engine_config(
+    config_path: str | None = None,
+) -> SearchEngineConfigTypes:
+    """Load the search engine config for the ``search`` subcommand."""
     path = _resolve_config_path(config_path)
 
     if path is not None:
@@ -232,21 +237,46 @@ def load_websearch_config(
         _LOGGER.info("Loaded CLI config from %s", path)
 
         if _is_full_platform_config(data):
-            return _parse_full_config(data)
+            engine_cfg, _ = _parse_full_config(data)
+            return engine_cfg
 
         engine_overrides = data.get("search_engine_config")
-        crawler_overrides = data.get("crawler_config")
     else:
         engine_overrides = None
-        crawler_overrides = None
 
     engine_config = _build_engine_config(engine_overrides)
+    _LOGGER.info("Using search engine: %s", engine_config.search_engine_name)
+    return engine_config
+
+
+def load_crawler_config(
+    config_path: str | None = None,
+) -> CrawlerConfigTypes:
+    """Load the crawler config for the ``crawl`` subcommand."""
+    path = _resolve_config_path(config_path)
+
+    if path is not None:
+        data = _load_json(path)
+        _LOGGER.info("Loaded CLI config from %s", path)
+
+        if _is_full_platform_config(data):
+            _, crawler_cfg = _parse_full_config(data)
+            return crawler_cfg
+
+        crawler_overrides = data.get("crawler_config")
+    else:
+        crawler_overrides = None
+
     crawler_config = _build_crawler_config(crawler_overrides)
+    _LOGGER.info("Using crawler: %s", crawler_config.crawler_type)
+    return crawler_config
 
-    _LOGGER.info(
-        "Using search engine: %s, crawler: %s",
-        engine_config.search_engine_name,
-        crawler_config.crawler_type,
+
+def load_websearch_config(
+    config_path: str | None = None,
+) -> tuple[SearchEngineConfigTypes, CrawlerConfigTypes]:
+    """Load engine + crawler configs together (kept for backward compatibility)."""
+    return (
+        load_search_engine_config(config_path),
+        load_crawler_config(config_path),
     )
-
-    return engine_config, crawler_config

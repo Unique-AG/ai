@@ -1,12 +1,14 @@
-"""Web search command: query the configured search engine and optionally crawl results."""
+"""Search command: query the configured search engine and return URLs with snippets."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 
-from unique_web_search.cli.formatting import format_websearch_results
-from unique_web_search.services.crawlers import CrawlerConfigTypes, get_crawler_service
+from unique_web_search.cli.formatting import (
+    format_search_results,
+    format_search_results_json,
+)
 from unique_web_search.services.search_engine import SearchEngineConfigTypes
 from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineType
 from unique_web_search.services.search_engine.schema import WebSearchResult
@@ -60,29 +62,19 @@ async def _run_search(
     return await engine.search(query)
 
 
-async def _run_crawl(
-    crawler_config: CrawlerConfigTypes,
-    urls: list[str],
-) -> list[str]:
-    crawler = get_crawler_service(crawler_config)
-    return await crawler.crawl(urls)
-
-
-def cmd_websearch(
+def cmd_search(
     search_engine_config: SearchEngineConfigTypes,
-    crawler_config: CrawlerConfigTypes,
     query: str,
     fetch_size: int | None = None,
-    no_crawl: bool = False,
+    output_json: bool = False,
 ) -> str:
-    """Execute a web search and optionally crawl the result pages.
+    """Execute a web search and return URLs with snippets.
 
     Args:
         search_engine_config: Validated search engine config (from env + JSON).
-        crawler_config: Validated crawler config (from env + JSON).
         query: The search query string.
         fetch_size: Override fetch_size if provided via CLI flag.
-        no_crawl: Skip crawling, return URLs + snippets only.
+        output_json: Return results as JSON.
 
     Returns:
         Formatted string of results for terminal display.
@@ -94,14 +86,10 @@ def cmd_websearch(
     results = asyncio.run(_run_search(engine, query))
 
     if not results:
+        if output_json:
+            return "[]"
         return "No results found."
 
-    crawled_contents: list[str] | None = None
-    if not no_crawl and engine.requires_scraping:
-        urls = [r.url for r in results]
-        try:
-            crawled_contents = asyncio.run(_run_crawl(crawler_config, urls))
-        except Exception as e:
-            _LOGGER.warning("Crawling failed, showing snippets only: %s", e)
-
-    return format_websearch_results(results, crawled_contents)
+    if output_json:
+        return format_search_results_json(results)
+    return format_search_results(results)
