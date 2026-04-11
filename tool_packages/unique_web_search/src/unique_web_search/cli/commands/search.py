@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import cast
 
 from unique_web_search.cli.formatting import (
     format_search_results,
     format_search_results_json,
 )
-from unique_web_search.services.search_engine import SearchEngineConfigTypes
+from unique_web_search.services.search_engine import (
+    SearchEngineConfigTypes,
+    get_search_engine_service,
+)
 from unique_web_search.services.search_engine.base import SearchEngine, SearchEngineType
 from unique_web_search.services.search_engine.schema import WebSearchResult
 
@@ -21,38 +25,16 @@ UNSUPPORTED_CLI_ENGINES = {SearchEngineType.BING}
 def _instantiate_engine(
     config: SearchEngineConfigTypes,
 ) -> SearchEngine:
-    """Instantiate the search engine service from its config."""
-    from unique_web_search.services.search_engine.brave import BraveSearch
-    from unique_web_search.services.search_engine.custom_api import CustomAPI
-    from unique_web_search.services.search_engine.firecrawl import FireCrawlSearch
-    from unique_web_search.services.search_engine.google import GoogleSearch
-    from unique_web_search.services.search_engine.jina import JinaSearch
-    from unique_web_search.services.search_engine.tavily import TavilySearch
-    from unique_web_search.services.search_engine.vertexai import VertexAI
-
+    """Instantiate the search engine, reusing the shared factory."""
     if config.search_engine_name in UNSUPPORTED_CLI_ENGINES:
         raise ValueError(
             f"{config.search_engine_name} is not supported in CLI mode "
             f"(requires server-side LanguageModelService)."
         )
-
-    match config.search_engine_name:
-        case SearchEngineType.GOOGLE:
-            return GoogleSearch(config)
-        case SearchEngineType.BRAVE:
-            return BraveSearch(config)
-        case SearchEngineType.TAVILY:
-            return TavilySearch(config)
-        case SearchEngineType.JINA:
-            return JinaSearch(config)
-        case SearchEngineType.FIRECRAWL:
-            return FireCrawlSearch(config)
-        case SearchEngineType.VERTEXAI:
-            return VertexAI(config)
-        case SearchEngineType.CUSTOM_API:
-            return CustomAPI(config)
-        case _:
-            raise ValueError(f"Unsupported search engine: {config.search_engine_name}")
+    return cast(
+        SearchEngine,
+        get_search_engine_service(config, None),  # type: ignore[arg-type]
+    )
 
 
 async def _run_search(
