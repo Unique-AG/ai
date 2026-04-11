@@ -82,6 +82,7 @@ from unique_orchestrator._builders.open_file_setup import (
 )
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
+from unique_orchestrator.utils import filter_uploaded_documents_by_selection
 
 
 class ResponsesStreamingHandler(ResponsesSupportCompleteWithReferences):
@@ -177,6 +178,11 @@ def _build_common(
     content_service = ContentService.from_event(event)
 
     uploaded_documents = content_service.get_documents_uploaded_to_chat()
+    uploaded_documents = filter_uploaded_documents_by_selection(
+        documents=uploaded_documents,
+        additional_parameters=event.payload.additional_parameters,
+        company_id=event.company_id,
+    )
 
     response_watcher = SubAgentResponseWatcher()
 

@@ -10,6 +10,7 @@ from unique_toolkit.agentic.debug_info_manager.debug_info_manager import (
     DebugInfoManager,
 )
 from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManager
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.loop_runner import (
@@ -39,6 +40,7 @@ from unique_toolkit.language_model import LanguageModelAssistantMessage
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelStreamResponse,
+    ResponsesLanguageModelStreamResponse,
 )
 from unique_toolkit.protocols.support import (
     ResponsesSupportCompleteWithReferences,
@@ -46,6 +48,7 @@ from unique_toolkit.protocols.support import (
 )
 
 from unique_orchestrator.config import UniqueAIConfig
+from unique_orchestrator.utils import filter_uploaded_documents_by_selection
 
 EMPTY_MESSAGE_WARNING = (
     "⚠️ **The language model was unable to produce an output.**\n"
@@ -193,7 +196,7 @@ class UniqueAI:
         if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
             self._event.company_id
         ):
-            self._chat_service.modify_assistant_message(
+            await self._chat_service.modify_assistant_message_async(
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )
 
@@ -356,7 +359,9 @@ class UniqueAI:
 
         if loop_response.is_empty():
             self._logger.debug("Empty model response, exiting loop.")
-            self._chat_service.modify_assistant_message(content=EMPTY_MESSAGE_WARNING)
+            await self._chat_service.modify_assistant_message_async(
+                content=EMPTY_MESSAGE_WARNING
+            )
             return True
 
         call_tools = len(loop_response.tool_calls or []) > 0
@@ -476,6 +481,11 @@ class UniqueAI:
             sub_agent_referencing_instructions = None
 
         uploaded_documents = self._content_service.get_documents_uploaded_to_chat()
+        uploaded_documents = filter_uploaded_documents_by_selection(
+            documents=uploaded_documents,
+            additional_parameters=self._event.payload.additional_parameters,
+            company_id=self._event.company_id,
+        )
         uploaded_documents_expired = [
             doc
             for doc in uploaded_documents
@@ -529,6 +539,20 @@ class UniqueAI:
             )
         else:
             selected_evaluation_names = self._tool_manager.get_evaluation_check_list()
+
+        if (
+            isinstance(loop_response, ResponsesLanguageModelStreamResponse)
+            and loop_response.code_interpreter_calls
+        ):
+            selected_evaluation_names = [
+                name
+                for name in selected_evaluation_names
+                if name != EvaluationMetricName.HALLUCINATION
+            ]
+            self._logger.info(
+                "Code interpreter was used - skipping hallucination check "
+                "(answer is grounded in code execution output, not search chunks)."
+            )
 
         evaluation_results = task_executor.execute_async(
             self._evaluation_manager.run_evaluations,

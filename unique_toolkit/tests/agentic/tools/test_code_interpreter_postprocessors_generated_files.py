@@ -1,6 +1,7 @@
 """Tests for code interpreter generated-files postprocessor (config, __init__, helpers)."""
 
 import logging
+import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -16,10 +17,11 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     DisplayCodeInterpreterFilesPostProcessorConfig,
     _build_code_blocks,
     _build_file_fence,
-    _collect_stdout,
     _ensure_fences_are_standalone,
     _file_frontend_type,
     _file_title,
+    _FileProgressTracker,
+    _FileState,
     _inject_code_execution_fences,
     _replace_dangling_sandbox_links,
     _warn_missing_content_ids,
@@ -34,6 +36,33 @@ from unique_toolkit.content.schemas import ContentReference
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 
 GEN_FILES_FF = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors.generated_files.feature_flags"
+
+
+class _MockStreamResponse:
+    """Mock for ``AsyncStreamedBinaryAPIResponse`` from the OpenAI SDK.
+
+    Supports ``async with`` (context manager protocol) and ``iter_bytes``.
+    """
+
+    def __init__(self, data: bytes, content_length: int | None = None):
+        self._data = data
+        self.headers: dict[str, str] = {}
+        self.status_code: int = 200
+        if content_length is not None:
+            self.headers["content-length"] = str(content_length)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        pass
+
+    async def iter_bytes(self, chunk_size: int = 8192):
+        for i in range(0, len(self._data), chunk_size):
+            yield self._data[i : i + chunk_size]
+
+    async def close(self):
+        pass
 
 
 @pytest.mark.ai
@@ -51,8 +80,14 @@ def test_display_code_interpreter_files_config__has_defaults__when_constructed_w
     # Assert
     assert config.upload_to_chat is True
     assert config.upload_scope_id == "<SCOPE_ID_PLACEHOLDER>"
-    assert config.file_download_failed_message == "⚠️ File download failed ..."
+    assert (
+        config.file_download_failed_message
+        == "⚠️ File could not be generated. Please try again."
+    )
     assert config.max_concurrent_file_downloads == 10
+    assert config.progress_update_interval == 3.0
+    assert config.download_chunk_size == 8192
+    assert config.download_read_timeout == 120.0
 
 
 @pytest.mark.ai
@@ -216,6 +251,37 @@ def test_replace_container_file_citation__replaces_link__with_unique_content_lin
     """
     # Arrange
     text = "Data in [file](sandbox:/mnt/data/data.csv)."
+    content_id = "cont_abc123"
+
+    # Act
+    new_text, replaced = gen_mod._replace_container_file_citation(
+        text,
+        filename="data.csv",
+        content_id=content_id,
+        ref_number=1,
+        use_content_link=True,
+    )
+
+    # Assert
+    assert replaced is True
+    assert f"[data.csv](unique://content/{content_id})" in new_text
+    assert "sandbox" not in new_text
+
+
+@pytest.mark.ai
+def test_replace_container_file_citation__replaces_link_with_bang_prefix__when_llm_uses_image_syntax() -> (
+    None
+):
+    """
+    Purpose: Verify file citation handles LLM using ![label]() syntax for non-image files.
+    Why this matters: LLMs sometimes write ![Download](sandbox:/mnt/data/report.xlsx)
+    with a ! prefix for non-image files. Without !? in the regex, the replacement fails
+    and the dangling handler replaces with a false error message even though the file
+    was successfully uploaded.
+    Setup summary: Text with ![label](sandbox:/mnt/data/data.csv); assert replacement succeeds.
+    """
+    # Arrange
+    text = "Data in ![file](sandbox:/mnt/data/data.csv)."
     content_id = "cont_abc123"
 
     # Act
@@ -423,8 +489,10 @@ def _make_display_files_postprocessor(
     company_id: str = "co-test",
 ) -> DisplayCodeInterpreterFilesPostProcessor:
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
+    client = MagicMock()
+    client.with_options.return_value = client
     return DisplayCodeInterpreterFilesPostProcessor(
-        client=MagicMock(),
+        client=client,
         content_service=MagicMock(),
         config=config,
         chat_service=MagicMock(),
@@ -805,6 +873,26 @@ def test_file_frontend_type__returns_pdf__for_pdf() -> None:
 
 
 @pytest.mark.ai
+def test_file_frontend_type__returns_word__for_docx() -> None:
+    assert _file_frontend_type("report.docx") == "word"
+
+
+@pytest.mark.ai
+def test_file_frontend_type__returns_word__for_doc() -> None:
+    assert _file_frontend_type("report.doc") == "word"
+
+
+@pytest.mark.ai
+def test_file_frontend_type__returns_powerpoint__for_pptx() -> None:
+    assert _file_frontend_type("slides.pptx") == "powerpoint"
+
+
+@pytest.mark.ai
+def test_file_frontend_type__returns_powerpoint__for_ppt() -> None:
+    assert _file_frontend_type("slides.ppt") == "powerpoint"
+
+
+@pytest.mark.ai
 def test_file_frontend_type__returns_document__for_unknown() -> None:
     assert _file_frontend_type("output.xyz") == "document"
 
@@ -847,10 +935,10 @@ def test_build_file_fence__document__uses_fileWithSource_tag() -> None:
 @pytest.mark.ai
 def test_build_file_fence__html__falls_through_to_fileWithSource() -> None:
     """
-    Purpose: HTML files now fall through to fileWithSource in _build_file_fence.
-    Why this matters: HTML is rendered via HtmlRendering blocks (not fence injection),
-    so this function should never be called for HTML in practice, but if it is the
-    fallback is a fileWithSource fence rather than the removed htmlWithSource branch.
+    Purpose: HTML ``CodeInterpreterFile`` passed to ``_build_file_fence`` uses
+    ``fileWithSource`` (not a dedicated HTML fence tag).
+    Why this matters: In normal flow HTML is shown via ``HtmlRendering`` blocks and is
+    excluded from fence injection; this path only applies to edge cases (e.g. orphans).
     """
     file = CodeInterpreterFile(
         filename="report.html", content_id="cont_html1", type="html"
@@ -1146,16 +1234,17 @@ def test_replace_container_image_citation__logs_warning__when_no_sandbox_link(
     caplog,
 ) -> None:
     """
-    Purpose: Verify a WARNING is emitted by _replace_container_image_citation when no
-    sandbox link is present for the filename.
-    Why this matters: Makes it visible in production that the LLM omitted the link.
+    Purpose: Verify a WARNING is emitted and a fallback download link is appended when
+    no sandbox link is present for the filename.
+    Why this matters: Without the fallback link the user would never see the file.
     """
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        _, replaced = gen_mod._replace_container_image_citation(
+        new_text, replaced = gen_mod._replace_container_image_citation(
             text="No link here.", filename="plot.png", content_id="cont_x"
         )
 
-    assert replaced is False
+    assert replaced is True
+    assert "📎 [plot.png](unique://content/cont_x)" in new_text
     assert any(
         "plot.png" in r.message and r.levelno == logging.WARNING for r in caplog.records
     )
@@ -1166,11 +1255,11 @@ def test_replace_container_file_citation__logs_warning__when_no_sandbox_link(
     caplog,
 ) -> None:
     """
-    Purpose: Verify a WARNING is emitted by _replace_container_file_citation when no
-    sandbox link is present for the filename.
+    Purpose: Verify a WARNING is emitted and a fallback download link is appended when
+    no sandbox link is present for the filename.
     """
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        _, replaced = gen_mod._replace_container_file_citation(
+        new_text, replaced = gen_mod._replace_container_file_citation(
             text="No link here.",
             filename="data.csv",
             content_id="cont_y",
@@ -1178,7 +1267,8 @@ def test_replace_container_file_citation__logs_warning__when_no_sandbox_link(
             use_content_link=False,
         )
 
-    assert replaced is False
+    assert replaced is True
+    assert "📎 [data.csv](unique://content/cont_y)" in new_text
     assert any(
         "data.csv" in r.message and r.levelno == logging.WARNING for r in caplog.records
     )
@@ -1189,15 +1279,16 @@ def test_replace_container_html_citation__logs_warning__when_no_sandbox_link(
     caplog,
 ) -> None:
     """
-    Purpose: Verify a WARNING is emitted by _replace_container_html_citation when no
-    sandbox link is present for the filename.
+    Purpose: Verify a WARNING is emitted and a fallback download link is appended when
+    no sandbox link is present for the filename.
     """
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        _, replaced = gen_mod._replace_container_html_citation(
+        new_text, replaced = gen_mod._replace_container_html_citation(
             text="No link here.", filename="report.html", content_id="cont_z"
         )
 
-    assert replaced is False
+    assert replaced is True
+    assert "📎 [report.html](unique://content/cont_z)" in new_text
     assert any(
         "report.html" in r.message and r.levelno == logging.WARNING
         for r in caplog.records
@@ -1482,19 +1573,19 @@ def test_replace_dangling_sandbox_links__replaces_and_warns__when_sandbox_link_p
     caplog,
 ) -> None:
     """
-    Purpose: Verify that dangling sandbox links are replaced with the error message
-    and a WARNING is logged.
-    Why this matters: Without replacement the user sees a broken link; the warning
-    makes the incident visible in production logs.
+    Purpose: Verify that dangling sandbox links are replaced with a per-file notice
+    that names the file, and a WARNING is logged.
+    Why this matters: Without replacement the user sees a broken link; the named notice
+    gives actionable context and the warning makes the incident visible in production logs.
     """
     text = "Download: [chart](sandbox:/mnt/data/chart.png)"
-    error_msg = "⚠️ File download failed ..."
 
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        result, replaced = _replace_dangling_sandbox_links(text, error_msg)
+        result, replaced = _replace_dangling_sandbox_links(text)
 
     assert replaced is True
-    assert error_msg in result
+    assert "chart.png" in result
+    assert "could not be retrieved" in result
     assert "sandbox:/mnt/data/chart.png" not in result
     assert any(
         "sandbox:/mnt/data/chart.png" in r.message and r.levelno == logging.WARNING
@@ -1511,10 +1602,9 @@ def test_replace_dangling_sandbox_links__no_change__when_no_sandbox_link(
     sandbox links.
     """
     text = "Here is your result: ````imgWithSource(contentId='cont_1')````"
-    error_msg = "⚠️ File download failed ..."
 
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        result, replaced = _replace_dangling_sandbox_links(text, error_msg)
+        result, replaced = _replace_dangling_sandbox_links(text)
 
     assert replaced is False
     assert result == text
@@ -1531,19 +1621,21 @@ def test_warn_unmatched_code_blocks__logs_warning__when_file_not_in_any_block(
     caplog,
 ) -> None:
     """
-    Purpose: Verify a WARNING is emitted when an uploaded file (with a valid content_id)
-    is not present in any code block.
+    Purpose: Verify a WARNING is emitted and the unmatched file is returned when an
+    uploaded file (with a valid content_id) is not present in any code block.
     Why this matters: This means the file won't receive a fence when FF=on.  It will
     appear as a plain download link and the frontend artifact UI won't be shown.
     The warning tells the operator the query should be re-run.
-    Setup summary: content_map has one file; code_blocks is empty; assert warning.
+    Setup summary: content_map has one file; code_blocks is empty; assert warning and
+    returned dict contains the unmatched entry.
     """
     content_map: dict[str, str | None] = {"report.xlsx": "cont_abc"}
     code_blocks: list[CodeInterpreterBlock] = []
 
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        _warn_unmatched_code_blocks(content_map, code_blocks)
+        unmatched = _warn_unmatched_code_blocks(content_map, code_blocks)
 
+    assert unmatched == {"report.xlsx": "cont_abc"}
     assert any(
         "report.xlsx" in r.message and r.levelno == logging.WARNING
         for r in caplog.records
@@ -1555,7 +1647,8 @@ def test_warn_unmatched_code_blocks__no_warning__when_file_is_in_block(
     caplog,
 ) -> None:
     """
-    Purpose: Verify no WARNING when the file is correctly matched to a code block.
+    Purpose: Verify no WARNING and an empty dict returned when the file is correctly
+    matched to a code block.
     """
     content_map: dict[str, str | None] = {"chart.png": "cont_img1"}
     code_blocks = [
@@ -1570,141 +1663,32 @@ def test_warn_unmatched_code_blocks__no_warning__when_file_is_in_block(
     ]
 
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        _warn_unmatched_code_blocks(content_map, code_blocks)
+        unmatched = _warn_unmatched_code_blocks(content_map, code_blocks)
 
+    assert unmatched == {}
     assert not any(r.levelno == logging.WARNING for r in caplog.records)
 
 
 @pytest.mark.ai
 def test_warn_unmatched_code_blocks__skips_none_content_ids(caplog) -> None:
     """
-    Purpose: Verify files whose upload failed (content_id=None) are silently skipped.
+    Purpose: Verify files whose upload failed (content_id=None) are silently skipped
+    and not included in the returned dict.
     Why this matters: Upload failures are already handled upstream; no double warning.
     """
     content_map: dict[str, str | None] = {"broken.xlsx": None}
     code_blocks: list[CodeInterpreterBlock] = []
 
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        _warn_unmatched_code_blocks(content_map, code_blocks)
+        unmatched = _warn_unmatched_code_blocks(content_map, code_blocks)
 
+    assert unmatched == {}
     assert not any(r.levelno == logging.WARNING for r in caplog.records)
 
 
 # ============================================================================
-# Tests for _collect_stdout
+# Tests for orphan path and run()
 # ============================================================================
-
-
-def _make_logs_output(logs: str) -> MagicMock:
-    """Build a mock output item with type='logs' and the given logs string."""
-    output = MagicMock()
-    output.type = "logs"
-    output.logs = logs
-    return output
-
-
-def _make_image_output() -> MagicMock:
-    """Build a mock output item with type='image' (should be ignored by _collect_stdout)."""
-    output = MagicMock()
-    output.type = "image"
-    return output
-
-
-def _make_call(outputs: list | None) -> ResponseCodeInterpreterToolCall:
-    """Build a minimal ResponseCodeInterpreterToolCall with the given outputs list."""
-    call = MagicMock(spec=ResponseCodeInterpreterToolCall)
-    call.outputs = outputs
-    return call
-
-
-@pytest.mark.ai
-def test_collect_stdout__returns_empty_string__when_outputs_is_none() -> None:
-    """
-    Purpose: Verify _collect_stdout returns '' when the call has no outputs (include not set).
-    Why this matters: When the Responses API is called without include=["code_interpreter_call.outputs"],
-    call.outputs is None; we must not crash and must fall back to source code.
-    """
-    call = _make_call(outputs=None)
-    assert _collect_stdout(call) == ""
-
-
-@pytest.mark.ai
-def test_collect_stdout__returns_empty_string__when_outputs_is_empty_list() -> None:
-    """
-    Purpose: Verify _collect_stdout returns '' for an empty outputs list.
-    Why this matters: Empty list is a valid API response when code produces no stdout.
-    """
-    call = _make_call(outputs=[])
-    assert _collect_stdout(call) == ""
-
-
-@pytest.mark.ai
-def test_collect_stdout__returns_logs__when_single_logs_output() -> None:
-    """
-    Purpose: Verify _collect_stdout extracts the logs text from a single logs output item.
-    Why this matters: Core happy-path: stdout from a print() call should become the txt content.
-    """
-    call = _make_call(outputs=[_make_logs_output("Hello, world!")])
-    assert _collect_stdout(call) == "Hello, world!"
-
-
-@pytest.mark.ai
-def test_collect_stdout__joins_multiple_logs_outputs__with_newline() -> None:
-    """
-    Purpose: Verify _collect_stdout joins multiple logs outputs with newlines.
-    Why this matters: Code interpreter may emit several log chunks; they must be
-    concatenated in order so the txt file is readable.
-    """
-    call = _make_call(
-        outputs=[
-            _make_logs_output("line 1"),
-            _make_logs_output("line 2"),
-            _make_logs_output("line 3"),
-        ]
-    )
-    assert _collect_stdout(call) == "line 1\nline 2\nline 3"
-
-
-@pytest.mark.ai
-def test_collect_stdout__ignores_non_logs_outputs() -> None:
-    """
-    Purpose: Verify _collect_stdout skips image (and other non-logs) output items.
-    Why this matters: Code interpreter outputs can include images; those must not
-    be included in the stdout text.
-    """
-    call = _make_call(
-        outputs=[
-            _make_logs_output("stdout text"),
-            _make_image_output(),
-        ]
-    )
-    assert _collect_stdout(call) == "stdout text"
-
-
-# ============================================================================
-# Tests for orphan path, _get_next_fence_id, _build_orphan_fences, run()
-# ============================================================================
-
-
-@pytest.mark.ai
-def test_get_next_fence_id__returns_one__when_no_fences_in_text() -> None:
-    assert gen_mod._get_next_fence_id("plain text") == 1
-
-
-@pytest.mark.ai
-def test_get_next_fence_id__returns_max_plus_one__when_fences_in_text() -> None:
-    text = "x ````fileWithSource(id='2', contentId='a')```` y ````imgWithSource(id='5', contentId='b')````"
-    assert gen_mod._get_next_fence_id(text) == 6
-
-
-@pytest.mark.ai
-def test_build_orphan_fences__concatenates_file_fences() -> None:
-    f = CodeInterpreterFile(filename="code.txt", content_id="cid1", type="document")
-    block = CodeInterpreterBlock(code="print(1)", files=[f])
-    out = gen_mod._build_orphan_fences([block], start_fence_id=1)
-    assert "fileWithSource" in out
-    assert "cid1" in out
-    assert "print(1)" in out or "\\n" in out  # code may be escaped in fence
 
 
 @pytest.mark.ai
@@ -1729,6 +1713,7 @@ def test_apply_postprocessing__normalizes_none_message_text__to_empty_string(
     proc._content_map = {}
     proc._orphan_code_blocks = []
     msg = ChatMessage(
+        id="test-msg-null-text",
         chat_id="c1",
         role=ChatMessageRole.ASSISTANT,
         content=None,
@@ -1741,15 +1726,15 @@ def test_apply_postprocessing__normalizes_none_message_text__to_empty_string(
 
 @pytest.mark.ai
 @patch(GEN_FILES_FF)
-def test_apply_postprocessing__orphan_path_appends_fence_but_not_references__when_ff_on(
+def test_apply_postprocessing__orphan_path_adds_reference_not_fence__when_ff_on(
     mock_ff: MagicMock,
 ) -> None:
     """
-    Purpose: Orphan blocks get fence text but NO ContentReference entries when fence FF is on.
-    Why this matters: Orphan artifacts are rendered via fences in message.text; adding them
-    to references would surface them as source citations, which is semantically wrong.
-    Setup summary: One orphan block with a document file, fence FF ON; assert fence text
-    added and references remain empty.
+    Purpose: Orphan blocks are surfaced as ContentReference entries, NOT as fence text.
+    Why this matters: Fence injection for orphan blocks produced confusing UI artefacts;
+    the references panel is the clean canonical place for downloadable code outputs.
+    Setup summary: One orphan block with a document file, fence FF ON; assert a
+    ContentReference is added for the file and no fence syntax appears in message.text.
     """
     mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
     config = DisplayCodeInterpreterFilesPostProcessorConfig()
@@ -1768,6 +1753,7 @@ def test_apply_postprocessing__orphan_path_appends_fence_but_not_references__whe
         CodeInterpreterBlock(code="print('hi')", files=[orphan_file]),
     ]
     msg = ChatMessage(
+        id="test-msg-orphan",
         chat_id="c1",
         role=ChatMessageRole.ASSISTANT,
         content="Hello",
@@ -1777,8 +1763,13 @@ def test_apply_postprocessing__orphan_path_appends_fence_but_not_references__whe
     changed = proc.apply_postprocessing_to_response(loop)
     assert changed is True
     assert msg.text is not None
-    assert "fileWithSource" in msg.text
-    assert msg.references == []
+    assert "fileWithSource" not in msg.text
+    assert msg.references is not None
+    assert len(msg.references) == 1
+    ref = msg.references[0]
+    assert ref.source_id == "cont_orphan"
+    assert ref.name == "code.txt"
+    assert "cont_orphan" in ref.url
 
 
 @pytest.mark.ai
@@ -1917,6 +1908,7 @@ async def test_run__populates_orphan_blocks__when_ff_on_and_no_container_files(
         code="print(42)",
     )
     msg = ChatMessage(
+        id="test-msg-orphan-pop",
         chat_id="c1",
         role=ChatMessageRole.ASSISTANT,
         content="Hi",
@@ -1951,7 +1943,9 @@ async def test_run__clears_orphan_blocks__when_fence_ff_off(mock_ff: MagicMock) 
         type="code_interpreter_call",
         code="print(1)",
     )
-    msg = ChatMessage(chat_id="c1", role=ChatMessageRole.ASSISTANT, content="Hi")
+    msg = ChatMessage(
+        id="test-msg-fence-off", chat_id="c1", role=ChatMessageRole.ASSISTANT, text="Hi"
+    )
     loop = ResponsesLanguageModelStreamResponse(message=msg, output=[call])
     proc = DisplayCodeInterpreterFilesPostProcessor(
         client=MagicMock(),
@@ -1981,7 +1975,12 @@ async def test_run__orphan_upload_skips_calls_when_upload_fails(
         type="code_interpreter_call",
         code="print(1)",
     )
-    msg = ChatMessage(chat_id="c1", role=ChatMessageRole.ASSISTANT, content="Hi")
+    msg = ChatMessage(
+        id="test-msg-upload-fail",
+        chat_id="c1",
+        role=ChatMessageRole.ASSISTANT,
+        content="Hi",
+    )
     loop = ResponsesLanguageModelStreamResponse(message=msg, output=[call])
     chat = AsyncMock()
     chat.upload_to_chat_from_bytes_async = AsyncMock(
@@ -2052,6 +2051,42 @@ async def test_upload_orphan_code_as_txt__skips_call_without_code() -> None:
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_upload_orphan_code_as_txt__uploads_source_code_not_stdout() -> None:
+    """
+    Purpose: Orphan .txt attachments must contain the executed source, not interpreter stdout.
+    Why this matters: stdout (e.g. print output) differs from code; users expect `code.txt` to
+    match what ran in the sandbox.
+    """
+    source = "x = 40 + 2\nprint(x)\n"
+    call = MagicMock(spec=ResponseCodeInterpreterToolCall)
+    call.code = source
+    stdout_output = MagicMock()
+    stdout_output.type = "logs"
+    stdout_output.logs = "42"
+    call.outputs = [stdout_output]
+    lr = MagicMock(spec=ResponsesLanguageModelStreamResponse)
+    lr.container_files = []
+    lr.code_interpreter_calls = [call]
+    chat = AsyncMock()
+    chat.upload_to_chat_from_bytes_async = AsyncMock(
+        return_value=MagicMock(id="cid-orphan-code")
+    )
+    proc = DisplayCodeInterpreterFilesPostProcessor(
+        client=MagicMock(),
+        content_service=MagicMock(),
+        config=DisplayCodeInterpreterFilesPostProcessorConfig(),
+        chat_service=chat,
+        company_id="co1",
+    )
+    blocks = await proc._upload_orphan_code_as_txt(lr)
+    assert len(blocks) == 1
+    chat.upload_to_chat_from_bytes_async.assert_awaited_once()
+    kwargs = chat.upload_to_chat_from_bytes_async.await_args.kwargs
+    assert kwargs["content"] == source.encode("utf-8")
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 @pytest.mark.parametrize("num_calls", [1, 2])
 async def test_upload_orphan_code_as_txt__uploads_txt_uses_expected_filename(
     num_calls: int,
@@ -2100,21 +2135,15 @@ async def test_upload_orphan_code_as_txt__uploads_txt_uses_expected_filename(
 @pytest.mark.ai
 @patch(
     "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
-    "generated_files.feature_flags.enable_html_rendering_un_15131.is_enabled",
-    return_value=True,
-)
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
     "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
     return_value=False,
 )
-def test_apply_postprocessing_to_response__html_uses_legacy_HtmlRendering__when_fence_ff_off(
+def test_apply_postprocessing_to_response__html_uses_HtmlRendering__when_fence_ff_off(
     _mock_fence_ff: MagicMock,
-    _mock_html_ff: MagicMock,
 ) -> None:
     """
-    Purpose: HTML with fence FF off and HTML-rendering FF on uses _replace_container_html_citation.
-    Why this matters: Covers the legacy HtmlRendering branch (UN-15131) in apply_postprocessing.
+    Purpose: HTML always uses _replace_container_html_citation regardless of feature flags.
+    Why this matters: HTML rendering via HtmlRendering blocks is unconditional.
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"report.html": "cid_html"}
@@ -2141,22 +2170,16 @@ def test_apply_postprocessing_to_response__html_uses_legacy_HtmlRendering__when_
 @pytest.mark.ai
 @patch(
     "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
-    "generated_files.feature_flags.enable_html_rendering_un_15131.is_enabled",
-    return_value=False,
-)
-@patch(
-    "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors."
     "generated_files.feature_flags.enable_code_execution_fence_un_17972.is_enabled",
     return_value=True,
 )
-def test_apply_postprocessing_to_response__html_with_fence_ff_on__uses_HtmlRendering(
+def test_apply_postprocessing_to_response__html_uses_HtmlRendering__even_when_fence_ff_on(
     _mock_fence_ff: MagicMock,
-    _mock_html_ff: MagicMock,
 ) -> None:
     """
-    Purpose: HTML + fence FF on now emits a HtmlRendering block (not htmlWithSource).
-    Why this matters: Product revert — HTML always goes through _replace_container_html_citation
-    regardless of fence FF state; no ContentReference row is added.
+    Purpose: HTML always uses HtmlRendering blocks, even when the fence FF is on.
+    Why this matters: HTML rendering is unconditional; the fence FF only affects
+    non-HTML files (images → imgWithSource, documents → fileWithSource).
     """
     proc = _make_display_files_postprocessor()
     proc._content_map = {"page.html": "cid_page"}
@@ -2179,7 +2202,7 @@ def test_apply_postprocessing_to_response__html_with_fence_ff_on__uses_HtmlRende
     assert changed is True
     assert len(refs) == 0
     assert "HtmlRendering" in message.text
-    assert "cid_page" in message.text
+    assert "unique://content/cid_page" in message.text
     assert "htmlWithSource" not in message.text
 
 
@@ -2209,23 +2232,21 @@ async def test_download_and_upload__returns_content_info__when_download_succeeds
     """
     Purpose: Verify that a transient download failure is retried and the method returns _ContentInfo.
     Why this matters: Exactly the scenario described in UN-18531 — concurrent pulls can fail once.
-    Setup summary: retrieve raises on call 1, succeeds on call 2; upload always succeeds.
+    Setup summary: streaming retrieve raises on call 1, succeeds on call 2; upload always succeeds.
     """
     import asyncio
 
     proc = _make_display_files_postprocessor()
     proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
         max_download_retries=2,
-        download_retry_base_delay=0,  # no real sleep in tests
+        download_retry_base_delay=0,
     )
     annotation = _make_annotation("chart.png")
     semaphore = asyncio.Semaphore(10)
 
-    mock_file_content = MagicMock()
-    mock_file_content.content = b"png-bytes"
-
-    proc._client.containers.files.content.retrieve = AsyncMock(
-        side_effect=[ConnectionError("transient"), mock_file_content]
+    mock_stream = _MockStreamResponse(b"png-bytes", content_length=9)
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        side_effect=[ConnectionError("transient"), mock_stream]
     )
     mock_upload_result = MagicMock()
     mock_upload_result.id = "cid_123"
@@ -2240,7 +2261,10 @@ async def test_download_and_upload__returns_content_info__when_download_succeeds
     assert result is not None
     assert result.filename == "chart.png"
     assert result.content_id == "cid_123"
-    assert proc._client.containers.files.content.retrieve.call_count == 2
+    assert (
+        proc._client.containers.files.content.with_streaming_response.retrieve.call_count
+        == 2
+    )
 
 
 @pytest.mark.ai
@@ -2251,7 +2275,7 @@ async def test_download_and_upload__returns_none__when_all_download_attempts_exh
     """
     Purpose: Verify that after all download retries are exhausted, failsafe_async returns None.
     Why this matters: Pipeline must not crash — None triggers the file_download_failed_message path.
-    Setup summary: retrieve always raises; assert None returned and upload never called.
+    Setup summary: streaming retrieve always raises; assert None returned and upload never called.
     """
     import asyncio
 
@@ -2263,7 +2287,7 @@ async def test_download_and_upload__returns_none__when_all_download_attempts_exh
     annotation = _make_annotation("report.pdf")
     semaphore = asyncio.Semaphore(10)
 
-    proc._client.containers.files.content.retrieve = AsyncMock(
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
         side_effect=RuntimeError("permanent failure")
     )
 
@@ -2273,7 +2297,8 @@ async def test_download_and_upload__returns_none__when_all_download_attempts_exh
 
     assert result is None
     assert (
-        proc._client.containers.files.content.retrieve.call_count == 2
+        proc._client.containers.files.content.with_streaming_response.retrieve.call_count
+        == 2
     )  # 1 + max_download_retries
     proc._chat_service.upload_to_chat_from_bytes_async.assert_not_called()
 
@@ -2286,7 +2311,7 @@ async def test_download_and_upload__returns_none__when_zero_retries_and_download
     """
     Purpose: Verify max_download_retries=0 means exactly 1 total download attempt.
     Why this matters: Operators can disable retries; must behave like the old single-attempt path.
-    Setup summary: retrieve fails once; max_download_retries=0; assert only 1 call.
+    Setup summary: streaming retrieve fails once; max_download_retries=0; assert only 1 call.
     """
     import asyncio
 
@@ -2298,7 +2323,7 @@ async def test_download_and_upload__returns_none__when_zero_retries_and_download
     annotation = _make_annotation("data.csv")
     semaphore = asyncio.Semaphore(10)
 
-    proc._client.containers.files.content.retrieve = AsyncMock(
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
         side_effect=ValueError("fail")
     )
 
@@ -2307,7 +2332,10 @@ async def test_download_and_upload__returns_none__when_zero_retries_and_download
     )
 
     assert result is None
-    assert proc._client.containers.files.content.retrieve.call_count == 1
+    assert (
+        proc._client.containers.files.content.with_streaming_response.retrieve.call_count
+        == 1
+    )
 
 
 @pytest.mark.ai
@@ -2316,9 +2344,10 @@ async def test_download_and_upload__returns_none__when_upload_fails_after_succes
     None
 ):
     """
-    Purpose: Verify upload is not retried — a single upload failure returns None.
-    Why this matters: Retry scope is intentionally limited to the download step only.
-    Setup summary: retrieve succeeds once; upload raises; assert retrieve called exactly once.
+    Purpose: Verify upload is retried and failsafe returns None when all upload attempts fail.
+    Why this matters: Transient upload failures should be retried with the same policy as downloads.
+    Setup summary: streaming retrieve succeeds once; upload always raises; assert upload retried
+    (1 + max_download_retries) times and download called exactly once.
     """
     import asyncio
 
@@ -2330,10 +2359,9 @@ async def test_download_and_upload__returns_none__when_upload_fails_after_succes
     annotation = _make_annotation("data.xlsx")
     semaphore = asyncio.Semaphore(10)
 
-    mock_file_content = MagicMock()
-    mock_file_content.content = b"xlsx-bytes"
-    proc._client.containers.files.content.retrieve = AsyncMock(
-        return_value=mock_file_content
+    mock_stream = _MockStreamResponse(b"xlsx-bytes", content_length=10)
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        return_value=mock_stream
     )
     proc._chat_service.upload_to_chat_from_bytes_async = AsyncMock(
         side_effect=RuntimeError("upload failed")
@@ -2344,4 +2372,620 @@ async def test_download_and_upload__returns_none__when_upload_fails_after_succes
     )
 
     assert result is None
-    assert proc._client.containers.files.content.retrieve.call_count == 1
+    assert (
+        proc._client.containers.files.content.with_streaming_response.retrieve.call_count
+        == 1
+    )
+    assert (
+        proc._chat_service.upload_to_chat_from_bytes_async.call_count == 3
+    )  # 1 + max_download_retries
+
+
+# ============================================================================
+# Tests for _FileProgressTracker
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_file_state__has_correct_defaults() -> None:
+    state = _FileState()
+    assert state.phase == "pending"
+    assert state.percent is None
+    assert state.elapsed_seconds == 0.0
+    assert state.retry_attempt == 0
+    assert state.max_retries == 0
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_inline__downloading_with_percent() -> None:
+    state = _FileState(phase="downloading", percent=42, elapsed_seconds=5.0)
+    result = _FileProgressTracker._format_inline("report.xlsx", state)
+    assert result == "Downloading report.xlsx... 42%"
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_inline__downloading_without_content_length() -> (
+    None
+):
+    state = _FileState(phase="downloading", percent=None, elapsed_seconds=15.0)
+    result = _FileProgressTracker._format_inline("report.xlsx", state)
+    assert result == "Downloading report.xlsx... (15s)"
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_inline__downloading_with_retry() -> None:
+    state = _FileState(
+        phase="downloading",
+        percent=25,
+        elapsed_seconds=10.0,
+        retry_attempt=2,
+        max_retries=3,
+    )
+    result = _FileProgressTracker._format_inline("report.xlsx", state)
+    assert result == "Downloading report.xlsx... retry 2/3 25%"
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_inline__uploading() -> None:
+    state = _FileState(phase="uploading")
+    result = _FileProgressTracker._format_inline("report.xlsx", state)
+    assert result == "Uploading report.xlsx..."
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_inline__failed() -> None:
+    state = _FileState(phase="failed")
+    result = _FileProgressTracker._format_inline("report.xlsx", state)
+    assert "could not be generated" in result.lower() or "failed" in result.lower()
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_summary__downloading_with_percent() -> None:
+    state = _FileState(phase="downloading", percent=42)
+    result = _FileProgressTracker._format_summary(state)
+    assert result == "Downloading 42%"
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_summary__downloading_with_retry() -> None:
+    state = _FileState(
+        phase="downloading",
+        percent=None,
+        elapsed_seconds=20.0,
+        retry_attempt=1,
+        max_retries=2,
+    )
+    result = _FileProgressTracker._format_summary(state)
+    assert "retry 1/2" in result
+    assert "20s" in result
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_summary__uploading() -> None:
+    state = _FileState(phase="uploading")
+    assert _FileProgressTracker._format_summary(state) == "Uploading..."
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__format_summary__failed() -> None:
+    state = _FileState(phase="failed")
+    assert _FileProgressTracker._format_summary(state) == "Failed"
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__build_progress_text__replaces_sandbox_links_inline() -> (
+    None
+):
+    """Verify sandbox links are replaced with inline progress text."""
+    chat_service = MagicMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["chart.png", "data.xlsx"],
+        original_text="See [chart](sandbox:/mnt/data/chart.png) and [data](sandbox:/mnt/data/data.xlsx).",
+        chat_service=chat_service,
+        log=log,
+    )
+    tracker._states["chart.png"].phase = "downloading"
+    tracker._states["chart.png"].percent = 50
+    tracker._states["data.xlsx"].phase = "uploading"
+
+    text = tracker._build_progress_text()
+
+    assert "Downloading chart.png... 50%" in text
+    assert "Uploading data.xlsx..." in text
+    assert "sandbox" not in text
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__build_progress_text__appends_summary_for_active_files() -> (
+    None
+):
+    """Verify a summary block is appended for files not yet done."""
+    chat_service = MagicMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="See [a](sandbox:/mnt/data/a.png).",
+        chat_service=chat_service,
+        log=log,
+    )
+    tracker._states["a.png"].phase = "downloading"
+    tracker._states["a.png"].percent = 75
+
+    text = tracker._build_progress_text()
+
+    assert "---" in text
+    assert "Preparing files:" in text
+    assert "a.png" in text.split("---")[1]
+
+
+@pytest.mark.ai
+def test_file_progress_tracker__build_progress_text__no_summary_when_all_done() -> None:
+    """No summary block when every file is done."""
+    chat_service = MagicMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="See [a](sandbox:/mnt/data/a.png).",
+        chat_service=chat_service,
+        log=log,
+    )
+    tracker._states["a.png"].phase = "done"
+
+    text = tracker._build_progress_text()
+
+    assert "---" not in text
+    assert "Preparing files:" not in text
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__publish_initial__sets_downloading_and_publishes() -> (
+    None
+):
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png", "b.xlsx"],
+        original_text="[a](sandbox:/mnt/data/a.png) [b](sandbox:/mnt/data/b.xlsx)",
+        chat_service=chat_service,
+        log=log,
+    )
+
+    await tracker.publish_initial()
+
+    assert tracker._states["a.png"].phase == "downloading"
+    assert tracker._states["b.xlsx"].phase == "downloading"
+    chat_service.modify_assistant_message_async.assert_awaited_once()
+    published_text = chat_service.modify_assistant_message_async.call_args.kwargs[
+        "content"
+    ]
+    assert "Downloading a.png..." in published_text
+    assert "Downloading b.xlsx..." in published_text
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__update__throttles_publishes() -> None:
+    """Verify that rapid updates within the interval don't trigger extra publishes."""
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=100.0,
+    )
+    tracker._last_publish_time = time.monotonic()
+
+    await tracker.update("a.png", "downloading", percent=10)
+    await tracker.update("a.png", "downloading", percent=20)
+    await tracker.update("a.png", "downloading", percent=30)
+
+    chat_service.modify_assistant_message_async.assert_not_awaited()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__update__force_publish_overrides_throttle() -> (
+    None
+):
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=100.0,
+    )
+    tracker._last_publish_time = time.monotonic()
+
+    await tracker.update("a.png", "uploading", force_publish=True)
+
+    chat_service.modify_assistant_message_async.assert_awaited_once()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__update__done_phase_always_publishes() -> None:
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=100.0,
+    )
+    tracker._last_publish_time = time.monotonic()
+
+    await tracker.update("a.png", "done")
+
+    chat_service.modify_assistant_message_async.assert_awaited_once()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__publish_survives_exception() -> None:
+    """If modify_assistant_message_async fails, the tracker must not crash."""
+    chat_service = AsyncMock()
+    chat_service.modify_assistant_message_async.side_effect = RuntimeError("API error")
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=0.0,
+    )
+
+    await tracker.update("a.png", "downloading", percent=50)
+
+
+# ============================================================================
+# Tests for tick_elapsed (background ticker elapsed-time updates)
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__tick_elapsed__updates_elapsed_and_publishes() -> (
+    None
+):
+    """tick_elapsed should update elapsed_seconds and publish when interval allows."""
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=0.0,
+    )
+    await tracker.publish_initial()
+    chat_service.modify_assistant_message_async.reset_mock()
+
+    await tracker.tick_elapsed("a.png", 15.0)
+
+    chat_service.modify_assistant_message_async.assert_awaited_once()
+    call_kwargs = chat_service.modify_assistant_message_async.call_args.kwargs
+    assert "(15s)" in call_kwargs["content"]
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__tick_elapsed__respects_throttling() -> None:
+    """tick_elapsed should not publish when within the throttle interval."""
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=100.0,
+    )
+    await tracker.publish_initial()
+    chat_service.modify_assistant_message_async.reset_mock()
+
+    await tracker.tick_elapsed("a.png", 5.0)
+    await tracker.tick_elapsed("a.png", 10.0)
+
+    chat_service.modify_assistant_message_async.assert_not_awaited()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__tick_elapsed__preserves_percent_and_retry() -> (
+    None
+):
+    """tick_elapsed should only update elapsed_seconds, not percent or retry state."""
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=0.0,
+    )
+    await tracker.publish_initial()
+
+    await tracker.update(
+        "a.png", "downloading", percent=42, retry_attempt=1, max_retries=3
+    )
+    await tracker.tick_elapsed("a.png", 20.0)
+
+    state = tracker._states["a.png"]
+    assert state.percent == 42
+    assert state.retry_attempt == 1
+    assert state.max_retries == 3
+    assert state.elapsed_seconds == 20.0
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__tick_elapsed__skips_non_downloading_phase() -> (
+    None
+):
+    """tick_elapsed should be a no-op when the file is not in the downloading phase."""
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=0.0,
+    )
+    await tracker.update("a.png", "uploading", force_publish=True)
+    chat_service.modify_assistant_message_async.reset_mock()
+
+    await tracker.tick_elapsed("a.png", 99.0)
+
+    chat_service.modify_assistant_message_async.assert_not_awaited()
+    assert tracker._states["a.png"].elapsed_seconds != 99.0
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_file_progress_tracker__tick_elapsed__skips_unknown_filename() -> None:
+    """tick_elapsed should be a no-op for filenames not in the tracker."""
+    chat_service = AsyncMock()
+    log = MagicMock()
+    tracker = _FileProgressTracker(
+        filenames=["a.png"],
+        original_text="[a](sandbox:/mnt/data/a.png)",
+        chat_service=chat_service,
+        log=log,
+        min_publish_interval=0.0,
+    )
+    await tracker.publish_initial()
+    chat_service.modify_assistant_message_async.reset_mock()
+
+    await tracker.tick_elapsed("unknown.txt", 10.0)
+
+    chat_service.modify_assistant_message_async.assert_not_awaited()
+
+
+# ============================================================================
+# Tests for background ticker in _download_file_bytes_with_progress
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_with_progress__ticker_publishes_elapsed_during_slow_api() -> (
+    None
+):
+    """Verify the background ticker calls tick_elapsed while the API is slow to respond."""
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        download_chunk_size=100,
+        progress_update_interval=0.05,
+    )
+    annotation = _make_annotation("slow.xlsx")
+
+    event = asyncio.Event()
+
+    class _SlowStreamResponse:
+        def __init__(self):
+            self.headers = {"content-length": "4"}
+            self.status_code = 200
+
+        async def __aenter__(self):
+            await event.wait()
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def iter_bytes(self, chunk_size=None):
+            yield b"data"
+
+    slow_stream = _SlowStreamResponse()
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        return_value=slow_stream
+    )
+
+    tracker = MagicMock()
+    tracker.update = AsyncMock()
+    tracker.tick_elapsed = AsyncMock()
+
+    async def run_download():
+        return await proc._download_file_bytes_with_progress(annotation, tracker)
+
+    task = asyncio.create_task(run_download())
+    await asyncio.sleep(0.15)
+    event.set()
+    result = await task
+
+    assert result == b"data"
+    assert tracker.tick_elapsed.await_count >= 1
+    first_call = tracker.tick_elapsed.call_args_list[0]
+    assert first_call.args[0] == "slow.xlsx"
+    assert first_call.args[1] > 0
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_with_progress__ticker_cancelled_after_success() -> None:
+    """Verify the background ticker is cancelled after a successful download."""
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        download_chunk_size=100,
+        progress_update_interval=100.0,
+    )
+    annotation = _make_annotation("fast.bin")
+    mock_stream = _MockStreamResponse(b"data", content_length=4)
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        return_value=mock_stream
+    )
+
+    tracker = MagicMock()
+    tracker.update = AsyncMock()
+    tracker.tick_elapsed = AsyncMock()
+
+    result = await proc._download_file_bytes_with_progress(annotation, tracker)
+
+    assert result == b"data"
+
+
+# ============================================================================
+# Tests for streaming download with progress
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_stream_download_bytes__reports_percentage__when_content_length_present() -> (
+    None
+):
+    """Verify tracker.update receives correct percentage when content-length is set."""
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        download_chunk_size=5,
+    )
+    annotation = _make_annotation("file.bin")
+    data = b"0123456789"
+    mock_stream = _MockStreamResponse(data, content_length=len(data))
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        return_value=mock_stream
+    )
+
+    tracker = MagicMock()
+    tracker.update = AsyncMock()
+
+    result = await proc._stream_download_bytes(annotation, tracker, 0, time.monotonic())
+
+    assert result == data
+    assert tracker.update.await_count == 2
+    first_call_kwargs = tracker.update.call_args_list[0].kwargs
+    assert first_call_kwargs["percent"] == 50
+    second_call_kwargs = tracker.update.call_args_list[1].kwargs
+    assert second_call_kwargs["percent"] == 100
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_stream_download_bytes__reports_none_percent__when_no_content_length() -> (
+    None
+):
+    """Verify tracker.update receives percent=None when content-length is absent."""
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        download_chunk_size=100,
+    )
+    annotation = _make_annotation("file.bin")
+    data = b"hello"
+    mock_stream = _MockStreamResponse(data, content_length=None)
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        return_value=mock_stream
+    )
+
+    tracker = MagicMock()
+    tracker.update = AsyncMock()
+
+    result = await proc._stream_download_bytes(annotation, tracker, 0, time.monotonic())
+
+    assert result == data
+    assert tracker.update.await_count >= 1
+    for call in tracker.update.call_args_list:
+        assert call.kwargs["percent"] is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_with_progress__reports_retry_attempt_to_tracker() -> None:
+    """Verify that on retry, the tracker receives the retry attempt number."""
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        max_download_retries=2,
+        download_retry_base_delay=0,
+        download_chunk_size=100,
+        progress_update_interval=100.0,
+    )
+    annotation = _make_annotation("file.bin")
+    mock_stream = _MockStreamResponse(b"data", content_length=4)
+
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        side_effect=[ConnectionError("fail"), mock_stream]
+    )
+
+    tracker = MagicMock()
+    tracker.update = AsyncMock()
+    tracker.tick_elapsed = AsyncMock()
+
+    result = await proc._download_file_bytes_with_progress(annotation, tracker)
+
+    assert result == b"data"
+    retry_updates = [
+        c for c in tracker.update.call_args_list if c.kwargs.get("retry_attempt", 0) > 0
+    ]
+    assert len(retry_updates) >= 1
+    assert retry_updates[0].kwargs["retry_attempt"] == 1
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_and_upload__tracker_receives_upload_and_done__on_success() -> (
+    None
+):
+    """Verify the tracker is updated to 'uploading' then 'done' on a successful pipeline."""
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        download_retry_base_delay=0,
+        progress_update_interval=100.0,
+    )
+    annotation = _make_annotation("chart.png")
+    semaphore = asyncio.Semaphore(10)
+    mock_stream = _MockStreamResponse(b"png-bytes", content_length=9)
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        return_value=mock_stream
+    )
+    mock_upload_result = MagicMock()
+    mock_upload_result.id = "cid_ok"
+    proc._chat_service.upload_to_chat_from_bytes_async = AsyncMock(
+        return_value=mock_upload_result
+    )
+
+    tracker = MagicMock()
+    tracker.update = AsyncMock()
+    tracker.tick_elapsed = AsyncMock()
+
+    result = await proc._download_and_upload_container_files_to_knowledge_base(
+        annotation, semaphore, tracker
+    )
+
+    assert result is not None
+    phases = [c.args[1] for c in tracker.update.call_args_list]
+    assert "uploading" in phases
+    assert "done" in phases

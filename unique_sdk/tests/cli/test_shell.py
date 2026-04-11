@@ -375,3 +375,120 @@ class TestShellMcp:
         mock.return_value = _mcp_response()
         out = _capture(_shell(), f"mcp -c chat_1 -m msg_1 --file {f}")
         assert "MCP tool call: tool" in out
+
+
+def _scheduled_task() -> MagicMock:
+    task = MagicMock()
+    task.id = "task_abc"
+    task.cronExpression = "0 9 * * 1-5"
+    task.assistantId = "ast_123"
+    task.assistantName = "Bot"
+    task.chatId = None
+    task.prompt = "Generate report"
+    task.enabled = True
+    task.lastRunAt = None
+    task.createdAt = "2026-04-01T00:00:00Z"
+    task.updatedAt = "2026-04-01T00:00:00Z"
+    return task
+
+
+class TestShellSchedule:
+    def test_schedule_no_args(self) -> None:
+        out = _capture(_shell(), "schedule")
+        assert "Usage:" in out
+
+    def test_schedule_unknown_subcommand(self) -> None:
+        out = _capture(_shell(), "schedule bogus")
+        assert "Unknown subcommand" in out
+
+    @patch("unique_sdk.ScheduledTask.list")
+    def test_schedule_list(self, mock: MagicMock) -> None:
+        mock.return_value = []
+        out = _capture(_shell(), "schedule list")
+        assert "No scheduled tasks found" in out
+
+    @patch("unique_sdk.ScheduledTask.retrieve")
+    def test_schedule_get(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task()
+        out = _capture(_shell(), "schedule get task_abc")
+        assert "task_abc" in out
+
+    def test_schedule_get_no_id(self) -> None:
+        out = _capture(_shell(), "schedule get")
+        assert "Usage:" in out
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_schedule_create(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task()
+        out = _capture(
+            _shell(),
+            'schedule create -c "0 9 * * 1-5" -a ast_123 -p "Generate report"',
+        )
+        assert "Created" in out
+
+    def test_schedule_create_missing_required(self) -> None:
+        out = _capture(_shell(), "schedule create -c '0 9 * * 1-5'")
+        assert "Usage:" in out
+
+    @patch("unique_sdk.ScheduledTask.create")
+    def test_schedule_create_with_all_options(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task()
+        out = _capture(
+            _shell(),
+            'schedule create -c "0 9 * * 1-5" -a ast_123 -p "Report" --chat-id chat_1 --disabled',
+        )
+        assert "Created" in out
+
+    def test_schedule_create_unknown_option(self) -> None:
+        out = _capture(
+            _shell(),
+            'schedule create -c "0 9 * * 1-5" -a ast_123 -p "Report" --bad',
+        )
+        assert "Unknown option" in out
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_schedule_update(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task()
+        out = _capture(_shell(), "schedule update task_abc --disable")
+        assert "Updated" in out
+
+    def test_schedule_update_no_id(self) -> None:
+        out = _capture(_shell(), "schedule update")
+        assert "Usage:" in out
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_schedule_update_all_options(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task()
+        out = _capture(
+            _shell(),
+            'schedule update task_abc -c "*/15 * * * *" -a ast_456 -p "New prompt" --enable',
+        )
+        assert "Updated" in out
+
+    @patch("unique_sdk.ScheduledTask.modify")
+    def test_schedule_update_clear_chat_id(self, mock: MagicMock) -> None:
+        mock.return_value = _scheduled_task()
+        out = _capture(_shell(), "schedule update task_abc --chat-id none")
+        assert "Updated" in out
+
+    def test_schedule_update_enable_disable_conflict(self) -> None:
+        out = _capture(_shell(), "schedule update task_abc --enable --disable")
+        assert "cannot use --enable and --disable together" in out
+
+    def test_schedule_update_unknown_option(self) -> None:
+        out = _capture(_shell(), "schedule update task_abc --bad")
+        assert "Unknown option" in out
+
+    @patch("unique_sdk.ScheduledTask.delete")
+    def test_schedule_delete(self, mock: MagicMock) -> None:
+        mock.return_value = {
+            "id": "task_abc",
+            "object": "scheduled_task",
+            "deleted": True,
+        }
+        out = _capture(_shell(), "schedule delete task_abc")
+        assert "Deleted" in out
+
+    def test_schedule_delete_no_id(self) -> None:
+        out = _capture(_shell(), "schedule delete")
+        assert "Usage:" in out

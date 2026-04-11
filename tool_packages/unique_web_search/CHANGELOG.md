@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.16.0] - 2026-04-01
+## [1.17.0] - 2026-04-11
 ### Added
 - **`unique-websearch` CLI**: standalone terminal command for running web searches directly from the command line
   - Engine and crawler auto-selected from `ACTIVE_SEARCH_ENGINES` / `ACTIVE_INHOUSE_CRAWLERS` environment variables
@@ -14,6 +14,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Optional JSON config file (`~/.unique-websearch.json`) for non-secret overrides
   - Agent skill documentation (`SKILL.md`) for AI assistant integration
 - `click` dependency for CLI framework
+
+## [1.15.5] - 2026-04-10
+- Mark v3 as experimental
+
+## [1.15.4] - 2026-04-09
+### Changed
+- Depend on `unique-toolkit[monitoring]>=1.69.6` so `prometheus_client` is installed transitively and metrics instrumentation always resolves
+- `[tool.uv.sources]`: resolve `unique-toolkit` via `{ workspace = true }` like other workspace members (required for root `uv lock`)
+
+### Added
+- Tests for Prometheus metric definitions and `metric_scope` integration with package histograms (including `llm_errors` with `error_type` on exception)
+
+### Fixed
+- `llm_errors_total`: add `error_type` label so `metric_scope` error recording matches Prometheus label set (avoids `ValueError` masking real LLM failures)
+- `search_total`: increment inside the search `metric_scope` so attempts are counted when the search API raises
+- Remove unused `llm_token_usage_total` metric until token usage is wired
+
+## [1.15.3] - 2026-04-07
+### Changed
+- VertexAI client now falls back to Application Default Credentials (ADC) when no explicit service account credentials are configured, enabling Workload Identity and other ambient credential flows
+
+### Added
+- Dedicated test suite for VertexAI client credential dispatch, ADC fallback, and error handling
+
+## [1.15.2] - 2026-04-03
+- Style: apply ruff formatting to test_executors.py
+
+## [1.15.1] - 2026-04-02
+- Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
 
 ## [1.15.0] - 2026-03-30
 ### Added

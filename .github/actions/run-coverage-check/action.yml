@@ -9,6 +9,10 @@ inputs:
     description: 'Python version to use'
     required: false
     default: '3.11'
+  install_args:
+    description: 'Extra names to install (e.g., "--extra fastapi --extra monitoring")'
+    required: false
+    default: ''
   base_ref:
     description: 'Base branch/ref for comparison'
     required: false
@@ -27,6 +31,28 @@ runs:
         package_dir: ${{ inputs.package_dir }}
         python_version: ${{ inputs.python_version }}
 
+    - name: Install extra dependencies from PyPI
+      if: inputs.install_args != ''
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      env:
+        UV_NO_SOURCES: 1
+      run: |
+        EXTRAS=$(echo "${{ inputs.install_args }}" | grep -oP '(?<=--extra )\w+' | paste -sd ',' -)
+        WORKSPACE_PKGS=$(python3 -c "
+        import tomllib
+        with open('pyproject.toml', 'rb') as f:
+            data = tomllib.load(f)
+        sources = data.get('tool', {}).get('uv', {}).get('sources', {})
+        pkgs = [name for name, src in sources.items() if src.get('workspace') or 'path' in src]
+        print(' '.join(pkgs))
+        ")
+        REINSTALL_ARGS=""
+        for pkg in $WORKSPACE_PKGS; do
+          REINSTALL_ARGS="$REINSTALL_ARGS --reinstall-package $pkg"
+        done
+        uv pip install $REINSTALL_ARGS ".[${EXTRAS}]"
+
     - name: Fetch base branch
       if: inputs.base_ref != ''
       shell: bash
@@ -36,8 +62,6 @@ runs:
 
     - name: Check coverage on new/changed code
       shell: bash
-      env:
-        UV_NO_SOURCES: 1
       run: |
         ARGS=(
           "${{ inputs.package_dir }}"

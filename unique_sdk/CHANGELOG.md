@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.1] - 2026-04-09
+- Fix stack trace exposure in custom-assistant example: return generic error messages instead of `str(e)` in HTTP responses
+
+## [0.11.0] - 2026-04-09
+- Widen `openai` dependency upper bound from `<2` to `<3` to allow openai SDK v2.x (required for litellm security fix)
+
+## [0.10.101] - 2026-04-06
+- Fix all `async def` methods in `AgenticTable` that incorrectly called synchronous `_static_request` instead of `await _static_request_async`, blocking the event loop
+- Fix `wait_for_ingestion_completion` to use `Content.search_async` instead of synchronous `Content.search`
+
+## [0.10.100] - 2026-04-06
+- Fix `Integrated.responses_stream_async` blocking the asyncio event loop by calling synchronous `_static_request` instead of `await _static_request_async` — concurrent coroutines (STM lookups, file downloads, other API calls) were starved for 60-75s per LLM call
+
+## [0.10.99] - 2026-04-02
+- Add `ScheduledTask` API resource with full CRUD operations (create, list, retrieve, modify, delete) and async variants
+- Add `schedule` CLI command group with `list`, `get`, `create`, `update`, `delete` subcommands for both one-shot and interactive REPL modes
+- Add formatting helpers for scheduled task display (detail view and table view)
+- Add agent skill for scheduled task management (`unique-cli-scheduled-tasks`)
+
+## [0.10.98] - 2026-04-02
+- Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
+
 ## [0.10.97] - 2026-04-01
 - Chore: uv `exclude-newer` (2 weeks) and lockfile refresh
 

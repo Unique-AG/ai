@@ -5,6 +5,123 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.70.6] - 2026-04-10
+- Code interpreter postprocessor (`generated_files.py`): dangling `sandbox:/mnt/data/...` markdown links are replaced with a per-file notice naming the file and suggesting regeneration, instead of the generic download-failure message
+- Orphan code-execution runs (no container file output, fence feature flag `enable_code_execution_fence_un_17972`): uploaded `.txt` artifacts are attached as `ContentReference` entries in `message.references` instead of appending `fileWithSource` fences to `message.text`; remove unused `_build_orphan_fences` and `_get_next_fence_id`
+- Code interpreter orphan `.txt` uploads (`_upload_orphan_code_as_txt`): file body is always the executed **source code**, not stdout from `code_interpreter_call.outputs`
+- Remove dead `_collect_stdout` helper (no remaining production callers)
+
+## [1.70.5] - 2026-04-10
+- Code interpreter postprocessing: when the model generates a file but omits `sandbox:/mnt/data/...` in the assistant message, append a fallback line `📎 [filename](unique://content/<content_id>)` instead of silently dropping the file (image, HTML, and document paths)
+- `_warn_unmatched_code_blocks` now returns `{filename: content_id}` for files with no code-block match; `apply_postprocessing_to_response` logs them when the code-execution fence feature flag is on
+- Fix: prevent orphaned `ContentReference` when fallback document links have no matching `<sup>` tag
+
+## [1.70.4] - 2026-04-10
+- Fix: wrap code-interpreter `_upload_files_to_container` download and `containers.files.create` with tenacity exponential backoff (same pattern as generated-files postprocessor) so transient network or throttling does not leave the container without chat-uploaded files; log retries at WARNING and success at INFO
+
+## [1.70.3] - 2026-04-10
+- Add optional `default_string_empty_value` to `ui_schema_for_model` so bare `str` fields (and `str` items, dict values, union branches, nested models) can get `ui:emptyValue` without `Annotated[..., RJSFMetaTag]`
+- Fix `RJSFMetaTag.StringWidget.textarea`: emit `ui:emptyValue` under the correct key (was `ui:emtpyValue`)
+
+## [1.70.2] - 2026-04-10
+- Fix (UN-17927): add `powerpoint` type mapping for `.pptx` / `.ppt` in `_file_frontend_type`; previously these emitted `type="document"` in `fileWithSource` fences instead of `type="powerpoint"`
+
+## [1.70.1] - 2026-04-09
+- Add three-state `supported_reasoning_efforts` per model: `None` (unknown — pass-through), `[]` (no reasoning), `[...]` (validated list incl. `xhigh`)
+- Add `resolve_temp_and_reasoning` instance method centralising validation, defaults, and clamping for both API paths
+- Add custom `ReasoningEffort` Literal type and `to_reasoning_effort` / `reasoning_effort_to_openai` helpers (OpenAI SDK type is outdated)
+- Temperature fallback changed from `[0, 2]` to `[0, inf)` for models without declared bounds
+- Fix: apply `reasoning_effort` validation, defaults, and temperature clamping in Chat Completions path (previously only Responses API)
+- Fix: preserve extra `Reasoning` fields when updating effort; strip `effort` key when dropped
+
+## [1.70.0] - 2026-04-09
+- Widen `openai` dependency upper bound from `<2` to `<3` to allow openai SDK v2.x (required for litellm security fix)
+
+## [1.69.8] - 2026-04-09
+- Remove `ABC` / `@abstractmethod` from `LanguageModelMessage` so the base model can be instantiated again
+- Add `LanguageModelMessageTypes` and `_language_model_message_to_subtype()` to map a plain message to the concrete type for its role
+- Update `LanguageModelMessages.to_openai()` to coerce base `LanguageModelMessage` instances via that helper before calling `to_openai` (tool role raises unless `LanguageModelToolMessage` is used)
+
+## [1.69.7] - 2026-04-09
+- changing FF from enable_selected_uploaded_files_un_18470 to enable_selected_uploaded_files_un_18215
+
+## [1.69.6] - 2026-04-09
+- Update sub agent config
+
+## [1.69.5] - 2026-04-09
+- Add `ToolCall` class and `tool_calls`, `tool_call_id` fields to `ChatMessage` for tool call persistence
+- Add `TOOL` role to `ChatMessageRole` enum
+- Add `check_tool_call_ids_for_tool_role` validator to ensure `tool_call_id` is required when role is `tool`
+
+## [1.69.4] - 2026-04-08
+- Make `LanguageModelMessage` an abstract base class with `@abstractmethod` for `to_openai()` to prevent direct instantiation
+- Move `LanguageModelMessageRole` enum to `language_model.schemas` (includes `TOOL` role, separate from `ChatMessageRole`)
+- Simplify `ChatMessage`: remove unused `ToolCall` class and `tool_calls` field, make `id` required, remove `TOOL` role from `ChatMessageRole`
+- Deprecate `map_to_chat_messages()` in favor of `ChatMessage.model_validate()`
+- Add `to_openai()` method to `LanguageModelMessages` container for batch conversion
+- Add `@override` decorators to concrete `to_openai` implementations
+- Raise `ValueError` for unknown message roles instead of falling back to base class
+
+## [1.69.3] - 2026-04-08
+- Add number zero to allowed tool name pattern
+
+## [1.69.2] - 2026-04-08
+- Code interpreter (UN-17972 / UN-17927): remove dead `htmlWithSource` fence generation and regex handling; HTML stays on the unconditional `HtmlRendering` markdown path from #1361 (all prior `HtmlRendering` edge-case fixes remain on `main`)
+
+## [1.69.1] - 2026-04-08
+- Add async variants of history construction functions and use them in `get_history_from_db` (`get_full_history_async`, `get_message_tools_async`, `search_contents_async`, `download_content_to_bytes_async`) to avoid blocking the event loop
+- Replace sync `modify_assistant_message` with async in Qwen runner
+- Replace sync `MCP.call_tool` with `MCP.call_tool_async` in MCP wrapper
+
+
+## [1.69.0] - 2026-04-07
+- Add optional `[monitoring]` extra with Prometheus support: `MetricNamespace`, `track()`, `MetricsMiddleware`, `get_metrics()`
+
+## [1.68.13] - 2026-04-06
+- Add concurrency diagnostic logging to code interpreter postprocessor: chunk gap detection, `tracker.update()` blocking measurement, lock contention and publish timing in `_FileProgressTracker`, `modify_assistant_message_async` latency warnings, and SDK upload duration warnings
+
+## [1.68.12] - 2026-04-05
+- Disable OpenAI SDK built-in retries (`max_retries=0`) for container file downloads to eliminate silent double-retry compounding — only the manual retry loop with full logging now retries
+- Add configurable `download_read_timeout` (default 120s) for container file downloads, down from the SDK default of 600s, to fail faster on stalled connections
+- Add background elapsed-time ticker that publishes progress updates even when the OpenAI API is slow to return the first byte
+- Add comprehensive timing instrumentation to all critical-path functions: `run()` phase breakdown (load_stm, download_upload, save_stm, orphan), per-file pipeline (download/upload split), first-byte latency, stream transfer time, and `apply_postprocessing` duration
+- Log swallowed exceptions in `PersistentShortMemoryManager` — failed short-term memory lookups now log the exception type and message instead of being silently discarded
+
+## [1.68.11] - 2026-04-05
+- Add real-time file download/upload progress reporting to code interpreter postprocessor — users see inline progress (percentage or elapsed time), retry indicators, and a summary block while files are being prepared
+- Switch container file downloads from buffered to streaming (`with_streaming_response`) to enable chunk-level progress tracking and percentage display when `content-length` is available
+- Add `_FileProgressTracker` class with asyncio lock, throttled message updates, inline sandbox-link replacement, and an appended summary block
+- Replace tenacity-based download retry with manual retry loop to support per-attempt progress and retry-count reporting to the tracker
+- Add `progress_update_interval` and `download_chunk_size` config fields to `DisplayCodeInterpreterFilesPostProcessorConfig`
+
+## [1.68.10] - 2026-04-05
+- Add detailed structured logging throughout the code interpreter citation pipeline (`run()`, download/upload, `apply_postprocessing_to_response()`) for production transparency: file counts, per-file outcomes, replacement summaries, and dangling-link detection
+- Add `_ChatLoggerAdapter` so all instance-method log messages are prefixed with `[chat_id=…]` for per-conversation traceability
+- Improve user-facing error message when file generation permanently fails after retries — now reads "File could not be generated. Please try again." instead of generic "File download failed"
+
+## [1.68.9] - 2026-04-04
+- Fix intermittent sandbox URL replacement failures in code interpreter postprocessor caused by transient short-term memory errors crashing `run()` and preventing `apply_postprocessing_to_response()` from executing
+- Add retry with exponential backoff to file upload calls (download already had retry)
+- Extract `_build_retry()` helper to share retry policy across all I/O operations
+- Fix `_replace_container_file_citation` missing `!?` prefix — LLM using `![label](sandbox:...)` syntax for non-image files caused false "download failed" error despite successful upload
+- Wrap orphan code block upload in try/except to prevent failures from blocking file replacement
+
+## [1.68.8] - 2026-04-04
+- Always render HTML code interpreter files with `HtmlRendering` block, independent of feature flags (`enable_html_rendering_un_15131` and `enable_code_execution_fence_un_17972`)
+- Exclude HTML files from fence injection (`imgWithSource`/`fileWithSource`) pipeline to avoid spurious warnings
+
+## [1.68.7] - 2026-04-02
+- Chore: migrate to uv workspace; switch local dependency sources from path-based to workspace references
+- Update `langchain` optional extra to `>=1.0.0,<2` (was `>=0.3.27,<0.4`) and `langchain-core` to `>=1.0.0,<2`
+
+## [1.68.6] - 2026-04-02
+- Adding `uploaded_files` and `selected_uploaded_files` to additional parameters in payload
+- Feature flag `FEATURE_FLAG_SELECTED_UPLOADED_FILES_UN_18470` added
+
+## [1.68.5] - 2026-04-01
+- Code interpreter (UN-17972): restore `htmlWithSource` fences for HTML when code-execution fence FF is on (legacy `HtmlRendering` path only when fence FF is off and HTML rendering FF is on)
+- Extend fence regexes and `_get_next_fence_id` for `htmlWithSource`; include HTML in unmatched-code-block warnings when fences are used
+
 ## [1.68.4] - 2026-04-01
 - Removing feature flag for tool call persistence (`FEATURE_FLAG_ENABLE_TOOL_CALL_PERSISTENCE_UN_15977`)
 

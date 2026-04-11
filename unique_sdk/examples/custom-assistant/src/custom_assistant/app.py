@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from http import HTTPStatus
 from logging.config import dictConfig
@@ -32,6 +33,7 @@ dictConfig(
 )
 
 app = Flask(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 @app.route("/")
@@ -54,15 +56,17 @@ def search():
 
         return jsonify(search)
     except unique_sdk.InvalidRequestError as e:
-        message = str(e)
-        params = e.params
         return make_response(
-            jsonify({"message": message, "params": params}), e.http_status
+            jsonify({"message": "Invalid request", "params": e.params}), e.http_status
         )
     except unique_sdk.UniqueError as e:
-        return make_response(jsonify(str(e)), e.http_status)
-    except Exception as e:
-        return jsonify(str(e)), HTTPStatus.INTERNAL_SERVER_ERROR
+        _LOGGER.exception("UniqueError in search")
+        return make_response(jsonify({"error": "Service error"}), e.http_status)
+    except Exception:
+        _LOGGER.exception("Unexpected error in search")
+        return jsonify(
+            {"error": "Internal server error"}
+        ), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 @app.route("/search/string", methods=["POST"])
@@ -78,15 +82,17 @@ def search_string():
 
         return jsonify(search_string)
     except unique_sdk.InvalidRequestError as e:
-        message = str(e)
-        params = e.params
         return make_response(
-            jsonify({"message": message, "params": params}), e.http_status
+            jsonify({"message": "Invalid request", "params": e.params}), e.http_status
         )
     except unique_sdk.UniqueError as e:
-        return make_response(jsonify(str(e)), e.http_status)
-    except Exception as e:
-        return jsonify(str(e)), HTTPStatus.INTERNAL_SERVER_ERROR
+        _LOGGER.exception("UniqueError in search_string")
+        return make_response(jsonify({"error": "Service error"}), e.http_status)
+    except Exception:
+        _LOGGER.exception("Unexpected error in search_string")
+        return jsonify(
+            {"error": "Internal server error"}
+        ), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 @app.route("/azure-openai/chat/completion", methods=["POST"])
@@ -103,15 +109,17 @@ def azure_openai_chat_completion():
 
         return jsonify(chat_completion)
     except unique_sdk.InvalidRequestError as e:
-        message = str(e)
-        params = e.params
         return make_response(
-            jsonify({"message": message, "params": params}), e.http_status
+            jsonify({"message": "Invalid request", "params": e.params}), e.http_status
         )
     except unique_sdk.UniqueError as e:
-        return make_response(jsonify(str(e)), e.http_status)
-    except Exception as e:
-        return jsonify(str(e)), HTTPStatus.INTERNAL_SERVER_ERROR
+        _LOGGER.exception("UniqueError in azure_openai_chat_completion")
+        return make_response(jsonify({"error": "Service error"}), e.http_status)
+    except Exception:
+        _LOGGER.exception("Unexpected error in azure_openai_chat_completion")
+        return jsonify(
+            {"error": "Internal server error"}
+        ), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 @app.route("/litellm/chat/completion", methods=["POST"])
@@ -128,15 +136,17 @@ def litellm_chat_completion():
 
         return jsonify(chat_completion)
     except unique_sdk.InvalidRequestError as e:
-        message = str(e)
-        params = e.params
         return make_response(
-            jsonify({"message": message, "params": params}), e.http_status
+            jsonify({"message": "Invalid request", "params": e.params}), e.http_status
         )
     except unique_sdk.UniqueError as e:
-        return make_response(jsonify(str(e)), e.http_status)
-    except Exception as e:
-        return jsonify(str(e)), HTTPStatus.INTERNAL_SERVER_ERROR
+        _LOGGER.exception("UniqueError in litellm_chat_completion")
+        return make_response(jsonify({"error": "Service error"}), e.http_status)
+    except Exception:
+        _LOGGER.exception("Unexpected error in litellm_chat_completion")
+        return jsonify(
+            {"error": "Internal server error"}
+        ), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 @app.route("/chat/<chat_id>/messages")
@@ -150,9 +160,13 @@ def chat_messages(chat_id: str):
 
         return jsonify(messages)
     except unique_sdk.UniqueError as e:
-        return make_response(jsonify(str(e)), e.http_status)
-    except Exception as e:
-        return jsonify(e), HTTPStatus.INTERNAL_SERVER_ERROR
+        _LOGGER.exception("UniqueError in chat_messages")
+        return make_response(jsonify({"error": "Service error"}), e.http_status)
+    except Exception:
+        _LOGGER.exception("Unexpected error in chat_messages")
+        return jsonify(
+            {"error": "Internal server error"}
+        ), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 @app.route("/chat/<chat_id>/messages/<message_id>")

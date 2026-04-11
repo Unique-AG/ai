@@ -65,7 +65,7 @@ class QwenLoopIterationRunner(BasicLoopIterationRunner):
             loop_runner_kwargs=kwargs,
             prepare_loop_runner_kwargs=_prepare,
         )
-        return self._process_response(response)
+        return await self._process_response(response)
 
     async def _handle_last_iteration(
         self, **kwargs: Unpack[_LoopIterationRunnerKwargs]
@@ -78,22 +78,23 @@ class QwenLoopIterationRunner(BasicLoopIterationRunner):
             last_iteration_instruction=self._last_iteration_instruction,
         )
         response = await super()._handle_last_iteration(**kwargs)
-        return self._process_response(response)
+        return await self._process_response(response)
 
     async def _handle_normal_iteration(
         self, **kwargs: Unpack[_LoopIterationRunnerKwargs]
     ) -> LanguageModelStreamResponse:
         response = await super()._handle_normal_iteration(**kwargs)
-        return self._process_response(response)
+        return await self._process_response(response)
 
-    def _process_response(
+    async def _process_response(
         self, response: LanguageModelStreamResponse
     ) -> LanguageModelStreamResponse:
-        if "</tool_call>" == response.message.text.strip():
+        message_text = response.message.text or ""
+        if "</tool_call>" == message_text.strip():
             _LOGGER.warning(
                 "Response contains only <tool_call>. This is not allowed. Returning empty response."
             )
-            self._chat_service.modify_assistant_message(content="")
+            await self._chat_service.modify_assistant_message_async(content="")
             response.message.text = ""
 
         return response

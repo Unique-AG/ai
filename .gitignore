@@ -102,12 +102,15 @@ _cached_versions/
 #   install all needed dependencies.
 #Pipfile.lock
 
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#poetry.lock
+# poetry (migrated to uv)
+poetry.lock
+
+# Per-package uv lockfiles — the workspace uses a single root uv.lock
+# Tutorials and examples keep their own lockfiles locally but they are
+# not tracked in git to avoid Dependabot noise for non-production code.
+**/uv.lock
+!/uv.lock
+**/package-lock.json
 
 # pdm
 #   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
@@ -187,3 +190,6 @@ monorepo-ref
 
 # Planning notes
 .planning/
+
+# Stray test scripts with secrets
+test_code_interpreter_retry.py

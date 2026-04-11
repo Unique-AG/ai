@@ -498,6 +498,63 @@ class TestHandleNoToolCallsTiming:
 
         assert "unselected_eval" not in ua._current_loop_timing["evaluation"]
 
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_handle_no_tool_calls__code_interpreter_used__hallucination_skipped(
+        self, ua
+    ) -> None:
+        from openai.types.responses import ResponseCodeInterpreterToolCall
+        from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+        from unique_toolkit.language_model.schemas import (
+            ResponsesLanguageModelStreamResponse,
+        )
+
+        ua._tool_manager.get_evaluation_check_list.return_value = [
+            EvaluationMetricName.HALLUCINATION,
+        ]
+        ua._evaluation_manager.get_execution_times.return_value = {}
+        ua._postprocessor_manager.get_execution_times.return_value = {}
+
+        ci_call = ResponseCodeInterpreterToolCall(
+            id="ci_1",
+            type="code_interpreter_call",
+            code="print('hello')",
+            container_id="ctr_1",
+            status="completed",
+            results=[],
+        )
+
+        loop_response = _make_loop_response()
+        loop_response.__class__ = ResponsesLanguageModelStreamResponse
+        loop_response.code_interpreter_calls = [ci_call]
+
+        await ua._handle_no_tool_calls(loop_response)
+
+        ua._evaluation_manager.run_evaluations.assert_called_once()
+        selected_names = ua._evaluation_manager.run_evaluations.call_args[0][0]
+        assert EvaluationMetricName.HALLUCINATION not in selected_names
+
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_handle_no_tool_calls__no_code_interpreter__hallucination_kept(
+        self, ua
+    ) -> None:
+        from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
+
+        ua._tool_manager.get_evaluation_check_list.return_value = [
+            EvaluationMetricName.HALLUCINATION,
+        ]
+        ua._evaluation_manager.get_execution_times.return_value = {
+            "hallucination": 0.3,
+        }
+        ua._postprocessor_manager.get_execution_times.return_value = {}
+
+        await ua._handle_no_tool_calls(_make_loop_response())
+
+        ua._evaluation_manager.run_evaluations.assert_called_once()
+        selected_names = ua._evaluation_manager.run_evaluations.call_args[0][0]
+        assert EvaluationMetricName.HALLUCINATION in selected_names
+
 
 class TestPlanOrExecuteOpenFileRetry:
     @pytest.mark.ai

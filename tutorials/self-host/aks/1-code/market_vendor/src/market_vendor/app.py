@@ -31,12 +31,12 @@ from .config import MarketVendorConfig
 
 APP_NAME = get_app_name()
 init_logging()
-logger = logging.getLogger(f"{APP_NAME}.{__name__}")
+_LOGGER = logging.getLogger(f"{APP_NAME}.{__name__}")
 
 # On Kubernetes, we can not write onto the containers native filesystem, the env file was decrypted from the Dockerfile and mounted as a volume
 # The load_dotenv must load the decrypted file from the volume
 env_path = os.environ.get("DECRYPTED_ENV_FILE_ABSOLUTE")
-logger.info("DECRYPTED_ENV_FILE_ABSOLUTE: %s", env_path)
+_LOGGER.info("DECRYPTED_ENV_FILE_ABSOLUTE: %s", env_path)
 if env_path:
     if not os.path.exists(env_path):
         raise FileNotFoundError(f"Environment file not found at path: {env_path}")
@@ -56,9 +56,10 @@ if env_path:
     except Exception as e:
         raise EnvironmentError(f"Error loading environment file: {str(e)}")
 
-    logger.info(f"API Key starts with: -{os.environ.get('API_KEY', '')[:5]}****-")
-    logger.info(
-        f"ENDPOINT Secret starts with: -{os.environ.get('ENDPOINT_SECRET', '')[:5]}****-"
+    _LOGGER.info("API_KEY is %s", "set" if os.environ.get("API_KEY") else "NOT set")
+    _LOGGER.info(
+        "ENDPOINT_SECRET is %s",
+        "set" if os.environ.get("ENDPOINT_SECRET") else "NOT set",
     )
 
 init_sdk()
@@ -68,7 +69,7 @@ app = Flask(__name__)
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    logger.info(f"{APP_NAME} - received webhook request")
+    _LOGGER.info(f"{APP_NAME} - received webhook request")
 
     event, status_code = verify_request_and_construct_event(
         assistant_name=APP_NAME,
@@ -111,9 +112,9 @@ def webhook():
 
         chat_service.modify_assistant_message(set_completed_at=True)
 
-    except Exception as e:
+    except Exception:
         error_message = "Error generating response"
-        logger.error(f"{error_message}: {e}")
+        _LOGGER.exception(error_message)
         chat_service.modify_assistant_message(
             content=error_message, set_completed_at=True
         )

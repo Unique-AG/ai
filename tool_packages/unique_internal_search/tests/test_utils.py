@@ -1,3 +1,6 @@
+from unittest.mock import Mock
+
+from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content.schemas import ContentChunk, ContentMetadata
 
 from unique_internal_search.utils import (
@@ -6,8 +9,44 @@ from unique_internal_search.utils import (
     _deduplicate_search_results,
     append_metadata_in_chunks,
     clean_search_string,
+    extract_selected_uploaded_file_ids,
     interleave_search_results_round_robin,
 )
+
+
+class TestExtractSelectedUploadedFileIds:
+    """Tests for extract_selected_uploaded_file_ids function"""
+
+    def test_returns_file_ids_when_additional_parameters_has_selected_files(self):
+        event = Mock(spec=ChatEvent)
+        additional = Mock()
+        additional.selected_uploaded_file_ids = ["file_1", "file_2"]
+        event.payload = Mock()
+        event.payload.additional_parameters = additional
+
+        result = extract_selected_uploaded_file_ids(event)
+
+        assert result == ["file_1", "file_2"]
+
+    def test_returns_empty_list_when_additional_parameters_is_none(self):
+        event = Mock(spec=ChatEvent)
+        event.payload = Mock()
+        event.payload.additional_parameters = None
+
+        result = extract_selected_uploaded_file_ids(event)
+
+        assert result == []
+
+    def test_returns_empty_list_when_no_selected_files(self):
+        event = Mock(spec=ChatEvent)
+        additional = Mock()
+        additional.selected_uploaded_file_ids = []
+        event.payload = Mock()
+        event.payload.additional_parameters = additional
+
+        result = extract_selected_uploaded_file_ids(event)
+
+        assert result == []
 
 
 class TestAppendMetadataInChunks:

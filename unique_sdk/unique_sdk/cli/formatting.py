@@ -1,4 +1,4 @@
-"""Tabular output formatting for ls, search results, file info, and MCP responses."""
+"""Tabular output formatting for ls, search results, file info, scheduled tasks, and MCP responses."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from unique_sdk.api_resources._folder import Folder
 
 if TYPE_CHECKING:
     from unique_sdk.api_resources._mcp import MCP
+    from unique_sdk.api_resources._scheduled_task import ScheduledTask
 
 
 def _format_size(byte_size: int | None) -> str:
@@ -135,6 +136,52 @@ def format_folder_info(info: Folder.FolderInfo) -> str:
         ["Updated:", _format_date(info.get("updatedAt"))],
     ]
     return "\n".join(_pad_columns(rows))
+
+
+def format_scheduled_task(task: ScheduledTask) -> str:
+    """Format a single scheduled task as a key-value display."""
+    enabled_str = "yes" if getattr(task, "enabled", False) else "no"
+    rows = [
+        ["ID:", getattr(task, "id", "?")],
+        ["Cron:", getattr(task, "cronExpression", "?")],
+        [
+            "Assistant:",
+            getattr(task, "assistantName", None) or getattr(task, "assistantId", "?"),
+        ],
+        ["Assistant ID:", getattr(task, "assistantId", "?")],
+        ["Chat ID:", getattr(task, "chatId", None) or "(new chat each run)"],
+        ["Prompt:", getattr(task, "prompt", "?")],
+        ["Enabled:", enabled_str],
+        ["Last run:", _format_date(getattr(task, "lastRunAt", None))],
+        ["Created:", _format_date(getattr(task, "createdAt", None))],
+        ["Updated:", _format_date(getattr(task, "updatedAt", None))],
+    ]
+    return "\n".join(_pad_columns(rows))
+
+
+def format_scheduled_tasks(tasks: list[ScheduledTask]) -> str:
+    """Format a list of scheduled tasks as a table."""
+    if not tasks:
+        return "No scheduled tasks found."
+
+    rows: list[list[str]] = []
+    for t in tasks:
+        task_id = getattr(t, "id", "?")
+        cron = getattr(t, "cronExpression", "?")
+        enabled = "on" if getattr(t, "enabled", False) else "off"
+        assistant = getattr(t, "assistantName", None) or getattr(t, "assistantId", "?")
+        prompt = getattr(t, "prompt", "")
+        snippet = prompt[:60].replace("\n", " ").strip()
+        if len(prompt) > 60:
+            snippet += "..."
+        last_run = _format_date(getattr(t, "lastRunAt", None))
+        rows.append([enabled, cron, assistant, snippet, task_id, last_run])
+
+    header = ["STATUS", "CRON", "ASSISTANT", "PROMPT", "ID", "LAST RUN"]
+    lines = [f"{len(tasks)} scheduled task(s):\n"]
+    all_rows = [header] + rows
+    lines.extend(_pad_columns(all_rows))
+    return "\n".join(lines)
 
 
 def format_mcp_response(response: MCP) -> str:

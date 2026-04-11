@@ -20,8 +20,10 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
 )
+from unique_toolkit.monitoring import metric_scope
 
 from unique_web_search.config import WebSearchConfig
+from unique_web_search.metrics import tool_duration, tool_empty_results, tool_errors
 from unique_web_search.schema import (
     WebSearchDebugInfo,
     WebSearchPlan,
@@ -170,6 +172,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
         notify_from_tool_call = self._ff_tool_progress_reporter_callback()
+        executor_version = self.config.web_search_mode_config.mode.value
 
         try:
             if screening_service is not None:
@@ -190,9 +193,15 @@ class WebSearchTool(Tool[WebSearchConfig]):
                         ),
                     )
 
-            content_chunks = await executor.run()
+            with metric_scope(
+                tool_duration, tool_errors, executor_version=executor_version
+            ):
+                content_chunks = await executor.run()
 
             debug_info.num_chunks_in_final_prompts = len(content_chunks)
+
+            if not content_chunks:
+                tool_empty_results.labels(executor_version=executor_version).inc()
 
             debug_info.execution_time = time() - start_time
 

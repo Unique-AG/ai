@@ -72,6 +72,7 @@ nav:
     - Message Assessment: api_resources/message_assessment.md
     - Message Execution: api_resources/message_execution.md
     - Message Log: api_resources/message_log.md
+    - ScheduledTask: api_resources/scheduled_task.md
     - Search: api_resources/search.md
     - SearchString: api_resources/search_string.md
     - Short Term Memory: api_resources/short_term_memory.md
@@ -96,6 +97,7 @@ nav:
   - CLI (Experimental):
     - Overview: cli/index.md
     - Command Reference: cli/commands.md
+    - Scheduled Tasks: cli/scheduled_tasks.md
     - Search Guide: cli/search.md
     - Configuration: cli/configuration.md
 

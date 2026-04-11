@@ -125,7 +125,7 @@ class SubAgentToolConfig(BaseToolConfig):
         return v if v is not None else []
 
     tool_description_for_system_prompt: Annotated[
-        str, RJSFMetaTag.StringWidget.textarea(rows=5)
+        str, RJSFMetaTag.StringWidget.textarea(rows=3)
     ] = Field(
         default="",
         description="Description of the tool that will be included in the system prompt.",
@@ -134,36 +134,37 @@ class SubAgentToolConfig(BaseToolConfig):
         default="",
         description="Description of the tool that will be included in the tools sent to the model.",
     )
-    param_description_sub_agent_user_message: Annotated[
-        str, RJSFMetaTag.StringWidget.textarea(rows=5)
-    ] = Field(
-        default=DEFAULT_PARAM_DESCRIPTION_SUB_AGENT_USER_MESSAGE,
-        description="Description of the user message parameter that will be sent to the model.",
-    )
     tool_format_information_for_system_prompt: Annotated[
-        str, RJSFMetaTag.StringWidget.textarea(rows=5)
+        str, RJSFMetaTag.StringWidget.textarea(rows=2)
     ] = Field(
         default="",
         description="Format information that will be included in the system prompt to guide response formatting.",
     )
     tool_description_for_user_prompt: Annotated[
-        str, RJSFMetaTag.StringWidget.textarea(rows=5)
+        str, RJSFMetaTag.SpecialWidget.hidden()
     ] = Field(
         default="",
         description="Description of the tool that will be included in the user prompt.",
     )
     tool_format_information_for_user_prompt: Annotated[
-        str, RJSFMetaTag.StringWidget.textarea(rows=5)
+        str, RJSFMetaTag.SpecialWidget.hidden()
     ] = Field(
         default="",
         description="Format information that will be included in the user prompt to guide response formatting.",
     )
+    param_description_sub_agent_user_message: Annotated[
+        str, RJSFMetaTag.StringWidget.textarea(rows=1)
+    ] = Field(
+        default=DEFAULT_PARAM_DESCRIPTION_SUB_AGENT_USER_MESSAGE,
+        title="Parameter Description Sub Agent Message",
+        description="Description of the message parameter extracted by the orchestrator and sent as the input message to the sub-agent.",
+    )
 
-    poll_interval: float = Field(
+    poll_interval: Annotated[float, RJSFMetaTag.NumberWidget.updown()] = Field(
         default=1.0,
         description="Time interval in seconds between polling attempts when waiting for sub-agent response.",
     )
-    max_wait: float = Field(
+    max_wait: Annotated[float, RJSFMetaTag.NumberWidget.updown()] = Field(
         default=120.0,
         description="Maximum time in seconds to wait for the sub-agent response before timing out.",
     )

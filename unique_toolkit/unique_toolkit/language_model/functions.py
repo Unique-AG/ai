@@ -19,14 +19,12 @@ from unique_toolkit.content.schemas import ContentChunk, ContentReference
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
     LanguageModelName,
-    TemperatureBounds,
 )
 from unique_toolkit.language_model.reference import (
     add_references_to_message,
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
-    LanguageModelMessageRole,
     LanguageModelMessages,
     LanguageModelResponse,
     LanguageModelStreamResponse,
@@ -345,14 +343,6 @@ def __camelize_keys(data):
     return data
 
 
-def _clamp_temperature(
-    temperature: float, temperature_bounds: TemperatureBounds
-) -> float:
-    temperature = max(temperature_bounds.min_temperature, temperature)
-    temperature = min(temperature_bounds.max_temperature, temperature)
-    return round(temperature, 2)
-
-
 def _prepare_other_options(
     other_options: dict | None,
     default_options: dict,
@@ -418,14 +408,16 @@ def _prepare_all_completions_params_util(
         )
         messages_dict = __camelize_keys(messages.copy())
 
-    if (
-        model_info is not None
-        and model_info.temperature_bounds is not None
-        and "temperature" in options
-    ):
-        options["temperature"] = _clamp_temperature(
-            temperature, model_info.temperature_bounds
+    if model_info is not None:
+        reasoning_effort = options.get("reasoning_effort")
+        resolved_temp, resolved_effort = model_info.resolve_temp_and_reasoning(
+            temperature, reasoning_effort=reasoning_effort
         )
+        options["temperature"] = resolved_temp
+        if resolved_effort is not None:
+            options["reasoning_effort"] = resolved_effort
+        elif reasoning_effort is not None:
+            options.pop("reasoning_effort", None)
 
     integrated_messages = cast(
         "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
@@ -530,7 +522,7 @@ def _create_language_model_stream_response_with_references(
     stream_response_message = ChatMessage(
         id="stream_unknown",
         previous_message_id=None,
-        role=LanguageModelMessageRole.ASSISTANT,
+        role=ChatMessageRole.ASSISTANT,
         text=message.content or "",
         original_text=content,
         chat_id="stream_unknown",
@@ -661,7 +653,7 @@ async def stream_complete_with_references_openai(
                 id=message_id or uuid4().hex,
                 chat_id="",
                 previous_message_id=None,
-                role=LanguageModelMessageRole.ASSISTANT,
+                role=ChatMessageRole.ASSISTANT,
                 text=text_,
                 original_text=full_text,
                 references=references_,
