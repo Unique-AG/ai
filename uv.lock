@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-03-27T16:44:15.94043Z"
+exclude-newer = "2026-03-28T12:20:45.167643Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5574,13 +5574,14 @@ dev = []
 
 [[package]]
 name = "unique-web-search"
-version = "1.15.5"
+version = "1.17.0"
 source = { editable = "tool_packages/unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },
     { name = "azure-core" },
     { name = "azure-identity" },
     { name = "certifi" },
+    { name = "click" },
     { name = "crawl4ai" },
     { name = "fake-useragent" },
     { name = "firecrawl" },
@@ -5606,6 +5607,7 @@ requires-dist = [
     { name = "azure-core", specifier = ">=1.36.0,<2" },
     { name = "azure-identity", specifier = ">=1.25.0,<2" },
     { name = "certifi", specifier = ">=2025.11.12" },
+    { name = "click", specifier = ">=8.1.0,<9" },
     { name = "crawl4ai", specifier = ">=0.6.3,<1" },
     { name = "fake-useragent", specifier = ">=2.2.0,<3" },
     { name = "firecrawl", specifier = ">=3.3.2,<4" },

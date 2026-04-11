@@ -40,16 +40,10 @@ ENV_CONFIG_PATH = "UNIQUE_WEBSEARCH_CONFIG"
 
 DEFAULT_FETCH_SIZE = 50
 
-_FULL_CONFIG_KEYS = frozenset(
-    {
-        "searchEngineConfig",
-        "search_engine_config",
-        "crawlerConfig",
-        "crawler_config",
-        "webSearchActiveMode",
-        "web_search_active_mode",
-    }
-)
+_MODE_KEYS = frozenset({"webSearchActiveMode", "web_search_active_mode"})
+
+_ENGINE_DISCRIMINATORS = frozenset({"search_engine_name", "searchEngineName"})
+_CRAWLER_DISCRIMINATORS = frozenset({"crawler_type", "crawlerType"})
 
 
 class CLIConfigError(Exception):
@@ -82,9 +76,46 @@ def _load_json(path: Path) -> dict[str, Any]:
         raise CLIConfigError(f"Invalid JSON in {path}: {e}") from e
 
 
+def _nested_has_discriminator(
+    data: dict[str, Any],
+    nested_keys: tuple[str, ...],
+    discriminators: frozenset[str],
+) -> bool:
+    """Check whether any of *nested_keys* in *data* is a dict containing a discriminator."""
+    for key in nested_keys:
+        value = data.get(key)
+        if isinstance(value, dict) and (set(value.keys()) & discriminators):
+            return True
+    return False
+
+
 def _is_full_platform_config(data: dict[str, Any]) -> bool:
-    """True when *data* looks like a full ``WebSearchConfig`` from the event."""
-    return bool(set(data.keys()) & _FULL_CONFIG_KEYS)
+    """True when *data* looks like a full ``WebSearchConfig`` from the event.
+
+    A full config is distinguished from a simple override file by the
+    presence of the ``webSearchActiveMode`` top-level key **or**
+    discriminator fields (``search_engine_name``, ``crawler_type``) inside
+    the nested engine/crawler dicts — simple override files contain only
+    flat scalar overrides like ``{"fetch_size": 50}``.
+    """
+    if set(data.keys()) & _MODE_KEYS:
+        return True
+
+    if _nested_has_discriminator(
+        data,
+        ("searchEngineConfig", "search_engine_config"),
+        _ENGINE_DISCRIMINATORS,
+    ):
+        return True
+
+    if _nested_has_discriminator(
+        data,
+        ("crawlerConfig", "crawler_config"),
+        _CRAWLER_DISCRIMINATORS,
+    ):
+        return True
+
+    return False
 
 
 def _parse_full_config(

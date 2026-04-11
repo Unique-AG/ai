@@ -91,11 +91,16 @@ def main(
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
 
-    result = cmd_websearch(
-        search_engine_config=search_engine_config,
-        crawler_config=crawler_config,
-        query=query,
-        fetch_size=fetch_size,
-        no_crawl=no_crawl,
-    )
+    try:
+        result = cmd_websearch(
+            search_engine_config=search_engine_config,
+            crawler_config=crawler_config,
+            query=query,
+            fetch_size=fetch_size,
+            no_crawl=no_crawl,
+        )
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
     click.echo(result)

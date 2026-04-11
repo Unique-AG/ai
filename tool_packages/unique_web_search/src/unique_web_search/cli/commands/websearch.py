@@ -87,25 +87,21 @@ def cmd_websearch(
     Returns:
         Formatted string of results for terminal display.
     """
-    try:
-        if fetch_size is not None:
-            search_engine_config.fetch_size = fetch_size
+    if fetch_size is not None:
+        search_engine_config.fetch_size = fetch_size
 
-        engine = _instantiate_engine(search_engine_config)
-        results = asyncio.run(_run_search(engine, query))
+    engine = _instantiate_engine(search_engine_config)
+    results = asyncio.run(_run_search(engine, query))
 
-        if not results:
-            return "No results found."
+    if not results:
+        return "No results found."
 
-        crawled_contents: list[str] | None = None
-        if not no_crawl and engine.requires_scraping:
-            urls = [r.url for r in results]
-            try:
-                crawled_contents = asyncio.run(_run_crawl(crawler_config, urls))
-            except Exception as e:
-                _LOGGER.warning(f"Crawling failed, showing snippets only: {e}")
+    crawled_contents: list[str] | None = None
+    if not no_crawl and engine.requires_scraping:
+        urls = [r.url for r in results]
+        try:
+            crawled_contents = asyncio.run(_run_crawl(crawler_config, urls))
+        except Exception as e:
+            _LOGGER.warning("Crawling failed, showing snippets only: %s", e)
 
-        return format_websearch_results(results, crawled_contents)
-
-    except Exception as e:
-        return f"websearch: {e}"
+    return format_websearch_results(results, crawled_contents)
