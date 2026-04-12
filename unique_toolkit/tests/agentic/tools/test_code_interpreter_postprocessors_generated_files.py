@@ -1234,17 +1234,16 @@ def test_replace_container_image_citation__logs_warning__when_no_sandbox_link(
     caplog,
 ) -> None:
     """
-    Purpose: Verify a WARNING is emitted and a fallback download link is appended when
-    no sandbox link is present for the filename.
-    Why this matters: Without the fallback link the user would never see the file.
+    Purpose: Verify a WARNING is emitted by _replace_container_image_citation when no
+    sandbox link is present for the filename.
+    Why this matters: Makes it visible in production that the LLM omitted the link.
     """
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        new_text, replaced = gen_mod._replace_container_image_citation(
+        _, replaced = gen_mod._replace_container_image_citation(
             text="No link here.", filename="plot.png", content_id="cont_x"
         )
 
-    assert replaced is True
-    assert "📎 [plot.png](unique://content/cont_x)" in new_text
+    assert replaced is False
     assert any(
         "plot.png" in r.message and r.levelno == logging.WARNING for r in caplog.records
     )
@@ -1255,11 +1254,11 @@ def test_replace_container_file_citation__logs_warning__when_no_sandbox_link(
     caplog,
 ) -> None:
     """
-    Purpose: Verify a WARNING is emitted and a fallback download link is appended when
-    no sandbox link is present for the filename.
+    Purpose: Verify a WARNING is emitted by _replace_container_file_citation when no
+    sandbox link is present for the filename.
     """
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        new_text, replaced = gen_mod._replace_container_file_citation(
+        _, replaced = gen_mod._replace_container_file_citation(
             text="No link here.",
             filename="data.csv",
             content_id="cont_y",
@@ -1267,8 +1266,7 @@ def test_replace_container_file_citation__logs_warning__when_no_sandbox_link(
             use_content_link=False,
         )
 
-    assert replaced is True
-    assert "📎 [data.csv](unique://content/cont_y)" in new_text
+    assert replaced is False
     assert any(
         "data.csv" in r.message and r.levelno == logging.WARNING for r in caplog.records
     )
@@ -1279,16 +1277,15 @@ def test_replace_container_html_citation__logs_warning__when_no_sandbox_link(
     caplog,
 ) -> None:
     """
-    Purpose: Verify a WARNING is emitted and a fallback download link is appended when
-    no sandbox link is present for the filename.
+    Purpose: Verify a WARNING is emitted by _replace_container_html_citation when no
+    sandbox link is present for the filename.
     """
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        new_text, replaced = gen_mod._replace_container_html_citation(
+        _, replaced = gen_mod._replace_container_html_citation(
             text="No link here.", filename="report.html", content_id="cont_z"
         )
 
-    assert replaced is True
-    assert "📎 [report.html](unique://content/cont_z)" in new_text
+    assert replaced is False
     assert any(
         "report.html" in r.message and r.levelno == logging.WARNING
         for r in caplog.records
@@ -1621,21 +1618,19 @@ def test_warn_unmatched_code_blocks__logs_warning__when_file_not_in_any_block(
     caplog,
 ) -> None:
     """
-    Purpose: Verify a WARNING is emitted and the unmatched file is returned when an
-    uploaded file (with a valid content_id) is not present in any code block.
+    Purpose: Verify a WARNING is emitted when an uploaded file (with a valid content_id)
+    is not present in any code block.
     Why this matters: This means the file won't receive a fence when FF=on.  It will
     appear as a plain download link and the frontend artifact UI won't be shown.
     The warning tells the operator the query should be re-run.
-    Setup summary: content_map has one file; code_blocks is empty; assert warning and
-    returned dict contains the unmatched entry.
+    Setup summary: content_map has one file; code_blocks is empty; assert warning.
     """
     content_map: dict[str, str | None] = {"report.xlsx": "cont_abc"}
     code_blocks: list[CodeInterpreterBlock] = []
 
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        unmatched = _warn_unmatched_code_blocks(content_map, code_blocks)
+        _warn_unmatched_code_blocks(content_map, code_blocks)
 
-    assert unmatched == {"report.xlsx": "cont_abc"}
     assert any(
         "report.xlsx" in r.message and r.levelno == logging.WARNING
         for r in caplog.records
@@ -1647,8 +1642,7 @@ def test_warn_unmatched_code_blocks__no_warning__when_file_is_in_block(
     caplog,
 ) -> None:
     """
-    Purpose: Verify no WARNING and an empty dict returned when the file is correctly
-    matched to a code block.
+    Purpose: Verify no WARNING when the file is correctly matched to a code block.
     """
     content_map: dict[str, str | None] = {"chart.png": "cont_img1"}
     code_blocks = [
@@ -1663,26 +1657,23 @@ def test_warn_unmatched_code_blocks__no_warning__when_file_is_in_block(
     ]
 
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        unmatched = _warn_unmatched_code_blocks(content_map, code_blocks)
+        _warn_unmatched_code_blocks(content_map, code_blocks)
 
-    assert unmatched == {}
     assert not any(r.levelno == logging.WARNING for r in caplog.records)
 
 
 @pytest.mark.ai
 def test_warn_unmatched_code_blocks__skips_none_content_ids(caplog) -> None:
     """
-    Purpose: Verify files whose upload failed (content_id=None) are silently skipped
-    and not included in the returned dict.
+    Purpose: Verify files whose upload failed (content_id=None) are silently skipped.
     Why this matters: Upload failures are already handled upstream; no double warning.
     """
     content_map: dict[str, str | None] = {"broken.xlsx": None}
     code_blocks: list[CodeInterpreterBlock] = []
 
     with caplog.at_level(logging.WARNING, logger="unique_toolkit"):
-        unmatched = _warn_unmatched_code_blocks(content_map, code_blocks)
+        _warn_unmatched_code_blocks(content_map, code_blocks)
 
-    assert unmatched == {}
     assert not any(r.levelno == logging.WARNING for r in caplog.records)
 
 
