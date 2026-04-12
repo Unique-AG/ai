@@ -167,7 +167,7 @@ def _build_engine_config(
     if overrides:
         kwargs.update(overrides)
 
-    if "fetch_size" not in kwargs:
+    if "fetch_size" not in kwargs and "fetchSize" not in kwargs:
         kwargs["fetch_size"] = DEFAULT_FETCH_SIZE
 
     try:
