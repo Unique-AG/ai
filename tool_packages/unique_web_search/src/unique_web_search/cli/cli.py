@@ -130,7 +130,7 @@ Examples:
     "--parallel",
     "-p",
     default=10,
-    type=int,
+    type=click.IntRange(min=1),
     show_default=True,
     help="Number of URLs to crawl in parallel.",
 )
