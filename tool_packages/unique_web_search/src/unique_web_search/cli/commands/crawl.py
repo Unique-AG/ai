@@ -16,27 +16,20 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_PARALLEL = 10
 
 
-async def _crawl_batch(
-    crawler_config: CrawlerConfigTypes,
-    urls: list[str],
-) -> list[str]:
-    crawler = get_crawler_service(crawler_config)
-    return await crawler.crawl(urls)
-
-
 async def _crawl_with_parallelism(
     crawler_config: CrawlerConfigTypes,
     urls: list[str],
     parallel: int,
 ) -> list[tuple[str, str, str | None]]:
     """Crawl URLs in batches of *parallel*, returning (url, content, error) triples."""
+    crawler = get_crawler_service(crawler_config)
     results: list[tuple[str, str, str | None]] = []
     for i in range(0, len(urls), parallel):
         batch = urls[i : i + parallel]
         _LOGGER.info("Crawling batch %d–%d of %d", i + 1, i + len(batch), len(urls))
         try:
-            contents = await _crawl_batch(crawler_config, batch)
-            for url, content in zip(batch, contents):
+            contents = await crawler.crawl(batch)
+            for url, content in zip(batch, contents, strict=True):
                 results.append((url, content, None))
         except Exception as e:
             _LOGGER.warning("Batch %d–%d failed: %s", i + 1, i + len(batch), e)
