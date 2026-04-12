@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-04-11
+### Added
+- **`unique-websearch` CLI** with two-phase architecture for AI-assisted web search:
+  - **`search` subcommand** — queries the configured search engine and returns URLs with snippets; supports `--json` for machine-readable output and `--fetch-size/-n` to control result count
+  - **`crawl` subcommand** — fetches full page content for a list of URLs with configurable parallelism (`--parallel/-p`, default 10); accepts URLs as arguments or via `--stdin` for piping
+  - Engine and crawler auto-selected from `ACTIVE_SEARCH_ENGINES` / `ACTIVE_INHOUSE_CRAWLERS` environment variables
+  - Optional JSON config file (`~/.unique-websearch.json`) for non-secret overrides
+  - Agent skill documentation (`SKILL.md`) for AI-assisted two-phase workflow
+- `click` dependency for CLI framework
+
 ## [1.15.5] - 2026-04-10
 - Mark v3 as experimental
 

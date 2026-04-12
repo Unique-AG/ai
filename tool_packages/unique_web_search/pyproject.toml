@@ -1,6 +1,6 @@
 [project]
 name = "unique_web_search"
-version = "1.15.5"
+version = "1.16.0"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
@@ -32,7 +32,11 @@ dependencies = [
     "httpx>=0.28.1",
     "certifi>=2025.11.12",
     "jinja2>=3.1.6",
+    "click>=8.1.0,<9",
 ]
+
+[project.scripts]
+unique-websearch = "unique_web_search.cli.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.8.14,<0.9.0"]
