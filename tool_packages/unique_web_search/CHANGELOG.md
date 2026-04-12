@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.17.0] - 2026-04-11
+## [1.16.0] - 2026-04-11
 ### Added
 - **`unique-websearch` CLI** with two-phase architecture for AI-assisted web search:
   - **`search` subcommand** — queries the configured search engine and returns URLs with snippets; supports `--json` for machine-readable output and `--fetch-size/-n` to control result count
