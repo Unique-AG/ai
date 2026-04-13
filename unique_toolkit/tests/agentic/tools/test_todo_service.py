@@ -49,7 +49,7 @@ def ensure_todo_tool_registered():
     Other test modules may clear the ToolFactory state, which removes the
     registration that happened at module import time.
     """
-    if "todo_write" not in ToolFactory.tool_config_map:
+    if "TodoWrite" not in ToolFactory.tool_config_map:
         ToolFactory.register_tool(TodoWriteTool, TodoConfig)
     yield
 
@@ -364,7 +364,7 @@ class TestTodoWriteTool:
 
         response = await tool.run(tc)
 
-        assert response.name == "todo_write"
+        assert response.name == "TodoWrite"
         assert "Research APIs" in response.content
         assert "Write code" in response.content
         assert "0/2 completed" in response.content
@@ -565,9 +565,8 @@ class TestLogStep:
         calls = (
             tool._message_step_logger.create_or_update_message_log_async.call_args_list
         )
-        assert len(calls) == 2  # plan + progress
+        assert len(calls) == 1
         assert calls[0][1]["header"] == "Progress"
-        assert calls[1][1]["header"] == "Progress"
 
     @pytest.mark.asyncio
     async def test_plan_log_shows_numbered_items_with_icons(self) -> None:
@@ -630,87 +629,12 @@ class TestLogStep:
 
         plan_kwargs = (
             tool._message_step_logger.create_or_update_message_log_async.call_args_list[
-                2
+                1
             ][1]
         )
         expected = "1/2 completed\n✓ 1. Research APIs\n→ 2. Writing code"
         assert plan_kwargs["progress_message"] == expected
         assert plan_kwargs["active_message_log"] is sentinel
-
-    @pytest.mark.asyncio
-    async def test_progress_log_shows_compact_format(self) -> None:
-        """Progress entry shows active_form + counts."""
-        tool = _make_tool()
-        tc = _make_tool_call(
-            {
-                "todos": [
-                    _tc_item(
-                        "t1",
-                        "in_progress",
-                        content="Search docs",
-                        active_form="Searching documents",
-                    ),
-                    _tc_item("t2", "pending", content="Write report"),
-                ],
-                "merge": False,
-            }
-        )
-
-        await tool.run(tc)
-
-        progress_kwargs = (
-            tool._message_step_logger.create_or_update_message_log_async.call_args_list[
-                1
-            ][1]
-        )
-        assert (
-            progress_kwargs["progress_message"] == "Searching documents (0/2 completed)"
-        )
-
-    @pytest.mark.asyncio
-    async def test_progress_log_shows_counts_when_no_in_progress(self) -> None:
-        """When no item is in_progress, progress entry shows counts only."""
-        tool = _make_tool()
-        tc = _make_tool_call(
-            {
-                "todos": [
-                    _tc_item("t1", "completed", content="Done"),
-                    _tc_item("t2", "pending", content="Todo"),
-                ],
-                "merge": False,
-            }
-        )
-
-        await tool.run(tc)
-
-        progress_kwargs = (
-            tool._message_step_logger.create_or_update_message_log_async.call_args_list[
-                1
-            ][1]
-        )
-        assert progress_kwargs["progress_message"] == "1/2 completed"
-
-    @pytest.mark.asyncio
-    async def test_progress_log_falls_back_to_content_without_active_form(self) -> None:
-        """When in_progress item lacks active_form, progress shows content."""
-        tool = _make_tool()
-        tc = _make_tool_call(
-            {
-                "todos": [
-                    _tc_item("t1", "in_progress", content="Search docs"),
-                ],
-                "merge": False,
-            }
-        )
-
-        await tool.run(tc)
-
-        progress_kwargs = (
-            tool._message_step_logger.create_or_update_message_log_async.call_args_list[
-                1
-            ][1]
-        )
-        assert progress_kwargs["progress_message"] == "Search docs (0/1 completed)"
 
     @pytest.mark.asyncio
     async def test_status_running_when_active_items(self) -> None:
@@ -778,8 +702,8 @@ class TestLogStep:
         assert "✓ 2. Done" in plan_kwargs["progress_message"]
 
     @pytest.mark.asyncio
-    async def test_reuses_both_logs_across_calls(self) -> None:
-        """Second run() passes both plan and progress logs as active_message_log."""
+    async def test_reuses_plan_log_across_calls(self) -> None:
+        """Second run() passes the plan log as active_message_log."""
         tool = _make_tool()
         sentinel = MagicMock()
         tool._message_step_logger.create_or_update_message_log_async.return_value = (
@@ -805,12 +729,8 @@ class TestLogStep:
         calls = (
             tool._message_step_logger.create_or_update_message_log_async.call_args_list
         )
-        # 2 calls per run = 4 total
-        assert len(calls) == 4
-        # Second run's plan call reuses sentinel
-        assert calls[2][1]["active_message_log"] is sentinel
-        # Second run's progress call reuses sentinel
-        assert calls[3][1]["active_message_log"] is sentinel
+        assert len(calls) == 2
+        assert calls[1][1]["active_message_log"] is sentinel
 
     @pytest.mark.asyncio
     async def test_log_step_failure_does_not_break_run(self) -> None:
@@ -837,14 +757,14 @@ class TestTodoWriteToolConfig:
     def test_tool_registration(self) -> None:
         from unique_toolkit.agentic.tools.factory import ToolFactory
 
-        assert "todo_write" in ToolFactory.tool_map
+        assert "TodoWrite" in ToolFactory.tool_map
 
     def test_default_system_prompt(self) -> None:
         tool = _make_tool()
         prompt = tool.tool_description_for_system_prompt()
         expected = render_template(SYSTEM_PROMPT_TEMPLATE, parallel_mode=False)
         assert prompt == expected
-        assert "todo_write" in prompt
+        assert "TodoWrite" in prompt
 
     def test_custom_system_prompt(self) -> None:
         config = TodoConfig(system_prompt="Custom system prompt here")
@@ -875,7 +795,7 @@ class TestTodoWriteToolConfig:
     def test_tool_description(self) -> None:
         tool = _make_tool()
         desc = tool.tool_description()
-        assert desc.name == "todo_write"
+        assert desc.name == "TodoWrite"
         assert "progress" in desc.description.lower()
 
     def test_evaluation_check_list_empty(self) -> None:
@@ -1120,11 +1040,11 @@ class TestParallelModeConfig:
     def test_sequential_execution_reminder(self) -> None:
         rendered = render_template(EXECUTION_REMINDER_TEMPLATE, parallel_mode=False)
         assert "Mark exactly one item" in rendered
-        assert "todo_write call alongside" not in rendered
+        assert "TodoWrite call alongside" not in rendered
 
     def test_parallel_execution_reminder(self) -> None:
         rendered = render_template(EXECUTION_REMINDER_TEMPLATE, parallel_mode=True)
-        assert "todo_write call alongside" in rendered
+        assert "TodoWrite call alongside" in rendered
         assert "Mark exactly one item" not in rendered
 
     def test_tool_uses_parallel_description(self) -> None:
@@ -1136,8 +1056,8 @@ class TestParallelModeConfig:
     def test_tool_uses_parallel_system_prompt(self) -> None:
         tool = _make_tool(config=TodoConfig(parallel_mode=True))
         prompt = tool.tool_description_for_system_prompt()
-        assert "parallel" in prompt.lower()
-        assert "Mark exactly ONE item as in_progress at a time" not in prompt
+        assert "Mark multiple items in_progress simultaneously" in prompt
+        assert "Mark exactly ONE item" not in prompt
 
     @pytest.mark.asyncio
     async def test_tool_uses_parallel_reminder_in_response(self) -> None:

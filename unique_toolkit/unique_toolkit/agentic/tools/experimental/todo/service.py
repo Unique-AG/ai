@@ -61,7 +61,6 @@ class TodoWriteTool(Tool[TodoConfig]):
         )
         self._cached_state: TodoList | None = None
         self._plan_log: MessageLog | None = None
-        self._message_log: MessageLog | None = None
 
     def display_name(self) -> str:
         return self.config.display_name
@@ -170,62 +169,37 @@ class TodoWriteTool(Tool[TodoConfig]):
         )
 
     async def _log_step(self, state: TodoList) -> None:
-        """Write Steps panel entries summarising the current todo state.
+        """Write a single Steps panel entry summarising the current todo state.
 
-        Maintains two entries:
-        - A *plan* log created on the first call showing a numbered list of
-          all items. This entry persists and is updated with status indicators
-          (✓/→/○) so the user always sees the full picture.
-        - A *progress* log showing compact status: the active_form of the
-          current in-progress item plus a completion count.
+        Shows a numbered list of all items with status indicators (✓/→/○)
+        and a completion count header. In-progress items display their
+        ``active_form`` (present-continuous description) when available.
         """
         try:
             counts = state.status_counts()
             completed = counts.get("completed", 0)
             total = len(state.todos)
 
+            if total == 0:
+                return
+
             all_done = not counts.get("in_progress") and not counts.get("pending")
 
-            if total > 0:
-                lines = []
-                for i, t in enumerate(state.todos, 1):
-                    icon = _STATUS_ICON.get(t.status, "○")
-                    if t.status == TodoStatus.IN_PROGRESS:
-                        label = t.active_form or t.content
-                    else:
-                        label = t.content
-                    lines.append(f"{icon} {i}. {label}")
-                plan_text = "\n".join(lines)
+            lines = []
+            for i, t in enumerate(state.todos, 1):
+                icon = _STATUS_ICON.get(t.status, "○")
+                if t.status == TodoStatus.IN_PROGRESS:
+                    label = t.active_form or t.content
+                else:
+                    label = t.content
+                lines.append(f"{icon} {i}. {label}")
+            plan_text = "\n".join(lines)
 
-                self._plan_log = (
-                    await self._message_step_logger.create_or_update_message_log_async(
-                        active_message_log=self._plan_log,
-                        header=self.display_name(),
-                        progress_message=f"{completed}/{total} completed\n{plan_text}",
-                        status=(
-                            MessageLogStatus.COMPLETED
-                            if all_done
-                            else MessageLogStatus.RUNNING
-                        ),
-                    )
-                )
-
-            counts_text = f"{completed}/{total} completed"
-            in_progress_items = [
-                t for t in state.todos if t.status == TodoStatus.IN_PROGRESS
-            ]
-            if in_progress_items:
-                active = in_progress_items[0]
-                activity = active.active_form or active.content
-                progress = f"{activity} ({counts_text})"
-            else:
-                progress = counts_text
-
-            self._message_log = (
+            self._plan_log = (
                 await self._message_step_logger.create_or_update_message_log_async(
-                    active_message_log=self._message_log,
+                    active_message_log=self._plan_log,
                     header=self.display_name(),
-                    progress_message=progress,
+                    progress_message=f"{completed}/{total} completed\n{plan_text}",
                     status=(
                         MessageLogStatus.COMPLETED
                         if all_done

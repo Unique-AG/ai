@@ -12,40 +12,9 @@ from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
 
 class TodoConfig(BaseToolConfig):
-    """Configuration for the todo tracking tool.
-
-    Prompt fields default to built-in Jinja templates that accept
-    ``parallel_mode`` as a variable. Edit via the admin UI
-    (Experimental Settings) to customize; custom values are also
-    rendered as Jinja templates with the same context.
-    """
-
-    parallel_mode: Annotated[
-        bool,
-        RJSFMetaTag.BooleanWidget.checkbox(
-            help=(
-                "When enabled, the agent may combine todo_write with other "
-                "tool calls in the same turn and mark multiple items "
-                "in_progress simultaneously. When disabled (default), the "
-                "agent works through items one at a time with sequential "
-                "status updates."
-            ),
-        ),
-    ] = Field(
-        default=False,
-        description="Allow parallel todo updates alongside other tool calls.",
-    )
-
-    verification_threshold: int = Field(
-        default=0,
-        ge=0,
-        description="After this many tasks complete without a verification step, "
-        "nudge the agent to verify its work. Set to 0 to disable.",
-    )
-
     display_name: str = Field(
         default="Progress",
-        description="Human-readable label shown in the UI (Steps panel, tool progress).",
+        description="Human-readable label for task tracking shown in the Steps panel.",
     )
 
     tool_description: Annotated[
@@ -53,7 +22,7 @@ class TodoConfig(BaseToolConfig):
         RJSFMetaTag.StringWidget.textarea(rows=3),
     ] = Field(
         default=TOOL_DESCRIPTION_TEMPLATE,
-        description="Jinja template for the tool description passed to the LLM. "
+        description="Edit this Jinja template to customize the tool description passed to the LLM."
         "Available variable: parallel_mode (bool).",
     )
 
@@ -62,7 +31,7 @@ class TodoConfig(BaseToolConfig):
         RJSFMetaTag.StringWidget.textarea(rows=15),
     ] = Field(
         default=SYSTEM_PROMPT_TEMPLATE,
-        description="Jinja template for the system prompt injected for todo tracking. "
+        description="Edit this Jinja template to customize the system prompt injected for task tracking. "
         "Available variable: parallel_mode (bool).",
     )
 
@@ -71,6 +40,45 @@ class TodoConfig(BaseToolConfig):
         RJSFMetaTag.StringWidget.textarea(rows=5),
     ] = Field(
         default=EXECUTION_REMINDER_TEMPLATE,
-        description="Jinja template for the reminder appended to tool responses "
+        description="Edit this Jinja template to customize the reminder appended to tool responses "
         "during execution phase. Available variable: parallel_mode (bool).",
+    )
+
+    parallel_mode: Annotated[
+        bool,
+        RJSFMetaTag.BooleanWidget.checkbox(
+            help=(
+                "When enabled, the agent may combine task tracking with other "
+                "tool calls in the same turn and mark multiple items "
+                "in_progress simultaneously. When disabled (default), the "
+                "agent works through items one at a time with sequential "
+                "status updates."
+            ),
+        ),
+    ] = Field(
+        default=False,
+        title="Track tasks alongside other tool calls",
+        description="Parallel Mode for Task Tracking",
+    )
+
+    show_triggered_tool_calls: Annotated[
+        bool,
+        RJSFMetaTag.BooleanWidget.checkbox(
+            help=(
+                "Show 'Triggered Tool Calls' entries in the Steps panel "
+                "listing which tools the agent called each iteration. "
+            ),
+        ),
+    ] = Field(
+        default=True,
+        title="Display triggered tool calls in the Steps panel",
+        description="Display Triggered Tool Calls",
+    )
+
+    verification_threshold: int = Field(
+        default=0,
+        ge=0,
+        title="Verification Nudge",
+        description="If the agent completes these many tasks without verifying its work, "
+        "nudge it to verify. Set to 0 to disable.",
     )
