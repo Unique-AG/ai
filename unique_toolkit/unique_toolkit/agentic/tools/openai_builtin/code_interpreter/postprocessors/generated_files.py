@@ -92,6 +92,19 @@ class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
         "Applies per SDK attempt. The OpenAI SDK default of 600s is too generous "
         "for small generated files; a shorter timeout lets us retry sooner.",
     )
+    download_connect_timeout: float = Field(
+        default=30.0,
+        description="HTTP connect timeout in seconds for container file downloads. "
+        "Increased from the old hard-coded 5 s because OpenAI's container storage "
+        "can be slow to accept new connections when files are large.",
+    )
+    initial_download_delay_seconds: float = Field(
+        default=0.0,
+        description="Seconds to wait before the very first download attempt for each "
+        "container file. Can be set to a positive value if files are observed to be "
+        "not immediately available in OpenAI container storage after a response is "
+        "returned (e.g. in environments with high latency to the container API).",
+    )
 
 
 class _ContentInfo(NamedTuple):
@@ -704,7 +717,16 @@ class DisplayCodeInterpreterFilesPostProcessor(
                     container_file.filename, "uploading", force_publish=True
                 )
 
-            mime = guess_type(container_file.filename)[0] or "text/plain"
+            raw_mime = guess_type(container_file.filename)[0] or "text/plain"
+            mime = _kb_safe_mime(raw_mime)
+            if mime != raw_mime:
+                self._log.info(
+                    "MIME type '%s' is not supported by the Unique KB; "
+                    "uploading '%s' as '%s' so the file can be stored and downloaded.",
+                    raw_mime,
+                    container_file.filename,
+                    mime,
+                )
             self._log.info(
                 "Uploading '%s' to knowledge base (mime=%s, %d bytes)",
                 container_file.filename,
@@ -783,6 +805,16 @@ class DisplayCodeInterpreterFilesPostProcessor(
             ticker_task = asyncio.create_task(_ticker())
 
         try:
+            if self._config.initial_download_delay_seconds > 0:
+                self._log.info(
+                    "Waiting %.1fs before first download attempt for '%s' "
+                    "(initial_download_delay — gives OpenAI container storage "
+                    "time to commit the file)",
+                    self._config.initial_download_delay_seconds,
+                    container_file.filename,
+                )
+                await asyncio.sleep(self._config.initial_download_delay_seconds)
+
             for attempt_num in range(1, max_attempts + 1):
                 retry_num = attempt_num - 1
                 try:
@@ -848,20 +880,44 @@ class DisplayCodeInterpreterFilesPostProcessor(
         t0 = time.monotonic()
         async with self._client.with_options(
             max_retries=0,
-            timeout=httpx.Timeout(5.0, read=self._config.download_read_timeout),
+            timeout=httpx.Timeout(
+                self._config.download_connect_timeout,
+                read=self._config.download_read_timeout,
+            ),
         ).containers.files.content.with_streaming_response.retrieve(
             file_id=container_file.file_id,
             container_id=container_file.container_id,
         ) as response:
             first_byte_ms = (time.monotonic() - t0) * 1000
+            status = response.status_code
             self._log.info(
                 "Stream opened for '%s' — first-byte latency=%.0fms, "
                 "content-length=%s, status=%s",
                 container_file.filename,
                 first_byte_ms,
                 response.headers.get("content-length", "unknown"),
-                response.status_code,
+                status,
             )
+            if status != 200:
+                body_preview = ""
+                try:
+                    raw = await response.response.aread()
+                    body_preview = raw[:200].decode("utf-8", errors="replace")
+                except Exception:
+                    pass
+                self._log.error(
+                    "Unexpected HTTP %d for container file '%s' "
+                    "(file_id=%s, container_id=%s). Body preview: %r",
+                    status,
+                    container_file.filename,
+                    container_file.file_id,
+                    container_file.container_id,
+                    body_preview,
+                )
+                raise RuntimeError(
+                    f"Container file download returned HTTP {status} for "
+                    f"'{container_file.filename}'"
+                )
             content_length = response.headers.get("content-length")
             total = int(content_length) if content_length else None
             chunks: list[bytes] = []
@@ -1029,6 +1085,53 @@ def _get_file_type(filename: str) -> CodeInterpreterFileType:
     if mime == "text/html":
         return "html"
     return "document"
+
+
+# MIME types that the Unique KB GraphQL API accepts for upload.
+# Anything outside this set must be coerced to "text/plain" before upload;
+# otherwise the backend returns [GraphQL] Invalid file type (UN-19267).
+_KB_SUPPORTED_MIMES: frozenset[str] = frozenset(
+    {
+        # Plain text / markup
+        "text/plain",
+        "text/html",
+        "text/csv",
+        # Documents
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        # Spreadsheets
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        # Presentations
+        "application/vnd.ms-powerpoint",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        # Images
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/gif",
+        "image/webp",
+        "image/svg+xml",
+    }
+)
+
+
+def _kb_safe_mime(mime: str) -> str:
+    """Return a MIME type the Unique KB will accept.
+
+    The KB GraphQL API rejects many code-file MIME types (e.g. ``text/x-python``
+    for ``.py`` files, ``application/javascript`` for ``.js`` files).  Any MIME
+    type not in ``_KB_SUPPORTED_MIMES`` is coerced to ``text/plain`` so the file
+    can be stored and downloaded without modification to its byte content.
+
+    Image MIME types are always accepted (``image/*``).
+    """
+    if mime in _KB_SUPPORTED_MIMES:
+        return mime
+    if mime.startswith("image/"):
+        return mime
+    return "text/plain"
 
 
 def _file_title(filename: str) -> str:
