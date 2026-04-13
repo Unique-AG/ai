@@ -84,7 +84,9 @@ class InternalSearchRequestMeta(BaseModel):
 
     @property
     def chat_content_ids(self) -> list[str] | None:
-        return self.selected_uploaded_file_ids or self.content_ids
+        if self.selected_uploaded_file_ids is not None:
+            return self.selected_uploaded_file_ids
+        return self.content_ids
 
     @property
     def knowledge_base_content_ids(self) -> list[str] | None:
