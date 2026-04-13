@@ -22,6 +22,8 @@ async def _crawl_with_parallelism(
     parallel: int,
 ) -> list[tuple[str, str, str | None]]:
     """Crawl URLs in batches of *parallel*, returning (url, content, error) triples."""
+    if parallel < 1:
+        raise ValueError(f"parallel must be >= 1, got {parallel}")
     crawler = get_crawler_service(crawler_config)
     results: list[tuple[str, str, str | None]] = []
     for i in range(0, len(urls), parallel):
