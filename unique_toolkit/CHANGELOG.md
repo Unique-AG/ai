@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.71.0] - 2026-04-13
+- Add `is_ingested` helper method on `Content`
+
 ## [1.70.8] - 2026-04-13
 ### Fixed
 - Code interpreter generated-files postprocessor (`generated_files.py`): coerce container-file uploads to KB-safe MIME types (e.g. `.py` as `text/plain`) so Unique GraphQL no longer rejects uploads with `Invalid file type` (UN-19267)
