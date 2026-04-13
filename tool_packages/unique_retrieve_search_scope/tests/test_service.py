@@ -9,7 +9,7 @@ from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.content.schemas import ContentInfo
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
-from unique_retrieve_search_scope.config import RetrieveSearchScopeConfig
+from unique_retrieve_search_scope.config import DisplayMode, RetrieveSearchScopeConfig
 from unique_retrieve_search_scope.service import RetrieveSearchScopeTool
 
 _KB_SERVICE_PATH = (
@@ -75,6 +75,7 @@ def mock_tool_call() -> LanguageModelFunction:
 def _stub_kb(
     mocker: MockerFixture,
     content_infos=None,
+    resolved_paths=None,
     side_effect=None,
     space_metadata_filter=None,
 ):
@@ -83,9 +84,13 @@ def _stub_kb(
     mock_kb._metadata_filter = space_metadata_filter
     if side_effect:
         mock_kb.get_content_infos_async = AsyncMock(side_effect=side_effect)
+        mock_kb.resolve_visible_file_paths_async = AsyncMock(side_effect=side_effect)
     else:
         mock_kb.get_content_infos_async = AsyncMock(
             return_value=content_infos if content_infos is not None else []
+        )
+        mock_kb.resolve_visible_file_paths_async = AsyncMock(
+            return_value=resolved_paths if resolved_paths is not None else []
         )
     mocker.patch(_KB_SERVICE_PATH, return_value=mock_kb)
     return mock_kb
@@ -407,6 +412,121 @@ class TestHistoryGuard:
             await tool.run(mock_tool_call)
 
         assert "Could not check history for prior tool calls" in caplog.text
+
+
+@pytest.mark.unit
+class TestTreeMode:
+    async def test_files_with_folder_paths(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.display_mode = DisplayMode.tree
+        ci = _make_content_info("report.pdf", id="cont_1")
+        _stub_kb(mocker, resolved_paths=[(ci, ["Documents", "Reports", "report.pdf"])])
+        response = await tool.run(mock_tool_call)
+
+        assert "Documents/Reports/report.pdf (cont_1)" in response.content
+
+    async def test_file_without_folder_path_has_no_prefix(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.display_mode = DisplayMode.tree
+        ci = _make_content_info("orphan.txt", mime_type="text/plain")
+        _stub_kb(mocker, resolved_paths=[(ci, ["_no_folder_path", "orphan.txt"])])
+        response = await tool.run(mock_tool_call)
+
+        file_section = response.content.split("\n\n", 1)[1]
+        assert file_section.strip() == "orphan.txt"
+        assert "_no_folder_path" not in response.content
+
+    async def test_openable_file_with_folder_path_includes_content_id(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.display_mode = DisplayMode.tree
+        ci = _make_content_info("doc.pdf", id="cont_123")
+        _stub_kb(mocker, resolved_paths=[(ci, ["Folder", "doc.pdf"])])
+        response = await tool.run(mock_tool_call)
+
+        assert "Folder/doc.pdf (cont_123)" in response.content
+
+    async def test_single_element_path_has_no_folder_prefix(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.display_mode = DisplayMode.tree
+        ci = _make_content_info("lonely.txt", mime_type="text/plain")
+        _stub_kb(mocker, resolved_paths=[(ci, ["lonely.txt"])])
+        response = await tool.run(mock_tool_call)
+
+        file_section = response.content.split("\n\n", 1)[1]
+        assert file_section.strip() == "lonely.txt"
+        assert "/" not in file_section.strip()
+
+    async def test_same_folder_same_name_different_ids_both_kept(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.display_mode = DisplayMode.tree
+        ci_1 = _make_content_info("report.pdf", id="cont_1")
+        ci_2 = _make_content_info("report.pdf", id="cont_2")
+        _stub_kb(
+            mocker,
+            resolved_paths=[
+                (ci_1, ["Docs", "report.pdf"]),
+                (ci_2, ["Docs", "report.pdf"]),
+            ],
+        )
+        response = await tool.run(mock_tool_call)
+
+        assert "Docs/report.pdf (cont_1)" in response.content
+        assert "Docs/report.pdf (cont_2)" in response.content
+
+    async def test_calls_resolve_visible_file_paths_async(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.display_mode = DisplayMode.tree
+        space_filter = {"key": {"eq": "val"}}
+        mock_kb = _stub_kb(mocker, resolved_paths=[], space_metadata_filter=space_filter)
+        await tool.run(mock_tool_call)
+
+        mock_kb.resolve_visible_file_paths_async.assert_called_once_with(
+            metadata_filter=space_filter,
+        )
+        mock_kb.get_content_infos_async.assert_not_called()
+
+
+@pytest.mark.unit
+class TestModeBranching:
+    async def test_flat_mode_calls_get_content_infos_async(
+        self,
+        tool: RetrieveSearchScopeTool,
+        mock_tool_call: LanguageModelFunction,
+        mocker: MockerFixture,
+    ):
+        tool.config.display_mode = DisplayMode.flat
+        space_filter = {"key": {"eq": "val"}}
+        mock_kb = _stub_kb(mocker, content_infos=[], space_metadata_filter=space_filter)
+        await tool.run(mock_tool_call)
+
+        mock_kb.get_content_infos_async.assert_called_once_with(
+            metadata_filter=space_filter,
+        )
+        mock_kb.resolve_visible_file_paths_async.assert_not_called()
 
 
 @pytest.mark.unit

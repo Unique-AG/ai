@@ -8,13 +8,23 @@ from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.chat.service import LanguageModelToolDescription
+from unique_toolkit.content.schemas import ContentInfo
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 from unique_toolkit.services.factory import UniqueServiceFactory
+from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 from unique_retrieve_search_scope.config import DisplayMode, RetrieveSearchScopeConfig
 
 _LOGGER = getLogger(__name__)
 
+_OPENABLE_MIME_PREFIXES = (
+    "application/pdf",
+    "application/msword",
+    "application/vnd.ms-word",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml",
+    "application/vnd.openxmlformats-officedocument.presentationml",
+)
 
 class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
     name = "RetrieveSearchScope"
@@ -64,6 +74,36 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
             _LOGGER.debug("Could not check history for prior tool calls", exc_info=True)
         return False
 
+    @staticmethod
+    def _format_entry(ci: ContentInfo, prefix: str = "") -> str:
+        if ci.mime_type.startswith(_OPENABLE_MIME_PREFIXES) and ci.id:
+            name_part = f"{ci.key} ({ci.id})"
+        else:
+            name_part = ci.key
+        return f"{prefix}/{name_part}" if prefix else name_part
+
+    async def _build_flat_entries(
+        self, kb_service: KnowledgeBaseService
+    ) -> list[str]:
+        content_infos = await kb_service.get_content_infos_async(
+            metadata_filter=kb_service._metadata_filter,
+        )
+        return [self._format_entry(ci) for ci in content_infos]
+
+    async def _build_tree_entries(
+        self, kb_service: KnowledgeBaseService
+    ) -> list[str]:
+        resolved = await kb_service.resolve_visible_file_paths_async(
+            metadata_filter=kb_service._metadata_filter,
+        )
+        entries: list[str] = []
+        for ci, path_segments in resolved:
+            folder_path = "/".join(
+                seg for seg in path_segments[:-1] if seg != "_no_folder_path"
+            )
+            entries.append(self._format_entry(ci, prefix=folder_path))
+        return entries
+
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         if await self._has_prior_response_in_history():
@@ -80,9 +120,10 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
                 settings=settings
             ).knowledge_base_service()
 
-            content_infos = await kb_service.get_content_infos_async(
-                metadata_filter=kb_service._metadata_filter,
-            )
+            if self.config.display_mode == DisplayMode.tree:
+                raw_entries = await self._build_tree_entries(kb_service)
+            else:
+                raw_entries = await self._build_flat_entries(kb_service)
         except Exception:
             _LOGGER.exception("Failed to retrieve content infos from knowledge base")
             return ToolCallResponse(
@@ -91,22 +132,11 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
                 error_message="Failed to retrieve file list from the knowledge base.",
             )
 
-        openable_mime_prefixes = (
-            "application/pdf",
-            "application/msword",
-            "application/vnd.ms-word",
-            "application/vnd.ms-powerpoint",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml",
-            "application/vnd.openxmlformats-officedocument.presentationml",
-        )
-
-        total_files = len(content_infos)
+        total_files = len(raw_entries)
 
         max_input_tokens = self.config.language_model_max_input_tokens
-
-
         if max_input_tokens is None:
-            _LOGGER.warning("language_model_max_input_tokens not set, returning full file list")
+            _LOGGER.warning("language_model_max_input_tokens not set")
             return ToolCallResponse(
                 id=tool_call.id or "unknown_id",
                 name=self.name,
@@ -119,22 +149,17 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
         token_count = 0
         seen: set[str] = set()
         display_entries: list[str] = []
-        for ci in content_infos:
-            if ci.mime_type.startswith(openable_mime_prefixes) and ci.id:
-                display_entry = f"{ci.key} ({ci.id})"
-            else:
-                display_entry = ci.key
-
-            if display_entry in seen:
+        for entry in raw_entries:
+            if entry in seen:
                 continue
-            seen.add(display_entry)
+            seen.add(entry)
 
             # Uses default cl100k_base tokenizer (not model-specific). Acceptable
             # for short file names where the difference is negligible.
-            entry_tokens = count_tokens(display_entry)
+            entry_tokens = count_tokens(entry)
             if token_count + entry_tokens > token_budget:
                 break
-            display_entries.append(display_entry)
+            display_entries.append(entry)
             token_count += entry_tokens
 
         if not display_entries:
