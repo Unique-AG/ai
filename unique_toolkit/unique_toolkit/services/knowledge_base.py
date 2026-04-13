@@ -819,15 +819,17 @@ class KnowledgeBaseService:
         """
         scope_ids: set[str] = set()
         for content_info in content_infos:
-            metadata = content_info.metadata
             if (
-                metadata
-                and (folder_id_path := metadata.get("folderIdPath")) is not None
+                content_info.metadata
+                and (folder_id_path := content_info.metadata.get("folderIdPath"))
+                is not None
                 and isinstance(folder_id_path, str)
             ):
-                for sid in folder_id_path.replace("uniquepathid://", "").split("/"):
-                    if sid:
-                        scope_ids.add(sid)
+                scope_ids.update(
+                    sid
+                    for sid in folder_id_path.replace("uniquepathid://", "").split("/")
+                    if sid
+                )
         return scope_ids
 
     async def _translate_scope_id_async(self, scope_id: str) -> str | None:
@@ -899,11 +901,10 @@ class KnowledgeBaseService:
 
         resolved: list[tuple[ContentInfo, list[str]]] = []
         for content_info in content_infos:
-            metadata = content_info.metadata
-
             if (
-                metadata
-                and (folder_id_path := metadata.get("folderIdPath")) is not None
+                content_info.metadata
+                and (folder_id_path := content_info.metadata.get("folderIdPath"))
+                is not None
                 and isinstance(folder_id_path, str)
             ):
                 file_path = [
