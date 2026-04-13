@@ -113,8 +113,12 @@ class TodoList(BaseModel):
         return f"Task list ({summary}):\n" + "\n".join(self._format_lines())
 
     def status_counts(self) -> dict[str, int]:
-        """Return a dict of status counts for debug_info and logging."""
-        return Counter(t.status.value for t in self.todos)
+        """Return a dict of status counts including total and all statuses."""
+        counts = Counter(t.status.value for t in self.todos)
+        for s in TodoStatus:
+            counts.setdefault(s.value, 0)
+        counts["total"] = len(self.todos)
+        return dict(counts)
 
     def _format_lines(self) -> list[str]:
         return [

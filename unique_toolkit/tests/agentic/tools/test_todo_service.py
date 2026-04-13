@@ -143,6 +143,7 @@ class TestTodoList:
         assert counts["in_progress"] == 1
         assert counts["completed"] == 1
         assert counts["cancelled"] == 1
+        assert counts["total"] == 5
 
 
 class TestTodoListUpdate:
