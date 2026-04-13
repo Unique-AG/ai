@@ -47,7 +47,9 @@ def mock_chat_event() -> ChatEvent:
 
 @pytest.fixture
 def tool(mock_chat_event: ChatEvent, mocker: MockerFixture) -> RetrieveSearchScopeTool:
-    config = RetrieveSearchScopeConfig(language_model_max_input_tokens=_DEFAULT_TOKEN_LIMIT)
+    config = RetrieveSearchScopeConfig(
+        language_model_max_input_tokens=_DEFAULT_TOKEN_LIMIT
+    )
 
     def setup_tool(self, configuration, event, *args, **kwargs):
         setattr(self, "_event", event)
@@ -312,7 +314,11 @@ class TestTokenTruncation:
         tool.config.language_model_max_input_tokens = 1
         _stub_kb(
             mocker,
-            [_make_content_info("some_file.docx", mime_type="application/msword", id="cont_1")],
+            [
+                _make_content_info(
+                    "some_file.docx", mime_type="application/msword", id="cont_1"
+                )
+            ],
         )
         response = await tool.run(mock_tool_call)
 
@@ -408,7 +414,9 @@ class TestHistoryGuard:
         tool._chat_service = mock_chat_service
 
         _stub_kb(mocker, [])
-        with caplog.at_level(logging.DEBUG, logger="unique_retrieve_search_scope.service"):
+        with caplog.at_level(
+            logging.DEBUG, logger="unique_retrieve_search_scope.service"
+        ):
             await tool.run(mock_tool_call)
 
         assert "Could not check history for prior tool calls" in caplog.text
@@ -501,7 +509,9 @@ class TestTreeMode:
     ):
         tool.config.display_mode = DisplayMode.tree
         space_filter = {"key": {"eq": "val"}}
-        mock_kb = _stub_kb(mocker, resolved_paths=[], space_metadata_filter=space_filter)
+        mock_kb = _stub_kb(
+            mocker, resolved_paths=[], space_metadata_filter=space_filter
+        )
         await tool.run(mock_tool_call)
 
         mock_kb.resolve_visible_file_paths_async.assert_called_once_with(

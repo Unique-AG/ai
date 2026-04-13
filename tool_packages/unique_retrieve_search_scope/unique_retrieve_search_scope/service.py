@@ -26,6 +26,7 @@ _OPENABLE_MIME_PREFIXES = (
     "application/vnd.openxmlformats-officedocument.presentationml",
 )
 
+
 class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
     name = "RetrieveSearchScope"
     default_display_name = "Retrieve Search Scope"
@@ -82,17 +83,13 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
             name_part = ci.key
         return f"{prefix}/{name_part}" if prefix else name_part
 
-    async def _build_flat_entries(
-        self, kb_service: KnowledgeBaseService
-    ) -> list[str]:
+    async def _build_flat_entries(self, kb_service: KnowledgeBaseService) -> list[str]:
         content_infos = await kb_service.get_content_infos_async(
             metadata_filter=kb_service._metadata_filter,
         )
         return [self._format_entry(ci) for ci in content_infos]
 
-    async def _build_tree_entries(
-        self, kb_service: KnowledgeBaseService
-    ) -> list[str]:
+    async def _build_tree_entries(self, kb_service: KnowledgeBaseService) -> list[str]:
         resolved = await kb_service.resolve_visible_file_paths_async(
             metadata_filter=kb_service._metadata_filter,
         )

@@ -10,8 +10,10 @@ from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 
 class DisplayMode(str, Enum):
     """How the file list is presented to the agent."""
+
     flat = "flat"
     tree = "tree"
+
 
 DEFAULT_TOOL_DESCRIPTION = (
     "Retrieves the list of all file names that are currently searchable "
@@ -71,8 +73,6 @@ class RetrieveSearchScopeConfig(BaseToolConfig):
             "'tree' returns the full folder hierarchy."
         ),
     )
-
-    
 
     tool_description: Annotated[
         str,
