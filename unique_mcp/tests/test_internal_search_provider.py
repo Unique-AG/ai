@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from mcp.types import TextContent
 from pydantic import SecretStr
 from unique_toolkit.app.unique_settings import (
     AuthContext,
@@ -11,7 +11,10 @@ from unique_toolkit.app.unique_settings import (
     UniqueApp,
     UniqueSettings,
 )
-from unique_toolkit.components.internal_search.base.schemas import InternalSearchState
+from unique_toolkit.components.internal_search.base.schemas import (
+    InternalSearchResult,
+    InternalSearchState,
+)
 from unique_toolkit.components.internal_search.knowledge_base.schemas import (
     KnowledgeBaseInternalSearchState,
 )
@@ -134,11 +137,12 @@ def test_provider__format_result_returns_chunk_text_and_meta():
     chunk = ContentChunk(chunk_id="c1", text="chunk text", start_page=1, end_page=1)
     result = _format_tool_result(
         config=KnowledgeBaseInternalSearchMcpConfig(),
-        result=SimpleNamespace(
+        result=InternalSearchResult(
             chunks=[chunk],
             debug_info={"searchStrings": ["chunk"]},
         ),
     )
 
+    assert isinstance(result.content[0], TextContent)
     assert result.content[0].text == "chunk text"
     assert result.content[0].meta["chunk"]["chunk_id"] == "c1"
