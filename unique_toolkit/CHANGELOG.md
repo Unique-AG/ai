@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.70.9] - 2026-04-13
 ### Added
 - Responses API loop: when Azure (or compatible) content filtering rejects a request (`content_filter` / ResponsibleAI-style errors), return a clear assistant message with retry hints instead of surfacing a raw API error (UN-19304)
+### Fixed
+- Apply the same content-filter handling in `handle_responses_forced_tools_iteration` (was missing vs normal/last iteration)
+### Changed
+- User-facing copy: domain-neutral wording (no “financial terminology” assumption) for the content-filter message
 
 ## [1.70.8] - 2026-04-13
 ### Fixed

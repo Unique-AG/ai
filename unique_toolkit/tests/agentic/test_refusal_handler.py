@@ -103,6 +103,7 @@ class TestMakeContentFilterResponse:
         assert response.message.text == CONTENT_FILTER_MESSAGE
         assert "flagged" in (response.message.text or "")
         assert "rephrase" in (response.message.text or "").lower()
+        assert "financial" not in (response.message.text or "").lower()
 
     def test_no_tool_calls(self):
         response = make_content_filter_response()
@@ -252,3 +253,35 @@ async def test_handle_responses_normal_iteration_passes_through_on_success():
         )
 
     assert result.message.text == "Here is your analysis."
+
+
+@pytest.mark.asyncio
+async def test_handle_responses_forced_tools_iteration_content_filter():
+    from unique_toolkit.agentic.loop_runner._responses_iteration_handler_utils import (
+        handle_responses_forced_tools_iteration,
+    )
+
+    content_filter_exc = _unique_error(code="content_filter")
+    ok_response = _make_mock_response()
+
+    mock_stream = AsyncMock(side_effect=[ok_response, content_filter_exc])
+
+    with patch(
+        "unique_toolkit.agentic.loop_runner._responses_iteration_handler_utils.responses_stream_response",
+        new=mock_stream,
+    ):
+        result = await handle_responses_forced_tools_iteration(
+            iteration_index=0,
+            model_name="gpt-4o",
+            instructions=None,
+            messages=[],
+            tools=None,
+            tool_choice=None,
+            tool_choices=["required", "auto"],
+            other_options={},
+            event=None,  # type: ignore[arg-type]
+            on_rate_limit_retry=None,
+        )
+
+    assert result.message.text == CONTENT_FILTER_MESSAGE
+    assert mock_stream.await_count == 2

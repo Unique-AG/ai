@@ -67,9 +67,20 @@ async def handle_responses_forced_tools_iteration(
     responses: list[ResponsesLanguageModelStreamResponse] = []
 
     for opt in tool_choices:
-        responses.append(
-            await responses_stream_response(loop_runner_kwargs=kwargs, tool_choice=opt)
-        )
+        try:
+            responses.append(
+                await responses_stream_response(
+                    loop_runner_kwargs=kwargs, tool_choice=opt
+                )
+            )
+        except Exception as exc:
+            if is_content_filter_error(exc):
+                _LOGGER.warning(
+                    "Azure content filter block on forced tools iteration — "
+                    "returning user-friendly error message"
+                )
+                return make_content_filter_response()
+            raise
 
     # Merge responses and refs:
     tool_calls = []

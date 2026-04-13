@@ -23,7 +23,7 @@ _LOGGER = logging.getLogger(__name__)
 # Shown to the user when Azure's content-safety filter blocks a request.
 CONTENT_FILTER_MESSAGE = (
     "Your request was flagged by the platform's safety system and couldn't be processed. "
-    "This sometimes happens with financial terminology.\n\n"
+    "That can happen with certain wording, even when the request is legitimate.\n\n"
     "A few things that usually help:\n"
     "- **Rephrase or break the request into smaller steps**\n"
     "- **Try again** — transient flags occasionally clear on retry\n"
