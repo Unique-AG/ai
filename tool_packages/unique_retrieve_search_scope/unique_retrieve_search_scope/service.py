@@ -63,16 +63,19 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
         return []
 
     async def _has_prior_response_in_history(self) -> bool:
-        """Check chat history for an existing RetrieveSearchScope tool call with a response."""
+        """Check chat history for an existing RetrieveSearchScope tool response."""
+        # TODO: Once ChatMessage includes a ``name`` field (or tool-call
+        # persistence lands), replace the getattr with a direct attribute access.
         try:
             history = await self._chat_service.get_full_history_async()
             for msg in history:
-                if msg.role.value == "assistant" and msg.tool_calls:
-                    for tc in msg.tool_calls:
-                        if tc.function.name == self.name:
-                            return True
+                if (
+                    msg.role.value == "tool"
+                    and getattr(msg, "name", None) == self.name
+                ):
+                    return True
         except Exception:
-            _LOGGER.debug("Could not check history for prior tool calls", exc_info=True)
+            _LOGGER.debug("Could not check history for prior tool response", exc_info=True)
         return False
 
     @staticmethod

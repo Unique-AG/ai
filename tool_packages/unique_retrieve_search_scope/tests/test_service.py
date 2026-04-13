@@ -344,14 +344,12 @@ class TestTokenTruncation:
 
 @pytest.mark.unit
 class TestHistoryGuard:
-    async def test_short_circuits_when_prior_call_in_history(
+    async def test_short_circuits_when_prior_response_in_history(
         self, tool: RetrieveSearchScopeTool, mock_tool_call: LanguageModelFunction
     ):
-        prior_tc = Mock()
-        prior_tc.function.name = "RetrieveSearchScope"
         prior_msg = Mock()
-        prior_msg.role.value = "assistant"
-        prior_msg.tool_calls = [prior_tc]
+        prior_msg.role.value = "tool"
+        prior_msg.name = "RetrieveSearchScope"
 
         mock_chat_service = Mock()
         mock_chat_service.get_full_history_async = AsyncMock(return_value=[prior_msg])
@@ -362,7 +360,7 @@ class TestHistoryGuard:
         assert response.successful
         assert "already been called" in response.content
 
-    async def test_proceeds_when_no_prior_call_in_history(
+    async def test_proceeds_when_no_prior_response_in_history(
         self,
         tool: RetrieveSearchScopeTool,
         mock_tool_call: LanguageModelFunction,
@@ -370,7 +368,7 @@ class TestHistoryGuard:
     ):
         user_msg = Mock()
         user_msg.role.value = "user"
-        user_msg.tool_calls = None
+        user_msg.name = None
 
         mock_chat_service = Mock()
         mock_chat_service.get_full_history_async = AsyncMock(return_value=[user_msg])
@@ -419,7 +417,7 @@ class TestHistoryGuard:
         ):
             await tool.run(mock_tool_call)
 
-        assert "Could not check history for prior tool calls" in caplog.text
+        assert "Could not check history for prior tool response" in caplog.text
 
 
 @pytest.mark.unit
