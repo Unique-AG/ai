@@ -1041,28 +1041,32 @@ def _get_file_type(filename: str) -> CodeInterpreterFileType:
     return "document"
 
 
-# MIME types treated as KB-upload-safe: canonical list lives in
-# ``unique_toolkit._common.utils.files`` (``FileMimeType``, ``ImageMimeType``).
-# Anything else is coerced to ``text/plain`` before upload so GraphQL does not
-# return ``Invalid file type`` (UN-19267).
-_KB_SUPPORTED_MIMES: frozenset[str] = frozenset(
-    {m.value for m in FileMimeType} | {m.value for m in ImageMimeType}
-)
-
-
 def _kb_safe_mime(mime: str) -> str:
     """Return a MIME type the Unique KB will accept.
 
+    Membership is defined by ``FileMimeType`` and ``ImageMimeType`` in
+    ``unique_toolkit._common.utils.files`` (same catalog as path-based helpers
+    like ``FileMimeType.is_valid_mime``, but here we already have a resolved
+    MIME string from ``mimetypes.guess_type``, so we use StrEnum value lookup
+    instead of re-parsing a path).
+
     The KB GraphQL API rejects many code-file MIME types (e.g. ``text/x-python``
-    for ``.py`` files, ``application/javascript`` for ``.js`` files).  Any MIME
-    type not listed in ``FileMimeType`` / ``ImageMimeType`` is coerced to
+    for ``.py`` files).  Anything not in those enums is coerced to
     ``text/plain`` so the file can be stored and downloaded without changing
     its bytes.
 
     Other ``image/*`` subtypes (e.g. ``image/jpg``) still pass through unchanged.
     """
-    if mime in _KB_SUPPORTED_MIMES:
+    try:
+        FileMimeType(mime)
         return mime
+    except ValueError:
+        pass
+    try:
+        ImageMimeType(mime)
+        return mime
+    except ValueError:
+        pass
     if mime.startswith("image/"):
         return mime
     return "text/plain"
