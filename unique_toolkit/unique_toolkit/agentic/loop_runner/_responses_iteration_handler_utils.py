@@ -1,6 +1,10 @@
 import logging
 from typing import Unpack
 
+from unique_toolkit.agentic.loop_runner._refusal_handler import (
+    is_content_filter_error,
+    make_content_filter_response,
+)
 from unique_toolkit.agentic.loop_runner._responses_stream_handler_utils import (
     responses_stream_response,
 )
@@ -17,10 +21,19 @@ async def handle_responses_last_iteration(
 ) -> ResponsesLanguageModelStreamResponse:
     _LOGGER.info("Reached last iteration, removing tools and producing final response")
 
-    return await responses_stream_response(
-        loop_runner_kwargs=kwargs,
-        tools=None,
-    )
+    try:
+        return await responses_stream_response(
+            loop_runner_kwargs=kwargs,
+            tools=None,
+        )
+    except Exception as exc:
+        if is_content_filter_error(exc):
+            _LOGGER.warning(
+                "Azure content filter block on last iteration — "
+                "returning user-friendly error message"
+            )
+            return make_content_filter_response()
+        raise
 
 
 async def handle_responses_normal_iteration(
@@ -28,7 +41,17 @@ async def handle_responses_normal_iteration(
 ) -> ResponsesLanguageModelStreamResponse:
     _LOGGER.info("Running loop iteration %d", kwargs["iteration_index"])
 
-    return await responses_stream_response(loop_runner_kwargs=kwargs)
+    try:
+        return await responses_stream_response(loop_runner_kwargs=kwargs)
+    except Exception as exc:
+        if is_content_filter_error(exc):
+            _LOGGER.warning(
+                "Azure content filter block on iteration %d — "
+                "returning user-friendly error message",
+                kwargs["iteration_index"],
+            )
+            return make_content_filter_response()
+        raise
 
 
 async def handle_responses_forced_tools_iteration(
