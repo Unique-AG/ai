@@ -552,15 +552,15 @@ def _configure_uploaded_search_tool(
 ) -> tuple[bool, bool]:
     """Mirror uploaded-file bootstrapping across completions and Responses API."""
     now = datetime.now(timezone.utc)
+    uploaded_and_ingested_documents = [doc for doc in common_components.uploaded_documents if doc.is_ingested(default_if_unknown=True)]
     valid_uploaded_documents = [
         doc
-        for doc in common_components.uploaded_documents
+        for doc in uploaded_and_ingested_documents
         if (doc.expired_at is None or doc.expired_at > now)
-        and doc.is_ingested(default_if_unknown=True)
     ]
     expired_uploaded_documents = [
         doc
-        for doc in common_components.uploaded_documents
+        for doc in uploaded_and_ingested_documents
         if doc.expired_at is not None and doc.expired_at <= now
     ]
     has_tool_choices = len(event.payload.tool_choices) > 0
