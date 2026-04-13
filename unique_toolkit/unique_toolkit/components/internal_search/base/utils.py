@@ -71,8 +71,10 @@ def _deduplicate_search_results(
     counter_chunks = 0
     for result in search_results:
         for chunk in result.chunks:
+            if not chunk.chunk_id:
+                continue
             counter_chunks += 1
-            if chunk.chunk_id and chunk.chunk_id not in seen_chunk_ids:
+            if chunk.chunk_id not in seen_chunk_ids:
                 seen_chunk_ids.add(chunk.chunk_id)
                 deduplicated_search_results.append(
                     SearchStringResult(query=result.query, chunks=[chunk])
