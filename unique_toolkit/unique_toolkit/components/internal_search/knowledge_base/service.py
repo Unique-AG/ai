@@ -65,9 +65,7 @@ class KnowledgeBaseInternalSearchService(
             "search_language": self._config.search_language,
             "score_threshold": self._config.score_threshold,
         }
-        if (
-            scope_ids is not None
-        ):  # if defines, it takes precedence over other filters [TODO: check]
+        if scope_ids is not None:  # if defined, it takes precedence over other filters
             kwargs["scope_ids"] = scope_ids
         elif metadata_filter is not None:
             kwargs["metadata_filter"] = metadata_filter
