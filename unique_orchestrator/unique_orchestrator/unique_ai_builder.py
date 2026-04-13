@@ -552,7 +552,11 @@ def _configure_uploaded_search_tool(
 ) -> tuple[bool, bool]:
     """Mirror uploaded-file bootstrapping across completions and Responses API."""
     now = datetime.now(timezone.utc)
-    uploaded_and_ingested_documents = [doc for doc in common_components.uploaded_documents if doc.is_ingested(default_if_unknown=True)]
+    uploaded_and_ingested_documents = [
+        doc
+        for doc in common_components.uploaded_documents
+        if doc.is_ingested(default_if_unknown=True)
+    ]
     valid_uploaded_documents = [
         doc
         for doc in uploaded_and_ingested_documents
