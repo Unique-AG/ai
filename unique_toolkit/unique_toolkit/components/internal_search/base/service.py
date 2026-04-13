@@ -111,7 +111,9 @@ class InternalSearchBaseService(
         successful: list[SearchStringResult] = []
         for i, result in enumerate(results, start=1):
             if isinstance(result, BaseException):
-                self.logger.error("Search failed for query #%d/%d", i, len(queries))
+                self.logger.error(
+                    "Search failed for query #%d/%d", i, len(queries), exc_info=result
+                )
             else:
                 self.logger.info(
                     "Found %d chunks (query %d/%d)",
