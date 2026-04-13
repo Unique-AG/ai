@@ -183,6 +183,7 @@ class StreamingPatternReplacer:
         self._buffer += delta
 
         if self._max_match_length == 0:
+            self._buffer = self._apply_replacements(self._buffer)
             released = self._buffer
             self._buffer = ""
             return released

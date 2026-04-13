@@ -38,11 +38,11 @@ def test_streaming_pattern_replacer__max_match_length_zero__releases_full_delta_
     """
     Purpose: Document behaviour when max_match_length is 0 (no trailing hold-back window).
     Why this matters: Callers that set 0 expect immediate forwarding without a suffix buffer.
-    Setup summary: With max_match_length=0 the implementation returns the raw accumulated chunk
-    for that call without applying configured replacements in-process; buffer is cleared each time.
+    Setup summary: With max_match_length=0 the implementation applies replacements and returns
+    the full transformed chunk immediately; buffer is cleared each time.
     """
     replacer = StreamingPatternReplacer([(r"a", "X")], max_match_length=0)
-    assert replacer.process("ab") == "ab"
+    assert replacer.process("ab") == "Xb"
     assert replacer.flush() == ""
 
 
