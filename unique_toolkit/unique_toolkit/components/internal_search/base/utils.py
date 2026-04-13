@@ -68,19 +68,20 @@ def _deduplicate_search_results(
     seen_chunk_ids: set[str] = set()
     deduplicated_search_results: list[SearchStringResult] = []
 
-    counter_chunks = 0
+    chunks_with_id = 0
     for result in search_results:
         for chunk in result.chunks:
-            counter_chunks += 1
+            if chunk.chunk_id:
+                chunks_with_id += 1
             if chunk.chunk_id and chunk.chunk_id not in seen_chunk_ids:
                 seen_chunk_ids.add(chunk.chunk_id)
                 deduplicated_search_results.append(
                     SearchStringResult(query=result.query, chunks=[chunk])
                 )
 
-    if removed := counter_chunks - len(deduplicated_search_results):
+    if removed := chunks_with_id - len(deduplicated_search_results):
         _logger.info(
-            f"Removed {removed} duplicate chunks ({len(deduplicated_search_results)}/{counter_chunks} unique)"
+            f"Removed {removed} duplicate chunks ({len(deduplicated_search_results)}/{chunks_with_id} unique)"
         )
 
     return deduplicated_search_results
