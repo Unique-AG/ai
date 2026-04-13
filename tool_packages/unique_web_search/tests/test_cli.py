@@ -6,7 +6,6 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from click.testing import CliRunner
 
 from unique_web_search.cli.cli import main
