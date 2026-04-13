@@ -555,7 +555,8 @@ def _configure_uploaded_search_tool(
     valid_uploaded_documents = [
         doc
         for doc in common_components.uploaded_documents
-        if doc.expired_at is None or doc.expired_at > now
+        if (doc.expired_at is None or doc.expired_at > now)
+        and doc.is_ingested(default_if_unknown=True)
     ]
     expired_uploaded_documents = [
         doc

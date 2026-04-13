@@ -11,12 +11,14 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import 
 )
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.agentic.tools.tool_manager import ToolManagerConfig
+from unique_toolkit.content.schemas import Content
 
 from unique_orchestrator._builders.open_file_setup import configure_file_payload
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai_builder import (
     _build_responses,
     _CommonComponents,
+    _configure_uploaded_search_tool,
 )
 
 
@@ -299,3 +301,65 @@ def test_configure_file_payload_preserves_tool_call_persistence_and_language_mod
     assert captured["reference_manager"] is reference_manager
     assert captured["config"].language_model is language_model
     assert captured["config"].enable_tool_call_persistence is True
+
+
+class TestConfigureUploadedSearchToolIngestionFilter:
+    def _make_event(self, tool_choices=None):
+        event = MagicMock()
+        event.payload.tool_choices = tool_choices or []
+        return event
+
+    def _make_doc(self, applied_ingestion_config):
+        return Content(
+            expired_at=None, applied_ingestion_config=applied_ingestion_config
+        )
+
+    def _run(self, docs, tool_choices=None):
+        common_components = _make_common_components(docs)
+        event = self._make_event(tool_choices)
+        _configure_uploaded_search_tool(
+            event=event,
+            logger=MagicMock(),
+            common_components=common_components,
+        )
+        return common_components
+
+    def test_none_applied_ingestion_config_is_included(self):
+        doc = self._make_doc(None)
+        common = self._run([doc])
+        tool_names = [t.name for t in common.tool_manager_config.tools]
+        assert UploadedSearchTool.name in tool_names
+
+    def test_standard_ingestion_mode_is_included(self):
+        doc = self._make_doc({"uniqueIngestionMode": "INGESTION"})
+        common = self._run([doc])
+        tool_names = [t.name for t in common.tool_manager_config.tools]
+        assert UploadedSearchTool.name in tool_names
+
+    def test_skip_ingestion_mode_is_excluded(self):
+        doc = self._make_doc({"uniqueIngestionMode": "SKIP_INGESTION"})
+        common = self._run([doc])
+        tool_names = [t.name for t in common.tool_manager_config.tools]
+        assert UploadedSearchTool.name not in tool_names
+
+    def test_skip_excel_ingestion_mode_is_excluded(self):
+        doc = self._make_doc({"uniqueIngestionMode": "SKIP_EXCEL_INGESTION"})
+        common = self._run([doc])
+        tool_names = [t.name for t in common.tool_manager_config.tools]
+        assert UploadedSearchTool.name not in tool_names
+
+    def test_mixed_docs_tool_added_when_at_least_one_is_ingested(self):
+        skip_doc = self._make_doc({"uniqueIngestionMode": "SKIP_INGESTION"})
+        real_doc = self._make_doc({"uniqueIngestionMode": "INGESTION"})
+        common = self._run([skip_doc, real_doc])
+        tool_names = [t.name for t in common.tool_manager_config.tools]
+        assert UploadedSearchTool.name in tool_names
+
+    def test_all_skip_docs_tool_not_added(self):
+        docs = [
+            self._make_doc({"uniqueIngestionMode": "SKIP_INGESTION"}),
+            self._make_doc({"uniqueIngestionMode": "SKIP_EXCEL_INGESTION"}),
+        ]
+        common = self._run(docs)
+        tool_names = [t.name for t in common.tool_manager_config.tools]
+        assert UploadedSearchTool.name not in tool_names
