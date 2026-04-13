@@ -20,14 +20,14 @@ build-backend = "uv_build"
 module-root = ""
 
 [tool.uv.sources]
-unique-toolkit = { path = "../../unique_toolkit", editable = true }
+unique-toolkit = { workspace = true }
 
 [dependency-groups]
 dev = [
     "pytest>=8.4.1,<9",
-    "pytest-asyncio>=0.24.0,<0.25",
+    "pytest-asyncio>=0.25.0,<0.26",
     "pytest-mock>=3.14.0,<4",
-    "ruff==0.12.10",
+    "ruff>=0.14.2",
     "pytest-cov>=7.0.0,<8",
     "deptry>=0.24.0,<0.25",
     "basedpyright>=1.35.0,<2",

@@ -355,10 +355,7 @@ class ExperimentalConfig(BaseToolConfig):
         description="If set, the main agent will use the Responses API from OpenAI",
     )
 
-    enable_retrieve_search_scope: bool = Field(
-        default=False,
-        description="Experimental: enables the RetrieveSearchScope tool, which shows the agent which files are available in the knowledge base.",
-    )
+    retrieve_search_scope_config: RetrieveSearchScopeConfig = RetrieveSearchScopeConfig()
 
 class UniqueAIAgentConfig(BaseToolConfig):
     max_loop_iterations: Annotated[
@@ -424,6 +421,9 @@ class UniqueAIConfig(BaseToolConfig):
         config = self.agent.experimental.retrieve_search_scope_config
 
         if config.enabled and not has_tool:
+            config.language_model_max_input_tokens = (
+                self.space.language_model.token_limits.token_limit_input
+            )
             self.space.tools.append(
                 ToolBuildConfig(
                     name=RetrieveSearchScopeTool.name,
