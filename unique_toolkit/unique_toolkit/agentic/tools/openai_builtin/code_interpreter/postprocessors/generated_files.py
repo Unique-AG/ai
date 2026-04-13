@@ -42,35 +42,6 @@ from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
 logger = logging.getLogger(__name__)
 
-# Write/pool timeouts for OpenAI container file streaming (unchanged from the old
-# ``httpx.Timeout(5.0, read=...)`` call — only **connect** is raised via config).
-_DEFAULT_CONTAINER_DOWNLOAD_WRITE_POOL_TIMEOUT = 5.0
-
-
-async def _preview_binary_stream_body(response: object, *, max_bytes: int = 200) -> str:
-    """Read up to *max_bytes* from a streaming binary response for error logging.
-
-    ``AsyncStreamedBinaryAPIResponse`` has ``iter_bytes`` but is not guaranteed to
-    expose a nested ``.response`` with ``aread()`` (and the type checker rejects
-    that access).  Draining via ``iter_bytes`` works for both success and error
-    bodies.
-    """
-    iter_bytes = getattr(response, "iter_bytes", None)
-    if iter_bytes is None:
-        return ""
-    chunks: list[bytes] = []
-    total = 0
-    try:
-        async for chunk in iter_bytes(chunk_size=min(8192, max_bytes)):
-            chunks.append(chunk)
-            total += len(chunk)
-            if total >= max_bytes:
-                break
-    except Exception:
-        return ""
-    raw = b"".join(chunks)[:max_bytes]
-    return raw.decode("utf-8", errors="replace")
-
 
 class _ChatLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
     """LoggerAdapter that prefixes every message with ``[chat_id=…]``."""
@@ -120,21 +91,6 @@ class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
         description="HTTP read timeout in seconds for container file downloads. "
         "Applies per SDK attempt. The OpenAI SDK default of 600s is too generous "
         "for small generated files; a shorter timeout lets us retry sooner.",
-    )
-    download_connect_timeout: float = Field(
-        default=30.0,
-        description="HTTP **connect** timeout in seconds for container file downloads "
-        "(only the connect phase; read uses ``download_read_timeout``; write and pool "
-        "stay at 5 s to match the previous httpx defaults). "
-        "Raised from the old hard-coded 5 s connect because OpenAI's container API "
-        "can be slow to accept new connections.",
-    )
-    initial_download_delay_seconds: float = Field(
-        default=0.0,
-        description="Seconds to wait before the very first download attempt for each "
-        "container file. Can be set to a positive value if files are observed to be "
-        "not immediately available in OpenAI container storage after a response is "
-        "returned (e.g. in environments with high latency to the container API).",
     )
 
 
@@ -836,16 +792,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
             ticker_task = asyncio.create_task(_ticker())
 
         try:
-            if self._config.initial_download_delay_seconds > 0:
-                self._log.info(
-                    "Waiting %.1fs before first download attempt for '%s' "
-                    "(initial_download_delay — gives OpenAI container storage "
-                    "time to commit the file)",
-                    self._config.initial_download_delay_seconds,
-                    container_file.filename,
-                )
-                await asyncio.sleep(self._config.initial_download_delay_seconds)
-
             for attempt_num in range(1, max_attempts + 1):
                 retry_num = attempt_num - 1
                 try:
@@ -911,41 +857,20 @@ class DisplayCodeInterpreterFilesPostProcessor(
         t0 = time.monotonic()
         async with self._client.with_options(
             max_retries=0,
-            timeout=httpx.Timeout(
-                connect=self._config.download_connect_timeout,
-                read=self._config.download_read_timeout,
-                write=_DEFAULT_CONTAINER_DOWNLOAD_WRITE_POOL_TIMEOUT,
-                pool=_DEFAULT_CONTAINER_DOWNLOAD_WRITE_POOL_TIMEOUT,
-            ),
+            timeout=httpx.Timeout(5.0, read=self._config.download_read_timeout),
         ).containers.files.content.with_streaming_response.retrieve(
             file_id=container_file.file_id,
             container_id=container_file.container_id,
         ) as response:
             first_byte_ms = (time.monotonic() - t0) * 1000
-            status = response.status_code
             self._log.info(
                 "Stream opened for '%s' — first-byte latency=%.0fms, "
                 "content-length=%s, status=%s",
                 container_file.filename,
                 first_byte_ms,
                 response.headers.get("content-length", "unknown"),
-                status,
+                response.status_code,
             )
-            if status != 200:
-                body_preview = await _preview_binary_stream_body(response)
-                self._log.error(
-                    "Unexpected HTTP %d for container file '%s' "
-                    "(file_id=%s, container_id=%s). Body preview: %r",
-                    status,
-                    container_file.filename,
-                    container_file.file_id,
-                    container_file.container_id,
-                    body_preview,
-                )
-                raise RuntimeError(
-                    f"Container file download returned HTTP {status} for "
-                    f"'{container_file.filename}'"
-                )
             content_length = response.headers.get("content-length")
             total = int(content_length) if content_length else None
             chunks: list[bytes] = []
