@@ -100,6 +100,18 @@ class Content(BaseModel):
     applied_ingestion_config: dict | None = None
     ingestion_state: str | None = None
 
+    def is_ingested(self, *, undefined_value: bool = True) -> bool:
+        if (
+            self.applied_ingestion_config is None
+            or "uniqueIngestionMode" not in self.applied_ingestion_config
+        ):
+            return undefined_value
+
+        return self.applied_ingestion_config["uniqueIngestionMode"] not in (
+            "SKIP_INGESTION",
+            "SKIP_EXCEL_INGESTION",
+        )
+
 
 class ContentReference(BaseModel):
     model_config = model_config
