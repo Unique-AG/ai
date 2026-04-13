@@ -64,8 +64,9 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
 
     async def _has_prior_response_in_history(self) -> bool:
         """Check chat history for an existing RetrieveSearchScope tool response."""
-        # TODO: Once ChatMessage includes a ``name`` field (or tool-call
-        # persistence lands), replace the getattr with a direct attribute access.
+        # TODO(UN-18756 #6): When tool-call persistence is introduced, verify
+        # that the persisted response carries role="tool" and name="RetrieveSearchScope",
+        # then replace getattr with direct attribute access or adapt to the actual schema.
         try:
             history = await self._chat_service.get_full_history_async()
             for msg in history:
