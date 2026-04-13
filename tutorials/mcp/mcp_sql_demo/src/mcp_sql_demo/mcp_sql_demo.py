@@ -106,7 +106,7 @@ def main() -> None:
         company_id = settings.authcontext.get_confidential_company_id()
 
         userinfo = await get_unique_userinfo(_HTTP_CLIENT)
-        email = userinfo.email if userinfo else "alice@alphabet.example"
+        email = (userinfo.email if userinfo else None) or "alice@alphabet.example"
 
         per_request_event = ChatEvent(
             event="user_message_created",

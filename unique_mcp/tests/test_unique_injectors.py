@@ -17,6 +17,7 @@ from unique_mcp.unique_injectors import (
     _CLAIM_COMPANY_ID,
     _CLAIM_USER_ID,
     UniqueUserInfo,
+    _base_settings,
     _userinfo_to_auth_context,
     get_unique_service_factory,
     get_unique_settings,
@@ -25,6 +26,13 @@ from unique_mcp.unique_injectors import (
 )
 
 _MOD = "unique_mcp.unique_injectors"
+
+
+@pytest.fixture(autouse=True)
+def _clear_base_settings_cache() -> None:
+    """Prevent the lru_cache on _base_settings from leaking state between tests."""
+    _base_settings.cache_clear()
+
 
 # Fixed ZitadelOAuthProxySettings fields — tests do not depend on repo .env.
 _ZITADEL_FIXTURE_BASE_URL = "http://zitadel.test.local"
@@ -110,7 +118,7 @@ def test_get_unique_settings__uses_meta_auth__when_present(
     """
     with (
         patch(
-            f"{_MOD}.UniqueSettings.from_env_auto_with_sdk_init",
+            f"{_MOD}._base_settings",
             return_value=base_settings,
         ),
         patch(
@@ -137,7 +145,7 @@ def test_get_unique_settings__uses_jwt_claims__when_meta_absent(
     """
     with (
         patch(
-            f"{_MOD}.UniqueSettings.from_env_auto_with_sdk_init",
+            f"{_MOD}._base_settings",
             return_value=base_settings,
         ),
         patch(f"{_MOD}._fastmcp_context_to_auth_context", return_value=None),
@@ -165,7 +173,7 @@ def test_get_unique_settings__meta_wins_over_jwt(
     """
     with (
         patch(
-            f"{_MOD}.UniqueSettings.from_env_auto_with_sdk_init",
+            f"{_MOD}._base_settings",
             return_value=base_settings,
         ),
         patch(
@@ -199,7 +207,7 @@ def test_get_unique_settings__uses_jwt_when_meta_partial_or_absent(
     """
     with (
         patch(
-            f"{_MOD}.UniqueSettings.from_env_auto_with_sdk_init",
+            f"{_MOD}._base_settings",
             return_value=base_settings,
         ),
         patch(f"{_MOD}._fastmcp_context_to_auth_context", return_value=None),
@@ -227,7 +235,7 @@ def test_get_unique_settings__falls_back_to_env__when_no_meta_no_jwt(
     """
     with (
         patch(
-            f"{_MOD}.UniqueSettings.from_env_auto_with_sdk_init",
+            f"{_MOD}._base_settings",
             return_value=base_settings,
         ),
         patch(f"{_MOD}._fastmcp_context_to_auth_context", return_value=None),
@@ -249,7 +257,7 @@ def test_get_unique_settings__jwt_incomplete_falls_back_to_env(
     """
     with (
         patch(
-            f"{_MOD}.UniqueSettings.from_env_auto_with_sdk_init",
+            f"{_MOD}._base_settings",
             return_value=base_settings,
         ),
         patch(f"{_MOD}._fastmcp_context_to_auth_context", return_value=None),
@@ -270,7 +278,7 @@ def test_get_unique_settings__reuses_app_and_api_from_base(
     """
     with (
         patch(
-            f"{_MOD}.UniqueSettings.from_env_auto_with_sdk_init",
+            f"{_MOD}._base_settings",
             return_value=base_settings,
         ),
         patch(f"{_MOD}._fastmcp_context_to_auth_context", return_value=None),

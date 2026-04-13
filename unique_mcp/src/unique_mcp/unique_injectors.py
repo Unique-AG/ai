@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from functools import lru_cache
 
 import httpx
 
@@ -39,6 +40,10 @@ def _fastmcp_context_to_auth_context() -> AuthContext | None:
         ctx = get_context()
     except (RuntimeError, LookupError):
         return None
+
+    if ctx is None:
+        return None
+
     rc = ctx.request_context
     if rc is None or rc.meta is None:
         return None
@@ -109,8 +114,13 @@ async def _userinfo_to_auth_context(
         )
 
 
+@lru_cache(maxsize=1)
+def _base_settings() -> UniqueSettings:
+    return UniqueSettings.from_env_auto_with_sdk_init()
+
+
 def get_unique_settings() -> UniqueSettings:
-    settings = UniqueSettings.from_env_auto_with_sdk_init()
+    settings = _base_settings()
 
     # 1. _meta of the request has highest priority
     if auth_context := _fastmcp_context_to_auth_context():

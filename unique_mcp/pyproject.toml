@@ -24,7 +24,7 @@ build-backend = "uv_build"
 dev = []
 
 [tool.uv.sources]
-unique-toolkit = { path = "../unique_toolkit", editable = true }
+unique-toolkit = { workspace = true }
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --import-mode=importlib"

@@ -120,20 +120,35 @@ The MCP Inspector act as an MCP Client, there if you want to authenticate we mus
 
 
 
-## 6. Connections to Unique Platform
+## 6. Connect to the Unique Platform
 
-## Expose server via Ngrok
+The Unique platform sends events to your MCP server via a public HTTPS endpoint. During local development you can use [ngrok](https://ngrok.com/) to expose your server.
 
-## Register callback URI in Zitadel
+### Expose the server via ngrok
 
-You need to register your Ngrok 
+```bash
+ngrok http 8003
+```
 
-MPC Server -> Ngrok -> Unique Platform
+Copy the generated `https://<subdomain>.ngrok-free.app` URL — this is your **public base URL**.
 
+Set it in `unique_mcp.env`:
 
+```
+UNIQUE_MCP_PUBLIC_BASE_URL=https://<subdomain>.ngrok-free.app
+```
 
+Traffic flows as: **MCP Client → ngrok → localhost:8003 (MCP Server)**.
 
+### Register the callback URI in Zitadel
 
+Add the ngrok-based redirect URI to your Zitadel OAuth application so the OAuth flow can complete:
+
+```
+https://<subdomain>.ngrok-free.app/auth/callback
+```
+
+See [`unique_mcp/docs/zitadel/README.md`](../../../unique_mcp/docs/zitadel/README.md) for full Zitadel setup instructions.
 
 
 ## Further Reading
