@@ -21,6 +21,7 @@ from tenacity import (
 
 from unique_toolkit import ChatService
 from unique_toolkit._common.execution import failsafe_async
+from unique_toolkit._common.utils.files import FileMimeType, ImageMimeType
 from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     ResponsesApiPostprocessor,
@@ -1040,33 +1041,12 @@ def _get_file_type(filename: str) -> CodeInterpreterFileType:
     return "document"
 
 
-# MIME types that the Unique KB GraphQL API accepts for upload.
-# Anything outside this set must be coerced to "text/plain" before upload;
-# otherwise the backend returns [GraphQL] Invalid file type (UN-19267).
+# MIME types treated as KB-upload-safe: canonical list lives in
+# ``unique_toolkit._common.utils.files`` (``FileMimeType``, ``ImageMimeType``).
+# Anything else is coerced to ``text/plain`` before upload so GraphQL does not
+# return ``Invalid file type`` (UN-19267).
 _KB_SUPPORTED_MIMES: frozenset[str] = frozenset(
-    {
-        # Plain text / markup
-        "text/plain",
-        "text/html",
-        "text/csv",
-        # Documents
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        # Spreadsheets
-        "application/vnd.ms-excel",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        # Presentations
-        "application/vnd.ms-powerpoint",
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        # Images
-        "image/png",
-        "image/jpeg",
-        "image/jpg",
-        "image/gif",
-        "image/webp",
-        "image/svg+xml",
-    }
+    {m.value for m in FileMimeType} | {m.value for m in ImageMimeType}
 )
 
 
@@ -1075,10 +1055,11 @@ def _kb_safe_mime(mime: str) -> str:
 
     The KB GraphQL API rejects many code-file MIME types (e.g. ``text/x-python``
     for ``.py`` files, ``application/javascript`` for ``.js`` files).  Any MIME
-    type not in ``_KB_SUPPORTED_MIMES`` is coerced to ``text/plain`` so the file
-    can be stored and downloaded without modification to its byte content.
+    type not listed in ``FileMimeType`` / ``ImageMimeType`` is coerced to
+    ``text/plain`` so the file can be stored and downloaded without changing
+    its bytes.
 
-    Image MIME types are always accepted (``image/*``).
+    Other ``image/*`` subtypes (e.g. ``image/jpg``) still pass through unchanged.
     """
     if mime in _KB_SUPPORTED_MIMES:
         return mime

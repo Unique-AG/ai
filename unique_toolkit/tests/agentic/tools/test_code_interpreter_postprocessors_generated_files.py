@@ -3013,6 +3013,10 @@ async def test_download_and_upload__tracker_receives_upload_and_done__on_success
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         ),
+        # Also defined on FileMimeType / ImageMimeType (shared allowlist).
+        ("text/markdown", "text/markdown"),
+        ("application/json", "application/json"),
+        ("image/bmp", "image/bmp"),
         # image/* must always pass through unchanged.
         ("image/png", "image/png"),
         ("image/jpeg", "image/jpeg"),
