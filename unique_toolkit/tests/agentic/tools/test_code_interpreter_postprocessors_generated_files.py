@@ -3183,12 +3183,9 @@ async def test_stream_download__raises_runtime_error__on_non_200_status() -> Non
     annotation = _make_annotation("missing_file.py")
     semaphore = asyncio.Semaphore(10)
 
-    # Build a mock response that looks like a 404.
+    # Build a mock response that looks like a 404 (body via iter_bytes, like the SDK).
     mock_404 = _MockStreamResponse(b"not found", content_length=9)
     mock_404.status_code = 404
-    # Provide a .response attribute for aread() in the error logging path.
-    mock_404.response = MagicMock()
-    mock_404.response.aread = AsyncMock(return_value=b"not found")
     proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
         return_value=mock_404
     )

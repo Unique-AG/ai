@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Code interpreter generated-files postprocessor (`generated_files.py`): coerce container-file uploads to KB-safe MIME types (e.g. `.py` as `text/plain`) so Unique GraphQL no longer rejects uploads with `Invalid file type` (UN-19267)
 ### Changed
-- Container file downloads: configurable `download_connect_timeout` (default 30s, replaces hard-coded 5s connect timeout); optional `initial_download_delay_seconds` (default 0); non-200 HTTP responses from the container API are logged with a body preview and fail fast for clearer retries
+- Container file downloads: configurable `download_connect_timeout` (default 30s) and `download_read_timeout` only affect those phases; write and pool stay at 5s (matches previous httpx defaults). Optional `initial_download_delay_seconds` (default 0). Non-200 responses log a body preview read via `iter_bytes` (typed-safe for streaming responses).
 
 ## [1.70.7] - 2026-04-12
 - Revert fallback `📎 [filename](unique://content/...)` links from PR #1418 — when the LLM omits a sandbox reference the file is silently skipped again (warn-only) instead of appending noisy download links to the message

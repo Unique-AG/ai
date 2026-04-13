@@ -42,6 +42,35 @@ from unique_toolkit.short_term_memory.service import ShortTermMemoryService
 
 logger = logging.getLogger(__name__)
 
+# Write/pool timeouts for OpenAI container file streaming (unchanged from the old
+# ``httpx.Timeout(5.0, read=...)`` call — only **connect** is raised via config).
+_DEFAULT_CONTAINER_DOWNLOAD_WRITE_POOL_TIMEOUT = 5.0
+
+
+async def _preview_binary_stream_body(response: object, *, max_bytes: int = 200) -> str:
+    """Read up to *max_bytes* from a streaming binary response for error logging.
+
+    ``AsyncStreamedBinaryAPIResponse`` has ``iter_bytes`` but is not guaranteed to
+    expose a nested ``.response`` with ``aread()`` (and the type checker rejects
+    that access).  Draining via ``iter_bytes`` works for both success and error
+    bodies.
+    """
+    iter_bytes = getattr(response, "iter_bytes", None)
+    if iter_bytes is None:
+        return ""
+    chunks: list[bytes] = []
+    total = 0
+    try:
+        async for chunk in iter_bytes(chunk_size=min(8192, max_bytes)):
+            chunks.append(chunk)
+            total += len(chunk)
+            if total >= max_bytes:
+                break
+    except Exception:
+        return ""
+    raw = b"".join(chunks)[:max_bytes]
+    return raw.decode("utf-8", errors="replace")
+
 
 class _ChatLoggerAdapter(logging.LoggerAdapter[logging.Logger]):
     """LoggerAdapter that prefixes every message with ``[chat_id=…]``."""
@@ -94,9 +123,11 @@ class DisplayCodeInterpreterFilesPostProcessorConfig(BaseModel):
     )
     download_connect_timeout: float = Field(
         default=30.0,
-        description="HTTP connect timeout in seconds for container file downloads. "
-        "Increased from the old hard-coded 5 s because OpenAI's container storage "
-        "can be slow to accept new connections when files are large.",
+        description="HTTP **connect** timeout in seconds for container file downloads "
+        "(only the connect phase; read uses ``download_read_timeout``; write and pool "
+        "stay at 5 s to match the previous httpx defaults). "
+        "Raised from the old hard-coded 5 s connect because OpenAI's container API "
+        "can be slow to accept new connections.",
     )
     initial_download_delay_seconds: float = Field(
         default=0.0,
@@ -881,8 +912,10 @@ class DisplayCodeInterpreterFilesPostProcessor(
         async with self._client.with_options(
             max_retries=0,
             timeout=httpx.Timeout(
-                self._config.download_connect_timeout,
+                connect=self._config.download_connect_timeout,
                 read=self._config.download_read_timeout,
+                write=_DEFAULT_CONTAINER_DOWNLOAD_WRITE_POOL_TIMEOUT,
+                pool=_DEFAULT_CONTAINER_DOWNLOAD_WRITE_POOL_TIMEOUT,
             ),
         ).containers.files.content.with_streaming_response.retrieve(
             file_id=container_file.file_id,
@@ -899,12 +932,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                 status,
             )
             if status != 200:
-                body_preview = ""
-                try:
-                    raw = await response.response.aread()
-                    body_preview = raw[:200].decode("utf-8", errors="replace")
-                except Exception:
-                    pass
+                body_preview = await _preview_binary_stream_body(response)
                 self._log.error(
                     "Unexpected HTTP %d for container file '%s' "
                     "(file_id=%s, container_id=%s). Body preview: %r",
