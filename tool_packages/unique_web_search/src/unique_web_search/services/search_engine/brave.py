@@ -99,11 +99,6 @@ class BraveSearch(SearchEngine[BraveSearchConfig]):
                 params=params.model_dump(exclude_none=True),
                 headers=get_headers(api_key),
             )
-            import json
-            from uuid import uuid4
-
-            with open(f"brave_{uuid4()}.json", "w") as f:
-                json.dump(response.json(), f, indent=4)
         return response
 
     def _extract_urls(self, brave_response: dict) -> list[WebSearchResult]:
