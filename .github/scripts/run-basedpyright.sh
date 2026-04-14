@@ -32,7 +32,7 @@ OPTIONS:
     -h, --help           Show this help message and exit
     -v, --version        Show version information and exit
     -o, --output FILE    Path to output JSON file (default: /tmp/basedpyright.json)
-    -r, --runner CMD     Command executor prefix (default: "uv run --locked")
+    -r, --runner CMD     Command executor prefix (default: "uv run --frozen")
 
 EXAMPLES:
     # Basic usage
@@ -70,7 +70,7 @@ EOF
 # Initialize variables with defaults
 PACKAGE_DIR=""
 OUTPUT_FILE="/tmp/basedpyright.json"
-RUNNER="uv run --locked"
+RUNNER="uv run --frozen"
 
 # Convert long options to short options for getopts
 ARGS=()
