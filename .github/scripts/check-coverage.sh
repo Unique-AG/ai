@@ -67,7 +67,7 @@ OPTIONS:
     -b, --base-ref REF   Base branch/ref for comparison
                          (default: auto-detect from GITHUB_BASE_REF or origin/main/master)
     -m, --min-coverage N Minimum coverage percentage (default: 60)
-    -r, --runner CMD     Command runner prefix (default: "uv run --frozen")
+    -r, --runner CMD     Command runner prefix (default: "uv run --locked")
     --skip-tests         Skip running tests (assume coverage.xml already exists)
     --no-install-deps    Skip installing diff-cover (assume already installed)
 
@@ -243,7 +243,7 @@ fi
 
 # Auto-detect runner if not provided
 if [ -z "$RUNNER" ]; then
-    RUNNER="uv run --frozen"
+    RUNNER="uv run --locked"
     print_info "Using default runner: $RUNNER"
 fi
 

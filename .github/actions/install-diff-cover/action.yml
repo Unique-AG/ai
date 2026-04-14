@@ -14,6 +14,6 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        if ! uv run --frozen diff-cover --version >/dev/null 2>&1; then
+        if ! uv run --locked diff-cover --version >/dev/null 2>&1; then
           uv pip install diff-cover
         fi

@@ -33,7 +33,7 @@ OPTIONS:
     -h, --help           Show this help message and exit
     -v, --version        Show version information and exit
     -b, --base BRANCH    Base branch to compare against (default: main)
-    -r, --runner CMD     Command executor prefix (default: "uv run --frozen")
+    -r, --runner CMD     Command executor prefix (default: "uv run --locked")
 
 EXAMPLES:
     # Basic usage
@@ -43,7 +43,7 @@ EXAMPLES:
     ${SCRIPT_NAME} -b develop unique_mcp
 
     # Specify runner explicitly
-    ${SCRIPT_NAME} -r "uv run --frozen" unique_toolkit
+    ${SCRIPT_NAME} -r "uv run --locked" unique_toolkit
 
 EXIT CODES:
     0    No new dependency issues found
@@ -191,7 +191,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Auto-detect runner if not specified
 if [ -z "$RUNNER" ]; then
-    RUNNER="uv run --frozen"
+    RUNNER="uv run --locked"
 fi
 
 # Check if we're in a git repository

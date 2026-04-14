@@ -62,4 +62,4 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
-      run: uv run --frozen pytest ${{ inputs.test_args }}
+      run: uv run --locked pytest ${{ inputs.test_args }}

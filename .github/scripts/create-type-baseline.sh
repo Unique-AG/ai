@@ -33,7 +33,7 @@ OPTIONS:
     -v, --version        Show version information and exit
     -c, --ci             CI mode - use git checkout instead of stash/restore
     -o, --output FILE    Output file for baseline (default: /tmp/baseline.json)
-    -r, --runner CMD     Command executor prefix (default: "uv run --frozen")
+    -r, --runner CMD     Command executor prefix (default: "uv run --locked")
 
 EXAMPLES:
     # Basic usage
@@ -76,7 +76,7 @@ PACKAGE_DIR=""
 BRANCH="main"
 CI_MODE=false
 OUTPUT_FILE="/tmp/baseline.json"
-RUNNER="uv run --frozen"
+RUNNER="uv run --locked"
 
 # Convert long options to short options for getopts
 ARGS=()

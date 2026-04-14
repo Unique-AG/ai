@@ -10,7 +10,7 @@ set -e
 # Examples:
 #   check-types.sh unique_toolkit
 #   check-types.sh unique_toolkit --base-ref origin/main
-#   check-types.sh unique_mcp --runner "uv run --frozen"
+#   check-types.sh unique_mcp --runner "uv run --locked"
 
 # Script metadata
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -40,7 +40,7 @@ OPTIONS:
     -h, --help           Show this help message and exit
     -v, --version        Show version information and exit
     -b, --base-ref REF   Base branch/ref for comparison (default: origin/main)
-    -r, --runner CMD     Command runner prefix (default: "uv run --frozen")
+    -r, --runner CMD     Command runner prefix (default: "uv run --locked")
 
 EXAMPLES:
     # Basic usage
@@ -134,7 +134,7 @@ fi
 
 # Auto-detect runner if not specified
 if [ -z "$RUNNER" ]; then
-    RUNNER="uv run --frozen"
+    RUNNER="uv run --locked"
 fi
 
 # Determine base reference if not provided

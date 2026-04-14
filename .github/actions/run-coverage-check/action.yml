@@ -66,7 +66,7 @@ runs:
         ARGS=(
           "${{ inputs.package_dir }}"
           --min-coverage "${{ inputs.min_coverage }}"
-          --runner "uv run --frozen"
+          --runner "uv run --locked"
         )
         if [ -n "${{ inputs.base_ref }}" ]; then
           ARGS+=(--base-ref "${{ inputs.base_ref }}")

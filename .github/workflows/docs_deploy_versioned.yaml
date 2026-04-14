@@ -146,7 +146,7 @@ jobs:
       - name: Build root site
         run: |
           echo "🏗️ Building root site..."
-          uv run --frozen mkdocs build -d _deploy
+          uv run --locked mkdocs build -d _deploy
           # The Material theme generates its own 404.html — overwrite it with ours.
           cp docs/404.html _deploy/404.html
           echo "✓ Root site built"
@@ -173,7 +173,7 @@ jobs:
             sed "s|site_url:.*|site_url: $SITE_URL|g" unique_sdk/mkdocs.yaml > unique_sdk/mkdocs.temp.yaml
             
             # Build
-            uv run --frozen mkdocs build -f unique_sdk/mkdocs.temp.yaml -d "$OUTPUT_DIR" --clean
+            uv run --locked mkdocs build -f unique_sdk/mkdocs.temp.yaml -d "$OUTPUT_DIR" --clean
             
             # Cleanup
             rm -f unique_sdk/mkdocs.temp.yaml
@@ -203,7 +203,7 @@ jobs:
             sed "s|site_url:.*|site_url: $SITE_URL|g" unique_toolkit/mkdocs.yaml > unique_toolkit/mkdocs.temp.yaml
             
             # Build
-            uv run --frozen mkdocs build -f unique_toolkit/mkdocs.temp.yaml -d "$OUTPUT_DIR" --clean
+            uv run --locked mkdocs build -f unique_toolkit/mkdocs.temp.yaml -d "$OUTPUT_DIR" --clean
             
             # Cleanup
             rm -f unique_toolkit/mkdocs.temp.yaml
