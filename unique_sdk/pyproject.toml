@@ -80,6 +80,9 @@ reportImplicitStringConcatenation = "none"
 reportUnusedParameter = "none"
 reportImportCycles = "none"
 
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+
 [tool.poe.tasks]
 # Run from package directory: uv run poe <task>
 lint = "ruff check ."

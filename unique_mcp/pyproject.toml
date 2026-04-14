@@ -27,6 +27,7 @@ build-backend = "uv_build"
 dev = []
 
 [tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
 asyncio_mode = "auto"
 markers = [
     "ai: AI-generated tests",

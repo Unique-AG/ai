@@ -55,7 +55,7 @@ extend_exclude = ["tests", "conftest.py"]
 DEP002 = ["python-dotenv", "unique-toolkit", "pyopenssl"]
 
 [tool.pytest.ini_options]
-addopts = "--strict-markers"
+addopts = "--strict-markers --import-mode=importlib"
 asyncio_mode = "auto"
 markers = [
     "unit: for unit tests",

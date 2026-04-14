@@ -54,7 +54,7 @@ depcheck = "deptry ."
 [tool.pytest.ini_options]
 pythonpath = ["web"]
 asyncio_mode = "auto"
-addopts = "--strict-markers --cov=core --cov=app --cov=settings --cov-report=xml --cov-report=term-missing"
+addopts = "--strict-markers --import-mode=importlib --cov=core --cov=app --cov=settings --cov-report=xml --cov-report=term-missing"
 markers = [
     "ai: AI-authored test",
 ]

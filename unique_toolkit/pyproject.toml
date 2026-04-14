@@ -96,7 +96,7 @@ ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/
 ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
 [tool.pytest.ini_options]
-addopts = "--strict-markers"
+addopts = "--strict-markers --import-mode=importlib"
 asyncio_mode = "auto"
 markers = [
     "ai: AI-generated tests",
