@@ -1,5 +1,5 @@
 import logging
-from typing import Literal, TypeVar
+from typing import Literal
 
 from httpx import AsyncClient, Response
 from pydantic import BaseModel
@@ -25,8 +25,6 @@ HEADERS = {
 PAGINATION_SIZE = (
     20  # Brave Search API only supports a maximum of 20 results per request
 )
-
-T = TypeVar("T")
 
 
 def get_headers(api_key: str) -> dict[str, str]:
@@ -65,16 +63,12 @@ class BraveSearch(SearchEngine[BraveSearchConfig]):
         fetch_size = self.config.fetch_size
 
         for page in range(0, (fetch_size + PAGINATION_SIZE - 1) // PAGINATION_SIZE):
-            remaining = fetch_size - page * PAGINATION_SIZE
-            effective_num_fetch = min(remaining, PAGINATION_SIZE)
-            params = BraveSearchParameters(
-                q=query, count=effective_num_fetch, offset=page
-            )
+            params = BraveSearchParameters(q=query, count=PAGINATION_SIZE, offset=page)
 
             response = await self._perform_web_search_request(params=params)
             search_results.extend(self._extract_urls(response.json()))
 
-        return search_results
+        return search_results[:fetch_size]
 
     async def _perform_web_search_request(
         self, params: BraveSearchParameters

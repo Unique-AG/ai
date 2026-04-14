@@ -278,7 +278,7 @@ class TestBraveSearchPagination:
                         "title": f"T{i}",
                         "description": f"D{i}",
                     }
-                    for i in range(5)
+                    for i in range(PAGINATION_SIZE)
                 ]
             }
         }
@@ -293,7 +293,7 @@ class TestBraveSearchPagination:
 
             assert mock_req.call_count == 1
             params = mock_req.call_args[1]["params"]
-            assert params.count == 5
+            assert params.count == PAGINATION_SIZE
             assert params.offset == 0
 
         assert len(results) == 5
@@ -319,7 +319,7 @@ class TestBraveSearchPagination:
             }
             return mock_resp
 
-        responses = [make_response(20), make_response(5)]
+        responses = [make_response(PAGINATION_SIZE), make_response(PAGINATION_SIZE)]
         with patch.object(
             search,
             "_perform_web_search_request",
@@ -330,11 +330,11 @@ class TestBraveSearchPagination:
 
             assert mock_req.call_count == 2
             first_params = mock_req.call_args_list[0][1]["params"]
-            assert first_params.count == 20
+            assert first_params.count == PAGINATION_SIZE
             assert first_params.offset == 0
 
             second_params = mock_req.call_args_list[1][1]["params"]
-            assert second_params.count == 5
+            assert second_params.count == PAGINATION_SIZE
             assert second_params.offset == 1
 
         assert len(results) == 25
@@ -390,7 +390,11 @@ class TestBraveSearchPagination:
             }
             return mock_resp
 
-        responses = [make_response(20), make_response(20), make_response(10)]
+        responses = [
+            make_response(PAGINATION_SIZE),
+            make_response(PAGINATION_SIZE),
+            make_response(PAGINATION_SIZE),
+        ]
         with patch.object(
             search,
             "_perform_web_search_request",
@@ -405,7 +409,7 @@ class TestBraveSearchPagination:
             assert offsets == [0, 1, 2]
 
             counts = [call[1]["params"].count for call in mock_req.call_args_list]
-            assert counts == [20, 20, 10]
+            assert counts == [PAGINATION_SIZE, PAGINATION_SIZE, PAGINATION_SIZE]
 
         assert len(results) == 50
 
@@ -426,6 +430,7 @@ class TestBraveSearchPagination:
             await search.search("my search query")
             params = mock_req.call_args[1]["params"]
             assert params.q == "my search query"
+            assert params.count == PAGINATION_SIZE
 
 
 class TestBraveSearchPerformRequest:
