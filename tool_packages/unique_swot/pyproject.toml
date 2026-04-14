@@ -51,6 +51,16 @@ coverage = "pytest --cov=unique_swot --cov-report=term-missing"
 ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
 ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
+[tool.pytest.ini_options]
+addopts = "--strict-markers --import-mode=importlib"
+asyncio_mode = "auto"
+markers = [
+    "unit: for unit tests",
+    "serial",
+    "ai: AI-authored test",
+]
+filterwarnings = ["ignore:DeprecationWarning"]
+
 [tool.deptry]
 known_first_party = ["unique_swot", "unique_toolkit", "unique_quartr"]
 extend_exclude = ["unique_swot/tests"]

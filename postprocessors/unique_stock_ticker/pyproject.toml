@@ -58,6 +58,16 @@ coverage = "pytest --cov=unique_stock_ticker --cov-report=term-missing"
 ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
 ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
 
+[tool.pytest.ini_options]
+addopts = "--strict-markers --import-mode=importlib"
+asyncio_mode = "auto"
+markers = [
+    "asyncio: for async tests",
+    "unit: for unit tests",
+    "serial",
+]
+filterwarnings = ["ignore:DeprecationWarning"]
+
 [tool.deptry]
 known_first_party = ["unique_stock_ticker"]
 extend_exclude = ["unique_stock_ticker/detection/tests"]
