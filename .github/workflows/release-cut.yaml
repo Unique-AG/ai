@@ -1,0 +1,142 @@
+name: "Release · Cut Branch"
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: "Year (YYYY). Leave empty for current year."
+        required: false
+        type: string
+      week:
+        description: "Calendar week (WW). Leave empty for current week."
+        required: false
+        type: string
+      commit_sha:
+        description: "Commit SHA to branch from. Defaults to HEAD of main."
+        required: false
+        type: string
+
+jobs:
+  release-cut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Ensure workflow runs from main
+        run: |
+          CURRENT_BRANCH="${GITHUB_REF#refs/heads/}"
+          if [ "$CURRENT_BRANCH" != "main" ]; then
+            echo "Error: this workflow must be run from the main branch (got: $CURRENT_BRANCH)"
+            exit 1
+          fi
+
+      - name: Checkout with full history
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Compute release version
+        id: version
+        run: |
+          YEAR="${{ inputs.year }}"
+          WEEK="${{ inputs.week }}"
+          [[ -z "$YEAR" ]] && YEAR=$(date +"%Y")
+          [[ -z "$WEEK" ]] && WEEK=$(date +"%V")
+
+          # Zero-pad week to 2 digits
+          WEEK=$(printf "%02d" "$((10#$WEEK))")
+
+          echo "year=$YEAR" >> $GITHUB_OUTPUT
+          echo "week=$WEEK" >> $GITHUB_OUTPUT
+          echo "version=${YEAR}.${WEEK}.0" >> $GITHUB_OUTPUT
+          echo "branch=release/${YEAR}.${WEEK}" >> $GITHUB_OUTPUT
+          echo "Release: ${YEAR}.${WEEK}.0"
+
+      - name: Verify commit
+        id: verify
+        run: |
+          TARGET="${{ inputs.commit_sha || github.sha }}"
+          if ! git rev-parse --verify "$TARGET" >/dev/null 2>&1; then
+            echo "Error: commit $TARGET does not exist"
+            exit 1
+          fi
+          SHA=$(git rev-parse "$TARGET")
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+          echo "Verified commit: $SHA"
+
+      - name: Check branch does not exist
+        run: |
+          BRANCH="${{ steps.version.outputs.branch }}"
+          if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
+            echo "Error: branch $BRANCH already exists"
+            exit 1
+          fi
+
+      - name: Create release branch
+        run: |
+          git checkout "${{ steps.verify.outputs.sha }}"
+          git checkout -b "${{ steps.version.outputs.branch }}"
+
+      - name: Run release-cut script
+        id: cut
+        run: |
+          bash .github/scripts/release-cut.sh \
+            "${{ steps.version.outputs.year }}" \
+            "${{ steps.version.outputs.week }}"
+
+      - name: Configure git
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+      - name: Commit release
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git add -A
+          git commit -m "chore: release ${VERSION}
+
+          Release all packages at version ${VERSION}."
+
+      - name: Create tags
+        id: tags
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAGS="${{ steps.cut.outputs.TAGS }}"
+          TAG_LIST=""
+
+          for tag in $TAGS; do
+            git tag -a "$tag" -m "Release $tag"
+            TAG_LIST="${TAG_LIST}${tag}\n"
+            echo "Created tag: $tag"
+          done
+
+          echo "tag_list<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$TAG_LIST" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Push branch and tags
+        run: |
+          BRANCH="${{ steps.version.outputs.branch }}"
+          git push origin "$BRANCH"
+          git push origin --tags
+
+      - name: Create GitHub releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAGS="${{ steps.cut.outputs.TAGS }}"
+
+          for tag in $TAGS; do
+            component="${tag%-v*}"
+            echo "Creating release for $tag..."
+            gh release create "$tag" \
+              --title "$component $VERSION" \
+              --target "${{ steps.version.outputs.branch }}" \
+              --generate-notes=false \
+              --notes "Release $component at version $VERSION" \
+              || echo "Warning: failed to create release for $tag"
+          done

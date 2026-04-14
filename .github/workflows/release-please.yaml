@@ -1,0 +1,19 @@
+name: "Release · Please (Hotfixes)"
+
+on:
+  push:
+    branches:
+      - "release/*"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@a02a34c4d625f9be7cb89f4291f3d4484fec4e28 # v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
