@@ -2,10 +2,12 @@
 # Search Proxy - Container Image
 #
 # Two install modes (exactly one must be set):
-#   PACKAGE_VERSION  – install from PyPI:  pip install unique-search-proxy==<ver>
+#   REQUIREMENTS_TXT – install from a hash-pinned requirements.txt (CI path)
 #   LOCAL_WHEEL      – install a pre-built .whl from the build context
 #
-# CI uses PACKAGE_VERSION after publishing to PyPI.
+# CI generates requirements.txt via `uv export` after publishing to PyPI,
+# so every dependency carries the sha256 hash from uv.lock.
+#
 # Customers who prefer not to publish can build the wheel locally:
 #   uv build --wheel --out-dir deploy/  (from the package root)
 #   docker build \
@@ -14,7 +16,7 @@
 # =============================================================================
 FROM python:3.12-slim-bookworm@sha256:31c0807da611e2e377a2e9b566ad4eb038ac5a5838cbbbe6f2262259b5dc77a0
 
-ARG PACKAGE_VERSION=""
+ARG REQUIREMENTS_TXT=""
 ARG LOCAL_WHEEL=""
 
 ENV PYTHONFAULTHANDLER=1 \
@@ -29,14 +31,15 @@ RUN useradd -m appuser
 
 WORKDIR /app
 
-COPY entrypoint.sh ${LOCAL_WHEEL:+$LOCAL_WHEEL} ./
+COPY entrypoint.sh ${REQUIREMENTS_TXT:+$REQUIREMENTS_TXT} ${LOCAL_WHEEL:+$LOCAL_WHEEL} ./
 
 RUN if [ -n "$LOCAL_WHEEL" ]; then \
       pip install --no-cache-dir "./$LOCAL_WHEEL" && rm -f "./$LOCAL_WHEEL"; \
-    elif [ -n "$PACKAGE_VERSION" ]; then \
-      pip install --no-cache-dir "unique-search-proxy==${PACKAGE_VERSION}"; \
+    elif [ -n "$REQUIREMENTS_TXT" ]; then \
+      pip install --no-cache-dir --require-hashes -r "./$REQUIREMENTS_TXT" \
+        && rm -f "./$REQUIREMENTS_TXT"; \
     else \
-      echo "ERROR: set either PACKAGE_VERSION or LOCAL_WHEEL" >&2; exit 1; \
+      echo "ERROR: set either REQUIREMENTS_TXT or LOCAL_WHEEL" >&2; exit 1; \
     fi
 
 RUN chown -R appuser:appuser /app && \
