@@ -64,7 +64,7 @@ runs:
       run: |
         bash /tmp/create-type-baseline.sh \
           -c \
-          -r "uv run --frozen" \
+          -r "uv run" \
           -o "${{ inputs.output_file }}" \
           ${{ github.workspace }}/${{ inputs.package_dir }} \
           ${{ inputs.branch }}

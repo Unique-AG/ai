@@ -109,8 +109,8 @@ jobs:
           UV_NO_SOURCES: 1
         run: |
           # Only run export if the config checker exists in the base commit.
-          if uv run --frozen python -c "import importlib.util; exit(0 if importlib.util.find_spec('unique_toolkit._common.config_checker') else 1)" 2>/dev/null; then
-            uv run --frozen python -m unique_toolkit._common.config_checker export \
+          if uv run python -c "import importlib.util; exit(0 if importlib.util.find_spec('unique_toolkit._common.config_checker') else 1)" 2>/dev/null; then
+            uv run python -m unique_toolkit._common.config_checker export \
               --package . \
               --output "$GITHUB_WORKSPACE/config-artifacts-base/"
           else
@@ -153,7 +153,7 @@ jobs:
         env:
           UV_NO_SOURCES: 1
         run: |
-          uv run --frozen python -m unique_toolkit._common.config_checker check \
+          uv run python -m unique_toolkit._common.config_checker check \
             --artifacts "$GITHUB_WORKSPACE/config-artifacts-base/" \
             --package . \
             --report-defaults \
