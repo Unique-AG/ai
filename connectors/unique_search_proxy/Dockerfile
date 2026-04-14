@@ -32,7 +32,7 @@ COPY requirements.txt pyproject.toml ./
 # carries the sha256 hash recorded in uv.lock. --require-hashes makes pip verify
 # each download against that hash — any mismatch (tampered package, wrong version,
 # network substitution) causes an immediate build failure.
-RUN uv venv && uv pip install --require-hashes -r requirements.txt
+RUN uv venv && uv pip install --no-config --require-hashes -r requirements.txt
 
 # Copy application code
 COPY web/ ./
