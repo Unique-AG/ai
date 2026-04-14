@@ -3,7 +3,7 @@
 Covers:
 - TodoList.update() logic (update, append, preserve, active_form carry-over)
 - TodoList.has_active_items() logic
-- TodoList.status_counts() aggregation
+- TodoList.status_counter() aggregation
 - TodoWriteTool.run() (create, update, replace, formatting)
 - Large todo lists (100 items) preserved without truncation
 - debug_info structure on tool response
@@ -128,7 +128,7 @@ class TestTodoList:
         tl = _todo_list_with_default_none_list_and_zero_iteration()
         assert tl.has_active_items() is False
 
-    def test_status_counts(self) -> None:
+    def test_status_counter(self) -> None:
         tl = _todo_list_with_default_none_list_and_zero_iteration(
             todos=[
                 _item_with_default_active_form_none("a", "x", TodoStatus.PENDING),
@@ -138,12 +138,12 @@ class TestTodoList:
                 _item_with_default_active_form_none("e", "x", TodoStatus.PENDING),
             ]
         )
-        counts = tl.status_counts()
+        counts = tl.status_counter()
         assert counts["pending"] == 2
         assert counts["in_progress"] == 1
         assert counts["completed"] == 1
         assert counts["cancelled"] == 1
-        assert counts["total"] == 5
+        assert counts["missing_status"] == 0
 
 
 class TestTodoListUpdate:

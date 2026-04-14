@@ -160,7 +160,6 @@ The `todo_write` response includes structured `debug_info` for the debug UI:
     "items": [{"id": "t1", "content": "Research APIs", "status": "pending"}]
   },
   "state": {
-    "total": 3,
     "completed": 1,
     "in_progress": 1,
     "pending": 1,
@@ -189,7 +188,7 @@ Additionally, after tool execution, tools with `debug_info` get a summary entry 
 
 `tests/agentic/tools/test_todo_service.py` -- tests covering:
 - `TodoList.update()` logic (update, append, preserve)
-- `TodoList.has_active_items()` and `status_counts()` logic
+- `TodoList.has_active_items()` and `status_counter()` logic
 - `TodoWriteTool.run()` (create, update, replace, formatting)
 - Large todo lists (100 items) preserved without truncation
 - `debug_info` structure on tool response

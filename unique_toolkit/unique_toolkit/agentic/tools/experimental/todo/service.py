@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from logging import getLogger
 
 from unique_toolkit._common.utils.jinja.render import render_template
@@ -139,7 +140,7 @@ class TodoWriteTool(Tool[TodoConfig]):
             current_state.format(),
         )
 
-        counts = current_state.status_counts()
+        counts = current_state.status_counter()
         await self._log_step(current_state)
 
         content = current_state.format()
@@ -176,14 +177,14 @@ class TodoWriteTool(Tool[TodoConfig]):
         ``active_form`` (present-continuous description) when available.
         """
         try:
-            counts = state.status_counts()
-            completed = counts.get("completed", 0)
+            counts = state.status_counter()
+            completed = counts["completed"]
             total = len(state.todos)
 
             if total == 0:
                 return
 
-            all_done = not counts.get("in_progress") and not counts.get("pending")
+            all_done = not counts["in_progress"] and not counts["pending"]
 
             lines = []
             for i, t in enumerate(state.todos, 1):
@@ -210,15 +211,13 @@ class TodoWriteTool(Tool[TodoConfig]):
         except Exception:
             logger.debug("TodoWriteTool: failed to write step log", exc_info=True)
 
-    def _maybe_add_verification_nudge(
-        self, content: str, counts: dict[str, int]
-    ) -> str:
+    def _maybe_add_verification_nudge(self, content: str, counts: Counter[str]) -> str:
         """Append a verification nudge after N consecutive completions."""
         threshold = self.config.verification_threshold
         if threshold <= 0:
             return content
-        completed = counts.get("completed", 0)
-        if completed > 0 and completed % threshold == 0 and counts.get("pending", 0):
+        completed = counts["completed"]
+        if completed > 0 and completed % threshold == 0 and counts["pending"]:
             content += (
                 f"\n\n[Checkpoint: {completed} tasks completed. "
                 "Before continuing, briefly verify recent results are correct.]"
