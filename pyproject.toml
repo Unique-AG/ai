@@ -60,18 +60,6 @@ constraint-dependencies = [
 
 [tool.uv.exclude-newer-package]
 "unique-toolkit" = false
-# Temporary overrides: the constraint-dependencies above enforce security floors
-# that are too recent for the 2-week exclude-newer window on some Python version
-# splits. Remove these once the constrained versions are older than 2 weeks.
-aiohttp = "2026-04-08"
-copier = "2026-04-09"
-cryptography = "2026-04-08"
-deepdiff = "2026-04-08"
-fastmcp = "2026-04-08"
-langchain-core = "2026-04-09"
-litellm = "2026-04-09"
-openai = "2026-04-09"
-requests = "2026-04-08"
 
 [tool.uv.sources]
 unique-toolkit = { workspace = true }
