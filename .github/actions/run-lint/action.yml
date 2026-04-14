@@ -24,11 +24,11 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
-      run: uv run ruff format --check .
+      run: uv run --frozen ruff format --check .
 
     - name: Run Ruff lint check
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
-      run: uv run ruff check .
+      run: uv run --frozen ruff check .

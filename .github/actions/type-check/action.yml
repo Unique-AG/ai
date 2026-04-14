@@ -45,6 +45,6 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       run: |
         bash ${{ github.workspace }}/.github/scripts/run-basedpyright.sh \
-          -r "uv run" \
+          -r "uv run --frozen" \
           -o "${{ inputs.output_file }}" \
           ${{ github.workspace }}/${{ inputs.package_dir }}
