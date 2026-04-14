@@ -1,5 +1,5 @@
 import logging
-from typing import Literal
+from typing import Literal, TypeVar
 
 from httpx import AsyncClient, Response
 from pydantic import BaseModel
@@ -26,9 +26,11 @@ PAGINATION_SIZE = (
     20  # Brave Search API only supports a maximum of 20 results per request
 )
 
+T = TypeVar("T")
+
 
 def get_headers(api_key: str) -> dict[str, str]:
-    return HEADERS.copy() | {"X-Subscription-Key": api_key}
+    return HEADERS.copy() | {"X-Subscription-Token": api_key}
 
 
 class BraveSearchParameters(BaseModel):
@@ -36,11 +38,13 @@ class BraveSearchParameters(BaseModel):
     count: int
     offset: int
     safesearch: Literal["strict", "moderate", "off"] = "strict"
+    extra_snippets: bool = True
 
 
 class BraveSearchConfig(BaseSearchEngineConfig[SearchEngineType.BRAVE]):
     model_config = get_search_engine_model_config(SearchEngineType.BRAVE)
     search_engine_name: Literal[SearchEngineType.BRAVE] = SearchEngineType.BRAVE
+    requires_scraping: bool = False
 
 
 class BraveSearch(SearchEngine[BraveSearchConfig]):
@@ -54,16 +58,17 @@ class BraveSearch(SearchEngine[BraveSearchConfig]):
 
     @property
     def requires_scraping(self) -> bool:
-        return True
+        return self.config.requires_scraping
 
     async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
         search_results = []
         fetch_size = self.config.fetch_size
 
-        for start_index in range(0, fetch_size, PAGINATION_SIZE):
-            effective_num_fetch = min(fetch_size - start_index, PAGINATION_SIZE)
+        for page in range(0, (fetch_size + PAGINATION_SIZE - 1) // PAGINATION_SIZE):
+            remaining = fetch_size - page * PAGINATION_SIZE
+            effective_num_fetch = min(remaining, PAGINATION_SIZE)
             params = BraveSearchParameters(
-                q=query, count=effective_num_fetch, offset=start_index
+                q=query, count=effective_num_fetch, offset=page
             )
 
             response = await self._perform_web_search_request(params=params)
@@ -94,10 +99,15 @@ class BraveSearch(SearchEngine[BraveSearchConfig]):
                 params=params.model_dump(exclude_none=True),
                 headers=get_headers(api_key),
             )
+            import json
+            from uuid import uuid4
+
+            with open(f"brave_{uuid4()}.json", "w") as f:
+                json.dump(response.json(), f, indent=4)
         return response
 
     def _extract_urls(self, brave_response: dict) -> list[WebSearchResult]:
-        search_results = []
+        search_results: list[dict] = []
         if "web" in brave_response and brave_response["web"] is not None:
             search_results.extend(brave_response["web"]["results"])
         if "news" in brave_response and brave_response["news"] is not None:
@@ -110,15 +120,8 @@ class BraveSearch(SearchEngine[BraveSearchConfig]):
             WebSearchResult(
                 url=item["url"],
                 title=item["title"],
-                snippet=self._safe_load_key(item, "description"),
+                snippet=item.get("description", "No Snippet Found"),
+                content="\n".join(item.get("extra_snippets", [])),
             )
             for item in search_results
         ]
-
-    @staticmethod
-    def _safe_load_key(brave_response: dict, key: str, default: str = "") -> str:
-        try:
-            return brave_response[key]
-        except KeyError:
-            _LOGGER.warning(f"Key {key} not found in Brave search response")
-            return default
