@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.21.2] - 2026-03-31
 - Chore: migrate pytest config from `pytest.ini` to `pyproject.toml` with `importlib` import mode
+- Chore: update `exclude-newer-package` timestamps and lockfile refresh
 
 ## [1.21.1] - 2026-04-13
 - Trigger `uploaded_content_tool` only if at least one file is ingested (and not expired)

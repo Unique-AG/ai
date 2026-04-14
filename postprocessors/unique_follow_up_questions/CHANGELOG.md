@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.18] - 2026-03-31
 - Chore: migrate pytest config from `pytest.ini` to `pyproject.toml` with `importlib` import mode
+- Chore: update `exclude-newer-package` timestamps and lockfile refresh
 
 ## [1.1.17] - 2026-04-05
 - Fix: use async `complete_async()` instead of sync `complete()` in follow-up question generation to avoid blocking the event loop and starving concurrent postprocessors
