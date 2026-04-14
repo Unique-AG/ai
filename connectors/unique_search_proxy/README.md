@@ -52,13 +52,13 @@ uv run python -m unique_search_proxy.web.app
 **Docker (from published package — hash-verified):**
 
 CI generates a hash-pinned `requirements.txt` from `uv.lock` and passes it into the
-Docker build. To reproduce locally:
+Docker build. Dependencies are installed with `--require-hashes`, then the package
+itself is installed with `--no-deps`. To reproduce locally:
 
 ```bash
 uv export --locked --package unique-search-proxy --no-dev --no-emit-project \
   -o deploy/requirements.txt
-echo "unique-search-proxy==0.2.0" >> deploy/requirements.txt
-docker build --build-arg REQUIREMENTS_TXT=requirements.txt -t search-proxy deploy/
+docker build --build-arg PACKAGE_VERSION=0.2.0 -t search-proxy deploy/
 ```
 
 Every transitive dependency is verified against its sha256 hash from the lockfile.
