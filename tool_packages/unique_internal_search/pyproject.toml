@@ -1,6 +1,6 @@
 [project]
 name = "unique_internal_search"
-version = "1.2.40"
+version = "1.2.41"
 description = ""
 readme = "README.md"
 license = { text = "Proprietary" }
@@ -60,6 +60,9 @@ DEP003 = ["unique_toolkit"]
 typeCheckingMode = "standard"
 include = ["unique_internal_search"]
 exclude = ["**/tests/**", "**/test_*.py"]
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
 
 [tool.ruff]
 target-version = "py311"

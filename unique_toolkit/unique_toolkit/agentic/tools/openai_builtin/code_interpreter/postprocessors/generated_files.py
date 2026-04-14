@@ -21,6 +21,7 @@ from tenacity import (
 
 from unique_toolkit import ChatService
 from unique_toolkit._common.execution import failsafe_async
+from unique_toolkit._common.utils.files import FileMimeType, ImageMimeType
 from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
 from unique_toolkit.agentic.postprocessor.postprocessor_manager import (
     ResponsesApiPostprocessor,
@@ -704,7 +705,16 @@ class DisplayCodeInterpreterFilesPostProcessor(
                     container_file.filename, "uploading", force_publish=True
                 )
 
-            mime = guess_type(container_file.filename)[0] or "text/plain"
+            raw_mime = guess_type(container_file.filename)[0] or "text/plain"
+            mime = _kb_safe_mime(raw_mime)
+            if mime != raw_mime:
+                self._log.info(
+                    "MIME type '%s' is not supported by the Unique KB; "
+                    "uploading '%s' as '%s' so the file can be stored and downloaded.",
+                    raw_mime,
+                    container_file.filename,
+                    mime,
+                )
             self._log.info(
                 "Uploading '%s' to knowledge base (mime=%s, %d bytes)",
                 container_file.filename,
@@ -1029,6 +1039,37 @@ def _get_file_type(filename: str) -> CodeInterpreterFileType:
     if mime == "text/html":
         return "html"
     return "document"
+
+
+def _kb_safe_mime(mime: str) -> str:
+    """Return a MIME type the Unique KB will accept.
+
+    Membership is defined by ``FileMimeType`` and ``ImageMimeType`` in
+    ``unique_toolkit._common.utils.files`` (same catalog as path-based helpers
+    like ``FileMimeType.is_valid_mime``, but here we already have a resolved
+    MIME string from ``mimetypes.guess_type``, so we use StrEnum value lookup
+    instead of re-parsing a path).
+
+    The KB GraphQL API rejects many code-file MIME types (e.g. ``text/x-python``
+    for ``.py`` files).  Anything not in those enums is coerced to
+    ``text/plain`` so the file can be stored and downloaded without changing
+    its bytes.
+
+    Other ``image/*`` subtypes (e.g. ``image/jpg``) still pass through unchanged.
+    """
+    try:
+        FileMimeType(mime)
+        return mime
+    except ValueError:
+        pass
+    try:
+        ImageMimeType(mime)
+        return mime
+    except ValueError:
+        pass
+    if mime.startswith("image/"):
+        return mime
+    return "text/plain"
 
 
 def _file_title(filename: str) -> str:

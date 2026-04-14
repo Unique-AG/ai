@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from click.testing import CliRunner
 
 from unique_web_search.cli.cli import main
@@ -292,6 +293,14 @@ class TestCmdCrawl:
         assert len(parsed) == 1
         assert parsed[0]["content"] == "content"
         assert parsed[0]["error"] is None
+
+    def test_crawl_rejects_zero_parallel(self) -> None:
+        with pytest.raises(ValueError, match="parallel must be >= 1"):
+            cmd_crawl(MagicMock(), ["https://example.com"], parallel=0)
+
+    def test_crawl_rejects_negative_parallel(self) -> None:
+        with pytest.raises(ValueError, match="parallel must be >= 1"):
+            cmd_crawl(MagicMock(), ["https://example.com"], parallel=-1)
 
     @patch("unique_web_search.cli.commands.crawl.get_crawler_service")
     def test_crawl_batch_error(self, mock_get: MagicMock) -> None:

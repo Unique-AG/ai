@@ -23,6 +23,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.postprocessors
     _FileProgressTracker,
     _FileState,
     _inject_code_execution_fences,
+    _kb_safe_mime,
     _replace_dangling_sandbox_links,
     _warn_missing_content_ids,
     _warn_unmatched_code_blocks,
@@ -2980,3 +2981,100 @@ async def test_download_and_upload__tracker_receives_upload_and_done__on_success
     phases = [c.args[1] for c in tracker.update.call_args_list]
     assert "uploading" in phases
     assert "done" in phases
+
+
+# ---------------------------------------------------------------------------
+# _kb_safe_mime — UN-19267 MIME type coercion (KB Invalid file type on .py upload)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@pytest.mark.parametrize(
+    "mime, expected",
+    [
+        # Code MIME types must be coerced to text/plain (root cause of UN-19267).
+        ("text/x-python", "text/plain"),
+        ("application/javascript", "text/plain"),
+        ("text/javascript", "text/plain"),
+        ("application/x-sh", "text/plain"),
+        ("text/x-c", "text/plain"),
+        ("text/x-java-source", "text/plain"),
+        # Supported types must pass through unchanged.
+        ("text/plain", "text/plain"),
+        ("text/html", "text/html"),
+        ("text/csv", "text/csv"),
+        ("application/pdf", "application/pdf"),
+        ("application/msword", "application/msword"),
+        (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ),
+        (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ),
+        # Also defined on FileMimeType / ImageMimeType (shared allowlist).
+        ("text/markdown", "text/markdown"),
+        ("application/json", "application/json"),
+        ("image/bmp", "image/bmp"),
+        # image/* must always pass through unchanged.
+        ("image/png", "image/png"),
+        ("image/jpeg", "image/jpeg"),
+        ("image/svg+xml", "image/svg+xml"),
+        ("image/x-custom", "image/x-custom"),
+    ],
+)
+def test_kb_safe_mime__returns_correct_mime__for_various_types(
+    mime: str, expected: str
+) -> None:
+    """
+    Purpose: Verify _kb_safe_mime returns text/plain for unsupported types and
+    passes through supported types and image/* unchanged.
+    Why this matters: UN-19267 — the Unique KB rejects text/x-python, causing
+    'Invalid file type' on upload. All code/script MIME types must be coerced.
+    Setup summary: Call _kb_safe_mime; assert expected value.
+    """
+    assert _kb_safe_mime(mime) == expected
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_download_and_upload__py_file__uploaded_as_text_plain() -> None:
+    """
+    Purpose: Verify that a .py container file is uploaded with mime_type='text/plain'.
+    Why this matters: UN-19267 root cause — the Unique KB rejects text/x-python with
+    [GraphQL] Invalid file type. The fix coerces the MIME type to text/plain so the
+    upload succeeds while preserving the file bytes exactly.
+    Setup summary: Stream a .py file; capture mime_type passed to upload; assert text/plain.
+    """
+    import asyncio
+
+    proc = _make_display_files_postprocessor()
+    proc._config = DisplayCodeInterpreterFilesPostProcessorConfig(
+        download_retry_base_delay=0,
+    )
+    annotation = _make_annotation("long_script.py")
+    semaphore = asyncio.Semaphore(10)
+    py_bytes = b"def f(): return 42\n"
+    mock_stream = _MockStreamResponse(py_bytes, content_length=len(py_bytes))
+    proc._client.containers.files.content.with_streaming_response.retrieve = MagicMock(
+        return_value=mock_stream
+    )
+    mock_upload_result = MagicMock()
+    mock_upload_result.id = "cid_py_file"
+    proc._chat_service.upload_to_chat_from_bytes_async = AsyncMock(
+        return_value=mock_upload_result
+    )
+
+    result = await proc._download_and_upload_container_files_to_knowledge_base(
+        annotation, semaphore
+    )
+
+    assert result is not None
+    assert result.content_id == "cid_py_file"
+    _, kwargs = proc._chat_service.upload_to_chat_from_bytes_async.call_args
+    assert kwargs["mime_type"] == "text/plain", (
+        f"Expected text/plain but got {kwargs['mime_type']!r} — "
+        "the KB rejects text/x-python (UN-19267)"
+    )
+    assert kwargs["content"] == py_bytes
