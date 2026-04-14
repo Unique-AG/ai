@@ -36,13 +36,12 @@ class Config:
 def load_config() -> Config:
     """Load configuration from environment variables and wire into unique_sdk.
 
-    Required env vars: UNIQUE_API_KEY, UNIQUE_APP_ID, UNIQUE_USER_ID, UNIQUE_COMPANY_ID.
-    Optional: UNIQUE_API_BASE (defaults to the SDK default).
+    Required env vars: UNIQUE_USER_ID, UNIQUE_COMPANY_ID.
+    Optional: UNIQUE_API_KEY, UNIQUE_APP_ID (not needed on localhost or in a
+    secured cluster), UNIQUE_API_BASE (defaults to the SDK default).
     """
     missing: list[str] = []
     for var in (
-        "UNIQUE_API_KEY",
-        "UNIQUE_APP_ID",
         "UNIQUE_USER_ID",
         "UNIQUE_COMPANY_ID",
     ):
@@ -56,8 +55,8 @@ def load_config() -> Config:
         )
         sys.exit(1)
 
-    api_key = os.environ["UNIQUE_API_KEY"]
-    app_id = os.environ["UNIQUE_APP_ID"]
+    api_key = os.environ.get("UNIQUE_API_KEY", "")
+    app_id = os.environ.get("UNIQUE_APP_ID", "")
     user_id = os.environ["UNIQUE_USER_ID"]
     company_id = os.environ["UNIQUE_COMPANY_ID"]
     api_base = os.environ.get("UNIQUE_API_BASE", unique_sdk.api_base)

@@ -20,10 +20,10 @@ description: >-
 It is installed via `pip install unique-sdk` and requires these environment variables:
 
 ```bash
-UNIQUE_API_KEY    # API key (ukey_...)
-UNIQUE_APP_ID     # App ID (app_...)
-UNIQUE_USER_ID    # User ID
-UNIQUE_COMPANY_ID # Company ID
+UNIQUE_USER_ID    # User ID (required)
+UNIQUE_COMPANY_ID # Company ID (required)
+UNIQUE_API_KEY    # API key — optional on localhost / secured cluster
+UNIQUE_APP_ID     # App ID — optional on localhost / secured cluster
 ```
 
 ## One-Shot Commands

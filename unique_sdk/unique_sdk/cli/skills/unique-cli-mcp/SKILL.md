@@ -135,10 +135,10 @@ python generate_payload.py | unique-cli mcp -c chat_123 -m msg_456 --stdin
 Requires these environment variables:
 
 ```bash
-UNIQUE_API_KEY    # API key (ukey_...)
-UNIQUE_APP_ID     # App ID (app_...)
-UNIQUE_USER_ID    # User ID
-UNIQUE_COMPANY_ID # Company ID
+UNIQUE_USER_ID    # User ID (required)
+UNIQUE_COMPANY_ID # Company ID (required)
+UNIQUE_API_KEY    # API key — optional on localhost / secured cluster
+UNIQUE_APP_ID     # App ID — optional on localhost / secured cluster
 ```
 
 Install: `pip install unique-sdk`

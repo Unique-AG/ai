@@ -78,10 +78,15 @@ The SDK ships an interactive file explorer CLI accessible via `unique-cli` or `p
 **Required environment variables:**
 
 ```bash
-export UNIQUE_API_KEY="ukey_..."
-export UNIQUE_APP_ID="app_..."
 export UNIQUE_USER_ID="user_..."
 export UNIQUE_COMPANY_ID="company_..."
+```
+
+**Optional environment variables** (not needed on localhost or in a secured cluster):
+
+```bash
+export UNIQUE_API_KEY="ukey_..."
+export UNIQUE_APP_ID="app_..."
 ```
 
 **CLI commands:**

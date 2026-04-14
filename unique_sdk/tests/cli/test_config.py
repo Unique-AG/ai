@@ -65,6 +65,21 @@ class TestLoadConfig:
 
     @patch.dict(
         os.environ,
+        {
+            "UNIQUE_USER_ID": "user_test",
+            "UNIQUE_COMPANY_ID": "company_test",
+        },
+        clear=True,
+    )
+    def test_api_key_and_app_id_optional(self) -> None:
+        config = load_config()
+        assert config.api_key == ""
+        assert config.app_id == ""
+        assert config.user_id == "user_test"
+        assert config.company_id == "company_test"
+
+    @patch.dict(
+        os.environ,
         {"UNIQUE_API_KEY": "ukey_test"},
         clear=True,
     )
