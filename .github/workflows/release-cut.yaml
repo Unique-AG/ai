@@ -49,6 +49,11 @@ jobs:
           # Zero-pad week to 2 digits
           WEEK=$(printf "%02d" "$((10#$WEEK))")
 
+          if (( 10#$WEEK % 2 != 0 )); then
+            echo "::error::Week $WEEK is odd — releases use even-numbered weeks. Pass an explicit 'week' input to override."
+            exit 1
+          fi
+
           echo "year=$YEAR" >> $GITHUB_OUTPUT
           echo "week=$WEEK" >> $GITHUB_OUTPUT
           echo "version=${YEAR}.${WEEK}.0" >> $GITHUB_OUTPUT
