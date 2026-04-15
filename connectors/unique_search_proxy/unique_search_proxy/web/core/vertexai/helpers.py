@@ -3,7 +3,7 @@ import logging
 
 from httpx import AsyncClient, HTTPError
 
-from core.schema import WebSearchResult, WebSearchResults
+from unique_search_proxy.web.core.schema import WebSearchResult, WebSearchResults
 
 _LOGGER = logging.getLogger(__name__)
 

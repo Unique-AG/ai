@@ -2,8 +2,14 @@ import logging
 from unittest.mock import patch
 
 import pytest
-from app import ErrorResponse, HealthCheckFilter, SearchResponse, app
 from fastapi.testclient import TestClient
+
+from unique_search_proxy.web.app import (
+    ErrorResponse,
+    HealthCheckFilter,
+    SearchResponse,
+    app,
+)
 
 
 @pytest.fixture
@@ -57,11 +63,14 @@ class TestSearchEndpoint:
         """
 
         async def mock_search(self, query):
-            from core.schema import WebSearchResult
+            from unique_search_proxy.web.core.schema import WebSearchResult
 
             return [WebSearchResult(url="https://a.com", title="A", snippet="s")]
 
-        with patch("core.google_search.search.GoogleSearch.search", new=mock_search):
+        with patch(
+            "unique_search_proxy.web.core.google_search.search.GoogleSearch.search",
+            new=mock_search,
+        ):
             resp = client.post(
                 "/search",
                 json={
@@ -91,7 +100,10 @@ class TestExceptionHandlers:
 
         with (
             TestClient(app, raise_server_exceptions=False) as c,
-            patch("core.google_search.search.GoogleSearch.search", new=boom_search),
+            patch(
+                "unique_search_proxy.web.core.google_search.search.GoogleSearch.search",
+                new=boom_search,
+            ),
         ):
             resp = c.post(
                 "/search",
@@ -153,7 +165,7 @@ class TestResponseModels:
         Why this matters: The response model defines the API contract for /search.
         Setup summary: Construct a SearchResponse with one result and assert its length.
         """
-        from core.schema import WebSearchResult
+        from unique_search_proxy.web.core.schema import WebSearchResult
 
         r = SearchResponse(results=[WebSearchResult(url="u", title="t", snippet="s")])
         assert len(r.results) == 1

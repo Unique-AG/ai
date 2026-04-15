@@ -3,12 +3,17 @@ import logging
 from contextlib import asynccontextmanager
 from typing import List
 
-from core import SearchEngineRequestType, WebSearchResult, get_search_engine
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+
+from unique_search_proxy.web.core import (
+    SearchEngineRequestType,
+    WebSearchResult,
+    get_search_engine,
+)
 
 # Load environment variables from .env file
 load_dotenv()

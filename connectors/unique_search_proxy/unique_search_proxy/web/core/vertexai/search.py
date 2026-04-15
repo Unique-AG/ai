@@ -2,25 +2,25 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from core.schema import (
+from unique_search_proxy.web.core.schema import (
     SearchEngineType,
     SearchRequest,
     WebSearchResult,
     WebSearchResults,
     camelized_model_config,
 )
-from core.vertexai.client import (
+from unique_search_proxy.web.core.vertexai.client import (
     get_vertex_client,
 )
-from core.vertexai.config import (
+from unique_search_proxy.web.core.vertexai.config import (
     get_vertex_grounding_config,
     get_vertex_structured_results_config,
 )
-from core.vertexai.gemini import (
+from unique_search_proxy.web.core.vertexai.gemini import (
     generate_content,
 )
-from core.vertexai.helpers import resolve_all
-from core.vertexai.response_handler import (
+from unique_search_proxy.web.core.vertexai.helpers import resolve_all
+from unique_search_proxy.web.core.vertexai.response_handler import (
     PostProcessFunction,
     add_citations,
     parse_to_structured_results,

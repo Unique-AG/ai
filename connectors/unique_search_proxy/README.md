@@ -46,25 +46,37 @@ VERTEXAI_SERVICE_ACCOUNT_CREDENTIALS=path/to/credentials.json
 
 **Development:**
 ```bash
-uv run python app.py
+uv run python -m unique_search_proxy.web.app
 ```
 
-**Production:**
+**Docker (from published package — hash-verified):**
+
+CI generates a hash-pinned `requirements.txt` from `uv.lock` and passes it into the
+Docker build. Dependencies are installed with `--require-hashes`, then the package
+itself is installed with `--no-deps`. To reproduce locally:
+
 ```bash
-./entrypoint.sh
+uv export --locked --package unique-search-proxy --no-dev --no-emit-project \
+  -o deploy/requirements.txt
+docker build --build-arg PACKAGE_VERSION=0.2.0 -t search-proxy deploy/
 ```
 
-Or with custom configuration:
+Every transitive dependency is verified against its sha256 hash from the lockfile.
+
+**Docker (from local source — no registry required):**
+
+Build a wheel first, copy it into `deploy/`, then reference it:
+
 ```bash
-HOST=0.0.0.0 PORT=8080 WORKERS=4 ./entrypoint.sh
+uv build --wheel --out-dir deploy/
+docker build \
+  --build-arg LOCAL_WHEEL=unique_search_proxy-0.2.0-py3-none-any.whl \
+  -t search-proxy deploy/
 ```
 
-**Docker:**
-```bash
-# Build the image
-docker build -t search-proxy .
+**Running the container:**
 
-# Run the container (map port 8080 to host)
+```bash
 docker run --rm -p 8080:8080 search-proxy
 
 # With custom environment variables
@@ -188,6 +200,29 @@ Leverages Google's Gemini models with web grounding for AI-enhanced search resul
 
 ---
 
+## Project Structure
+
+```
+connectors/unique_search_proxy/
+├── unique_search_proxy/          # Python package (published to PyPI)
+│   ├── __init__.py
+│   └── web/                      # Web search API sub-module
+│       ├── __init__.py
+│       ├── app.py                # FastAPI application
+│       ├── settings.py           # Global settings
+│       └── core/                 # Search engine implementations
+│           ├── schema.py         # Shared schemas
+│           ├── google_search/    # Google Custom Search backend
+│           └── vertexai/         # Vertex AI (Gemini) backend
+├── tests/                        # Test suite
+├── deploy/                       # Container build artifacts
+│   ├── Dockerfile                # Hash-verified install or local wheel
+│   └── entrypoint.sh
+└── pyproject.toml
+```
+
+The package uses a sub-module hierarchy (`web/`) to support future extensions (e.g. `internal/` search) that can be deployed as separate containers from the same package.
+
 ## Architecture
 
 ```
@@ -228,7 +263,7 @@ All errors return a consistent format:
 
 ## Production Deployment
 
-The service includes a production-ready `entrypoint.sh` that uses Uvicorn:
+The service includes a production-ready `deploy/entrypoint.sh` that uses Uvicorn:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -242,16 +277,19 @@ The service includes a production-ready `entrypoint.sh` that uses Uvicorn:
 
 ```bash
 # Run with hot reload
-uv run uvicorn app:app --reload --port 2349
-
-# Or simply
-uv run python app.py
+uv run uvicorn unique_search_proxy.web.app:app --reload --port 2349
 
 # Format code
 uv run ruff format .
 
 # Lint
 uv run ruff check .
+
+# Run tests
+uv run pytest
+
+# Type check
+uv run basedpyright
 ```
 
 ## License

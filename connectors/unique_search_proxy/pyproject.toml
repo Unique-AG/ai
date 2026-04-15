@@ -1,6 +1,6 @@
 [project]
-name = "core"
-version = "0.1.6"
+name = "unique-search-proxy"
+version = "0.2.0"
 description = "Web Search Proxy implementation"
 authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]
 readme = "README.md"
@@ -25,7 +25,7 @@ requires = ["uv_build>=0.7.19,<0.8"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
-module-root = "web"
+module-root = "."
 
 [tool.uv]
 exclude-newer = "2 weeks"
@@ -38,10 +38,10 @@ extend-select = ["I"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
-include = ["web"]
+include = ["unique_search_proxy"]
 
 [tool.deptry]
-known_first_party = ["core", "settings"]
+known_first_party = ["unique_search_proxy"]
 
 [tool.poe.tasks]
 lint = "ruff check ."
@@ -52,9 +52,8 @@ typecheck = "basedpyright"
 depcheck = "deptry ."
 
 [tool.pytest.ini_options]
-pythonpath = ["web"]
 asyncio_mode = "auto"
-addopts = "--strict-markers --import-mode=importlib --cov=core --cov=app --cov=settings --cov-report=xml --cov-report=term-missing"
+addopts = "--strict-markers --import-mode=importlib --cov=unique_search_proxy --cov-report=xml --cov-report=term-missing"
 markers = [
     "ai: AI-authored test",
 ]

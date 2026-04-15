@@ -1,15 +1,18 @@
 from unittest.mock import MagicMock
 
 import pytest
-from core.vertexai.exceptions import VertexAIContentResponseEmptyException
-from core.vertexai.response_handler import (
+from pydantic import BaseModel
+
+from unique_search_proxy.web.core.vertexai.exceptions import (
+    VertexAIContentResponseEmptyException,
+)
+from unique_search_proxy.web.core.vertexai.response_handler import (
     PostProcessFunction,
     _build_citation_links,
     _insert_citations_into_text,
     add_citations,
     parse_to_structured_results,
 )
-from pydantic import BaseModel
 
 
 class TestPostProcessFunction:

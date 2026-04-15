@@ -20,7 +20,7 @@ echo "=========================================="
 
 # Execute the main process (replaces shell, proper signal handling)
 exec uvicorn \
-    app:app \
+    unique_search_proxy.web.app:app \
     --host "${HOST}" \
     --port "${PORT}" \
     --workers "${WORKERS}" \
