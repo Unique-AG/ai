@@ -1,13 +1,12 @@
 import json
 import logging
-from typing import Sequence, Unpack
+from typing import Unpack
 
 from openai import AsyncOpenAI
 from openai.types.responses import (
     Response,
     ResponseFormatTextJSONSchemaConfigParam,
     ResponseInputItemParam,
-    ResponseOutputItem,
     ResponseTextConfigParam,
 )
 from pydantic import BaseModel, Field
@@ -26,14 +25,13 @@ from unique_toolkit.agentic.loop_runner.middleware.planning.schema import (
     PlanningSchemaConfig,
     get_planning_schema,
 )
-from unique_toolkit.chat.responses_api import _convert_messages_to_openai
+from unique_toolkit.chat.responses_api import convert_messages_to_openai
 from unique_toolkit.chat.service import LanguageModelStreamResponse
 from unique_toolkit.language_model import (
     LanguageModelAssistantMessage,
     LanguageModelUserMessage,
 )
 from unique_toolkit.language_model.schemas import (
-    LanguageModelMessageOptions,
     LanguageModelMessages,
     ResponsesLanguageModelStreamResponse,
 )
@@ -155,24 +153,10 @@ class ResponsesPlanningMiddleware(ResponsesLoopIterationRunner):
 
         return response
 
-    def _convert_messages(
-        self,
-        messages: str
-        | LanguageModelMessages
-        | Sequence[
-            ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
-        ],
-    ) -> str | list[ResponseInputItemParam]:
-        if isinstance(messages, str):
-            return messages
-        if isinstance(messages, LanguageModelMessages):
-            return _convert_messages_to_openai(messages.root)
-        return _convert_messages_to_openai(messages)
-
     async def __call__(
         self, **kwargs: Unpack[_ResponsesLoopIterationRunnerKwargs]
     ) -> ResponsesLanguageModelStreamResponse:
-        openai_messages = self._convert_messages(kwargs["messages"])
+        openai_messages = convert_messages_to_openai(kwargs["messages"])
 
         response = await self._run_plan_step(
             openai_messages=openai_messages,
