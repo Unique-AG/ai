@@ -13,8 +13,10 @@ from unique_toolkit.agentic.loop_runner import (
     QwenLoopIterationRunner,
     ResponsesBasicLoopIterationRunner,
     ResponsesLoopIterationRunner,
+    ResponsesPlanningMiddleware,
 )
 from unique_toolkit.chat.service import ChatService
+from unique_toolkit.framework_utilities.openai.client import get_async_openai_client
 
 from unique_orchestrator.config import UniqueAIConfig, get_model_family
 
@@ -47,11 +49,21 @@ def build_loop_iteration_runner(
     use_responses_api: bool = False,
 ) -> LoopIterationRunner | ResponsesLoopIterationRunner:
     if use_responses_api:
-        return ResponsesBasicLoopIterationRunner(
-            config=BasicLoopIterationRunnerConfig(
-                max_loop_iterations=config.agent.max_loop_iterations
+        responses_runner: ResponsesLoopIterationRunner = (
+            ResponsesBasicLoopIterationRunner(
+                config=BasicLoopIterationRunnerConfig(
+                    max_loop_iterations=config.agent.max_loop_iterations
+                )
             )
         )
+        if config.agent.experimental.loop_configuration.planning_config is not None:
+            responses_runner = ResponsesPlanningMiddleware(
+                loop_runner=responses_runner,
+                config=config.agent.experimental.loop_configuration.planning_config,
+                openai_client=get_async_openai_client(),
+                history_manager=history_manager,
+            )
+        return responses_runner
 
     base_config = BasicLoopIterationRunnerConfig(
         max_loop_iterations=config.agent.max_loop_iterations
