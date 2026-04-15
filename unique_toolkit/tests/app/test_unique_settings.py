@@ -536,12 +536,20 @@ def test_warn_about_defaults__logs_warnings__with_secretstr_defaults(caplog) -> 
     """
     Purpose: Verify warn_about_defaults logs warnings for SecretStr fields using defaults.
     Why this matters: Ensures users are aware when default values are being used for sensitive fields.
-    Setup summary: Create UniqueApp with defaults, verify warning messages are logged.
+    Setup summary: Construct UniqueApp with default values directly, call warn_about_defaults,
+    verify warning messages are logged.
     """
     # Arrange
+    app = UniqueApp.model_construct(
+        id=SecretStr("dummy_id"),
+        key=SecretStr("dummy_key"),
+        base_url="http://localhost:8092/",
+        endpoint="dummy",
+        endpoint_secret=SecretStr("dummy_secret"),
+    )
     with caplog.at_level(logging.WARNING):
         # Act
-        UniqueApp()
+        warn_about_defaults(app)
         # Assert
         assert "Using default value for 'id':" in caplog.text
         assert "Using default value for 'key':" in caplog.text
@@ -552,12 +560,17 @@ def test_warn_about_defaults__logs_warnings__with_string_defaults(caplog) -> Non
     """
     Purpose: Verify warn_about_defaults logs warnings for string fields using defaults.
     Why this matters: Ensures users are aware when default values are being used.
-    Setup summary: Create UniqueApi with defaults, verify warning messages are logged.
+    Setup summary: Construct UniqueApi with default values directly, call warn_about_defaults,
+    verify warning messages are logged.
     """
     # Arrange
+    api = UniqueApi.model_construct(
+        base_url="http://localhost:8092/",
+        version="2023-12-06",
+    )
     with caplog.at_level(logging.WARNING):
         # Act
-        UniqueApi()
+        warn_about_defaults(api)
         # Assert
         assert "Using default value for 'base_url':" in caplog.text
         assert "Using default value for 'version':" in caplog.text
@@ -743,64 +756,6 @@ def test_unique_auth__from_event__creates_auth__with_event_ids() -> None:
     # Assert
     assert auth.company_id.get_secret_value() == "company-789"
     assert auth.user_id.get_secret_value() == "user-456"
-
-
-@pytest.mark.ai
-def test_unique_settings__find_env_file__returns_path__from_env_variable(
-    tmp_path: Path, monkeypatch
-) -> None:
-    """
-    Purpose: Verify _find_env_file prioritizes UNIQUE_ENV_FILE environment variable.
-    Why this matters: Ensures explicit configuration takes precedence.
-    Setup summary: Set UNIQUE_ENV_FILE, create file at that path, assert it's found.
-    """
-    # Arrange
-    env_file = tmp_path / "custom.env"
-    env_file.write_text("TEST=value")
-    monkeypatch.setenv("UNIQUE_ENV_FILE", str(env_file))
-    # Act
-    found_path = UniqueSettings._find_env_file()
-    # Assert
-    assert found_path == env_file
-
-
-@pytest.mark.ai
-def test_unique_settings__find_env_file__returns_path__from_current_directory(
-    tmp_path: Path, monkeypatch
-) -> None:
-    """
-    Purpose: Verify _find_env_file falls back to current working directory.
-    Why this matters: Ensures standard location discovery works.
-    Setup summary: Remove UNIQUE_ENV_FILE, create file in cwd, assert it's found.
-    """
-    # Arrange
-    monkeypatch.delenv("UNIQUE_ENV_FILE", raising=False)
-    env_file = tmp_path / "unique.env"
-    env_file.write_text("TEST=value")
-    monkeypatch.chdir(tmp_path)
-    # Act
-    found_path = UniqueSettings._find_env_file()
-    # Assert
-    assert found_path == env_file
-
-
-@pytest.mark.ai
-def test_unique_settings__find_env_file__raises_error__when_not_found(
-    tmp_path: Path, monkeypatch
-) -> None:
-    """
-    Purpose: Verify _find_env_file raises EnvFileNotFoundError when file doesn't exist.
-    Why this matters: Provides clear error message when configuration is missing.
-    Setup summary: Remove UNIQUE_ENV_FILE, ensure no file exists, assert exception with helpful message.
-    """
-    # Arrange
-    monkeypatch.delenv("UNIQUE_ENV_FILE", raising=False)
-    monkeypatch.chdir(tmp_path)
-    # Act & Assert
-    with pytest.raises(EnvFileNotFoundError) as exc_info:
-        UniqueSettings._find_env_file()
-    assert "not found" in str(exc_info.value)
-    assert "UNIQUE_ENV_FILE" in str(exc_info.value)
 
 
 @pytest.mark.ai

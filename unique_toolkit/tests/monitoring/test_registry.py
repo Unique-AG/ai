@@ -1,10 +1,12 @@
 """Tests for unique_toolkit.monitoring.registry module."""
 
 import pytest
-from prometheus_client import CollectorRegistry, Counter, Histogram
 
-import unique_toolkit.monitoring.registry as registry_module
-from unique_toolkit.monitoring.registry import (
+prometheus_client = pytest.importorskip("prometheus_client")
+from prometheus_client import CollectorRegistry, Counter, Histogram  # noqa: E402
+
+import unique_toolkit.monitoring.registry as registry_module  # noqa: E402
+from unique_toolkit.monitoring.registry import (  # noqa: E402
     MetricNamespace,
     get_metrics,
     metric_scope,

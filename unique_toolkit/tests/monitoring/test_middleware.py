@@ -2,8 +2,10 @@
 
 import pytest
 
-import unique_toolkit.monitoring.middleware as middleware_module
-from unique_toolkit.monitoring.middleware import MetricsMiddleware
+pytest.importorskip("prometheus_client")
+
+import unique_toolkit.monitoring.middleware as middleware_module  # noqa: E402
+from unique_toolkit.monitoring.middleware import MetricsMiddleware  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Minimal ASGI app helpers
