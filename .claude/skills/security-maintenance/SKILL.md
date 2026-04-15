@@ -4,7 +4,7 @@ description: Triage and fix Dependabot alerts and CodeQL findings in the ai repo
 license: MIT
 compatibility: claude cursor opencode
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   languages: python
   audience: developers
   workflow: automation
