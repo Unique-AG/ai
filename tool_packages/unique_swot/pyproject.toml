@@ -1,6 +1,6 @@
 [project]
 name = "unique-swot"
-version = "1.3.4"
+version = "1.3.5"
 description = "Unique Swot package is a tool that for conducting a swot analysis based on internal and external documents"
 readme = "README.md"
 license = { text = "Proprietary" }

@@ -1,6 +1,6 @@
 [project]
 name = "unique-search-proxy"
-version = "0.2.0"
+version = "0.2.1"
 description = "Web Search Proxy implementation"
 authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]
 readme = "README.md"
