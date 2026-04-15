@@ -1,6 +1,6 @@
 [project]
 name = "unique_orchestrator"
-version = "1.21.2"
+version = "1.21.3"
 description = ""
 readme = "README.md"
 license = { text = "Proprietary" }
@@ -70,11 +70,16 @@ ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/d
 addopts = "--strict-markers --import-mode=importlib"
 asyncio_mode = "auto"
 markers = [
-    "unit: for unit tests",
-    "serial",
-    "ai: for AI-written tests",
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
+    "verified: AI-generated tests with human verification",
 ]
-filterwarnings = ["ignore:DeprecationWarning"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
 
 [tool.deptry]
 known_first_party = ["unique_orchestrator", "unique_toolkit", "unique_stock_ticker", "unique_follow_up_questions", "unique_internal_search", "unique_deep_research", "unique_web_search", "unique_swot"]

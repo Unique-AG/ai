@@ -1,6 +1,6 @@
 [project]
 name = "unique-search-proxy"
-version = "0.2.0"
+version = "0.2.1"
 description = "Web Search Proxy implementation"
 authors = [{ name = "ThePhilAz", email = "rami.azouz@philico.com" }]
 readme = "README.md"
@@ -52,9 +52,17 @@ typecheck = "basedpyright"
 depcheck = "deptry ."
 
 [tool.pytest.ini_options]
+addopts = "--strict-markers --import-mode=importlib"
 asyncio_mode = "auto"
-addopts = "--strict-markers --import-mode=importlib --cov=unique_search_proxy --cov-report=xml --cov-report=term-missing"
 markers = [
-    "ai: AI-authored test",
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
+    "verified: AI-generated tests with human verification",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
 ]
 

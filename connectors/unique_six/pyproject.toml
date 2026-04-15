@@ -1,6 +1,6 @@
 [project]
 name = "unique_six"
-version = "0.1.7"
+version = "0.1.8"
 description = "Unique Six API client"
 authors = [
     { name = "Ahmed Jellouli", email = "ahmed.jellouli.ext@unique.ch" },
@@ -58,12 +58,13 @@ DEP002 = ["python-dotenv", "unique-toolkit", "pyopenssl"]
 addopts = "--strict-markers --import-mode=importlib"
 asyncio_mode = "auto"
 markers = [
-    "unit: for unit tests",
-    "integration: for integration tests that require API credentials",
-    "serial",
-    "asyncio: for async tests",
-    "ai: AI-authored test",
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
+    "verified: AI-generated tests with human verification",
 ]
 filterwarnings = [
-    "ignore:DeprecationWarning",
+    "ignore::DeprecationWarning",
 ]

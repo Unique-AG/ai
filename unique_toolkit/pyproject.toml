@@ -1,6 +1,6 @@
 [project]
 name = "unique_toolkit"
-version = "1.71.1"
+version = "1.71.2"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12"
@@ -99,11 +99,16 @@ ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/d
 addopts = "--strict-markers --import-mode=importlib"
 asyncio_mode = "auto"
 markers = [
-    "ai: AI-generated tests",
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
     "verified: AI-generated tests with human verification",
-    "wip: Work in progress tests"
 ]
-filterwarnings = ["ignore::DeprecationWarning"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
 
 [tool.deptry]
 known_first_party = ["unique_toolkit"]

@@ -1,6 +1,6 @@
 [project]
 name = "unique_stock_ticker"
-version = "1.1.5"
+version = "1.1.6"
 description = ""
 authors = [
     { name = "Martin Fadler", email = "martin.fadler@unique.ch" },
@@ -62,11 +62,16 @@ ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/d
 addopts = "--strict-markers --import-mode=importlib"
 asyncio_mode = "auto"
 markers = [
-    "asyncio: for async tests",
-    "unit: for unit tests",
-    "serial",
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
+    "verified: AI-generated tests with human verification",
 ]
-filterwarnings = ["ignore:DeprecationWarning"]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
 
 [tool.deptry]
 known_first_party = ["unique_stock_ticker"]
