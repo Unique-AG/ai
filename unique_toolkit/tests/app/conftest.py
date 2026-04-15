@@ -16,6 +16,25 @@ _SETTINGS_CLASSES = [
     ChatEvent.FilterOptions,
 ]
 
+_SETTINGS_ENV_VARS = [
+    "UNIQUE_APP_ID",
+    "UNIQUE_APP_KEY",
+    "UNIQUE_APP_BASE_URL",
+    "UNIQUE_APP_ENDPOINT",
+    "UNIQUE_APP_ENDPOINT_SECRET",
+    "UNIQUE_API_BASE_URL",
+    "UNIQUE_API_VERSION",
+    "UNIQUE_AUTH_COMPANY_ID",
+    "UNIQUE_AUTH_USER_ID",
+    "APP_ID",
+    "API_KEY",
+    "KEY",
+    "BASE_URL",
+    "VERSION",
+    "COMPANY_ID",
+    "USER_ID",
+]
+
 
 @pytest.fixture(autouse=True, scope="session")
 def _isolate_settings_from_env_file():
@@ -31,3 +50,14 @@ def _isolate_settings_from_env_file():
     yield
     for cls, original in originals.items():
         cls.model_config["env_file"] = original
+
+
+@pytest.fixture(autouse=True)
+def _isolate_settings_from_shell_env(monkeypatch: pytest.MonkeyPatch):
+    """Remove any shell env vars that pydantic-settings would pick up via aliases.
+
+    Without this, a developer's shell (e.g. UNIQUE_APP_KEY="…") silently
+    overrides the values set by monkeypatch.setenv inside individual tests.
+    """
+    for var in _SETTINGS_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)

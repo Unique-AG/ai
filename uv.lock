@@ -8,11 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-<<<<<<< HEAD
-exclude-newer = "2026-04-01T08:25:54.301058Z"
-=======
-exclude-newer = "2026-04-01T07:07:15.914687Z"
->>>>>>> 13790df88 (docs(toolkit): align SSE test fixture doc with validate_by_name)
+exclude-newer = "2026-04-01T09:52:04.079205Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -482,25 +478,15 @@ wheels = [
 
 [[package]]
 name = "boto3-stubs"
-<<<<<<< HEAD
-version = "1.42.78"
-=======
 version = "1.42.80"
->>>>>>> 13790df88 (docs(toolkit): align SSE test fixture doc with validate_by_name)
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore-stubs" },
     { name = "types-s3transfer" },
 ]
-<<<<<<< HEAD
-sdist = { url = "https://files.pythonhosted.org/packages/03/16/4bdb3c1f69bf7b97dd8b22fe5b007e9da67ba3f00ed10e47146f5fd9d0ff/boto3_stubs-1.42.78.tar.gz", hash = "sha256:423335b8ce9a935e404054978589cdb98d9fa1d4bd46073d6821bf1c3fad8ca7", size = 101602, upload-time = "2026-03-27T19:35:51.149Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/22/d5/bdedd4951c795899ac5a1f0b88d81b9e2c6333cb87457f2edd11ef3b7b7b/boto3_stubs-1.42.78-py3-none-any.whl", hash = "sha256:6ed07e734174751da8d01031d9ede8d81a88e4338d9e6b00ce7a6bc870075372", size = 70161, upload-time = "2026-03-27T19:35:46.336Z" },
-=======
 sdist = { url = "https://files.pythonhosted.org/packages/b3/a8/2b3d2ea2547fc6cef2b5d90b18bc97a2b02c38ae0e293137bd610d619f1d/boto3_stubs-1.42.80.tar.gz", hash = "sha256:5cbfbca9a3348e1a26334f5657b8b99120a4b3b36e397bf423772d9b11c4ac9b", size = 102182, upload-time = "2026-03-31T19:38:09.69Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d4/3e/152c24969556fa286ead7fee0e7d6675bffae4de80d2596cd3f10cd47358/boto3_stubs-1.42.80-py3-none-any.whl", hash = "sha256:bc8b83edf61a64cc2b208a99384cfce7e64321ae0ba2cd03d6a4dc7fafa66e70", size = 70448, upload-time = "2026-03-31T19:38:01.597Z" },
->>>>>>> 13790df88 (docs(toolkit): align SSE test fixture doc with validate_by_name)
 ]
 
 [package.optional-dependencies]
@@ -1578,11 +1564,7 @@ wheels = [
 
 [[package]]
 name = "google-cloud-aiplatform"
-<<<<<<< HEAD
-version = "1.143.0"
-=======
 version = "1.144.0"
->>>>>>> 13790df88 (docs(toolkit): align SSE test fixture doc with validate_by_name)
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "docstring-parser" },
@@ -1599,15 +1581,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
-<<<<<<< HEAD
-sdist = { url = "https://files.pythonhosted.org/packages/a7/08/939fb05870fdf155410a927e22f5b053d49f18e215618e102fba1d8bb147/google_cloud_aiplatform-1.143.0.tar.gz", hash = "sha256:1f0124a89795a6b473deb28724dd37d95334205df3a9c9c48d0b8d7a3d5d5cc4", size = 10215389, upload-time = "2026-03-25T18:30:15.444Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/90/14/16323e604e79dc63b528268f97a841c2c29dd8eb16395de6bf530c1a5ebe/google_cloud_aiplatform-1.143.0-py2.py3-none-any.whl", hash = "sha256:78df97d044859f743a9cc48b89a260d33579b0d548b1589bb3ae9f4c2afc0c5a", size = 8392705, upload-time = "2026-03-25T18:30:11.496Z" },
-=======
 sdist = { url = "https://files.pythonhosted.org/packages/e8/79/8a756b77b33fdc7418c49d3445ebbb9392fb7915e2a3047a64d45d00a20d/google_cloud_aiplatform-1.144.0.tar.gz", hash = "sha256:d1a6f930a9385653b2104ab523751c9a249029b205ccc6b86ee00419c660c943", size = 10217550, upload-time = "2026-04-01T00:46:29.198Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/49/9f/70ecfa90f9429dd5f5db464516528b0f5cc7a116af1d021b2f0a5af67ac1/google_cloud_aiplatform-1.144.0-py2.py3-none-any.whl", hash = "sha256:f9801e5ed3d34bd97d9cf61f9ac05a725d20018f6bc567a4632df6817399e96a", size = 8394909, upload-time = "2026-04-01T00:46:25.58Z" },
->>>>>>> 13790df88 (docs(toolkit): align SSE test fixture doc with validate_by_name)
 ]
 
 [[package]]
@@ -3301,11 +3277,7 @@ wheels = [
 
 [[package]]
 name = "opik"
-<<<<<<< HEAD
-version = "1.10.55"
-=======
-version = "1.10.56"
->>>>>>> 13790df88 (docs(toolkit): align SSE test fixture doc with validate_by_name)
+version = "1.10.57"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "boto3-stubs", extra = ["bedrock-runtime"] },
@@ -3324,15 +3296,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "uuid6" },
 ]
-<<<<<<< HEAD
-sdist = { url = "https://files.pythonhosted.org/packages/a9/cc/d541c219f66584e08586ab8586a59394bec95284eb8f4a1b96177ade93be/opik-1.10.55.tar.gz", hash = "sha256:01c745f4602b6734e49e671174f86366385bf9dec66f83e941bb887398ed04f8", size = 812350, upload-time = "2026-03-30T10:51:10.052Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8d/8f/ec3b201b56f06c28b6e30a7ca308b25d9eb9b2e8b8465a5b3d70f40fc1bd/opik-1.10.57.tar.gz", hash = "sha256:1e0a85b202a84a63d05f9ac37a6e1ffe571ce4aca11f1c735c4b320aff9c34e5", size = 832992, upload-time = "2026-04-01T08:25:14.988Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/16/48/cae894c515dd2e6bba7b3d781c8771506916709f42fade8b2cd9b452d62b/opik-1.10.55-py3-none-any.whl", hash = "sha256:a949ebbba397a6ba0b8083df32289b732008bba30b015db6f04e78723926cc50", size = 1376579, upload-time = "2026-03-30T10:51:08.368Z" },
-=======
-sdist = { url = "https://files.pythonhosted.org/packages/38/af/f4d9c03a692e3006544c11f851dbbc2f33984479bd78ca75ebe3172c4e92/opik-1.10.56.tar.gz", hash = "sha256:18bfedc6c0684ad7c47e32532b4c2ee3e71b62ddaf4050a0a368c62472b22134", size = 812332, upload-time = "2026-03-31T09:15:02.111Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/04/d5/f5e6918291a219193e801e39865a3c8c1cc88abca8ea409f34f6b4822277/opik-1.10.56-py3-none-any.whl", hash = "sha256:b67bbf62e4048620d3523aca13d4a693e002c5d1cd3ef7658adf144bebfc551e", size = 1376680, upload-time = "2026-03-31T09:14:59.713Z" },
->>>>>>> 13790df88 (docs(toolkit): align SSE test fixture doc with validate_by_name)
+    { url = "https://files.pythonhosted.org/packages/38/6f/570a941eefd5ee1ca942437f50edb589bc3737f9bbdbbc2d992f51b26209/opik-1.10.57-py3-none-any.whl", hash = "sha256:d85be5a3b47b7eac4fb5cc8de663ab7836bac2f8a757e02db7f6744460f80bd2", size = 1399929, upload-time = "2026-04-01T08:25:12.971Z" },
 ]
 
 [[package]]
@@ -5576,7 +5542,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-version = "1.71.2"
+version = "1.71.3"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },

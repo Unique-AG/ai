@@ -58,6 +58,6 @@ def test_AI_find_env_file__raises_error__when_not_found(
     monkeypatch.chdir(tmp_path)
     # Act & Assert
     with pytest.raises(EnvFileNotFoundError) as exc_info:
-        find_env_file()
+        find_env_file(required=True)
     assert "not found" in str(exc_info.value)
     assert ".env" in str(exc_info.value)
