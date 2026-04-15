@@ -81,7 +81,19 @@ reportUnusedParameter = "none"
 reportImportCycles = "none"
 
 [tool.pytest.ini_options]
-addopts = "--import-mode=importlib"
+addopts = "--strict-markers --import-mode=importlib"
+asyncio_mode = "auto"
+markers = [
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
+    "verified: AI-generated tests with human verification",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
 
 [tool.poe.tasks]
 # Run from package directory: uv run poe <task>
