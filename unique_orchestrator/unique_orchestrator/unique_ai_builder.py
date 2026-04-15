@@ -432,7 +432,7 @@ async def _build_responses(
     loop_iteration_runner = build_loop_iteration_runner(
         config=config,
         history_manager=common_components.history_manager,
-        openai_client = client,
+        llm_service=common_components.llm_service,
         chat_service=common_components.chat_service,
         use_responses_api=True,
     )
