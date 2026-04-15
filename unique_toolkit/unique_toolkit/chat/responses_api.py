@@ -171,7 +171,7 @@ def _prepare_responses_params_util(
             if reasoning is not None and "effort" in reasoning:
                 del reasoning["effort"]
                 if not reasoning:
-                    reasoning = None
+                    reasoning = None  # pyright: ignore[reportUnreachable]
 
         if (
             reasoning is not None

@@ -71,7 +71,9 @@ def build_unique_custom_app(
     from unique_toolkit.monitoring import _MONITORING_AVAILABLE
 
     if _MONITORING_AVAILABLE:
-        from starlette.responses import Response as StarletteResponse
+        from starlette.responses import (  # pyright: ignore[reportMissingImports]
+            Response as StarletteResponse,
+        )
 
         from unique_toolkit.monitoring import get_metrics
 

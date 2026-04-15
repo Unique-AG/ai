@@ -472,7 +472,7 @@ def get_full_history_with_contents_and_tool_calls(
                     round_tcs_with_response = [
                         tc
                         for tc in round_tcs
-                        if tc.response and tc.response.content is not None
+                        if tc.response and tc.response.content is not None  # pyright: ignore[reportUnnecessaryComparison]
                     ]
                     if not round_tcs_with_response:
                         continue
@@ -496,7 +496,7 @@ def get_full_history_with_contents_and_tool_calls(
                         builder.messages.append(
                             LanguageModelToolMessage(
                                 tool_call_id=fn.id,
-                                content=tc.response.content,  # type: ignore[union-attr]
+                                content=tc.response.content if tc.response else None,
                                 name=tc.function_name,
                             )
                         )
@@ -512,7 +512,7 @@ def get_full_history_with_contents_and_tool_calls(
         # has no tool-call context and treats the empty message as benign.
         had_tool_calls = (
             c.role == ChatRole.ASSISTANT
-            and c.id is not None
+            and c.id is not None  # pyright: ignore[reportUnnecessaryComparison]
             and c.id in tool_calls_by_message
         )
         if had_tool_calls and not text:
@@ -602,7 +602,7 @@ async def get_full_history_with_contents_and_tool_calls_async(
                     round_tcs_with_response = [
                         tc
                         for tc in round_tcs
-                        if tc.response and tc.response.content is not None
+                        if tc.response and tc.response.content is not None  # pyright: ignore[reportUnnecessaryComparison]
                     ]
                     if not round_tcs_with_response:
                         continue
@@ -621,14 +621,14 @@ async def get_full_history_with_contents_and_tool_calls_async(
                         builder.messages.append(
                             LanguageModelToolMessage(
                                 tool_call_id=fn.id,
-                                content=tc.response.content,  # type: ignore[union-attr]
+                                content=tc.response.content if tc.response else None,
                                 name=tc.function_name,
                             )
                         )
 
         had_tool_calls = (
             c.role == ChatRole.ASSISTANT
-            and c.id is not None
+            and c.id is not None  # pyright: ignore[reportUnnecessaryComparison]
             and c.id in tool_calls_by_message
         )
         if had_tool_calls and not text:

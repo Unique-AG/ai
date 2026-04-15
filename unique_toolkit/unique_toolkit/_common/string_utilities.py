@@ -25,6 +25,9 @@ def dict_to_markdown_table(data: dict[str, Any]) -> str:
     Returns:
         Markdown table string or JSON string
     """
+    if not isinstance(data, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
+        return json.dumps(data, indent=2)  # pyright: ignore[reportUnreachable]
+
     if not _is_elementary_dict(data):
         return json.dumps(data, indent=2)
 

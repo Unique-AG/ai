@@ -59,7 +59,11 @@ def get_event_generator(
         Events matching the specified type
     """
     event_name = get_event_name_from_event_class(event_type)
-    if event_name is None or event_type is BaseEvent:
+    if (
+        event_name is None
+        or not issubclass(event_type, BaseEvent)  # pyright: ignore[reportUnnecessaryIsInstance]
+        or event_type is BaseEvent
+    ):
         raise ValueError(f"Event model {event_type} is not a valid event model")
 
     subscription = event_name.value

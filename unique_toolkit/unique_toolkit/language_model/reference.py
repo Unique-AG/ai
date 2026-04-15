@@ -17,8 +17,8 @@ def add_references_to_message(
     if not message.content:
         return message, False
 
-    if message.id is None:
-        raise ValueError("Message ID is required")
+    if message.id is None:  # pyright: ignore[reportUnnecessaryComparison]
+        raise ValueError("Message ID is required")  # pyright: ignore[reportUnreachable]
 
     message.content = _preprocess_message(message.content)
     text, ref_found = _add_references(

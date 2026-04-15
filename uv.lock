@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-01T09:52:04.079205Z"
+exclude-newer = "2026-04-01T10:53:06.987313Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5589,6 +5589,11 @@ monitoring = [
     { name = "prometheus-client" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "basedpyright" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.12.0,<4" },
@@ -5629,7 +5634,7 @@ requires-dist = [
 provides-extras = ["langchain", "fastapi", "monitoring"]
 
 [package.metadata.requires-dev]
-dev = []
+dev = [{ name = "basedpyright", specifier = ">=1.38.4" }]
 
 [[package]]
 name = "unique-web-search"

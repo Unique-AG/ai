@@ -51,7 +51,7 @@ class BaseEvent(BaseModel, Generic[FilterOptionsT]):
     company_id: str
 
     @classmethod
-    def from_json_file(cls, file_path: Path) -> BaseEvent:
+    def from_json_file(cls, file_path: Path) -> BaseEvent[Any]:
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         with file_path.open("r", encoding="utf-8") as f:

@@ -35,7 +35,7 @@ class FeatureFlag:
         if isinstance(self._value, bool):
             return self._value
 
-        if isinstance(self._value, list):
+        if isinstance(self._value, list):  # pyright: ignore[reportUnnecessaryIsInstance]
             return company_id in self._value if company_id else False
 
         return False
@@ -70,11 +70,10 @@ def parse_feature_flag(v: FeatureFlag | str | bool | list[str]) -> FeatureFlag:
     if isinstance(v, bool):
         return FeatureFlag(value=v)
 
-    if isinstance(v, list):
+    if isinstance(v, list):  # pyright: ignore[reportUnnecessaryIsInstance]
         return FeatureFlag(value=v)
 
-    # Default to disabled (this handles default factory functions too)
-    return FeatureFlag(value=False)
+    return FeatureFlag(value=False)  # pyright: ignore[reportUnreachable]
 
 
 ValidatedFeatureFlag = Annotated[FeatureFlag, BeforeValidator(parse_feature_flag)]

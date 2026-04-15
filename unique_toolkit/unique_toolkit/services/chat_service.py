@@ -195,7 +195,7 @@ class ChatService(ChatServiceDeprecated):
         if self._elicitation_service is not None:
             return self._elicitation_service
 
-        if self._event is not None:
+        if self._event is not None:  # pyright: ignore[reportUnnecessaryComparison]
             self._elicitation_service = ElicitationService.from_chat_event(self._event)
         else:
             self._elicitation_service = ElicitationService(

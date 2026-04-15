@@ -1429,7 +1429,7 @@ def create_message_tools(
 ) -> list[ChatMessageTool]:
     """Persist tool call records for an assistant message."""
     try:
-        result = unique_sdk.MessageTool.create_many(
+        result = unique_sdk.MessageTool.create_many(  # pyright: ignore[reportAttributeAccessIssue]
             user_id=user_id,
             company_id=company_id,
             messageId=message_id,
@@ -1450,7 +1450,7 @@ async def create_message_tools_async(
 ) -> list[ChatMessageTool]:
     """Async variant of create_message_tools."""
     try:
-        result = await unique_sdk.MessageTool.create_many_async(
+        result = await unique_sdk.MessageTool.create_many_async(  # pyright: ignore[reportAttributeAccessIssue]
             user_id=user_id,
             company_id=company_id,
             messageId=message_id,
@@ -1475,7 +1475,7 @@ def get_message_tools(
     if ids is None:
         return []
     try:
-        result = unique_sdk.MessageTool.get_message_tools(
+        result = unique_sdk.MessageTool.get_message_tools(  # pyright: ignore[reportAttributeAccessIssue]
             user_id=user_id,
             company_id=company_id,
             messageIds=ids,
@@ -1499,7 +1499,7 @@ async def get_message_tools_async(
     if ids is None:
         return []
     try:
-        result = await unique_sdk.MessageTool.get_message_tools_async(
+        result = await unique_sdk.MessageTool.get_message_tools_async(  # pyright: ignore[reportAttributeAccessIssue]
             user_id=user_id,
             company_id=company_id,
             messageIds=ids,

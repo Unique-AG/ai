@@ -82,7 +82,7 @@ class AuthContext(BaseModel):
         return self.user_id.get_secret_value()
 
     @classmethod
-    def from_event(cls, event: BaseEvent) -> Self:
+    def from_event(cls, event: BaseEvent[Any]) -> Self:
         return cls(
             company_id=SecretStr(event.company_id),
             user_id=SecretStr(event.user_id),
@@ -129,7 +129,7 @@ class UniqueAuth(BaseSettings):
         return warn_about_defaults(self)
 
     @classmethod
-    def from_event(cls, event: BaseEvent) -> Self:
+    def from_event(cls, event: BaseEvent[Any]) -> Self:
         return cls(
             company_id=SecretStr(event.company_id),
             user_id=SecretStr(event.user_id),
@@ -462,7 +462,7 @@ class UniqueContext:
         )
 
     @classmethod
-    def from_event(cls, event: BaseEvent) -> Self:
+    def from_event(cls, event: BaseEvent[Any]) -> Self:
         """Build an auth-only context from any BaseEvent."""
         return cls(
             auth=AuthContext.from_event(event),
@@ -607,7 +607,7 @@ class UniqueSettings:
         """The request-level context (auth + optional chat) for this settings object."""
         return self._context
 
-    def update_from_event(self, event: BaseEvent) -> None:
+    def update_from_event(self, event: BaseEvent[Any]) -> None:
         self._context = UniqueContext(
             auth=UniqueAuth.from_event(event), chat=self._context.chat
         )
