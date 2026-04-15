@@ -213,8 +213,11 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
         if self._config.use_auto_container:
             return {"container": {"type": "auto"}, "type": "code_interpreter"}
 
+        if self._container_id is None:
+            raise ValueError("container_id must be set when not using auto containers")
+
         return {
-            "container": self._container_id,  # pyright: ignore[reportReturnType]
+            "container": self._container_id,
             "type": "code_interpreter",
         }
 
