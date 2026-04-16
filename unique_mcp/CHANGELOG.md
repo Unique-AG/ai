@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-04-15
+
+### Added
+- Add `get_unique_settings()`, `get_unique_service_factory()`, and `get_unique_userinfo()` functional injectors for per-request auth resolution
+- Add `UniqueUserInfo` model with `user_id`, `company_id`, and optional `email`
+- Export new injectors from `unique_mcp` package `__init__`
+
+### Removed
+- Remove `UniqueContextProvider` class (`provider/context_provider`)
+- Remove `create_unique_mcp_server()` factory and `UniqueMCPServerBundle` (`server`)
+
+### Changed
+- Replace class-based context provider with standalone functions backed by `UniqueServiceFactory`
+- Auth priority unchanged: `_meta` > JWT claims > env variables
+
 ## [0.2.6] - 2026-04-15
 - Chore: standardize pytest configuration across workspace packages
 

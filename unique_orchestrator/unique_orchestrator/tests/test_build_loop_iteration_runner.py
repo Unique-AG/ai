@@ -18,10 +18,12 @@ from unique_toolkit.agentic.loop_runner import (
     PlanningMiddleware,
     QwenLoopIterationRunner,
     ResponsesBasicLoopIterationRunner,
+    ResponsesPlanningMiddleware,
 )
 
 from unique_orchestrator._builders.loop_iteration_runner import (
     build_loop_iteration_runner,
+    build_responses_loop_iteration_runner,
 )
 from unique_orchestrator.config import UniqueAIConfig, get_model_family
 
@@ -43,33 +45,29 @@ class TestGetModelFamily:
         assert get_model_family("claude-3") is None
 
 
-class TestBuildLoopIterationRunnerResponsesApi:
+class TestBuildResponsesLoopIterationRunner:
     @pytest.mark.ai
-    def test_build_loop_iteration_runner__returns_responses_runner__when_responses_api_enabled(
+    def test_build_responses_loop_iteration_runner__returns_responses_runner(
         self,
     ) -> None:
         config: UniqueAIConfig = UniqueAIConfig()
-        runner = build_loop_iteration_runner(
+        runner = build_responses_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
-            chat_service=MagicMock(),
-            use_responses_api=True,
+            openai_client=MagicMock(),
         )
         assert isinstance(runner, ResponsesBasicLoopIterationRunner)
 
     @pytest.mark.ai
-    def test_build_loop_iteration_runner__uses_agent_max_iterations__for_responses_runner(
+    def test_build_responses_loop_iteration_runner__uses_agent_max_iterations(
         self,
     ) -> None:
         config: UniqueAIConfig = UniqueAIConfig()
         config.agent.max_loop_iterations = 7
-        runner = build_loop_iteration_runner(
+        runner = build_responses_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
-            chat_service=MagicMock(),
-            use_responses_api=True,
+            openai_client=MagicMock(),
         )
         assert isinstance(runner, ResponsesBasicLoopIterationRunner)
         assert runner._config.max_loop_iterations == 7
@@ -89,9 +87,8 @@ class TestBuildLoopIterationRunnerCompletionsApi:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert type(runner) is BasicLoopIterationRunner
 
@@ -109,9 +106,8 @@ class TestBuildLoopIterationRunnerCompletionsApi:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, BasicLoopIterationRunner)
         assert runner._config.max_loop_iterations == 8
@@ -131,9 +127,8 @@ class TestBuildLoopIterationRunnerQwenModel:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, QwenLoopIterationRunner)
 
@@ -152,9 +147,8 @@ class TestBuildLoopIterationRunnerQwenModel:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, QwenLoopIterationRunner)
         assert runner._config.max_loop_iterations == 3
@@ -174,9 +168,8 @@ class TestBuildLoopIterationRunnerQwenModel:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, QwenLoopIterationRunner)
         assert runner._forced_tool_call_instruction == custom_instruction
@@ -196,9 +189,8 @@ class TestBuildLoopIterationRunnerQwenModel:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, QwenLoopIterationRunner)
         assert runner._last_iteration_instruction == custom_instruction
@@ -217,9 +209,8 @@ class TestBuildLoopIterationRunnerQwenModel:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=chat_service,
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, QwenLoopIterationRunner)
         assert runner._chat_service is chat_service
@@ -239,9 +230,8 @@ class TestBuildLoopIterationRunnerMistralModel:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, MistralLoopIterationRunner)
 
@@ -259,9 +249,8 @@ class TestBuildLoopIterationRunnerMistralModel:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, MistralLoopIterationRunner)
         assert runner._config.max_loop_iterations == 6
@@ -282,9 +271,8 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, PlanningMiddleware)
 
@@ -302,9 +290,8 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, PlanningMiddleware)
         assert type(runner._loop_runner) is BasicLoopIterationRunner
@@ -323,9 +310,8 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, PlanningMiddleware)
         assert isinstance(runner._loop_runner, QwenLoopIterationRunner)
@@ -344,9 +330,8 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, PlanningMiddleware)
         assert isinstance(runner._loop_runner, MistralLoopIterationRunner)
@@ -368,9 +353,8 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, PlanningMiddleware)
         assert runner._config is planning_config
@@ -390,9 +374,8 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=history_manager,
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, PlanningMiddleware)
         assert runner._history_manager is history_manager
@@ -412,9 +395,8 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=llm_service,
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=llm_service,
         )
         assert isinstance(runner, PlanningMiddleware)
         assert runner._llm_service is llm_service
@@ -432,12 +414,100 @@ class TestBuildLoopIterationRunnerPlanningMiddleware:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, BasicLoopIterationRunner)
         assert not isinstance(runner, PlanningMiddleware)
+
+
+class TestBuildResponsesLoopIterationRunnerPlanningMiddleware:
+    @pytest.mark.ai
+    def test_build_responses_loop_iteration_runner__wraps_with_responses_planning__when_planning_config_set(
+        self,
+    ) -> None:
+        config: UniqueAIConfig = UniqueAIConfig()
+        config.agent.experimental.loop_configuration.planning_config = PlanningConfig()
+        runner = build_responses_loop_iteration_runner(
+            config=config,
+            history_manager=MagicMock(),
+            openai_client=MagicMock(),
+        )
+        assert isinstance(runner, ResponsesPlanningMiddleware)
+
+    @pytest.mark.ai
+    def test_build_responses_loop_iteration_runner__wraps_responses_basic_runner__in_responses_planning_middleware(
+        self,
+    ) -> None:
+        config: UniqueAIConfig = UniqueAIConfig()
+        config.agent.experimental.loop_configuration.planning_config = PlanningConfig()
+        runner = build_responses_loop_iteration_runner(
+            config=config,
+            history_manager=MagicMock(),
+            openai_client=MagicMock(),
+        )
+        assert isinstance(runner, ResponsesPlanningMiddleware)
+        assert isinstance(runner._loop_runner, ResponsesBasicLoopIterationRunner)
+
+    @pytest.mark.ai
+    def test_build_responses_loop_iteration_runner__passes_planning_config__to_responses_middleware(
+        self,
+    ) -> None:
+        config: UniqueAIConfig = UniqueAIConfig()
+        planning_config: PlanningConfig = PlanningConfig(
+            ignored_options=["custom_option"]
+        )
+        config.agent.experimental.loop_configuration.planning_config = planning_config
+        runner = build_responses_loop_iteration_runner(
+            config=config,
+            history_manager=MagicMock(),
+            openai_client=MagicMock(),
+        )
+        assert isinstance(runner, ResponsesPlanningMiddleware)
+        assert runner._config is planning_config
+
+    @pytest.mark.ai
+    def test_build_responses_loop_iteration_runner__passes_history_manager__to_responses_middleware(
+        self,
+    ) -> None:
+        config: UniqueAIConfig = UniqueAIConfig()
+        config.agent.experimental.loop_configuration.planning_config = PlanningConfig()
+        history_manager: MagicMock = MagicMock()
+        runner = build_responses_loop_iteration_runner(
+            config=config,
+            history_manager=history_manager,
+            openai_client=MagicMock(),
+        )
+        assert isinstance(runner, ResponsesPlanningMiddleware)
+        assert runner._history_manager is history_manager
+
+    @pytest.mark.ai
+    def test_build_responses_loop_iteration_runner__passes_openai_client__to_responses_middleware(
+        self,
+    ) -> None:
+        mock_client: MagicMock = MagicMock()
+        config: UniqueAIConfig = UniqueAIConfig()
+        config.agent.experimental.loop_configuration.planning_config = PlanningConfig()
+        runner = build_responses_loop_iteration_runner(
+            config=config,
+            history_manager=MagicMock(),
+            openai_client=mock_client,
+        )
+        assert isinstance(runner, ResponsesPlanningMiddleware)
+        assert runner._openai_client is mock_client
+
+    @pytest.mark.ai
+    def test_build_responses_loop_iteration_runner__no_planning__when_planning_config_none(
+        self,
+    ) -> None:
+        config: UniqueAIConfig = UniqueAIConfig()
+        runner = build_responses_loop_iteration_runner(
+            config=config,
+            history_manager=MagicMock(),
+            openai_client=MagicMock(),
+        )
+        assert isinstance(runner, ResponsesBasicLoopIterationRunner)
+        assert not isinstance(runner, ResponsesPlanningMiddleware)
 
 
 class TestBuildLoopIterationRunnerModelFamilyIntegration:
@@ -452,9 +522,8 @@ class TestBuildLoopIterationRunnerModelFamilyIntegration:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert type(runner) is BasicLoopIterationRunner
 
@@ -467,9 +536,8 @@ class TestBuildLoopIterationRunnerModelFamilyIntegration:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, MistralLoopIterationRunner)
 
@@ -482,8 +550,7 @@ class TestBuildLoopIterationRunnerModelFamilyIntegration:
         runner = build_loop_iteration_runner(
             config=config,
             history_manager=MagicMock(),
-            llm_service=MagicMock(),
             chat_service=MagicMock(),
-            use_responses_api=False,
+            llm_service=MagicMock(),
         )
         assert isinstance(runner, QwenLoopIterationRunner)

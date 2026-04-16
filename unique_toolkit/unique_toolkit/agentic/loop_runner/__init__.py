@@ -11,6 +11,7 @@ from unique_toolkit.agentic.loop_runner.middleware import (
     PlanningConfig,
     PlanningMiddleware,
     PlanningSchemaConfig,
+    ResponsesPlanningMiddleware,
 )
 from unique_toolkit.agentic.loop_runner.runners import (
     QWEN_FORCED_TOOL_CALL_INSTRUCTION,
@@ -28,6 +29,7 @@ __all__ = [
     "PlanningConfig",
     "PlanningMiddleware",
     "PlanningSchemaConfig",
+    "ResponsesPlanningMiddleware",
     "BasicLoopIterationRunnerConfig",
     "BasicLoopIterationRunner",
     "MistralLoopIterationRunner",

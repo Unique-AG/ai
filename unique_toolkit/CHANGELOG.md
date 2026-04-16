@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [1.73.0] - 2026-04-15
+- Add support for the Planning Middleware when using responses api
+
+## [1.72.0] - 2026-04-15
+- Add async file tree resolution to `KnowledgeBaseService`: `resolve_visible_file_paths_async`, `display_path_tree`, `extract_scope_ids`, `get_content_infos_async`, `get_folder_info_async`
+- Add concurrent scope ID translation via `_translate_scope_ids_async` with configurable `max_concurrent_requests`
+- Remove sync `resolve_visible_file_tree` and `_resolve_visible_file_tree` methods (⚠️ breaking)
+
 ## [1.71.3] - 2026-04-15
 - Fix `ChatEvent.filter()`: empty `assistant_ids` / `references_in_code` mean “do not filter by this criterion” 
 - Move `find_env_file` / `EnvFileNotFoundError` to `unique_toolkit.app.find_env_file`; `find_env_file` is keyword-only (`filename=`)
@@ -98,7 +107,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add async variants of history construction functions and use them in `get_history_from_db` (`get_full_history_async`, `get_message_tools_async`, `search_contents_async`, `download_content_to_bytes_async`) to avoid blocking the event loop
 - Replace sync `modify_assistant_message` with async in Qwen runner
 - Replace sync `MCP.call_tool` with `MCP.call_tool_async` in MCP wrapper
-
 
 ## [1.69.0] - 2026-04-07
 - Add optional `[monitoring]` extra with Prometheus support: `MetricNamespace`, `track()`, `MetricsMiddleware`, `get_metrics()`

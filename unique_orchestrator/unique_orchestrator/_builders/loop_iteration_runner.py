@@ -1,5 +1,4 @@
-from typing import Literal, overload
-
+from openai import AsyncOpenAI
 from unique_toolkit import LanguageModelService
 from unique_toolkit.agentic.history_manager.history_manager import (
     HistoryManager,
@@ -13,46 +12,41 @@ from unique_toolkit.agentic.loop_runner import (
     QwenLoopIterationRunner,
     ResponsesBasicLoopIterationRunner,
     ResponsesLoopIterationRunner,
+    ResponsesPlanningMiddleware,
 )
 from unique_toolkit.chat.service import ChatService
 
 from unique_orchestrator.config import UniqueAIConfig, get_model_family
 
 
-@overload
-def build_loop_iteration_runner(
+def build_responses_loop_iteration_runner(
     config: UniqueAIConfig,
     history_manager: HistoryManager,
-    llm_service: LanguageModelService,
-    chat_service: ChatService,
-    use_responses_api: Literal[False],
-) -> LoopIterationRunner: ...
+    openai_client: AsyncOpenAI,
+) -> ResponsesLoopIterationRunner:
+    runner = ResponsesBasicLoopIterationRunner(
+        config=BasicLoopIterationRunnerConfig(
+            max_loop_iterations=config.agent.max_loop_iterations
+        )
+    )
 
-
-@overload
-def build_loop_iteration_runner(
-    config: UniqueAIConfig,
-    history_manager: HistoryManager,
-    llm_service: LanguageModelService,
-    chat_service: ChatService,
-    use_responses_api: Literal[True],
-) -> ResponsesLoopIterationRunner: ...
-
-
-def build_loop_iteration_runner(
-    config: UniqueAIConfig,
-    history_manager: HistoryManager,
-    llm_service: LanguageModelService,
-    chat_service: ChatService,
-    use_responses_api: bool = False,
-) -> LoopIterationRunner | ResponsesLoopIterationRunner:
-    if use_responses_api:
-        return ResponsesBasicLoopIterationRunner(
-            config=BasicLoopIterationRunnerConfig(
-                max_loop_iterations=config.agent.max_loop_iterations
-            )
+    if config.agent.experimental.loop_configuration.planning_config is not None:
+        runner = ResponsesPlanningMiddleware(
+            loop_runner=runner,
+            config=config.agent.experimental.loop_configuration.planning_config,
+            openai_client=openai_client,
+            history_manager=history_manager,
         )
 
+    return runner
+
+
+def build_loop_iteration_runner(
+    config: UniqueAIConfig,
+    history_manager: HistoryManager,
+    chat_service: ChatService,
+    llm_service: LanguageModelService,
+) -> LoopIterationRunner:
     base_config = BasicLoopIterationRunnerConfig(
         max_loop_iterations=config.agent.max_loop_iterations
     )

@@ -75,7 +75,10 @@ from unique_toolkit.content.service import ContentService
 from unique_toolkit.language_model.infos import ModelCapabilities
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
-from unique_orchestrator._builders import build_loop_iteration_runner
+from unique_orchestrator._builders import (
+    build_loop_iteration_runner,
+    build_responses_loop_iteration_runner,
+)
 from unique_orchestrator._builders.open_file_setup import (
     configure_file_payload,
     handle_uploaded_file_tool_choices,
@@ -429,12 +432,10 @@ async def _build_responses(
             history_manager=history_manager,
         )
 
-    loop_iteration_runner = build_loop_iteration_runner(
+    loop_iteration_runner = build_responses_loop_iteration_runner(
         config=config,
         history_manager=common_components.history_manager,
-        llm_service=common_components.llm_service,
-        chat_service=common_components.chat_service,
-        use_responses_api=True,
+        openai_client=client,
     )
 
     streaming_handler = ResponsesStreamingHandler(
@@ -522,7 +523,6 @@ def _build_completions(
         history_manager=common_components.history_manager,
         llm_service=common_components.llm_service,
         chat_service=common_components.chat_service,
-        use_responses_api=False,
     )
 
     return UniqueAI(
