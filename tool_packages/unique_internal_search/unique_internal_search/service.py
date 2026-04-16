@@ -50,6 +50,8 @@ from unique_internal_search.utils import (
     interleave_search_results_round_robin,
 )
 
+AVERAGE_TOKENS_PER_CHUNK = 500
+TOKEN_BUDGET_SAFETY_FACTOR = 1.3
 
 class InternalSearchService:
     def __init__(
@@ -354,6 +356,9 @@ class InternalSearchService:
                 "language model input context size is not set, using default max tokens"
             )
             return self.config.max_tokens_for_sources
+
+    def _cap_limit_to_token_budget(self) -> int:
+        return int(self._get_max_tokens() // AVERAGE_TOKENS_PER_CHUNK * TOKEN_BUDGET_SAFETY_FACTOR)
 
     async def _create_or_update_active_message_log(
         self,
