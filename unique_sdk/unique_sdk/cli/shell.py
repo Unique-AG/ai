@@ -5,8 +5,17 @@ from __future__ import annotations
 import cmd
 import shlex
 import textwrap
+from typing import Any
 
 from unique_sdk.cli import __version__
+from unique_sdk.cli.commands.elicitation import (
+    cmd_elicit_ask,
+    cmd_elicit_create,
+    cmd_elicit_get,
+    cmd_elicit_pending,
+    cmd_elicit_respond,
+    cmd_elicit_wait,
+)
 from unique_sdk.cli.commands.files import cmd_download, cmd_mv_file, cmd_rm, cmd_upload
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
@@ -56,6 +65,35 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --message-id / -m <id>    Message ID (required)
         --file / -f <path>        Read JSON from file instead
         --stdin                   Read JSON from stdin
+
+    Elicitation (ask the user):
+      elicit ask <message> [opts]    Ask a question and wait for the answer
+        --tool-name / -t <name>        Tool label shown in the UI
+        --schema <json>                JSON schema (default: single 'answer' field)
+        --chat-id / -c <id>            Associated chat ID
+        --message-id / -m <id>         Associated message ID
+        --expires-in <seconds>         Auto-expire the request
+        --timeout <seconds>            Max wait time (default: 300)
+        --poll-interval <seconds>      Poll frequency (default: 2.0)
+        --metadata key=value           Metadata (repeatable)
+      elicit create <message> [opts] Fire-and-forget create
+        --mode FORM|URL                Display mode (required)
+        --tool-name / -t <name>        Tool label (required)
+        --schema <json>                JSON schema (FORM mode)
+        --url <url>                    External URL (URL mode)
+        --chat-id / -c <id>            Associated chat ID
+        --message-id / -m <id>         Associated message ID
+        --expires-in <seconds>         Auto-expire
+        --external-id <id>             External tracking ID
+        --metadata key=value           Metadata (repeatable)
+      elicit pending                 List pending elicitations
+      elicit get <id>                Show one elicitation
+      elicit wait <id> [opts]        Poll until answered / expired
+        --timeout <seconds>            Max wait (default: 300)
+        --poll-interval <seconds>      Poll frequency (default: 2.0)
+      elicit respond <id> [opts]     Respond on behalf of the user
+        --action ACCEPT|DECLINE|CANCEL Response action (required)
+        --content <json>               Response body (required for ACCEPT)
 
     Scheduled tasks:
       schedule list             List all scheduled tasks
@@ -506,6 +544,268 @@ class UniqueShell(cmd.Cmd):
                 payload=payload,
                 file=file_path,
                 stdin=use_stdin,
+            )
+        )
+
+    # -- Elicitations --
+
+    def do_elicit(self, arg: str) -> None:
+        """Ask the user a question via the Unique elicitation API.
+
+        Usage: elicit <subcommand> [options]
+
+        Subcommands:
+          ask <message> [options]      Ask and wait synchronously for the answer
+          create <message> [options]   Create without waiting
+          pending                      List pending elicitations
+          get <id>                     Show one elicitation
+          wait <id> [options]          Poll until answered / expired
+          respond <id> [options]       Respond on behalf of the user
+
+        Ask / create options:
+          --tool-name / -t <name>      Tool label shown in the UI
+          --schema <json>              JSON schema for form fields
+          --url <url>                  External URL (create with --mode URL)
+          --mode FORM|URL              Display mode (create only, required)
+          --chat-id / -c <id>          Associated chat ID
+          --message-id / -m <id>       Associated message ID
+          --expires-in <seconds>       Auto-expire the request
+          --timeout <seconds>          (ask / wait) max wait time, default 300
+          --poll-interval <seconds>    (ask / wait) poll frequency, default 2
+          --external-id <id>           External identifier (create only)
+          --metadata key=value         Metadata (repeatable)
+
+        Respond options:
+          --action ACCEPT|DECLINE|CANCEL  Action (required)
+          --content <json>                Response body (required for ACCEPT)
+
+        Examples:
+          /> elicit ask "Which quarter should I report on? (Q1 or Q2)"
+          /> elicit ask "Confirm delete" --timeout 60
+          /> elicit pending
+          /> elicit get elicit_abc123
+          /> elicit wait elicit_abc123
+          /> elicit respond elicit_abc123 --action DECLINE
+        """
+        parts = shlex.split(arg)
+        if not parts:
+            self._print(
+                "Usage: elicit <ask|create|pending|get|wait|respond> [options]\n"
+                "Type 'help elicit' for details."
+            )
+            return
+
+        subcmd = parts[0]
+        rest = parts[1:]
+
+        if subcmd == "pending":
+            self._print(cmd_elicit_pending(self.state))
+        elif subcmd == "get":
+            if not rest:
+                self._print("Usage: elicit get <elicitation_id>")
+                return
+            self._print(cmd_elicit_get(self.state, rest[0]))
+        elif subcmd == "ask":
+            self._elicit_ask(rest)
+        elif subcmd == "create":
+            self._elicit_create(rest)
+        elif subcmd == "wait":
+            if not rest:
+                self._print("Usage: elicit wait <elicitation_id> [options]")
+                return
+            self._elicit_wait(rest[0], rest[1:])
+        elif subcmd == "respond":
+            if not rest:
+                self._print("Usage: elicit respond <elicitation_id> [options]")
+                return
+            self._elicit_respond(rest[0], rest[1:])
+        else:
+            self._print(
+                f"Unknown subcommand: {subcmd}\n"
+                "Usage: elicit <ask|create|pending|get|wait|respond> [options]"
+            )
+
+    def _elicit_parse_common(
+        self,
+        parts: list[str],
+    ) -> dict[str, Any] | None:
+        """Parse options common to ask / create / wait / respond.
+
+        Returns a dict with parsed values, or None on error (already printed).
+        The caller extracts the keys it cares about.
+        """
+        out: dict[str, Any] = {
+            "message": None,
+            "tool_name": None,
+            "schema": None,
+            "url": None,
+            "mode": None,
+            "chat_id": None,
+            "message_id": None,
+            "expires_in_seconds": None,
+            "external_elicitation_id": None,
+            "timeout": 300,
+            "poll_interval": 2.0,
+            "action": None,
+            "content": None,
+            "metadata": [],
+        }
+        positional: list[str] = []
+
+        i = 0
+        while i < len(parts):
+            tok = parts[i]
+            if tok in ("--tool-name", "-t") and i + 1 < len(parts):
+                out["tool_name"] = parts[i + 1]
+                i += 2
+            elif tok == "--schema" and i + 1 < len(parts):
+                out["schema"] = parts[i + 1]
+                i += 2
+            elif tok == "--url" and i + 1 < len(parts):
+                out["url"] = parts[i + 1]
+                i += 2
+            elif tok == "--mode" and i + 1 < len(parts):
+                out["mode"] = parts[i + 1]
+                i += 2
+            elif tok in ("--chat-id", "-c") and i + 1 < len(parts):
+                out["chat_id"] = parts[i + 1]
+                i += 2
+            elif tok in ("--message-id", "-m") and i + 1 < len(parts):
+                out["message_id"] = parts[i + 1]
+                i += 2
+            elif tok == "--expires-in" and i + 1 < len(parts):
+                try:
+                    out["expires_in_seconds"] = int(parts[i + 1])
+                except ValueError:
+                    self._print(f"Invalid --expires-in: {parts[i + 1]}")
+                    return None
+                i += 2
+            elif tok == "--external-id" and i + 1 < len(parts):
+                out["external_elicitation_id"] = parts[i + 1]
+                i += 2
+            elif tok == "--timeout" and i + 1 < len(parts):
+                try:
+                    out["timeout"] = int(parts[i + 1])
+                except ValueError:
+                    self._print(f"Invalid --timeout: {parts[i + 1]}")
+                    return None
+                i += 2
+            elif tok == "--poll-interval" and i + 1 < len(parts):
+                try:
+                    out["poll_interval"] = float(parts[i + 1])
+                except ValueError:
+                    self._print(f"Invalid --poll-interval: {parts[i + 1]}")
+                    return None
+                i += 2
+            elif tok == "--action" and i + 1 < len(parts):
+                out["action"] = parts[i + 1]
+                i += 2
+            elif tok == "--content" and i + 1 < len(parts):
+                out["content"] = parts[i + 1]
+                i += 2
+            elif tok == "--metadata" and i + 1 < len(parts):
+                kv = parts[i + 1]
+                if "=" not in kv:
+                    self._print(f"Invalid metadata format: {kv} (expected key=value)")
+                    return None
+                k, v = kv.split("=", 1)
+                out["metadata"].append((k, v))
+                i += 2
+            else:
+                positional.append(tok)
+                i += 1
+
+        if positional:
+            out["message"] = " ".join(positional)
+        return out
+
+    def _elicit_ask(self, parts: list[str]) -> None:
+        """Parse and run ``elicit ask``."""
+        opts = self._elicit_parse_common(parts)
+        if opts is None:
+            return
+        message = opts["message"]
+        if not message:
+            self._print("Usage: elicit ask <message> [options]")
+            return
+
+        self._print(
+            cmd_elicit_ask(
+                self.state,
+                message=message,
+                tool_name=opts["tool_name"] or "agent_question",
+                schema=opts["schema"],
+                chat_id=opts["chat_id"],
+                message_id=opts["message_id"],
+                expires_in_seconds=opts["expires_in_seconds"],
+                timeout=opts["timeout"],
+                poll_interval=opts["poll_interval"],
+                metadata=opts["metadata"] or None,
+            )
+        )
+
+    def _elicit_create(self, parts: list[str]) -> None:
+        """Parse and run ``elicit create``."""
+        opts = self._elicit_parse_common(parts)
+        if opts is None:
+            return
+        message = opts["message"]
+        if not message:
+            self._print(
+                "Usage: elicit create <message> --mode FORM|URL --tool-name <name> [options]"
+            )
+            return
+        if not opts["mode"]:
+            self._print("Error: --mode is required (FORM or URL).")
+            return
+        if not opts["tool_name"]:
+            self._print("Error: --tool-name / -t is required.")
+            return
+
+        self._print(
+            cmd_elicit_create(
+                self.state,
+                mode=opts["mode"],
+                message=message,
+                tool_name=opts["tool_name"],
+                schema=opts["schema"],
+                url=opts["url"],
+                chat_id=opts["chat_id"],
+                message_id=opts["message_id"],
+                expires_in_seconds=opts["expires_in_seconds"],
+                external_elicitation_id=opts["external_elicitation_id"],
+                metadata=opts["metadata"] or None,
+            )
+        )
+
+    def _elicit_wait(self, elicitation_id: str, parts: list[str]) -> None:
+        """Parse and run ``elicit wait``."""
+        opts = self._elicit_parse_common(parts)
+        if opts is None:
+            return
+        self._print(
+            cmd_elicit_wait(
+                self.state,
+                elicitation_id,
+                timeout=opts["timeout"],
+                poll_interval=opts["poll_interval"],
+            )
+        )
+
+    def _elicit_respond(self, elicitation_id: str, parts: list[str]) -> None:
+        """Parse and run ``elicit respond``."""
+        opts = self._elicit_parse_common(parts)
+        if opts is None:
+            return
+        if not opts["action"]:
+            self._print("Error: --action ACCEPT|DECLINE|CANCEL is required.")
+            return
+        self._print(
+            cmd_elicit_respond(
+                self.state,
+                elicitation_id,
+                action=opts["action"],
+                content=opts["content"],
             )
         )
 

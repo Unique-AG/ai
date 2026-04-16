@@ -1,7 +1,9 @@
-"""Tabular output formatting for ls, search results, file info, scheduled tasks, and MCP responses."""
+"""Tabular output formatting for ls, search results, file info, scheduled tasks, elicitations, and MCP responses."""
 
 from __future__ import annotations
 
+import json
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -182,6 +184,91 @@ def format_scheduled_tasks(tasks: list[ScheduledTask]) -> str:
     all_rows = [header] + rows
     lines.extend(_pad_columns(all_rows))
     return "\n".join(lines)
+
+
+def format_elicitation(elicitation: Mapping[str, Any]) -> str:
+    """Format a single elicitation request for terminal display.
+
+    Includes the response content inline when the elicitation has been
+    answered, which is what agents primarily need when consuming the output
+    of ``elicit wait`` / ``elicit ask``.
+    """
+    response_content = elicitation.get("responseContent")
+    response_json = (
+        json.dumps(response_content, ensure_ascii=False)
+        if response_content is not None
+        else "(none)"
+    )
+    schema = elicitation.get("schema")
+    schema_json = json.dumps(schema, ensure_ascii=False) if schema is not None else "-"
+    metadata = elicitation.get("metadata")
+    metadata_json = (
+        json.dumps(metadata, ensure_ascii=False) if metadata is not None else "-"
+    )
+
+    rows = [
+        ["ID:", elicitation.get("id", "?")],
+        ["Status:", elicitation.get("status", "?")],
+        ["Mode:", elicitation.get("mode", "?")],
+        ["Source:", elicitation.get("source", "?")],
+        ["Tool:", elicitation.get("toolName") or "-"],
+        ["Message:", elicitation.get("message", "")],
+        ["Schema:", schema_json],
+        ["URL:", elicitation.get("url") or "-"],
+        ["Chat:", elicitation.get("chatId") or "-"],
+        ["Message ID:", elicitation.get("messageId") or "-"],
+        ["External ID:", elicitation.get("externalElicitationId") or "-"],
+        ["Metadata:", metadata_json],
+        ["Response:", response_json],
+        ["Responded:", _format_date(elicitation.get("respondedAt"))],
+        ["Expires:", _format_date(elicitation.get("expiresAt"))],
+        ["Created:", _format_date(elicitation.get("createdAt"))],
+        ["Updated:", _format_date(elicitation.get("updatedAt"))],
+    ]
+    return "\n".join(_pad_columns(rows))
+
+
+def format_pending_elicitations(elicitations: Sequence[Mapping[str, Any]]) -> str:
+    """Format the list of pending elicitations as a compact table."""
+    if not elicitations:
+        return "No pending elicitations."
+
+    header = ["STATUS", "MODE", "TOOL", "MESSAGE", "ID", "EXPIRES"]
+    rows: list[list[str]] = [header]
+    for item in elicitations:
+        status = str(item.get("status", "?"))
+        mode = str(item.get("mode", "?"))
+        tool = str(item.get("toolName") or "-")
+        message = str(item.get("message") or "")
+        snippet = message[:60].replace("\n", " ").strip()
+        if len(message) > 60:
+            snippet += "..."
+        elicitation_id = str(item.get("id", "?"))
+        expires = _format_date(item.get("expiresAt"))
+        rows.append([status, mode, tool, snippet, elicitation_id, expires])
+
+    lines = [f"{len(elicitations)} pending elicitation(s):\n"]
+    lines.extend(_pad_columns(rows))
+    return "\n".join(lines)
+
+
+def format_elicitation_response(
+    result: Mapping[str, Any],
+    elicitation_id: str,
+    action: str,
+) -> str:
+    """Format the result of ``respond_to_elicitation``."""
+    success = bool(result.get("success"))
+    status = "OK" if success else "FAILED"
+    rows = [
+        ["Elicitation:", elicitation_id],
+        ["Action:", action],
+        ["Result:", status],
+    ]
+    detail = result.get("message")
+    if detail:
+        rows.append(["Detail:", str(detail)])
+    return "\n".join(_pad_columns(rows))
 
 
 def format_mcp_response(response: MCP) -> str:
