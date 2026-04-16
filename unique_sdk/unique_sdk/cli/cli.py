@@ -5,6 +5,14 @@ from __future__ import annotations
 import click
 
 from unique_sdk.cli import __version__
+from unique_sdk.cli.commands.elicitation import (
+    cmd_elicit_ask,
+    cmd_elicit_create,
+    cmd_elicit_get,
+    cmd_elicit_pending,
+    cmd_elicit_respond,
+    cmd_elicit_wait,
+)
 from unique_sdk.cli.commands.files import cmd_download, cmd_mv_file, cmd_rm, cmd_upload
 from unique_sdk.cli.commands.folders import cmd_mkdir, cmd_mvdir, cmd_rmdir
 from unique_sdk.cli.commands.mcp import cmd_mcp
@@ -63,6 +71,7 @@ Examples:
   unique-cli search "revenue" -l 50 Search with custom limit
   unique-cli upload ./file.pdf      Upload to current folder
   unique-cli download cont_abc123   Download by content ID
+  unique-cli elicit ask "Which?"    Ask the user a question synchronously
 """
 
 
@@ -648,3 +657,326 @@ def schedule_delete(ctx: click.Context, task_id: str) -> None:
       unique-cli schedule delete clx3ghi4f0003mnopqr345678
     """
     click.echo(cmd_schedule_delete(LazyState.get(ctx), task_id))
+
+
+# -- Elicitations ----------------------------------------------------------
+
+
+@main.group()
+def elicit() -> None:
+    """Ask the user questions via the Unique elicitation API.
+
+    \b
+    Elicitations are structured user-input requests displayed in the
+    Unique UI. Use this when an agent or tool needs the user to answer
+    a clarifying question, confirm a destructive action, or fill in a
+    form -- instead of guessing or halting the task.
+
+    \b
+    Subcommands:
+      ask       Create a form question and wait synchronously for the answer
+      create    Low-level: create a FORM or URL elicitation
+      pending   List pending elicitations for the current user
+      get       Show details of a single elicitation by ID
+      respond   Respond to an elicitation (ACCEPT / DECLINE / CANCEL)
+      wait      Poll an elicitation until it reaches a terminal state
+    """
+
+
+@elicit.command(name="ask")
+@click.argument("message")
+@click.option(
+    "--tool-name",
+    "-t",
+    default="agent_question",
+    show_default=True,
+    help="Name of the tool/agent asking the question (appears in the UI).",
+)
+@click.option(
+    "--schema",
+    default=None,
+    help=(
+        "JSON schema for the form. Defaults to a single required "
+        '"answer" string field when omitted.'
+    ),
+)
+@click.option("--chat-id", "-c", default=None, help="Associated chat ID.")
+@click.option("--message-id", "-m", default=None, help="Associated message ID.")
+@click.option(
+    "--expires-in",
+    "expires_in_seconds",
+    type=int,
+    default=None,
+    help="Expire the elicitation after N seconds if not answered.",
+)
+@click.option(
+    "--timeout",
+    type=int,
+    default=300,
+    show_default=True,
+    help="Max seconds to block waiting for the user's response.",
+)
+@click.option(
+    "--poll-interval",
+    type=float,
+    default=2.0,
+    show_default=True,
+    help="Seconds between polls while waiting.",
+)
+@click.option(
+    "--metadata",
+    multiple=True,
+    help="Metadata key=value pairs (repeatable).",
+)
+@click.pass_context
+def elicit_ask(
+    ctx: click.Context,
+    message: str,
+    tool_name: str,
+    schema: str | None,
+    chat_id: str | None,
+    message_id: str | None,
+    expires_in_seconds: int | None,
+    timeout: int,
+    poll_interval: float,
+    metadata: tuple[str, ...],
+) -> None:
+    """Ask the user a question and wait for the answer.
+
+    \b
+    Creates a FORM elicitation in the Unique UI with the given MESSAGE
+    and blocks until the user responds, the elicitation is declined /
+    cancelled / expired, or --timeout is reached.
+
+    \b
+    Examples:
+      unique-cli elicit ask "Which report should I send? (Q1 or Q2)"
+      unique-cli elicit ask "Confirm deletion of /Archive" --timeout 60
+      unique-cli elicit ask "Pick a region" \\
+        --schema '{"type":"object","properties":{"region":{"type":"string","enum":["EU","US","APAC"]}},"required":["region"]}'
+    """
+    parsed_metadata: list[tuple[str, str]] = []
+    for kv in metadata:
+        if "=" not in kv:
+            click.echo(f"Invalid metadata format: {kv} (expected key=value)")
+            return
+        k, v = kv.split("=", 1)
+        parsed_metadata.append((k, v))
+
+    click.echo(
+        cmd_elicit_ask(
+            LazyState.get(ctx),
+            message=message,
+            tool_name=tool_name,
+            schema=schema,
+            chat_id=chat_id,
+            message_id=message_id,
+            expires_in_seconds=expires_in_seconds,
+            timeout=timeout,
+            poll_interval=poll_interval,
+            metadata=parsed_metadata or None,
+        )
+    )
+
+
+@elicit.command(name="create")
+@click.argument("message")
+@click.option(
+    "--mode",
+    type=click.Choice(["FORM", "URL"], case_sensitive=False),
+    required=True,
+    help="Elicitation display mode.",
+)
+@click.option(
+    "--tool-name",
+    "-t",
+    required=True,
+    help="Name of the tool/agent requesting input.",
+)
+@click.option(
+    "--schema",
+    default=None,
+    help="JSON schema (required for --mode FORM).",
+)
+@click.option("--url", default=None, help="External URL (required for --mode URL).")
+@click.option("--chat-id", "-c", default=None, help="Associated chat ID.")
+@click.option("--message-id", "-m", default=None, help="Associated message ID.")
+@click.option(
+    "--expires-in",
+    "expires_in_seconds",
+    type=int,
+    default=None,
+    help="Expire the elicitation after N seconds.",
+)
+@click.option(
+    "--external-id",
+    "external_elicitation_id",
+    default=None,
+    help="External identifier for de-duplication / tracking.",
+)
+@click.option(
+    "--metadata",
+    multiple=True,
+    help="Metadata key=value pairs (repeatable).",
+)
+@click.pass_context
+def elicit_create(
+    ctx: click.Context,
+    message: str,
+    mode: str,
+    tool_name: str,
+    schema: str | None,
+    url: str | None,
+    chat_id: str | None,
+    message_id: str | None,
+    expires_in_seconds: int | None,
+    external_elicitation_id: str | None,
+    metadata: tuple[str, ...],
+) -> None:
+    """Create an elicitation without waiting for the response.
+
+    \b
+    Use this when you want to fire-and-forget, then poll later with
+    `elicit wait <id>` or `elicit get <id>`. For interactive question /
+    answer flows prefer `elicit ask` which does both in one call.
+
+    \b
+    Examples:
+      unique-cli elicit create "Please provide feedback" \\
+        --mode FORM --tool-name feedback \\
+        --schema '{"type":"object","properties":{"rating":{"type":"integer"}},"required":["rating"]}'
+
+      unique-cli elicit create "Complete the survey" \\
+        --mode URL --tool-name survey --url https://example.com/s/123
+    """
+    parsed_metadata: list[tuple[str, str]] = []
+    for kv in metadata:
+        if "=" not in kv:
+            click.echo(f"Invalid metadata format: {kv} (expected key=value)")
+            return
+        k, v = kv.split("=", 1)
+        parsed_metadata.append((k, v))
+
+    click.echo(
+        cmd_elicit_create(
+            LazyState.get(ctx),
+            mode=mode,
+            message=message,
+            tool_name=tool_name,
+            schema=schema,
+            url=url,
+            chat_id=chat_id,
+            message_id=message_id,
+            expires_in_seconds=expires_in_seconds,
+            external_elicitation_id=external_elicitation_id,
+            metadata=parsed_metadata or None,
+        )
+    )
+
+
+@elicit.command(name="pending")
+@click.pass_context
+def elicit_pending(ctx: click.Context) -> None:
+    """List all pending elicitations for the current user.
+
+    \b
+    Examples:
+      unique-cli elicit pending
+    """
+    click.echo(cmd_elicit_pending(LazyState.get(ctx)))
+
+
+@elicit.command(name="get")
+@click.argument("elicitation_id")
+@click.pass_context
+def elicit_get(ctx: click.Context, elicitation_id: str) -> None:
+    """Show details of a single elicitation by ID.
+
+    \b
+    Examples:
+      unique-cli elicit get elicit_abc123
+    """
+    click.echo(cmd_elicit_get(LazyState.get(ctx), elicitation_id))
+
+
+@elicit.command(name="wait")
+@click.argument("elicitation_id")
+@click.option(
+    "--timeout",
+    type=int,
+    default=300,
+    show_default=True,
+    help="Max seconds to wait for a terminal state.",
+)
+@click.option(
+    "--poll-interval",
+    type=float,
+    default=2.0,
+    show_default=True,
+    help="Seconds between polls.",
+)
+@click.pass_context
+def elicit_wait(
+    ctx: click.Context,
+    elicitation_id: str,
+    timeout: int,
+    poll_interval: float,
+) -> None:
+    """Poll an elicitation until it is answered, declined, cancelled, or expires.
+
+    \b
+    Examples:
+      unique-cli elicit wait elicit_abc123
+      unique-cli elicit wait elicit_abc123 --timeout 60 --poll-interval 1
+    """
+    click.echo(
+        cmd_elicit_wait(
+            LazyState.get(ctx),
+            elicitation_id,
+            timeout=timeout,
+            poll_interval=poll_interval,
+        )
+    )
+
+
+@elicit.command(name="respond")
+@click.argument("elicitation_id")
+@click.option(
+    "--action",
+    type=click.Choice(["ACCEPT", "DECLINE", "CANCEL"], case_sensitive=False),
+    required=True,
+    help="Response action.",
+)
+@click.option(
+    "--content",
+    default=None,
+    help="JSON object with response fields (required for ACCEPT).",
+)
+@click.pass_context
+def elicit_respond(
+    ctx: click.Context,
+    elicitation_id: str,
+    action: str,
+    content: str | None,
+) -> None:
+    """Respond to an elicitation (mostly for scripting / testing).
+
+    \b
+    The user normally answers via the Unique UI. Use this to script
+    declines / cancels, or to simulate a user response in tests.
+
+    \b
+    Examples:
+      unique-cli elicit respond elicit_abc123 --action ACCEPT \\
+        --content '{"answer":"yes"}'
+      unique-cli elicit respond elicit_abc123 --action DECLINE
+      unique-cli elicit respond elicit_abc123 --action CANCEL
+    """
+    click.echo(
+        cmd_elicit_respond(
+            LazyState.get(ctx),
+            elicitation_id,
+            action=action,
+            content=content,
+        )
+    )
