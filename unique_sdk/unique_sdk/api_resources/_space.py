@@ -100,6 +100,43 @@ class Space(APIResource["Space"]):
         skip: NotRequired[int]
         take: NotRequired[int]
 
+    class GetSpacesParams(RequestOptions):
+        """
+        Parameters for listing spaces.
+        """
+
+        name: NotRequired[str | None]
+        skip: NotRequired[int]
+        take: NotRequired[int]
+
+    class SpaceListItem(TypedDict):
+        """
+        Represents a space entry returned in a list response.
+        """
+
+        id: str
+        name: str
+        title: str | None
+        subtitle: str | None
+        explanation: str | None
+        alert: str | None
+        chatUpload: str
+        languageModel: str | None
+        fallbackModule: str
+        isExternal: bool
+        isPinned: bool
+        uiType: str
+        settings: dict[str, Any] | None
+        createdAt: str
+        updatedAt: str
+
+    class GetSpacesResponse(TypedDict):
+        """
+        Response for listing spaces.
+        """
+
+        data: list["Space.SpaceListItem"]
+
     class Reference(TypedDict):
         """
         Reference information for a message.
@@ -720,5 +757,47 @@ class Space(APIResource["Space"]):
                 f"/space/{space_id}",
                 user_id,
                 company_id,
+            ),
+        )
+
+    @classmethod
+    def get_spaces(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Space.GetSpacesParams"],
+    ) -> "Space.GetSpacesResponse":
+        """
+        List spaces, optionally filtered by name (case-insensitive partial match).
+        """
+        return cast(
+            "Space.GetSpacesResponse",
+            cls._static_request(
+                "get",
+                "/space",
+                user_id,
+                company_id,
+                params=params,
+            ),
+        )
+
+    @classmethod
+    async def get_spaces_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Space.GetSpacesParams"],
+    ) -> "Space.GetSpacesResponse":
+        """
+        Async list spaces, optionally filtered by name (case-insensitive partial match).
+        """
+        return cast(
+            "Space.GetSpacesResponse",
+            await cls._static_request_async(
+                "get",
+                "/space",
+                user_id,
+                company_id,
+                params=params,
             ),
         )
