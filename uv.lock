@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-02T11:19:18.660306Z"
+exclude-newer = "2026-04-02T14:19:21.769645Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5544,7 +5544,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-version = "1.73.0"
+version = "1.74.0"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -5635,7 +5635,7 @@ dev = []
 
 [[package]]
 name = "unique-web-search"
-version = "1.16.4"
+version = "1.16.5"
 source = { editable = "tool_packages/unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },
