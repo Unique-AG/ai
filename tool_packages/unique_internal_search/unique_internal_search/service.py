@@ -53,6 +53,7 @@ from unique_internal_search.utils import (
 AVERAGE_TOKENS_PER_CHUNK = 500
 TOKEN_BUDGET_SAFETY_FACTOR = 1.3
 
+
 class InternalSearchService:
     def __init__(
         self,
@@ -356,8 +357,14 @@ class InternalSearchService:
             return self.config.max_tokens_for_sources
 
     def _cap_limit_to_token_budget(self) -> int:
-        capped_limit = int(self._get_max_tokens() // AVERAGE_TOKENS_PER_CHUNK * TOKEN_BUDGET_SAFETY_FACTOR)
-        self.logger.info(f"Search limit capped from {self.config.limit} to {capped_limit}")
+        capped_limit = int(
+            self._get_max_tokens()
+            // AVERAGE_TOKENS_PER_CHUNK
+            * TOKEN_BUDGET_SAFETY_FACTOR
+        )
+        self.logger.info(
+            f"Search limit capped from {self.config.limit} to {capped_limit}"
+        )
         return capped_limit
 
     async def _create_or_update_active_message_log(
