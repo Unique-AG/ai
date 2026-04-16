@@ -141,7 +141,7 @@ class ResponsesPlanningMiddleware(ResponsesLoopIterationRunner):
                             "type": "json_schema",
                             "name": planning_schema.get("title", "Plan"),
                             "schema": planning_schema,
-                            "strict": False
+                            "strict": False,
                         }
                     )
                 }
