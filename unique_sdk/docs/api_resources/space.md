@@ -13,8 +13,49 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
 - Manage space chats
 - Retrieve space configuration
 - Access message history
+- List and filter spaces
 
 ## Methods
+
+??? example "`unique_sdk.Space.get_spaces` - List spaces"
+
+    List all spaces accessible to the user, with optional filtering by name and pagination.
+
+    **Parameters:**
+
+    - `name` (str, optional) - Filter by name (case-insensitive partial match)
+    - `skip` (int, optional) - Number of records to skip for pagination (default: 0, min: 0)
+    - `take` (int, optional) - Number of records to return (default: 50, min: 1, max: 1000)
+
+    **Returns:**
+
+    Returns a [`GetSpacesResponse`](#getspacesresponse) object.
+
+    **Example - List all spaces:**
+
+    ```python
+    result = unique_sdk.Space.get_spaces(
+        user_id=user_id,
+        company_id=company_id,
+    )
+
+    for space in result["data"]:
+        print(f"{space['id']}: {space['name']}")
+    ```
+
+    **Example - Filter by name with pagination:**
+
+    ```python
+    result = unique_sdk.Space.get_spaces(
+        user_id=user_id,
+        company_id=company_id,
+        name="support",
+        skip=0,
+        take=10,
+    )
+
+    print(f"Found {len(result['data'])} spaces")
+    ```
 
 ??? example "`unique_sdk.Space.create_space` - Create a new space"
 
@@ -573,6 +614,40 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     ```
 
 ## Return Types
+
+#### GetSpacesResponse {#getspacesresponse}
+
+??? note "The `GetSpacesResponse` object contains a list of spaces"
+
+    **Fields:**
+
+    - `data` (List[SpaceListItem]) - List of space objects. See [`Space.SpaceListItem`](#spacelistitem) for structure.
+
+    **Returned by:** `Space.get_spaces()`, `Space.get_spaces_async()`
+
+#### Space.SpaceListItem {#spacelistitem}
+
+??? note "The `Space.SpaceListItem` object represents a space entry in a list response"
+
+    **Fields:**
+
+    - `id` (str) - Unique space identifier
+    - `name` (str) - Space name
+    - `title` (str | None) - Space title
+    - `subtitle` (str | None) - Space subtitle
+    - `explanation` (str | None) - Space explanation/description
+    - `alert` (str | None) - Alert message
+    - `chatUpload` (str) - Chat upload configuration
+    - `languageModel` (str | None) - Language model identifier
+    - `fallbackModule` (str) - Fallback module identifier
+    - `isExternal` (bool) - Whether the space is external
+    - `isPinned` (bool) - Whether the space is pinned
+    - `uiType` (str) - UI type identifier
+    - `settings` (Dict[str, Any] | None) - Space settings
+    - `createdAt` (str) - Creation timestamp (ISO 8601)
+    - `updatedAt` (str) - Last update timestamp (ISO 8601)
+
+    **Used in:** `GetSpacesResponse.data`
 
 #### Space.Message {#spacemessage}
 
