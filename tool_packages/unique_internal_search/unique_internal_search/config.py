@@ -1,4 +1,4 @@
-from typing import Annotated, Any
+from typing import Annotated, Any, Self
 
 from pydantic import (
     BaseModel,
@@ -34,6 +34,8 @@ from unique_internal_search.validators import get_string_field_with_pattern_vali
 
 DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED = 200
 DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED = 1000
+AVERAGE_TOKENS_PER_CHUNK = 500
+TOKEN_BUDGET_SAFETY_FACTOR = 1.5
 
 
 class ToolResponseSystemReminderConfig(BaseModel):
@@ -145,8 +147,24 @@ class InternalSearchConfig(BaseToolConfig):
     )
     limit: int = Field(
         default_factory=_search_limit_factory,
-        description="The limit of chunks to return.",
+        description="The maximum limit of chunks returned by the search.",
     )
+
+    @model_validator(mode="after")
+    def _cap_limit_to_token_budget(self) -> Self:
+        if self.language_model_max_input_tokens is not None:
+            max_tokens = int(
+                self.language_model_max_input_tokens
+                * self.percentage_of_input_tokens_for_sources
+            )
+        else:
+            max_tokens = self.max_tokens_for_sources
+        token_based_limit = int(
+            max_tokens // AVERAGE_TOKENS_PER_CHUNK * TOKEN_BUDGET_SAFETY_FACTOR
+        )
+        self.limit = min(token_based_limit, self.limit)
+        return self
+
     chat_only: bool = Field(
         default=False,
         description="Whether to only chat on the upload.",

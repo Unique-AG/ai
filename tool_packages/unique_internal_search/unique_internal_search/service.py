@@ -272,6 +272,9 @@ class InternalSearchService:
         content_ids: list[str] | None = None,
     ) -> SearchStringResult:
         try:
+            self.logger.info(f"Search performed with limit: {self.config.limit}")
+            self.logger.info(f"Max tokens: {self._get_max_tokens()}")
+            self.logger.info(f"Reduced limit: {int(self._get_max_tokens() // 500*1.5)}")
             found_chunks: list[
                 ContentChunk
             ] = await self.content_service.search_content_chunks_async(
