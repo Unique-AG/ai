@@ -11,7 +11,12 @@ from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.content.service import ContentService
 
 from unique_internal_search.config import InternalSearchConfig
-from unique_internal_search.service import InternalSearchService, InternalSearchTool
+from unique_internal_search.service import (
+    AVERAGE_TOKENS_PER_CHUNK,
+    TOKEN_BUDGET_SAFETY_FACTOR,
+    InternalSearchService,
+    InternalSearchTool,
+)
 
 
 class TestInternalSearchService:
@@ -389,7 +394,12 @@ class TestInternalSearchService:
         call_kwargs = mock_content_service.search_content_chunks_async.call_args[1]
         assert call_kwargs["search_string"] == search_string
         assert call_kwargs["search_type"] == base_internal_search_config.search_type
-        assert call_kwargs["limit"] == base_internal_search_config.limit
+        expected_capped_limit = int(
+            base_internal_search_config.max_tokens_for_sources
+            // AVERAGE_TOKENS_PER_CHUNK
+            * TOKEN_BUDGET_SAFETY_FACTOR
+        )
+        assert call_kwargs["limit"] == expected_capped_limit
 
     @pytest.mark.ai
     @pytest.mark.asyncio
