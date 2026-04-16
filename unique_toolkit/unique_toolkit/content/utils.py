@@ -10,12 +10,7 @@ import tiktoken
 import unique_sdk
 from typing_extensions import deprecated
 
-from unique_toolkit.content.schemas import (
-    Content,
-    ContentChunk,
-    ContentMetadata,
-    ContentReference,
-)
+from unique_toolkit.content.schemas import Content, ContentChunk, ContentMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +128,7 @@ def _generate_pages_postfix(chunks: list[ContentChunk]) -> str:
     returns the empty string when there are no valid pages.
 
     **Usage:** Called from ``sort_content_chunks``, ``merge_content_chunks``, and
-    ``content_chunk_to_reference`` so list presentation and reference names stay
+    ``ContentChunk.to_reference`` so list presentation and reference names stay
     consistent with the backend's page postfix convention.
 
     **Why pages may be missing:** ``ContentChunk.start_page`` and ``end_page`` are
@@ -149,26 +144,6 @@ def _generate_pages_postfix(chunks: list[ContentChunk]) -> str:
     """
 
     def gen_all_numbers_in_between(start: int | None, end: int | None) -> list[int]:
-        """Expand a single start/end page pair into a list of inclusive page numbers.
-
-        ``ContentChunk`` exposes optional page fields; ``None`` must be handled like
-        "no page data" so ``_generate_pages_postfix`` (and thus
-        ``content_chunk_to_reference``) stay safe for production chunks.
-
-        **Rules:**
-            * ``start`` is ``None`` or ``-1``: return ``[]`` (no range; avoids
-              ``TypeError`` from ``range`` or ``end + 1`` when ``end`` is ``None``).
-            * ``start`` valid but ``end`` is ``None`` or ``-1``: return ``[start]``
-              (single known page, same as legacy ``-1`` end semantics).
-            * Otherwise: return every integer from ``start`` through ``end`` inclusive.
-
-        Args:
-            start: First page, or ``None`` / ``-1`` if unknown.
-            end: Last page, or ``None`` / ``-1`` if only ``start`` is known.
-
-        Returns:
-            List of page numbers for this pair (may be empty).
-        """
         if start is None or start == -1:
             return []
         if end is None or end == -1:
@@ -185,81 +160,6 @@ def _generate_pages_postfix(chunks: list[ContentChunk]) -> str:
         " : " + ",".join(str(p) for p in page_numbers) if page_numbers else ""
     )
     return pages_postfix
-
-
-def content_chunk_to_reference(
-    chunk: ContentChunk,
-    sequence_number: int,
-    original_index: list[int] | None = None,
-    *,
-    message_id: str = "",
-) -> ContentReference:
-    """Convert a ``ContentChunk`` into a ``ContentReference`` with page-number info.
-
-    Prefer :meth:`ContentChunk.to_reference <unique_toolkit.content.schemas.ContentChunk.to_reference>`
-    on the chunk instance in application code; this function remains for backward
-    compatibility and is the shared implementation both call sites use.
-
-    When using ``modify_assistant_message`` (the message-update path) instead
-    of streaming via ``complete_with_references``, the backend does **not**
-    automatically create references from ``searchContext``.  This helper
-    replicates the reference format that the backend streaming path produces
-    so that page numbers appear in the frontend reference chips.
-
-    Conventions applied:
-
-    * **id** — the chunk's content id (``chunk.id``), aligned with streaming
-      reference persistence.
-    * **message_id** — optional; set when the reference belongs to a specific
-      chat message.
-    * **source_id** — ``{content_id}_{chunk_id}`` (matches the backend
-      ``ReferenceService`` and ``ReferenceManager`` lookup).
-    * **source** — ``"node-ingestion-chunks"``.
-    * **name** — document title/key with a `` : 1,2,3`` page-number postfix
-      (same format as the backend ``generatePagesPostfix``); if neither title
-      nor key is set, ``Content {content_id}`` (matches reference dedup logic).
-      If ``title``/``key`` already end with that postfix (e.g. after
-      ``sort_content_chunks`` / ``merge_content_chunks``), it is not appended
-      twice.
-    * **url** — the chunk's own URL when it has one and is **not**
-      internally stored; otherwise ``unique://content/{content_id}``
-      (matches the ``internally_stored_at`` guard in the streaming path).
-
-    Args:
-        chunk: The content chunk to convert.
-        sequence_number: The 1-based sequence number shown in the ``<sup>``
-            tag in the message text.
-        original_index: Optional list of bracket indices (``[N]``) in the
-            message text that this reference corresponds to.
-        message_id: The chat message id this reference belongs to, if any.
-
-    Returns:
-        A ``ContentReference`` ready to pass to ``modify_assistant_message``.
-    """
-    name = chunk.title or chunk.key or f"Content {chunk.id}"
-    pages_postfix = _generate_pages_postfix([chunk])
-    # sort_content_chunks / merge_content_chunks may already have appended the same
-    # postfix to title or key; avoid "Report : 1,2 : 1,2".
-    if pages_postfix and not name.endswith(pages_postfix):
-        name = f"{name}{pages_postfix}"
-
-    source_id = f"{chunk.id}_{chunk.chunk_id}" if chunk.chunk_id else chunk.id
-    url = (
-        chunk.url
-        if chunk.url and not chunk.internally_stored_at
-        else f"unique://content/{chunk.id}"
-    )
-
-    return ContentReference(
-        id=chunk.id,
-        message_id=message_id,
-        name=name,
-        sequence_number=sequence_number,
-        source_id=source_id,
-        source="node-ingestion-chunks",
-        url=url,
-        original_index=original_index or [],
-    )
 
 
 def pick_content_chunks_for_token_window(

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, Optional
@@ -71,6 +73,56 @@ class ContentChunk(BaseModel):
     internally_stored_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    def to_reference(
+        self,
+        sequence_number: int,
+        original_index: list[int] | None = None,
+        *,
+        message_id: str = "",
+    ) -> ContentReference:
+        """Convert this chunk into a ``ContentReference`` with page-number info.
+
+        When using ``modify_assistant_message`` (the message-update path) instead of
+        streaming via ``complete_with_references``, the backend does **not**
+        automatically create references from ``searchContext``. This method replicates
+        the reference format the backend streaming path produces so page numbers
+        appear in the frontend reference chips.
+
+        Args:
+            sequence_number: The 1-based sequence number shown in the ``<sup>``
+                tag in the message text.
+            original_index: Optional list of bracket indices (``[N]``) in the
+                message text that this reference corresponds to.
+            message_id: The chat message id this reference belongs to, if any.
+
+        Returns:
+            A ``ContentReference`` ready to pass to ``modify_assistant_message``.
+        """
+        from unique_toolkit.content.utils import _generate_pages_postfix
+
+        name = self.title or self.key or f"Content {self.id}"
+        pages_postfix = _generate_pages_postfix([self])
+        if pages_postfix and not name.endswith(pages_postfix):
+            name = f"{name}{pages_postfix}"
+
+        source_id = f"{self.id}_{self.chunk_id}" if self.chunk_id else self.id
+        url = (
+            self.url
+            if self.url and not self.internally_stored_at
+            else f"unique://content/{self.id}"
+        )
+
+        return ContentReference(
+            id=self.id,
+            message_id=message_id,
+            name=name,
+            sequence_number=sequence_number,
+            source_id=source_id,
+            source="node-ingestion-chunks",
+            url=url,
+            original_index=original_index or [],
+        )
 
 
 class Content(BaseModel):

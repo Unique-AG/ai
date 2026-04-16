@@ -5,6 +5,7 @@ import pytest
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.content.utils import (
     _apply_ingestion_upload_url_override,
+    _generate_pages_postfix,
     count_tokens,
     map_content,
     map_content_chunk,
@@ -269,3 +270,58 @@ class TestApplyIngestionUploadUrlOverride:
         ):
             result = _apply_ingestion_upload_url_override(write_url)
         assert result == "https://internal/upload?key=xyz"
+
+
+class TestGeneratePagesPostfix:
+    def test_single_chunk_with_page_range(self):
+        chunks = [ContentChunk(id="1", text="t", order=1, start_page=3, end_page=5)]
+
+        assert _generate_pages_postfix(chunks) == " : 3,4,5"
+
+    def test_single_chunk_single_page(self):
+        chunks = [ContentChunk(id="1", text="t", order=1, start_page=2, end_page=2)]
+
+        assert _generate_pages_postfix(chunks) == " : 2"
+
+    def test_none_start_and_end_returns_empty(self):
+        chunks = [
+            ContentChunk(id="1", text="t", order=1, start_page=None, end_page=None)
+        ]
+
+        assert _generate_pages_postfix(chunks) == ""
+
+    def test_none_start_with_valid_end_returns_empty(self):
+        chunks = [ContentChunk(id="1", text="t", order=1, start_page=None, end_page=5)]
+
+        assert _generate_pages_postfix(chunks) == ""
+
+    def test_valid_start_with_none_end_returns_single_page(self):
+        chunks = [ContentChunk(id="1", text="t", order=1, start_page=3, end_page=None)]
+
+        assert _generate_pages_postfix(chunks) == " : 3"
+
+    def test_sentinel_minus_one_start_and_end_returns_empty(self):
+        chunks = [ContentChunk(id="1", text="t", order=1, start_page=-1, end_page=-1)]
+
+        assert _generate_pages_postfix(chunks) == ""
+
+    def test_valid_start_with_minus_one_end_returns_single_page(self):
+        chunks = [ContentChunk(id="1", text="t", order=1, start_page=4, end_page=-1)]
+
+        assert _generate_pages_postfix(chunks) == " : 4"
+
+    def test_multiple_chunks_deduplicates_and_sorts(self):
+        chunks = [
+            ContentChunk(id="1", text="t", order=1, start_page=3, end_page=5),
+            ContentChunk(id="1", text="t", order=2, start_page=4, end_page=7),
+        ]
+
+        assert _generate_pages_postfix(chunks) == " : 3,4,5,6,7"
+
+    def test_zero_pages_are_filtered_out(self):
+        chunks = [ContentChunk(id="1", text="t", order=1, start_page=0, end_page=2)]
+
+        assert _generate_pages_postfix(chunks) == " : 1,2"
+
+    def test_empty_chunks_list_returns_empty(self):
+        assert _generate_pages_postfix([]) == ""
