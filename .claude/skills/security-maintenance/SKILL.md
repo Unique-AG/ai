@@ -36,7 +36,7 @@ I drive the security maintenance workflow for the `ai` repository to keep both d
 4. **Handle `exclude-newer` conflicts** — if the fix version is within the 2-week rolling window, add an `exclude-newer-package` timestamp (day after latest PyPI upload). See [exclude-newer reference](references/exclude-newer.md)
 5. **Prune stale `exclude-newer-package` entries** — remove any timestamp older than 2 weeks (redundant, global window already covers it). Keep `= false` entries.
 6. **Relock** — `uv lock --refresh`. If resolution fails, bump the timestamp and retry.
-7. **Version bump all packages** — changelog entry + patch bump for each workspace package (CI enforces this). Use the `changelog-pyproject` skill.
+7. **Version bump affected packages** — changelog entry + patch bump only for workspace packages whose own `pyproject.toml` was modified (CI enforces this per-package, not workspace-wide). Use the `changelog-pyproject` skill.
 8. **Branch and PR** — branch `fix/dependabot-<pkg>-<ver>` or `fix/security-<date>` for batches. Close Dependabot auto-PRs after merge.
 
 ## CodeQL workflow
@@ -53,7 +53,7 @@ I drive the security maintenance workflow for the `ai` repository to keep both d
 3. Fix Dependabot alerts (mechanical)
 4. Fix CodeQL findings (code changes)
 5. Single branch for related fixes, separate for unrelated
-6. Bump all packages once at the end
+6. Bump only packages whose `pyproject.toml` was modified
 7. Create PR(s), close resolved Dependabot auto-PRs after merge
 
 ## Tips
