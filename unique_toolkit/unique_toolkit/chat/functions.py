@@ -1161,7 +1161,10 @@ def create_message_execution(
     user_id: str,
     company_id: str,
     message_id: str,
+    chat_id: str | None = None,
     type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+    seconds_remaining: int | None = None,
+    percentage_completed: int | None = None,
     is_queueable: bool = True,
     execution_options: dict[str, Any] | None = None,
     progress_title: str | None = None,
@@ -1172,7 +1175,10 @@ def create_message_execution(
         user_id (str): The user ID.
         company_id (str): The company ID.
         message_id (str): The ID of the message this execution belongs to.
+        chat_id (str | None): Deprecated — no longer used by the SDK. Will be removed in a future version.
         type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
+        seconds_remaining (int | None): Deprecated — no longer used by the SDK. Will be removed in a future version.
+        percentage_completed (int | None): Deprecated — no longer used by the SDK. Will be removed in a future version.
         is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline. Set to False if you want to update the progress manually.
         execution_options (dict | None): Additional execution options. Defaults to None.
         progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.
@@ -1204,7 +1210,10 @@ async def create_message_execution_async(
     user_id: str,
     company_id: str,
     message_id: str,
+    chat_id: str | None = None,
     type: MessageExecutionType = MessageExecutionType.DEEP_RESEARCH,
+    seconds_remaining: int | None = None,
+    percentage_completed: int | None = None,
     is_queueable: bool = True,
     execution_options: dict[str, Any] | None = None,
     progress_title: str | None = None,
@@ -1215,7 +1224,10 @@ async def create_message_execution_async(
         user_id (str): The user ID.
         company_id (str): The company ID.
         message_id (str): The ID of the message this execution belongs to.
+        chat_id (str | None): Deprecated — no longer used by the SDK. Will be removed in a future version.
         type (MessageExecutionType): The type of execution. Defaults to DEEP_RESEARCH.
+        seconds_remaining (int | None): Deprecated — no longer used by the SDK. Will be removed in a future version.
+        percentage_completed (int | None): Deprecated — no longer used by the SDK. Will be removed in a future version.
         is_queueable (bool): Whether the execution is queueable. Defaults to True. If true, then the progress will be updated in the background by the execution pipeline. Set to False if you want to update the progress manually.
         execution_options (dict | None): Additional execution options. Defaults to None.
         progress_title (str | None): The title of the progress bar. If not provided, the title of the last message log is taken.

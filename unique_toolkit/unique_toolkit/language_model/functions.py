@@ -92,7 +92,7 @@ def complete(
             model=model,  # pyright: ignore[reportArgumentType]
             messages=messages_dict,  # pyright: ignore[reportArgumentType]
             timeout=timeout,
-            options=options,  # type: ignore[arg-type]
+            options=options,
         )
         return LanguageModelResponse(**response)
     except Exception as e:
@@ -161,7 +161,7 @@ async def complete_async(
             model=model,  # pyright: ignore[reportArgumentType]
             messages=messages_dict,  # pyright: ignore[reportArgumentType]
             timeout=timeout,
-            options=options,  # type: ignore[arg-type]
+            options=options,
         )
         return LanguageModelResponse(**response)
     except Exception as e:

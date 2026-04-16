@@ -616,6 +616,7 @@ class LanguageModelCompletionChoice(BaseModel):
 # from openai.types.completion import Completion
 # but is missing multiple attributes
 class LanguageModelResponse(BaseModel):
+    # TODO(UN-19519): add a safe first_choice accessor that raises instead of IndexError on empty choices
     model_config = model_config
 
     choices: list[LanguageModelCompletionChoice]

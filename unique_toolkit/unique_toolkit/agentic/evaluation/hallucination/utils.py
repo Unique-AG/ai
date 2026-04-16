@@ -76,14 +76,14 @@ async def check_hallucination(
             company_id=company_id, user_id=user_id, messages=msgs, model_name=model_name
         )
         result_content = result.choices[0].message.content
-        if not result_content:
-            error_message = "Hallucination evaluation did not return a result."
+        if not result_content or not isinstance(result_content, str):
+            error_message = "Hallucination evaluation did not return a text result."
             raise EvaluatorException(
                 error_message=error_message,
                 user_message=error_message,
             )
         result = parse_eval_metric_result(
-            result_content,  # pyright: ignore[reportArgumentType]
+            result_content,
             EvaluationMetricName.HALLUCINATION,
         )
 

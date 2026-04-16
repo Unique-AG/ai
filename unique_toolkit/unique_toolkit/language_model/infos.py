@@ -561,9 +561,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
                     ],
-                    token_limits=LanguageModelTokenLimits(
-                        token_limit_input=4096, token_limit_output=4096
-                    ),
+                    token_limits=LanguageModelTokenLimits(token_limit=8192),  # pyright: ignore[reportCallIssue]
                     info_cutoff_at=date(2021, 9, 1),
                     published_at=date(2023, 6, 13),
                     deprecated_at=date(2024, 10, 1),
@@ -580,9 +578,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                     ],
                     encoder_name=EncoderName.CL100K_BASE,
-                    token_limits=LanguageModelTokenLimits(
-                        token_limit_input=28672, token_limit_output=4096
-                    ),
+                    token_limits=LanguageModelTokenLimits(token_limit=32768),  # pyright: ignore[reportCallIssue]
                     info_cutoff_at=date(2021, 9, 1),
                     published_at=date(2023, 6, 13),
                     deprecated_at=date(2024, 10, 1),

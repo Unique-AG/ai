@@ -110,7 +110,7 @@ class Source(BaseModel):
             if m:
                 out[key] = m.group(1).strip()
 
-        return out if out else v  # pyright: ignore[reportReturnType]
+        return out if out else None
 
     # Compression + Base64 for url to hide it from the LLM
     @field_serializer("url")

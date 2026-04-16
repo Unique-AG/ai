@@ -169,7 +169,7 @@ class SubAgentEvaluationService(Evaluation):
             assistant_id = next(iter(responses))
             explanation = single_assessment["explanation"] or ""
             name = self._evaluation_specs[assistant_id].display_name
-            label = single_assessment["label"] or ""
+            label = ChatMessageAssessmentLabel(single_assessment["label"])
 
             return EvaluationMetricResult(
                 name=self.get_name(),
@@ -188,7 +188,9 @@ class SubAgentEvaluationService(Evaluation):
 
             for response in sub_agent_responses:
                 assessments = sort_assessments(response.message["assessment"] or [])
-                value = get_worst_label(value, assessments[0]["label"] or "")
+                value = get_worst_label(
+                    value, ChatMessageAssessmentLabel(assessments[0]["label"])
+                )
 
                 data: dict[str, Any] = {
                     "name": display_name,
@@ -221,13 +223,15 @@ class SubAgentEvaluationService(Evaluation):
                 type=self.get_assessment_type(),
             )
 
+        label = ChatMessageAssessmentLabel(evaluation_result.value)
+
         single_assessment_data = _parse_single_assesment_found(evaluation_result.reason)
         if single_assessment_data is not None:
             return EvaluationAssessmentMessage(
                 status=ChatMessageAssessmentStatus.DONE,
                 explanation=single_assessment_data.explanation,
                 title=single_assessment_data.name,
-                label=evaluation_result.value,  # pyright: ignore[reportArgumentType]
+                label=label,
                 type=self.get_assessment_type(),
             )
 
@@ -235,7 +239,7 @@ class SubAgentEvaluationService(Evaluation):
             status=ChatMessageAssessmentStatus.DONE,
             explanation=evaluation_result.reason,
             title=self.DISPLAY_NAME,
-            label=evaluation_result.value,  # pyright: ignore[reportArgumentType]
+            label=label,
             type=self.get_assessment_type(),
         )
 

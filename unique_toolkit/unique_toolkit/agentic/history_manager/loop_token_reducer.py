@@ -1,6 +1,6 @@
 import json
 from logging import Logger
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, TypeGuard
 
 from pydantic import BaseModel
 
@@ -475,7 +475,7 @@ class LoopTokenReducer:
         for message in history:
             if self._should_reduce_message(message):
                 result = self._reduce_sources_in_tool_message(
-                    message,  # pyright: ignore[reportArgumentType]
+                    message,
                     chunk_offset,
                     source_offset,
                     overshoot_factor,
@@ -490,7 +490,9 @@ class LoopTokenReducer:
         self._reference_manager.replace(chunks=content_chunks_reduced)
         return history_reduced
 
-    def _should_reduce_message(self, message: LanguageModelMessage) -> bool:
+    def _should_reduce_message(
+        self, message: LanguageModelMessage
+    ) -> TypeGuard[LanguageModelToolMessage]:
         """Determine if a message should have its sources reduced."""
         return message.role == LanguageModelMessageRole.TOOL and isinstance(
             message, LanguageModelToolMessage

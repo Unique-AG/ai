@@ -458,6 +458,7 @@ class _ToolManager(Generic[_ApiMode]):
         list[ChatCompletionNamedToolChoiceParam]
         | list[response_create_params.ToolChoice]
     ):
+        # TODO(UN-19531): split into two branches with literal mode strings to eliminate this ignore
         return [  # pyright: ignore[reportReturnType]
             _convert_to_forced_tool(t.name, mode=self._api_mode)
             for t in self._tools
@@ -494,7 +495,7 @@ def _convert_to_forced_tool(
     else:
         if tool_name in OpenAIBuiltInToolName:
             # Built-in have a special syntax for forcing
-            return {"type": tool_name}  # pyright: ignore[reportReturnType]
+            return {"type": tool_name}  # pyright: ignore[reportReturnType]  # TODO(UN-19531)
         else:
             return {
                 "name": tool_name,

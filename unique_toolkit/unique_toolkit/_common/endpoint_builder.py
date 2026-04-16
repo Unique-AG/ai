@@ -219,6 +219,7 @@ def build_api_operation(
             DeprecationWarning,
         )
 
+    # TODO(UN-19502): tighten ApiOperationProtocol generic parameters away from Any
     class Operation(ApiOperationProtocol[Any, Any, Any, Any, Any, Any, Any]):
         @staticmethod
         def path_dump_options() -> dict[str, Any]:

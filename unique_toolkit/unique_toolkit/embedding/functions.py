@@ -35,6 +35,7 @@ def embed_texts(
             user_id=user_id,
             company_id=company_id,
             texts=texts,
+            timeout=timeout,  # pyright: ignore[reportCallIssue]
         )
         return Embeddings(**response)
     except Exception as e:
@@ -68,6 +69,7 @@ async def embed_texts_async(
             user_id=user_id,
             company_id=company_id,
             texts=texts,
+            timeout=timeout,  # pyright: ignore[reportCallIssue]
         )
         return Embeddings(**response)
     except Exception as e:

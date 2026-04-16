@@ -9,7 +9,7 @@ from unique_toolkit.chat.schemas import (
 
 logger = logging.getLogger(__name__)
 
-_ASSESSMENT_LABEL_COMPARISON_DICT: dict[str, int] = {
+_ASSESSMENT_LABEL_COMPARISON_DICT: dict[ChatMessageAssessmentLabel, int] = {
     ChatMessageAssessmentLabel.RED: 0,
     ChatMessageAssessmentLabel.YELLOW: 1,
     ChatMessageAssessmentLabel.GREEN: 2,
@@ -21,13 +21,15 @@ def sort_assessments(
 ) -> list[unique_sdk.Space.Assessment]:
     return sorted(
         assessments,
-        key=lambda x: _ASSESSMENT_LABEL_COMPARISON_DICT[x["label"]],  # pyright: ignore[reportArgumentType]
+        key=lambda x: _ASSESSMENT_LABEL_COMPARISON_DICT[
+            ChatMessageAssessmentLabel(x["label"])
+        ],
     )
 
 
 def get_worst_label(
-    *labels: str,
-) -> str:
+    *labels: ChatMessageAssessmentLabel,
+) -> ChatMessageAssessmentLabel:
     return min(
         labels,
         key=lambda x: _ASSESSMENT_LABEL_COMPARISON_DICT[x],
