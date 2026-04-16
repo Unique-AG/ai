@@ -1,11 +1,7 @@
 from google.genai import types
-from pydantic import BaseModel
 
-from unique_web_search.services.search_engine.utils.shared_models import (
+from unique_web_search.services.search_engine.utils.grounding import (
     RESPONSE_RULE,
-)
-from unique_web_search.services.search_engine.utils.vertexai.prompts import (
-    VERTEX_STRUCTURED_RESULTS_SYSTEM_INSTRUCTION,
 )
 
 
@@ -38,14 +34,3 @@ def get_vertex_grounding_with_structured_output_config(
         tools=[_get_grounding_tool(entreprise_search)],
         system_instruction=system_instruction,
     )
-
-def get_vertex_structured_results_config(
-    *,
-    response_schema: type[BaseModel],
-) -> types.GenerateContentConfig:
-    return types.GenerateContentConfig(
-        system_instruction=VERTEX_STRUCTURED_RESULTS_SYSTEM_INSTRUCTION,
-        response_mime_type="application/json",
-        response_schema=response_schema,
-    )
-

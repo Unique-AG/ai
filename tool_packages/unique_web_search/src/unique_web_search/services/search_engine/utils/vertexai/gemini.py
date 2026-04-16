@@ -15,10 +15,25 @@ async def generate_content(
     contents: str,
     post_process_function: PostProcessFunction[T],
 ) -> T:
-    response = await client.models.generate_content(
+    response = await raw_generate_content(
+        client=client,
+        model_name=model_name,
+        config=config,
+        contents=contents,
+    )
+
+    return post_process_function(response)
+
+
+async def raw_generate_content(
+    *,
+    client: AsyncClient,
+    model_name: str,
+    config: types.GenerateContentConfig,
+    contents: str,
+) -> types.GenerateContentResponse:
+    return await client.models.generate_content(
         model=model_name,
         contents=contents,
         config=config,
     )
-
-    return post_process_function(response)

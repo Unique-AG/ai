@@ -6,14 +6,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from unique_web_search.services.search_engine.utils.vertexai.client import (
+from unique_web_search.services.search_engine.utils.grounding.vertexai.client import (
     _get_base_api_client_from_adc,
     _get_base_api_client_from_service_account,
     _get_vertexai_base_api_client,
     get_vertex_client,
 )
 
-_CLIENT_MODULE = "unique_web_search.services.search_engine.utils.vertexai.client"
+_CLIENT_MODULE = "unique_web_search.services.search_engine.utils.grounding.vertexai.client"
 
 _FAKE_SERVICE_ACCOUNT = base64.b64encode(
     json.dumps({"type": "service_account", "project_id": "test-project"}).encode()

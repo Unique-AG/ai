@@ -1,14 +1,20 @@
 import logging
+import re
 from typing import Any, Callable, Generic, TypeVar
 
 from google.genai import types
 from pydantic import BaseModel
 
+from unique_web_search.services.search_engine.schema import WebSearchResult
+from unique_web_search.services.search_engine.utils.shared_models import (
+    GroundingSearchResults,
+)
 from unique_web_search.services.search_engine.utils.vertexai.exceptions import (
     VertexAIContentResponseEmptyException,
 )
 
 _LOGGER = logging.getLogger(__name__)
+_JSON_PATTERN = re.compile(r"```json\s*([\s\S]*?)\s*```")
 
 T = TypeVar("T", bound=BaseModel | str, covariant=True)
 T_Model = TypeVar("T_Model", bound=BaseModel)
@@ -85,3 +91,30 @@ def _insert_citations_into_text(
         text = text[:end_index] + citation + text[end_index:]
 
     return text
+
+def parse_json_from_grounding_response(
+    response: types.GenerateContentResponse,
+) -> list[WebSearchResult]:
+    """Try to extract structured search results directly from the grounding response.
+
+    Attempts two strategies:
+    1. Regex-extract a fenced ```json ... ``` block
+    2. Raw JSON parse of the full response text
+
+    Raises:
+        ValueError: If no valid JSON can be extracted from the response.
+    """
+    text = response.text
+    if not text:
+        raise ValueError("Empty response text")
+
+    json_match = _JSON_PATTERN.search(text)
+    if json_match:
+        return GroundingSearchResults.model_validate_json(
+            json_match.group(1)
+        ).to_web_search_results()
+
+    return GroundingSearchResults.model_validate_json(
+        text.strip()
+    ).to_web_search_results()
+
