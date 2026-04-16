@@ -621,33 +621,9 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
 
     **Fields:**
 
-    - `data` (List[SpaceListItem]) - List of space objects. See [`Space.SpaceListItem`](#spacelistitem) for structure.
+    - `data` (List[Space]) - List of space objects. See [`Space`](#space) for structure.
 
     **Returned by:** `Space.get_spaces()`, `Space.get_spaces_async()`
-
-#### Space.SpaceListItem {#spacelistitem}
-
-??? note "The `Space.SpaceListItem` object represents a space entry in a list response"
-
-    **Fields:**
-
-    - `id` (str) - Unique space identifier
-    - `name` (str) - Space name
-    - `title` (str | None) - Space title
-    - `subtitle` (str | None) - Space subtitle
-    - `explanation` (str | None) - Space explanation/description
-    - `alert` (str | None) - Alert message
-    - `chatUpload` (str) - Chat upload configuration
-    - `languageModel` (str | None) - Language model identifier
-    - `fallbackModule` (str) - Fallback module identifier
-    - `isExternal` (bool) - Whether the space is external
-    - `isPinned` (bool) - Whether the space is pinned
-    - `uiType` (str) - UI type identifier
-    - `settings` (Dict[str, Any] | None) - Space settings
-    - `createdAt` (str) - Creation timestamp (ISO 8601)
-    - `updatedAt` (str) - Last update timestamp (ISO 8601)
-
-    **Used in:** `GetSpacesResponse.data`
 
 #### Space.Message {#spacemessage}
 

@@ -109,33 +109,12 @@ class Space(APIResource["Space"]):
         skip: NotRequired[int]
         take: NotRequired[int]
 
-    class SpaceListItem(TypedDict):
-        """
-        Represents a space entry returned in a list response.
-        """
-
-        id: str
-        name: str
-        title: str | None
-        subtitle: str | None
-        explanation: str | None
-        alert: str | None
-        chatUpload: str
-        languageModel: str | None
-        fallbackModule: str
-        isExternal: bool
-        isPinned: bool
-        uiType: str
-        settings: dict[str, Any] | None
-        createdAt: str
-        updatedAt: str
-
     class GetSpacesResponse(TypedDict):
         """
         Response for listing spaces.
         """
 
-        data: list["Space.SpaceListItem"]
+        data: list["Space"]
 
     class Reference(TypedDict):
         """
