@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-02T09:08:36.127671Z"
+exclude-newer = "2026-04-02T09:22:35.354961Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5320,7 +5320,7 @@ dev = []
 
 [[package]]
 name = "unique-orchestrator"
-version = "1.21.3"
+version = "1.22.0"
 source = { editable = "unique_orchestrator" }
 dependencies = [
     { name = "jinja2" },
