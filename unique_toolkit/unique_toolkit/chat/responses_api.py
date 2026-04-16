@@ -122,6 +122,20 @@ def _convert_messages_to_openai(
     return res
 
 
+def convert_messages_to_openai(
+    messages: str
+    | LanguageModelMessages
+    | Sequence[
+        ResponseInputItemParam | LanguageModelMessageOptions | ResponseOutputItem
+    ],
+) -> str | list[ResponseInputItemParam]:
+    if isinstance(messages, str):
+        return messages
+    if isinstance(messages, LanguageModelMessages):
+        return _convert_messages_to_openai(messages.root)
+    return _convert_messages_to_openai(messages)
+
+
 class _ResponsesParams(NamedTuple):
     temperature: float
     model_name: str
@@ -189,14 +203,7 @@ def _prepare_responses_params_util(
                 "low"  # Code interpreter cannot be used with minimal effort
             )
 
-    messages_res = None
-    if isinstance(messages, LanguageModelMessages):
-        messages_res = _convert_messages_to_openai(messages.root)
-    elif isinstance(messages, list):
-        messages_res = _convert_messages_to_openai(messages)
-    else:
-        assert isinstance(messages, str)
-        messages_res = messages
+    messages_res = convert_messages_to_openai(messages)
 
     return _ResponsesParams(
         temperature, model, search_context, messages_res, tools_res, reasoning, text

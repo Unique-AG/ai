@@ -9,7 +9,13 @@ from unique_toolkit.chat.responses_api import (
     _attempt_extract_reasoning_from_options,
     _attempt_extract_verbosity_from_options,
     _responses_stream_with_rate_limit_retry,
+    convert_messages_to_openai,
     rate_limit_retry_config,
+)
+from unique_toolkit.language_model.schemas import (
+    LanguageModelMessages,
+    LanguageModelSystemMessage,
+    LanguageModelUserMessage,
 )
 
 # ============================================================================
@@ -364,3 +370,65 @@ async def test_rate_limit_retry__invokes_callback_before_each_retry_sleep() -> N
     assert len(callback_calls) == 1
     assert callback_calls[0][0] == 1  # first retry = attempt 1
     assert 30.0 <= callback_calls[0][1] <= 33.0  # first wait 30s + up to 10% jitter
+
+
+# ============================================================================
+# Tests for convert_messages_to_openai
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_convert_messages__returns_string_as_is() -> None:
+    """
+    Purpose: Verify that a plain string input is returned unchanged.
+    Why this matters: The Responses API accepts a raw string as input.
+    Setup summary: Pass a string, verify it's returned as-is.
+    """
+    result = convert_messages_to_openai("Hello, world!")
+    assert result == "Hello, world!"
+
+
+@pytest.mark.ai
+def test_convert_messages__converts_language_model_messages() -> None:
+    """
+    Purpose: Verify that LanguageModelMessages are converted to OpenAI format.
+    Why this matters: Internal message types must be serialized for the OpenAI API.
+    Setup summary: Pass LanguageModelMessages, verify a list of dicts is returned.
+    """
+    messages = LanguageModelMessages(
+        [
+            LanguageModelSystemMessage(content="You are helpful."),
+            LanguageModelUserMessage(content="Hi"),
+        ]
+    )
+    result = convert_messages_to_openai(messages)
+    assert isinstance(result, list)
+    assert len(result) > 0
+
+
+@pytest.mark.ai
+def test_convert_messages__converts_sequence_of_message_objects() -> None:
+    """
+    Purpose: Verify that a sequence of LanguageModelMessageOptions is converted.
+    Why this matters: Callers may pass a plain list of message objects rather than LanguageModelMessages.
+    Setup summary: Pass a list of message objects, verify conversion to list.
+    """
+    messages = [
+        LanguageModelUserMessage(content="What's the weather?"),
+    ]
+    result = convert_messages_to_openai(messages)
+    assert isinstance(result, list)
+    assert len(result) > 0
+
+
+@pytest.mark.ai
+def test_convert_messages__passes_through_openai_dicts() -> None:
+    """
+    Purpose: Verify that already-formatted OpenAI dicts are passed through.
+    Why this matters: Callers may mix native OpenAI params with toolkit messages.
+    Setup summary: Pass a list of dicts, verify they appear in the output.
+    """
+    messages = [{"role": "user", "content": "Hello"}]
+    result = convert_messages_to_openai(messages)
+    assert isinstance(result, list)
+    assert result[0] == {"role": "user", "content": "Hello"}
