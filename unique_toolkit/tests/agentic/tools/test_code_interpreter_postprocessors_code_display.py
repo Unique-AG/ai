@@ -18,14 +18,15 @@ def test_show_executed_code_postprocessor_config__has_defaults__when_constructed
     None
 ):
     """
-    Purpose: Verify ShowExecutedCodePostprocessorConfig defaults for remove_from_history and sleep_time.
-    Why this matters: Ensures safe defaults for history and display timing.
+    Purpose: Verify ShowExecutedCodePostprocessorConfig defaults for remove_from_history, sleep_time, and enable.
+    Why this matters: Ensures safe defaults for history, display timing, and enablement.
     Setup summary: Instantiate config with no args; assert default field values.
     """
     # Act
     config = ShowExecutedCodePostprocessorConfig()
 
     # Assert
+    assert config.enable is True
     assert config.remove_from_history is True
     assert config.sleep_time_before_display == 0.2
 
@@ -141,13 +142,18 @@ def test_show_executed_code_postprocessor__apply_postprocessing_to_response__no_
     Purpose: Verify postprocessor is a no-op when the code execution fence FF is on.
     Why this matters: When the fence FF is on, fences in generated_files carry the code —
     adding <details> blocks here would duplicate content and could leak into the message.
-    Setup summary: Patch FF to return True; assert changed=False and text unchanged.
+    Setup summary: Patch FF to return True before construction; assert changed=False and text unchanged.
     """
     # Arrange
     config = ShowExecutedCodePostprocessorConfig()
-    postprocessor = ShowExecutedCodePostprocessor(
-        config=config, company_id="company-123"
-    )
+    mock_ff = MagicMock()
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
+
+    with patch(CODE_DISPLAY_FF, mock_ff):
+        postprocessor = ShowExecutedCodePostprocessor(
+            config=config, company_id="company-123"
+        )
+
     message = SimpleNamespace(text="Existing answer.")
     code_call = SimpleNamespace(code="print(1)")
     loop_response = SimpleNamespace(
@@ -155,11 +161,8 @@ def test_show_executed_code_postprocessor__apply_postprocessing_to_response__no_
         message=message,
     )
 
-    mock_ff = MagicMock()
-    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
-
-    with patch(CODE_DISPLAY_FF, mock_ff):
-        changed = postprocessor.apply_postprocessing_to_response(loop_response)
+    # Act
+    changed = postprocessor.apply_postprocessing_to_response(loop_response)
 
     # Assert
     assert changed is False
@@ -173,20 +176,105 @@ async def test_show_executed_code_postprocessor__run__no_op__when_fence_ff_on() 
     """
     Purpose: Verify run() skips the display sleep when FF is on.
     Why this matters: Avoids unnecessary delay when the postprocessor is a no-op.
-    Setup summary: Patch FF on, asyncio.sleep; assert sleep not called.
+    Setup summary: Patch FF on before construction; assert sleep not called.
     """
     import asyncio
 
     config = ShowExecutedCodePostprocessorConfig()
-    postprocessor = ShowExecutedCodePostprocessor(
-        config=config, company_id="company-123"
-    )
-    loop_response = SimpleNamespace(code_interpreter_calls=[])
-
     mock_ff = MagicMock()
     mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = True
 
-    with patch(CODE_DISPLAY_FF, mock_ff), patch.object(asyncio, "sleep") as mock_sleep:
+    with patch(CODE_DISPLAY_FF, mock_ff):
+        postprocessor = ShowExecutedCodePostprocessor(
+            config=config, company_id="company-123"
+        )
+
+    loop_response = SimpleNamespace(code_interpreter_calls=[])
+
+    with patch.object(asyncio, "sleep") as mock_sleep:
         await postprocessor.run(loop_response)
 
     mock_sleep.assert_not_called()
+
+
+@pytest.mark.ai
+def test_show_executed_code_postprocessor__apply_postprocessing_to_response__no_op__when_enable_false() -> (
+    None
+):
+    """
+    Purpose: Verify postprocessor is a no-op when enable config flag is False.
+    Why this matters: Users should be able to disable code display via configuration.
+    Setup summary: Config with enable=False; assert changed=False and text unchanged.
+    """
+    # Arrange
+    config = ShowExecutedCodePostprocessorConfig(enable=False)
+    postprocessor = ShowExecutedCodePostprocessor(config=config)
+    message = SimpleNamespace(text="Existing answer.")
+    code_call = SimpleNamespace(code="print(1)")
+    loop_response = SimpleNamespace(
+        code_interpreter_calls=[code_call],
+        message=message,
+    )
+
+    # Act
+    changed = postprocessor.apply_postprocessing_to_response(loop_response)
+
+    # Assert
+    assert changed is False
+    assert loop_response.message.text == "Existing answer."
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_show_executed_code_postprocessor__run__no_op__when_enable_false() -> (
+    None
+):
+    """
+    Purpose: Verify run() skips the display sleep when enable is False.
+    Why this matters: Avoids unnecessary delay when the postprocessor is disabled via config.
+    Setup summary: Config with enable=False; assert sleep not called.
+    """
+    import asyncio
+
+    config = ShowExecutedCodePostprocessorConfig(enable=False)
+    postprocessor = ShowExecutedCodePostprocessor(config=config)
+    loop_response = SimpleNamespace(code_interpreter_calls=[])
+
+    with patch.object(asyncio, "sleep") as mock_sleep:
+        await postprocessor.run(loop_response)
+
+    mock_sleep.assert_not_called()
+
+
+@pytest.mark.ai
+def test_show_executed_code_postprocessor__disabled_when_enable_false_even_if_ff_off() -> (
+    None
+):
+    """
+    Purpose: Verify enable=False disables the postprocessor regardless of feature flag state.
+    Why this matters: The config flag should take precedence — if enable is False, the FF state shouldn't matter.
+    Setup summary: Config with enable=False, FF off; assert still disabled.
+    """
+    # Arrange
+    config = ShowExecutedCodePostprocessorConfig(enable=False)
+    mock_ff = MagicMock()
+    mock_ff.enable_code_execution_fence_un_17972.is_enabled.return_value = False
+
+    with patch(CODE_DISPLAY_FF, mock_ff):
+        postprocessor = ShowExecutedCodePostprocessor(
+            config=config, company_id="company-123"
+        )
+
+    message = SimpleNamespace(text="Existing answer.")
+    code_call = SimpleNamespace(code="print(1)")
+    loop_response = SimpleNamespace(
+        code_interpreter_calls=[code_call],
+        message=message,
+    )
+
+    # Act
+    changed = postprocessor.apply_postprocessing_to_response(loop_response)
+
+    # Assert
+    assert changed is False
+    assert loop_response.message.text == "Existing answer."
