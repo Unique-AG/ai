@@ -29,7 +29,7 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
 
     **Returns:**
 
-    Returns a [`GetSpacesResponse`](#getspacesresponse) object.
+    Returns a [`Spaces`](#getspacesresponse) object.
 
     **Example - List all spaces:**
 
@@ -615,9 +615,9 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
 
 ## Return Types
 
-#### GetSpacesResponse {#getspacesresponse}
+#### Spaces {#getspacesresponse}
 
-??? note "The `GetSpacesResponse` object contains a list of spaces"
+??? note "The `Spaces` object contains a list of spaces"
 
     **Fields:**
 

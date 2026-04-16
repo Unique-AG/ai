@@ -109,7 +109,7 @@ class Space(APIResource["Space"]):
         skip: NotRequired[int]
         take: NotRequired[int]
 
-    class GetSpacesResponse(TypedDict):
+    class Spaces(TypedDict):
         """
         Response for listing spaces.
         """
@@ -745,12 +745,12 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Space.GetSpacesParams"],
-    ) -> "Space.GetSpacesResponse":
+    ) -> "Space.Spaces":
         """
         List spaces, optionally filtered by name (case-insensitive partial match).
         """
         return cast(
-            "Space.GetSpacesResponse",
+            "Space.Spaces",
             cls._static_request(
                 "get",
                 "/space",
@@ -766,12 +766,12 @@ class Space(APIResource["Space"]):
         user_id: str,
         company_id: str,
         **params: Unpack["Space.GetSpacesParams"],
-    ) -> "Space.GetSpacesResponse":
+    ) -> "Space.Spaces":
         """
         Async list spaces, optionally filtered by name (case-insensitive partial match).
         """
         return cast(
-            "Space.GetSpacesResponse",
+            "Space.Spaces",
             await cls._static_request_async(
                 "get",
                 "/space",
