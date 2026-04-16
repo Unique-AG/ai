@@ -31,6 +31,10 @@ logger = logging.getLogger(__name__)
 
 class ShowExecutedCodePostprocessorConfig(BaseModel):
     model_config = get_configuration_dict()
+    enable: bool = Field(
+        default=True,
+        description="Enable display of executed code before the assistant message",
+    )
     remove_from_history: SkipJsonSchema[bool] = (
         Field(  # At the moment, it's not possible to keep executed code in the history
             default=True,
@@ -51,23 +55,23 @@ class ShowExecutedCodePostprocessor(ResponsesApiPostprocessor):
     ):
         super().__init__(self.__class__.__name__)
         self._config = config
-        self._company_id = company_id
+        self._is_enabled = (
+            self._config.enable
+            and not feature_flags.enable_code_execution_fence_un_17972.is_enabled(
+                company_id
+            )
+        )
 
     @override
     async def run(self, loop_response: ResponsesLanguageModelStreamResponse) -> None:
-        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-            self._company_id
-        ):
-            return
-        await asyncio.sleep(self._config.sleep_time_before_display)
+        if self._is_enabled:
+            await asyncio.sleep(self._config.sleep_time_before_display)
 
     @override
     def apply_postprocessing_to_response(
         self, loop_response: ResponsesLanguageModelStreamResponse
     ) -> bool:
-        if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-            self._company_id
-        ):
+        if not self._is_enabled:
             return False
 
         prepended_text = ""
