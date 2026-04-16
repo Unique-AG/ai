@@ -1,6 +1,6 @@
 [project]
 name = "unique-mcp"
-version = "0.2.6"
+version = "0.3.0"
 description = "Add your description here"
 readme = "README.md"
 authors = [
@@ -13,11 +13,8 @@ dependencies = [
     "platformdirs>=4.0.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.0.0",
-    "unique-toolkit>=1.61.0",
+    "unique-toolkit>=1.65.2",
 ]
-
-[project.scripts]
-unique-mcp = "unique_mcp:main"
 
 [build-system]
 requires = ["uv_build>=0.8.14,<0.9.0"]
@@ -25,6 +22,9 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = []
+
+[tool.uv.sources]
+unique-toolkit = { workspace = true }
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --import-mode=importlib"

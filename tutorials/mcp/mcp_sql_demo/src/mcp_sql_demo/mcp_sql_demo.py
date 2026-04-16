@@ -1,8 +1,10 @@
 from pathlib import Path
 from typing import Annotated
 
+import httpx
 from dotenv import load_dotenv
 from fastapi.responses import FileResponse, JSONResponse
+from fastmcp import FastMCP
 from fastmcp.dependencies import Depends
 from pydantic import Field
 from starlette.middleware import Middleware
@@ -10,7 +12,12 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
 from mcp_sql_demo.db_tool_pm.service import PMPositionsTool
-from unique_mcp.server import create_unique_mcp_server
+from unique_mcp import get_unique_settings, get_unique_userinfo
+from unique_mcp.auth.zitadel.oauth_proxy import (
+    ZitadelOAuthProxySettings,
+    create_zitadel_oauth_proxy,
+)
+from unique_mcp.settings import ServerSettings
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.app.schemas import (
     ChatEvent,
@@ -18,12 +25,13 @@ from unique_toolkit.app.schemas import (
     ChatEventPayload,
     ChatEventUserMessage,
 )
-from unique_toolkit.app.unique_settings import UniqueContext
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 # Load environment variables from .env file
 load_dotenv()
 
+_HTTP_CLIENT = httpx.AsyncClient(timeout=10.0)
 print("position", PMPositionsTool.name)
 
 # Module-level tool object for decorator metadata only.
@@ -53,8 +61,15 @@ _METADATA_TOOL = ToolFactory.build_tool("PM_Positions", {}, _PLACEHOLDER_EVENT)
 
 
 def main() -> None:
-    bundle = create_unique_mcp_server("Demo 🚀")
-    context_provider = bundle.context_provider
+    server_settings = ServerSettings()
+    zitadel_settings = ZitadelOAuthProxySettings()
+
+    oauth_proxy = create_zitadel_oauth_proxy(
+        mcp_server_base_url=server_settings.base_url.encoded_string(),
+        zitadel_oauth_proxy_settings=zitadel_settings,
+    )
+
+    mcp = FastMCP("Demo 🚀", auth=oauth_proxy)
 
     custom_middleware = [
         Middleware(
@@ -66,7 +81,7 @@ def main() -> None:
         )
     ]
 
-    @bundle.mcp.tool(
+    @mcp.tool(
         name=_METADATA_TOOL.name,
         title=_METADATA_TOOL.display_name(),
         description=_METADATA_TOOL.tool_description().description,
@@ -84,14 +99,14 @@ def main() -> None:
                 description="Search string to find relevant information on stocks and instruments it can include exposure. This will be converted to sql and run against the database."
             ),
         ],
-        context: UniqueContext = Depends(context_provider.get_context),
-        userinfo: dict = Depends(context_provider.get_userinfo),
+        settings: UniqueSettings = Depends(get_unique_settings),
     ) -> str:
         """Search string to find relevant information on stocks and instruments. This will be converted to sql and run against the database."""
-        user_id = context.auth.get_confidential_user_id()
-        company_id = context.auth.get_confidential_company_id()
+        user_id = settings.authcontext.get_confidential_user_id()
+        company_id = settings.authcontext.get_confidential_company_id()
 
-        email = userinfo.get("email", "alice@alphabet.example")
+        userinfo = await get_unique_userinfo(_HTTP_CLIENT)
+        email = (userinfo.email if userinfo else None) or "alice@alphabet.example"
 
         per_request_event = ChatEvent(
             event="user_message_created",
@@ -111,19 +126,19 @@ def main() -> None:
         result = await tool.run(tool_call)
         return result.content
 
-    @bundle.mcp.custom_route("/", methods=["GET"])
+    @mcp.custom_route("/", methods=["GET"])
     async def get_status(request: Request):
         return JSONResponse({"server": "running"})
 
-    @bundle.mcp.custom_route("/favicon.ico", methods=["GET"])
+    @mcp.custom_route("/favicon.ico", methods=["GET"])
     async def favicon(request: Request):
         FAVICON_PATH = Path(__file__).parent / "favicon.ico"
         return FileResponse(FAVICON_PATH)
 
-    bundle.mcp.run(
-        transport=bundle.server_settings.transport_scheme,
-        host=bundle.server_settings.local_base_url.host,
-        port=bundle.server_settings.local_base_url.port,
+    mcp.run(
+        transport=server_settings.transport_scheme,
+        host=server_settings.local_base_url.host,
+        port=server_settings.local_base_url.port,
         debug=True,
         log_level="debug",
         middleware=custom_middleware,
