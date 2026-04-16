@@ -346,14 +346,14 @@ class AgenticTableService:
                     # TODO: @thea-unique This routine is not efficient and would be nice if we had this data passed on in get_sheet_data.
                     for cell in sheet_partial["magicTableCells"]:
                         row_order = cell.get("rowOrder")  # type: ignore[assignment]
-                        if row_order is not None and row_order not in row_metadata_map:
+                        if row_order is not None and row_order not in row_metadata_map:  # pyright: ignore[reportUnnecessaryComparison]
                             column_order = cell.get("columnOrder")  # type: ignore[assignment]
                             self.logger.info(
                                 f"Getting row metadata for cell {row_order}, {column_order}"
                             )
                             cell_with_row_metadata = await self.get_cell(
                                 row_order,
-                                column_order,  # pyright: ignore[reportArgumentType]
+                                column_order,
                             )
                             if cell_with_row_metadata.row_metadata:
                                 print(cell_with_row_metadata.row_metadata)
@@ -366,7 +366,7 @@ class AgenticTableService:
                     # Assign row_metadata to all cells
                     for cell in sheet_partial["magicTableCells"]:
                         row_order = cell.get("rowOrder")  # type: ignore[assignment]
-                        if row_order is not None and row_order in row_metadata_map:
+                        if row_order is not None and row_order in row_metadata_map:  # pyright: ignore[reportUnnecessaryComparison]
                             cell["rowMetadata"] = row_metadata_map[  # pyright: ignore[reportGeneralTypeIssues]
                                 row_order
                             ]

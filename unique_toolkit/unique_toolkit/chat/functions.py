@@ -1441,11 +1441,11 @@ def create_message_tools(
 ) -> list[ChatMessageTool]:
     """Persist tool call records for an assistant message."""
     try:
-        result = unique_sdk.MessageTool.create_many(  # pyright: ignore[reportAttributeAccessIssue]
+        result = unique_sdk.MessageTool.create_many(
             user_id=user_id,
             company_id=company_id,
             messageId=message_id,
-            tools=_build_tool_call_items(tool_calls),  # type: ignore
+            tools=_build_tool_call_items(tool_calls),  # pyright: ignore[reportArgumentType]
         )
         return [ChatMessageTool.model_validate(dict(item)) for item in result.data]
     except Exception as e:
@@ -1462,11 +1462,11 @@ async def create_message_tools_async(
 ) -> list[ChatMessageTool]:
     """Async variant of create_message_tools."""
     try:
-        result = await unique_sdk.MessageTool.create_many_async(  # pyright: ignore[reportAttributeAccessIssue]
+        result = await unique_sdk.MessageTool.create_many_async(
             user_id=user_id,
             company_id=company_id,
             messageId=message_id,
-            tools=_build_tool_call_items(tool_calls),  # type: ignore
+            tools=_build_tool_call_items(tool_calls),  # pyright: ignore[reportArgumentType]
         )
         tools = [ChatMessageTool.model_validate(dict(item)) for item in result.data]
         return tools
@@ -1487,7 +1487,7 @@ def get_message_tools(
     if ids is None:
         return []
     try:
-        result = unique_sdk.MessageTool.get_message_tools(  # pyright: ignore[reportAttributeAccessIssue]
+        result = unique_sdk.MessageTool.get_message_tools(
             user_id=user_id,
             company_id=company_id,
             messageIds=ids,
@@ -1511,7 +1511,7 @@ async def get_message_tools_async(
     if ids is None:
         return []
     try:
-        result = await unique_sdk.MessageTool.get_message_tools_async(  # pyright: ignore[reportAttributeAccessIssue]
+        result = await unique_sdk.MessageTool.get_message_tools_async(
             user_id=user_id,
             company_id=company_id,
             messageIds=ids,
