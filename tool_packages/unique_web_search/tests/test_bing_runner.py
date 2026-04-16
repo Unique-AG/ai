@@ -756,9 +756,7 @@ class TestGetAnswerFromThread:
 # ---------------------------------------------------------------------------
 
 
-_RUNNER_MODULE = (
-    "unique_web_search.services.search_engine.utils.grounding.bing.runner"
-)
+_RUNNER_MODULE = "unique_web_search.services.search_engine.utils.grounding.bing.runner"
 
 
 class TestCreateAndProcessRun:

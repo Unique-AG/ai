@@ -1,7 +1,7 @@
 from unique_web_search.services.search_engine.utils.brave.models import (
-    BraveMixed,
     BraveErrorResponse,
     BraveMetaUrl,
+    BraveMixed,
     BraveNewsResult,
     BraveNewsResults,
     BraveNewsSearchParams,

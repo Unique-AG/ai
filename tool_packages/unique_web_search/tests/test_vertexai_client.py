@@ -13,7 +13,9 @@ from unique_web_search.services.search_engine.utils.grounding.vertexai.client im
     get_vertex_client,
 )
 
-_CLIENT_MODULE = "unique_web_search.services.search_engine.utils.grounding.vertexai.client"
+_CLIENT_MODULE = (
+    "unique_web_search.services.search_engine.utils.grounding.vertexai.client"
+)
 
 _FAKE_SERVICE_ACCOUNT = base64.b64encode(
     json.dumps({"type": "service_account", "project_id": "test-project"}).encode()

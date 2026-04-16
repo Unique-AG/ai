@@ -92,6 +92,7 @@ def _insert_citations_into_text(
 
     return text
 
+
 def parse_json_from_grounding_response(
     response: types.GenerateContentResponse,
 ) -> list[WebSearchResult]:
@@ -117,4 +118,3 @@ def parse_json_from_grounding_response(
     return GroundingSearchResults.model_validate_json(
         text.strip()
     ).to_web_search_results()
-

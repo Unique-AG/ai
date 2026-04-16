@@ -39,6 +39,7 @@ def get_vertex_grounding_with_structured_output_config(
         system_instruction=system_instruction,
     )
 
+
 def get_vertex_structured_results_config(
     *,
     response_schema: type[BaseModel],
@@ -48,4 +49,3 @@ def get_vertex_structured_results_config(
         response_mime_type="application/json",
         response_schema=response_schema,
     )
-
