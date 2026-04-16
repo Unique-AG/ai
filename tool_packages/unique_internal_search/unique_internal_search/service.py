@@ -274,15 +274,13 @@ class InternalSearchService:
         content_ids: list[str] | None = None,
     ) -> SearchStringResult:
         try:
-            self.logger.info(f"Search performed with limit: {self.config.limit}")
-            self.logger.info(f"Max tokens: {self._get_max_tokens()}")
-            self.logger.info(f"Reduced limit: {int(self._get_max_tokens() // 500*1.5)}")
+            capped_limit = self._cap_limit_to_token_budget()
             found_chunks: list[
                 ContentChunk
             ] = await self.content_service.search_content_chunks_async(
                 search_string=search_string,  # type: ignore
                 search_type=self.config.search_type,
-                limit=self.config.limit,
+                limit=capped_limit,
                 reranker_config=self.config.reranker_config,
                 search_language=self.config.search_language,
                 scope_ids=self.config.scope_ids,
@@ -358,7 +356,9 @@ class InternalSearchService:
             return self.config.max_tokens_for_sources
 
     def _cap_limit_to_token_budget(self) -> int:
-        return int(self._get_max_tokens() // AVERAGE_TOKENS_PER_CHUNK * TOKEN_BUDGET_SAFETY_FACTOR)
+        capped_limit = int(self._get_max_tokens() // AVERAGE_TOKENS_PER_CHUNK * TOKEN_BUDGET_SAFETY_FACTOR)
+        self.logger.info(f"Search limit capped from {self.config.limit} to {capped_limit}")
+        return capped_limit
 
     async def _create_or_update_active_message_log(
         self,

@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Self
+from typing import Annotated, Any
 
 from pydantic import (
     BaseModel,
@@ -147,7 +147,6 @@ class InternalSearchConfig(BaseToolConfig):
         default_factory=_search_limit_factory,
         description="The maximum limit of chunks returned by the search.",
     )
-
     chat_only: bool = Field(
         default=False,
         description="Whether to only chat on the upload.",
