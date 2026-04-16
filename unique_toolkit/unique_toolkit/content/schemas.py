@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, Optional
@@ -103,7 +104,7 @@ class ContentChunk(BaseModel):
 
         name = self.title or self.key or f"Content {self.id}"
         pages_postfix = _generate_pages_postfix([self])
-        if pages_postfix and not name.endswith(pages_postfix):
+        if pages_postfix and not re.search(r" : [\d,]+$", name):
             name = f"{name}{pages_postfix}"
 
         source_id = f"{self.id}_{self.chunk_id}" if self.chunk_id else self.id

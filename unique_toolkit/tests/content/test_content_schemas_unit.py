@@ -353,3 +353,22 @@ class TestContentChunkToReference:
 
         assert ref.name == "Annual Report : 1,2,3"
         assert ref.name.count(" : 1,2,3") == 1
+
+    def test_does_not_double_postfix_after_merge_with_non_contiguous_pages(self):
+        """After merge_content_chunks, title may carry a non-contiguous postfix
+        (e.g. " : 1,2,5,8,9") while start_page/end_page span a contiguous
+        range (1..9). The dedup check must still prevent a second postfix."""
+        chunk = ContentChunk(
+            id="cont_merged",
+            chunk_id="chunk_m",
+            title="Report : 1,2,5,8,9",
+            text="text",
+            order=1,
+            start_page=1,
+            end_page=9,
+        )
+
+        ref = chunk.to_reference(sequence_number=1)
+
+        assert " : " not in ref.name.replace("Report : 1,2,5,8,9", "", 1)
+        assert ref.name == "Report : 1,2,5,8,9"
