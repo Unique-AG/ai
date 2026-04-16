@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.74.1] - 2026-04-16
+- Use non-strict structured output for planning in responses api
+
 ## [1.74.0] - 2026-04-16
 - Add configuration flag to disable display of executed code
 
