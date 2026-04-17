@@ -45,8 +45,8 @@ def create_scheduled_task(
     cron_expression: str,
     assistant_id: str,
     prompt: str,
-    chat_id: str | None = None,
     enabled: bool = True,
+    chat_id: str | None = None,
 ) -> ScheduledTask:
     """Create a new cron-based scheduled task.
 
@@ -56,12 +56,12 @@ def create_scheduled_task(
         cron_expression: 5-field UTC cron expression (``"m h dom mon dow"``).
         assistant_id: Assistant id to execute on every trigger.
         prompt: Prompt text sent to the assistant on each run.
-        chat_id: Optional chat to continue; ``None`` (default) means a fresh
-            chat is created every run.
         enabled: Whether the task is active from creation. Defaults to
             ``True`` so tasks fire as soon as they are registered; pass
             ``False`` to stage a task that can be enabled later via
             :func:`update_scheduled_task`.
+        chat_id: Optional chat to continue; ``None`` (default) means a fresh
+            chat is created every run.
 
     Returns:
         The created :class:`ScheduledTask` as echoed by the server.
@@ -90,8 +90,8 @@ async def create_scheduled_task_async(
     cron_expression: str,
     assistant_id: str,
     prompt: str,
-    chat_id: str | None = None,
     enabled: bool = True,
+    chat_id: str | None = None,
 ) -> ScheduledTask:
     """Async :func:`create_scheduled_task`."""
     params: dict[str, Any] = {

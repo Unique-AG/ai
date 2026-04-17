@@ -111,8 +111,8 @@ class ScheduledTasks:
         cron_expression: str,
         assistant_id: str,
         prompt: str,
-        chat_id: str | None = None,
         enabled: bool = True,
+        chat_id: str | None = None,
     ) -> ScheduledTask:
         """Register a new scheduled task.
 
@@ -121,11 +121,11 @@ class ScheduledTasks:
                 (``"minute hour day-of-month month day-of-week"``).
             assistant_id: Assistant to execute on every trigger.
             prompt: Prompt delivered to the assistant on each run.
-            chat_id: Optional chat to continue. ``None`` (default) means a
-                fresh chat on every run.
             enabled: Whether the task is active from creation. Defaults to
                 ``True`` so tasks fire immediately; pass ``False`` to stage a
                 task that can be enabled later via :meth:`enable_task`.
+            chat_id: Optional chat to continue. ``None`` (default) means a
+                fresh chat on every run.
 
         Returns:
             The created :class:`ScheduledTask` as echoed by the server.
@@ -146,8 +146,8 @@ class ScheduledTasks:
         cron_expression: str,
         assistant_id: str,
         prompt: str,
-        chat_id: str | None = None,
         enabled: bool = True,
+        chat_id: str | None = None,
     ) -> ScheduledTask:
         """Async :meth:`create_task`."""
         return await create_scheduled_task_async(
