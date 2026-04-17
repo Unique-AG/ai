@@ -34,12 +34,13 @@ from unique_toolkit.experimental.scheduled_task import (
 )
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#scheduled_tasks_setup_from_settings>>[init]
-scheduled_tasks = ScheduledTasks.from_settings()
+settings = UniqueSettings.from_env()
+scheduled_tasks = ScheduledTasks.from_settings(settings)
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#scheduled_tasks_list_and_get>>[init]
-for task in scheduled_tasks.list_tasks():
+for task in scheduled_tasks.list():
     print(task.id, task.cron_expression, task.prompt[:40])
 
-detail = scheduled_tasks.get_task(task_id=task.id)
+detail = scheduled_tasks.retrieve(task_id=task.id)
 # ~/~ end
 # ~/~ end

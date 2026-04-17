@@ -34,6 +34,7 @@ from unique_toolkit.experimental.scheduled_task import (
 )
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#scheduled_tasks_setup_from_settings>>[init]
-scheduled_tasks = ScheduledTasks.from_settings()
+settings = UniqueSettings.from_env()
+scheduled_tasks = ScheduledTasks.from_settings(settings)
 # ~/~ end
 # ~/~ end

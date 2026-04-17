@@ -6,14 +6,18 @@
     public API, method names, and return shapes may change without notice
     and are not covered by the toolkit's normal stability guarantees.
 
-Wraps :class:`unique_sdk.ScheduledTask` with a thin, typed service:
+Wraps :class:`unique_sdk.ScheduledTask` with a thin, typed service. Method
+names mirror the underlying SDK resource so the toolkit surface stays
+consistent with the raw API:
 
-- :meth:`ScheduledTasks.create_task` — register a new cron schedule.
-- :meth:`ScheduledTasks.list_tasks` — enumerate all tasks visible to the user.
-- :meth:`ScheduledTasks.get_task` — single-task lookup by id.
-- :meth:`ScheduledTasks.update_task` — server-side partial update; supports
+- :meth:`ScheduledTasks.create` — register a new cron schedule.
+- :meth:`ScheduledTasks.list` — enumerate all tasks visible to the user.
+- :meth:`ScheduledTasks.retrieve` — single-task lookup by id.
+- :meth:`ScheduledTasks.modify` — server-side partial update; supports
   explicit ``clear_chat_id=True`` for the "new chat each run" intent.
-- :meth:`ScheduledTasks.delete_task` — permanent removal.
+- :meth:`ScheduledTasks.delete` — permanent removal.
+- :meth:`ScheduledTasks.enable` / :meth:`ScheduledTasks.disable` —
+  convenience shortcuts around ``modify(..., enabled=...)``.
 
 Every sync method has a matching ``*_async`` sibling with the same signature.
 """
@@ -62,7 +66,7 @@ class ScheduledTasks:
     **Chat continuity.** When :attr:`ScheduledTask.chat_id` is ``None``, each
     run creates a fresh chat (the common case for idempotent reports). When
     set, the assistant appends to that chat on every run — prefer prompts that
-    are additive or progressive. Use :meth:`update_task` with
+    are additive or progressive. Use :meth:`modify` with
     ``clear_chat_id=True`` to drop the link and revert to "fresh chat each run".
 
     **Enabled flag.** :attr:`ScheduledTask.enabled` pauses the task without
@@ -89,8 +93,8 @@ class ScheduledTasks:
     def from_context(cls, context: UniqueContext) -> Self:
         """Create from a :class:`UniqueContext` (preferred constructor)."""
         return cls(
-            company_id=context.auth.get_confidential_company_id(),
             user_id=context.auth.get_confidential_user_id(),
+            company_id=context.auth.get_confidential_company_id(),
         )
 
     @classmethod
@@ -100,7 +104,7 @@ class ScheduledTasks:
 
     # ── Create ────────────────────────────────────────────────────────────
 
-    def create_task(
+    def create(
         self,
         *,
         cron_expression: str,
@@ -118,7 +122,7 @@ class ScheduledTasks:
             prompt: Prompt delivered to the assistant on each run.
             enabled: Whether the task is active from creation. Defaults to
                 ``True`` so tasks fire immediately; pass ``False`` to stage a
-                task that can be enabled later via :meth:`enable_task`.
+                task that can be enabled later via :meth:`enable`.
             chat_id: Optional chat to continue. ``None`` (default) means a
                 fresh chat on every run.
 
@@ -135,7 +139,7 @@ class ScheduledTasks:
             enabled=enabled,
         )
 
-    async def create_task_async(
+    async def create_async(
         self,
         *,
         cron_expression: str,
@@ -144,7 +148,7 @@ class ScheduledTasks:
         enabled: bool = True,
         chat_id: str | None = None,
     ) -> ScheduledTask:
-        """Async :meth:`create_task`."""
+        """Async :meth:`create`."""
         return await create_scheduled_task_async(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -155,23 +159,23 @@ class ScheduledTasks:
             enabled=enabled,
         )
 
-    # ── List / get ────────────────────────────────────────────────────────
+    # ── List / retrieve ───────────────────────────────────────────────────
 
-    def list_tasks(self) -> list[ScheduledTask]:
+    def list(self) -> list[ScheduledTask]:
         """Return every scheduled task visible to the acting user."""
         return list_scheduled_tasks(
             user_id=self._user_id,
             company_id=self._company_id,
         )
 
-    async def list_tasks_async(self) -> list[ScheduledTask]:
-        """Async :meth:`list_tasks`."""
+    async def list_async(self) -> list[ScheduledTask]:
+        """Async :meth:`list`."""
         return await list_scheduled_tasks_async(
             user_id=self._user_id,
             company_id=self._company_id,
         )
 
-    def get_task(self, *, task_id: str) -> ScheduledTask:
+    def retrieve(self, *, task_id: str) -> ScheduledTask:
         """Fetch a single scheduled task by id."""
         return get_scheduled_task(
             user_id=self._user_id,
@@ -179,17 +183,17 @@ class ScheduledTasks:
             task_id=task_id,
         )
 
-    async def get_task_async(self, *, task_id: str) -> ScheduledTask:
-        """Async :meth:`get_task`."""
+    async def retrieve_async(self, *, task_id: str) -> ScheduledTask:
+        """Async :meth:`retrieve`."""
         return await get_scheduled_task_async(
             user_id=self._user_id,
             company_id=self._company_id,
             task_id=task_id,
         )
 
-    # ── Update ────────────────────────────────────────────────────────────
+    # ── Modify ────────────────────────────────────────────────────────────
 
-    def update_task(
+    def modify(
         self,
         *,
         task_id: str,
@@ -219,7 +223,7 @@ class ScheduledTasks:
             enabled=enabled,
         )
 
-    async def update_task_async(
+    async def modify_async(
         self,
         *,
         task_id: str,
@@ -230,7 +234,7 @@ class ScheduledTasks:
         clear_chat_id: bool = False,
         enabled: bool | None = None,
     ) -> ScheduledTask:
-        """Async :meth:`update_task` (same mutual-exclusion rules for ``chat_id``)."""
+        """Async :meth:`modify` (same mutual-exclusion rules for ``chat_id``)."""
         return await update_scheduled_task_async(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -245,7 +249,7 @@ class ScheduledTasks:
 
     # ── Delete ────────────────────────────────────────────────────────────
 
-    def delete_task(self, *, task_id: str) -> DeletedScheduledTask:
+    def delete(self, *, task_id: str) -> DeletedScheduledTask:
         """Permanently delete a scheduled task. This action cannot be undone."""
         return delete_scheduled_task(
             user_id=self._user_id,
@@ -253,8 +257,8 @@ class ScheduledTasks:
             task_id=task_id,
         )
 
-    async def delete_task_async(self, *, task_id: str) -> DeletedScheduledTask:
-        """Async :meth:`delete_task`."""
+    async def delete_async(self, *, task_id: str) -> DeletedScheduledTask:
+        """Async :meth:`delete`."""
         return await delete_scheduled_task_async(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -263,18 +267,18 @@ class ScheduledTasks:
 
     # ── Convenience: enable/disable ───────────────────────────────────────
 
-    def enable_task(self, *, task_id: str) -> ScheduledTask:
-        """Re-enable a previously paused task (shortcut for ``update_task(..., enabled=True)``)."""
-        return self.update_task(task_id=task_id, enabled=True)
+    def enable(self, *, task_id: str) -> ScheduledTask:
+        """Re-enable a previously paused task (shortcut for ``modify(..., enabled=True)``)."""
+        return self.modify(task_id=task_id, enabled=True)
 
-    async def enable_task_async(self, *, task_id: str) -> ScheduledTask:
-        """Async :meth:`enable_task`."""
-        return await self.update_task_async(task_id=task_id, enabled=True)
+    async def enable_async(self, *, task_id: str) -> ScheduledTask:
+        """Async :meth:`enable`."""
+        return await self.modify_async(task_id=task_id, enabled=True)
 
-    def disable_task(self, *, task_id: str) -> ScheduledTask:
-        """Pause a task without deleting it (shortcut for ``update_task(..., enabled=False)``)."""
-        return self.update_task(task_id=task_id, enabled=False)
+    def disable(self, *, task_id: str) -> ScheduledTask:
+        """Pause a task without deleting it (shortcut for ``modify(..., enabled=False)``)."""
+        return self.modify(task_id=task_id, enabled=False)
 
-    async def disable_task_async(self, *, task_id: str) -> ScheduledTask:
-        """Async :meth:`disable_task`."""
-        return await self.update_task_async(task_id=task_id, enabled=False)
+    async def disable_async(self, *, task_id: str) -> ScheduledTask:
+        """Async :meth:`disable`."""
+        return await self.modify_async(task_id=task_id, enabled=False)

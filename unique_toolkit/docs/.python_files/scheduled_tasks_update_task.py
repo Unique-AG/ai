@@ -34,10 +34,11 @@ from unique_toolkit.experimental.scheduled_task import (
 )
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#scheduled_tasks_setup_from_settings>>[init]
-scheduled_tasks = ScheduledTasks.from_settings()
+settings = UniqueSettings.from_env()
+scheduled_tasks = ScheduledTasks.from_settings(settings)
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#scheduled_tasks_create>>[init]
-task = scheduled_tasks.create_task(
+task = scheduled_tasks.create(
     cron_expression=Cron.WEEKDAYS_9AM,
     assistant_id="assistant_daily_report",
     prompt="Summarise yesterday's key events and email me the briefing.",
@@ -46,14 +47,14 @@ task = scheduled_tasks.create_task(
 print(task.id, task.cron_expression, task.enabled)
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#scheduled_tasks_update_schedule_and_enable>>[init]
-updated = scheduled_tasks.update_task(
+updated = scheduled_tasks.modify(
     task_id=task.id,
     cron_expression=Cron.EVERY_FIFTEEN_MINUTES,
     enabled=True,
 )
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#scheduled_tasks_clear_chat_id>>[init]
-scheduled_tasks.update_task(
+scheduled_tasks.modify(
     task_id=task.id,
     clear_chat_id=True,
 )

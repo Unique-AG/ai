@@ -29,15 +29,18 @@ from unique_toolkit.experimental.scheduled_task import (
 `ScheduledTasks` follows the same constructor pattern as the other toolkit
 services:
 
-- `ScheduledTasks.from_settings()` - reads `UniqueSettings` from environment
-  variables. Use this in standalone scripts and notebooks.
+- `ScheduledTasks.from_settings(settings)` - accepts a `UniqueSettings`
+  instance. Load the settings explicitly (e.g. `UniqueSettings.from_env()` in
+  standalone scripts and notebooks) and pass them in — the service never
+  reads environment variables on its own.
 - `ScheduledTasks.from_context(context)` - binds to an existing
   `UniqueContext` (typical inside event-driven handlers).
 - `ScheduledTasks(user_id=..., company_id=...)` - lowest-level form when you
   already have the two identifiers.
 
 ```{.python #scheduled_tasks_setup_from_settings}
-scheduled_tasks = ScheduledTasks.from_settings()
+settings = UniqueSettings.from_env()
+scheduled_tasks = ScheduledTasks.from_settings(settings)
 ```
 
 <!--
@@ -73,7 +76,7 @@ the assistant receives on every fire. The server creates a fresh chat on every
 trigger unless you pin one with `chat_id=`.
 
 ```{.python #scheduled_tasks_create}
-task = scheduled_tasks.create_task(
+task = scheduled_tasks.create(
     cron_expression=Cron.WEEKDAYS_9AM,
     assistant_id="assistant_daily_report",
     prompt="Summarise yesterday's key events and email me the briefing.",
@@ -96,15 +99,15 @@ continue an existing chat rather than starting a new one on every run.
 
 ## List and retrieve tasks
 
-`list_tasks()` returns every scheduled task visible to the acting user as
-fully parsed `ScheduledTask` models. Use `get_task(task_id=...)` to fetch a
-single one:
+`list()` returns every scheduled task visible to the acting user as fully
+parsed `ScheduledTask` models. Use `retrieve(task_id=...)` to fetch a single
+one:
 
 ```{.python #scheduled_tasks_list_and_get}
-for task in scheduled_tasks.list_tasks():
+for task in scheduled_tasks.list():
     print(task.id, task.cron_expression, task.prompt[:40])
 
-detail = scheduled_tasks.get_task(task_id=task.id)
+detail = scheduled_tasks.retrieve(task_id=task.id)
 ```
 
 <!--
@@ -116,15 +119,15 @@ detail = scheduled_tasks.get_task(task_id=task.id)
 ```
 -->
 
-## Update an existing task
+## Modify an existing task
 
-`update_task` performs a server-side partial update: only the keyword
-arguments you pass are sent, every other field keeps its current value. The
-most common adjustments are changing the schedule, swapping the assistant, or
-flipping `enabled` on and off:
+`modify` performs a server-side partial update: only the keyword arguments
+you pass are sent, every other field keeps its current value. The most common
+adjustments are changing the schedule, swapping the assistant, or flipping
+`enabled` on and off:
 
 ```{.python #scheduled_tasks_update_schedule_and_enable}
-updated = scheduled_tasks.update_task(
+updated = scheduled_tasks.modify(
     task_id=task.id,
     cron_expression=Cron.EVERY_FIFTEEN_MINUTES,
     enabled=True,
@@ -144,7 +147,7 @@ Omit both to leave the chat setting untouched. Combining them raises
 `TypeError` locally, before any SDK call:
 
 ```{.python #scheduled_tasks_clear_chat_id}
-scheduled_tasks.update_task(
+scheduled_tasks.modify(
     task_id=task.id,
     clear_chat_id=True,
 )
@@ -167,7 +170,7 @@ Deletion is permanent and cannot be undone. The method returns a
 `DeletedScheduledTask` acknowledgement echoed from the server:
 
 ```{.python #scheduled_tasks_delete}
-ack = scheduled_tasks.delete_task(task_id=task.id)
+ack = scheduled_tasks.delete(task_id=task.id)
 assert ack.deleted is True
 ```
 
@@ -187,14 +190,14 @@ Every public method has an `_async` counterpart with the same signature, for
 use inside `async def` handlers:
 
 ```{.python #scheduled_tasks_async}
-task = await scheduled_tasks.create_task_async(
+task = await scheduled_tasks.create_async(
     cron_expression=Cron.HOURLY,
     assistant_id="assistant_hourly_digest",
     prompt="Write a one-paragraph digest of the past hour.",
 )
 
-tasks = await scheduled_tasks.list_tasks_async()
-await scheduled_tasks.delete_task_async(task_id=task.id)
+tasks = await scheduled_tasks.list_async()
+await scheduled_tasks.delete_async(task_id=task.id)
 ```
 
 <!--

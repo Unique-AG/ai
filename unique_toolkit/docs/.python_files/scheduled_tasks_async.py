@@ -36,20 +36,21 @@ from unique_toolkit.experimental.scheduled_task import (
 )
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#scheduled_tasks_setup_from_settings>>[init]
-scheduled_tasks = ScheduledTasks.from_settings()
+settings = UniqueSettings.from_env()
+scheduled_tasks = ScheduledTasks.from_settings(settings)
 # ~/~ end
 
 
 async def main() -> None:
     # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#scheduled_tasks_async>>[init]
-    task = await scheduled_tasks.create_task_async(
+    task = await scheduled_tasks.create_async(
         cron_expression=Cron.HOURLY,
         assistant_id="assistant_hourly_digest",
         prompt="Write a one-paragraph digest of the past hour.",
     )
     
-    tasks = await scheduled_tasks.list_tasks_async()
-    await scheduled_tasks.delete_task_async(task_id=task.id)
+    tasks = await scheduled_tasks.list_async()
+    await scheduled_tasks.delete_async(task_id=task.id)
     # ~/~ end
 
 

@@ -1,8 +1,10 @@
 # %%
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.experimental.scheduled_task import ScheduledTasks
 
-scheduled_tasks = ScheduledTasks.from_settings()
-for task in scheduled_tasks.list_tasks():
+settings = UniqueSettings.from_env()
+scheduled_tasks = ScheduledTasks.from_settings(settings)
+for task in scheduled_tasks.list():
     print(task.id, task.cron_expression, task.prompt[:40])
 
-detail = scheduled_tasks.get_task(task_id=task.id)
+detail = scheduled_tasks.retrieve(task_id=task.id)

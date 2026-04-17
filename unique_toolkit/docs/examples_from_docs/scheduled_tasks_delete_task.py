@@ -1,13 +1,15 @@
 # %%
+from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.experimental.scheduled_task import Cron, ScheduledTasks
 
-scheduled_tasks = ScheduledTasks.from_settings()
-task = scheduled_tasks.create_task(
+settings = UniqueSettings.from_env()
+scheduled_tasks = ScheduledTasks.from_settings(settings)
+task = scheduled_tasks.create(
     cron_expression=Cron.WEEKDAYS_9AM,
     assistant_id="assistant_daily_report",
     prompt="Summarise yesterday's key events and email me the briefing.",
 )
 
 print(task.id, task.cron_expression, task.enabled)
-ack = scheduled_tasks.delete_task(task_id=task.id)
+ack = scheduled_tasks.delete(task_id=task.id)
 assert ack.deleted is True

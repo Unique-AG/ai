@@ -34,10 +34,11 @@ from unique_toolkit.experimental.scheduled_task import (
 )
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#scheduled_tasks_setup_from_settings>>[init]
-scheduled_tasks = ScheduledTasks.from_settings()
+settings = UniqueSettings.from_env()
+scheduled_tasks = ScheduledTasks.from_settings(settings)
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#scheduled_tasks_create>>[init]
-task = scheduled_tasks.create_task(
+task = scheduled_tasks.create(
     cron_expression=Cron.WEEKDAYS_9AM,
     assistant_id="assistant_daily_report",
     prompt="Summarise yesterday's key events and email me the briefing.",
@@ -46,7 +47,7 @@ task = scheduled_tasks.create_task(
 print(task.id, task.cron_expression, task.enabled)
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#scheduled_tasks_delete>>[init]
-ack = scheduled_tasks.delete_task(task_id=task.id)
+ack = scheduled_tasks.delete(task_id=task.id)
 assert ack.deleted is True
 # ~/~ end
 # ~/~ end
