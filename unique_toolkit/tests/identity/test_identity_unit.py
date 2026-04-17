@@ -84,8 +84,9 @@ class TestAIListUsers:
         mock.assert_called_once_with(
             user_id=USER_ID,
             company_id=COMPANY_ID,
-            email="ada@example.com",
+            skip=0,
             take=10,
+            email="ada@example.com",
         )
 
     @pytest.mark.asyncio
@@ -99,7 +100,9 @@ class TestAIListUsers:
         result = await identity.list_users_async(skip=5)
 
         assert result == []
-        mock.assert_called_once_with(user_id=USER_ID, company_id=COMPANY_ID, skip=5)
+        mock.assert_called_once_with(
+            user_id=USER_ID, company_id=COMPANY_ID, skip=5, take=100
+        )
 
 
 class TestAIGetUser:
@@ -130,8 +133,9 @@ class TestAIGetUser:
         mock.assert_called_once_with(
             user_id=USER_ID,
             company_id=COMPANY_ID,
-            email="ada@example.com",
+            skip=0,
             take=2,
+            email="ada@example.com",
         )
 
     def test_AI_get_user_with_no_identifier_raises_type_error(self, identity):
@@ -270,7 +274,11 @@ class TestAIListGroups:
         assert len(groups) == 1
         assert isinstance(groups[0], GroupInfo)
         mock.assert_called_once_with(
-            user_id=USER_ID, company_id=COMPANY_ID, name="engineers"
+            user_id=USER_ID,
+            company_id=COMPANY_ID,
+            skip=0,
+            take=100,
+            name="engineers",
         )
 
 

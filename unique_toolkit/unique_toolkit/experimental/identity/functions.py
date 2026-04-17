@@ -22,6 +22,15 @@ from unique_toolkit.experimental.identity.schemas import (
     UserWithConfiguration,
 )
 
+# Default pagination window for list endpoints. Small enough to keep latency
+# predictable, large enough to avoid round-tripping for typical directories.
+DEFAULT_LIST_SKIP = 0
+DEFAULT_LIST_TAKE = 100
+
+# ``find_user`` asks for two rows so we can detect ambiguity (zero, one, or
+# "more than one") without paging through the entire result set.
+FIND_USER_TAKE = 2
+
 # ── User read operations ──────────────────────────────────────────────────────
 
 
@@ -29,13 +38,17 @@ def list_users(
     user_id: str,
     company_id: str,
     *,
-    skip: int | None = None,
-    take: int | None = None,
+    skip: int = DEFAULT_LIST_SKIP,
+    take: int = DEFAULT_LIST_TAKE,
     email: str | None = None,
     display_name: str | None = None,
     user_name: str | None = None,
 ) -> list[UserInfo]:
-    """Page through users in the company. All filters are optional."""
+    """Page through users in the company.
+
+    ``skip``/``take`` default to a 0/:data:`DEFAULT_LIST_TAKE` window; all other
+    filters are optional and omitted from the request when ``None``.
+    """
     params = _build_list_users_params(
         skip=skip,
         take=take,
@@ -53,8 +66,8 @@ async def list_users_async(
     user_id: str,
     company_id: str,
     *,
-    skip: int | None = None,
-    take: int | None = None,
+    skip: int = DEFAULT_LIST_SKIP,
+    take: int = DEFAULT_LIST_TAKE,
     email: str | None = None,
     display_name: str | None = None,
     user_name: str | None = None,
@@ -123,7 +136,7 @@ def find_user(
         company_id=company_id,
         email=email,
         user_name=user_name,
-        take=2,
+        take=FIND_USER_TAKE,
     )
     return _only_match(matches, email=email, user_name=user_name)
 
@@ -143,7 +156,7 @@ async def find_user_async(
         company_id=company_id,
         email=email,
         user_name=user_name,
-        take=2,
+        take=FIND_USER_TAKE,
     )
     return _only_match(matches, email=email, user_name=user_name)
 
@@ -228,11 +241,14 @@ def list_groups(
     user_id: str,
     company_id: str,
     *,
-    skip: int | None = None,
-    take: int | None = None,
+    skip: int = DEFAULT_LIST_SKIP,
+    take: int = DEFAULT_LIST_TAKE,
     name: str | None = None,
 ) -> list[GroupInfo]:
-    """Page through groups in the company (``getent group``)."""
+    """Page through groups in the company (``getent group``).
+
+    ``skip``/``take`` default to a 0/:data:`DEFAULT_LIST_TAKE` window.
+    """
     params = _build_list_groups_params(skip=skip, take=take, name=name)
     result = unique_sdk.Group.get_groups(
         user_id=user_id, company_id=company_id, **params
@@ -247,8 +263,8 @@ async def list_groups_async(
     user_id: str,
     company_id: str,
     *,
-    skip: int | None = None,
-    take: int | None = None,
+    skip: int = DEFAULT_LIST_SKIP,
+    take: int = DEFAULT_LIST_TAKE,
     name: str | None = None,
 ) -> list[GroupInfo]:
     """Async :func:`list_groups`."""
@@ -482,17 +498,13 @@ async def remove_group_members_async(
 
 def _build_list_users_params(
     *,
-    skip: int | None,
-    take: int | None,
+    skip: int,
+    take: int,
     email: str | None,
     display_name: str | None,
     user_name: str | None,
 ) -> dict[str, Any]:
-    params: dict[str, Any] = {}
-    if skip is not None:
-        params["skip"] = skip
-    if take is not None:
-        params["take"] = take
+    params: dict[str, Any] = {"skip": skip, "take": take}
     if email is not None:
         params["email"] = email
     if display_name is not None:
@@ -504,15 +516,11 @@ def _build_list_users_params(
 
 def _build_list_groups_params(
     *,
-    skip: int | None,
-    take: int | None,
+    skip: int,
+    take: int,
     name: str | None,
 ) -> dict[str, Any]:
-    params: dict[str, Any] = {}
-    if skip is not None:
-        params["skip"] = skip
-    if take is not None:
-        params["take"] = take
+    params: dict[str, Any] = {"skip": skip, "take": take}
     if name is not None:
         params["name"] = name
     return params

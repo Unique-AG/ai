@@ -38,6 +38,8 @@ from typing import TYPE_CHECKING, Any, Self, overload
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.experimental.identity.functions import (
+    DEFAULT_LIST_SKIP,
+    DEFAULT_LIST_TAKE,
     add_group_members,
     add_group_members_async,
     create_group,
@@ -135,13 +137,17 @@ class Identity:
     def list_users(
         self,
         *,
-        skip: int | None = None,
-        take: int | None = None,
+        skip: int = DEFAULT_LIST_SKIP,
+        take: int = DEFAULT_LIST_TAKE,
         email: str | None = None,
         display_name: str | None = None,
         user_name: str | None = None,
     ) -> list[UserInfo]:
-        """List users, optionally filtered server-side (``getent passwd``)."""
+        """List users, optionally filtered server-side (``getent passwd``).
+
+        ``skip``/``take`` default to a 0/:data:`~unique_toolkit.experimental.identity.functions.DEFAULT_LIST_TAKE`
+        pagination window; callers can widen or shrink it as needed.
+        """
         return list_users(
             user_id=self._user_id,
             company_id=self._company_id,
@@ -155,8 +161,8 @@ class Identity:
     async def list_users_async(
         self,
         *,
-        skip: int | None = None,
-        take: int | None = None,
+        skip: int = DEFAULT_LIST_SKIP,
+        take: int = DEFAULT_LIST_TAKE,
         email: str | None = None,
         display_name: str | None = None,
         user_name: str | None = None,
@@ -349,8 +355,8 @@ class Identity:
     def list_groups(
         self,
         *,
-        skip: int | None = None,
-        take: int | None = None,
+        skip: int = DEFAULT_LIST_SKIP,
+        take: int = DEFAULT_LIST_TAKE,
         name: str | None = None,
     ) -> list[GroupInfo]:
         """List groups, optionally filtered by name (``getent group``)."""
@@ -365,8 +371,8 @@ class Identity:
     async def list_groups_async(
         self,
         *,
-        skip: int | None = None,
-        take: int | None = None,
+        skip: int = DEFAULT_LIST_SKIP,
+        take: int = DEFAULT_LIST_TAKE,
         name: str | None = None,
     ) -> list[GroupInfo]:
         """Async :meth:`list_groups`."""
