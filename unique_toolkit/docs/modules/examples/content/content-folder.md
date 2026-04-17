@@ -1,6 +1,6 @@
 # Content folder service
 
-Knowledge-base **folders** are content scopes: they have a `scopeId` (exposed in the toolkit as `scope_id` on :class:`~unique_toolkit.content.folder.schemas.CreatedFolder` and related models). The :class:`~unique_toolkit.content.folder.service.ContentFolder` wraps create, read, access changes, and delete calls so you can use the same credentials as the rest of the toolkit (see [Getting started](../../../setup/getting_started.md)).
+Knowledge-base **folders** are content scopes: they have a `scopeId` (exposed in the toolkit as `scope_id` on :class:`~unique_toolkit.experimental.content_folder.schemas.CreatedFolder` and related models). The :class:`~unique_toolkit.experimental.content_folder.service.ContentFolder` wraps create, read, access changes, and delete calls so you can use the same credentials as the rest of the toolkit (see [Getting started](../../../setup/getting_started.md)).
 
 This page focuses on a **short manual test loop**: create a folder, confirm it exists (API + optional UI), optionally stop in a debugger, then delete it again.
 
@@ -12,11 +12,11 @@ This page focuses on a **short manual test loop**: create a folder, confirm it e
 
 !!! note "Environment"
 
-    Use a working `UniqueSettings` / SDK setup (`UNIQUE_API_KEY`, `UNIQUE_APP_ID`, user and company context) as in other examples. The runnable script below calls :meth:`~unique_toolkit.content.folder.service.ContentFolder.from_settings`.
+    Use a working `UniqueSettings` / SDK setup (`UNIQUE_API_KEY`, `UNIQUE_APP_ID`, user and company context) as in other examples. The runnable script below calls :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.from_settings`.
 
 ## Ways to create folders
 
-:meth:`~unique_toolkit.content.folder.service.ContentFolder.create_folder` accepts **exactly one** of these shapes per call (mixing them raises ``TypeError``):
+:meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.create_folder` accepts **exactly one** of these shapes per call (mixing them raises ``TypeError``):
 
 | Style | When to use |
 |-------|-------------|
@@ -59,8 +59,8 @@ for folder in created:
 
 Typical sources for ``parent_scope_id``:
 
-- The ``id`` on :class:`~unique_toolkit.content.folder.schemas.CreatedFolder` after an earlier ``create_folder`` (often ``created[-1].id`` for the leaf of a chain).
-- The ``id`` on :class:`~unique_toolkit.content.folder.schemas.FolderInfo` from :meth:`~unique_toolkit.content.folder.service.ContentFolder.get_folder_info` (by ``scope_id`` or ``folder_path``).
+- The ``id`` on :class:`~unique_toolkit.experimental.content_folder.schemas.CreatedFolder` after an earlier ``create_folder`` (often ``created[-1].id`` for the leaf of a chain).
+- The ``id`` on :class:`~unique_toolkit.experimental.content_folder.schemas.FolderInfo` from :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.get_folder_info` (by ``scope_id`` or ``folder_path``).
 - Any scope id you already store from the product UI or another API.
 
 Then pass **path segments** (child folder names) to create under that parent:
@@ -111,21 +111,21 @@ nested = folder_service.create_folder(
 print("leaf", nested[-1].id, nested[-1].name)
 ```
 
-This is the same API shape as above; only the parent id comes from :meth:`~unique_toolkit.content.folder.service.ContentFolder.get_folder_info` instead of a previous create result.
+This is the same API shape as above; only the parent id comes from :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.get_folder_info` instead of a previous create result.
 
 ## Create, verify, delete
 
 Typical flow:
 
-1. **Create** with an absolute path from the knowledge-base root (one of the three supported shapes on :meth:`~unique_toolkit.content.folder.service.ContentFolder.create_folder`).
-2. **Verify** with :meth:`~unique_toolkit.content.folder.service.ContentFolder.get_folder_info` using the leaf folder’s `scope_id` (last entry returned from create when the path has multiple segments).
+1. **Create** with an absolute path from the knowledge-base root (one of the three supported shapes on :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.create_folder`).
+2. **Verify** with :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.get_folder_info` using the leaf folder’s `scope_id` (last entry returned from create when the path has multiple segments).
 3. **Pause** on a breakpoint or `breakpoint()` after step 2, reload the knowledge-base tree in the product UI, and confirm the folder appears.
-4. **Delete** with :meth:`~unique_toolkit.content.folder.service.ContentFolder.delete_folder` using the same `scope_id` (or the absolute `folder_path`). Inspect `successFolders` / `failedFolders` on the SDK response if something does not match expectations.
+4. **Delete** with :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.delete_folder` using the same `scope_id` (or the absolute `folder_path`). Inspect `successFolders` / `failedFolders` on the SDK response if something does not match expectations.
 
 ```{.python #folder-mgmt-imports}
 from __future__ import annotations
 
-from unique_toolkit import ContentFolder
+from unique_toolkit.experimental.content_folder import ContentFolder
 ```
 
 ```{.python #folder-mgmt-constants}
@@ -191,8 +191,8 @@ folder_service.delete_folder(folder_path=DEMO_FOLDER_PATH)
 
 ## Behaviour notes
 
-- **Creator access:** By default, :meth:`~unique_toolkit.content.folder.service.ContentFolder.create_folder` grants the acting user READ and WRITE on created scopes when `inherit_access` is false. See the class docstring for details.
-- **Recursive delete:** Pass `recursive=True` to :meth:`~unique_toolkit.content.folder.service.ContentFolder.delete_folder` when the API should remove nested content according to platform rules.
-- **Async:** Use :meth:`~unique_toolkit.content.folder.service.ContentFolder.create_folder_async`, :meth:`~unique_toolkit.content.folder.service.ContentFolder.get_folder_info_async`, and :meth:`~unique_toolkit.content.folder.service.ContentFolder.delete_folder_async` in async code paths.
+- **Creator access:** By default, :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.create_folder` grants the acting user READ and WRITE on created scopes when `inherit_access` is false. See the class docstring for details.
+- **Recursive delete:** Pass `recursive=True` to :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.delete_folder` when the API should remove nested content according to platform rules.
+- **Async:** Use :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.create_folder_async`, :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.get_folder_info_async`, and :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.delete_folder_async` in async code paths.
 
 For uploading and searching documents inside a scope, continue with the [Knowledge Base service examples](kb_service.md).

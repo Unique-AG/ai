@@ -15,7 +15,7 @@ By default, :class:`ContentFolder` grants the acting user READ+WRITE on each new
 
 from __future__ import annotations
 
-from unique_toolkit.content.folder.functions import (
+from unique_toolkit.experimental.content_folder.functions import (
     add_folder_access,
     add_folder_access_async,
     create_folders,
@@ -28,7 +28,7 @@ from unique_toolkit.content.folder.functions import (
     remove_folder_access,
     remove_folder_access_async,
 )
-from unique_toolkit.content.folder.schemas import (
+from unique_toolkit.experimental.content_folder.schemas import (
     AccessEntityType,
     AccessType,
     CreatedFolder,
@@ -37,7 +37,7 @@ from unique_toolkit.content.folder.schemas import (
     FolderInfo,
     ScopeAccess,
 )
-from unique_toolkit.content.folder.service import ContentFolder
+from unique_toolkit.experimental.content_folder.service import ContentFolder
 
 __all__ = [
     "AccessEntityType",

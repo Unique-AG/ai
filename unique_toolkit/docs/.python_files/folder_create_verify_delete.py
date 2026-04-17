@@ -2,7 +2,7 @@
 # ~/~ begin <<docs/modules/examples/content/content-folder.md#folder-mgmt-imports>>[init]
 from __future__ import annotations
 
-from unique_toolkit import ContentFolder
+from unique_toolkit.experimental.content_folder import ContentFolder
 # ~/~ end
 
 # ~/~ begin <<docs/modules/examples/content/content-folder.md#folder-mgmt-constants>>[init]

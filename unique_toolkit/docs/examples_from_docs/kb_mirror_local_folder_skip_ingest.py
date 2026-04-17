@@ -4,7 +4,7 @@ from __future__ import annotations
 import mimetypes
 from pathlib import Path
 
-from unique_toolkit.content.folder import ContentFolder
+from unique_toolkit.experimental.content_folder import ContentFolder
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 

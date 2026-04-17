@@ -28,7 +28,7 @@ from typing import cast
 
 import unique_sdk
 
-from unique_toolkit.content.folder.schemas import (
+from unique_toolkit.experimental.content_folder.schemas import (
     AccessEntityType,
     AccessType,
     CreatedFolder,
