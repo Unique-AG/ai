@@ -99,10 +99,11 @@ class ScheduledTasks:
         settings: UniqueSettings,
         **kwargs: Any,
     ) -> Self:
-        """Create from :class:`UniqueSettings` (used by :class:`UniqueServiceFactory`).
+        """Create from :class:`UniqueSettings`.
 
-        ``**kwargs`` is accepted to keep the signature compatible with
-        :class:`ServiceProtocol`; no additional options are currently used.
+        ``**kwargs`` is accepted for forward-compatibility (e.g. if this
+        experimental service is ever registered with the toolkit service
+        factory); no additional options are currently used.
         """
         del kwargs
         return cls.from_context(

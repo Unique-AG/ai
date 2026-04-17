@@ -312,15 +312,3 @@ def test_AI_scheduled_task_schema_round_trips_compound_cron_string() -> None:
     dumped = task.model_dump(by_alias=True)
 
     assert dumped["cronExpression"] == "0 9 * * 1-5"
-
-
-# ── Factory integration ───────────────────────────────────────────────────────
-
-
-def test_AI_service_factory_registers_scheduled_tasks() -> None:
-    """UniqueServiceFactory exposes ScheduledTasks through register_known_services."""
-    from unique_toolkit.services.factory import UniqueServiceFactory
-
-    UniqueServiceFactory.register_known_services()
-
-    assert "ScheduledTasks" in UniqueServiceFactory._registry
