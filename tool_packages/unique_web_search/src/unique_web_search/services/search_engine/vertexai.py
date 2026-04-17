@@ -5,9 +5,10 @@ from typing import Annotated, Literal
 from httpx import AsyncClient as HttpxAsyncClient
 from httpx import HTTPError
 from pydantic import Field
+from unique_toolkit._common.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit._common.validators import LMI, get_LMI_default_field
-from unique_toolkit.language_model import LanguageModelName, LanguageModelService
+from unique_toolkit.language_model import LanguageModelService
 
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
@@ -34,8 +35,6 @@ from unique_web_search.services.search_engine.utils.grounding.vertexai import (
 
 _LOGGER = logging.getLogger(__name__)
 
-_DEFAULT_VERTEX_LLM = LanguageModelName.GEMINI_2_5_FLASH
-
 
 class VertexAIConfig(BaseSearchEngineConfig[SearchEngineType.VERTEXAI]):
     model_config = get_search_engine_model_config(SearchEngineType.VERTEXAI)
@@ -57,7 +56,7 @@ class VertexAIConfig(BaseSearchEngineConfig[SearchEngineType.VERTEXAI]):
     )
 
     fallback_language_model: LMI = get_LMI_default_field(
-        _DEFAULT_VERTEX_LLM,
+        DEFAULT_LANGUAGE_MODEL,
         description="The language model to use as a fallback parser if the grounding response is not valid JSON.",
     )
 
