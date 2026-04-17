@@ -3,10 +3,12 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from openai.types.responses import Response, ResponseOutputMessage, ResponseOutputText
 
 from unique_toolkit.agentic.loop_runner.middleware.planning.planning import (
     PlanningConfig,
     ResponsesPlanningMiddleware,
+    _get_first_output_text,
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
@@ -39,8 +41,16 @@ def _make_model_mock(name: str = "gpt-4o") -> MagicMock:
 
 
 def _make_response(output_text: str = '{"plan": "do stuff"}') -> MagicMock:
-    response = MagicMock()
-    response.output_text = output_text
+    """Create a mock Response with a single ResponseOutputMessage containing text."""
+    text_content = MagicMock(spec=ResponseOutputText)
+    text_content.type = "output_text"
+    text_content.text = output_text
+
+    message = MagicMock(spec=ResponseOutputMessage)
+    message.content = [text_content]
+
+    response = MagicMock(spec=Response)
+    response.output = [message]
     return response
 
 
@@ -226,8 +236,7 @@ async def test_run_plan_step__returns_none_on_empty_output_text() -> None:
     Setup summary: Mock response.output_text as empty string.
     """
     middleware, _, openai_client = _make_middleware()
-    empty_response = MagicMock()
-    empty_response.output_text = ""
+    empty_response = _make_response(output_text="")
     openai_client.responses.create = AsyncMock(return_value=empty_response)
 
     result = await middleware._run_plan_step(
@@ -239,11 +248,11 @@ async def test_run_plan_step__returns_none_on_empty_output_text() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.ai
-async def test_run_plan_step__returns_response_on_success() -> None:
+async def test_run_plan_step__returns_text_on_success() -> None:
     """
-    Purpose: Verify _run_plan_step returns the response object on success.
-    Why this matters: The caller uses response.output_text to build the assistant message.
-    Setup summary: Mock a valid response, verify it is returned.
+    Purpose: Verify _run_plan_step returns the output text string on success.
+    Why this matters: The caller uses the returned text to build the assistant message.
+    Setup summary: Mock a valid response, verify the text is returned.
     """
     middleware, _, openai_client = _make_middleware()
     plan_response = _make_response('{"plan": "search"}')
@@ -253,7 +262,7 @@ async def test_run_plan_step__returns_response_on_success() -> None:
         openai_messages="test", model_name="gpt-4o"
     )
 
-    assert result is plan_response
+    assert result == '{"plan": "search"}'
 
 
 @pytest.mark.asyncio
@@ -292,3 +301,68 @@ async def test_run_plan_step__sends_json_schema_format() -> None:
     assert "format" in text_param
     assert text_param["format"]["type"] == "json_schema"
     assert "schema" in text_param["format"]
+
+
+# ============================================================================
+# Tests for _get_first_output_text
+# ============================================================================
+
+
+@pytest.mark.ai
+def test_get_first_output_text__picks_first_message_from_multiple_outputs() -> None:
+    """
+    Purpose: Verify that only the first viable message text is returned when
+    the response contains multiple output items.
+    Why this matters: The Responses API can return multiple outputs; we must
+    use only the first text to avoid concatenating unrelated content.
+    """
+    text1 = MagicMock(spec=ResponseOutputText)
+    text1.type = "output_text"
+    text1.text = "first plan"
+
+    text2 = MagicMock(spec=ResponseOutputText)
+    text2.type = "output_text"
+    text2.text = "second plan"
+
+    msg1 = MagicMock(spec=ResponseOutputMessage)
+    msg1.content = [text1]
+
+    msg2 = MagicMock(spec=ResponseOutputMessage)
+    msg2.content = [text2]
+
+    response = MagicMock(spec=Response)
+    response.output = [msg1, msg2]
+
+    assert _get_first_output_text(response) == "first plan"
+
+
+@pytest.mark.ai
+def test_get_first_output_text__skips_non_message_outputs() -> None:
+    """
+    Purpose: Verify that non-message output items (e.g. tool calls) are skipped.
+    Why this matters: The output list can contain tool calls and other item types.
+    """
+    tool_call = MagicMock()  # Not a ResponseOutputMessage
+
+    text = MagicMock(spec=ResponseOutputText)
+    text.type = "output_text"
+    text.text = "the plan"
+
+    msg = MagicMock(spec=ResponseOutputMessage)
+    msg.content = [text]
+
+    response = MagicMock(spec=Response)
+    response.output = [tool_call, msg]
+
+    assert _get_first_output_text(response) == "the plan"
+
+
+@pytest.mark.ai
+def test_get_first_output_text__returns_none_for_empty_output() -> None:
+    """
+    Purpose: Verify None is returned when the output list is empty.
+    """
+    response = MagicMock(spec=Response)
+    response.output = []
+
+    assert _get_first_output_text(response) is None

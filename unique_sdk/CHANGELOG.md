@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.5] - 2026-04-16
+- Add `elicit` CLI command group with `ask`, `create`, `pending`, `get`, `wait`, `respond` subcommands for both one-shot and interactive REPL modes, wrapping the existing `Elicitation` API resource
+- Add `elicit ask` convenience command that creates a FORM elicitation and blocks until the user responds, declines, cancels, or the request expires
+- Add formatting helpers for elicitation display (detail view, pending list, response result)
+- Add agent skill for elicitation (`unique-cli-elicitation`) so agents route user-facing questions through the platform UI instead of asking in plain chat
+- Add `CLI > Elicitation` documentation page and expose it in the mkdocs nav
+
 ## [0.11.4] - 2026-04-15
 - Chore: standardize pytest configuration across workspace packages
 

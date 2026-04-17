@@ -121,40 +121,33 @@ def merge_content_chunks(content_chunks: list[ContentChunk]):
 
 
 def _generate_pages_postfix(chunks: list[ContentChunk]) -> str:
-    """
-    Generates a postfix string of page numbers from a list of source objects.
-    Each source object contains startPage and endPage numbers. The function
-    compiles a list of all unique page numbers greater than 0 from all chunks,
-    and then returns them as a string prefixed with " : " if there are any.
+    """Build a human-readable page suffix for one or more chunks (e.g. ``" : 1,2,3"``).
 
-    Parameters:
-    - chunks (list): A list of objects with 'startPage' and 'endPage' keys.
+    Collects all page numbers greater than zero from each chunk's ``start_page`` and
+    ``end_page``, deduplicates and sorts them, then formats them as ``" : n,n,..."`` or
+    returns the empty string when there are no valid pages.
+
+    **Usage:** Called from ``sort_content_chunks``, ``merge_content_chunks``, and
+    ``ContentChunk.to_reference`` so list presentation and reference names stay
+    consistent with the backend's page postfix convention.
+
+    **Why pages may be missing:** ``ContentChunk.start_page`` and ``end_page`` are
+    optional (``None`` from the API). This path must not call ``range`` with ``None``,
+    or callers would raise ``TypeError`` when building references from real chunks.
+
+    Args:
+        chunks: Chunks whose ``start_page`` / ``end_page`` may be ``None`` or ``-1``
+            (sentinel for unknown).
 
     Returns:
-    - string: A string of page numbers separated by commas, prefixed with " : ".
+        Postfix string such as ``" : 3,4,5"``, or ``""`` when no positive pages apply.
     """
 
-    def gen_all_numbers_in_between(start, end) -> list[int]:
-        """
-        Generates a list of all numbers between start and end, inclusive.
-        If start or end is -1, it behaves as follows:
-        - If both start and end are -1, it returns an empty list.
-        - If only end is -1, it returns a list containing only the start.
-        - If start is -1, it returns an empty list.
-
-        Parameters:
-        - start (int): The starting page number.
-        - end (int): The ending page number.
-
-        Returns:
-        - list: A list of numbers from start to end, inclusive.
-        """
-        if start == -1 and end == -1:
+    def gen_all_numbers_in_between(start: int | None, end: int | None) -> list[int]:
+        if start is None or start == -1:
             return []
-        if end == -1:
+        if end is None or end == -1:
             return [start]
-        if start == -1:
-            return []
         return list(range(start, end + 1))
 
     page_numbers_array = [
