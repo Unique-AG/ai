@@ -5,12 +5,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from azure.core.pipeline.transport import AsyncioRequestsTransport
 
-from unique_web_search.services.search_engine.utils.bing.client import (
+from unique_web_search.services.search_engine.utils.grounding.bing.client import (
     credentials_are_valid,
     get_project_client,
 )
 
-_CLIENT_MODULE = "unique_web_search.services.search_engine.utils.bing.client"
+_CLIENT_MODULE = "unique_web_search.services.search_engine.utils.grounding.bing.client"
 
 
 # ---------------------------------------------------------------------------

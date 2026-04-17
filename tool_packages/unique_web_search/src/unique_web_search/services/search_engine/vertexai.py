@@ -2,9 +2,13 @@ import asyncio
 import logging
 from typing import Annotated, Literal
 
-from httpx import AsyncClient, HTTPError
+from httpx import AsyncClient as HttpxAsyncClient
+from httpx import HTTPError
 from pydantic import Field
+from unique_toolkit._common.default_language_model import DEFAULT_LANGUAGE_MODEL
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
+from unique_toolkit._common.validators import LMI, get_LMI_default_field
+from unique_toolkit.language_model import LanguageModelService
 
 from unique_web_search.services.search_engine.base import (
     BaseSearchEngineConfig,
@@ -16,16 +20,17 @@ from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
     WebSearchResults,
 )
-from unique_web_search.services.search_engine.utils.vertexai import (
-    VERTEX_GROUNDING_SYSTEM_INSTRUCTION,
-    VERTEX_STRUCTURED_RESULTS_SYSTEM_INSTRUCTION,
-    PostProcessFunction,
+from unique_web_search.services.search_engine.utils.grounding import (
+    GENERATION_INSTRUCTIONS,
+    JsonConversionStrategy,
+    LLMParserStrategy,
+    convert_response_to_search_results,
+)
+from unique_web_search.services.search_engine.utils.grounding.vertexai import (
     add_citations,
-    generate_content,
+    generate_vertexai_response,
     get_vertex_client,
-    get_vertex_grounding_config,
-    get_vertex_structured_results_config,
-    parse_to_structured_results,
+    get_vertex_grounding_with_structured_output_config,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,33 +40,31 @@ class VertexAIConfig(BaseSearchEngineConfig[SearchEngineType.VERTEXAI]):
     model_config = get_search_engine_model_config(SearchEngineType.VERTEXAI)
     search_engine_name: Literal[SearchEngineType.VERTEXAI] = SearchEngineType.VERTEXAI
 
-    model_name: str = Field(
-        default="gemini-2.5-flash",
+    vertexai_model_name: str = Field(
+        default="gemini-3-flash-preview",
         description="The name of the model to use for the search.",
     )
-    grounding_system_instruction: Annotated[
+
+    generation_instructions: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=len(VERTEX_GROUNDING_SYSTEM_INSTRUCTION.split("\n"))
+            rows=len(GENERATION_INSTRUCTIONS.split("\n"))
         ),
     ] = Field(
-        default=VERTEX_GROUNDING_SYSTEM_INSTRUCTION,
-        description="The system instruction to use for the grounding.",
+        default=GENERATION_INSTRUCTIONS,
+        description="The generation instructions to be injected into the Microsoft Foundry Agents.",
     )
-    structured_results_system_instruction: Annotated[
-        str | None,
-        RJSFMetaTag.StringWidget.textarea(
-            rows=len(VERTEX_STRUCTURED_RESULTS_SYSTEM_INSTRUCTION.split("\n"))
-        ),
-    ] = Field(
-        default=VERTEX_STRUCTURED_RESULTS_SYSTEM_INSTRUCTION,
-        description="The system instruction to use for the structured results.",
+
+    fallback_language_model: LMI = get_LMI_default_field(
+        DEFAULT_LANGUAGE_MODEL,
+        description="The language model to use as a fallback parser if the grounding response is not valid JSON.",
     )
 
     requires_scraping: bool = Field(
         default=False,
         description="Whether the search engine requires scraping.",
     )
+
     enable_entreprise_search: bool = Field(
         default=False,
         description="Whether to use the enterprise search.",
@@ -77,10 +80,19 @@ class VertexAI(SearchEngine[VertexAIConfig]):
     def __init__(
         self,
         config: VertexAIConfig,
+        language_model_service: LanguageModelService,
     ):
         super().__init__(config=config)
         self._client = get_vertex_client()
         self.is_configured = self._client is not None
+
+        self.response_parsers = [
+            JsonConversionStrategy(),
+            LLMParserStrategy(
+                config.fallback_language_model,
+                language_model_service,
+            ),
+        ]
 
     @property
     def requires_scraping(self) -> bool:
@@ -89,38 +101,30 @@ class VertexAI(SearchEngine[VertexAIConfig]):
     async def search(self, query: str, **kwargs) -> list[WebSearchResult]:
         assert self._client is not None, "VertexAI client is not configured"
 
-        # Generate the answer with citations
-        answer_with_citations = await generate_content(
+        response = await generate_vertexai_response(
             client=self._client,
-            model_name=self.config.model_name,
-            config=get_vertex_grounding_config(
-                system_instruction=self.config.grounding_system_instruction,
+            model_name=self.config.vertexai_model_name,
+            config=get_vertex_grounding_with_structured_output_config(
+                generation_instructions=self.config.generation_instructions,
                 entreprise_search=self.config.enable_entreprise_search,
             ),
             contents=query,
-            post_process_function=PostProcessFunction[str](add_citations),
         )
 
-        # Generate the structured results
-        structured_results = await generate_content(
-            client=self._client,
-            model_name=self.config.model_name,
-            config=get_vertex_structured_results_config(
-                response_schema=WebSearchResults,
-            ),
-            contents=answer_with_citations,
-            post_process_function=PostProcessFunction[WebSearchResults](
-                parse_to_structured_results,
-                response_schema=WebSearchResults,
-            ),
+        answer_with_citations = add_citations(response)
+
+        results = await convert_response_to_search_results(
+            answer_with_citations, self.response_parsers
         )
+
         if self.config.enable_redirect_resolution:
-            structured_results = await resolve_all(structured_results)
+            resolved = await resolve_all(WebSearchResults(results=results))
+            results = resolved.results
 
-        return structured_results.results
+        return results
 
 
-async def resolve_url(client: AsyncClient, web_search_result: WebSearchResult):
+async def resolve_url(client: HttpxAsyncClient, web_search_result: WebSearchResult):
     try:
         resp = await client.head(web_search_result.url, follow_redirects=True)
         web_search_result.url = str(resp.url)
@@ -131,7 +135,7 @@ async def resolve_url(client: AsyncClient, web_search_result: WebSearchResult):
 
 
 async def resolve_all(web_search_results: WebSearchResults):
-    async with AsyncClient(follow_redirects=True, timeout=10) as client:
+    async with HttpxAsyncClient(follow_redirects=True, timeout=10) as client:
         tasks = [resolve_url(client, result) for result in web_search_results.results]
         results = await asyncio.gather(*tasks)
         return WebSearchResults(results=results)

@@ -1,32 +1,12 @@
 import logging
-from typing import Any, Callable, Generic, TypeVar
 
 from google.genai import types
-from pydantic import BaseModel
 
-from unique_web_search.services.search_engine.utils.vertexai.exceptions import (
+from unique_web_search.services.search_engine.utils.grounding.vertexai.exceptions import (
     VertexAIContentResponseEmptyException,
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-T = TypeVar("T", bound=BaseModel | str, covariant=True)
-T_Model = TypeVar("T_Model", bound=BaseModel)
-
-
-class PostProcessFunction(Generic[T]):
-    def __init__(self, callable: Callable[..., T], **kwargs: Any):
-        self.callable = callable
-        self.kwargs = kwargs
-
-    def __call__(self, response: types.GenerateContentResponse) -> T:
-        return self.callable(response, **self.kwargs)
-
-
-def parse_to_structured_results(
-    response: types.GenerateContentResponse, response_schema: type[T_Model]
-) -> T_Model:
-    return response_schema.model_validate(response.parsed)
 
 
 def add_citations(response: types.GenerateContentResponse) -> str:
