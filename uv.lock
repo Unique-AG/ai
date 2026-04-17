@@ -8,16 +8,16 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-02T20:33:30.870065Z"
+exclude-newer = "2026-04-03T07:06:04.154803Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
 unique-toolkit = false
-langsmith = "2026-04-16T04:00:00Z"
-cryptography = "2026-04-10T04:00:00Z"
-langchain-core = "2026-04-10T04:00:00Z"
-pytest = "2026-04-09T04:00:00Z"
-python-multipart = "2026-04-12T04:00:00Z"
+langsmith = "2026-04-15T22:00:00Z"
+cryptography = "2026-04-09T22:00:00Z"
+langchain-core = "2026-04-09T22:00:00Z"
+pytest = "2026-04-08T22:00:00Z"
+python-multipart = "2026-04-11T22:00:00Z"
 
 [manifest]
 members = [
@@ -5544,7 +5544,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-version = "1.74.2"
+version = "1.75.0"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
