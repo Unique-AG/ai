@@ -36,24 +36,24 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     chat_service = ChatService(event)
     # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_retrieved_chunks>>[init]
     chunks = [ContentChunk(text="Unique is a company that provides the platform for AI-powered solutions.",
-                                         order=0,
-                                         chunk_id="chunk_id_0",
-                                         key="key_0",
-                                         title="title_0",
-                                         start_page=1,
-                                         end_page=1,
-                                         url="https://www.unique.ai",
-                                         id="id_0"),
+                            order=0,
+                            chunk_id="chunk_id_0",
+                            key="key_0",
+                            title="title_0",
+                            start_page=1,
+                            end_page=1,
+                            url="https://www.unique.ai",
+                            id="id_0"),
               ContentChunk(text="Unique is your Responsible AI Partner, with extensive experience in implementing AI solutions for enterprise clients in financial services.",
-                                         order=1,
-                                         chunk_id="chunk_id_1",
-                                         key="key_1",
-                                         title="title_1",
-                                         start_page=1,
-                                         end_page=1,
-                                         url="https://www.unique.ai",
-                                         id="id_1")
-                                         ]
+                           order=1,
+                           chunk_id="chunk_id_1",
+                           key="key_1",
+                           title="title_1",
+                           start_page=1,
+                           end_page=1,
+                           url="https://www.unique.ai",
+                           id="id_1")
+              ]
     # ~/~ end
     # ~/~ begin <<docs/modules/examples/chat/chat_service.md#chat_service_chunk_presentation>>[init]
     def to_source_table(chunks: list[ContentChunk]) -> str:
