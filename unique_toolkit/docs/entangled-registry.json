@@ -386,6 +386,36 @@
   "#rendering_prompt_buttons": [
     "docs/modules/examples/chat/advanced_rendering.md"
   ],
+  "#scheduled_tasks_async": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_clear_chat_id": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_create": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_cron_examples": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_delete": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_imports": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_list_and_get": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_setup": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_setup_from_settings": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_update_schedule_and_enable": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
   "#smart_rule_custom_metadata": [
     "docs/modules/examples/content/smart_rules.md"
   ],
@@ -559,6 +589,24 @@
   ],
   "file=./docs/.python_files/kb_update_metadata_with_smart_rule.py": [
     "docs/modules/examples/content/smart_rules.md"
+  ],
+  "file=./docs/.python_files/scheduled_tasks_async.py": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "file=./docs/.python_files/scheduled_tasks_create_task.py": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "file=./docs/.python_files/scheduled_tasks_delete_task.py": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "file=./docs/.python_files/scheduled_tasks_list_tasks.py": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "file=./docs/.python_files/scheduled_tasks_setup.py": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "file=./docs/.python_files/scheduled_tasks_update_task.py": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
   ],
   "file=docs/.python_files/chat_app_minimal.py": [
     "docs/modules/examples/chat/chat_service.md"
