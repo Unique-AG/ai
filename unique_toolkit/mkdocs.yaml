@@ -89,6 +89,8 @@ nav:
       - Smart Rules: modules/examples/content/smart_rules.md
     - Content Folder(experimental):
       - Content folder service: modules/examples/content/content-folder.md
+    - Content Tree (experimental):
+      - Content tree service: modules/examples/experimental/content_tree.md
     - Scheduled Tasks (experimental):
       - Service: modules/examples/scheduled_task/scheduled_tasks.md
     - Identity (experimental):

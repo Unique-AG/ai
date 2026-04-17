@@ -299,6 +299,18 @@
   "#kb-temp-file-cleanup": [
     "docs/knowledge_base/index.md"
   ],
+  "#kb-tree-async-main": [
+    "docs/modules/examples/experimental/content_tree.md"
+  ],
+  "#kb-tree-filter-snippet": [
+    "docs/modules/examples/experimental/content_tree.md"
+  ],
+  "#kb-tree-imports": [
+    "docs/modules/examples/experimental/content_tree.md"
+  ],
+  "#kb-tree-main": [
+    "docs/modules/examples/experimental/content_tree.md"
+  ],
   "#kb_content_search": [
     "docs/modules/examples/content/smart_rules.md"
   ],

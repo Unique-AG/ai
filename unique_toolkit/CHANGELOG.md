@@ -54,6 +54,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.74.2] - 2026-04-16
 - Adding model `litellm:anthropic-claude-opus-4-7` to `language_model/info.py`
 
+## [Unreleased]
+- Add experimental `unique_toolkit.experimental.content_tree` subpackage exposing `ContentTree` — a cached view of the KB content visible to the acting user — split into `schemas`, `functions`, and `service` modules. The API is experimental and may change between minor releases.
+- Add `ContentTree.render_visible_tree_async` for directory-style rendering, `list_visible_files_async` and `filter_visible_files_async` for programmatic access, and `search_visible_files_fuzzy_async` for fuzzy search over file names and/or full paths using stdlib `difflib` (case-insensitive by default, tunable via `match_on`, `case_sensitive`, `score_threshold`, `top_k`; returns ranked `FuzzyMatch` records). All four methods share the same cached snapshot so repeated queries hit the backend once.
+- `ContentTree` is intentionally **not** registered with `UniqueServiceFactory`; instantiate it explicitly via `ContentTree.from_settings()` or `ContentTree.from_context()`.
+- `KnowledgeBaseService` is unchanged on its public surface: it keeps its own inline scope-id extraction and batched translation logic and does not depend on the experimental `content_tree` package.
+
 ## [1.74.1] - 2026-04-16
 - Use non-strict structured output for planning in responses api
 
