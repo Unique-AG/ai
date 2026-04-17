@@ -87,9 +87,11 @@ nav:
     - Knowledge Base:
       - Base Service: modules/examples/content/kb_service.md
       - Smart Rules: modules/examples/content/smart_rules.md
+    - Content Folder(experimental):
+      - Content folder service: modules/examples/content/content-folder.md
     - Scheduled Tasks (experimental):
       - Service: modules/examples/scheduled_task/scheduled_tasks.md
-    - "Identity (Experimental)":
+    - Identity (experimental):
       - Users & Groups: modules/examples/identity/identity_service.md
   - Tutorials:
     - Agentic Table App: tutorials/agentic_table_app.md
