@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+- Add `unique_toolkit.content.folder` subpackage exposing `ContentFolder` — the knowledge-base folder (content scope) management service — split into `schemas`, `functions`, and `service` modules. Covers create/read/delete and READ/WRITE access management, with typed overloads for the three folder-creation shapes (`path=`, `paths=`, `parent_scope_id=` + `relative_path_segments=`) and sync/async variants throughout. Register through `UniqueServiceFactory.content_folder()` or import from the top-level package (`from unique_toolkit import ContentFolder`).
+- Add `unique_toolkit.content.tree` subpackage exposing `ContentTree` — a cached view of the KB content visible to the acting user — split into `schemas`, `functions`, and `service` modules.
+- Add `ContentTree.render_visible_tree_async` for directory-style rendering, `list_visible_files_async` and `filter_visible_files_async` for programmatic access, and `search_visible_files_fuzzy_async` for fuzzy search over file names and/or full paths using stdlib `difflib` (case-insensitive by default, tunable via `match_on`, `case_sensitive`, `score_threshold`, `top_k`; returns ranked `FuzzyMatch` records). All four methods share the same cached snapshot so repeated queries hit the backend once.
+- Add `UniqueServiceFactory.content_tree()` convenience method.
+- `KnowledgeBaseService` now delegates scope-id extraction and batched translation to shared helpers in `content.tree.functions`, removing duplicated logic.
+
 ## [1.74.1] - 2026-04-16
 - Use non-strict structured output for planning in responses api
 
