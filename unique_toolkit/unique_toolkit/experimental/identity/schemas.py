@@ -20,7 +20,6 @@ from pydantic import BaseModel, ConfigDict, Field
 _model_config = ConfigDict(
     alias_generator=camelize,
     populate_by_name=True,
-    arbitrary_types_allowed=True,
 )
 
 
