@@ -40,7 +40,7 @@ SAMPLE_DELETED: dict = {
 @pytest.fixture
 def service() -> ScheduledTasks:
     """Service bound to fixed test credentials."""
-    return ScheduledTasks(company_id="company_1", user_id="user_1")
+    return ScheduledTasks(user_id="user_1", company_id="company_1")
 
 
 # ── Create ────────────────────────────────────────────────────────────────────
