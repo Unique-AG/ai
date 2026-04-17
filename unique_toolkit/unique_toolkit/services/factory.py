@@ -5,7 +5,6 @@ from typing import Any, Callable, ClassVar, Protocol, overload
 from typing_extensions import Self, TypeVar
 
 from unique_toolkit.app.unique_settings import UniqueSettings
-from unique_toolkit.experimental.identity.service import Identity
 from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
@@ -96,17 +95,6 @@ class UniqueServiceFactory:
         """Create a :class:`KnowledgeBaseService` using the pre-bound context."""
         return self.get(KnowledgeBaseService, **kwargs)
 
-    def identity(self, **kwargs: Any) -> Identity:
-        """Create an :class:`Identity` service using the pre-bound context.
-
-        .. warning::
-
-            **Experimental.** The :class:`Identity` service lives under
-            :mod:`unique_toolkit.experimental.identity`; its public API may
-            change without notice.
-        """
-        return self.get(Identity, **kwargs)
-
     # ── Class-level registry operations ──────────────────────────────────────
 
     @classmethod
@@ -134,14 +122,14 @@ class UniqueServiceFactory:
     def register_known_services(cls) -> None:
         """Register the default services with the factory.
 
-        Currently registers :class:`KnowledgeBaseService`, :class:`ChatService`,
-        and :class:`Identity`.
+        Currently registers :class:`KnowledgeBaseService` and :class:`ChatService`.
+        Experimental services (e.g. :class:`~unique_toolkit.experimental.identity.Identity`)
+        are intentionally excluded; callers must register them explicitly.
         """
-        from unique_toolkit.experimental.identity.service import Identity
         from unique_toolkit.services.chat_service import ChatService
         from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
-        for service_class in [KnowledgeBaseService, ChatService, Identity]:
+        for service_class in [KnowledgeBaseService, ChatService]:
             if service_class.__name__ not in cls._registry:
                 cls.register(service_class=service_class)
 
