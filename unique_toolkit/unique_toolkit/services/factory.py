@@ -5,6 +5,7 @@ from typing import Any, Callable, ClassVar, Protocol, overload
 from typing_extensions import Self, TypeVar
 
 from unique_toolkit.app.unique_settings import UniqueSettings
+from unique_toolkit.experimental.scheduled_task import ScheduledTasks
 from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
@@ -95,6 +96,17 @@ class UniqueServiceFactory:
         """Create a :class:`KnowledgeBaseService` using the pre-bound context."""
         return self.get(KnowledgeBaseService, **kwargs)
 
+    def scheduled_tasks(self, **kwargs: Any) -> ScheduledTasks:
+        """Create a :class:`ScheduledTasks` service using the pre-bound context.
+
+        .. warning::
+
+            **Experimental.** The :class:`ScheduledTasks` service lives under
+            :mod:`unique_toolkit.experimental.scheduled_task`; its public API
+            may change without notice.
+        """
+        return self.get(ScheduledTasks, **kwargs)
+
     # ── Class-level registry operations ──────────────────────────────────────
 
     @classmethod
@@ -121,12 +133,15 @@ class UniqueServiceFactory:
     @classmethod
     def register_known_services(cls) -> None:
         """Register the default services with the factory.
-        Currently only registers the KnowledgeBaseService and ChatService.
+
+        Currently registers :class:`KnowledgeBaseService`, :class:`ChatService`,
+        and the experimental :class:`ScheduledTasks` service.
         """
+        from unique_toolkit.experimental.scheduled_task import ScheduledTasks
         from unique_toolkit.services.chat_service import ChatService
         from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
-        for service_class in [KnowledgeBaseService, ChatService]:
+        for service_class in [KnowledgeBaseService, ChatService, ScheduledTasks]:
             if service_class.__name__ not in cls._registry:
                 cls.register(service_class=service_class)
 

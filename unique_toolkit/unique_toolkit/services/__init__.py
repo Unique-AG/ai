@@ -17,7 +17,7 @@ __all__ = [
     "ChatContext",
     "ChatService",
     "KnowledgeBaseService",
+    "ServiceNotRegisteredError",
     "UniqueContext",
     "UniqueServiceFactory",
-    "ServiceNotRegisteredError",
 ]
