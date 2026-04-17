@@ -20,7 +20,7 @@ Every sync method has a matching ``*_async`` sibling with the same signature.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Any, Self
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -97,8 +97,14 @@ class ScheduledTasks:
     def from_settings(
         cls,
         settings: UniqueSettings,
+        **kwargs: Any,
     ) -> Self:
-        """Create from :class:`UniqueSettings` (used by :class:`UniqueServiceFactory`)."""
+        """Create from :class:`UniqueSettings` (used by :class:`UniqueServiceFactory`).
+
+        ``**kwargs`` is accepted to keep the signature compatible with
+        :class:`ServiceProtocol`; no additional options are currently used.
+        """
+        del kwargs
         return cls.from_context(
             context=settings.context,
         )
