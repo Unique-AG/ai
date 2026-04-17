@@ -50,6 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.74.2] - 2026-04-16
 - Adding model `litellm:anthropic-claude-opus-4-7` to `language_model/info.py`
 
+## [Unreleased]
+- Add `unique_toolkit.content.folder` subpackage exposing `ContentFolder` — the knowledge-base folder (content scope) management service — split into `schemas`, `functions`, and `service` modules. Covers create/read/delete and READ/WRITE access management, with typed overloads for the three folder-creation shapes (`path=`, `paths=`, `parent_scope_id=` + `relative_path_segments=`) and sync/async variants throughout. Register through `UniqueServiceFactory.content_folder()` or import from the top-level package (`from unique_toolkit import ContentFolder`).
+
 ## [1.74.1] - 2026-04-16
 - Use non-strict structured output for planning in responses api
 
