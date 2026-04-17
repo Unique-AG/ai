@@ -112,7 +112,7 @@ class ScheduledTasks:
         assistant_id: str,
         prompt: str,
         chat_id: str | None = None,
-        enabled: bool | None = None,
+        enabled: bool = True,
     ) -> ScheduledTask:
         """Register a new scheduled task.
 
@@ -123,8 +123,9 @@ class ScheduledTasks:
             prompt: Prompt delivered to the assistant on each run.
             chat_id: Optional chat to continue. ``None`` (default) means a
                 fresh chat on every run.
-            enabled: Whether the task is active from creation. When ``None``
-                (default), the server applies its own default (``True``).
+            enabled: Whether the task is active from creation. Defaults to
+                ``True`` so tasks fire immediately; pass ``False`` to stage a
+                task that can be enabled later via :meth:`enable_task`.
 
         Returns:
             The created :class:`ScheduledTask` as echoed by the server.
@@ -146,7 +147,7 @@ class ScheduledTasks:
         assistant_id: str,
         prompt: str,
         chat_id: str | None = None,
-        enabled: bool | None = None,
+        enabled: bool = True,
     ) -> ScheduledTask:
         """Async :meth:`create_task`."""
         return await create_scheduled_task_async(

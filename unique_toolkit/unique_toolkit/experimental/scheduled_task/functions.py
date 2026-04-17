@@ -46,7 +46,7 @@ def create_scheduled_task(
     assistant_id: str,
     prompt: str,
     chat_id: str | None = None,
-    enabled: bool | None = None,
+    enabled: bool = True,
 ) -> ScheduledTask:
     """Create a new cron-based scheduled task.
 
@@ -58,8 +58,10 @@ def create_scheduled_task(
         prompt: Prompt text sent to the assistant on each run.
         chat_id: Optional chat to continue; ``None`` (default) means a fresh
             chat is created every run.
-        enabled: Whether the task is active from creation. Server default is
-            ``True`` when omitted.
+        enabled: Whether the task is active from creation. Defaults to
+            ``True`` so tasks fire as soon as they are registered; pass
+            ``False`` to stage a task that can be enabled later via
+            :func:`update_scheduled_task`.
 
     Returns:
         The created :class:`ScheduledTask` as echoed by the server.
@@ -68,11 +70,10 @@ def create_scheduled_task(
         "cronExpression": cron_expression,
         "assistantId": assistant_id,
         "prompt": prompt,
+        "enabled": enabled,
     }
     if chat_id is not None:
         params["chatId"] = chat_id
-    if enabled is not None:
-        params["enabled"] = enabled
 
     payload = unique_sdk.ScheduledTask.create(
         user_id=user_id,
@@ -90,18 +91,17 @@ async def create_scheduled_task_async(
     assistant_id: str,
     prompt: str,
     chat_id: str | None = None,
-    enabled: bool | None = None,
+    enabled: bool = True,
 ) -> ScheduledTask:
     """Async :func:`create_scheduled_task`."""
     params: dict[str, Any] = {
         "cronExpression": cron_expression,
         "assistantId": assistant_id,
         "prompt": prompt,
+        "enabled": enabled,
     }
     if chat_id is not None:
         params["chatId"] = chat_id
-    if enabled is not None:
-        params["enabled"] = enabled
 
     payload = await unique_sdk.ScheduledTask.create_async(
         user_id=user_id,

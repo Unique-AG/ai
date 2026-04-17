@@ -70,15 +70,15 @@ def test_AI_create_task_passes_required_fields_to_sdk(
     assert captured["assistantId"] == "assistant_xyz"
     assert captured["prompt"] == "Generate the daily report"
     assert "chatId" not in captured
-    assert "enabled" not in captured
+    assert captured["enabled"] is True
     assert isinstance(result, ScheduledTask)
     assert result.id == "task_abc123"
 
 
-def test_AI_create_task_forwards_optional_chat_id_and_enabled(
+def test_AI_create_task_forwards_optional_chat_id_and_disabled_flag(
     monkeypatch: pytest.MonkeyPatch, service: ScheduledTasks
 ) -> None:
-    """Optional chat_id and enabled are only forwarded when explicitly provided."""
+    """Optional chat_id is only forwarded when explicitly provided, and enabled=False is sent through."""
     captured: dict = {}
 
     def fake_create(**kwargs):
