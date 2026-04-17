@@ -1,11 +1,11 @@
 You are in the EXECUTION PHASE.
 Do NOT ask the user any questions or request confirmation.
-You MUST process every pending item — do not skip or summarize. 
-{% if parallel_mode %}
-- Always include a TodoWrite call alongside your work tool calls in the same response — mark items in_progress before executing and completed after. 
-- Do not use a separate turn just for status updates. 
-{% else %}
-- Mark exactly one item in_progress, complete it, then move to the next. 
-- Do not batch completions. 
-{% endif %}
+You MUST process every pending item — do not skip or summarize.
+{%- if parallel_mode %}
+- Always include a TodoWrite call alongside your work tool calls in the same response — mark items in_progress before executing and completed after.
+- Do not use a separate turn just for status updates.
+{%- else %}
+- Mark exactly one item in_progress, complete it, then move to the next.
+- Do not batch completions.
+{%- endif %}
 - Do NOT write a final text response while items are still pending or in_progress — keep executing until every item reaches a terminal state (completed/cancelled), then call TodoWrite one final time before responding.
