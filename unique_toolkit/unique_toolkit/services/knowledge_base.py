@@ -47,6 +47,11 @@ from unique_toolkit.content.schemas import (
     PaginatedContentInfos,
 )
 from unique_toolkit.content.smart_rules import Operator, Statement
+from unique_toolkit.content.tree import (
+    ContentTree,
+    extract_scope_ids_from_content_infos,
+    translate_scope_ids_batch,
+)
 
 if TYPE_CHECKING:
     from unique_toolkit.app.unique_settings import UniqueContext
@@ -749,7 +754,6 @@ class KnowledgeBaseService:
             return_exceptions=True,
         )
 
-        # Log any exceptions that occurred during parallel fetching
         for result in results:
             if isinstance(result, BaseException):
                 _LOGGER.error("Error fetching paginated content infos", exc_info=result)
@@ -817,20 +821,7 @@ class KnowledgeBaseService:
         Returns:
             set[str]: All unique scope IDs found across content infos.
         """
-        scope_ids: set[str] = set()
-        for content_info in content_infos:
-            if (
-                content_info.metadata
-                and (folder_id_path := content_info.metadata.get("folderIdPath"))
-                is not None
-                and isinstance(folder_id_path, str)
-            ):
-                scope_ids.update(
-                    sid
-                    for sid in folder_id_path.replace("uniquepathid://", "").split("/")
-                    if sid
-                )
-        return scope_ids
+        return extract_scope_ids_from_content_infos(content_infos)
 
     async def _translate_scope_id_async(self, scope_id: str) -> str | None:
         """Resolve a single scope ID to its folder name.
@@ -864,17 +855,11 @@ class KnowledgeBaseService:
         Returns:
             dict[str, str]: Mapping from scope ID to folder name.
         """
-        scope_id_list = list(scope_ids)
-        semaphore = asyncio.Semaphore(max_concurrent_requests)
-
-        async def _resolve(sid: str) -> str | None:
-            async with semaphore:
-                return await self._translate_scope_id_async(sid)
-
-        results = await asyncio.gather(*[_resolve(sid) for sid in scope_id_list])
-        return {
-            sid: name for sid, name in zip(scope_id_list, results) if name is not None
-        }
+        return await translate_scope_ids_batch(
+            self._translate_scope_id_async,
+            scope_ids,
+            max_concurrent_requests=max_concurrent_requests,
+        )
 
     async def resolve_visible_file_paths_async(
         self,
@@ -893,10 +878,9 @@ class KnowledgeBaseService:
                 ``(content_info, [folder1, folder2, ..., filename])``.
         """
         content_infos = await self.get_content_infos_async(
-            metadata_filter=metadata_filter
+            metadata_filter=metadata_filter,
         )
-
-        scope_ids = self.extract_scope_ids(content_infos)
+        scope_ids = extract_scope_ids_from_content_infos(content_infos)
         scope_id_to_folder_name = await self._translate_scope_ids_async(scope_ids)
 
         resolved: list[tuple[ContentInfo, list[str]]] = []
@@ -917,8 +901,24 @@ class KnowledgeBaseService:
 
             file_path.append(content_info.key)
             resolved.append((content_info, file_path))
-
         return resolved
+
+    async def render_visible_tree_async(
+        self,
+        *,
+        metadata_filter: dict[str, Any] | None = None,
+        max_depth: int | None = None,
+    ) -> str:
+        """``tree(1)``-style string of visible content paths (uses :class:`ContentTree`)."""
+        tree_service = ContentTree(
+            company_id=self._company_id,
+            user_id=self._user_id,
+            metadata_filter=self._metadata_filter,
+        )
+        return await tree_service.render_visible_tree_async(
+            metadata_filter=metadata_filter,
+            max_depth=max_depth,
+        )
 
     def _pop_forbidden_metadata_keys(self, metadata: dict[str, Any]) -> dict[str, Any]:
         forbidden_keys = [

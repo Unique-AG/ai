@@ -5,6 +5,8 @@ from typing import Any, Callable, ClassVar, Protocol, overload
 from typing_extensions import Self, TypeVar
 
 from unique_toolkit.app.unique_settings import UniqueSettings
+from unique_toolkit.content.folder import ContentFolder
+from unique_toolkit.content.tree import ContentTree
 from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
@@ -95,6 +97,14 @@ class UniqueServiceFactory:
         """Create a :class:`KnowledgeBaseService` using the pre-bound context."""
         return self.get(KnowledgeBaseService, **kwargs)
 
+    def content_folder(self, **kwargs: Any) -> ContentFolder:
+        """Create a :class:`ContentFolder` using the pre-bound context."""
+        return self.get(ContentFolder, **kwargs)
+
+    def content_tree(self, **kwargs: Any) -> ContentTree:
+        """Create a :class:`ContentTree` using the pre-bound context."""
+        return self.get(ContentTree, **kwargs)
+
     # ── Class-level registry operations ──────────────────────────────────────
 
     @classmethod
@@ -120,13 +130,18 @@ class UniqueServiceFactory:
 
     @classmethod
     def register_known_services(cls) -> None:
-        """Register the default services with the factory.
-        Currently only registers the KnowledgeBaseService and ChatService.
-        """
+        """Register the default services with the factory."""
+        from unique_toolkit.content.folder import ContentFolder
+        from unique_toolkit.content.tree import ContentTree
         from unique_toolkit.services.chat_service import ChatService
         from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
-        for service_class in [KnowledgeBaseService, ChatService]:
+        for service_class in [
+            KnowledgeBaseService,
+            ContentTree,
+            ChatService,
+            ContentFolder,
+        ]:
             if service_class.__name__ not in cls._registry:
                 cls.register(service_class=service_class)
 
