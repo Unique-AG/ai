@@ -218,10 +218,8 @@ class TodoWriteTool(Tool[TodoConfig]):
             return content
         completed = counts["completed"]
         if completed > 0 and completed % threshold == 0 and counts["pending"]:
-            content += (
-                f"\n\n[Checkpoint: {completed} tasks completed. "
-                "Before continuing, briefly verify recent results are correct.]"
-            )
+            nudge = render_template(self.config.verification_nudge, completed=completed)
+            content += f"\n\n{nudge}"
         return content
 
     async def _load_state(self) -> TodoList:

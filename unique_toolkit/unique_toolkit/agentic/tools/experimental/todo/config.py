@@ -7,6 +7,7 @@ from unique_toolkit.agentic.tools.experimental.todo.prompts import (
     EXECUTION_REMINDER_TEMPLATE,
     SYSTEM_PROMPT_TEMPLATE,
     TOOL_DESCRIPTION_TEMPLATE,
+    VERIFICATION_NUDGE_TEMPLATE,
 )
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
@@ -76,9 +77,18 @@ class TodoConfig(BaseToolConfig):
     )
 
     verification_threshold: int = Field(
-        default=0,
+        default=5,
         ge=0,
-        title="Verification Nudge",
-        description="If the agent completes these many tasks without verifying its work, "
-        "nudge it to verify. Set to 0 to disable.",
+        title="Verification Nudge Threshold",
+        description="After this many task completions, nudge the agent to verify its work "
+        "before continuing. Set to 0 to disable.",
+    )
+
+    verification_nudge: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=2),
+    ] = Field(
+        default=VERIFICATION_NUDGE_TEMPLATE,
+        description="Jinja template for the verification nudge message. "
+        "Available variable: completed (int).",
     )
