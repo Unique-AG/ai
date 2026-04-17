@@ -1,4 +1,4 @@
-"""Low-level function wrappers around :mod:`unique_sdk.User` and :mod:`unique_sdk.Group`.
+"""Low-level function wrappers around :mod:`User` and :mod:`Group`.
 
 Each SDK operation gets a ``<verb>`` and ``<verb>_async`` pair. The functions take
 ``user_id`` and ``company_id`` as the first two positional arguments (the acting
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import unique_sdk
+from unique_sdk import Group, User
 
 from unique_toolkit.experimental.identity.schemas import (
     GroupDeleted,
@@ -56,7 +56,7 @@ def list_users(
         display_name=display_name,
         user_name=user_name,
     )
-    result = unique_sdk.User.get_users(user_id=user_id, company_id=company_id, **params)
+    result = User.get_users(user_id=user_id, company_id=company_id, **params)
     return [
         UserInfo.model_validate(u, by_alias=True, by_name=True) for u in result["users"]
     ]
@@ -80,7 +80,7 @@ async def list_users_async(
         display_name=display_name,
         user_name=user_name,
     )
-    result = await unique_sdk.User.get_users_async(
+    result = await User.get_users_async(
         user_id=user_id, company_id=company_id, **params
     )
     return [
@@ -95,7 +95,7 @@ def get_user_by_id(
     target_user_id: str,
 ) -> UserInfo:
     """Fetch a single user by canonical id."""
-    payload = unique_sdk.User.get_by_id(
+    payload = User.get_by_id(
         user_id=user_id,
         company_id=company_id,
         target_user_id=target_user_id,
@@ -110,7 +110,7 @@ async def get_user_by_id_async(
     target_user_id: str,
 ) -> UserInfo:
     """Async :func:`get_user_by_id`."""
-    payload = await unique_sdk.User.get_by_id_async(
+    payload = await User.get_by_id_async(
         user_id=user_id,
         company_id=company_id,
         target_user_id=target_user_id,
@@ -168,7 +168,7 @@ def get_user_groups(
     target_user_id: str,
 ) -> list[UserGroupMembership]:
     """List the groups a user belongs to (``groups <user>``)."""
-    payload = unique_sdk.User.get_user_groups(
+    payload = User.get_user_groups(
         user_id=user_id,
         company_id=company_id,
         target_user_id=target_user_id,
@@ -186,7 +186,7 @@ async def get_user_groups_async(
     target_user_id: str,
 ) -> list[UserGroupMembership]:
     """Async :func:`get_user_groups`."""
-    payload = await unique_sdk.User.get_user_groups_async(
+    payload = await User.get_user_groups_async(
         user_id=user_id,
         company_id=company_id,
         target_user_id=target_user_id,
@@ -210,7 +210,7 @@ def update_user_configuration(
     user). Callers that need to mutate other users' config must delegate to a
     service user.
     """
-    payload = unique_sdk.User.update_user_configuration(
+    payload = User.update_user_configuration(
         user_id=target_user_id,
         company_id=company_id,
         userConfiguration=configuration,
@@ -226,7 +226,7 @@ async def update_user_configuration_async(
     configuration: dict[str, Any],
 ) -> UserWithConfiguration:
     """Async :func:`update_user_configuration`."""
-    payload = await unique_sdk.User.update_user_configuration_async(
+    payload = await User.update_user_configuration_async(
         user_id=target_user_id,
         company_id=company_id,
         userConfiguration=configuration,
@@ -250,9 +250,7 @@ def list_groups(
     ``skip``/``take`` default to a 0/:data:`DEFAULT_LIST_TAKE` window.
     """
     params = _build_list_groups_params(skip=skip, take=take, name=name)
-    result = unique_sdk.Group.get_groups(
-        user_id=user_id, company_id=company_id, **params
-    )
+    result = Group.get_groups(user_id=user_id, company_id=company_id, **params)
     return [
         GroupInfo.model_validate(g, by_alias=True, by_name=True)
         for g in result["groups"]
@@ -269,7 +267,7 @@ async def list_groups_async(
 ) -> list[GroupInfo]:
     """Async :func:`list_groups`."""
     params = _build_list_groups_params(skip=skip, take=take, name=name)
-    result = await unique_sdk.Group.get_groups_async(
+    result = await Group.get_groups_async(
         user_id=user_id, company_id=company_id, **params
     )
     return [
@@ -290,9 +288,7 @@ def create_group(
     params = _build_create_group_params(
         name=name, parent_id=parent_id, external_id=external_id
     )
-    payload = unique_sdk.Group.create_group(
-        user_id=user_id, company_id=company_id, **params
-    )
+    payload = Group.create_group(user_id=user_id, company_id=company_id, **params)
     return GroupInfo.model_validate(payload, by_alias=True, by_name=True)
 
 
@@ -308,7 +304,7 @@ async def create_group_async(
     params = _build_create_group_params(
         name=name, parent_id=parent_id, external_id=external_id
     )
-    payload = await unique_sdk.Group.create_group_async(
+    payload = await Group.create_group_async(
         user_id=user_id, company_id=company_id, **params
     )
     return GroupInfo.model_validate(payload, by_alias=True, by_name=True)
@@ -321,7 +317,7 @@ def delete_group(
     group_id: str,
 ) -> GroupDeleted:
     """Delete a group (``groupdel``)."""
-    payload = unique_sdk.Group.delete_group(
+    payload = Group.delete_group(
         user_id=user_id, company_id=company_id, group_id=group_id
     )
     return GroupDeleted.model_validate(payload, by_alias=True, by_name=True)
@@ -334,7 +330,7 @@ async def delete_group_async(
     group_id: str,
 ) -> GroupDeleted:
     """Async :func:`delete_group`."""
-    payload = await unique_sdk.Group.delete_group_async(
+    payload = await Group.delete_group_async(
         user_id=user_id, company_id=company_id, group_id=group_id
     )
     return GroupDeleted.model_validate(payload, by_alias=True, by_name=True)
@@ -348,7 +344,7 @@ def rename_group(
     new_name: str,
 ) -> GroupInfo:
     """Rename a group (``groupmod -n``). Name is the only renameable top-level field."""
-    payload = unique_sdk.Group.update_group(
+    payload = Group.update_group(
         user_id=user_id,
         company_id=company_id,
         group_id=group_id,
@@ -365,7 +361,7 @@ async def rename_group_async(
     new_name: str,
 ) -> GroupInfo:
     """Async :func:`rename_group`."""
-    payload = await unique_sdk.Group.update_group_async(
+    payload = await Group.update_group_async(
         user_id=user_id,
         company_id=company_id,
         group_id=group_id,
@@ -382,7 +378,7 @@ def update_group_configuration(
     configuration: dict[str, Any],
 ) -> GroupWithConfiguration:
     """Replace a group's free-form configuration blob."""
-    payload = unique_sdk.Group.update_group_configuration(
+    payload = Group.update_group_configuration(
         user_id=user_id,
         company_id=company_id,
         group_id=group_id,
@@ -399,7 +395,7 @@ async def update_group_configuration_async(
     configuration: dict[str, Any],
 ) -> GroupWithConfiguration:
     """Async :func:`update_group_configuration`."""
-    payload = await unique_sdk.Group.update_group_configuration_async(
+    payload = await Group.update_group_configuration_async(
         user_id=user_id,
         company_id=company_id,
         group_id=group_id,
@@ -421,7 +417,7 @@ def add_group_members(
     """Add users to a group (``gpasswd -a``). Bulk."""
     if not user_ids:
         raise ValueError("add_group_members: user_ids must not be empty.")
-    payload = unique_sdk.Group.add_users_to_group(
+    payload = Group.add_users_to_group(
         user_id=user_id,
         company_id=company_id,
         group_id=group_id,
@@ -443,7 +439,7 @@ async def add_group_members_async(
     """Async :func:`add_group_members`."""
     if not user_ids:
         raise ValueError("add_group_members: user_ids must not be empty.")
-    payload = await unique_sdk.Group.add_users_to_group_async(
+    payload = await Group.add_users_to_group_async(
         user_id=user_id,
         company_id=company_id,
         group_id=group_id,
@@ -465,7 +461,7 @@ def remove_group_members(
     """Remove users from a group (``gpasswd -d``). Returns the API success flag."""
     if not user_ids:
         raise ValueError("remove_group_members: user_ids must not be empty.")
-    payload = unique_sdk.Group.remove_users_from_group(
+    payload = Group.remove_users_from_group(
         user_id=user_id,
         company_id=company_id,
         group_id=group_id,
@@ -484,7 +480,7 @@ async def remove_group_members_async(
     """Async :func:`remove_group_members`."""
     if not user_ids:
         raise ValueError("remove_group_members: user_ids must not be empty.")
-    payload = await unique_sdk.Group.remove_users_from_group_async(
+    payload = await Group.remove_users_from_group_async(
         user_id=user_id,
         company_id=company_id,
         group_id=group_id,

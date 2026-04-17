@@ -72,7 +72,7 @@ class TestAIListUsers:
     def test_AI_list_users_returns_validated_models(self, identity, mocker):
         """list_users should forward optional filters and return UserInfo models."""
         mock = mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.User.get_users",
+            "unique_toolkit.experimental.identity.functions.User.get_users",
             return_value={"users": [_user_payload()]},
         )
 
@@ -93,7 +93,7 @@ class TestAIListUsers:
     async def test_AI_list_users_async_delegates_to_async_sdk(self, identity, mocker):
         """list_users_async must call the async SDK variant, not the sync one."""
         mock = mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.User.get_users_async",
+            "unique_toolkit.experimental.identity.functions.User.get_users_async",
             return_value={"users": []},
         )
 
@@ -109,7 +109,7 @@ class TestAIGetUser:
     def test_AI_get_user_by_id_hits_id_endpoint(self, identity, mocker):
         """get_user(user_id=...) should call the /users/{id} endpoint."""
         mock = mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.User.get_by_id",
+            "unique_toolkit.experimental.identity.functions.User.get_by_id",
             return_value=_user_payload(id="u-42"),
         )
 
@@ -123,7 +123,7 @@ class TestAIGetUser:
     def test_AI_get_user_by_email_resolves_through_list(self, identity, mocker):
         """get_user(email=...) should resolve via a filtered list and return the single match."""
         mock = mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.User.get_users",
+            "unique_toolkit.experimental.identity.functions.User.get_users",
             return_value={"users": [_user_payload(email="ada@example.com")]},
         )
 
@@ -151,7 +151,7 @@ class TestAIGetUser:
     def test_AI_get_user_by_email_no_match_raises_lookup_error(self, identity, mocker):
         """A unique filter returning zero rows should surface as LookupError."""
         mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.User.get_users",
+            "unique_toolkit.experimental.identity.functions.User.get_users",
             return_value={"users": []},
         )
 
@@ -163,7 +163,7 @@ class TestAIGetUser:
     ):
         """Ambiguous matches must be surfaced, not silently collapsed to the first."""
         mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.User.get_users",
+            "unique_toolkit.experimental.identity.functions.User.get_users",
             return_value={
                 "users": [
                     _user_payload(id="u-1", email="dup@example.com"),
@@ -180,7 +180,7 @@ class TestAIGroupsOf:
     def test_AI_groups_of_by_user_id(self, identity, mocker):
         """groups_of(user_id=...) should call /users/{id}/groups directly."""
         mock = mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.User.get_user_groups",
+            "unique_toolkit.experimental.identity.functions.User.get_user_groups",
             return_value={
                 "groups": [
                     {
@@ -207,7 +207,7 @@ class TestAIGroupsOf:
     def test_AI_is_member_true_when_group_in_list(self, identity, mocker):
         """is_member returns True when the target group appears in groups_of."""
         mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.User.get_user_groups",
+            "unique_toolkit.experimental.identity.functions.User.get_user_groups",
             return_value={
                 "groups": [
                     {
@@ -227,7 +227,7 @@ class TestAIGroupsOf:
     def test_AI_is_member_false_when_group_missing(self, identity, mocker):
         """is_member returns False when the target group is not in the list."""
         mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.User.get_user_groups",
+            "unique_toolkit.experimental.identity.functions.User.get_user_groups",
             return_value={"groups": []},
         )
 
@@ -240,7 +240,7 @@ class TestAIUpdateUserConfiguration:
     ):
         """Omitting target_user_id must default to the acting user."""
         mock = mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.User.update_user_configuration",
+            "unique_toolkit.experimental.identity.functions.User.update_user_configuration",
             return_value={
                 **_user_payload(id=USER_ID),
                 "userConfiguration": {"theme": "dark"},
@@ -265,7 +265,7 @@ class TestAIListGroups:
     def test_AI_list_groups_forwards_name_filter(self, identity, mocker):
         """list_groups should forward the name filter to the SDK."""
         mock = mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.Group.get_groups",
+            "unique_toolkit.experimental.identity.functions.Group.get_groups",
             return_value={"groups": [_group_payload()]},
         )
 
@@ -286,7 +286,7 @@ class TestAICreateGroup:
     def test_AI_create_group_minimum_params_sends_only_name(self, identity, mocker):
         """Optional parent_id / external_id must not appear when omitted."""
         mock = mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.Group.create_group",
+            "unique_toolkit.experimental.identity.functions.Group.create_group",
             return_value=_group_payload(name="new-team"),
         )
 
@@ -300,7 +300,7 @@ class TestAICreateGroup:
     def test_AI_create_group_with_parent_forwards_camel_case(self, identity, mocker):
         """parent_id/external_id must be serialised to camelCase on the wire."""
         mock = mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.Group.create_group",
+            "unique_toolkit.experimental.identity.functions.Group.create_group",
             return_value=_group_payload(
                 id="g-2", name="sub-team", parentId="g-1", externalId="ext-2"
             ),
@@ -325,7 +325,7 @@ class TestAIDeleteGroup:
     def test_AI_delete_group_returns_group_deleted(self, identity, mocker):
         """delete_group returns GroupDeleted with the deleted id."""
         mock = mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.Group.delete_group",
+            "unique_toolkit.experimental.identity.functions.Group.delete_group",
             return_value={"id": "g-1"},
         )
 
@@ -342,7 +342,7 @@ class TestAIRenameGroup:
     def test_AI_rename_group_calls_update_with_new_name(self, identity, mocker):
         """rename_group maps to SDK update_group(name=new_name)."""
         mock = mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.Group.update_group",
+            "unique_toolkit.experimental.identity.functions.Group.update_group",
             return_value=_group_payload(name="renamed"),
         )
 
@@ -361,7 +361,7 @@ class TestAIMembership:
     def test_AI_add_members_returns_membership_list(self, identity, mocker):
         """add_members returns GroupMembership models for each new row."""
         mock = mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.Group.add_users_to_group",
+            "unique_toolkit.experimental.identity.functions.Group.add_users_to_group",
             return_value={
                 "memberships": [
                     {
@@ -392,7 +392,7 @@ class TestAIMembership:
     def test_AI_add_members_with_empty_list_raises(self, identity, mocker):
         """Empty user_ids must be rejected client-side to avoid a no-op API call."""
         mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.Group.add_users_to_group"
+            "unique_toolkit.experimental.identity.functions.Group.add_users_to_group"
         )
 
         with pytest.raises(ValueError, match="must not be empty"):
@@ -401,7 +401,7 @@ class TestAIMembership:
     def test_AI_remove_members_returns_success_bool(self, identity, mocker):
         """remove_members returns the raw success flag from the API."""
         mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.Group.remove_users_from_group",
+            "unique_toolkit.experimental.identity.functions.Group.remove_users_from_group",
             return_value={"success": True},
         )
 
@@ -413,7 +413,7 @@ class TestAIMembership:
     ):
         """Async variant must call the async SDK method."""
         mock = mocker.patch(
-            "unique_toolkit.experimental.identity.functions.unique_sdk.Group.remove_users_from_group_async",
+            "unique_toolkit.experimental.identity.functions.Group.remove_users_from_group_async",
             return_value={"success": False},
         )
 
