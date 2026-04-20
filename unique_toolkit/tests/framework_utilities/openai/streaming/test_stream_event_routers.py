@@ -26,10 +26,6 @@ from unique_toolkit._common.event_bus import TypedEventBus
 from unique_toolkit.framework_utilities.openai.streaming.pipeline.chat_completions.stream_event_router import (
     ChatCompletionStreamEventRouter,
 )
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.protocols import (
-    TextFlushed,
-    TextState,
-)
 from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.completed_handler import (
     ResponsesCompletedHandler,
     _extract_usage,
@@ -44,6 +40,7 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelTokenUsage,
 )
+from unique_toolkit.protocols.streaming import TextFlushed, TextState
 
 
 def _chat_chunk(

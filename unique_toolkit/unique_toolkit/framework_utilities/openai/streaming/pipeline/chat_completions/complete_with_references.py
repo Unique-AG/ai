@@ -1,9 +1,10 @@
 """Router-backed implementation of ``SupportCompleteWithReferences`` for Chat Completions.
 
-The orchestrator owns the :data:`StreamEvent` bus and the default
-:class:`MessagePersistingSubscriber`. Handlers/routers stay pure — all
-``unique_sdk.Message.modify_async`` calls happen in the subscriber
-reacting to :class:`StreamStarted` / :class:`TextDelta` / :class:`StreamEnded`.
+The orchestrator owns a :class:`StreamEventBus` (a routing table of typed
+channels) and registers default subscribers on it. Handlers/routers stay
+pure — all ``unique_sdk.Message.modify_async`` calls live in a subscriber
+that listens on the concrete text-lifecycle channels, so there is no
+``isinstance`` fan-out at the subscriber boundary.
 """
 
 from __future__ import annotations
@@ -17,7 +18,6 @@ from typing import TYPE_CHECKING, Any, overload
 import httpx
 from openai import AsyncOpenAI
 
-from unique_toolkit._common.event_bus import Handler
 from unique_toolkit.framework_utilities.openai.client import get_async_openai_client
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
     NORMALIZATION_MAX_MATCH_LENGTH,
@@ -30,10 +30,16 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
     LanguageModelToolDescription,
 )
+from unique_toolkit.protocols.streaming import TextFlushed
 from unique_toolkit.protocols.support import SupportCompleteWithReferences
 
-from ..events import StreamEnded, StreamEvent, StreamEventBus, StreamStarted, TextDelta
-from ..protocols import TextFlushed
+from ..events import (
+    StreamEnded,
+    StreamEventBus,
+    StreamStarted,
+    StreamSubscriber,
+    TextDelta,
+)
 from ..subscribers import MessagePersistingSubscriber
 from .stream_event_router import ChatCompletionStreamEventRouter
 from .text_handler import ChatCompletionTextHandler
@@ -105,12 +111,17 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
 
     * Handlers/router accumulate state only (pure).
     * This orchestrator owns its :class:`StreamEventBus` — the bus is not
-      injectable so its lifecycle stays tied to the orchestrator.
+      injectable so its lifecycle stays tied to the orchestrator. The bus
+      is a routing table of typed channels; publishing and subscribing
+      happen on the concrete channel, so no ``isinstance`` fan-out is
+      needed at the subscriber boundary.
     * A default :class:`MessagePersistingSubscriber` is registered on that
       bus to handle ``Message.modify_async`` calls and reference filtering.
-      Callers can replace or augment the subscriber set via the
-      ``subscribers`` constructor argument, or attach more after
-      construction through the :attr:`bus` property.
+      Chat Completions never produces activity progress, so no progress
+      subscriber is attached by default. Callers can replace or augment
+      the subscriber set via the ``subscribers`` constructor argument, or
+      attach more after construction through :attr:`bus` (e.g.
+      ``complete.bus.text_delta.subscribe(my_analytics)``).
 
     Two construction shapes are supported via ``@overload``:
 
@@ -131,7 +142,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         *,
         router: ChatCompletionStreamEventRouter | None = ...,
         additional_headers: dict[str, str] | None = ...,
-        subscribers: Iterable[Handler[StreamEvent]] | None = ...,
+        subscribers: Iterable[StreamSubscriber] | None = ...,
     ) -> None:
         """Settings-driven construction with sane defaults.
 
@@ -152,7 +163,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         *,
         client: AsyncOpenAI,
         router: ChatCompletionStreamEventRouter,
-        subscribers: Iterable[Handler[StreamEvent]],
+        subscribers: Iterable[StreamSubscriber],
     ) -> None:
         """Instance-injection construction — reuse pre-built collaborators.
 
@@ -171,7 +182,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         *,
         router: ChatCompletionStreamEventRouter | None = None,
         client: AsyncOpenAI | None = None,
-        subscribers: Iterable[Handler[StreamEvent]] | None = None,
+        subscribers: Iterable[StreamSubscriber] | None = None,
         additional_headers: dict[str, str] | None = None,
     ) -> None:
         if client is not None and additional_headers is not None:
@@ -199,13 +210,13 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         # ``None`` means "use the default persister"; an explicit iterable
         # (even empty) is treated as the caller having fully specified the
         # subscriber set — the default is deliberately not added.
-        effective_subscribers: Iterable[Handler[StreamEvent]] = (
-            (MessagePersistingSubscriber(settings).handle,)
-            if subscribers is None
-            else subscribers
-        )
-        for handler in effective_subscribers:
-            self._bus.subscribe(handler)
+        effective_subscribers: Iterable[StreamSubscriber]
+        if subscribers is None:
+            effective_subscribers = (MessagePersistingSubscriber(settings),)
+        else:
+            effective_subscribers = subscribers
+        for subscriber in effective_subscribers:
+            subscriber.register(self._bus)
 
         # Per-request context for the flush-bus adapter. Set at the top of
         # :meth:`complete_with_references_async` and cleared in its
@@ -229,7 +240,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         """
         if self._current_message_id is None or self._current_chat_id is None:
             return
-        await self._bus.publish_and_wait_async(
+        await self._bus.text_delta.publish_and_wait_async(
             TextDelta(
                 message_id=self._current_message_id,
                 chat_id=self._current_chat_id,
@@ -296,7 +307,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         self._router.reset()
         self._current_message_id = message_id
         self._current_chat_id = chat_id
-        await self._bus.publish_and_wait_async(
+        await self._bus.stream_started.publish_and_wait_async(
             StreamStarted(
                 message_id=message_id,
                 chat_id=chat_id,
@@ -338,7 +349,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         finally:
             await self._router.on_stream_end()
             text_state = self._router.get_text()
-            await self._bus.publish_and_wait_async(
+            await self._bus.stream_ended.publish_and_wait_async(
                 StreamEnded(
                     message_id=message_id,
                     chat_id=chat_id,

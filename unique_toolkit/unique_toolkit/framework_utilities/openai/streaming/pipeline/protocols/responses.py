@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
 
-from .common import (
-    ActivityProgressUpdate,
+from unique_toolkit.protocols.streaming import (
+    ActivityProducer,
     AppendixProducer,
     StreamHandlerProtocol,
-    TextFlushed,
-    TextState,
+    StreamTextHandlerProtocol,
+    StreamToolCallHandlerProtocol,
 )
 
 if TYPE_CHECKING:
@@ -20,48 +20,36 @@ if TYPE_CHECKING:
         ResponseTextDeltaEvent,
     )
 
-    from unique_toolkit._common.event_bus import TypedEventBus
     from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.code_interpreter_handler import (
         CodeInterpreterCallEvent,
     )
     from unique_toolkit.language_model.schemas import (
-        LanguageModelFunction,
         LanguageModelTokenUsage,
         ResponseOutputItem,
     )
 
 
-class ResponsesTextDeltaHandlerProtocol(Protocol):
+class ResponsesTextDeltaHandlerProtocol(StreamTextHandlerProtocol, Protocol):
     """Accumulates text from ``ResponseTextDeltaEvent`` and publishes flushes.
 
-    Pure state machine: no SDK, no outer bus, no knowledge of retrieved
-    chunks. Owns a typed :class:`TypedEventBus` carrying
-    :class:`TextFlushed`; external subscribers (typically the
-    orchestrator) adapt those into full :class:`TextDelta` events.
+    Framework-specific text handler: inherits the role contract
+    (:class:`StreamTextHandlerProtocol` — ``text_bus``, ``get_text``,
+    lifecycle) and adds only the Responses consumer method.
     """
-
-    @property
-    def text_bus(self) -> TypedEventBus[TextFlushed]:
-        """Handler-owned bus publishing :class:`TextFlushed` on each delta."""
-        ...
 
     async def on_text_delta(self, event: ResponseTextDeltaEvent) -> None:
         """Process one delta; publish :class:`TextFlushed` on non-empty deltas."""
         ...
 
-    async def on_stream_end(self) -> None:
-        """Flush replacer buffers; publish a final :class:`TextFlushed` if needed."""
-        ...
 
-    def reset(self) -> None: ...
+class ResponsesToolCallHandlerProtocol(StreamToolCallHandlerProtocol, Protocol):
+    """Accumulates function tool calls from Responses stream events.
 
-    def get_text(self) -> TextState:
-        """Return accumulated normalised and original text."""
-        ...
-
-
-class ResponsesToolCallHandlerProtocol(StreamHandlerProtocol, Protocol):
-    """Accumulates function tool calls from Responses stream events."""
+    Framework-specific tool-call handler: inherits the role contract
+    (:class:`StreamToolCallHandlerProtocol` — ``get_tool_calls``,
+    lifecycle) and adds the Responses consumer pair (item-added +
+    arguments-done).
+    """
 
     async def on_output_item_added(
         self, event: ResponseOutputItemAddedEvent
@@ -71,11 +59,13 @@ class ResponsesToolCallHandlerProtocol(StreamHandlerProtocol, Protocol):
         self, event: ResponseFunctionCallArgumentsDoneEvent
     ) -> None: ...
 
-    def get_tool_calls(self) -> list[LanguageModelFunction]: ...
-
 
 class ResponsesCompletedHandlerProtocol(StreamHandlerProtocol, Protocol):
-    """Extracts usage and output items from ``ResponseCompletedEvent``."""
+    """Extracts usage and output items from ``ResponseCompletedEvent``.
+
+    Responses-only: Chat Completions surfaces usage inline on the final
+    chunk, so no symmetric protocol exists for that API.
+    """
 
     async def on_completed(self, event: ResponseCompletedEvent) -> None: ...
 
@@ -87,24 +77,19 @@ class ResponsesCompletedHandlerProtocol(StreamHandlerProtocol, Protocol):
 class ResponsesCodeInterpreterHandlerProtocol(
     StreamHandlerProtocol,
     AppendixProducer,
+    ActivityProducer,
     Protocol,
 ):
     """Accumulates code-interpreter activity as pure state.
 
-    Owns a typed :class:`TypedEventBus` carrying
-    :class:`ActivityProgressUpdate` for tool-activity progress
-    transitions (:attr:`activity_bus`), and inherits the generic
-    :class:`AppendixProducer` capability so the pipeline can aggregate
-    its executed-code appendix alongside any other handler's
-    contributions. The only CI-specific member is
-    :meth:`on_code_interpreter_event`, which consumes the OpenAI SDK's
-    typed CI events.
+    Composes three capabilities: :class:`StreamHandlerProtocol` for
+    lifecycle, :class:`AppendixProducer` so the pipeline can aggregate
+    its executed-code appendix alongside other handlers' contributions,
+    and :class:`ActivityProducer` for the handler-owned
+    ``activity_bus`` publishing :class:`ActivityProgressUpdate`. The
+    only CI-specific member is :meth:`on_code_interpreter_event`, which
+    consumes the OpenAI SDK's typed CI events.
     """
-
-    @property
-    def activity_bus(self) -> TypedEventBus[ActivityProgressUpdate]:
-        """Handler-owned bus publishing progress updates per state transition."""
-        ...
 
     async def on_code_interpreter_event(
         self, event: CodeInterpreterCallEvent

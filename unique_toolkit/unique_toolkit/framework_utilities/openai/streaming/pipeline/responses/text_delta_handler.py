@@ -16,10 +16,7 @@ from unique_toolkit._common.event_bus import TypedEventBus
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
     StreamingReplacerProtocol,
 )
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.protocols import (
-    TextFlushed,
-    TextState,
-)
+from unique_toolkit.protocols.streaming import TextFlushed, TextState
 
 if TYPE_CHECKING:
     from openai.types.responses import ResponseTextDeltaEvent

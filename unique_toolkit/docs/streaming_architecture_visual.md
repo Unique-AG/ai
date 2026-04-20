@@ -59,19 +59,21 @@ Read it as: OpenAI feeds the orchestrator; the orchestrator fans out to a pure r
 
 ## 3. Domain events on the bus
 
+`StreamEventBus` is a **routing table of typed channels** — one channel per concrete event. The orchestrator publishes on the matching channel; subscribers subscribe only to the channels they care about. No runtime `isinstance` dispatch at the subscriber boundary.
+
 ```mermaid
 flowchart LR
     classDef bus fill:#9467bd,color:#fff,stroke:#4d2a75
     classDef ev  fill:#f0e6fa,stroke:#9467bd,color:#4d2a75
 
-    BUS((StreamEventBus)):::bus
-    S[StreamStarted]:::ev --> BUS
-    T[TextDelta]:::ev --> BUS
-    E[StreamEnded]:::ev --> BUS
-    A[ActivityProgress]:::ev --> BUS
+    BUS[StreamEventBus]:::bus
+    S[stream_started: TypedEventBus&lt;StreamStarted&gt;]:::ev --- BUS
+    T[text_delta: TypedEventBus&lt;TextDelta&gt;]:::ev --- BUS
+    E[stream_ended: TypedEventBus&lt;StreamEnded&gt;]:::ev --- BUS
+    A[activity_progress: TypedEventBus&lt;ActivityProgress&gt;]:::ev --- BUS
 ```
 
-Four events, nothing else. Every subscriber reacts to a subset.
+Four channels, nothing else. `MessagePersistingSubscriber` subscribes to the three text-lifecycle channels; `ProgressLogPersister` subscribes only to `activity_progress`. The orchestrator wires `ProgressLogPersister` **only when** the router has a progress-producing handler.
 
 ---
 
@@ -86,8 +88,9 @@ Each component has one well-scoped responsibility. The table is the short versio
 | **Handlers** (`*TextDeltaHandler`, `*ToolCallHandler`, …) | `TextState`, tool-call list, usage, code buffer, inner `TypedEventBus` | Accumulate state, publish inner-bus flushes/progress | Call SDK, know `message_id` / `chat_id`, see `ContentChunk`s |
 | **Protocols** (`protocols/`) | Type contracts only | Define the shape handlers must implement | Contain any logic |
 | **Events** (`events.py`) | Four frozen dataclasses | Be the wire format between orchestrator and subscribers | Carry behavior |
-| **`StreamEventBus`** | Subscriber list | Fan out events to subscribers in registration order | Filter / transform events |
-| **Subscribers** (`MessagePersistingSubscriber`, `ProgressLogPersister`) | Per-stream side-effect state (`chunks_by_message`, `logs_by_correlation`) | Translate domain events into SDK calls | Mutate handler state, change event contents |
+| **`StreamEventBus`** | One `TypedEventBus` per event type (`stream_started`, `text_delta`, `stream_ended`, `activity_progress`) | Fan out each event on its own typed channel; subscribers pick the channels they care about | Know the event Union as a broadcast surface; require subscribers to `isinstance`-check |
+| **`StreamSubscriber`** (protocol) | — | Expose `register(bus)` that wires per-event callbacks onto the relevant channels | Receive events through a single fan-out entry point |
+| **Subscribers** (`MessagePersistingSubscriber`, `ProgressLogPersister`) | Per-stream side-effect state (`chunks_by_message`, `logs_by_correlation`) | Translate domain events into SDK calls; subscribe only to the channels they handle | Mutate handler state, change event contents |
 | **Pattern replacer** (`pattern_replacer.py`) | `NORMALIZATION_PATTERNS`, hold-back buffer | Rewrite citation variants to `<sup>N</sup>` across chunk boundaries | Know which chunk a citation maps to |
 
 ### 4.1 Orchestrator — `ResponsesCompleteWithReferences` / `ChatCompletionsCompleteWithReferences`
@@ -129,12 +132,15 @@ Each component has one well-scoped responsibility. The table is the short versio
 - `TextDelta`: "the model produced observable text up to this point". Subscribers render/persist.
 - `StreamEnded`: "this is the authoritative final text + appendices". The invariant event — always fires, even on errors.
 - `ActivityProgress`: "a tool-like activity (CI, future: web search, retrieval) transitioned to this state".
-- `StreamEventBus`: a `TypedEventBus[StreamEvent]` that stores subscribers and awaits them one by one. Callers can add extras through `orchestrator.bus.subscribe(...)`.
+- `StreamEventBus`: a small dataclass exposing one `TypedEventBus` per event type (`stream_started`, `text_delta`, `stream_ended`, `activity_progress`). The orchestrator publishes on the matching channel (`self._bus.text_delta.publish_and_wait_async(...)`); callers attach extra subscribers per channel (`orchestrator.bus.text_delta.subscribe(my_fn)`). There is deliberately *no* broadcast "subscribe to everything" path — if a subscriber cares about multiple channels, it subscribes its own typed callbacks to each.
+- `StreamEvent`: documentation alias for the closed set of events a bus can carry. Not used as a runtime subscription surface.
 
 ### 4.6 Subscribers
 
-- **`MessagePersistingSubscriber`** — the *only* caller of `unique_sdk.Message.modify_async`. On `StreamStarted` it resets `references=[]` and stamps `startedStreamingAt`. On `TextDelta` it writes the current text + filtered references (via `filter_cited_sdk_references`). On `StreamEnded` it concatenates `full_text + appendices` and stamps `stoppedStreamingAt` / `completedAt` — a single final write.
-- **`ProgressLogPersister`** — the *only* caller of `unique_sdk.MessageLog.*`. Keyed by `correlation_id`: creates a new log the first time it sees an id, updates on subsequent transitions, skips no-ops.
+Subscribers implement the `StreamSubscriber` protocol — a single `register(bus)` method that wires per-event callbacks (`on_started`, `on_text_delta`, …) onto the channels the subscriber cares about. This replaces a fan-out `handle(event)` with `isinstance` branches: channel selection is now the subscribe-time act, and `on_*` methods only run when their channel fires.
+
+- **`MessagePersistingSubscriber`** — the *only* caller of `unique_sdk.Message.modify_async`. `register(bus)` subscribes to `stream_started`, `text_delta`, `stream_ended`. On `StreamStarted` it resets `references=[]` and stamps `startedStreamingAt`. On `TextDelta` it writes the current text + filtered references (via `filter_cited_sdk_references`). On `StreamEnded` it concatenates `full_text + appendices` and stamps `stoppedStreamingAt` / `completedAt` — a single final write.
+- **`ProgressLogPersister`** — the *only* caller of `unique_sdk.MessageLog.*`. `register(bus)` subscribes to `activity_progress` only. Keyed by `correlation_id`: creates a new log the first time it sees an id, updates on subsequent transitions, skips no-ops. The orchestrator only registers it when the router actually has a progress-producing handler (`router.activity_bus is not None`).
 
 ### 4.7 Pattern replacer
 
@@ -308,24 +314,39 @@ classDiagram
 ```mermaid
 classDiagram
     direction LR
+    class StreamSubscriber {
+        <<Protocol>>
+        +register(bus) None
+    }
     class MessagePersistingSubscriber {
         -chunks_by_message
-        +handle(event)
+        +register(bus) None
+        +on_started(StreamStarted)
+        +on_text_delta(TextDelta)
+        +on_ended(StreamEnded)
     }
     class ProgressLogPersister {
         -logs_by_correlation
-        +handle(event)
+        +register(bus) None
+        +on_activity_progress(ActivityProgress)
     }
-    class StreamEventBus
+    class StreamEventBus {
+        +stream_started
+        +text_delta
+        +stream_ended
+        +activity_progress
+    }
 
+    MessagePersistingSubscriber ..|> StreamSubscriber
+    ProgressLogPersister ..|> StreamSubscriber
     MessagePersistingSubscriber ..> StreamEventBus
     ProgressLogPersister ..> StreamEventBus
 ```
 
-One subscriber per SDK surface:
+One subscriber per SDK surface, each subscribed only to the channels it handles:
 
-- `MessagePersistingSubscriber` → `Message.modify_async`
-- `ProgressLogPersister` → `MessageLog.create_async` / `update_async`
+- `MessagePersistingSubscriber` → `Message.modify_async` (reacts to `stream_started` / `text_delta` / `stream_ended`)
+- `ProgressLogPersister` → `MessageLog.create_async` / `update_async` (reacts to `activity_progress` only)
 
 ---
 
@@ -342,17 +363,17 @@ sequenceDiagram
 
     Caller->>Orch: complete_with_references_async()
     Orch->>Router: reset()
-    Orch->>Bus: StreamStarted
-    Bus->>Sub: persist start
+    Orch->>Bus: stream_started.publish(StreamStarted)
+    Bus->>Sub: on_started
     loop each OpenAI event
         Orch->>Router: on_event(e)
         Router-->>Orch: TextFlushed (inner bus)
-        Orch->>Bus: TextDelta
-        Bus->>Sub: persist text
+        Orch->>Bus: text_delta.publish(TextDelta)
+        Bus->>Sub: on_text_delta
     end
     Orch->>Router: on_stream_end()
-    Orch->>Bus: StreamEnded
-    Bus->>Sub: final persist
+    Orch->>Bus: stream_ended.publish(StreamEnded)
+    Bus->>Sub: on_ended
     Orch-->>Caller: result
 ```
 
@@ -370,8 +391,8 @@ sequenceDiagram
 
     Orch->>CI: on_code_interpreter_event(e)
     CI-->>Orch: ActivityProgressUpdate (inner bus)
-    Orch->>Bus: ActivityProgress (+ ids)
-    Bus->>PL: handle()
+    Orch->>Bus: activity_progress.publish(ActivityProgress + ids)
+    Bus->>PL: on_activity_progress
     alt first sighting
         PL->>PL: MessageLog.create_async
     else transition
@@ -397,8 +418,8 @@ sequenceDiagram
     OpenAI-->>Orch: chunks...
     OpenAI--xOrch: RemoteProtocolError
     Note over Orch: caught, flow enters finally
-    Orch->>Bus: StreamEnded (always)
-    Bus->>Sub: final persist
+    Orch->>Bus: stream_ended.publish(StreamEnded) (always)
+    Bus->>Sub: on_ended
 ```
 
 `StreamEnded` is the invariant — it **always** fires from `finally`, so the UI sees a terminal state even on a broken connection.
@@ -429,14 +450,14 @@ flowchart LR
     classDef outer fill:#f0e6fa,stroke:#9467bd,color:#4d2a75
 
     H[Handler]:::inner
-    IN((inner bus<br/>identity-free)):::inner
+    IN[inner bus&lt;TextFlushed&gt; / inner bus&lt;ActivityProgressUpdate&gt;<br/>identity-free]:::inner
     AD[Orchestrator<br/>adapter]:::orch
-    OUT((outer bus<br/>+ message_id, chat_id)):::outer
+    OUT[StreamEventBus<br/>text_delta · activity_progress<br/>+ message_id, chat_id]:::outer
 
     H --> IN --> AD --> OUT
 ```
 
-Why: handlers know nothing about `message_id` / `chat_id`, so they're trivially reusable and testable. The orchestrator adds identity when forwarding.
+Why: handlers know nothing about `message_id` / `chat_id`, so they're trivially reusable and testable. The adapter on the orchestrator adds identity and forwards on the matching **typed channel** of the outer bus — no Union, no `isinstance` re-dispatch at the subscriber boundary.
 
 ---
 
@@ -513,8 +534,8 @@ flowchart LR
 | Add a wire format | New `*StreamEventRouter` + orchestrator; reuse bus, subscribers, replacer |
 | Add an activity | Handler exposes `activity_bus` of `ActivityProgressUpdate` |
 | Append to final message | Implement `AppendixProducer.get_appendix()` |
-| Tracing / analytics | `orchestrator.bus.subscribe(my_handler)` |
-| Replace persistence | Pass `subscribers=[...]` to orchestrator (defaults dropped) |
+| Tracing / analytics | `orchestrator.bus.text_delta.subscribe(my_fn)` (or any other typed channel) |
+| Replace persistence | Implement `StreamSubscriber` (`register(bus)` + `on_*` methods), pass `subscribers=[MyPersister(...)]` to the orchestrator (defaults dropped) |
 | New citation format | Add pattern to `NORMALIZATION_PATTERNS` (parity test guards drift) |
 
 ---
@@ -523,7 +544,7 @@ flowchart LR
 
 | File | One-liner |
 |---|---|
-| `pipeline/events.py` | Event dataclasses + `StreamEventBus` alias |
+| `pipeline/events.py` | Event dataclasses + `StreamEventBus` (typed channels) + `StreamSubscriber` protocol |
 | `pipeline/protocols/common.py` | `TextState`, handler protocol, inner-bus payloads, `AppendixProducer` |
 | `pipeline/protocols/responses.py` | Responses handler protocols |
 | `pipeline/protocols/chat_completions.py` | Chat Completions handler protocols |
@@ -545,4 +566,4 @@ flowchart LR
 
 ## 21. Elevator pitch
 
-> "We turn the OpenAI async stream into two outputs from one loop: a live-updating assistant message on the Unique platform and a typed result for downstream code. A **stream event router** dispatches each event to pure state handlers that accumulate text, tool calls, usage, and code interpreter blocks; a **typed event bus** fans out four domain events to subscribers. Handlers never call the SDK — **only subscribers do** — so persistence is swap-in/swap-out. Citations are normalised to `<sup>N</sup>` **during** streaming via a shared pattern list that batch post-processing also uses, guarded by a parity test. Same design on both Responses and Chat Completions — ~80% of the code is shared."
+> "We turn the OpenAI async stream into two outputs from one loop: a live-updating assistant message on the Unique platform and a typed result for downstream code. A **stream event router** dispatches each event to pure state handlers that accumulate text, tool calls, usage, and code interpreter blocks; a **stream event bus** made of one typed channel per event fans work out to subscribers that opt in per channel — no `isinstance` at the subscriber boundary, and subscribers are only registered when the router actually produces the channel they care about. Handlers never call the SDK — **only subscribers do** — so persistence is swap-in/swap-out. Citations are normalised to `<sup>N</sup>` **during** streaming via a shared pattern list that batch post-processing also uses, guarded by a parity test. Same design on both Responses and Chat Completions — ~80% of the code is shared."

@@ -41,9 +41,7 @@ from openai.types.responses.response_code_interpreter_call_interpreting_event im
 )
 
 from unique_toolkit._common.event_bus import TypedEventBus
-
-from ..events import ActivityStatus
-from ..protocols.common import ActivityProgressUpdate
+from unique_toolkit.protocols.streaming import ActivityProgressUpdate, ActivityStatus
 
 CodeInterpreterCallEvent = (
     ResponseCodeInterpreterCallCodeDoneEvent

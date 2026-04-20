@@ -1,11 +1,14 @@
-"""Streaming pipeline protocols.
+"""OpenAI-typed streaming handler protocols.
 
-* :mod:`common` — :class:`TextState` and :class:`StreamHandlerProtocol` (shared by all APIs).
-* :mod:`responses` — Responses API handler protocols.
+This package contains only the **framework-specific** handler contracts
+that reference ``openai.types.*`` payloads. The framework-agnostic
+pieces (``TextState``, ``StreamHandlerProtocol``, ``TextFlushed``,
+``ActivityProgressUpdate``, ``AppendixProducer``) live in the domain
+layer at :mod:`unique_toolkit.protocols.streaming` — import them from
+there.
+
 * :mod:`chat_completions` — Chat Completions handler protocols.
-
-Import from this package for a flat surface (same names as before) or from submodules
-for API-scoped imports.
+* :mod:`responses` — Responses API handler protocols.
 """
 
 from __future__ import annotations
@@ -13,13 +16,6 @@ from __future__ import annotations
 from .chat_completions import (
     ChatCompletionTextHandlerProtocol,
     ChatCompletionToolCallHandlerProtocol,
-)
-from .common import (
-    ActivityProgressUpdate,
-    AppendixProducer,
-    StreamHandlerProtocol,
-    TextFlushed,
-    TextState,
 )
 from .responses import (
     ResponsesCodeInterpreterHandlerProtocol,
@@ -29,15 +25,10 @@ from .responses import (
 )
 
 __all__ = [
-    "ActivityProgressUpdate",
-    "AppendixProducer",
     "ChatCompletionTextHandlerProtocol",
     "ChatCompletionToolCallHandlerProtocol",
     "ResponsesCodeInterpreterHandlerProtocol",
     "ResponsesCompletedHandlerProtocol",
     "ResponsesTextDeltaHandlerProtocol",
     "ResponsesToolCallHandlerProtocol",
-    "StreamHandlerProtocol",
-    "TextFlushed",
-    "TextState",
 ]

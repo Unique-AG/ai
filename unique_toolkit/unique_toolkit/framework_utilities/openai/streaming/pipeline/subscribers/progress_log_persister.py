@@ -6,6 +6,15 @@ progress (code interpreter today, other tools in future). Keyed by
 ``correlation_id`` so repeated transitions for the same logical call
 coalesce into one log entry that is created once and updated on changes.
 
+Attach by calling :meth:`register` on the owned bus — it wires this
+subscriber only to :attr:`StreamEventBus.activity_progress`, so text
+lifecycle events stay out of this subscriber's hot path entirely:
+
+.. code-block:: python
+
+    persister = ProgressLogPersister(settings)
+    persister.register(orchestrator.bus)
+
 No per-stream state is required beyond the in-memory log-id lookup; the
 subscriber is safe to reuse across overlapping streams within the same
 ``UniqueSettings``.
@@ -17,7 +26,7 @@ from typing import TYPE_CHECKING
 
 import unique_sdk
 
-from ..events import ActivityProgress, StreamEvent
+from ..events import ActivityProgress, StreamEventBus
 
 if TYPE_CHECKING:
     from unique_toolkit.app.unique_settings import UniqueSettings
@@ -37,12 +46,11 @@ class ProgressLogPersister:
         self._settings = settings
         self._logs_by_correlation: dict[str, unique_sdk.MessageLog] = {}
 
-    async def handle(self, event: StreamEvent) -> None:
-        """Single entry point — dispatches only on :class:`ActivityProgress`."""
-        if isinstance(event, ActivityProgress):
-            await self._on_activity_progress(event)
+    def register(self, bus: StreamEventBus) -> None:
+        """Subscribe this persister to the activity-progress channel on ``bus``."""
+        bus.activity_progress.subscribe(self.on_activity_progress)
 
-    async def _on_activity_progress(self, event: ActivityProgress) -> None:
+    async def on_activity_progress(self, event: ActivityProgress) -> None:
         auth = self._settings.context.auth
         user_id = auth.user_id.get_secret_value()
         company_id = auth.company_id.get_secret_value()

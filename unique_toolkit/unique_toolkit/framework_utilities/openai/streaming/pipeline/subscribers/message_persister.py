@@ -5,16 +5,17 @@ related to a streaming response (``startedStreamingAt``, incremental text
 + references, ``stoppedStreamingAt``, ``completedAt``), plus the
 ``content_chunks`` used to filter references down to what was actually cited.
 
-Attach by subscribing a single bound method per event type:
+Attach by calling :meth:`register` once on the owned bus:
 
 .. code-block:: python
 
     persister = MessagePersistingSubscriber(settings)
-    bus.subscribe(persister.handle)
+    persister.register(orchestrator.bus)
 
-No internal per-stream state is required because every event carries the
-``message_id``/``chat_id`` it targets; this makes the subscriber safe to
-reuse across overlapping streams within the same ``UniqueSettings``.
+No internal per-stream state is required beyond the per-message chunk
+lookup because every event carries the ``message_id``/``chat_id`` it
+targets; this makes the subscriber safe to reuse across overlapping
+streams within the same ``UniqueSettings``.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import
     filter_cited_sdk_references,
 )
 
-from ..events import StreamEnded, StreamEvent, StreamStarted, TextDelta
+from ..events import StreamEnded, StreamEventBus, StreamStarted, TextDelta
 
 if TYPE_CHECKING:
     from unique_toolkit.app.unique_settings import UniqueSettings
@@ -41,7 +42,7 @@ def _now_iso() -> str:
 
 
 class MessagePersistingSubscriber:
-    """Translates :data:`StreamEvent` into ``unique_sdk.Message.modify_async`` calls.
+    """Translates text lifecycle events into ``unique_sdk.Message.modify_async`` calls.
 
     Holds the retrieved chunks for the currently active stream (keyed by
     ``message_id``) so reference filtering on :class:`TextDelta` and
@@ -52,16 +53,17 @@ class MessagePersistingSubscriber:
         self._settings = settings
         self._chunks_by_message: dict[str, list[ContentChunk]] = {}
 
-    async def handle(self, event: StreamEvent) -> None:
-        """Single entry point — dispatches on event type."""
-        if isinstance(event, StreamStarted):
-            await self._on_started(event)
-        elif isinstance(event, TextDelta):
-            await self._on_text_delta(event)
-        elif isinstance(event, StreamEnded):
-            await self._on_ended(event)
+    def register(self, bus: StreamEventBus) -> None:
+        """Subscribe this persister to the text lifecycle channels on ``bus``.
 
-    async def _on_started(self, event: StreamStarted) -> None:
+        Intentionally does not touch :attr:`StreamEventBus.activity_progress`:
+        progress logs are owned by :class:`ProgressLogPersister`.
+        """
+        bus.stream_started.subscribe(self.on_started)
+        bus.text_delta.subscribe(self.on_text_delta)
+        bus.stream_ended.subscribe(self.on_ended)
+
+    async def on_started(self, event: StreamStarted) -> None:
         self._chunks_by_message[event.message_id] = list(event.content_chunks)
 
         # References are intentionally empty here: we only attach a
@@ -78,7 +80,7 @@ class MessagePersistingSubscriber:
             startedStreamingAt=_now_iso(),  # type: ignore[arg-type]
         )
 
-    async def _on_text_delta(self, event: TextDelta) -> None:
+    async def on_text_delta(self, event: TextDelta) -> None:
         chunks = self._chunks_by_message.get(event.message_id, [])
 
         # Using modify as it renders the references correctly while create event does not
@@ -92,7 +94,7 @@ class MessagePersistingSubscriber:
             references=filter_cited_sdk_references(chunks, event.full_text),
         )
 
-    async def _on_ended(self, event: StreamEnded) -> None:
+    async def on_ended(self, event: StreamEnded) -> None:
         chunks = self._chunks_by_message.pop(event.message_id, [])
         now = _now_iso()
 

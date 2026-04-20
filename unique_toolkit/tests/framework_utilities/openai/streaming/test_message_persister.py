@@ -22,7 +22,9 @@ from unique_toolkit.app.unique_settings import (
 )
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.framework_utilities.openai.streaming.pipeline.events import (
+    ActivityProgress,
     StreamEnded,
+    StreamEventBus,
     StreamStarted,
     TextDelta,
 )
@@ -75,7 +77,7 @@ async def test_AI_persister__stream_started__marks_message_as_streaming():
     """
     persister = MessagePersistingSubscriber(_settings_with_chat())
     with patch(_MODIFY, new_callable=AsyncMock) as modify:
-        await persister.handle(
+        await persister.on_started(
             StreamStarted(
                 message_id="amsg-1",
                 chat_id="chat-1",
@@ -102,7 +104,7 @@ async def test_AI_persister__text_delta__modifies_message_with_text_and_referenc
     """
     persister = MessagePersistingSubscriber(_settings_with_chat())
     with patch(_MODIFY, new_callable=AsyncMock) as modify:
-        await persister.handle(
+        await persister.on_started(
             StreamStarted(
                 message_id="amsg-1",
                 chat_id="chat-1",
@@ -111,7 +113,7 @@ async def test_AI_persister__text_delta__modifies_message_with_text_and_referenc
         )
         modify.reset_mock()
 
-        await persister.handle(
+        await persister.on_text_delta(
             TextDelta(
                 message_id="amsg-1",
                 chat_id="chat-1",
@@ -141,14 +143,14 @@ async def test_AI_persister__stream_ended__persists_final_state_and_clears_chunk
     """
     persister = MessagePersistingSubscriber(_settings_with_chat())
     with patch(_MODIFY, new_callable=AsyncMock) as modify:
-        await persister.handle(
+        await persister.on_started(
             StreamStarted(
                 message_id="amsg-1",
                 chat_id="chat-1",
                 content_chunks=(_chunk(0),),
             )
         )
-        await persister.handle(
+        await persister.on_ended(
             StreamEnded(
                 message_id="amsg-1",
                 chat_id="chat-1",
@@ -163,7 +165,7 @@ async def test_AI_persister__stream_ended__persists_final_state_and_clears_chunk
 
         # chunks released: a further TextDelta for the same message gets empty chunk set
         modify.reset_mock()
-        await persister.handle(
+        await persister.on_text_delta(
             TextDelta(
                 message_id="amsg-1",
                 chat_id="chat-1",
@@ -187,14 +189,14 @@ async def test_AI_persister__isolates_overlapping_streams_by_message_id():
     """
     persister = MessagePersistingSubscriber(_settings_with_chat())
     with patch(_MODIFY, new_callable=AsyncMock):
-        await persister.handle(
+        await persister.on_started(
             StreamStarted(
                 message_id="a",
                 chat_id="c",
                 content_chunks=(_chunk(0),),
             )
         )
-        await persister.handle(
+        await persister.on_started(
             StreamStarted(
                 message_id="b",
                 chat_id="c",
@@ -204,7 +206,7 @@ async def test_AI_persister__isolates_overlapping_streams_by_message_id():
         # internal state keeps both entries until each ends
         assert set(persister._chunks_by_message.keys()) == {"a", "b"}
 
-        await persister.handle(
+        await persister.on_ended(
             StreamEnded(
                 message_id="a",
                 chat_id="c",
@@ -213,3 +215,46 @@ async def test_AI_persister__isolates_overlapping_streams_by_message_id():
             )
         )
         assert set(persister._chunks_by_message.keys()) == {"b"}
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_persister__register__subscribes_to_text_lifecycle_channels_only():
+    """
+    Purpose: ``register(bus)`` wires the persister onto the three text-lifecycle
+      channels and deliberately leaves ``activity_progress`` alone.
+    Why this matters: The new typed-channel bus replaces runtime ``isinstance``
+      filtering with compile-time channel selection — this test locks in that
+      the persister listens on exactly the channels it can handle, so
+      :class:`ActivityProgress` events never reach ``Message.modify_async``.
+    Setup summary: Build a fresh :class:`StreamEventBus`, ``register`` the
+      persister, publish one event per channel, and assert that only the three
+      text-lifecycle channels produce ``modify_async`` calls.
+    """
+    persister = MessagePersistingSubscriber(_settings_with_chat())
+    bus = StreamEventBus()
+    persister.register(bus)
+
+    with patch(_MODIFY, new_callable=AsyncMock) as modify:
+        await bus.stream_started.publish_and_wait_async(
+            StreamStarted(message_id="m", chat_id="c", content_chunks=())
+        )
+        await bus.text_delta.publish_and_wait_async(
+            TextDelta(message_id="m", chat_id="c", full_text="hi", original_text="hi")
+        )
+        await bus.stream_ended.publish_and_wait_async(
+            StreamEnded(message_id="m", chat_id="c", full_text="hi", original_text="hi")
+        )
+        # activity_progress must NOT produce a Message.modify_async call — the
+        # persister deliberately does not subscribe to that channel.
+        await bus.activity_progress.publish_and_wait_async(
+            ActivityProgress(
+                correlation_id="cid",
+                message_id="m",
+                chat_id="c",
+                status="RUNNING",
+                text="tick",
+            )
+        )
+
+    assert modify.await_count == 3

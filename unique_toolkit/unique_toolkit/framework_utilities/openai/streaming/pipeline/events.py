@@ -1,27 +1,34 @@
-"""Domain events published by streaming pipelines.
+"""Domain events and the typed routing table published by streaming routers.
 
-These decouple streaming *state machines* (handlers/pipelines) from
+These decouple streaming *state machines* (handlers/routers) from
 *side-effects* (message persistence, logging, analytics, ...). Handlers
 accumulate state only; orchestrators (``*CompleteWithReferences``) publish
-these events onto a :class:`TypedEventBus[StreamEvent]` so any number of
-subscribers can react without touching pipeline internals.
+these events onto the per-event channels of :class:`StreamEventBus` so any
+number of subscribers can react without touching router internals.
 
-The default wiring registers :class:`MessagePersistingSubscriber`, which
-owns ``unique_sdk.Message.modify_async`` calls and reference filtering.
+Design note: the bus deliberately exposes **one typed channel per concrete
+event** instead of a ``TypedEventBus[StreamEvent]`` broadcasting a tagged
+union. That keeps the publish/subscribe contract narrow, removes the
+``isinstance`` re-dispatch that every subscriber used to carry, and makes
+"only wire what the router can actually produce" fall out naturally — e.g.
+:attr:`activity_progress` only gets a subscriber when a progress-producing
+handler is present on the router.
+
+The default wiring registers :class:`MessagePersistingSubscriber` (text
+lifecycle) and, when the router exposes a progress producer,
+:class:`ProgressLogPersister` (activity progress logs).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal, Union
+from typing import TYPE_CHECKING, Protocol, Union
 
 from unique_toolkit._common.event_bus import TypedEventBus
+from unique_toolkit.protocols.streaming.common import ActivityStatus
 
 if TYPE_CHECKING:
     from unique_toolkit.content.schemas import ContentChunk
-
-
-ActivityStatus = Literal["RUNNING", "COMPLETED", "FAILED"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,11 +112,51 @@ class ActivityProgress:
 
 
 StreamEvent = Union[StreamStarted, TextDelta, StreamEnded, ActivityProgress]
-"""Tagged union of every event a streaming pipeline can publish."""
+"""Documentation alias for the closed set of events published on a
+:class:`StreamEventBus`. No code should subscribe to or publish this
+union directly — pick the concrete channel on the bus instead."""
 
 
-StreamEventBus = TypedEventBus[StreamEvent]
-"""Typed :class:`TypedEventBus` specialised for :data:`StreamEvent`."""
+@dataclass(slots=True)
+class StreamEventBus:
+    """Routing table of typed pub/sub channels, one per concrete event.
+
+    Each attribute is an independently-subscribable :class:`TypedEventBus`
+    for a single event type. Orchestrators publish on the matching channel;
+    subscribers subscribe only to the channels they care about — so
+    ``isinstance`` re-dispatch at the subscriber boundary goes away, and
+    wiring is naturally conditional (e.g. skip :attr:`activity_progress`
+    entirely when the router has no progress-producing handler).
+
+    Callers can attach extra subscribers after construction:
+
+    .. code-block:: python
+
+        orchestrator.bus.text_delta.subscribe(my_analytics_fn)
+    """
+
+    stream_started: TypedEventBus[StreamStarted] = field(default_factory=TypedEventBus)
+    text_delta: TypedEventBus[TextDelta] = field(default_factory=TypedEventBus)
+    stream_ended: TypedEventBus[StreamEnded] = field(default_factory=TypedEventBus)
+    activity_progress: TypedEventBus[ActivityProgress] = field(
+        default_factory=TypedEventBus
+    )
+
+
+class StreamSubscriber(Protocol):
+    """Structural contract for anything that wants to react to stream events.
+
+    A subscriber exposes a single :meth:`register` method that wires its
+    per-event callbacks onto the relevant channels of the bus. This
+    replaces passing a fan-out ``Handler[StreamEvent]`` callable: it keeps
+    the subscriber in charge of deciding *which* channels it cares about,
+    and avoids the orchestrator having to know each subscriber's event
+    surface.
+    """
+
+    def register(self, bus: StreamEventBus) -> None:
+        """Attach this subscriber's callbacks to the given bus."""
+        ...
 
 
 __all__ = [
@@ -119,5 +166,6 @@ __all__ = [
     "StreamEvent",
     "StreamEventBus",
     "StreamStarted",
+    "StreamSubscriber",
     "TextDelta",
 ]

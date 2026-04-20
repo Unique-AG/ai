@@ -13,9 +13,7 @@ from openai.types.responses import (
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
-
-from ..protocols import StreamHandlerProtocol
-from ..protocols.common import AppendixProducer
+from unique_toolkit.protocols.streaming import AppendixProducer, StreamHandlerProtocol
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -23,14 +21,16 @@ if TYPE_CHECKING:
     from openai.types.responses import ResponseStreamEvent
 
     from unique_toolkit._common.event_bus import TypedEventBus
+    from unique_toolkit.protocols.streaming import (
+        ActivityProgressUpdate,
+        TextFlushed,
+    )
 
     from ..protocols import (
-        ActivityProgressUpdate,
         ResponsesCodeInterpreterHandlerProtocol,
         ResponsesCompletedHandlerProtocol,
         ResponsesTextDeltaHandlerProtocol,
         ResponsesToolCallHandlerProtocol,
-        TextFlushed,
     )
 
 

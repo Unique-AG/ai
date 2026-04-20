@@ -4,48 +4,34 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
 
-from .common import StreamHandlerProtocol, TextFlushed, TextState
+from unique_toolkit.protocols.streaming import (
+    StreamTextHandlerProtocol,
+    StreamToolCallHandlerProtocol,
+)
 
 if TYPE_CHECKING:
     from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
-    from unique_toolkit._common.event_bus import TypedEventBus
-    from unique_toolkit.language_model.schemas import LanguageModelFunction
 
-
-class ChatCompletionTextHandlerProtocol(Protocol):
+class ChatCompletionTextHandlerProtocol(StreamTextHandlerProtocol, Protocol):
     """Accumulates text from ``ChatCompletionChunk`` and publishes flushes.
 
-    Pure state machine: no SDK, no outer bus, no knowledge of retrieved
-    chunks. Owns a typed :class:`TypedEventBus` carrying
-    :class:`TextFlushed`; external subscribers (typically the
-    orchestrator) adapt those into full :class:`TextDelta` events by
-    attaching request context.
+    Framework-specific text handler: inherits the role contract
+    (:class:`StreamTextHandlerProtocol` — ``text_bus``, ``get_text``,
+    lifecycle) and adds only the Chat Completions consumer method.
     """
-
-    @property
-    def text_bus(self) -> TypedEventBus[TextFlushed]:
-        """Handler-owned bus publishing :class:`TextFlushed` at flush boundaries."""
-        ...
 
     async def on_chunk(self, event: ChatCompletionChunk, *, index: int) -> None:
         """Process one chunk; publish :class:`TextFlushed` on flush boundaries."""
         ...
 
-    async def on_stream_end(self) -> None:
-        """Flush replacer buffers; publish a final :class:`TextFlushed` if needed."""
-        ...
 
-    def reset(self) -> None: ...
+class ChatCompletionToolCallHandlerProtocol(StreamToolCallHandlerProtocol, Protocol):
+    """Accumulates tool calls from ``ChatCompletionChunk``.
 
-    def get_text(self) -> TextState:
-        """Return accumulated normalised and original text."""
-        ...
-
-
-class ChatCompletionToolCallHandlerProtocol(StreamHandlerProtocol, Protocol):
-    """Accumulates tool calls from ``ChatCompletionChunk``."""
+    Framework-specific tool-call handler: inherits the role contract
+    (:class:`StreamToolCallHandlerProtocol` — ``get_tool_calls``,
+    lifecycle) and adds only the Chat Completions consumer method.
+    """
 
     async def on_chunk(self, event: ChatCompletionChunk) -> None: ...
-
-    def get_tool_calls(self) -> list[LanguageModelFunction]: ...

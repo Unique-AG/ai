@@ -6,8 +6,7 @@ from typing import TYPE_CHECKING
 
 from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.language_model.schemas import LanguageModelStreamResponse
-
-from ..protocols import StreamHandlerProtocol
+from unique_toolkit.protocols.streaming import StreamHandlerProtocol
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -15,11 +14,11 @@ if TYPE_CHECKING:
     from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
     from unique_toolkit._common.event_bus import TypedEventBus
+    from unique_toolkit.protocols.streaming import TextFlushed
 
     from ..protocols import (
         ChatCompletionTextHandlerProtocol,
         ChatCompletionToolCallHandlerProtocol,
-        TextFlushed,
     )
 
 

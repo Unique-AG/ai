@@ -1,9 +1,10 @@
-"""Pipeline-backed implementation of ``ResponsesSupportCompleteWithReferences``.
+"""Router-backed implementation of ``ResponsesSupportCompleteWithReferences``.
 
-The orchestrator owns the :data:`StreamEvent` bus and the default
-:class:`MessagePersistingSubscriber`. Handlers/routers stay pure — all
-``unique_sdk.Message.modify_async`` calls happen in the subscriber reacting
-to :class:`StreamStarted` / :class:`TextDelta` / :class:`StreamEnded`.
+The orchestrator owns a :class:`StreamEventBus` (a routing table of typed
+channels) and registers default subscribers on it. Handlers/routers stay
+pure — all ``unique_sdk.Message.modify_async`` / ``MessageLog.*`` calls
+live in subscribers that listen on the concrete event channels they care
+about (no ``isinstance`` fan-out at the subscriber boundary).
 """
 
 from __future__ import annotations
@@ -17,7 +18,6 @@ from typing import TYPE_CHECKING, TypeGuard, overload
 import httpx
 from openai import AsyncOpenAI
 
-from unique_toolkit._common.event_bus import Handler
 from unique_toolkit.framework_utilities.openai.client import get_async_openai_client
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
     NORMALIZATION_MAX_MATCH_LENGTH,
@@ -30,17 +30,17 @@ from unique_toolkit.language_model.schemas import (
     LanguageModelMessageOptions,
     LanguageModelMessages,
 )
+from unique_toolkit.protocols.streaming import ActivityProgressUpdate, TextFlushed
 from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferences
 
 from ..events import (
     ActivityProgress,
     StreamEnded,
-    StreamEvent,
     StreamEventBus,
     StreamStarted,
+    StreamSubscriber,
     TextDelta,
 )
-from ..protocols import ActivityProgressUpdate, TextFlushed
 from ..subscribers import MessagePersistingSubscriber, ProgressLogPersister
 from .code_interpreter_handler import ResponsesCodeInterpreterHandler
 from .completed_handler import ResponsesCompletedHandler
@@ -127,19 +127,23 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
     Wiring mirrors :class:`ChatCompletionsCompleteWithReferences`:
 
     * Handlers/router accumulate state only (pure), including the code
-      interpreter handler which now just tracks progress updates and the
+      interpreter handler which just tracks progress updates and the
       executed code.
     * This orchestrator owns its :class:`StreamEventBus` — the bus is not
-      injectable so its lifecycle stays tied to the orchestrator.
-    * Two default subscribers are registered on that bus:
-      :class:`MessagePersistingSubscriber` handles ``Message.modify_async``
-      (including any :attr:`StreamEnded.appendices` contributed by
-      auxiliary handlers, in a single round-trip), and
-      :class:`ProgressLogPersister` persists :class:`ActivityProgress`
-      events as ``MessageLog`` entries keyed by ``correlation_id``.
-      Callers can replace or augment the subscriber set via the
-      ``subscribers`` constructor argument, or attach more after
-      construction through the :attr:`bus` property.
+      injectable so its lifecycle stays tied to the orchestrator. The bus
+      is a routing table of typed channels (one per concrete event);
+      publishing and subscribing happen on the concrete channel, so no
+      ``isinstance`` fan-out is needed at the subscriber boundary.
+    * Default subscribers are registered conditionally:
+      :class:`MessagePersistingSubscriber` is always attached (text
+      lifecycle + appendices concatenation for a single-roundtrip final
+      persist); :class:`ProgressLogPersister` is only attached when the
+      router exposes a progress producer (i.e.
+      ``router.activity_bus is not None``) so it never receives events it
+      would throw away. Callers can replace or augment the subscriber set
+      via the ``subscribers`` constructor argument, or attach more after
+      construction through :attr:`bus` (e.g.
+      ``complete.bus.text_delta.subscribe(my_analytics)``).
 
     Two construction shapes are supported via ``@overload``:
 
@@ -147,8 +151,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
       ``additional_headers`` / ``subscribers``): client and router are
       auto-built with sensible defaults (normalization replacers plus the
       standard tool-call, completed and code-interpreter handlers); the
-      default message persister is registered when ``subscribers`` is
-      omitted.
+      default subscribers are registered when ``subscribers`` is omitted.
     * **Instance injection** (``settings`` + explicit ``client``,
       ``router`` and ``subscribers``): nothing is auto-constructed and
       no default subscriber is added — the caller owns every collaborator.
@@ -161,17 +164,17 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         *,
         router: ResponsesStreamEventRouter | None = ...,
         additional_headers: dict[str, str] | None = ...,
-        subscribers: Iterable[Handler[StreamEvent]] | None = ...,
+        subscribers: Iterable[StreamSubscriber] | None = ...,
     ) -> None:
         """Settings-driven construction with sane defaults.
 
         Builds an :class:`AsyncOpenAI` client from ``settings`` (with any
         ``additional_headers``) and a default
         :class:`ResponsesStreamEventRouter` when ``router`` is omitted.
-        When ``subscribers`` is ``None`` (default), a
-        :class:`MessagePersistingSubscriber` is auto-registered on the
-        owned bus; pass an explicit iterable (including an empty one) to
-        take full control of the subscriber set.
+        When ``subscribers`` is ``None`` (default), the default subscribers
+        are auto-registered on the owned bus; pass an explicit iterable
+        (including an empty one) to take full control of the subscriber
+        set.
         """
         ...
 
@@ -182,15 +185,15 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         *,
         client: AsyncOpenAI,
         router: ResponsesStreamEventRouter,
-        subscribers: Iterable[Handler[StreamEvent]],
+        subscribers: Iterable[StreamSubscriber],
     ) -> None:
         """Instance-injection construction — reuse pre-built collaborators.
 
         ``settings`` is still needed at request time to resolve
         ``chat_id`` / ``message_id``. The bus is still owned internally
         (not injectable) but every subscriber on it comes from the
-        ``subscribers`` argument — no default persister is added. Use an
-        empty iterable to start with a bare bus and attach subscribers
+        ``subscribers`` argument — no default subscribers are added. Use
+        an empty iterable to start with a bare bus and attach subscribers
         later via :attr:`bus`.
         """
         ...
@@ -201,7 +204,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         *,
         router: ResponsesStreamEventRouter | None = None,
         client: AsyncOpenAI | None = None,
-        subscribers: Iterable[Handler[StreamEvent]] | None = None,
+        subscribers: Iterable[StreamSubscriber] | None = None,
         additional_headers: dict[str, str] | None = None,
     ) -> None:
         if client is not None and additional_headers is not None:
@@ -229,16 +232,13 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         # ``None`` means "use the default subscribers"; an explicit iterable
         # (even empty) is treated as the caller having fully specified the
         # subscriber set — defaults are deliberately not added.
-        effective_subscribers: Iterable[Handler[StreamEvent]] = (
-            (
-                MessagePersistingSubscriber(settings).handle,
-                ProgressLogPersister(settings).handle,
-            )
-            if subscribers is None
-            else subscribers
-        )
-        for handler in effective_subscribers:
-            self._bus.subscribe(handler)
+        effective_subscribers: Iterable[StreamSubscriber]
+        if subscribers is None:
+            effective_subscribers = self._default_subscribers()
+        else:
+            effective_subscribers = subscribers
+        for subscriber in effective_subscribers:
+            subscriber.register(self._bus)
 
         # Per-request context for the handler-bus adapters. Set at the top
         # of :meth:`complete_with_references_async` and cleared in its
@@ -250,6 +250,21 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         if activity_bus is not None:
             activity_bus.subscribe(self._on_activity_progress_update)
 
+    def _default_subscribers(self) -> list[StreamSubscriber]:
+        """Build the default subscriber set, conditional on router capabilities.
+
+        ``ProgressLogPersister`` is only useful when the router actually
+        has a progress-producing handler (i.e. ``activity_bus`` exists);
+        wiring it unconditionally would leave a subscriber listening to a
+        channel nothing ever publishes on. Keeping the decision here means
+        the orchestrator is the single place that understands the mapping
+        from handler presence to subscriber set.
+        """
+        subs: list[StreamSubscriber] = [MessagePersistingSubscriber(self._settings)]
+        if self._router.activity_bus is not None:
+            subs.append(ProgressLogPersister(self._settings))
+        return subs
+
     @property
     def bus(self) -> StreamEventBus:
         """Expose the owned bus so callers can attach additional subscribers."""
@@ -259,7 +274,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         """Adapter: lift a handler-bus :class:`TextFlushed` to an outer :class:`TextDelta`."""
         if self._current_message_id is None or self._current_chat_id is None:
             return
-        await self._bus.publish_and_wait_async(
+        await self._bus.text_delta.publish_and_wait_async(
             TextDelta(
                 message_id=self._current_message_id,
                 chat_id=self._current_chat_id,
@@ -280,7 +295,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         """
         if self._current_message_id is None or self._current_chat_id is None:
             return
-        await self._bus.publish_and_wait_async(
+        await self._bus.activity_progress.publish_and_wait_async(
             ActivityProgress(
                 correlation_id=update.correlation_id,
                 message_id=self._current_message_id,
@@ -415,7 +430,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         self._router.reset()
         self._current_message_id = message_id
         self._current_chat_id = chat_id
-        await self._bus.publish_and_wait_async(
+        await self._bus.stream_started.publish_and_wait_async(
             StreamStarted(
                 message_id=message_id,
                 chat_id=chat_id,
@@ -467,7 +482,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         finally:
             await self._router.on_stream_end()
             text_state = self._router.get_text()
-            await self._bus.publish_and_wait_async(
+            await self._bus.stream_ended.publish_and_wait_async(
                 StreamEnded(
                     message_id=message_id,
                     chat_id=chat_id,
