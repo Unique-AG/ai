@@ -221,9 +221,11 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         # Per-request context for the flush-bus adapter. Set at the top of
         # :meth:`complete_with_references_async` and cleared in its
         # ``finally`` block — matches the single-request-at-a-time model
-        # of ``router.reset()``.
+        # of ``router.reset()``. ``_in_flight`` guards against overlapping
+        # requests on the same instance; see :meth:`complete_with_references_async`.
         self._current_message_id: str | None = None
         self._current_chat_id: str | None = None
+        self._in_flight: bool = False
         self._router.text_bus.subscribe(self._on_text_flushed)
 
     @property
@@ -304,6 +306,19 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         message_id = chat.last_assistant_message_id
         chat_id = chat.chat_id
 
+        # Re-entry guard: per-instance state (``_current_*``, router
+        # accumulators) is not safe for overlapping requests — concurrent
+        # callers must build a new orchestrator. Fail fast with a clear
+        # message so the constraint is visible instead of silently
+        # corrupting events.
+        if self._in_flight:
+            raise RuntimeError(
+                "ChatCompletionsCompleteWithReferences does not support "
+                "concurrent complete_with_references_async calls on the "
+                "same instance; construct a fresh orchestrator per "
+                "in-flight request."
+            )
+        self._in_flight = True
         self._router.reset()
         self._current_message_id = message_id
         self._current_chat_id = chat_id
@@ -363,6 +378,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         finally:
             self._current_message_id = None
             self._current_chat_id = None
+            self._in_flight = False
 
         return self._router.build_result(
             message_id=message_id,

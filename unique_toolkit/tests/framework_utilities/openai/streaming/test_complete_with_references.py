@@ -8,6 +8,7 @@ of subscriber/SDK failures at orchestrator boundaries.
 
 from __future__ import annotations
 
+import asyncio
 from types import TracebackType
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -129,6 +130,67 @@ async def test_AI_chat_completions__stream_started_subscriber_raises__clears_con
 
     assert orchestrator._current_message_id is None
     assert orchestrator._current_chat_id is None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_chat_completions__concurrent_call__raises_reentry_error():
+    """
+    Purpose: A second concurrent ``complete_with_references_async`` on the
+      same orchestrator must raise a clear re-entry error.
+    Why this matters: Per-instance mutable state (``_current_*``, router
+      accumulators) is not safe for overlapping requests. Dropping events
+      silently (the previous behaviour) hid wiring bugs; a hard error
+      surfaces the constraint.
+    Setup summary: Drive a first call with a stream that blocks on an
+      ``asyncio.Event`` so it stays in-flight; kick off a second call
+      concurrently and assert it raises ``RuntimeError`` while the first
+      still completes cleanly once released.
+    """
+
+    gate = asyncio.Event()
+
+    class _BlockingStream:
+        async def __aenter__(self) -> "_BlockingStream":
+            return self
+
+        async def __aexit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc_val: BaseException | None,
+            exc_tb: TracebackType | None,
+        ) -> None:
+            return None
+
+        async def __aiter__(self):
+            await gate.wait()
+            # Never yield any chunks; once released we finalize cleanly.
+            if False:
+                yield None
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.create = AsyncMock(return_value=_BlockingStream())
+
+    orchestrator = _build_orchestrator(client=fake_client)
+
+    first = asyncio.create_task(
+        orchestrator.complete_with_references_async(
+            messages=[{"role": "user", "content": "hi"}],
+            model_name="test-model",
+        )
+    )
+    await asyncio.sleep(0)
+    await asyncio.sleep(0)
+
+    with pytest.raises(RuntimeError, match="concurrent"):
+        await orchestrator.complete_with_references_async(
+            messages=[{"role": "user", "content": "hi"}],
+            model_name="test-model",
+        )
+
+    gate.set()
+    await first
+    assert orchestrator._in_flight is False
 
 
 @pytest.mark.ai
