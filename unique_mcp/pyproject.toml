@@ -26,6 +26,9 @@ dev = []
 [tool.uv.sources]
 unique-toolkit = { workspace = true }
 
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
+
 [tool.pytest.ini_options]
 addopts = "--strict-markers --import-mode=importlib"
 asyncio_mode = "auto"
