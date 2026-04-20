@@ -6,6 +6,13 @@ This module tests the configuration components for tools including:
 - ToolSelectionPolicy enum
 - handle_undefined_icon validator function
 - ToolBuildConfig model with validation and serialization
+
+Note on is_sub_agent:
+    is_sub_agent is a computed property (not a stored field) derived from
+    isinstance(configuration, SubAgentToolConfig). The tool name can be anything.
+    When passing a dict with is_sub_agent=True or isSubAgent=True, the validator
+    builds ExtendedSubAgentToolConfig and preserves the provided name. The
+    computed property is included in model_dump/model_dump_json for API compatibility.
 """
 
 import json
@@ -352,6 +359,9 @@ def test_tool_build_config__has_correct_defaults__minimal_input(
     Purpose: Verify ToolBuildConfig applies correct default values.
     Why this matters: Ensures sensible defaults for optional configuration.
     Setup summary: Create config with minimal fields and assert defaults.
+
+    Note: is_sub_agent is computed from configuration type. For SimpleToolConfig
+    it evaluates to False (True only when configuration is SubAgentToolConfig).
     """
     # Arrange & Act
     config = ToolBuildConfig(name="test_tool", configuration=simple_config)
@@ -363,7 +373,7 @@ def test_tool_build_config__has_correct_defaults__minimal_input(
     assert config.icon == ToolIcon.BOOK
     assert config.selection_policy == ToolSelectionPolicy.BY_USER
     assert config.is_exclusive is False
-    assert config.is_sub_agent is False
+    assert config.is_sub_agent is False  # Computed: config not SubAgentToolConfig
     assert config.is_enabled is True
 
 
@@ -376,6 +386,9 @@ def test_tool_build_config__stores_all_fields__with_full_input(
     Purpose: Verify ToolBuildConfig stores all provided field values.
     Why this matters: Ensures no data loss during configuration creation.
     Setup summary: Create config with all fields and assert values stored.
+
+    Note: is_sub_agent is a computed property, not a stored field. For
+    SimpleToolConfig it evaluates to False (True only when config is SubAgentToolConfig).
     """
     # Arrange & Act
     config = ToolBuildConfig(
@@ -385,7 +398,6 @@ def test_tool_build_config__stores_all_fields__with_full_input(
         icon=ToolIcon.ANALYTICS,
         selection_policy=ToolSelectionPolicy.FORCED_BY_DEFAULT,
         is_exclusive=True,
-        is_sub_agent=False,
         is_enabled=False,
     )
 
@@ -396,7 +408,7 @@ def test_tool_build_config__stores_all_fields__with_full_input(
     assert config.icon == ToolIcon.ANALYTICS
     assert config.selection_policy == ToolSelectionPolicy.FORCED_BY_DEFAULT
     assert config.is_exclusive is True
-    assert config.is_sub_agent is False
+    assert config.is_sub_agent is False  # Computed: config not SubAgentToolConfig
     assert config.is_enabled is False
 
 
@@ -573,15 +585,19 @@ def test_tool_build_config__handles_sub_agent_tool__with_is_sub_agent_flag() -> 
     Purpose: Verify validator handles sub-agent tools with is_sub_agent flag.
     Why this matters: Sub-agent tools require ExtendedSubAgentToolConfig.
     Setup summary: Create config with is_sub_agent=True and assert config type.
+
+    Flow: The validator reads is_sub_agent from the input dict and builds
+    ExtendedSubAgentToolConfig. The name is preserved. is_sub_agent is True
+    because configuration is identifiable as SubAgentToolConfig (via isinstance).
     """
     # Arrange
     config_data = {
         "name": "sub_agent_test_tool",
-        "is_sub_agent": True,
+        "is_sub_agent": True,  # Triggers validator to build ExtendedSubAgentToolConfig
         "configuration": {
-            "agent_name": "test_agent",
-            "agent_description": "Test sub-agent",
-            "system_prompt": "You are a test agent",
+            "assistant_id": "test_assistant",
+            "tool_description": "Test sub-agent",
+            "tool_description_for_system_prompt": "System prompt for sub agent",
         },
     }
 
@@ -589,9 +605,8 @@ def test_tool_build_config__handles_sub_agent_tool__with_is_sub_agent_flag() -> 
     config = ToolBuildConfig(**config_data)
 
     # Assert
-    assert config.name == "sub_agent_test_tool"
-    assert config.is_sub_agent is True
-    # Configuration should be validated as ExtendedSubAgentToolConfig
+    assert config.name == "sub_agent_test_tool"  # Name preserved; can be anything
+    assert config.is_sub_agent is True  # True: configuration is SubAgentToolConfig
     from unique_toolkit.agentic.tools.a2a import ExtendedSubAgentToolConfig
 
     assert isinstance(config.configuration, ExtendedSubAgentToolConfig)
@@ -603,15 +618,19 @@ def test_tool_build_config__handles_sub_agent_tool__with_camel_case_flag() -> No
     Purpose: Verify validator handles sub-agent tools with isSubAgent camelCase flag.
     Why this matters: Supports both naming conventions for backward compatibility.
     Setup summary: Create config with isSubAgent=True and assert config type.
+
+    Same flow as is_sub_agent: validator checks value.get("isSubAgent") and
+    builds ExtendedSubAgentToolConfig. Name is preserved. is_sub_agent is True
+    because configuration is identifiable as SubAgentToolConfig.
     """
     # Arrange
     config_data = {
         "name": "sub_agent_camel_test_tool",
-        "isSubAgent": True,
+        "isSubAgent": True,  # CamelCase variant; validator accepts both
         "configuration": {
-            "agent_name": "test_agent",
-            "agent_description": "Test sub-agent",
-            "system_prompt": "You are a test agent",
+            "assistant_id": "test_assistant",
+            "tool_description": "Test sub-agent",
+            "tool_description_for_system_prompt": "System prompt for sub agent",
         },
     }
 
@@ -619,8 +638,8 @@ def test_tool_build_config__handles_sub_agent_tool__with_camel_case_flag() -> No
     config = ToolBuildConfig(**config_data)
 
     # Assert
-    assert config.name == "sub_agent_camel_test_tool"
-    assert config.is_sub_agent is True
+    assert config.name == "sub_agent_camel_test_tool"  # Name preserved; can be anything
+    assert config.is_sub_agent is True  # True: configuration is SubAgentToolConfig
     from unique_toolkit.agentic.tools.a2a import ExtendedSubAgentToolConfig
 
     assert isinstance(config.configuration, ExtendedSubAgentToolConfig)
@@ -690,6 +709,9 @@ def test_tool_build_config__serializes_to_dict__with_model_dump(
     Purpose: Verify model_dump serializes ToolBuildConfig to dict correctly.
     Why this matters: Enables conversion to JSON-compatible format.
     Setup summary: Create config, call model_dump, assert dict structure.
+
+    Note: Pydantic includes computed fields (e.g. is_sub_agent) in model_dump
+    output, so APIs receiving the serialized config still see is_sub_agent.
     """
     # Arrange
     config = ToolBuildConfig(
@@ -699,7 +721,6 @@ def test_tool_build_config__serializes_to_dict__with_model_dump(
         icon=ToolIcon.WORLD,
         selection_policy=ToolSelectionPolicy.ON_BY_DEFAULT,
         is_exclusive=True,
-        is_sub_agent=False,
         is_enabled=True,
     )
 
@@ -713,7 +734,7 @@ def test_tool_build_config__serializes_to_dict__with_model_dump(
     assert result["icon"] == ToolIcon.WORLD
     assert result["selection_policy"] == ToolSelectionPolicy.ON_BY_DEFAULT
     assert result["is_exclusive"] is True
-    assert result["is_sub_agent"] is False
+    assert result["is_sub_agent"] is False  # Computed from configuration type
     assert result["is_enabled"] is True
     assert isinstance(result["configuration"], dict)
 
@@ -755,6 +776,9 @@ def test_tool_build_config__serializes_to_json__with_model_dump_json(
     Purpose: Verify model_dump_json serializes ToolBuildConfig to JSON string.
     Why this matters: Enables storage and transmission of configuration.
     Setup summary: Create config, call model_dump_json, assert valid JSON.
+
+    Note: is_sub_agent is a computed field but is included in JSON output for
+    API consumers; value is False when configuration is not SubAgentToolConfig.
     """
     # Arrange
     config = ToolBuildConfig(
@@ -764,7 +788,6 @@ def test_tool_build_config__serializes_to_json__with_model_dump_json(
         icon=ToolIcon.QUICK_REPLY,
         selection_policy=ToolSelectionPolicy.FORCED_BY_DEFAULT,
         is_exclusive=False,
-        is_sub_agent=False,
         is_enabled=True,
     )
 
@@ -779,7 +802,7 @@ def test_tool_build_config__serializes_to_json__with_model_dump_json(
     assert parsed["icon"] == "IconQuickReply"
     assert parsed["selection_policy"] == "ForcedByDefault"
     assert parsed["is_exclusive"] is False
-    assert parsed["is_sub_agent"] is False
+    assert parsed["is_sub_agent"] is False  # Computed from configuration type
     assert parsed["is_enabled"] is True
 
 
@@ -816,6 +839,11 @@ def test_tool_build_config__round_trip_serialization__preserves_data(
     Purpose: Verify round-trip JSON serialization preserves all data.
     Why this matters: Ensures configuration can be stored and restored without loss.
     Setup summary: Serialize to JSON, parse, create new config, assert equality.
+
+    Note: is_sub_agent round-trips correctly because it is derived from
+    configuration type. When parsing, configuration is restored; is_sub_agent
+    reflects isinstance(configuration, SubAgentToolConfig). The parsed dict may
+    include is_sub_agent from the JSON; it is ignored at init.
     """
     # Arrange
     original_config = ToolBuildConfig(
@@ -825,7 +853,6 @@ def test_tool_build_config__round_trip_serialization__preserves_data(
         icon=ToolIcon.CHAT_PLUS,
         selection_policy=ToolSelectionPolicy.ON_BY_DEFAULT,
         is_exclusive=True,
-        is_sub_agent=False,
         is_enabled=False,
     )
 
@@ -843,7 +870,9 @@ def test_tool_build_config__round_trip_serialization__preserves_data(
     assert restored_config.icon == original_config.icon
     assert restored_config.selection_policy == original_config.selection_policy
     assert restored_config.is_exclusive == original_config.is_exclusive
-    assert restored_config.is_sub_agent == original_config.is_sub_agent
+    assert (
+        restored_config.is_sub_agent == original_config.is_sub_agent
+    )  # Both computed from name
     assert restored_config.is_enabled == original_config.is_enabled
     assert restored_config.configuration.param_one == simple_config.param_one
     assert restored_config.configuration.param_two == simple_config.param_two

@@ -1,3 +1,4 @@
+import warnings
 from enum import StrEnum
 from typing import Annotated, Any, Generic
 
@@ -6,12 +7,14 @@ from pydantic import (
     BeforeValidator,
     Field,
     ValidationInfo,
+    computed_field,
     field_serializer,
     model_validator,
 )
 from typing_extensions import TypeVar
 
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
+from unique_toolkit.agentic.tools.a2a.tool import SubAgentToolConfig
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
 T = TypeVar("T", bound=BaseToolConfig, default=BaseToolConfig)
@@ -66,14 +69,22 @@ class ToolBuildConfig(BaseModel, Generic[T]):
         default=False,
         description="This tool must be chosen by the user and no other tools are used for this iteration.",
     )
-    is_sub_agent: bool = False
 
     is_enabled: bool = Field(default=True)
+
+    @computed_field
+    @property
+    def is_sub_agent(self) -> bool:
+        """True when configuration is SubAgentToolConfig (or subclass)."""
+        warnings.warn(
+            "is_sub_agent is deprecated. Use isinstance(configuration, SubAgentToolConfig) instead."
+        )
+        return isinstance(self.configuration, SubAgentToolConfig)
 
     @model_validator(mode="before")
     def initialize_config_based_on_tool_name(
         cls,
-        value: Any,
+        value: dict[str, Any],
         info: ValidationInfo,
     ) -> Any:
         """Check the given values for."""
@@ -96,13 +107,14 @@ class ToolBuildConfig(BaseModel, Generic[T]):
             # Configuration can remain as a dict
             return value
 
-        is_sub_agent_tool = (
-            value.get("is_sub_agent") or value.get("isSubAgent") or False
-        )
-
         configuration = value.get("configuration", {})
 
-        if is_sub_agent_tool:
+        if (
+            value.get("isSubAgent")
+            or value.get("is_sub_agent")
+            or value.get("assistant_id")
+            or value.get("assistantId")
+        ):  # TODO: This is an extra special case which we should avoid
             from unique_toolkit.agentic.tools.a2a import ExtendedSubAgentToolConfig
 
             config = ExtendedSubAgentToolConfig.model_validate(configuration)
