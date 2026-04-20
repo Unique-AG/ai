@@ -77,15 +77,26 @@ _LOGGER = logging.getLogger(__name__)
 def _is_language_model_messages(
     msgs: "list[LanguageModelMessageOptions] | list[ResponseInputItemParam]",
 ) -> TypeGuard[list[LanguageModelMessageOptions]]:
-    """Narrow a union of message lists to LanguageModelMessageOptions."""
-    return len(msgs) > 0 and isinstance(msgs[0], LanguageModelMessageOptions)
+    """Narrow a union of message lists to LanguageModelMessageOptions.
+
+    Every element is checked: a heterogeneous list is rejected by this
+    guard so callers fail fast instead of silently mis-narrowing to the
+    wrong branch of the cascade.
+    """
+    return len(msgs) > 0 and all(
+        isinstance(m, LanguageModelMessageOptions) for m in msgs
+    )
 
 
 def _is_response_input_items(
     msgs: "list[LanguageModelMessageOptions] | list[ResponseInputItemParam]",
 ) -> TypeGuard[list[ResponseInputItemParam]]:
-    """Narrow a union of message lists to ResponseInputItemParam (TypedDicts)."""
-    return len(msgs) > 0 and isinstance(msgs[0], dict)
+    """Narrow a union of message lists to ResponseInputItemParam (TypedDicts).
+
+    Every element is checked so a mixed list (dicts + pydantic messages)
+    does not silently match this branch.
+    """
+    return len(msgs) > 0 and all(isinstance(m, dict) for m in msgs)
 
 
 def _convert_tools(
@@ -431,21 +442,26 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
             if len(messages) == 0:
                 return []
 
-            converted_messages: list[ResponseInputItemParam] = []
             if _is_language_model_messages(messages):
-                for message in messages:
-                    converted_messages.append(message.to_openai(mode="responses"))
-                return converted_messages
+                return [message.to_openai(mode="responses") for message in messages]
 
             if _is_response_input_items(messages):
-                for message in messages:
-                    converted_messages.append(message)
-                return converted_messages
+                return list(messages)
 
-            return converted_messages
+            # Mixed / unknown shapes are not supported — heterogeneous lists
+            # would previously silently fall through to an empty list. Raise
+            # so callers see the mismatch instead of getting a mute request.
+            raise TypeError(
+                "messages must be either a string, LanguageModelMessages, "
+                "a homogeneous list of LanguageModelMessageOptions, or a "
+                "homogeneous list of ResponseInputItemParam dicts; got a "
+                "heterogeneous or unsupported shape."
+            )
 
-        # TODO(UN-15891): confirm Responses input shape for mixed message types
-        converted_messages = input_messages(messages)  # type: ignore
+        # The outer signature also allows ``ResponseOutputItem`` to keep
+        # callers compatible with raw Responses echo, but ``input_messages``
+        # handles that shape through the ``dict``/typed-dict guard path.
+        converted_messages = input_messages(messages)  # type: ignore[arg-type]
 
         converted_tools = _convert_tools(tools)
 
