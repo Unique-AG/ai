@@ -430,67 +430,73 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         self._router.reset()
         self._current_message_id = message_id
         self._current_chat_id = chat_id
-        await self._bus.stream_started.publish_and_wait_async(
-            StreamStarted(
-                message_id=message_id,
-                chat_id=chat_id,
-                content_chunks=tuple(content_chunks or ()),
-            )
-        )
-
+        # Outer try/finally guarantees per-request context is cleared even
+        # when a ``stream_started`` subscriber raises — otherwise a stale
+        # ``message_id`` / ``chat_id`` would leak into the next request via
+        # ``_on_text_flushed`` / ``_on_activity_progress_update``.
         try:
-            create_kwargs: dict = {}
-            if converted_tools:
-                create_kwargs["tools"] = converted_tools
-            if instructions is not None:
-                create_kwargs["instructions"] = instructions
-            if include is not None:
-                create_kwargs["include"] = include
-            if max_output_tokens is not None:
-                create_kwargs["max_output_tokens"] = max_output_tokens
-            if metadata is not None:
-                create_kwargs["metadata"] = metadata
-            if parallel_tool_calls is not None:
-                create_kwargs["parallel_tool_calls"] = parallel_tool_calls
-            if text is not None:
-                create_kwargs["text"] = text
-            if tool_choice is not None:
-                create_kwargs["tool_choice"] = tool_choice
-            if top_p is not None:
-                create_kwargs["top_p"] = top_p
-            if reasoning is not None:
-                create_kwargs["reasoning"] = reasoning
-            if other_options:
-                for k, v in other_options.items():
-                    create_kwargs.setdefault(k, v)
-
-            stream = await self._client.responses.create(
-                model=model,
-                input=converted_messages,
-                stream=True,
-                temperature=temperature,
-                **create_kwargs,
-            )
-            async for event in stream:
-                await self._router.on_event(event)
-        except httpx.RemoteProtocolError as exc:
-            _LOGGER.warning(
-                "Stream connection closed prematurely (incomplete chunked read). "
-                "Finalizing with content received so far. Error: %s",
-                exc,
-            )
-        finally:
-            await self._router.on_stream_end()
-            text_state = self._router.get_text()
-            await self._bus.stream_ended.publish_and_wait_async(
-                StreamEnded(
+            await self._bus.stream_started.publish_and_wait_async(
+                StreamStarted(
                     message_id=message_id,
                     chat_id=chat_id,
-                    full_text=text_state.full_text,
-                    original_text=text_state.original_text,
-                    appendices=self._router.get_appendices(),
+                    content_chunks=tuple(content_chunks or ()),
                 )
             )
+
+            try:
+                create_kwargs: dict = {}
+                if converted_tools:
+                    create_kwargs["tools"] = converted_tools
+                if instructions is not None:
+                    create_kwargs["instructions"] = instructions
+                if include is not None:
+                    create_kwargs["include"] = include
+                if max_output_tokens is not None:
+                    create_kwargs["max_output_tokens"] = max_output_tokens
+                if metadata is not None:
+                    create_kwargs["metadata"] = metadata
+                if parallel_tool_calls is not None:
+                    create_kwargs["parallel_tool_calls"] = parallel_tool_calls
+                if text is not None:
+                    create_kwargs["text"] = text
+                if tool_choice is not None:
+                    create_kwargs["tool_choice"] = tool_choice
+                if top_p is not None:
+                    create_kwargs["top_p"] = top_p
+                if reasoning is not None:
+                    create_kwargs["reasoning"] = reasoning
+                if other_options:
+                    for k, v in other_options.items():
+                        create_kwargs.setdefault(k, v)
+
+                stream = await self._client.responses.create(
+                    model=model,
+                    input=converted_messages,
+                    stream=True,
+                    temperature=temperature,
+                    **create_kwargs,
+                )
+                async for event in stream:
+                    await self._router.on_event(event)
+            except httpx.RemoteProtocolError as exc:
+                _LOGGER.warning(
+                    "Stream connection closed prematurely (incomplete chunked read). "
+                    "Finalizing with content received so far. Error: %s",
+                    exc,
+                )
+            finally:
+                await self._router.on_stream_end()
+                text_state = self._router.get_text()
+                await self._bus.stream_ended.publish_and_wait_async(
+                    StreamEnded(
+                        message_id=message_id,
+                        chat_id=chat_id,
+                        full_text=text_state.full_text,
+                        original_text=text_state.original_text,
+                        appendices=self._router.get_appendices(),
+                    )
+                )
+        finally:
             self._current_message_id = None
             self._current_chat_id = None
 

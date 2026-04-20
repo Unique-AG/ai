@@ -307,56 +307,62 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         self._router.reset()
         self._current_message_id = message_id
         self._current_chat_id = chat_id
-        await self._bus.stream_started.publish_and_wait_async(
-            StreamStarted(
-                message_id=message_id,
-                chat_id=chat_id,
-                content_chunks=tuple(content_chunks or ()),
-            )
-        )
-
+        # Outer try/finally guarantees per-request context is cleared even
+        # when a ``stream_started`` subscriber raises — otherwise a stale
+        # ``message_id`` / ``chat_id`` would leak into the next request via
+        # ``_on_text_flushed`` / ``_on_activity_progress_update``.
         try:
-            converted_messages = _convert_messages(messages)
-            converted_tools = _convert_tools(tools)
-
-            optional_create_kwargs: dict[str, Any] = {}
-            if converted_tools:
-                optional_create_kwargs["tools"] = converted_tools
-            if tool_choice is not None:
-                optional_create_kwargs["tool_choice"] = tool_choice
-            if other_options:
-                for k, v in other_options.items():
-                    optional_create_kwargs.setdefault(k, v)
-
-            stream = await self._client.chat.completions.create(
-                model=model,
-                messages=converted_messages,
-                stream=True,
-                temperature=temperature,
-                **optional_create_kwargs,
-            )
-
-            index = 0
-            async for chunk in stream:
-                await self._router.on_event(chunk, index=index)
-                index += 1
-        except httpx.RemoteProtocolError as exc:
-            _LOGGER.warning(
-                "Stream connection closed prematurely (incomplete chunked read). "
-                "Finalizing with content received so far. Error: %s",
-                exc,
-            )
-        finally:
-            await self._router.on_stream_end()
-            text_state = self._router.get_text()
-            await self._bus.stream_ended.publish_and_wait_async(
-                StreamEnded(
+            await self._bus.stream_started.publish_and_wait_async(
+                StreamStarted(
                     message_id=message_id,
                     chat_id=chat_id,
-                    full_text=text_state.full_text,
-                    original_text=text_state.original_text,
+                    content_chunks=tuple(content_chunks or ()),
                 )
             )
+
+            try:
+                converted_messages = _convert_messages(messages)
+                converted_tools = _convert_tools(tools)
+
+                optional_create_kwargs: dict[str, Any] = {}
+                if converted_tools:
+                    optional_create_kwargs["tools"] = converted_tools
+                if tool_choice is not None:
+                    optional_create_kwargs["tool_choice"] = tool_choice
+                if other_options:
+                    for k, v in other_options.items():
+                        optional_create_kwargs.setdefault(k, v)
+
+                stream = await self._client.chat.completions.create(
+                    model=model,
+                    messages=converted_messages,
+                    stream=True,
+                    temperature=temperature,
+                    **optional_create_kwargs,
+                )
+
+                index = 0
+                async for chunk in stream:
+                    await self._router.on_event(chunk, index=index)
+                    index += 1
+            except httpx.RemoteProtocolError as exc:
+                _LOGGER.warning(
+                    "Stream connection closed prematurely (incomplete chunked read). "
+                    "Finalizing with content received so far. Error: %s",
+                    exc,
+                )
+            finally:
+                await self._router.on_stream_end()
+                text_state = self._router.get_text()
+                await self._bus.stream_ended.publish_and_wait_async(
+                    StreamEnded(
+                        message_id=message_id,
+                        chat_id=chat_id,
+                        full_text=text_state.full_text,
+                        original_text=text_state.original_text,
+                    )
+                )
+        finally:
             self._current_message_id = None
             self._current_chat_id = None
 
