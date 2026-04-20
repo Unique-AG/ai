@@ -239,12 +239,21 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         Guards on the per-request context — if the orchestrator is
         between requests (e.g. a late publish from a stalled handler),
         the adapter drops the event rather than publish with stale ids.
+        A warning is logged so this otherwise-silent drop surfaces wiring
+        mistakes instead of masquerading as "no traffic".
 
         Uses ``return_exceptions=True`` so a flaky text-delta subscriber
         (e.g. analytics, tracing) cannot abort the stream loop — failures
         are logged on the bus and the remaining subscribers still run.
         """
         if self._current_message_id is None or self._current_chat_id is None:
+            _LOGGER.warning(
+                "ChatCompletionsCompleteWithReferences: dropping TextFlushed "
+                "received while no request is in flight (full_text=%r). This "
+                "usually means a handler emitted a flush after the orchestrator "
+                "cleared its per-request context.",
+                event.full_text,
+            )
             return
         await self._bus.text_delta.publish_and_wait_async(
             TextDelta(

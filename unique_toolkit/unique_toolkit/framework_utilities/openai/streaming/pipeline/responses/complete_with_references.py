@@ -289,9 +289,15 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
 
         Uses ``return_exceptions=True`` so a flaky text-delta subscriber
         cannot abort the stream loop — failures are logged on the bus and
-        the remaining subscribers still run.
+        the remaining subscribers still run. A warning is logged when the
+        adapter drops an event outside a request so wiring mistakes surface.
         """
         if self._current_message_id is None or self._current_chat_id is None:
+            _LOGGER.warning(
+                "ResponsesCompleteWithReferences: dropping TextFlushed "
+                "received while no request is in flight (full_text=%r).",
+                event.full_text,
+            )
             return
         await self._bus.text_delta.publish_and_wait_async(
             TextDelta(
@@ -312,9 +318,18 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         bus-level identifiers, which means a future progress-producing
         handler just needs to publish :class:`ActivityProgressUpdate` on
         its own bus and the same adapter picks it up. ``return_exceptions``
-        is enabled for the same reason as :meth:`_on_text_flushed`.
+        is enabled for the same reason as :meth:`_on_text_flushed`. A warning
+        is logged when the adapter drops an event outside a request so wiring
+        mistakes surface.
         """
         if self._current_message_id is None or self._current_chat_id is None:
+            _LOGGER.warning(
+                "ResponsesCompleteWithReferences: dropping "
+                "ActivityProgressUpdate (correlation_id=%r, status=%r) "
+                "received while no request is in flight.",
+                update.correlation_id,
+                update.status,
+            )
             return
         await self._bus.activity_progress.publish_and_wait_async(
             ActivityProgress(

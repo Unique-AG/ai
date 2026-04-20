@@ -236,6 +236,40 @@ async def test_AI_chat_completions__unsupported_protocol_kwargs__logged(caplog):
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_AI_chat_completions__text_flush_between_requests__is_logged(caplog):
+    """
+    Purpose: A ``TextFlushed`` arriving outside a request window is dropped
+      *and* a warning is logged.
+    Why this matters: The previous silent drop made wiring mistakes invisible
+      (e.g. a handler emitting a flush after the orchestrator cleared its
+      context). A loud log surfaces those regressions in production.
+    Setup summary: Instantiate the orchestrator, directly drive the adapter
+      with the per-request context unset, and assert a warning is recorded.
+    """
+    import logging
+
+    from unique_toolkit.protocols.streaming import TextFlushed
+
+    fake_client = MagicMock()
+    fake_client.chat.completions.create = AsyncMock(return_value=_FakeStream([]))
+    orchestrator = _build_orchestrator(client=fake_client)
+
+    with caplog.at_level(
+        logging.WARNING,
+        logger=(
+            "unique_toolkit.framework_utilities.openai.streaming.pipeline."
+            "chat_completions.complete_with_references"
+        ),
+    ):
+        await orchestrator._on_text_flushed(
+            TextFlushed(full_text="late", original_text="late")
+        )
+
+    assert any("dropping TextFlushed" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_AI_chat_completions__happy_path__clears_context_after_completion():
     """
     Purpose: Confirm the normal completion path also clears per-request context.
