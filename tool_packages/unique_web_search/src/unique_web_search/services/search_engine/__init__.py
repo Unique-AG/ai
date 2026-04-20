@@ -93,7 +93,7 @@ def get_search_engine_service(
         case SearchEngineType.BRAVE:
             return BraveSearch(search_engine_config)
         case SearchEngineType.VERTEXAI:
-            return VertexAI(search_engine_config)
+            return VertexAI(search_engine_config, language_model_service)
         case SearchEngineType.CUSTOM_API:
             return CustomAPI(search_engine_config)
 

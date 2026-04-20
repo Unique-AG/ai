@@ -145,7 +145,7 @@ class InternalSearchConfig(BaseToolConfig):
     )
     limit: int = Field(
         default_factory=_search_limit_factory,
-        description="The limit of chunks to return.",
+        description="The maximum limit of chunks returned by the search.",
     )
     chat_only: bool = Field(
         default=False,

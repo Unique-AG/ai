@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.76.0] - 2026-04-16
+- Enable `basedpyright` type-checking at `recommended` mode with zero-error CI enforcement
+- Fix type annotations across toolkit (type arguments, null guards, SDK parameter types)
+- Widen `chat_id` from `str` to `str | None` in content search functions to match actual SDK usage
+
+## [1.75.1] - 2027-04-17
+- Fix responses api returning multiple json objects
+
+## [1.75.0] - 2026-04-16
+- Add `ContentChunk.to_reference()` method to convert a chunk into a `ContentReference` with page-number info, matching the backend streaming-path format for use with `modify_assistant_message`
+- Harden `_generate_pages_postfix` to accept `None` page values (`start_page`/`end_page` are optional on `ContentChunk`), preventing `TypeError` on real API chunks
+- Fix page-postfix dedup check to handle non-contiguous page sets after `merge_content_chunks`
+
+## [1.74.2] - 2026-04-16
+- Adding model `litellm:anthropic-claude-opus-4-7` to `language_model/info.py`
+
+## [1.74.1] - 2026-04-16
+- Use non-strict structured output for planning in responses api
+
+## [1.74.0] - 2026-04-16
+- Add configuration flag to disable display of executed code
 
 ## [1.73.1] - 2026-04-16
 - Enable `basedpyright` type-checking at `recommended` mode with zero-error CI enforcement

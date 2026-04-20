@@ -17,15 +17,17 @@ from unique_web_search.services.search_engine.base import (
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
-from unique_web_search.services.search_engine.utils.bing import (
+from unique_web_search.services.search_engine.utils.grounding import (
     JsonConversionStrategy,
     LLMParserStrategy,
+)
+from unique_web_search.services.search_engine.utils.grounding.bing import (
     create_and_process_run,
     credentials_are_valid,
     get_credentials,
     get_project_client,
 )
-from unique_web_search.services.search_engine.utils.bing.models import (
+from unique_web_search.services.search_engine.utils.grounding.bing.models import (
     GENERATION_INSTRUCTIONS,
 )
 from unique_web_search.settings import env_settings

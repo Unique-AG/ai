@@ -7,6 +7,7 @@ from openai.types.responses import (
     Response,
     ResponseFormatTextJSONSchemaConfigParam,
     ResponseInputItemParam,
+    ResponseOutputMessage,
     ResponseTextConfigParam,
 )
 from pydantic import BaseModel, Field
@@ -37,6 +38,26 @@ from unique_toolkit.language_model.schemas import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _get_first_output_text(response: Response) -> str | None:
+    """
+    The Responses API can return multiple output items when doing structured output
+    (https://community.openai.com/t/multiple-outputs-from-responses-api/1291026),
+    We should tell the model not to do this in the schema, as well as extract only the first one
+    """
+    if len(response.output) > 1:
+        _LOGGER.warning(
+            "Model returned %i outputs, keeping only the first one",
+            len(response.output),
+        )
+
+    for item in response.output:
+        if isinstance(item, ResponseOutputMessage):
+            for content in item.content:
+                if content.type == "output_text" and content.text:
+                    return content.text
+    return None
 
 
 class PlanningConfig(BaseModel):
@@ -128,7 +149,7 @@ class ResponsesPlanningMiddleware(ResponsesLoopIterationRunner):
         self,
         openai_messages: str | list[ResponseInputItemParam],
         model_name: str,
-    ) -> Response | None:
+    ) -> str | None:
         planning_schema = get_planning_schema(self._config.planning_schema_config)
 
         response = await self._openai_client.responses.create(
@@ -141,35 +162,37 @@ class ResponsesPlanningMiddleware(ResponsesLoopIterationRunner):
                             "type": "json_schema",
                             "name": planning_schema.get("title", "Plan"),
                             "schema": planning_schema,
+                            "strict": False,
                         }
                     )
                 }
             ),
         )
 
-        if not response.output_text:
+        output_text = _get_first_output_text(response)
+        if not output_text:
             _LOGGER.info("Empty planning response")
             return None
 
-        return response
+        return output_text
 
     async def __call__(
         self, **kwargs: Unpack[_ResponsesLoopIterationRunnerKwargs]
     ) -> ResponsesLanguageModelStreamResponse:
         openai_messages = convert_messages_to_openai(kwargs["messages"])
 
-        response = await self._run_plan_step(
+        output_text = await self._run_plan_step(
             openai_messages=openai_messages,
             model_name=kwargs["model"].name,
         )
 
-        if response is None:
+        if output_text is None:
             _LOGGER.info(
                 "Error executing planning step, proceeding without planning step"
             )
             return await self._loop_runner(**kwargs)
 
-        assistant_message = LanguageModelAssistantMessage(content=response.output_text)
+        assistant_message = LanguageModelAssistantMessage(content=output_text)
 
         if self._history_manager is not None:
             self._history_manager.add_assistant_message(assistant_message)

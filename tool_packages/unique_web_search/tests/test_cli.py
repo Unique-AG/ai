@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -69,7 +70,7 @@ class TestFormatSearchResults:
         r = WebSearchResult(url="https://example.com", title="Title", snippet="")
         text = format_search_results([r])
         assert "Title" in text
-        assert "https://example.com" in text
+        assert re.search(r"https://example\.com\b", text)
 
 
 class TestFormatSearchResultsJson:
@@ -98,7 +99,7 @@ class TestFormatCrawlResults:
         results = [("https://example.com", "Some markdown content here", None)]
         text = format_crawl_results(results)
         assert "Crawled 1 URL(s):" in text
-        assert "https://example.com" in text
+        assert re.search(r"https://example\.com\b", text)
         assert "[26 chars]" in text
 
     def test_error(self) -> None:
@@ -278,7 +279,7 @@ class TestCmdCrawl:
 
         output = cmd_crawl(MagicMock(), ["https://example.com"], parallel=10)
         assert "Crawled 1 URL(s):" in output
-        assert "https://example.com" in output
+        assert re.search(r"https://example\.com\b", output)
 
     @patch("unique_web_search.cli.commands.crawl.get_crawler_service")
     def test_crawl_json(self, mock_get: MagicMock) -> None:
@@ -405,8 +406,8 @@ class TestClickCrawl:
         )
         assert result.exit_code == 0
         _, kwargs = mock_cmd.call_args
-        assert "https://a.com" in kwargs["urls"]
-        assert "https://b.com" in kwargs["urls"]
+        assert any(u == "https://a.com" for u in kwargs["urls"])
+        assert any(u == "https://b.com" for u in kwargs["urls"])
 
     @patch("unique_web_search.cli.cli.load_crawler_config")
     @patch("unique_web_search.cli.cli.cmd_crawl")

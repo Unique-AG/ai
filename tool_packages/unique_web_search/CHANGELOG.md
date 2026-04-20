@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0] - 2026-04-16
+### Changed
+- **Grounding search layout:** Bing and VertexAI helpers now live under `utils/grounding/`. Shared Pydantic models (`GroundingSearchResults`, `ResultItem`, prompts) sit in `grounding/models.py`; shared parsing (`ResponseParser`, `JsonConversionStrategy`, `LLMParserStrategy`, `convert_response_to_search_results`) lives in `grounding/response_parsing.py`. Bing-specific code is in `grounding/bing/`; Vertex client, Gemini call, config, and citation handling are in `grounding/vertexai/`. Legacy `utils/bing/` and duplicate `utils/vertexai/` were removed; import from `utils.grounding.vertexai` instead.
+- **VertexAI search flow:** A single grounded `generate_content` call produces the raw response; citations are applied with `add_citations`, then the same strategy pipeline as Bing (`JsonConversionStrategy` then `LLMParserStrategy`) turns the text into `WebSearchResult` list. Structured-output recovery no longer uses a second Gemini call; the toolkit language model handles fallback parsing, which avoids an extra Vertex round-trip and should be faster. `VertexAI` now receives `language_model_service` from the search engine factory (same pattern as Bing).
+- **VertexAI config:** Model id field is `vertexai_model_name` (default `gemini-3-flash-preview`); fallback parser LLM is `fallback_language_model`. Removed the separate grounding-system-instruction field in favor of `generation_instructions` plus the shared `RESPONSE_RULE` schema block.
+
+## [1.16.5] - 2026-04-16
+- Fix CodeQL `py/incomplete-url-substring-sanitization` warnings in test assertions
+
 ## [1.16.4] - 2026-04-15
 - Chore: standardize pytest configuration across workspace packages
 
