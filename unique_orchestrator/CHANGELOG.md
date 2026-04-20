@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.22.1] - 2026-04-20
+- Pass `selected_content_ids` to `OpenFileToolRuntimeConfig` so only user-selected uploaded PDFs are included
+- Fix `filter_uploaded_documents_by_selection` call to handle missing `additional_parameters` gracefully
+
 ## [1.22.0] - 2026-04-16
 - Add planning middleware support for Responses API
 
