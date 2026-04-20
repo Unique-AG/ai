@@ -77,7 +77,18 @@ class ResponsesCodeInterpreterHandler:
         return self._activity_bus
 
     async def on_code_interpreter_event(self, event: CodeInterpreterCallEvent) -> None:
-        """Map one OpenAI CI event to an optional progress update publish."""
+        """Map one OpenAI CI event to an optional progress update publish.
+
+        Code accumulation intentionally uses the *done-only* strategy: the
+        terminating :class:`ResponseCodeInterpreterCallCodeDoneEvent` carries
+        the fully-assembled ``code`` string, and we snapshot it there rather
+        than accumulating deltas. The previous dual strategy
+        (``_code += delta`` alongside ``_code = event.code``) silently
+        relied on the undocumented provider ordering "done comes after all
+        deltas with the full code" — when those assumptions drifted it was
+        easy to end up with duplicated or truncated appendices. Deltas now
+        only drive the progress-update publish.
+        """
         status: ActivityStatus
         if isinstance(event, ResponseCodeInterpreterCallCodeDoneEvent):
             self._code = event.code
@@ -87,7 +98,6 @@ class ResponsesCodeInterpreterHandler:
             text_update = "Code interpreter call completed"
             status = "COMPLETED"
         elif isinstance(event, ResponseCodeInterpreterCallCodeDeltaEvent):
-            self._code += event.delta
             text_update = "Code interpreter call in progress"
             status = "RUNNING"
         elif isinstance(event, ResponseCodeInterpreterCallInProgressEvent):
