@@ -8,6 +8,7 @@ from unique_toolkit._common.token.token_counting import (
     num_token_for_language_model_messages,
 )
 from unique_toolkit._common.validators import LMI
+from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
     FileContentSerialization,
     get_full_history_with_contents_and_tool_calls_async,
@@ -76,6 +77,7 @@ class LoopTokenReducer:
         self._max_db_source_number: int = -1
         self._db_source_map: dict[int, ContentChunk] = {}
         self._enable_tool_call_persistence = enable_tool_call_persistence
+        self._selected_content_ids = self._compute_selected_content_ids(event)
 
     @property
     def max_db_source_number(self) -> int:
@@ -84,6 +86,25 @@ class LoopTokenReducer:
     @property
     def db_source_map(self) -> dict[int, ContentChunk]:
         return self._db_source_map
+
+    @staticmethod
+    def _compute_selected_content_ids(event: ChatEvent) -> set[str] | None:
+        """Derive the set of content IDs the user explicitly selected.
+
+        Returns ``None`` when the feature flag is disabled (meaning *all*
+        uploaded images should be included), or a ``set[str]`` of IDs when
+        only a subset should be attached.
+        """
+        if not feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
+            event.company_id
+        ):
+            return None
+
+        additional = getattr(event.payload, "additional_parameters", None)
+        if additional is None:
+            return None
+
+        return set(additional.selected_uploaded_file_ids)
 
     def _get_encoder(self, language_model: LMI) -> Callable[[str], list[int]]:
         return language_model.get_encoder()
@@ -322,6 +343,7 @@ class LoopTokenReducer:
                 chat_service=self._chat_service,
                 content_service=self._content_service,
                 file_content_serialization_type=file_content_serialization_type,
+                selected_content_ids=self._selected_content_ids,
             )
             self._max_db_source_number = max_src
             self._db_source_map = src_map
@@ -332,6 +354,7 @@ class LoopTokenReducer:
                 chat_service=self._chat_service,
                 content_service=self._content_service,
                 file_content_serialization_type=file_content_serialization_type,
+                selected_content_ids=self._selected_content_ids,
             )
 
         if remove_from_text is not None:
