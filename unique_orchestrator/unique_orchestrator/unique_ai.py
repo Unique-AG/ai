@@ -13,6 +13,9 @@ from unique_toolkit.agentic.evaluation.evaluation_manager import EvaluationManag
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
+from unique_toolkit.agentic.history_manager.utils import (
+    get_selected_uploaded_content_ids,
+)
 from unique_toolkit.agentic.loop_runner import (
     LoopIterationRunner,
     ResponsesLoopIterationRunner,
@@ -153,6 +156,7 @@ class UniqueAI:
                 agent_file_registry if agent_file_registry is not None else []
             )
             file_cfg = self._config.agent.experimental.open_file_tool_config
+            selected_ids = get_selected_uploaded_content_ids(event)
             self._open_file_runtime = OpenFileToolRuntime(
                 logger=logger,
                 config=OpenFileToolRuntimeConfig(
@@ -162,6 +166,9 @@ class UniqueAI:
                     use_responses_api=(
                         self._config.agent.experimental.responses_api_config.use_responses_api
                         or self._config.agent.experimental.use_responses_api
+                    ),
+                    selected_content_ids=(
+                        frozenset(selected_ids) if selected_ids is not None else None
                     ),
                 ),
                 content_service=content_service,
@@ -481,9 +488,17 @@ class UniqueAI:
             sub_agent_referencing_instructions = None
 
         uploaded_documents = self._content_service.get_documents_uploaded_to_chat()
+        additional_parameters = (
+            self._event.payload.additional_parameters
+            if (
+                hasattr(self._event.payload, "additional_parameters")
+                and self._event.payload.additional_parameters
+            )
+            else None
+        )
         uploaded_documents = filter_uploaded_documents_by_selection(
             documents=uploaded_documents,
-            additional_parameters=self._event.payload.additional_parameters,
+            additional_parameters=additional_parameters,
             company_id=self._event.company_id,
         )
         uploaded_documents_expired = [
