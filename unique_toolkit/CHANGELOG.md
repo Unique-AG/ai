@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.77.1] - 2026-04-20
+- Add `selected_content_ids` filtering to history construction and `OpenFileToolRuntime` so only user-selected uploaded images and files are attached when the `enable_selected_uploaded_files_un_18215` feature flag is active
+- Add `get_selected_uploaded_content_ids` utility in `history_manager/utils.py`
+- Thread `selected_content_ids` through `LoopTokenReducer`, `get_full_history_with_contents*`, and `_append_element_to_builder_async`
+- Store `company_id` as instance attribute on `ShowExecutedCodePostprocessor`
+
 ## [1.77.0] - 2026-04-20
 - Add experimental `TodoWriteTool` for agent-side task tracking with persistent short-term memory, configurable Jinja prompts (RJSF-tagged for admin UI), sequential-first execution mode with optional parallel, `active_form` for live status display, verification nudge, and Steps panel logging with status icons
 
