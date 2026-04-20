@@ -357,14 +357,21 @@ class InternalSearchService:
             return self.config.max_tokens_for_sources
 
     def _cap_limit_to_token_budget(self) -> int:
-        capped_limit = int(
-            self._get_max_tokens()
-            // AVERAGE_TOKENS_PER_CHUNK
-            * TOKEN_BUDGET_SAFETY_FACTOR
+        token_based_limit = max(
+            1,
+            int(
+                self._get_max_tokens()
+                // AVERAGE_TOKENS_PER_CHUNK
+                * TOKEN_BUDGET_SAFETY_FACTOR
+            ),
         )
-        self.logger.info(
-            f"Search limit capped from {self.config.limit} to {capped_limit}"
-        )
+        capped_limit = min(self.config.limit, token_based_limit)
+        if capped_limit < self.config.limit:
+            self.logger.info(
+                f"Search limit capped from {self.config.limit} to {capped_limit} (token budget)"
+            )
+        else:
+            self.logger.info(f"Search limit: {capped_limit} (within token budget)")
         return capped_limit
 
     async def _create_or_update_active_message_log(
