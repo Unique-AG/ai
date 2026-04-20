@@ -96,7 +96,7 @@ def num_tokens_per_messages(
                     num_tokens += handle_message_with_images(value, encode)
                 else:
                     num_tokens += len(encode(value))
-            else:
+            elif isinstance(value, str):  # pyright: ignore[reportUnnecessaryIsInstance]
                 num_tokens += len(encode(value))
 
             if key == "name":

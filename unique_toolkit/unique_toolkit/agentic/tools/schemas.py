@@ -92,10 +92,10 @@ class Source(BaseModel):
     @field_validator("metadata", mode="before")
     def _metadata_str_to_dict(
         cls, v: str | dict[str, str] | None
-    ) -> dict[str, str] | None:
+    ) -> dict[str, str] | str | None:
         """
         Accept   • dict   → keep as-is
-                 • str    → parse tag-string back to dict
+                 • str    → parse tag-string back to dict; on no match keep raw string
         """
         if v is None or isinstance(v, dict):
             return v
@@ -110,7 +110,7 @@ class Source(BaseModel):
             if m:
                 out[key] = m.group(1).strip()
 
-        return out if out else None
+        return out if out else v
 
     # Compression + Base64 for url to hide it from the LLM
     @field_serializer("url")
