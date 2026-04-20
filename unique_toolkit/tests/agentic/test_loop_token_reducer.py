@@ -1350,59 +1350,69 @@ async def test_get_history_from_db__calls_with_tool_calls__when_persistence_enab
 
 
 # ---------------------------------------------------------------------------
-# _compute_selected_content_ids
+# compute_selected_uploaded_content_ids (shared utility)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.ai
-def test_compute_selected_content_ids_ff_disabled(test_event):
+def test_compute_selected_uploaded_content_ids_ff_disabled(test_event):
     """When the feature flag is disabled, should return None."""
-    with patch(
-        "unique_toolkit.agentic.history_manager.loop_token_reducer.feature_flags"
-    ) as ff:
+    from unique_toolkit.agentic.history_manager.utils import (
+        compute_selected_uploaded_content_ids,
+    )
+
+    with patch("unique_toolkit.agentic.history_manager.utils.feature_flags") as ff:
         ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = False
-        result = LoopTokenReducer._compute_selected_content_ids(test_event)
+        result = compute_selected_uploaded_content_ids(test_event)
     assert result is None
 
 
 @pytest.mark.ai
-def test_compute_selected_content_ids_ff_enabled_with_selection(test_event):
+def test_compute_selected_uploaded_content_ids_ff_enabled_with_selection(test_event):
     """When FF is enabled and files are selected, should return the selected IDs."""
+    from unique_toolkit.agentic.history_manager.utils import (
+        compute_selected_uploaded_content_ids,
+    )
+
     additional = MagicMock()
     additional.selected_uploaded_file_ids = ["file_1", "file_2"]
     test_event.payload.additional_parameters = additional
 
-    with patch(
-        "unique_toolkit.agentic.history_manager.loop_token_reducer.feature_flags"
-    ) as ff:
+    with patch("unique_toolkit.agentic.history_manager.utils.feature_flags") as ff:
         ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
-        result = LoopTokenReducer._compute_selected_content_ids(test_event)
+        result = compute_selected_uploaded_content_ids(test_event)
     assert result == {"file_1", "file_2"}
 
 
 @pytest.mark.ai
-def test_compute_selected_content_ids_ff_enabled_no_additional_params(test_event):
+def test_compute_selected_uploaded_content_ids_ff_enabled_no_additional_params(
+    test_event,
+):
     """When FF is enabled but additional_parameters is None, should return None."""
+    from unique_toolkit.agentic.history_manager.utils import (
+        compute_selected_uploaded_content_ids,
+    )
+
     test_event.payload.additional_parameters = None
 
-    with patch(
-        "unique_toolkit.agentic.history_manager.loop_token_reducer.feature_flags"
-    ) as ff:
+    with patch("unique_toolkit.agentic.history_manager.utils.feature_flags") as ff:
         ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
-        result = LoopTokenReducer._compute_selected_content_ids(test_event)
+        result = compute_selected_uploaded_content_ids(test_event)
     assert result is None
 
 
 @pytest.mark.ai
-def test_compute_selected_content_ids_ff_enabled_empty_selection(test_event):
+def test_compute_selected_uploaded_content_ids_ff_enabled_empty_selection(test_event):
     """When FF is enabled but no files selected, should return empty set."""
+    from unique_toolkit.agentic.history_manager.utils import (
+        compute_selected_uploaded_content_ids,
+    )
+
     additional = MagicMock()
     additional.selected_uploaded_file_ids = []
     test_event.payload.additional_parameters = additional
 
-    with patch(
-        "unique_toolkit.agentic.history_manager.loop_token_reducer.feature_flags"
-    ) as ff:
+    with patch("unique_toolkit.agentic.history_manager.utils.feature_flags") as ff:
         ff.enable_selected_uploaded_files_un_18215.is_enabled.return_value = True
-        result = LoopTokenReducer._compute_selected_content_ids(test_event)
+        result = compute_selected_uploaded_content_ids(test_event)
     assert result == set()
