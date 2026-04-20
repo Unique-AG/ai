@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
-from unique_toolkit.agentic.tools.experimental.skill_tool.config import SkillToolConfig
-from unique_toolkit.agentic.tools.experimental.skill_tool.prompt import (
+from unique_skill_tool.config import SkillToolConfig
+from unique_skill_tool.prompt import (
     format_skill_listing,
 )
-from unique_toolkit.agentic.tools.experimental.skill_tool.schemas import (
+from unique_skill_tool.schemas import (
     SkillDefinition,
 )
+from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool

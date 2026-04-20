@@ -36,7 +36,7 @@ from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServic
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
-from unique_toolkit.agentic.tools.experimental.skill_tool.config import (
+from unique_skill_tool.config import (
     SkillToolConfig,
 )
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName

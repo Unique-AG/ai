@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from unique_toolkit.agentic.tools.experimental.skill_tool.config import (
+from unique_skill_tool.config import (
     CHARS_PER_TOKEN,
     DEFAULT_CHAR_BUDGET,
     SkillToolConfig,
 )
-from unique_toolkit.agentic.tools.experimental.skill_tool.schemas import (
+from unique_skill_tool.schemas import (
     SkillDefinition,
 )
 

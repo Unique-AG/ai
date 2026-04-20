@@ -3,32 +3,33 @@
 Covers:
 - SkillTool.run() with valid, unknown, and empty skill names
 - Skill name normalization
-- Tool description enum generation from skill registry
+- Tool description enum generation from registry
 - Budget-aware skill listing (format_skill_listing)
 """
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
-from unique_toolkit.chat.schemas import MessageLogStatus
-from unique_toolkit.language_model.schemas import LanguageModelFunction
+import pytest
 
 from unique_skill_tool.config import (
     SkillToolConfig,
 )
+from unique_skill_tool.prompt import (
+    MIN_DESC_LENGTH,
+    format_skill_listing,
+    get_char_budget,
+)
 from unique_skill_tool.schemas import (
     SkillDefinition,
 )
-from unique_skill_tool.service import (
+from unique_skill_tool.tool import (
     SkillTool,
-)
-from unique_skill_tool.utils import (
-    extract_prefix_skills,
-    format_skill_listing,
-    get_char_budget,
     normalize_skill_name,
 )
+from unique_toolkit.language_model.schemas import LanguageModelFunction
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -38,37 +39,39 @@ from unique_skill_tool.utils import (
 def _make_skill(
     name: str = "test-skill",
     description: str = "A test skill",
+    when_to_use: str = "",
     content: str = "Do the test thing.",
 ) -> SkillDefinition:
     return SkillDefinition(
         name=name,
         description=description,
+        when_to_use=when_to_use,
         content=content,
     )
 
 
-def _make_skill_registry(*skills: SkillDefinition) -> dict[str, SkillDefinition]:
+def _make_registry(*skills: SkillDefinition) -> dict[str, SkillDefinition]:
     return {s.name: s for s in skills}
 
 
 def _make_tool(
-    skill_registry: dict[str, SkillDefinition] | None = None,
+    registry: dict[str, SkillDefinition] | None = None,
     config: SkillToolConfig | None = None,
 ) -> SkillTool:
-    if skill_registry is None:
-        skill_registry = _make_skill_registry(_make_skill())
+    if registry is None:
+        registry = _make_registry(_make_skill())
     if config is None:
         config = SkillToolConfig(enabled=True)
 
     event = MagicMock()
-    return SkillTool(event=event, skill_registry=skill_registry, config=config)
+    return SkillTool(event=event, registry=registry, config=config)
 
 
 def _make_tool_call(
     skill_name: str = "test-skill",
     arguments: str = "",
 ) -> LanguageModelFunction:
-    args: dict[str, str] = {"skill_name": skill_name}
+    args: dict = {"skill_name": skill_name}
     if arguments:
         args["arguments"] = arguments
     return LanguageModelFunction(name="Skill", arguments=args)
@@ -99,9 +102,10 @@ class TestNormalizeSkillName:
 
 
 class TestSkillToolRun:
+    @pytest.mark.asyncio
     async def test_valid_skill_returns_content(self) -> None:
         skill = _make_skill(content="Step 1: Do the thing.\nStep 2: Done.")
-        tool = _make_tool(skill_registry=_make_skill_registry(skill))
+        tool = _make_tool(registry=_make_registry(skill))
 
         result = await tool.run(_make_tool_call("test-skill"))
 
@@ -110,6 +114,7 @@ class TestSkillToolRun:
 
         assert "skill_loaded" in result.content
 
+    @pytest.mark.asyncio
     async def test_valid_skill_with_arguments(self) -> None:
         tool = _make_tool()
         result = await tool.run(_make_tool_call("test-skill", arguments="focus on X"))
@@ -117,6 +122,7 @@ class TestSkillToolRun:
         assert result.successful
         assert "focus on X" in result.content
 
+    @pytest.mark.asyncio
     async def test_unknown_skill_returns_error(self) -> None:
         tool = _make_tool()
         result = await tool.run(_make_tool_call("nonexistent"))
@@ -125,6 +131,7 @@ class TestSkillToolRun:
         assert "Unknown skill" in result.error_message
         assert "nonexistent" in result.error_message
 
+    @pytest.mark.asyncio
     async def test_empty_skill_name_returns_error(self) -> None:
         tool = _make_tool()
         result = await tool.run(_make_tool_call(""))
@@ -132,6 +139,7 @@ class TestSkillToolRun:
         assert not result.successful
         assert "non-empty" in result.error_message
 
+    @pytest.mark.asyncio
     async def test_whitespace_only_skill_name_returns_error(self) -> None:
         tool = _make_tool()
         result = await tool.run(_make_tool_call("   "))
@@ -139,70 +147,22 @@ class TestSkillToolRun:
         assert not result.successful
         assert "non-empty" in result.error_message
 
+    @pytest.mark.asyncio
     async def test_leading_slash_is_normalized(self) -> None:
         tool = _make_tool()
         result = await tool.run(_make_tool_call("/test-skill"))
 
         assert result.successful
 
+    @pytest.mark.asyncio
     async def test_error_lists_available_skills(self) -> None:
         skills = [_make_skill("alpha"), _make_skill("beta")]
-        tool = _make_tool(skill_registry=_make_skill_registry(*skills))
+        tool = _make_tool(registry=_make_registry(*skills))
 
         result = await tool.run(_make_tool_call("gamma"))
 
         assert "alpha" in result.error_message
         assert "beta" in result.error_message
-
-
-class TestSkillToolMessageLog:
-    """When a skill is loaded, a COMPLETED message log step is emitted.
-
-    Mirrors the Internal Search tool pattern: the user sees a step in
-    the assistant message log indicating which skill was activated.
-    """
-
-    async def test_valid_skill_writes_completed_message_log(self) -> None:
-        skill = _make_skill("my-skill", description="Does stuff")
-        tool = _make_tool(skill_registry=_make_skill_registry(skill))
-        mock_logger = MagicMock()
-        mock_logger.create_or_update_message_log_async = AsyncMock(
-            return_value=MagicMock()
-        )
-        tool._message_step_logger = mock_logger
-
-        result = await tool.run(_make_tool_call("my-skill"))
-
-        assert result.successful
-        mock_logger.create_or_update_message_log_async.assert_awaited_once()
-        kwargs = mock_logger.create_or_update_message_log_async.call_args.kwargs
-        assert "my-skill" in kwargs["header"]
-        assert kwargs["status"] == MessageLogStatus.COMPLETED
-
-    async def test_unknown_skill_does_not_write_message_log(self) -> None:
-        tool = _make_tool()
-        mock_logger = MagicMock()
-        mock_logger.create_or_update_message_log_async = AsyncMock()
-        tool._message_step_logger = mock_logger
-
-        result = await tool.run(_make_tool_call("nonexistent"))
-
-        assert not result.successful
-        mock_logger.create_or_update_message_log_async.assert_not_called()
-
-    async def test_message_log_failure_does_not_break_skill_loading(self) -> None:
-        skill = _make_skill("my-skill")
-        tool = _make_tool(skill_registry=_make_skill_registry(skill))
-        mock_logger = MagicMock()
-        mock_logger.create_or_update_message_log_async = AsyncMock(
-            side_effect=RuntimeError("backend down")
-        )
-        tool._message_step_logger = mock_logger
-
-        result = await tool.run(_make_tool_call("my-skill"))
-
-        assert result.successful
-        assert "skill_loaded" in result.content
 
 
 # ---------------------------------------------------------------------------
@@ -213,7 +173,7 @@ class TestSkillToolMessageLog:
 class TestSkillToolDescription:
     def test_enum_contains_skill_names(self) -> None:
         skills = [_make_skill("analyze"), _make_skill("summarize")]
-        tool = _make_tool(skill_registry=_make_skill_registry(*skills))
+        tool = _make_tool(registry=_make_registry(*skills))
 
         desc = tool.tool_description()
         params = desc.parameters
@@ -223,7 +183,7 @@ class TestSkillToolDescription:
         assert set(enum_values) == {"analyze", "summarize"}
 
     def test_empty_registry_has_no_enum(self) -> None:
-        tool = _make_tool(skill_registry={})
+        tool = _make_tool(registry={})
 
         desc = tool.tool_description()
         params = desc.parameters
@@ -238,119 +198,21 @@ class TestSkillToolDescription:
 
 
 class TestSkillToolSystemPrompt:
-    """The system prompt must NOT contain the skill listing.
-
-    Mirrors Claude Code: the listing lives in per-turn
-    ``<system-reminder>`` blocks (see :class:`TestSkillToolUserPrompt`),
-    not in the static system prompt, so it cannot go stale.
-    """
-
-    def test_does_not_include_skill_listing(self) -> None:
-        skills = [_make_skill("my-skill", description="Does stuff")]
-        tool = _make_tool(skill_registry=_make_skill_registry(*skills))
-
-        prompt = tool.tool_description_for_system_prompt()
-
-        assert "my-skill" not in prompt
-        assert "Does stuff" not in prompt
-        assert "Available skills:" not in prompt
-
-    def test_points_to_system_reminder(self) -> None:
-        tool = _make_tool()
-        prompt = tool.tool_description_for_system_prompt()
-
-        assert "system-reminder" in prompt.lower()
-
-    def test_empty_registry_still_static_only(self) -> None:
-        tool = _make_tool(skill_registry={})
-        prompt = tool.tool_description_for_system_prompt()
-
-        assert "Available skills:" not in prompt
-        assert "Execute a skill" in prompt
-
-
-# ---------------------------------------------------------------------------
-# SkillTool.tool_description_for_user_prompt()
-# ---------------------------------------------------------------------------
-
-
-class TestSkillToolUserPrompt:
-    """Literal extra text appended per-turn to the user message.
-
-    The skill listing lives in :meth:`SkillTool.tool_system_reminder_for_user_prompt`
-    (see :class:`TestSkillToolSystemReminder`), NOT here. This method
-    only returns ``config.tool_description_for_user_prompt`` verbatim,
-    mirroring every other tool.
-    """
-
-    def test_returns_config_value_verbatim(self) -> None:
-        config = SkillToolConfig(
-            enabled=True,
-            tool_description_for_user_prompt="extra prompt text",
-        )
-        tool = _make_tool(config=config)
-
-        assert tool.tool_description_for_user_prompt() == "extra prompt text"
-
-    def test_does_not_include_skill_listing(self) -> None:
-        skills = [_make_skill("my-skill", description="Does stuff")]
-        tool = _make_tool(skill_registry=_make_skill_registry(*skills))
-
-        user_prompt = tool.tool_description_for_user_prompt()
-
-        assert "my-skill" not in user_prompt
-        assert "<system-reminder>" not in user_prompt
-
-    def test_default_config_returns_empty(self) -> None:
-        tool = _make_tool()
-
-        assert tool.tool_description_for_user_prompt() == ""
-
-
-# ---------------------------------------------------------------------------
-# SkillTool.tool_system_reminder_for_user_prompt()
-# ---------------------------------------------------------------------------
-
-
-class TestSkillToolSystemReminder:
-    """Per-turn ``<system-reminder>`` listing injected into the user message."""
-
-    def test_includes_system_reminder_block(self) -> None:
-        skills = [_make_skill("my-skill", description="Does stuff")]
-        tool = _make_tool(skill_registry=_make_skill_registry(*skills))
-
-        reminder = tool.tool_system_reminder_for_user_prompt()
-
-        assert "<system-reminder>" in reminder
-        assert "</system-reminder>" in reminder
-
-    def test_includes_claude_code_preamble(self) -> None:
-        tool = _make_tool()
-        reminder = tool.tool_system_reminder_for_user_prompt()
-
-        assert (
-            "The following skills are available. "
-            "Use the Skill tool to invoke them." in reminder
-        )
-
     def test_includes_skill_listing(self) -> None:
         skills = [_make_skill("my-skill", description="Does stuff")]
-        tool = _make_tool(skill_registry=_make_skill_registry(*skills))
+        tool = _make_tool(registry=_make_registry(*skills))
 
-        reminder = tool.tool_system_reminder_for_user_prompt()
+        prompt = tool.tool_description_for_system_prompt()
 
-        assert "- my-skill: Does stuff" in reminder
+        assert "Available skills:" in prompt
+        assert "my-skill" in prompt
+        assert "Does stuff" in prompt
 
-    def test_empty_registry_returns_empty_string(self) -> None:
-        tool = _make_tool(skill_registry={})
+    def test_empty_registry_no_listing(self) -> None:
+        tool = _make_tool(registry={})
+        prompt = tool.tool_description_for_system_prompt()
 
-        assert tool.tool_system_reminder_for_user_prompt() == ""
-
-    def test_empty_reminder_template_returns_empty(self) -> None:
-        config = SkillToolConfig(enabled=True, tool_system_reminder_for_user_message="")
-        tool = _make_tool(config=config)
-
-        assert tool.tool_system_reminder_for_user_prompt() == ""
+        assert "Available skills:" not in prompt
 
 
 # ---------------------------------------------------------------------------
@@ -389,19 +251,21 @@ class TestFormatSkillListing:
 
         assert result == "- my-skill: Does things"
 
-    def test_description_shown_in_listing(self) -> None:
-        skills = [_make_skill("x", description="Short desc. Use when you need X")]
+    def test_when_to_use_appended(self) -> None:
+        skills = [
+            _make_skill("x", description="Short desc", when_to_use="When you need X")
+        ]
         result = format_skill_listing(skills)
 
-        assert "Short desc. Use when you need X" in result
+        assert "Short desc - When you need X" in result
 
     def test_descriptions_truncated_when_over_budget(self) -> None:
         long_desc = "A" * 500
         skills = [_make_skill(f"skill-{i}", description=long_desc) for i in range(20)]
 
-        config = SkillToolConfig(skill_budget_context_percent=0.01)
+        config = SkillToolConfig(skill_budget_context_percent=0.001)
         result = format_skill_listing(
-            skills, context_window_tokens=50_000, config=config
+            skills, context_window_tokens=10_000, config=config
         )
 
         for skill in skills:
@@ -414,7 +278,7 @@ class TestFormatSkillListing:
         long_desc = "B" * 300
         skills = [_make_skill(f"s{i}", description=long_desc) for i in range(100)]
 
-        config = SkillToolConfig(skill_budget_context_percent=0.01)
+        config = SkillToolConfig(skill_budget_context_percent=0.001)
         result = format_skill_listing(
             skills, context_window_tokens=1_000, config=config
         )
@@ -432,116 +296,5 @@ class TestFormatSkillListing:
         result = format_skill_listing(skills, config=config)
 
         desc_part = result.split(": ", 1)[1]
-        assert len(desc_part) <= config.max_listing_desc_chars
-        assert desc_part.endswith("...")
-
-
-# ---------------------------------------------------------------------------
-# extract_prefix_skills
-# ---------------------------------------------------------------------------
-
-
-class TestExtractPrefixSkills:
-    """The matcher used by the orchestrator to preload ``/skill-name`` invocations.
-
-    Only consecutive tokens at the very start of the message count — a
-    token anywhere else is treated as normal text. Matching stops on the
-    first unknown name so code samples, URLs, or prose containing ``/``
-    segments are never silently swallowed.
-    """
-
-    def test_no_tokens_returns_empty_and_original(self) -> None:
-        reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("just a question", reg)
-        assert skills == []
-        assert remaining == "just a question"
-
-    def test_single_prefix_token(self) -> None:
-        reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("/foo how are things?", reg)
-        assert [s.name for s in skills] == ["foo"]
-        assert remaining == "how are things?"
-
-    def test_multiple_prefix_tokens(self) -> None:
-        reg = _make_skill_registry(_make_skill("foo"), _make_skill("bar"))
-        skills, remaining = extract_prefix_skills("/foo /bar the rest", reg)
-        assert [s.name for s in skills] == ["foo", "bar"]
-        assert remaining == "the rest"
-
-    def test_duplicate_tokens_deduped_preserving_order(self) -> None:
-        reg = _make_skill_registry(_make_skill("foo"), _make_skill("bar"))
-        skills, remaining = extract_prefix_skills("/foo /bar /foo ask away", reg)
-        assert [s.name for s in skills] == ["foo", "bar"]
-        assert remaining == "ask away"
-
-    def test_unknown_token_stops_matching(self) -> None:
-        reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("/nope /foo rest", reg)
-        assert skills == []
-        assert remaining == "/nope /foo rest"
-
-    def test_known_then_unknown_keeps_known(self) -> None:
-        reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("/foo /nope rest", reg)
-        assert [s.name for s in skills] == ["foo"]
-        assert remaining == "/nope rest"
-
-    def test_token_in_middle_is_ignored(self) -> None:
-        reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("please run /foo for me", reg)
-        assert skills == []
-        assert remaining == "please run /foo for me"
-
-    def test_leading_whitespace_tolerated(self) -> None:
-        reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("   /foo  rest", reg)
-        assert [s.name for s in skills] == ["foo"]
-        assert remaining == "rest"
-
-    def test_token_alone_returns_empty_remainder(self) -> None:
-        reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("/foo", reg)
-        assert [s.name for s in skills] == ["foo"]
-        assert remaining == ""
-
-    def test_hyphenated_name_not_partially_matched(self) -> None:
-        """``/foo-bar`` must not match a skill called ``foo``.
-
-        The regex is greedy on ``[A-Za-z0-9_-]*`` so it captures
-        ``foo-bar`` as one token; registry lookup then fails and
-        matching stops without advancing.
-        """
-        reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("/foo-bar rest", reg)
-        assert skills == []
-        assert remaining == "/foo-bar rest"
-
-    def test_hyphenated_name_matches_registered_skill(self) -> None:
-        reg = _make_skill_registry(_make_skill("foo-bar"))
-        skills, remaining = extract_prefix_skills("/foo-bar rest", reg)
-        assert [s.name for s in skills] == ["foo-bar"]
-        assert remaining == "rest"
-
-    def test_empty_input(self) -> None:
-        reg = _make_skill_registry(_make_skill("foo"))
-        skills, remaining = extract_prefix_skills("", reg)
-        assert skills == []
-        assert remaining == ""
-
-    def test_empty_registry(self) -> None:
-        skills, remaining = extract_prefix_skills("/foo hi", {})
-        assert skills == []
-        assert remaining == "/foo hi"
-
-    def test_name_starting_with_digit_is_matched(self) -> None:
-        """Schema allows names starting with digits (e.g. ``5-forces``)."""
-        reg = _make_skill_registry(_make_skill("5-forces"))
-        skills, remaining = extract_prefix_skills("/5-forces rest", reg)
-        assert [s.name for s in skills] == ["5-forces"]
-        assert remaining == "rest"
-
-    def test_all_digits_name_is_matched(self) -> None:
-        reg = _make_skill_registry(_make_skill("123"))
-        skills, remaining = extract_prefix_skills("/123 rest", reg)
-        assert [s.name for s in skills] == ["123"]
-        assert remaining == "rest"
+        assert len(desc_part) <= 100
+        assert desc_part.endswith("\u2026")

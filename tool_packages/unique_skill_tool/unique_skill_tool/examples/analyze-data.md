@@ -1,8 +1,7 @@
 ---
-name: analyze-data
-description: >-
-  Tabular and numerical data analysis with descriptive statistics and insights.
-  Use when the user provides data, tables, CSVs, or numbers and wants analysis.
+skill_name: analyze-data
+description: Tabular and numerical data analysis with descriptive statistics and insights
+when_to_use: When the user provides data, tables, CSVs, or numbers and wants analysis
 ---
 
 # Analyze Data

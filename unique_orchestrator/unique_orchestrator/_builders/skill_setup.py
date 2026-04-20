@@ -26,10 +26,8 @@ from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any
 
 import yaml
-from unique_toolkit.agentic.tools.experimental.skill_tool import (
-    SkillDefinition,
-    SkillTool,
-)
+from unique_skill_tool.schemas import SkillDefinition
+from unique_skill_tool.tool import SkillTool
 from unique_toolkit.content.schemas import Content
 
 if TYPE_CHECKING:

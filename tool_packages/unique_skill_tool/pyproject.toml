@@ -1,6 +1,6 @@
 [project]
 name = "unique_skill_tool"
-version = "2026.16.0"
+version = "0.1.0"
 description = ""
 readme = "README.md"
 license = { text = "Proprietary" }
@@ -9,8 +9,8 @@ authors = [
 ]
 requires-python = ">=3.12,<4"
 dependencies = [
-    "jinja2>=3.1.0,<4",
     "pydantic>=2.8.2,<3",
+    "typing-extensions>=4.9.0,<5",
     "unique-toolkit>=1.47.7,<2",
 ]
 
@@ -23,6 +23,7 @@ module-root = ""
 
 [tool.uv]
 exclude-newer = "2 weeks"
+constraint-dependencies = ["lxml>=5.0.0"]
 
 [tool.uv.exclude-newer-package]
 "unique-toolkit" = false
@@ -53,22 +54,9 @@ DEP002 = ["unique-toolkit"]
 DEP003 = ["unique_toolkit"]
 
 [tool.basedpyright]
-typeCheckingMode = "recommended"
+typeCheckingMode = "standard"
 include = ["unique_skill_tool"]
 exclude = ["**/tests/**", "**/test_*.py"]
-
-# Any-cascade: originates from jinja2 and LanguageModelFunction.arguments in
-# unique_toolkit; not fixable from this package.
-reportAny = "none"
-reportUnknownVariableType = "none"
-reportUnknownMemberType = "none"
-reportUnknownArgumentType = "none"
-
-# unique_toolkit submodules ship no inline stubs; suppressed identically to toolkit.
-reportMissingTypeStubs = "none"
-
-# base-class/mixin patterns make per-attribute annotations impractical.
-reportUnannotatedClassAttribute = "none"
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --import-mode=importlib"

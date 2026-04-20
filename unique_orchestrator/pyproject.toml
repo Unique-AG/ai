@@ -19,6 +19,7 @@ dependencies = [
     "unique-deep-research>=3.0.17,<4",
     "unique-web-search>=1.10.0,<2",
     "unique-swot>=1.0.0,<2",
+    "unique-skill-tool>=0.1.0,<2",
     "openai>=1.109.1,<3",
 ]
 
@@ -43,6 +44,7 @@ exclude-newer = "2 weeks"
 "unique-stock-ticker" = false
 "unique-swot" = false
 "unique-toolkit" = false
+"unique-skill-tool" = false
 "unique-web-search" = false
 
 [tool.uv.sources]
@@ -52,6 +54,7 @@ unique-stock-ticker = { workspace = true }
 unique-follow-up-questions = { workspace = true }
 unique-internal-search = { workspace = true }
 unique-swot = { workspace = true }
+unique-skill-tool = { workspace = true }
 unique-web-search = { workspace = true }
 unique-deep-research = { workspace = true }
 
@@ -82,12 +85,12 @@ filterwarnings = [
 ]
 
 [tool.deptry]
-known_first_party = ["unique_orchestrator", "unique_toolkit", "unique_stock_ticker", "unique_follow_up_questions", "unique_internal_search", "unique_deep_research", "unique_web_search", "unique_swot"]
+known_first_party = ["unique_orchestrator", "unique_toolkit", "unique_stock_ticker", "unique_follow_up_questions", "unique_internal_search", "unique_deep_research", "unique_web_search", "unique_swot", "unique_skill_tool"]
 extend_exclude = ["unique_orchestrator/tests"]
 
 [tool.deptry.per_rule_ignores]
-DEP002 = ["unique-toolkit", "unique-stock-ticker", "unique-follow-up-questions", "unique-internal-search", "unique-deep-research", "unique-web-search", "unique-swot"]
-DEP003 = ["unique_toolkit", "unique_stock_ticker", "unique_follow_up_questions", "unique_internal_search", "unique_deep_research", "unique_web_search", "unique_swot"]
+DEP002 = ["unique-toolkit", "unique-stock-ticker", "unique-follow-up-questions", "unique-internal-search", "unique-deep-research", "unique-web-search", "unique-swot", "unique-skill-tool"]
+DEP003 = ["unique_toolkit", "unique_stock_ticker", "unique_follow_up_questions", "unique_internal_search", "unique_deep_research", "unique_web_search", "unique_swot", "unique_skill_tool"]
 
 [tool.basedpyright]
 typeCheckingMode = "standard"
