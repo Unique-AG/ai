@@ -186,7 +186,7 @@ class SubAgentResponsesDisplayPostprocessor(Postprocessor):
                     answers_displayed_after.append(answer)
 
         loop_response.message.text = _get_final_answer_display(
-            text=loop_response.message.text,
+            text=loop_response.message.text or "",
             answers_before=answers_displayed_before,
             answers_after=answers_displayed_after,
             template=self._config.answers_jinja_template,
@@ -226,7 +226,7 @@ def _add_response_references_to_message_in_place(
 
     text, refs = add_content_refs_and_replace_in_text(
         message_text=text,
-        message_refs=loop_response.message.references,
+        message_refs=loop_response.message.references or [],
         new_refs=content_refs,
     )
 

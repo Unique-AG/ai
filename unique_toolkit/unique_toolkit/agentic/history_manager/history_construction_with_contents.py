@@ -47,7 +47,7 @@ class ChatMessageWithContents(ChatMessage):
     contents: list[Content] = []
 
 
-class ChatHistoryWithContent(RootModel):
+class ChatHistoryWithContent(RootModel[list[ChatMessageWithContents]]):
     root: list[ChatMessageWithContents]
 
     @classmethod
@@ -77,7 +77,7 @@ class ChatHistoryWithContent(RootModel):
 
         return cls(root=grouped_elements)
 
-    def __iter__(self) -> Iterator[ChatMessageWithContents]:
+    def __iter__(self) -> Iterator[ChatMessageWithContents]:  # pyright: ignore[reportIncompatibleMethodOverride]
         return iter(self.root)
 
     def __getitem__(self, item):
@@ -237,10 +237,18 @@ def _append_element_to_builder(
     file_content_serialization_type: FileContentSerialization,
     content_service: ContentService,
     chat_id: str,
+    selected_content_ids: set[str] | None = None,
 ) -> None:
     if len(c.contents) > 0:
         file_contents = [co for co in c.contents if FileUtils.is_file_content(co.key)]
         image_contents = [co for co in c.contents if FileUtils.is_image_content(co.key)]
+        if selected_content_ids is not None:
+            file_contents = [
+                co for co in file_contents if co.id in selected_content_ids
+            ]
+            image_contents = [
+                co for co in image_contents if co.id in selected_content_ids
+            ]
         content = (
             text
             + "\n\n"
@@ -280,10 +288,18 @@ async def _append_element_to_builder_async(
     file_content_serialization_type: FileContentSerialization,
     content_service: ContentService,
     chat_id: str,
+    selected_content_ids: set[str] | None = None,
 ) -> None:
     if len(c.contents) > 0:
         file_contents = [co for co in c.contents if FileUtils.is_file_content(co.key)]
         image_contents = [co for co in c.contents if FileUtils.is_image_content(co.key)]
+        if selected_content_ids is not None:
+            file_contents = [
+                co for co in file_contents if co.id in selected_content_ids
+            ]
+            image_contents = [
+                co for co in image_contents if co.id in selected_content_ids
+            ]
         content = (
             text
             + "\n\n"
@@ -321,6 +337,7 @@ def get_full_history_with_contents(
     content_service: ContentService,
     include_images: ImageContentInclusion = ImageContentInclusion.ALL,
     file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+    selected_content_ids: set[str] | None = None,
 ) -> LanguageModelMessages:
     grouped_elements = get_chat_history_with_contents(
         user_message=user_message,
@@ -347,6 +364,7 @@ def get_full_history_with_contents(
             file_content_serialization_type=file_content_serialization_type,
             content_service=content_service,
             chat_id=chat_id,
+            selected_content_ids=selected_content_ids,
         )
     return builder.build()
 
@@ -359,6 +377,7 @@ async def get_full_history_with_contents_async(
     content_service: ContentService,
     include_images: ImageContentInclusion = ImageContentInclusion.ALL,
     file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+    selected_content_ids: set[str] | None = None,
 ) -> LanguageModelMessages:
     grouped_elements = await get_chat_history_with_contents_async(
         user_message=user_message,
@@ -384,6 +403,7 @@ async def get_full_history_with_contents_async(
             file_content_serialization_type=file_content_serialization_type,
             content_service=content_service,
             chat_id=chat_id,
+            selected_content_ids=selected_content_ids,
         )
     return builder.build()
 
@@ -396,6 +416,7 @@ def get_full_history_with_contents_and_tool_calls(
     content_service: ContentService,
     include_images: ImageContentInclusion = ImageContentInclusion.ALL,
     file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+    selected_content_ids: set[str] | None = None,
 ) -> tuple[LanguageModelMessages, int, dict[int, "ContentChunk"]]:
     """Build the full LLM message history, including persisted tool call rounds.
 
@@ -472,7 +493,7 @@ def get_full_history_with_contents_and_tool_calls(
                     round_tcs_with_response = [
                         tc
                         for tc in round_tcs
-                        if tc.response and tc.response.content is not None
+                        if tc.response and tc.response.content is not None  # pyright: ignore[reportUnnecessaryComparison]
                     ]
                     if not round_tcs_with_response:
                         continue
@@ -496,7 +517,7 @@ def get_full_history_with_contents_and_tool_calls(
                         builder.messages.append(
                             LanguageModelToolMessage(
                                 tool_call_id=fn.id,
-                                content=tc.response.content,  # type: ignore[union-attr]
+                                content=tc.response.content if tc.response else None,
                                 name=tc.function_name,
                             )
                         )
@@ -512,7 +533,7 @@ def get_full_history_with_contents_and_tool_calls(
         # has no tool-call context and treats the empty message as benign.
         had_tool_calls = (
             c.role == ChatRole.ASSISTANT
-            and c.id is not None
+            and c.id is not None  # pyright: ignore[reportUnnecessaryComparison]
             and c.id in tool_calls_by_message
         )
         if had_tool_calls and not text:
@@ -526,6 +547,7 @@ def get_full_history_with_contents_and_tool_calls(
             file_content_serialization_type=file_content_serialization_type,
             content_service=content_service,
             chat_id=chat_id,
+            selected_content_ids=selected_content_ids,
         )
     return builder.build(), max_source_number, source_map
 
@@ -538,6 +560,7 @@ async def get_full_history_with_contents_and_tool_calls_async(
     content_service: ContentService,
     include_images: ImageContentInclusion = ImageContentInclusion.ALL,
     file_content_serialization_type: FileContentSerialization = FileContentSerialization.FILE_NAME,
+    selected_content_ids: set[str] | None = None,
 ) -> tuple[LanguageModelMessages, int, dict[int, "ContentChunk"]]:
     """Async version of get_full_history_with_contents_and_tool_calls."""
     from unique_toolkit.agentic.history_manager.utils import (
@@ -602,7 +625,7 @@ async def get_full_history_with_contents_and_tool_calls_async(
                     round_tcs_with_response = [
                         tc
                         for tc in round_tcs
-                        if tc.response and tc.response.content is not None
+                        if tc.response and tc.response.content is not None  # pyright: ignore[reportUnnecessaryComparison]
                     ]
                     if not round_tcs_with_response:
                         continue
@@ -621,14 +644,14 @@ async def get_full_history_with_contents_and_tool_calls_async(
                         builder.messages.append(
                             LanguageModelToolMessage(
                                 tool_call_id=fn.id,
-                                content=tc.response.content,  # type: ignore[union-attr]
+                                content=tc.response.content if tc.response else None,
                                 name=tc.function_name,
                             )
                         )
 
         had_tool_calls = (
             c.role == ChatRole.ASSISTANT
-            and c.id is not None
+            and c.id is not None  # pyright: ignore[reportUnnecessaryComparison]
             and c.id in tool_calls_by_message
         )
         if had_tool_calls and not text:
@@ -642,6 +665,7 @@ async def get_full_history_with_contents_and_tool_calls_async(
             file_content_serialization_type=file_content_serialization_type,
             content_service=content_service,
             chat_id=chat_id,
+            selected_content_ids=selected_content_ids,
         )
     return builder.build(), max_source_number, source_map
 

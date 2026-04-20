@@ -36,7 +36,7 @@ class SubAgentReferencesPostprocessor(Postprocessor):
     ) -> bool:
         logger.info("Adding sub agent references to the main agent response")
 
-        num_sources = len(loop_response.message.references)
+        num_sources = len(loop_response.message.references or [])
 
         # At the moment, the `PostprocessorManager` expects modifications to happen in place
         _add_sub_agent_references_in_place(
@@ -45,7 +45,7 @@ class SubAgentReferencesPostprocessor(Postprocessor):
         )
 
         return num_sources != len(
-            loop_response.message.references
+            loop_response.message.references or []
         )  # We only add references
 
     @override
@@ -78,14 +78,14 @@ def _add_sub_agent_references_in_place(
                 reference_number=reference["sequenceNumber"],
             )
 
-            if re.search(reference_re, text) is None:
+            if text is None or re.search(reference_re, text) is None:
                 # Reference not used
                 continue
 
             sub_agent_refs.append(ContentReference.from_sdk_reference(reference))
 
         text, refs = add_content_refs_and_replace_in_text(
-            message_text=text,
+            message_text=text or "",
             message_refs=refs,
             new_refs=sub_agent_refs,
             ref_pattern_f=lambda x: (
@@ -100,4 +100,4 @@ def _add_sub_agent_references_in_place(
         )
 
     loop_response.message.references = refs
-    loop_response.message.text = remove_consecutive_ref_space(text)
+    loop_response.message.text = remove_consecutive_ref_space(text or "")

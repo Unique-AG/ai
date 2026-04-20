@@ -1,3 +1,5 @@
+import json
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from unique_web_search.services.search_engine.schema import WebSearchResult
@@ -28,7 +30,7 @@ class ResultItem(BaseModel):
     )
 
 
-class GroundingWithBingResults(BaseModel):
+class GroundingSearchResults(BaseModel):
     model_config = ConfigDict(extra="forbid")
     results: list[ResultItem] = Field(
         description=(
@@ -65,6 +67,6 @@ Respond with a JSON object matching the schema below. Do NOT include any text ou
 
 JSON Schema:
 ```json
-{GroundingWithBingResults.model_json_schema()}
+{json.dumps(GroundingSearchResults.model_json_schema(), indent=2)}
 ```
 """

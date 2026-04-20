@@ -34,6 +34,7 @@ class OpenFileToolRuntimeConfig:
     send_files_in_payload: bool = False
     send_uploaded_files_in_payload: bool = False
     use_responses_api: bool = False
+    selected_content_ids: frozenset[str] | None = None
 
 
 class OpenFileToolRuntime:
@@ -111,7 +112,9 @@ class OpenFileToolRuntime:
                 content_parts.append({"type": "text", "text": message.content})
             elif isinstance(message.content, list):
                 content_parts.extend(
-                    part for part in message.content if isinstance(part, dict)
+                    part
+                    for part in message.content
+                    if isinstance(part, dict)  # pyright: ignore[reportUnnecessaryIsInstance]
                 )
 
             if not content_parts:
@@ -226,7 +229,7 @@ class OpenFileToolRuntime:
             content_parts = [
                 part
                 for part in message.content
-                if not (isinstance(part, dict) and part.get("type") == "file")
+                if not (isinstance(part, dict) and part.get("type") == "file")  # pyright: ignore[reportUnnecessaryIsInstance]
             ]
             if len(content_parts) == len(message.content):
                 continue
@@ -254,6 +257,12 @@ class OpenFileToolRuntime:
                 if (document.expired_at is None or document.expired_at > now)
                 and document.key.lower().endswith(".pdf")
             ]
+            if self._config.selected_content_ids is not None:
+                uploaded_documents = [
+                    doc
+                    for doc in uploaded_documents
+                    if doc.id in self._config.selected_content_ids
+                ]
             self._cached_uploaded_documents = sorted(
                 uploaded_documents,
                 key=lambda document: (
@@ -312,9 +321,9 @@ class OpenFileToolRuntime:
             return True
         if isinstance(content, str):
             return not content.strip()
-        if isinstance(content, list):
+        if isinstance(content, list):  # pyright: ignore[reportUnnecessaryIsInstance]
             return len(content) == 0
-        return False
+        return False  # pyright: ignore[reportUnreachable]
 
     def _strip_open_file_messages(self, messages: LanguageModelMessages) -> None:
         open_file_call_ids: set[str] = set()

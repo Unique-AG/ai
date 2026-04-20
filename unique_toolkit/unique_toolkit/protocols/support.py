@@ -1,4 +1,4 @@
-from typing import Awaitable, Protocol, Sequence
+from typing import Any, Awaitable, Protocol, Sequence
 
 from openai.types.chat import (
     ChatCompletionMessageParam,
@@ -63,13 +63,13 @@ class SupportCompleteWithReferences(Protocol):
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse: ...
 
     async def complete_with_references_async(
@@ -77,13 +77,13 @@ class SupportCompleteWithReferences(Protocol):
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         start_text: str | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse: ...
 
 
@@ -102,7 +102,7 @@ class ResponsesSupportCompleteWithReferences(Protocol):
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         start_text: str | None = None,
         include: list[ResponseIncludable] | None = None,
         instructions: str | None = None,
@@ -113,7 +113,7 @@ class ResponsesSupportCompleteWithReferences(Protocol):
         tool_choice: response_create_params.ToolChoice | None = None,
         top_p: float | None = None,
         reasoning: Reasoning | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> ResponsesLanguageModelStreamResponse: ...
 
     async def complete_with_references_async(
@@ -130,7 +130,7 @@ class ResponsesSupportCompleteWithReferences(Protocol):
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         start_text: str | None = None,
         include: list[ResponseIncludable] | None = None,
         instructions: str | None = None,
@@ -141,5 +141,5 @@ class ResponsesSupportCompleteWithReferences(Protocol):
         tool_choice: response_create_params.ToolChoice | None = None,
         top_p: float | None = None,
         reasoning: Reasoning | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> ResponsesLanguageModelStreamResponse: ...

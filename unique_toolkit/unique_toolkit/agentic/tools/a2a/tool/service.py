@@ -4,7 +4,7 @@ import json
 import logging
 import re
 from datetime import datetime
-from typing import cast, override
+from typing import override
 
 import unique_sdk
 from pydantic import Field, TypeAdapter, create_model
@@ -29,7 +29,6 @@ from unique_toolkit.agentic.tools.a2a.tool._schema import (
     SubAgentToolInput,
 )
 from unique_toolkit.agentic.tools.a2a.tool.config import (
-    RegExpDetectedSystemReminderConfig,
     SubAgentSystemReminderType,
     SubAgentToolConfig,
     SystemReminderConfigType,
@@ -507,7 +506,6 @@ def _get_sub_agent_system_reminders(
             render_kwargs["tool_name"] = f"{name} {sequence_number}"
             template = reminder_config.reminder
         elif reminder_config.type == SubAgentSystemReminderType.REGEXP:
-            reminder_config = cast(RegExpDetectedSystemReminderConfig, reminder_config)
             text_matches = [
                 match.group(0) for match in reminder_config.regexp.finditer(response)
             ]

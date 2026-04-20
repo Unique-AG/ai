@@ -98,6 +98,7 @@ nav:
     - Overview: cli/index.md
     - Command Reference: cli/commands.md
     - Scheduled Tasks: cli/scheduled_tasks.md
+    - Elicitation: cli/elicitation.md
     - Search Guide: cli/search.md
     - Configuration: cli/configuration.md
 

@@ -175,8 +175,8 @@ class TestBraveSearchExtractUrls:
 
         assert len(results) == 2
         urls = [r.url for r in results]
-        assert "https://web.example.com" in urls
-        assert "https://news.example.com" in urls
+        assert any(u == "https://web.example.com" for u in urls)
+        assert any(u == "https://news.example.com" for u in urls)
 
     def test_returns_empty_list_when_no_results(self, _mock_brave_settings):
         search = self._make_search(_mock_brave_settings)

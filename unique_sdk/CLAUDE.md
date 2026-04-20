@@ -104,6 +104,10 @@ export UNIQUE_APP_ID="app_..."
 | `rm <name\|id>` | Delete file |
 | `mv <old> <new>` | Rename file |
 | `search <query> [--folder F] [--metadata K=V] [--limit N]` | Combined search |
+| `mcp -c <chat> -m <msg> <json>` | Call an MCP tool by name+arguments |
+| `schedule <list\|get\|create\|update\|delete> [opts]` | Manage cron-based scheduled tasks |
+| `elicit ask <message> [opts]` | Ask the user a question and wait for the answer |
+| `elicit <create\|pending\|get\|wait\|respond> [opts]` | Low-level elicitation operations |
 
 **Two modes:** Interactive shell (`unique-cli`) or one-shot (`unique-cli ls /Reports`).
 

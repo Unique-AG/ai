@@ -394,7 +394,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
         phase_t0 = time.monotonic()
         try:
-            self._content_map: dict[str, str | None] = await self._load_previous_files()  # type: ignore
+            self._content_map: dict[str, str | None] = await self._load_previous_files()  # pyright: ignore[reportAttributeAccessIssue]
             if self._content_map:
                 self._log.info(
                     "run() loaded %d previous file(s) from short-term memory: %s",
@@ -534,7 +534,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
         for filename, content_id in self._content_map.items():
             if content_id is None:
                 loop_response.message.text, replaced = _replace_container_file_error(
-                    text=loop_response.message.text,
+                    text=loop_response.message.text or "",
                     filename=filename,
                     error_message=self._config.file_download_failed_message,
                 )
@@ -550,7 +550,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
             if is_image:
                 loop_response.message.text, replaced = (
                     _replace_container_image_citation(
-                        text=loop_response.message.text,
+                        text=loop_response.message.text or "",
                         filename=filename,
                         content_id=content_id,
                     )
@@ -559,7 +559,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
             elif is_html:
                 loop_response.message.text, replaced = _replace_container_html_citation(
-                    text=loop_response.message.text,
+                    text=loop_response.message.text or "",
                     filename=filename,
                     content_id=content_id,
                 )
@@ -567,7 +567,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
 
             else:
                 loop_response.message.text, replaced = _replace_container_file_citation(
-                    text=loop_response.message.text,
+                    text=loop_response.message.text or "",
                     filename=filename,
                     content_id=content_id,
                     ref_number=ref_number,
@@ -616,7 +616,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
             _warn_unmatched_code_blocks(self._content_map, code_blocks)
             text_before = loop_response.message.text
             loop_response.message.text = _inject_code_execution_fences(
-                loop_response.message.text,
+                loop_response.message.text or "",
                 code_blocks,
             )
             fences_changed = loop_response.message.text != text_before
@@ -643,7 +643,7 @@ class DisplayCodeInterpreterFilesPostProcessor(
                     len(self._orphan_code_blocks),
                 )
 
-        _warn_missing_content_ids(loop_response.message.text, self._content_map)
+        _warn_missing_content_ids(loop_response.message.text or "", self._content_map)
         loop_response.message.text, dangling_replaced = _replace_dangling_sandbox_links(
             loop_response.message.text
         )

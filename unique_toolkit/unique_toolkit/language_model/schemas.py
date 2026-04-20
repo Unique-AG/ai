@@ -135,7 +135,7 @@ class LanguageModelFunction(BaseModel):
         arguments = ""
         if isinstance(self.arguments, dict):
             arguments = json.dumps(self.arguments)
-        elif isinstance(self.arguments, str):
+        elif isinstance(self.arguments, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             arguments = self.arguments
 
         if mode == "completions":
@@ -145,7 +145,7 @@ class LanguageModelFunction(BaseModel):
                 function=Function(name=self.name, arguments=arguments),
             )
         elif mode == "responses":
-            if self.id is None:
+            if self.id is None:  # pyright: ignore[reportUnnecessaryComparison]
                 raise ValueError("Missing tool call id")
 
             return ResponseFunctionToolCallParam(
@@ -253,7 +253,7 @@ class LanguageModelFunctionCall(BaseModel):
 class LanguageModelMessage(BaseModel):
     model_config = model_config
     role: LanguageModelMessageRole
-    content: str | list[dict] | None = None
+    content: str | list[dict[str, Any]] | None = None
 
     def __str__(self):
         message = ""
@@ -336,7 +336,7 @@ class LanguageModelUserMessage(LanguageModelMessage):
             content = self.content
 
         if mode == "completions":
-            return ChatCompletionUserMessageParam(role="user", content=content)  # type: ignore
+            return ChatCompletionUserMessageParam(role="user", content=content)  # pyright: ignore[reportArgumentType]
         elif mode == "responses":
             return EasyInputMessageParam(
                 role="user",
@@ -348,7 +348,7 @@ class LanguageModelUserMessage(LanguageModelMessage):
 # from openai.types.chat.chat_completion_assistant_message_param import ChatCompletionAssistantMessageParam
 class LanguageModelAssistantMessage(LanguageModelMessage):
     role: LanguageModelMessageRole = LanguageModelMessageRole.ASSISTANT
-    parsed: dict | None = None
+    parsed: dict[str, Any] | None = None
     refusal: str | None = None
     tool_calls: list[LanguageModelFunctionCall] | None = None
 
@@ -431,7 +431,7 @@ class LanguageModelAssistantMessage(LanguageModelMessage):
                         for t in self.tool_calls
                     ]
                 )
-            return res
+            return res  # pyright: ignore[reportReturnType]
 
 
 # Equivalent to
@@ -522,11 +522,11 @@ def _language_model_message_to_subtype(
             )
 
 
-class LanguageModelMessages(RootModel):
+class LanguageModelMessages(RootModel[list[LanguageModelMessageOptions]]):
     root: list[LanguageModelMessageOptions]
 
     @classmethod
-    def load_messages_to_root(cls, data: list[dict] | dict) -> Self:
+    def load_messages_to_root(cls, data: list[dict[str, Any]] | dict[str, Any]) -> Self:
         """Convert list of dictionaries to appropriate message objects based on role."""
         # Handle case where data is already wrapped in root
         if isinstance(data, dict) and "root" in data:
@@ -561,7 +561,7 @@ class LanguageModelMessages(RootModel):
     def __str__(self):
         return "\n\n".join([str(message) for message in self.root])
 
-    def __iter__(self):
+    def __iter__(self):  # pyright: ignore[reportIncompatibleMethodOverride]
         return iter(self.root)
 
     def __getitem__(self, item):
@@ -616,6 +616,7 @@ class LanguageModelCompletionChoice(BaseModel):
 # from openai.types.completion import Completion
 # but is missing multiple attributes
 class LanguageModelResponse(BaseModel):
+    # TODO(UN-19519): add a safe first_choice accessor that raises instead of IndexError on empty choices
     model_config = model_config
 
     choices: list[LanguageModelCompletionChoice]

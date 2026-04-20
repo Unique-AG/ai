@@ -50,6 +50,9 @@ from unique_internal_search.utils import (
     interleave_search_results_round_robin,
 )
 
+AVERAGE_TOKENS_PER_CHUNK = 500
+TOKEN_BUDGET_SAFETY_FACTOR = 1.3
+
 
 class InternalSearchService:
     def __init__(
@@ -272,12 +275,13 @@ class InternalSearchService:
         content_ids: list[str] | None = None,
     ) -> SearchStringResult:
         try:
+            capped_limit = self._cap_limit_to_token_budget()
             found_chunks: list[
                 ContentChunk
             ] = await self.content_service.search_content_chunks_async(
                 search_string=search_string,  # type: ignore
                 search_type=self.config.search_type,
-                limit=self.config.limit,
+                limit=capped_limit,
                 reranker_config=self.config.reranker_config,
                 search_language=self.config.search_language,
                 scope_ids=self.config.scope_ids,
@@ -351,6 +355,24 @@ class InternalSearchService:
                 "language model input context size is not set, using default max tokens"
             )
             return self.config.max_tokens_for_sources
+
+    def _cap_limit_to_token_budget(self) -> int:
+        token_based_limit = max(
+            1,
+            int(
+                self._get_max_tokens()
+                // AVERAGE_TOKENS_PER_CHUNK
+                * TOKEN_BUDGET_SAFETY_FACTOR
+            ),
+        )
+        capped_limit = min(self.config.limit, token_based_limit)
+        if capped_limit < self.config.limit:
+            self.logger.info(
+                f"Search limit capped from {self.config.limit} to {capped_limit} (token budget)"
+            )
+        else:
+            self.logger.info(f"Search limit: {capped_limit} (within token budget)")
+        return capped_limit
 
     async def _create_or_update_active_message_log(
         self,

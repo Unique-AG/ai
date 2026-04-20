@@ -11,7 +11,12 @@ from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.content.service import ContentService
 
 from unique_internal_search.config import InternalSearchConfig
-from unique_internal_search.service import InternalSearchService, InternalSearchTool
+from unique_internal_search.service import (
+    AVERAGE_TOKENS_PER_CHUNK,
+    TOKEN_BUDGET_SAFETY_FACTOR,
+    InternalSearchService,
+    InternalSearchTool,
+)
 
 
 class TestInternalSearchService:
@@ -389,7 +394,12 @@ class TestInternalSearchService:
         call_kwargs = mock_content_service.search_content_chunks_async.call_args[1]
         assert call_kwargs["search_string"] == search_string
         assert call_kwargs["search_type"] == base_internal_search_config.search_type
-        assert call_kwargs["limit"] == base_internal_search_config.limit
+        expected_capped_limit = int(
+            base_internal_search_config.max_tokens_for_sources
+            // AVERAGE_TOKENS_PER_CHUNK
+            * TOKEN_BUDGET_SAFETY_FACTOR
+        )
+        assert call_kwargs["limit"] == expected_capped_limit
 
     @pytest.mark.ai
     @pytest.mark.asyncio
@@ -758,6 +768,206 @@ class TestInternalSearchService:
         # Assert
         assert result == 30000
         mock_logger.debug.assert_called()
+
+    @pytest.mark.ai
+    def test_cap_limit_to_token_budget__returns_capped_limit__based_on_max_tokens(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify _cap_limit_to_token_budget computes int(max_tokens // 500 * 1.3).
+        Why this matters: Ensures search limit is correctly derived from the token budget.
+        Setup summary: Set language_model_max_input_tokens=100000 and percentage=0.4
+        so max_tokens=40000, expected capped_limit = int(40000 // 500 * 1.3) = 104.
+        """
+        # Arrange
+        base_internal_search_config.language_model_max_input_tokens = 100000
+        base_internal_search_config.percentage_of_input_tokens_for_sources = 0.4
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+
+        # Act
+        result = service._cap_limit_to_token_budget()
+
+        # Assert — int(40000 // 500 * 1.3) = int(80 * 1.3) = 104
+        assert result == 104
+        mock_logger.info.assert_called()
+
+    @pytest.mark.ai
+    def test_cap_limit_to_token_budget__uses_fallback__when_language_model_max_not_set(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify _cap_limit_to_token_budget falls back to max_tokens_for_sources.
+        Why this matters: When no model-specific token limit is configured, the fallback
+        must still produce a correct capped limit.
+        Setup summary: Set language_model_max_input_tokens=None and max_tokens_for_sources=30000,
+        expected capped_limit = int(30000 // 500 * 1.3) = 78.
+        """
+        # Arrange
+        base_internal_search_config.language_model_max_input_tokens = None
+        base_internal_search_config.max_tokens_for_sources = 30000
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+
+        # Act
+        result = service._cap_limit_to_token_budget()
+
+        # Assert — int(30000 // 500 * 1.3) = int(60 * 1.3) = 78
+        assert result == 78
+        mock_logger.info.assert_called()
+
+    @pytest.mark.ai
+    def test_cap_limit_to_token_budget__logs_capped_message__when_token_budget_is_lower(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify _cap_limit_to_token_budget logs a "capped" message when the token-based
+        limit is lower than the configured limit.
+        Why this matters: Observability — operators need to see when and how the limit was capped.
+        Setup summary: Set language_model_max_input_tokens=50000, percentage=0.5 → max_tokens=25000,
+        token_based_limit = int(25000 // 500 * 1.3) = 65, config.limit=1000 → capped to 65.
+        """
+        # Arrange
+        base_internal_search_config.language_model_max_input_tokens = 50000
+        base_internal_search_config.percentage_of_input_tokens_for_sources = 0.5
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+        original_limit = service.config.limit
+
+        # Act
+        result = service._cap_limit_to_token_budget()
+
+        # Assert
+        assert result == 65
+        mock_logger.info.assert_called_once_with(
+            f"Search limit capped from {original_limit} to 65 (token budget)"
+        )
+
+    @pytest.mark.ai
+    def test_cap_limit_to_token_budget__respects_config_limit__when_lower_than_token_budget(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify _cap_limit_to_token_budget returns config.limit when it is lower than
+        the token-based limit.
+        Why this matters: The configured limit must act as an upper bound — not be silently ignored.
+        Setup summary: Set language_model_max_input_tokens=100000, percentage=0.4 → token_based=104,
+        but config.limit=50 → result should be 50.
+        """
+        # Arrange
+        base_internal_search_config.language_model_max_input_tokens = 100000
+        base_internal_search_config.percentage_of_input_tokens_for_sources = 0.4
+        base_internal_search_config.limit = 50
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+
+        # Act
+        result = service._cap_limit_to_token_budget()
+
+        # Assert — min(50, 104) = 50
+        assert result == 50
+        mock_logger.info.assert_called_once_with(
+            "Search limit: 50 (within token budget)"
+        )
+
+    @pytest.mark.ai
+    def test_cap_limit_to_token_budget__truncates_to_int(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify _cap_limit_to_token_budget truncates the result to int.
+        Why this matters: The search API limit must be a whole number.
+        Setup summary: Set language_model_max_input_tokens=10000, percentage=0.3 → max_tokens=3000,
+        capped_limit = int(3000 // 500 * 1.3) = int(6 * 1.3) = int(7.8) = 7.
+        """
+        # Arrange
+        base_internal_search_config.language_model_max_input_tokens = 10000
+        base_internal_search_config.percentage_of_input_tokens_for_sources = 0.3
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+
+        # Act
+        result = service._cap_limit_to_token_budget()
+
+        # Assert
+        assert isinstance(result, int)
+        assert result == 7
+
+    @pytest.mark.ai
+    def test_cap_limit_to_token_budget__returns_at_least_one__when_token_budget_very_small(
+        self,
+        base_internal_search_config: InternalSearchConfig,
+        mock_content_service: ContentService,
+        mock_chunk_relevancy_sorter: Any,
+        mock_logger: Any,
+    ) -> None:
+        """
+        Purpose: Verify _cap_limit_to_token_budget never returns 0 even when the token budget
+        is smaller than AVERAGE_TOKENS_PER_CHUNK (500).
+        Why this matters: limit=0 would return no chunks, silently breaking search.
+        Setup summary: max_tokens_for_sources=100 → 100 // 500 = 0 → guarded to 1.
+        """
+        # Arrange
+        base_internal_search_config.language_model_max_input_tokens = None
+        base_internal_search_config.max_tokens_for_sources = 100
+        service = InternalSearchService(
+            config=base_internal_search_config,
+            content_service=mock_content_service,
+            chunk_relevancy_sorter=mock_chunk_relevancy_sorter,
+            chat_id="chat_123",
+            logger=mock_logger,
+        )
+
+        # Act
+        result = service._cap_limit_to_token_budget()
+
+        # Assert
+        assert result >= 1
 
     @pytest.mark.ai
     @pytest.mark.asyncio

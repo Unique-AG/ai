@@ -33,7 +33,7 @@ logger = logging.getLogger(f"toolkit.{DOMAIN_NAME}.{__name__}")
 def search_content_chunks(
     user_id: str,
     company_id: str,
-    chat_id: str,
+    chat_id: str | None,
     search_string: str,
     search_type: ContentSearchType,
     limit: int,
@@ -41,7 +41,7 @@ def search_content_chunks(
     reranker_config: ContentRerankerConfig | None = None,
     scope_ids: list[str] | None = None,
     chat_only: bool | None = None,
-    metadata_filter: dict | None = None,
+    metadata_filter: dict[str, Any] | None = None,
     content_ids: list[str] | None = None,
     score_threshold: float | None = None,
 ) -> list[ContentChunk]:
@@ -95,7 +95,7 @@ def search_content_chunks(
 async def search_content_chunks_async(
     user_id: str,
     company_id: str,
-    chat_id: str,
+    chat_id: str | None,
     search_string: str,
     search_type: ContentSearchType,
     limit: int,
@@ -103,7 +103,7 @@ async def search_content_chunks_async(
     reranker_config: ContentRerankerConfig | None = None,
     scope_ids: list[str] | None = None,
     chat_only: bool | None = None,
-    metadata_filter: dict | None = None,
+    metadata_filter: dict[str, Any] | None = None,
     content_ids: list[str] | None = None,
     score_threshold: float | None = None,
 ):
@@ -145,8 +145,8 @@ async def search_content_chunks_async(
 def search_contents(
     user_id: str,
     company_id: str,
-    chat_id: str,
-    where: dict,
+    chat_id: str | None,
+    where: dict[str, Any],
     include_failed_content: bool = False,
 ) -> list[Content]:
     """
@@ -169,8 +169,7 @@ def search_contents(
             user_id=user_id,
             company_id=company_id,
             chatId=chat_id,
-            # TODO add type parameter in SDK
-            where=where,  # type: ignore
+            where=where,  # pyright: ignore[reportArgumentType]
             includeFailedContent=include_failed_content,
         )
         return map_contents(contents)
@@ -182,8 +181,8 @@ def search_contents(
 async def search_contents_async(
     user_id: str,
     company_id: str,
-    chat_id: str,
-    where: dict,
+    chat_id: str | None,
+    where: dict[str, Any],
     include_failed_content: bool = False,
 ):
     """Asynchronously searches for content in the knowledge base."""
@@ -195,7 +194,7 @@ async def search_contents_async(
             user_id=user_id,
             company_id=company_id,
             chatId=chat_id,
-            where=where,  # type: ignore
+            where=where,  # pyright: ignore[reportArgumentType]
             includeFailedContent=include_failed_content,
         )
         return map_contents(contents)
@@ -207,7 +206,7 @@ async def search_contents_async(
 def _upsert_content(
     user_id: str,
     company_id: str,
-    input_data: dict,
+    input_data: dict[str, Any],
     scope_id: str | None = None,
     chat_id: str | None = None,
     file_url: str | None = None,
@@ -216,17 +215,17 @@ def _upsert_content(
     return unique_sdk.Content.upsert(
         user_id=user_id,
         company_id=company_id,
-        input=input_data,
+        input=input_data,  # pyright: ignore[reportArgumentType]
         scopeId=scope_id,
         chatId=chat_id,
         fileUrl=file_url,
-    )  # type: ignore
+    )
 
 
 async def _upsert_content_async(
     user_id: str,
     company_id: str,
-    input_data: dict,
+    input_data: dict[str, Any],
     scope_id: str | None = None,
     chat_id: str | None = None,
     file_url: str | None = None,
@@ -234,7 +233,7 @@ async def _upsert_content_async(
     return await unique_sdk.Content.upsert_async(
         user_id=user_id,
         company_id=company_id,
-        input=input_data,  # type: ignore
+        input=input_data,  # pyright: ignore[reportArgumentType]
         scopeId=scope_id,
         chatId=chat_id,
         fileUrl=file_url,
@@ -708,13 +707,14 @@ async def request_content_by_id_async(
     if chat_id:
         url = f"{url}?chatId={chat_id}"
 
-    headers = {
+    raw_headers: dict[str, str | None] = {
         "x-api-version": unique_sdk.api_version,
         "x-app-id": unique_sdk.app_id,
         "x-user-id": user_id,
         "x-company-id": company_id,
         "Authorization": "Bearer %s" % (unique_sdk.api_key,),
     }
+    headers: dict[str, str] = {k: v for k, v in raw_headers.items() if v is not None}
 
     async with httpx.AsyncClient() as client:
         return await client.get(url, headers=headers)

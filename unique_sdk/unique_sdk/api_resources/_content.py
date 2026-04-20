@@ -30,6 +30,7 @@ class Content(APIResource["Content"]):
     readUrl: str | None
     expiredAt: str | None
     appliedIngestionConfig: dict[str, Any] | None
+    mimeType: str | None
 
     class QueryMode(Enum):
         Default = "default"

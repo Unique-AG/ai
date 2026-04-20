@@ -1,6 +1,6 @@
 import json
 from logging import Logger
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, TypeGuard
 
 from pydantic import BaseModel
 
@@ -13,7 +13,10 @@ from unique_toolkit.agentic.history_manager.history_construction_with_contents i
     get_full_history_with_contents_and_tool_calls_async,
     get_full_history_with_contents_async,
 )
-from unique_toolkit.agentic.history_manager.utils import serialize_tool_content_json
+from unique_toolkit.agentic.history_manager.utils import (
+    get_selected_uploaded_content_ids,
+    serialize_tool_content_json,
+)
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -76,6 +79,7 @@ class LoopTokenReducer:
         self._max_db_source_number: int = -1
         self._db_source_map: dict[int, ContentChunk] = {}
         self._enable_tool_call_persistence = enable_tool_call_persistence
+        self._selected_content_ids = get_selected_uploaded_content_ids(event)
 
     @property
     def max_db_source_number(self) -> int:
@@ -233,7 +237,7 @@ class LoopTokenReducer:
             m = history[-1]
             if isinstance(m.content, list):
                 for t in reversed(m.content):
-                    if isinstance(t, dict) and t.get("type") == "text":
+                    if isinstance(t, dict) and t.get("type") == "text":  # pyright: ignore[reportUnnecessaryIsInstance]
                         inner_field = t.get("text", "")
                         if isinstance(inner_field, str):
                             added_to_message_by_history = inner_field.replace(
@@ -260,7 +264,7 @@ class LoopTokenReducer:
                 if isinstance(m.content, list):
                     content = [dict(part) for part in m.content]
                     for t in reversed(content):
-                        if isinstance(t, dict) and t.get("type") == "text":
+                        if isinstance(t, dict) and t.get("type") == "text":  # pyright: ignore[reportUnnecessaryIsInstance]
                             t["text"] = text_content
                             break
                 else:
@@ -286,7 +290,7 @@ class LoopTokenReducer:
                 m = history[-1]
                 if isinstance(m.content, list):
                     for t in reversed(m.content):
-                        if isinstance(t, dict) and t.get("type") == "text":
+                        if isinstance(t, dict) and t.get("type") == "text":  # pyright: ignore[reportUnnecessaryIsInstance]
                             t["text"] = text_content
                             break
                 else:
@@ -322,6 +326,7 @@ class LoopTokenReducer:
                 chat_service=self._chat_service,
                 content_service=self._content_service,
                 file_content_serialization_type=file_content_serialization_type,
+                selected_content_ids=self._selected_content_ids,
             )
             self._max_db_source_number = max_src
             self._db_source_map = src_map
@@ -332,6 +337,7 @@ class LoopTokenReducer:
                 chat_service=self._chat_service,
                 content_service=self._content_service,
                 file_content_serialization_type=file_content_serialization_type,
+                selected_content_ids=self._selected_content_ids,
             )
 
         if remove_from_text is not None:
@@ -475,7 +481,7 @@ class LoopTokenReducer:
         for message in history:
             if self._should_reduce_message(message):
                 result = self._reduce_sources_in_tool_message(
-                    message,  # type: ignore
+                    message,
                     chunk_offset,
                     source_offset,
                     overshoot_factor,
@@ -490,7 +496,9 @@ class LoopTokenReducer:
         self._reference_manager.replace(chunks=content_chunks_reduced)
         return history_reduced
 
-    def _should_reduce_message(self, message: LanguageModelMessage) -> bool:
+    def _should_reduce_message(
+        self, message: LanguageModelMessage
+    ) -> TypeGuard[LanguageModelToolMessage]:
         """Determine if a message should have its sources reduced."""
         return message.role == LanguageModelMessageRole.TOOL and isinstance(
             message, LanguageModelToolMessage

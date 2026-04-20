@@ -84,6 +84,7 @@ class LanguageModelName(StrEnum):
     ANTHROPIC_CLAUDE_OPUS_4_1 = "litellm:anthropic-claude-opus-4-1"
     ANTHROPIC_CLAUDE_OPUS_4_5 = "litellm:anthropic-claude-opus-4-5"
     ANTHROPIC_CLAUDE_OPUS_4_6 = "litellm:anthropic-claude-opus-4-6"
+    ANTHROPIC_CLAUDE_OPUS_4_7 = "litellm:anthropic-claude-opus-4-7"
     GEMINI_2_0_FLASH = "litellm:gemini-2-0-flash"
     GEMINI_2_5_FLASH = "litellm:gemini-2-5-flash"
     GEMINI_2_5_FLASH_LITE = "litellm:gemini-2-5-flash-lite"
@@ -455,7 +456,7 @@ class LanguageModelInfo(BaseModel):
 
     @classmethod
     @lru_cache(maxsize=1)
-    def _load_from_env(cls) -> dict[str, dict]:
+    def _load_from_env(cls) -> dict[str, dict[str, Any]]:
         """
         Load custom language model infos from environment variable.
 
@@ -485,7 +486,7 @@ class LanguageModelInfo(BaseModel):
                 return {}
 
             # Validate each entry in the dictionary
-            valid_model_infos: dict[str, dict] = {}
+            valid_model_infos: dict[str, dict[str, Any]] = {}
             for model_key, model_info in model_infos_dict.items():
                 if not isinstance(model_info, dict):
                     _LOGGER.warning(
@@ -511,9 +512,7 @@ class LanguageModelInfo(BaseModel):
 
     @classmethod
     def from_name(cls, model_name: LanguageModelName | str) -> Self:
-        if isinstance(model_name, str) and model_name in [
-            name.value for name in LanguageModelName
-        ]:
+        if model_name in [name.value for name in LanguageModelName]:
             model_name = LanguageModelName(model_name)
 
         # Check environment variable first - env definitions take precedence
@@ -563,7 +562,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
                     ],
-                    token_limits=LanguageModelTokenLimits(token_limit=8192),
+                    token_limits=LanguageModelTokenLimits(token_limit=8192),  # pyright: ignore[reportCallIssue]
                     info_cutoff_at=date(2021, 9, 1),
                     published_at=date(2023, 6, 13),
                     deprecated_at=date(2024, 10, 1),
@@ -580,7 +579,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                     ],
                     encoder_name=EncoderName.CL100K_BASE,
-                    token_limits=LanguageModelTokenLimits(token_limit=32768),
+                    token_limits=LanguageModelTokenLimits(token_limit=32768),  # pyright: ignore[reportCallIssue]
                     info_cutoff_at=date(2021, 9, 1),
                     published_at=date(2023, 6, 13),
                     deprecated_at=date(2024, 10, 1),
@@ -1535,6 +1534,27 @@ class LanguageModelInfo(BaseModel):
                     ),
                     info_cutoff_at=date(2025, 8, 1),
                     published_at=date(2026, 2, 5),
+                    supported_reasoning_efforts=[],
+                )
+            case LanguageModelName.ANTHROPIC_CLAUDE_OPUS_4_7:
+                return cls(
+                    name=model_name,
+                    capabilities=[
+                        ModelCapabilities.FUNCTION_CALLING,
+                        ModelCapabilities.STREAMING,
+                        ModelCapabilities.VISION,
+                        ModelCapabilities.REASONING,
+                    ],
+                    provider=LanguageModelProvider.LITELLM,
+                    version="claude-opus-4-7",
+                    encoder_name=EncoderName.O200K_BASE,  # TODO: Update encoder with litellm
+                    token_limits=LanguageModelTokenLimits(
+                        # Input limit is 1_000_000, we leave 100_000 tokens as buffer due to tokenizer mismatch
+                        token_limit_input=900_000,
+                        token_limit_output=128_000,
+                    ),
+                    info_cutoff_at=date(2026, 1, 1),
+                    published_at=date(2026, 4, 16),
                     supported_reasoning_efforts=[],
                 )
             case LanguageModelName.GEMINI_2_0_FLASH:

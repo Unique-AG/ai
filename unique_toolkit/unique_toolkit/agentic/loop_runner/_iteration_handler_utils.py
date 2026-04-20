@@ -1,5 +1,5 @@
 import logging
-from typing import Protocol, Unpack, cast
+from typing import Protocol, Unpack
 
 from unique_toolkit.agentic.loop_runner._stream_handler_utils import stream_response
 from unique_toolkit.agentic.loop_runner.base import (
@@ -74,26 +74,31 @@ async def run_forced_tools_iteration(
     for opt in tool_choices:
         func_name = opt.get("function", {}).get("name")
 
-        per_choice_kwargs = cast(_LoopIterationRunnerKwargs, dict(loop_runner_kwargs))
+        per_choice_kwargs = loop_runner_kwargs.copy()
         if prepare_loop_runner_kwargs:
             per_choice_kwargs = prepare_loop_runner_kwargs(func_name, per_choice_kwargs)
 
         effective_tool_choice = tool_choice_override or opt
         limited_tool = available_tools.get(func_name) if func_name else None
-        stream_kwargs = {
-            "loop_runner_kwargs": per_choice_kwargs,
-            "tool_choice": effective_tool_choice,
-        }
         if limited_tool:
-            stream_kwargs["tools"] = [limited_tool]
-        responses.append(await stream_response(**stream_kwargs))
+            response = await stream_response(
+                loop_runner_kwargs=per_choice_kwargs,
+                tool_choice=effective_tool_choice,
+                tools=[limited_tool],
+            )
+        else:
+            response = await stream_response(
+                loop_runner_kwargs=per_choice_kwargs,
+                tool_choice=effective_tool_choice,
+            )
+        responses.append(response)
 
     tool_calls = []
     references = []
     for r in responses:
         if r.tool_calls:
             tool_calls.extend(r.tool_calls)
-        references.extend(r.message.references)
+        references.extend(r.message.references or [])
 
     response = responses[0]
     response.tool_calls = tool_calls if len(tool_calls) > 0 else None

@@ -21,6 +21,8 @@ class FeatureFlag:
         False
     """
 
+    value: list[str] | bool
+
     def __init__(self, value: list[str] | bool):
         self.value = value
 
@@ -37,10 +39,7 @@ class FeatureFlag:
         if isinstance(self.value, bool):
             return self.value
 
-        if isinstance(self.value, list):
-            return company_id in self.value if company_id else False
-
-        return False
+        return company_id in self.value if company_id else False
 
     def __repr__(self) -> str:
         return f"FeatureFlag({self.value})"

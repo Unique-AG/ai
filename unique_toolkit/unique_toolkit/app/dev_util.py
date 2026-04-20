@@ -3,6 +3,7 @@ import json
 from logging import getLogger
 from pathlib import Path
 from typing import (
+    Any,
     Awaitable,
     Callable,
     Generator,
@@ -16,7 +17,7 @@ from unique_toolkit.app import BaseEvent, ChatEvent, EventName
 from unique_toolkit.app.init_sdk import init_unique_sdk
 from unique_toolkit.app.unique_settings import UniqueSettings
 
-T = TypeVar("T", bound=BaseEvent)
+T = TypeVar("T", bound=BaseEvent[Any])
 
 LOGGER = getLogger(__name__)
 
@@ -60,7 +61,7 @@ def get_event_generator(
     event_name = get_event_name_from_event_class(event_type)
     if (
         event_name is None
-        or not issubclass(event_type, BaseEvent)
+        or not issubclass(event_type, BaseEvent)  # pyright: ignore[reportUnnecessaryIsInstance]
         or event_type is BaseEvent
     ):
         raise ValueError(f"Event model {event_type} is not a valid event model")
@@ -71,7 +72,7 @@ def get_event_generator(
         try:
             payload = json.loads(sse_event.data)
             parsed_event = event_type.model_validate(payload)
-            if parsed_event is None or parsed_event.filter_event(
+            if parsed_event.filter_event(
                 filter_options=unique_settings.chat_event_filter_options
             ):
                 continue
@@ -114,8 +115,8 @@ def get_event_stream(
 
 def run_demo_with_sse_client(
     unique_settings: UniqueSettings,
-    handler: Callable[[BaseEvent], Awaitable[None] | None],
-    event_type: type[BaseEvent],
+    handler: Callable[[BaseEvent[Any]], Awaitable[None] | None],
+    event_type: type[BaseEvent[Any]],
 ) -> None:
     """
     Run a demo with an SSE client using sync handler.
@@ -141,7 +142,7 @@ def run_demo_with_sse_client(
             handler(event)
 
 
-def load_event(file_path: Path, event_type: type[BaseEvent]) -> BaseEvent:
+def load_event(file_path: Path, event_type: type[BaseEvent[Any]]) -> BaseEvent[Any]:
     with file_path.open("r") as file:
         event = json.load(file)
 
@@ -150,8 +151,8 @@ def load_event(file_path: Path, event_type: type[BaseEvent]) -> BaseEvent:
 
 def run_demo_with_with_saved_event(
     unique_settings: UniqueSettings,
-    handler: Callable[[BaseEvent], Awaitable[None] | None],
-    event_type: type[BaseEvent],
+    handler: Callable[[BaseEvent[Any]], Awaitable[None] | None],
+    event_type: type[BaseEvent[Any]],
     file_path: Path,
 ) -> None:
     """
@@ -171,8 +172,6 @@ def run_demo_with_with_saved_event(
         return
 
     event = load_event(file_path, event_type)
-    if event is None:
-        raise ValueError(f"Event not found in {file_path}")
 
     if asyncio.iscoroutinefunction(handler):
         asyncio.run(handler(event))

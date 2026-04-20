@@ -1,7 +1,7 @@
 import asyncio
 import time
 from logging import Logger, getLogger
-from typing import Generic, Literal, TypeVar, overload
+from typing import Any, Generic, Literal, TypeVar, overload
 
 from openai.types.chat import (
     ChatCompletionNamedToolChoiceParam,
@@ -88,7 +88,7 @@ class _ToolManager(Generic[_ApiMode]):
         self._logger = logger
         self._config = config
         self._tool_progress_reporter = tool_progress_reporter
-        self._tools: list[Tool | OpenAIBuiltInTool] = []
+        self._tools: list[Tool[Any] | OpenAIBuiltInTool[Any]] = []
         self._tool_choices = event.payload.tool_choices
         self._disabled_tools = event.payload.disabled_tools
         self._exclusive_tools = [
@@ -213,7 +213,7 @@ class _ToolManager(Generic[_ApiMode]):
     def get_tool_prompts(self) -> list[ToolPrompts]:
         return [tool.get_tool_prompts() for tool in self._tools]
 
-    def add_tool(self, tool: Tool) -> None:
+    def add_tool(self, tool: Tool[Any]) -> None:
         """Inject an externally constructed tool into the manager.
 
         Use this for tools that require custom constructor arguments (e.g. a
@@ -371,14 +371,7 @@ class _ToolManager(Generic[_ApiMode]):
                 name=tool_call.name,
                 error_message=str(result.exception),
             )
-        unpacked = result.unpack()
-        if not isinstance(unpacked, ToolCallResponse):
-            return ToolCallResponse(
-                id=tool_call.id or "unknown_id",
-                name=tool_call.name,
-                error_message="Tool call response is not of type ToolCallResponse",
-            )
-        return unpacked
+        return result.unpack()
 
     def filter_duplicate_tool_calls(
         self,
@@ -420,33 +413,33 @@ class _ToolManager(Generic[_ApiMode]):
     @overload
     def get_tool_by_name(
         self: "_ToolManager[Literal['completions']]", name: str
-    ) -> Tool | None: ...
+    ) -> Tool[Any] | None: ...
 
     @overload
     def get_tool_by_name(
         self: "_ToolManager[Literal['responses']]", name: str
-    ) -> Tool | OpenAIBuiltInTool | None: ...
+    ) -> Tool[Any] | OpenAIBuiltInTool[Any] | None: ...
 
     @overload  # Unknown API mode typing
     def get_tool_by_name(
-        self: "_ToolManager", name: str
-    ) -> Tool | OpenAIBuiltInTool | None: ...
+        self: "_ToolManager[Any]", name: str
+    ) -> Tool[Any] | OpenAIBuiltInTool[Any] | None: ...
 
-    def get_tool_by_name(self, name: str) -> Tool | OpenAIBuiltInTool | None:
+    def get_tool_by_name(self, name: str) -> Tool[Any] | OpenAIBuiltInTool[Any] | None:
         for tool in self._tools:
             if tool.name == name:
                 return tool
         return None
 
     @overload
-    def get_tools(self: "_ToolManager[Literal['completions']]") -> list[Tool]: ...
+    def get_tools(self: "_ToolManager[Literal['completions']]") -> list[Tool[Any]]: ...
 
     @overload
     def get_tools(
         self: "_ToolManager[Literal['responses']]",
-    ) -> list[Tool | OpenAIBuiltInTool]: ...
+    ) -> list[Tool[Any] | OpenAIBuiltInTool[Any]]: ...
 
-    def get_tools(self) -> list[Tool] | list[Tool | OpenAIBuiltInTool]:
+    def get_tools(self) -> list[Tool[Any]] | list[Tool[Any] | OpenAIBuiltInTool[Any]]:
         return self._tools.copy()
 
     @overload
@@ -465,11 +458,12 @@ class _ToolManager(Generic[_ApiMode]):
         list[ChatCompletionNamedToolChoiceParam]
         | list[response_create_params.ToolChoice]
     ):
-        return [
+        # TODO(UN-19531): split into two branches with literal mode strings to eliminate this ignore
+        return [  # pyright: ignore[reportReturnType]
             _convert_to_forced_tool(t.name, mode=self._api_mode)
             for t in self._tools
             if t.name in self._tool_choices
-        ]  # type: ignore
+        ]
 
     @overload
     def get_tool_definitions(
@@ -501,7 +495,7 @@ def _convert_to_forced_tool(
     else:
         if tool_name in OpenAIBuiltInToolName:
             # Built-in have a special syntax for forcing
-            return {"type": tool_name}  # type: ignore
+            return {"type": tool_name}  # pyright: ignore[reportReturnType]  # TODO(UN-19531)
         else:
             return {
                 "name": tool_name,

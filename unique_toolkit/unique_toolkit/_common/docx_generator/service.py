@@ -2,6 +2,7 @@ import io
 import logging
 import re
 from pathlib import Path
+from typing import Any
 
 from docxtpl import DocxTemplate
 from markdown_it import MarkdownIt
@@ -102,7 +103,7 @@ class DocxGeneratorService:
                             content,
                         )
                         bold = True
-                    current_section["text"] += content
+                    current_section["text"] += content  # pyright: ignore[reportOperatorIssue, reportArgumentType]
                 elif "runs" in current_section:
                     bold = False
                     italic = False
@@ -137,7 +138,7 @@ class DocxGeneratorService:
                             )
                         )
 
-                    current_section["runs"].extend(runs)
+                    current_section["runs"].extend(runs)  # pyright: ignore[reportAttributeAccessIssue]
 
         # Process remaining elements
         contents = []
@@ -167,7 +168,7 @@ class DocxGeneratorService:
     def generate_from_template(
         self,
         subdoc_content: list[HeadingField | ParagraphField | RunsField],
-        fields: dict | None = None,
+        fields: dict[str, Any] | None = None,
     ):
         """
         Generate a docx file from a template with the given content.

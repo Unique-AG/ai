@@ -1,9 +1,12 @@
+_MONITORING_AVAILABLE = False
 try:
-    from prometheus_client import CollectorRegistry  # noqa: F401
+    from prometheus_client import (  # pyright: ignore[reportMissingImports]
+        CollectorRegistry as CollectorRegistry,
+    )
 
-    _MONITORING_AVAILABLE = True
+    _MONITORING_AVAILABLE = True  # pyright: ignore[reportConstantRedefinition]
 except ImportError:
-    _MONITORING_AVAILABLE = False
+    pass
 
 
 def _check_monitoring_available() -> None:

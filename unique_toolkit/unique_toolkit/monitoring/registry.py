@@ -4,9 +4,9 @@ import asyncio
 import functools
 import time
 from contextlib import contextmanager
-from typing import Callable
+from typing import Any, Callable
 
-from prometheus_client import (
+from prometheus_client import (  # pyright: ignore[reportMissingImports]
     CollectorRegistry,
     Counter,
     Gauge,
@@ -78,7 +78,7 @@ def track_execution(
     duration: Histogram,
     errors: Counter | None = None,
     **labels,
-) -> Callable:
+) -> Callable[..., Any]:
     """Decorator that auto-tracks duration + errors for an entire function.
 
     Use when labels are static (known at definition time).

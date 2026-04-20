@@ -271,7 +271,7 @@ class MCPToolWrapper(Tool[MCPToolConfig]):
                 )
 
         # Handle dictionary arguments (already parsed)
-        if isinstance(raw_arguments, dict):
+        if isinstance(raw_arguments, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
             self.logger.debug(f"MCP tool {self.name}: arguments already in dict format")
             return raw_arguments
 

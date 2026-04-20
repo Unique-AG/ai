@@ -82,7 +82,7 @@ class AuthContext(BaseModel):
         return self.user_id.get_secret_value()
 
     @classmethod
-    def from_event(cls, event: BaseEvent) -> Self:
+    def from_event(cls, event: BaseEvent[Any]) -> Self:
         return cls(
             company_id=SecretStr(event.company_id),
             user_id=SecretStr(event.user_id),
@@ -129,7 +129,7 @@ class UniqueAuth(BaseSettings):
         return warn_about_defaults(self)
 
     @classmethod
-    def from_event(cls, event: BaseEvent) -> Self:
+    def from_event(cls, event: BaseEvent[Any]) -> Self:
         return cls(
             company_id=SecretStr(event.company_id),
             user_id=SecretStr(event.user_id),
@@ -462,7 +462,7 @@ class UniqueContext:
         )
 
     @classmethod
-    def from_event(cls, event: BaseEvent) -> Self:
+    def from_event(cls, event: BaseEvent[Any]) -> Self:
         """Build an auth-only context from any BaseEvent."""
         return cls(
             auth=AuthContext.from_event(event),
@@ -517,10 +517,10 @@ class UniqueSettings:
 
         # Initialize settings with environment file if provided
         env_file_str = str(env_file) if env_file else None
-        auth = UniqueAuth(_env_file=env_file_str)  # type: ignore[call-arg]
-        app = UniqueApp(_env_file=env_file_str)  # type: ignore[call-arg]
-        api = UniqueApi(_env_file=env_file_str)  # type: ignore[call-arg]
-        event_filter_options = UniqueChatEventFilterOptions(_env_file=env_file_str)  # type: ignore[call-arg]
+        auth = UniqueAuth(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
+        app = UniqueApp(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
+        api = UniqueApi(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
+        event_filter_options = UniqueChatEventFilterOptions(_env_file=env_file_str)  # pyright: ignore[reportCallIssue]
         return cls(
             auth=auth,
             app=app,
@@ -607,14 +607,11 @@ class UniqueSettings:
         """The request-level context (auth + optional chat) for this settings object."""
         return self._context
 
-    def update_from_event(self, event: BaseEvent) -> None:
-        # Use UniqueAuth.from_event so the deprecated settings.auth property
-        # keeps working for callers that haven't migrated yet.
+    def update_from_event(self, event: BaseEvent[Any]) -> None:
         self._context = UniqueContext(
             auth=UniqueAuth.from_event(event), chat=self._context.chat
         )
 
-    # utility method to return a copy with new auth context
     def with_auth(self, auth: AuthContextProtocol) -> Self:
         """Return a copy of the settings with the new auth context."""
         return self.__class__(
