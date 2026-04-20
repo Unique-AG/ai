@@ -9,9 +9,9 @@ Each section gives a small diagram focused on one idea. Copy any block into a Me
 > `*StreamEventRouter` (not `*StreamPipeline`). It doesn't chain handlers
 > like a Pipes-and-Filters pipeline — it **dispatches** each incoming
 > event to the right handler (Responses) or **broadcasts** each chunk to
-> all interested handlers (Chat Completions). The folder keeps the
-> historical name `pipeline/` for now; everything inside is a router +
-> handler + subscriber setup.
+> all interested handlers (Chat Completions). Treat `pipeline/` as the
+> package name for "streaming event-routing machinery"; everything
+> inside is a router + handler + subscriber setup.
 
 ---
 
