@@ -20,6 +20,7 @@ streams within the same ``UniqueSettings``.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
@@ -30,6 +31,8 @@ from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import
 )
 
 from ..events import StreamEnded, StreamEventBus, StreamStarted, TextDelta
+
+_LOGGER = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from unique_toolkit.app.unique_settings import UniqueSettings
@@ -83,16 +86,27 @@ class MessagePersistingSubscriber:
     async def on_text_delta(self, event: TextDelta) -> None:
         chunks = self._chunks_by_message.get(event.message_id, [])
 
-        # Using modify as it renders the references correctly while create event does not
-        await unique_sdk.Message.modify_async(
-            id=event.message_id,
-            chatId=event.chat_id,
-            user_id=self._settings.context.auth.user_id.get_secret_value(),
-            company_id=self._settings.context.auth.company_id.get_secret_value(),
-            text=event.full_text or None,
-            originalText=event.original_text or None,
-            references=filter_cited_sdk_references(chunks, event.full_text),
-        )
+        # Incremental writes are the hot path: a transient SDK failure here
+        # must not abort the stream loop. The authoritative final state is
+        # written again in :meth:`on_ended`, so a dropped delta degrades
+        # to a slightly coarser UI update rather than data loss.
+        try:
+            await unique_sdk.Message.modify_async(
+                id=event.message_id,
+                chatId=event.chat_id,
+                user_id=self._settings.context.auth.user_id.get_secret_value(),
+                company_id=self._settings.context.auth.company_id.get_secret_value(),
+                text=event.full_text or None,
+                originalText=event.original_text or None,
+                references=filter_cited_sdk_references(chunks, event.full_text),
+            )
+        except Exception as exc:
+            _LOGGER.warning(
+                "MessagePersistingSubscriber: incremental text_delta write "
+                "failed for message %r; continuing stream. Error: %r",
+                event.message_id,
+                exc,
+            )
 
     async def on_ended(self, event: StreamEnded) -> None:
         chunks = self._chunks_by_message.pop(event.message_id, [])

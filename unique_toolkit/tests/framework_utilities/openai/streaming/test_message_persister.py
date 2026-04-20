@@ -219,6 +219,44 @@ async def test_AI_persister__isolates_overlapping_streams_by_message_id():
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_AI_persister__text_delta_sdk_failure__is_swallowed_and_logged(caplog):
+    """
+    Purpose: A transient SDK failure on the incremental ``text_delta`` write
+      must not propagate and abort the stream loop.
+    Why this matters: Each chunk triggers a write. If one raises, the outer
+      ``async for chunk in stream`` unwinds before ``StreamEnded`` is
+      published — leaving the UI stuck. The authoritative final text is
+      written again in ``on_ended`` so a dropped delta is acceptable; a
+      killed stream is not.
+    Setup summary: Patch ``Message.modify_async`` to raise; await
+      ``on_text_delta``; assert no exception propagates and the failure is
+      logged.
+    """
+    import logging
+
+    persister = MessagePersistingSubscriber(_settings_with_chat())
+    with patch(_MODIFY, new_callable=AsyncMock, side_effect=RuntimeError("sdk down")):
+        with caplog.at_level(
+            logging.WARNING,
+            logger=(
+                "unique_toolkit.framework_utilities.openai.streaming.pipeline."
+                "subscribers.message_persister"
+            ),
+        ):
+            await persister.on_text_delta(
+                TextDelta(
+                    message_id="amsg-1",
+                    chat_id="chat-1",
+                    full_text="hi",
+                    original_text="hi",
+                )
+            )
+
+    assert any("incremental text_delta write" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_AI_persister__register__subscribes_to_text_lifecycle_channels_only():
     """
     Purpose: ``register(bus)`` wires the persister onto the three text-lifecycle
