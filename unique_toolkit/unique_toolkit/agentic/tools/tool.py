@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from logging import getLogger
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 
 from typing_extensions import deprecated
 
@@ -78,7 +78,7 @@ class Tool(ABC, Generic[ConfigType]):
         if not isinstance(parameters, dict):
             return parameters.model_json_schema()
         else:
-            return cast(dict[str, Any], parameters)
+            return parameters
 
     # TODO: This method should be a property
     def tool_description_for_system_prompt(self) -> str:
@@ -173,7 +173,7 @@ class Tool(ABC, Generic[ConfigType]):
         self.config = config
         module_name = "default overwrite for module name"
         self.logger = getLogger(f"{module_name}.{__name__}")
-        self.debug_info: dict = {}
+        self.debug_info: dict[str, Any] = {}
 
         if event is not None:
             from unique_toolkit.agentic.message_log_manager.service import (

@@ -120,7 +120,7 @@ class ToolBuildConfig(BaseModel, Generic[T]):
 
             assert isinstance(
                 configuration,
-                ToolFactory.tool_config_map[value["name"]],  # type: ignore
+                ToolFactory.tool_config_map[value["name"]],  # pyright: ignore[reportArgumentType]
             )
             config = configuration
         value["configuration"] = config

@@ -1,5 +1,5 @@
 import logging
-from typing import overload
+from typing import Any, overload
 
 from pydantic import BaseModel, ValidationError
 from typing_extensions import deprecated
@@ -64,7 +64,7 @@ class ContextRelevancyEvaluator:
         "Use __init__ with company_id and user_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: ChatEvent | BaseEvent):
+    def __init__(self, event: ChatEvent | BaseEvent[Any]):
         """
         Initialize the ContextRelevancyEvaluator with an event (deprecated)
         """
@@ -77,7 +77,7 @@ class ContextRelevancyEvaluator:
 
     def __init__(
         self,
-        event: ChatEvent | BaseEvent | None = None,
+        event: ChatEvent | BaseEvent[Any] | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
     ):
@@ -94,7 +94,7 @@ class ContextRelevancyEvaluator:
         self.logger = logging.getLogger(f"{module_name}.{__name__}")
 
     @classmethod
-    def from_event(cls, event: ChatEvent | BaseEvent):
+    def from_event(cls, event: ChatEvent | BaseEvent[Any]):
         return cls(company_id=event.company_id, user_id=event.user_id)
 
     async def analyze(
@@ -124,7 +124,7 @@ class ContextRelevancyEvaluator:
         input.validate_required_fields(relevancy_required_input_fields)
 
         # TODO: Was already there in monorepo
-        if len(input.context_texts) == 0:  # type: ignore
+        if not input.context_texts or len(input.context_texts) == 0:
             error_message = "No context texts provided."
             raise EvaluatorException(
                 user_message=error_message,

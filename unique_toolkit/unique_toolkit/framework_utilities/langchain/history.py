@@ -1,4 +1,8 @@
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+)
 
 from unique_toolkit.chat import ChatMessage as UniqueMessage
 from unique_toolkit.chat import ChatMessageRole as UniqueRole

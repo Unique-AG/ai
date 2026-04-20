@@ -89,8 +89,8 @@ def get_common_name(extension: FileMimeType) -> str:
             return "markdown"
         case FileMimeType.HTML:
             return "html"
-        case _:
-            return "unknown"
+        case _:  # pyright: ignore[reportUnnecessaryComparison]
+            return "unknown"  # pyright: ignore[reportUnreachable]
 
 
 def get_file_extensions(mimes: list[FileMimeType]) -> list[str]:

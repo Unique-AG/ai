@@ -46,7 +46,7 @@ class ContentService:
         "Use __init__ with company_id, user_id and chat_id instead or use the classmethod `from_event`"
     )
     @overload
-    def __init__(self, event: Event | ChatEvent | BaseEvent): ...
+    def __init__(self, event: Event | ChatEvent | BaseEvent[Any]): ...
 
     """
         Initialize the ContentService with an event (deprecated)
@@ -59,7 +59,7 @@ class ContentService:
         company_id: str,
         user_id: str,
         chat_id: str | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
     ): ...
 
     """
@@ -68,11 +68,11 @@ class ContentService:
 
     def __init__(
         self,
-        event: Event | BaseEvent | None = None,
+        event: Event | BaseEvent[Any] | None = None,
         company_id: str | None = None,
         user_id: str | None = None,
         chat_id: str | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
     ):
         """
         Initialize the ContentService with a company_id, user_id and chat_id.
@@ -88,13 +88,13 @@ class ContentService:
                 self._chat_id: str | None = event.payload.chat_id
         else:
             [company_id, user_id] = validate_required_values([company_id, user_id])
-            self._company_id: str = company_id
-            self._user_id: str = user_id
-            self._chat_id: str | None = chat_id
+            self._company_id = company_id
+            self._user_id = user_id
+            self._chat_id = chat_id
             self._metadata_filter = metadata_filter
 
     @classmethod
-    def from_event(cls, event: Event | ChatEvent | BaseEvent):
+    def from_event(cls, event: Event | ChatEvent | BaseEvent[Any]):
         """Initialize the ContentService with an event.
 
         When the event has a correlation (e.g. subagent run), delegates to
@@ -143,7 +143,7 @@ class ContentService:
         company_id: str,
         user_id: str,
         correlation: Correlation,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
     ):
         """Initialize the ContentService from a correlation (e.g. when running as a subagent).
 
@@ -171,7 +171,7 @@ class ContentService:
     def from_settings(
         cls,
         settings: UniqueSettings | str | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
     ):
         """
         Initialize the ContentService with a settings object and metadata filter.
@@ -192,7 +192,7 @@ class ContentService:
     @deprecated(
         "The event property is deprecated and will be removed in a future version."
     )
-    def event(self) -> Event | BaseEvent | None:
+    def event(self) -> Event | BaseEvent[Any] | None:
         """
         Get the event object (deprecated).
 
@@ -283,7 +283,7 @@ class ContentService:
     @deprecated(
         "The metadata_filter property is deprecated and will be removed in a future version."
     )
-    def metadata_filter(self) -> dict | None:
+    def metadata_filter(self) -> dict[str, Any] | None:
         """
         Get the metadata filter (deprecated).
 
@@ -296,7 +296,7 @@ class ContentService:
     @deprecated(
         "The metadata_filter setter is deprecated and will be removed in a future version."
     )
-    def metadata_filter(self, value: dict | None) -> None:
+    def metadata_filter(self, value: dict[str, Any] | None) -> None:
         """
         Set the metadata filter (deprecated).
 
@@ -311,11 +311,11 @@ class ContentService:
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        chat_id: str = "",
+        chat_id: str | None = None,
         reranker_config: ContentRerankerConfig | None = None,
         scope_ids: list[str] | None = None,
         chat_only: bool | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
     ) -> list[ContentChunk]:
@@ -345,7 +345,7 @@ class ContentService:
         if metadata_filter is None:
             metadata_filter = self._metadata_filter
 
-        chat_id = chat_id or self._chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id
 
         if chat_only and not chat_id:
             raise ValueError("Please provide chat_id when limiting with chat_only")
@@ -378,11 +378,11 @@ class ContentService:
         search_type: ContentSearchType,
         limit: int,
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
-        chat_id: str = "",
+        chat_id: str | None = None,
         reranker_config: ContentRerankerConfig | None = None,
         scope_ids: list[str] | None = None,
         chat_only: bool | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, Any] | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
     ):
@@ -411,7 +411,7 @@ class ContentService:
         if metadata_filter is None:
             metadata_filter = self._metadata_filter
 
-        chat_id = chat_id or self._chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id
 
         if chat_only and not chat_id:
             raise ValueError("Please provide chat_id when limiting with chat_only.")
@@ -439,8 +439,8 @@ class ContentService:
 
     def search_contents(
         self,
-        where: dict,
-        chat_id: str = "",
+        where: dict[str, Any],
+        chat_id: str | None = None,
     ) -> list[Content]:
         """
         Performs a search in the knowledge base by filter (and not a smilarity search)
@@ -452,7 +452,7 @@ class ContentService:
         Returns:
             list[Content]: The search results.
         """
-        chat_id = chat_id or self._chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id
 
         return search_contents(
             user_id=self._user_id,
@@ -463,8 +463,8 @@ class ContentService:
 
     async def search_contents_async(
         self,
-        where: dict,
-        chat_id: str = "",
+        where: dict[str, Any],
+        chat_id: str | None = None,
     ) -> list[Content]:
         """
         Performs an asynchronous search for content files in the knowledge base by filter.
@@ -475,7 +475,7 @@ class ContentService:
         Returns:
             list[Content]: The search results.
         """
-        chat_id = chat_id or self._chat_id  # type: ignore
+        chat_id = chat_id or self._chat_id
 
         return await search_contents_async(
             user_id=self._user_id,
@@ -499,7 +499,7 @@ class ContentService:
         skip_ingestion: bool = False,
         skip_excel_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Content:
         """
         Uploads content to the knowledge base.
@@ -541,7 +541,7 @@ class ContentService:
         chat_id: str | None = None,
         skip_ingestion: bool = False,
         ingestion_config: unique_sdk.Content.IngestionConfig | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> Content:
         """
         Uploads content to the knowledge base.

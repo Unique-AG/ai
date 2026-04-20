@@ -59,7 +59,7 @@ class OpenFileTool(Tool[OpenFileToolConfig]):
         args = tool_call.arguments or {}
         content_ids: list[str] = args.get("content_ids", [])
 
-        if not isinstance(content_ids, list) or not content_ids:
+        if not isinstance(content_ids, list) or not content_ids:  # pyright: ignore[reportUnnecessaryIsInstance]
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,

@@ -136,8 +136,8 @@ class ChatMessage(BaseModel):
     original_text: str | None = None
     role: ChatMessageRole
     previous_message_id: str | None = None
-    gpt_request: list[dict] | dict | None = None
-    debug_info: dict | None = {}
+    gpt_request: list[dict[str, Any]] | dict[str, Any] | None = None
+    debug_info: dict[str, Any] | None = {}
     created_at: datetime | None = None
     completed_at: datetime | None = None
     started_streaming_at: datetime | None = None
@@ -250,7 +250,7 @@ class MessageExecution(BaseModel):
     seconds_remaining: int | None = None
     percentage_completed: int | None = None
     is_queueable: bool | None = None
-    execution_options: dict | None = None
+    execution_options: dict[str, Any] | None = None
     progress_title: str | None = None
     position_in_queue: int | None = None
     created_at: datetime | None = None

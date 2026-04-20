@@ -66,7 +66,8 @@ class ContentField(BaseModel):
             #     content.download_image(self.download_path)
             #     content.add(sd) # type: ignore
             # else:
-            content.add(sd)  # type: ignore
+            # docxtpl subdoc is duck-type compatible with docx.Document but not a declared subtype
+            content.add(sd)  # pyright: ignore[reportArgumentType]
         return sd
 
     def __str__(self):

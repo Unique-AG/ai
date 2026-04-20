@@ -19,7 +19,7 @@ class LangchainNotInstalledError(ImportError):
 
 
 if importlib.util.find_spec("langchain_openai") is not None:
-    from langchain_openai import ChatOpenAI
+    from langchain_openai import ChatOpenAI  # pyright: ignore[reportMissingImports]
 else:
     raise LangchainNotInstalledError()
 

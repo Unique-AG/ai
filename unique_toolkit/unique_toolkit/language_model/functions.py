@@ -47,7 +47,7 @@ def complete(
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
     structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
     user_id: str | None = None,
@@ -89,13 +89,10 @@ def complete(
         response = unique_sdk.ChatCompletion.create(
             company_id=company_id,
             user_id=user_id,
-            model=model,
-            messages=cast(
-                "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
-                messages_dict,
-            ),
+            model=model,  # pyright: ignore[reportArgumentType]
+            messages=messages_dict,  # pyright: ignore[reportArgumentType]
             timeout=timeout,
-            options=options,  # type: ignore
+            options=options,
         )
         return LanguageModelResponse(**response)
     except Exception as e:
@@ -111,7 +108,7 @@ async def complete_async(
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
     structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
 ) -> LanguageModelResponse:
@@ -161,13 +158,10 @@ async def complete_async(
         response = await unique_sdk.ChatCompletion.create_async(
             company_id=company_id,
             user_id=user_id,
-            model=model,
-            messages=cast(
-                "list[unique_sdk.Integrated.ChatCompletionRequestMessage]",
-                messages_dict,
-            ),
+            model=model,  # pyright: ignore[reportArgumentType]
+            messages=messages_dict,  # pyright: ignore[reportArgumentType]
             timeout=timeout,
-            options=options,  # type: ignore
+            options=options,
         )
         return LanguageModelResponse(**response)
     except Exception as e:
@@ -176,9 +170,9 @@ async def complete_async(
 
 
 def _add_tools_to_options(
-    options: dict,
+    options: dict[str, Any],
     tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None,
-) -> dict:
+) -> dict[str, Any]:
     if tools:
         options["tools"] = [
             {
@@ -199,7 +193,7 @@ def _to_search_context(
     if not chunks:
         return None
     return [
-        unique_sdk.Integrated.SearchResult(
+        unique_sdk.Integrated.SearchResult(  # pyright: ignore[reportCallIssue]
             id=chunk.id,
             chunkId=chunk.chunk_id,
             key=chunk.key,
@@ -215,10 +209,10 @@ def _to_search_context(
 
 
 def _add_response_format_to_options(
-    options: dict,
+    options: dict[str, Any],
     structured_output_model: type[BaseModel] | dict[str, Any],
     structured_output_enforce_schema: bool = False,
-) -> dict:
+) -> dict[str, Any]:
     if isinstance(structured_output_model, dict):
         name = structured_output_model.get("title", "DefaultName")
         options["responseFormat"] = {
@@ -247,11 +241,11 @@ def _prepare_completion_params_util(
     model_name: LanguageModelName | str,
     temperature: float,
     tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
     content_chunks: list[ContentChunk] | None = None,
     structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
-) -> tuple[dict, str, dict, SearchContext | None]:
+) -> tuple[dict[str, Any], str, dict[str, Any], SearchContext | None]:
     """Prepare common parameters for completion requests.
 
     Returns
@@ -295,11 +289,11 @@ def _prepare_openai_completion_params_util(
     model_name: LanguageModelName | str,
     temperature: float,
     tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
     content_chunks: list[ContentChunk] | None = None,
     structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
-) -> tuple[dict, str, SearchContext | None]:
+) -> tuple[dict[str, Any], str, SearchContext | None]:
     """Prepare common parameters for completion requests.
 
     Returns
@@ -344,9 +338,9 @@ def __camelize_keys(data):
 
 
 def _prepare_other_options(
-    other_options: dict | None,
-    default_options: dict,
-) -> dict:
+    other_options: dict[str, Any] | None,
+    default_options: dict[str, Any],
+) -> dict[str, Any]:
     options = default_options
     if other_options is not None:
         options.update(other_options)
@@ -358,13 +352,13 @@ def _prepare_all_completions_params_util(
     model_name: LanguageModelName | str,
     temperature: float,
     tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
-    other_options: dict | None = None,
+    other_options: dict[str, Any] | None = None,
     content_chunks: list[ContentChunk] | None = None,
     tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
     structured_output_model: type[BaseModel] | dict[str, Any] | None = None,
     structured_output_enforce_schema: bool = False,
 ) -> tuple[
-    dict,
+    dict[str, Any],
     str,
     list[unique_sdk.Integrated.ChatCompletionRequestMessage],
     SearchContext | None,
@@ -433,7 +427,7 @@ def complete_with_references(
     model_name: LanguageModelName | str,
     user_id: str | None = None,
     content_chunks: list[ContentChunk] | None = None,
-    debug_dict: dict = {},
+    debug_dict: dict[str, Any] = {},
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,
@@ -466,7 +460,7 @@ async def complete_with_references_async(
     messages: LanguageModelMessages,
     model_name: LanguageModelName | str,
     content_chunks: list[ContentChunk] | None = None,
-    debug_dict: dict | None = None,
+    debug_dict: dict[str, Any] | None = None,
     temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
     timeout: int = DEFAULT_COMPLETE_TIMEOUT,
     tools: list[LanguageModelTool | LanguageModelToolDescription] | None = None,

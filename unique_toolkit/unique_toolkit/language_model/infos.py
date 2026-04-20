@@ -456,7 +456,7 @@ class LanguageModelInfo(BaseModel):
 
     @classmethod
     @lru_cache(maxsize=1)
-    def _load_from_env(cls) -> dict[str, dict]:
+    def _load_from_env(cls) -> dict[str, dict[str, Any]]:
         """
         Load custom language model infos from environment variable.
 
@@ -486,7 +486,7 @@ class LanguageModelInfo(BaseModel):
                 return {}
 
             # Validate each entry in the dictionary
-            valid_model_infos: dict[str, dict] = {}
+            valid_model_infos: dict[str, dict[str, Any]] = {}
             for model_key, model_info in model_infos_dict.items():
                 if not isinstance(model_info, dict):
                     _LOGGER.warning(
@@ -512,9 +512,7 @@ class LanguageModelInfo(BaseModel):
 
     @classmethod
     def from_name(cls, model_name: LanguageModelName | str) -> Self:
-        if isinstance(model_name, str) and model_name in [
-            name.value for name in LanguageModelName
-        ]:
+        if model_name in [name.value for name in LanguageModelName]:
             model_name = LanguageModelName(model_name)
 
         # Check environment variable first - env definitions take precedence
@@ -564,7 +562,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.FUNCTION_CALLING,
                         ModelCapabilities.STREAMING,
                     ],
-                    token_limits=LanguageModelTokenLimits(token_limit=8192),
+                    token_limits=LanguageModelTokenLimits(token_limit=8192),  # pyright: ignore[reportCallIssue]
                     info_cutoff_at=date(2021, 9, 1),
                     published_at=date(2023, 6, 13),
                     deprecated_at=date(2024, 10, 1),
@@ -581,7 +579,7 @@ class LanguageModelInfo(BaseModel):
                         ModelCapabilities.STREAMING,
                     ],
                     encoder_name=EncoderName.CL100K_BASE,
-                    token_limits=LanguageModelTokenLimits(token_limit=32768),
+                    token_limits=LanguageModelTokenLimits(token_limit=32768),  # pyright: ignore[reportCallIssue]
                     info_cutoff_at=date(2021, 9, 1),
                     published_at=date(2023, 6, 13),
                     deprecated_at=date(2024, 10, 1),

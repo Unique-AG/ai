@@ -152,8 +152,8 @@ class AgenticTableService:
             user_id=self._user_id,
             company_id=self._company_id,
             tableId=self.table_id,
-            activity=activity.value,  # type: ignore[arg-type]
-            status=status.value,  # type: ignore[arg-type]
+            activity=activity.value,  # pyright: ignore[reportArgumentType]
+            status=status.value,  # pyright: ignore[reportArgumentType]
             text=text,
         )
 
@@ -215,7 +215,7 @@ class AgenticTableService:
             user_id=self._user_id,
             company_id=self._company_id,
             tableId=self.table_id,
-            artifactType=artifact_type.value,
+            artifactType=artifact_type.value,  # pyright: ignore[reportArgumentType]
             contentId=content_id,
             mimeType=mime_type,
             name=name,
@@ -346,28 +346,28 @@ class AgenticTableService:
                     # TODO: @thea-unique This routine is not efficient and would be nice if we had this data passed on in get_sheet_data.
                     for cell in sheet_partial["magicTableCells"]:
                         row_order = cell.get("rowOrder")  # type: ignore[assignment]
-                        if row_order is not None and row_order not in row_metadata_map:
+                        if row_order is not None and row_order not in row_metadata_map:  # pyright: ignore[reportUnnecessaryComparison]
                             column_order = cell.get("columnOrder")  # type: ignore[assignment]
                             self.logger.info(
                                 f"Getting row metadata for cell {row_order}, {column_order}"
                             )
                             cell_with_row_metadata = await self.get_cell(
                                 row_order,
-                                column_order,  # type: ignore[arg-type]
+                                column_order,
                             )
                             if cell_with_row_metadata.row_metadata:
                                 print(cell_with_row_metadata.row_metadata)
                                 row_metadata_map[cell_with_row_metadata.row_order] = (
                                     cell_with_row_metadata.row_metadata
                                 )
-                                cell["rowMetadata"] = (  # type: ignore[assignment]
+                                cell["rowMetadata"] = (  # pyright: ignore[reportGeneralTypeIssues]
                                     cell_with_row_metadata.row_metadata
                                 )
                     # Assign row_metadata to all cells
                     for cell in sheet_partial["magicTableCells"]:
                         row_order = cell.get("rowOrder")  # type: ignore[assignment]
-                        if row_order is not None and row_order in row_metadata_map:
-                            cell["rowMetadata"] = row_metadata_map[  # type: ignore[assignment]
+                        if row_order is not None and row_order in row_metadata_map:  # pyright: ignore[reportUnnecessaryComparison]
+                            cell["rowMetadata"] = row_metadata_map[  # pyright: ignore[reportGeneralTypeIssues]
                                 row_order
                             ]
 
@@ -387,7 +387,7 @@ class AgenticTableService:
             user_id=self._user_id,
             company_id=self._company_id,
             tableId=self.table_id,
-            includeSheetMetadata=True,  # type: ignore[arg-type]
+            includeSheetMetadata=True,  # pyright: ignore[reportCallIssue]
         )
         return [
             RowMetadataEntry.model_validate(metadata)
@@ -428,9 +428,9 @@ class AgenticTableService:
             columnOrder=column,
             **params,
         )
-        if result["status"]:  # type: ignore
+        if result["status"]:  # pyright: ignore[reportTypedDictNotRequiredAccess]
             return
-        raise Exception(result["message"])  # type: ignore
+        raise Exception(result["message"])  # pyright: ignore[reportTypedDictNotRequiredAccess]
 
     async def update_row_verification_status(
         self,

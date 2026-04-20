@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 import tiktoken
@@ -69,7 +69,7 @@ def sort_content_chunks(content_chunks: list[ContentChunk]):
     sorted_chunks: list[ContentChunk] = []
     for chunks in doc_id_to_chunks.values():
         chunks.sort(key=lambda x: x.order)
-        for i, s in enumerate(chunks):
+        for _i, s in enumerate(chunks):
             s.text = re.sub(
                 r"<\|/content\|>", f" text part {s.order}<|/content|>", s.text
             )
@@ -225,7 +225,10 @@ def count_tokens(text: str, encoding_model="cl100k_base") -> int:
 
 
 def map_content_chunk(
-    content_id: str, content_key: str, content_chunk: dict, metadata: dict | None
+    content_id: str,
+    content_key: str,
+    content_chunk: dict[str, Any],
+    metadata: dict[str, Any] | None,
 ):
     content_metadata = ContentMetadata(**metadata) if metadata else None
     return ContentChunk(
@@ -240,7 +243,7 @@ def map_content_chunk(
     )
 
 
-def map_content(content: dict):
+def map_content(content: dict[str, Any]):
     metadata = content.get("metadata")
     return Content(
         id=content["id"],

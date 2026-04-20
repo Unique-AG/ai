@@ -1,4 +1,4 @@
-from typing import Sequence, TypeVar
+from typing import Sequence, TypeVar, cast
 
 T = TypeVar("T")
 
@@ -18,4 +18,4 @@ def validate_required_values(values: Sequence[T | None]) -> Sequence[T]:
     """
     if any(v is None for v in values):
         raise ValueError("Required values cannot be None")
-    return values  # type: ignore  # We know these aren't None after validation
+    return cast(Sequence[T], values)

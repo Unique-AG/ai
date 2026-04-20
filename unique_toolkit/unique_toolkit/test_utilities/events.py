@@ -110,7 +110,7 @@ class TestEventFactory:
         event: EventName = EventName.EXTERNAL_MODULE_CHOSEN,
         user_id: str | None = None,
         company_id: str | None = None,
-    ) -> BaseEvent:
+    ) -> BaseEvent[Any]:
         return BaseEvent(
             id=generated_alphanumeric_string(16),
             event=event,

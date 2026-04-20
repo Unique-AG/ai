@@ -128,7 +128,7 @@ class ApiOperationProtocol(
 
     @staticmethod
     def create_path_from_model(
-        path_params: PathParamsType, *, model_dump_options: dict | None = None
+        path_params: PathParamsType, *, model_dump_options: dict[str, Any] | None = None
     ) -> str: ...
 
     @staticmethod
@@ -138,7 +138,7 @@ class ApiOperationProtocol(
 
     @staticmethod
     def create_payload_from_model(
-        payload: PayloadType, *, model_dump_options: dict | None = None
+        payload: PayloadType, *, model_dump_options: dict[str, Any] | None = None
     ) -> dict[str, Any]: ...
 
     @staticmethod
@@ -148,12 +148,16 @@ class ApiOperationProtocol(
 
     @staticmethod
     def create_query_params_from_model(
-        query_params: QueryParamsType, *, model_dump_options: dict | None = None
+        query_params: QueryParamsType,
+        *,
+        model_dump_options: dict[str, Any] | None = None,
     ) -> dict[str, Any]: ...
 
     @staticmethod
     def handle_response(
-        response: dict[str, Any], *, model_validate_options: dict | None = None
+        response: dict[str, Any],
+        *,
+        model_validate_options: dict[str, Any] | None = None,
     ) -> ResponseType: ...
 
     @staticmethod
@@ -175,13 +179,13 @@ def build_api_operation(
     path_template: Template,
     response_model_type: type[ResponseType],
     path_params_constructor: Callable[PathParamsSpec, PathParamsType] = EmptyModel,
-    payload_dump_options: dict | None = None,
+    payload_dump_options: dict[str, Any] | None = None,
     payload_constructor: Callable[PayloadParamSpec, PayloadType] = EmptyModel,
-    path_dump_options: dict | None = None,
+    path_dump_options: dict[str, Any] | None = None,
     query_params_constructor: Callable[QueryParamsSpec, QueryParamsType] = EmptyModel,
-    query_params_dump_options: dict | None = None,
-    response_validate_options: dict | None = None,
-    dump_options: dict | None = None,  # Deprecated
+    query_params_dump_options: dict[str, Any] | None = None,
+    response_validate_options: dict[str, Any] | None = None,
+    dump_options: dict[str, Any] | None = None,  # Deprecated
 ) -> type[
     ApiOperationProtocol[
         PathParamsSpec,
@@ -215,7 +219,8 @@ def build_api_operation(
             DeprecationWarning,
         )
 
-    class Operation(ApiOperationProtocol):
+    # TODO(UN-19502): tighten ApiOperationProtocol generic parameters away from Any
+    class Operation(ApiOperationProtocol[Any, Any, Any, Any, Any, Any, Any]):
         @staticmethod
         def path_dump_options() -> dict[str, Any]:
             return path_dump_options or {}
@@ -254,7 +259,9 @@ def build_api_operation(
 
         @staticmethod
         def create_path_from_model(
-            path_params: PathParamsType, *, model_dump_options: dict | None = None
+            path_params: PathParamsType,
+            *,
+            model_dump_options: dict[str, Any] | None = None,
         ) -> str:
             if model_dump_options is None:
                 if path_dump_options is None:
@@ -289,7 +296,7 @@ def build_api_operation(
 
         @staticmethod
         def create_payload_from_model(
-            payload: PayloadType, *, model_dump_options: dict | None = None
+            payload: PayloadType, *, model_dump_options: dict[str, Any] | None = None
         ) -> dict[str, Any]:
             if model_dump_options is None:
                 if payload_dump_options is None:
@@ -314,7 +321,9 @@ def build_api_operation(
 
         @staticmethod
         def create_query_params_from_model(
-            query_params: QueryParamsType, *, model_dump_options: dict | None = None
+            query_params: QueryParamsType,
+            *,
+            model_dump_options: dict[str, Any] | None = None,
         ) -> dict[str, Any]:
             if model_dump_options is None:
                 if query_params_dump_options is None:

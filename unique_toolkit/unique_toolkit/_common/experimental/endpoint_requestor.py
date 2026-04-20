@@ -71,7 +71,8 @@ def build_fake_requestor(
     combined_model: Callable[CombinedParamsSpec, CombinedParamsType],
     return_value: dict[str, Any],
 ) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
-    class FakeRequestor(EndpointRequestorProtocol):
+    # TODO(UN-19505): tighten EndpointRequestorProtocol generic parameters away from Any
+    class FakeRequestor(EndpointRequestorProtocol[Any, Any]):
         _operation = operation_type
 
         @classmethod
@@ -82,7 +83,7 @@ def build_fake_requestor(
             **kwargs: CombinedParamsSpec.kwargs,
         ) -> ResponseType:
             try:
-                path_params, payload_model, query_params = (
+                _path_params, _payload_model, _query_params = (
                     cls._operation.models_from_combined(combined=kwargs)
                 )
             except Exception as e:
@@ -126,7 +127,8 @@ def build_request_requestor(
 ) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     import requests
 
-    class RequestRequestor(EndpointRequestorProtocol):
+    # TODO(UN-19505): tighten EndpointRequestorProtocol generic parameters away from Any
+    class RequestRequestor(EndpointRequestorProtocol[Any, Any]):
         _operation = operation_type
 
         @classmethod
@@ -203,7 +205,8 @@ def build_httpx_requestor(
 ) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     import httpx
 
-    class HttpxRequestor(EndpointRequestorProtocol):
+    # TODO(UN-19505): tighten EndpointRequestorProtocol generic parameters away from Any
+    class HttpxRequestor(EndpointRequestorProtocol[Any, Any]):
         _operation = operation_type
 
         @classmethod
@@ -267,7 +270,11 @@ def build_httpx_requestor(
         ) -> ResponseType:
             headers = context.headers or {}
 
-            path_params, payload_model, query_model = (
+            # TODO(UN-19748): async path silently drops query params — build and
+            # pass query_params like the sync request() method does (see the
+            # sync branch above which calls create_query_params_from_model and
+            # passes params=query_params to client.request).
+            path_params, payload_model, _query_model = (
                 cls._operation.models_from_combined(combined=kwargs)
             )
 
@@ -323,7 +330,8 @@ def build_aiohttp_requestor(
 ) -> type[EndpointRequestorProtocol[CombinedParamsSpec, ResponseType]]:
     import aiohttp
 
-    class AiohttpRequestor(EndpointRequestorProtocol):
+    # TODO(UN-19505): tighten EndpointRequestorProtocol generic parameters away from Any
+    class AiohttpRequestor(EndpointRequestorProtocol[Any, Any]):
         _operation = operation_type
 
         @classmethod

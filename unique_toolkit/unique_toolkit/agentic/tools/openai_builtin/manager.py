@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from openai import AsyncOpenAI
 from openai.types.responses import ResponseIncludable
 
@@ -21,7 +23,7 @@ from unique_toolkit.content.service import ContentService
 class OpenAIBuiltInToolManager:
     def __init__(
         self,
-        builtin_tools: list[OpenAIBuiltInTool],
+        builtin_tools: list[OpenAIBuiltInTool[Any]],
     ):
         self._builtin_tools = builtin_tools
 
@@ -36,7 +38,7 @@ class OpenAIBuiltInToolManager:
         client: AsyncOpenAI,
         tool_config: ToolBuildConfig,
         force_auto_container: bool = False,
-    ) -> OpenAIBuiltInTool:
+    ) -> OpenAIBuiltInTool[Any]:
         if tool_config.name == OpenAIBuiltInToolName.CODE_INTERPRETER:
             assert isinstance(tool_config.configuration, CodeInterpreterExtendedConfig)
             tool = await OpenAICodeInterpreterTool.build_tool(
@@ -84,7 +86,7 @@ class OpenAIBuiltInToolManager:
 
         return OpenAIBuiltInToolManager(builtin_tools)
 
-    def get_all_openai_builtin_tools(self) -> list[OpenAIBuiltInTool]:
+    def get_all_openai_builtin_tools(self) -> list[OpenAIBuiltInTool[Any]]:
         return self._builtin_tools.copy()
 
     def get_required_include_params(self) -> list[ResponseIncludable]:

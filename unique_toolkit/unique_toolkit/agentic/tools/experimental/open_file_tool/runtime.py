@@ -111,7 +111,9 @@ class OpenFileToolRuntime:
                 content_parts.append({"type": "text", "text": message.content})
             elif isinstance(message.content, list):
                 content_parts.extend(
-                    part for part in message.content if isinstance(part, dict)
+                    part
+                    for part in message.content
+                    if isinstance(part, dict)  # pyright: ignore[reportUnnecessaryIsInstance]
                 )
 
             if not content_parts:
@@ -226,7 +228,7 @@ class OpenFileToolRuntime:
             content_parts = [
                 part
                 for part in message.content
-                if not (isinstance(part, dict) and part.get("type") == "file")
+                if not (isinstance(part, dict) and part.get("type") == "file")  # pyright: ignore[reportUnnecessaryIsInstance]
             ]
             if len(content_parts) == len(message.content):
                 continue
@@ -312,9 +314,9 @@ class OpenFileToolRuntime:
             return True
         if isinstance(content, str):
             return not content.strip()
-        if isinstance(content, list):
+        if isinstance(content, list):  # pyright: ignore[reportUnnecessaryIsInstance]
             return len(content) == 0
-        return False
+        return False  # pyright: ignore[reportUnreachable]
 
     def _strip_open_file_messages(self, messages: LanguageModelMessages) -> None:
         open_file_call_ids: set[str] = set()

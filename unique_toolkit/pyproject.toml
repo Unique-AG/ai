@@ -1,6 +1,6 @@
 [project]
 name = "unique_toolkit"
-version = "1.75.1"
+version = "1.76.0"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12"
@@ -127,6 +127,49 @@ extend-select = ["I"]
 
 [tool.basedpyright]
 pythonVersion = "3.12"
-typeCheckingMode = "standard"
+typeCheckingMode = "recommended"
 include = ["unique_toolkit"]
 exclude = ["**/tests/**", "**/test_*.py"]
+
+# --- Silenced rules ---
+# Any-cascade: all triggered by untyped third-party code; fixing requires
+# sprinkling `Any` everywhere which defeats the purpose.
+reportAny = "none"
+reportExplicitAny = "none"
+reportUnknownArgumentType = "none"
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownParameterType = "none"
+reportUnknownLambdaType = "none"
+
+# basedpyright-only extension: requires every non-@final class to annotate
+# every attribute, which is impractical for mixin/base-class patterns.
+reportUnannotatedClassAttribute = "none"
+
+# SDK deprecations (e.g. Event → ChatEvent): tracked separately.
+reportDeprecated = "none"
+
+# Third-party libraries that ship no type stubs.
+reportMissingTypeStubs = "none"
+
+# Structural: circular imports require architectural refactoring.
+reportImportCycles = "none"
+
+# Style preferences.
+reportImplicitStringConcatenation = "none"
+reportCallInDefaultInitializer = "none"
+
+# Intentional patterns: callers often discard return values on purpose.
+reportUnusedCallResult = "none"
+reportUnusedParameter = "none"
+reportUnusedFunction = "none"
+
+# Toolkit legitimately accesses SDK-internal symbols.
+reportPrivateUsage = "none"
+reportPrivateLocalImportUsage = "none"
+
+# Requires adding @override to every overriding method — separate PR.
+reportImplicitOverride = "none"
+
+# Missing parameter type annotations on callbacks / dynamic patterns.
+reportMissingParameterType = "none"

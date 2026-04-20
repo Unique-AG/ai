@@ -149,8 +149,8 @@ class Content(BaseModel):
     updated_at: datetime | None = None
     expired_at: datetime | None = None
     metadata: dict[str, Any] | None = None
-    ingestion_config: dict | None = None
-    applied_ingestion_config: dict | None = None
+    ingestion_config: dict[str, Any] | None = None
+    applied_ingestion_config: dict[str, Any] | None = None
     ingestion_state: str | None = None
 
     def is_ingested(self, *, default_if_unknown: bool = True) -> bool:
@@ -190,7 +190,7 @@ class ContentReference(BaseModel):
     def from_sdk_reference(
         cls, reference: unique_sdk.Message.Reference | unique_sdk.Space.Reference
     ) -> "ContentReference":
-        kwargs = {
+        kwargs: dict[str, Any] = {
             "name": reference["name"],
             "url": reference["url"],
             "sequence_number": reference["sequenceNumber"],
@@ -236,7 +236,7 @@ class ContentUploadInput(BaseModel):
 class ContentRerankerConfig(BaseModel):
     model_config = model_config
     deployment_name: str = Field(serialization_alias="deploymentName")
-    options: dict | None = None
+    options: dict[str, Any] | None = None
 
 
 class ContentInfo(BaseModel):
