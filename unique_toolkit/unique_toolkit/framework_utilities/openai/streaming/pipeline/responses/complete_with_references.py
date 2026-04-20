@@ -285,7 +285,12 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         return self._bus
 
     async def _on_text_flushed(self, event: TextFlushed) -> None:
-        """Adapter: lift a handler-bus :class:`TextFlushed` to an outer :class:`TextDelta`."""
+        """Adapter: lift a handler-bus :class:`TextFlushed` to an outer :class:`TextDelta`.
+
+        Uses ``return_exceptions=True`` so a flaky text-delta subscriber
+        cannot abort the stream loop — failures are logged on the bus and
+        the remaining subscribers still run.
+        """
         if self._current_message_id is None or self._current_chat_id is None:
             return
         await self._bus.text_delta.publish_and_wait_async(
@@ -294,7 +299,8 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
                 chat_id=self._current_chat_id,
                 full_text=event.full_text,
                 original_text=event.original_text,
-            )
+            ),
+            return_exceptions=True,
         )
 
     async def _on_activity_progress_update(
@@ -305,7 +311,8 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         Attaches ``message_id`` / ``chat_id`` — handlers stay ignorant of
         bus-level identifiers, which means a future progress-producing
         handler just needs to publish :class:`ActivityProgressUpdate` on
-        its own bus and the same adapter picks it up.
+        its own bus and the same adapter picks it up. ``return_exceptions``
+        is enabled for the same reason as :meth:`_on_text_flushed`.
         """
         if self._current_message_id is None or self._current_chat_id is None:
             return
@@ -317,7 +324,8 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
                 status=update.status,
                 text=update.text,
                 order=update.order,
-            )
+            ),
+            return_exceptions=True,
         )
 
     def complete_with_references(  # noqa: PLR0913

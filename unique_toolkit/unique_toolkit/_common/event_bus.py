@@ -96,7 +96,28 @@ class TypedEventBus(Generic[T]):
     async def publish_and_wait_async(
         self, event: T, *, return_exceptions: bool = False
     ) -> None:
-        """Invoke every handler and await completion."""
-        coros = [self._invoke(h, event) for h in list(self._handlers)]
-        if coros:
-            await asyncio.gather(*coros, return_exceptions=return_exceptions)
+        """Invoke every handler and await completion.
+
+        When ``return_exceptions=True`` failures from one subscriber do not
+        cancel the others, and each swallowed exception is logged. Use this
+        at hot-path publish sites (e.g. ``text_delta``) where a single flaky
+        analytics subscriber should not abort the stream.
+        """
+        handlers = list(self._handlers)
+        coros = [self._invoke(h, event) for h in handlers]
+        if not coros:
+            return
+        if return_exceptions:
+            results = await asyncio.gather(*coros, return_exceptions=True)
+            for handler, result in zip(handlers, results):
+                if isinstance(result, BaseException) and not isinstance(
+                    result, asyncio.CancelledError
+                ):
+                    logger.error(
+                        "Subscriber %r raised during publish; swallowing: %r",
+                        handler,
+                        result,
+                        exc_info=result,
+                    )
+        else:
+            await asyncio.gather(*coros)

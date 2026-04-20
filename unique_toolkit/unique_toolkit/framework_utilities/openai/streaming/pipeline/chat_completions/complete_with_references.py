@@ -239,6 +239,10 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         Guards on the per-request context — if the orchestrator is
         between requests (e.g. a late publish from a stalled handler),
         the adapter drops the event rather than publish with stale ids.
+
+        Uses ``return_exceptions=True`` so a flaky text-delta subscriber
+        (e.g. analytics, tracing) cannot abort the stream loop — failures
+        are logged on the bus and the remaining subscribers still run.
         """
         if self._current_message_id is None or self._current_chat_id is None:
             return
@@ -248,7 +252,8 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
                 chat_id=self._current_chat_id,
                 full_text=event.full_text,
                 original_text=event.original_text,
-            )
+            ),
+            return_exceptions=True,
         )
 
     def complete_with_references(
