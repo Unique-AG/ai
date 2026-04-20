@@ -9,6 +9,9 @@ from unique_deep_research.service import DeepResearchTool
 from unique_follow_up_questions.config import FollowUpQuestionsConfig
 from unique_internal_search.config import InternalSearchConfig
 from unique_internal_search.service import InternalSearchTool
+from unique_skill_tool.config import (
+    SkillToolConfig,
+)
 from unique_stock_ticker.config import StockTickerConfig
 from unique_swot import SwotAnalysisTool, SwotAnalysisToolConfig
 from unique_toolkit._common.validators import (
@@ -35,9 +38,6 @@ from unique_toolkit.agentic.tools.a2a import (
 from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServiceConfig
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
-)
-from unique_skill_tool.config import (
-    SkillToolConfig,
 )
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig

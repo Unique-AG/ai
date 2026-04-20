@@ -24,17 +24,15 @@ def get_char_budget(
     """
     if context_window_tokens:
         return int(
-            context_window_tokens * CHARS_PER_TOKEN * config.skill_budget_context_percent
+            context_window_tokens
+            * CHARS_PER_TOKEN
+            * config.skill_budget_context_percent
         )
     return DEFAULT_CHAR_BUDGET
 
 
 def _get_skill_description(skill: SkillDefinition, max_chars: int) -> str:
-    desc = (
-        f"{skill.description} - {skill.when_to_use}"
-        if skill.when_to_use
-        else skill.description
-    )
+    desc = skill.description
     if len(desc) > max_chars:
         return desc[: max_chars - 1] + "\u2026"
     return desc

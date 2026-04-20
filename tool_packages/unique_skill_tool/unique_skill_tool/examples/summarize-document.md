@@ -1,7 +1,8 @@
 ---
-skill_name: summarize-document
-description: Structured document summarization with executive summary and key findings
-when_to_use: When the user asks to summarize, condense, or get an overview of a document
+name: summarize-document
+description: >-
+  Structured document summarization with executive summary and key findings.
+  Use when the user asks to summarize, condense, or get an overview of a document.
 ---
 
 # Summarize Document

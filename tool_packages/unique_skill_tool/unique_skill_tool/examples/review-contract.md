@@ -1,7 +1,8 @@
 ---
-skill_name: review-contract
-description: Contract risk analysis, obligation mapping, and clause review
-when_to_use: When the user asks to review, analyze, or check a contract or legal document
+name: review-contract
+description: >-
+  Contract risk analysis, obligation mapping, and clause review.
+  Use when the user asks to review, analyze, or check a contract or legal document.
 ---
 
 # Review Contract

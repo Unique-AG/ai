@@ -1,7 +1,8 @@
 ---
-skill_name: translate-document
-description: Document translation with locale awareness and translation notes
-when_to_use: When the user asks to translate text or a document into another language
+name: translate-document
+description: >-
+  Document translation with locale awareness and translation notes.
+  Use when the user asks to translate text or a document into another language.
 ---
 
 # Translate Document

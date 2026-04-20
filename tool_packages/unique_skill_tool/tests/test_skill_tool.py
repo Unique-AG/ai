@@ -12,24 +12,22 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 from unique_skill_tool.config import (
     SkillToolConfig,
 )
 from unique_skill_tool.prompt import (
-    MIN_DESC_LENGTH,
     format_skill_listing,
     get_char_budget,
 )
 from unique_skill_tool.schemas import (
     SkillDefinition,
 )
-from unique_skill_tool.tool import (
+from unique_skill_tool.service import (
     SkillTool,
     normalize_skill_name,
 )
-from unique_toolkit.language_model.schemas import LanguageModelFunction
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -39,13 +37,11 @@ from unique_toolkit.language_model.schemas import LanguageModelFunction
 def _make_skill(
     name: str = "test-skill",
     description: str = "A test skill",
-    when_to_use: str = "",
     content: str = "Do the test thing.",
 ) -> SkillDefinition:
     return SkillDefinition(
         name=name,
         description=description,
-        when_to_use=when_to_use,
         content=content,
     )
 
@@ -251,13 +247,11 @@ class TestFormatSkillListing:
 
         assert result == "- my-skill: Does things"
 
-    def test_when_to_use_appended(self) -> None:
-        skills = [
-            _make_skill("x", description="Short desc", when_to_use="When you need X")
-        ]
+    def test_description_shown_in_listing(self) -> None:
+        skills = [_make_skill("x", description="Short desc. Use when you need X")]
         result = format_skill_listing(skills)
 
-        assert "Short desc - When you need X" in result
+        assert "Short desc. Use when you need X" in result
 
     def test_descriptions_truncated_when_over_budget(self) -> None:
         long_desc = "A" * 500

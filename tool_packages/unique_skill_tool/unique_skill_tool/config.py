@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Annotated
 
 from pydantic import Field
-
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
@@ -45,7 +44,7 @@ DEFAULT_TOOL_PARAMETER_ARGUMENTS_DESCRIPTION = (
 
 CHARS_PER_TOKEN = 4
 DEFAULT_CHAR_BUDGET = 8_000
-SKILL_BUDGET_CONTEXT_PERCENT = 0.01
+SKILL_BUDGET_CONTEXT_PERCENT = 0.03
 MAX_LISTING_DESC_CHARS = 250
 
 
@@ -119,7 +118,7 @@ class SkillToolConfig(BaseToolConfig):
 
     skill_budget_context_percent: float = Field(
         default=SKILL_BUDGET_CONTEXT_PERCENT,
-        ge=0.001,
-        le=0.1,
+        ge=0.01,
+        le=0.15,
         description="Percentage of context window allocated for the skill listing.",
     )

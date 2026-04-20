@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-09T09:51:43.07642Z"
+exclude-newer = "2026-04-06T13:57:32.279533Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5346,6 +5346,7 @@ dependencies = [
     { name = "unique-deep-research" },
     { name = "unique-follow-up-questions" },
     { name = "unique-internal-search" },
+    { name = "unique-skill-tool" },
     { name = "unique-stock-ticker" },
     { name = "unique-swot" },
     { name = "unique-toolkit" },
@@ -5361,6 +5362,7 @@ requires-dist = [
     { name = "unique-deep-research", editable = "tool_packages/unique_deep_research" },
     { name = "unique-follow-up-questions", editable = "postprocessors/unique_follow_up_questions" },
     { name = "unique-internal-search", editable = "tool_packages/unique_internal_search" },
+    { name = "unique-skill-tool", editable = "tool_packages/unique_skill_tool" },
     { name = "unique-stock-ticker", editable = "postprocessors/unique_stock_ticker" },
     { name = "unique-swot", editable = "tool_packages/unique_swot" },
     { name = "unique-toolkit", editable = "unique_toolkit" },
@@ -5500,18 +5502,18 @@ dev = [{ name = "responses", specifier = ">=0.25.0" }]
 
 [[package]]
 name = "unique-skill-tool"
-version = "2026.16.0"
+version = "0.1.0"
 source = { editable = "tool_packages/unique_skill_tool" }
 dependencies = [
-    { name = "jinja2" },
     { name = "pydantic" },
+    { name = "typing-extensions" },
     { name = "unique-toolkit" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "jinja2", specifier = ">=3.1.0,<4" },
     { name = "pydantic", specifier = ">=2.8.2,<3" },
+    { name = "typing-extensions", specifier = ">=4.9.0,<5" },
     { name = "unique-toolkit", editable = "unique_toolkit" },
 ]
 

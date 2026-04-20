@@ -16,9 +16,10 @@ Each skill file uses **YAML frontmatter** to declare its metadata:
 
 ```markdown
 ---
-skill_name: summarize-document
-description: Structured document summarization with executive summary
-when_to_use: When the user asks to summarize or get an overview of a document
+name: summarize-document
+description: >-
+  Structured document summarization with executive summary.
+  Use when the user asks to summarize or get an overview of a document.
 ---
 
 # Summarize Document
@@ -28,9 +29,8 @@ You are an expert document summarizer...
 
 | Frontmatter key | Required | Purpose                                                     |
 |-----------------|----------|-------------------------------------------------------------|
-| `skill_name`    | No       | Skill identifier (defaults to file name without `.md`)      |
-| `description`   | Yes      | Short description shown to the LLM in the skill listing     |
-| `when_to_use`   | Yes      | Guidance for the LLM on when to activate this skill         |
+| `name`          | No       | Skill identifier (defaults to file name without `.md`)      |
+| `description`   | Yes      | Short description shown to the LLM in the skill listing — include guidance on when to activate this skill |
 
 Everything below the frontmatter is the **skill body** — the full prompt
 instructions injected when the agent invokes the skill.

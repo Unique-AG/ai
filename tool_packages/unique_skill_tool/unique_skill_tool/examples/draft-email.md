@@ -1,7 +1,8 @@
 ---
-skill_name: draft-email
-description: Professional email drafting with appropriate tone and structure
-when_to_use: When the user wants to write, compose, or draft an email
+name: draft-email
+description: >-
+  Professional email drafting with appropriate tone and structure.
+  Use when the user wants to write, compose, or draft an email.
 ---
 
 # Draft Email

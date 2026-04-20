@@ -6,9 +6,10 @@ SkillTool with the tool manager.
 Skill files are ``.md`` documents with optional YAML frontmatter::
 
     ---
-    skill_name: summarize-report
-    description: Summarize a document into key findings
-    when_to_use: When the user asks for a summary or overview
+    name: summarize-report
+    description: >-
+      Summarize a document into key findings.
+      Use when the user asks for a summary or overview.
     ---
 
     # Summarize Report
@@ -27,7 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 from unique_skill_tool.schemas import SkillDefinition
-from unique_skill_tool.tool import SkillTool
+from unique_skill_tool.service import SkillTool
 from unique_toolkit.content.schemas import Content
 
 if TYPE_CHECKING:
@@ -76,9 +77,10 @@ def _build_skill(
 ) -> SkillDefinition | None:
     """Build a ``SkillDefinition`` from the raw file text of a KB document.
 
-    Parses YAML frontmatter for ``skill_name``, ``description``, and
-    ``when_to_use``.  Falls back to KB-level ``content.metadata``, then
-    to the file stem for the name.
+    Parses YAML frontmatter for ``name`` and ``description``.
+    Falls back to KB-level ``content.metadata``, then to the file stem
+    for the name.  The legacy ``skill_name`` key is still accepted as a
+    fallback for backward compatibility.
     """
     if not file_text.strip():
         return None
@@ -87,29 +89,20 @@ def _build_skill(
     frontmatter, body = _parse_frontmatter(file_text)
 
     name = (
-        frontmatter.get("skill_name")
+        frontmatter.get("name")
+        or frontmatter.get("skill_name")
+        or kb_meta.get("name")
         or kb_meta.get("skill_name")
         or content.title
         or PurePosixPath(content.key).stem
         or content.id
     )
 
-    description = (
-        frontmatter.get("description")
-        or kb_meta.get("description")
-        or ""
-    )
-
-    when_to_use = (
-        frontmatter.get("when_to_use")
-        or kb_meta.get("when_to_use")
-        or ""
-    )
+    description = frontmatter.get("description") or kb_meta.get("description") or ""
 
     return SkillDefinition(
         name=name,
         description=description,
-        when_to_use=when_to_use,
         content=body or file_text,
     )
 
