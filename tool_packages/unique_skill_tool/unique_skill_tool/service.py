@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import jinja2
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -11,14 +12,12 @@ from unique_toolkit.language_model.schemas import (
 )
 
 from unique_skill_tool.config import SkillToolConfig
-from unique_skill_tool.prompt import (
-    format_skill_listing,
-)
 from unique_skill_tool.schemas import (
     SkillDefinition,
 )
-
-SKILL_ALREADY_LOADED_TAG = "skill_loaded"
+from unique_skill_tool.utils import (
+    format_skill_listing,
+)
 
 
 def normalize_skill_name(skill: str) -> str:
@@ -87,10 +86,11 @@ class SkillTool(Tool[SkillToolConfig]):
             skills=list(self._registry.values()),
             config=self.config,
         )
-        parts = [self.config.tool_description_for_system_prompt]
-        if listing:
-            parts.append(f"\nAvailable skills:\n{listing}")
-        return "\n".join(parts)
+        skill_list = (
+            f"Available skills:\n{listing}" if listing else "No skills available."
+        )
+        template = jinja2.Template(self.config.tool_description_for_system_prompt)
+        return template.render(skill_list=skill_list)
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         args = tool_call.arguments or {}
@@ -118,7 +118,7 @@ class SkillTool(Tool[SkillToolConfig]):
             )
 
         content_parts = [
-            f"<{SKILL_ALREADY_LOADED_TAG}>{skill_name}</{SKILL_ALREADY_LOADED_TAG}>",
+            f"<skill_loaded>{skill_name}</skill_loaded>",
             f"Skill '{skill_name}' is now active. Follow the instructions below.",
             "",
             skill.content,

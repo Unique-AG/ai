@@ -17,16 +17,16 @@ from unique_toolkit.language_model.schemas import LanguageModelFunction
 from unique_skill_tool.config import (
     SkillToolConfig,
 )
-from unique_skill_tool.prompt import (
-    format_skill_listing,
-    get_char_budget,
-)
 from unique_skill_tool.schemas import (
     SkillDefinition,
 )
 from unique_skill_tool.service import (
     SkillTool,
     normalize_skill_name,
+)
+from unique_skill_tool.utils import (
+    format_skill_listing,
+    get_char_budget,
 )
 
 # ---------------------------------------------------------------------------
@@ -209,6 +209,7 @@ class TestSkillToolSystemPrompt:
         prompt = tool.tool_description_for_system_prompt()
 
         assert "Available skills:" not in prompt
+        assert "No skills available." in prompt
 
 
 # ---------------------------------------------------------------------------

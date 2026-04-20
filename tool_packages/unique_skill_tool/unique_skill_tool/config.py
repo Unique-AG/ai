@@ -29,6 +29,7 @@ DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = (
     "5. After the skill is loaded, follow its instructions directly. The "
     "skill may tell you to call other tools (e.g. InternalSearch) as part "
     "of its workflow — that is expected.\n\n"
+    "{{ skill_list }}\n\n"
     "How to invoke:\n"
     '- skill_name: "analyze-data" — invoke a skill by name\n'
     '- skill_name: "summarize", arguments: "focus on key metrics" — invoke with arguments'

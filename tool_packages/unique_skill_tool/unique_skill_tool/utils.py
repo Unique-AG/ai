@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import re
-
 from unique_skill_tool.config import (
     CHARS_PER_TOKEN,
     DEFAULT_CHAR_BUDGET,
@@ -12,8 +10,6 @@ from unique_skill_tool.schemas import (
 )
 
 MIN_DESC_LENGTH = 20
-
-_SKILL_PREFIX_TOKEN_RE = re.compile(r"\A\s*/([A-Za-z0-9][A-Za-z0-9_-]*)(?=\s|\Z)")
 
 
 def get_char_budget(
@@ -26,7 +22,7 @@ def get_char_budget(
     (converted to characters via ``CHARS_PER_TOKEN``).  Falls back to
     ``DEFAULT_CHAR_BUDGET`` when the context window size is unknown.
     """
-    if context_window_tokens is not None:
+    if context_window_tokens:
         return int(
             context_window_tokens
             * CHARS_PER_TOKEN
@@ -38,7 +34,7 @@ def get_char_budget(
 def _get_skill_description(skill: SkillDefinition, max_chars: int) -> str:
     desc = skill.description
     if len(desc) > max_chars:
-        return desc[: max_chars - 3] + "..."
+        return desc[: max_chars - 1] + "\u2026"
     return desc
 
 
@@ -78,6 +74,10 @@ def format_skill_listing(
 
     name_overhead = sum(len(s.name) + 4 for s in skills) + len(skills) - 1
     available_for_descs = budget - name_overhead
+
+    if len(skills) == 0:
+        return ""
+
     max_desc_len = available_for_descs // len(skills)
 
     if max_desc_len < MIN_DESC_LENGTH:
@@ -86,48 +86,3 @@ def format_skill_listing(
     return "\n".join(
         f"- {s.name}: {_get_skill_description(s, max_desc_len)}" for s in skills
     )
-
-
-def normalize_skill_name(skill: str) -> str:
-    """Strip whitespace and a leading ``/`` from a skill name."""
-    skill = skill.strip()
-    if skill.startswith("/"):
-        return skill[1:]
-    return skill
-
-
-def extract_prefix_skills(
-    user_text: str,
-    skill_registry: dict[str, SkillDefinition],
-) -> tuple[list[SkillDefinition], str]:
-    """Pull consecutive ``/skill-name`` tokens from the very start of *user_text*.
-
-    Matches only tokens at the beginning of the message (after optional
-    leading whitespace). Matching stops at the first non-token or unknown
-    skill name, so ``/``-prefixed words appearing mid-message (URLs, code,
-    prose) are ignored.
-
-    Duplicates are dropped while preserving first-occurrence order.
-
-    Returns ``(ordered_skills, remaining_text)`` where *remaining_text* is
-    the original message with the matched prefix tokens stripped and
-    leading whitespace removed.
-    """
-    remaining = user_text
-    ordered: list[SkillDefinition] = []
-    seen: set[str] = set()
-
-    while True:
-        match = _SKILL_PREFIX_TOKEN_RE.match(remaining)
-        if match is None:
-            break
-        name = match.group(1)
-        skill = skill_registry.get(name)
-        if skill is None:
-            break
-        if name not in seen:
-            seen.add(name)
-            ordered.append(skill)
-        remaining = remaining[match.end() :]
-
-    return ordered, remaining.lstrip()
