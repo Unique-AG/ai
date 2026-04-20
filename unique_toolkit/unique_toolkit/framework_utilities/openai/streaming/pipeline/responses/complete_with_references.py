@@ -381,6 +381,25 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         reasoning: Reasoning | None = None,
         other_options: dict | None = None,
     ) -> ResponsesLanguageModelStreamResponse:
+        # ``start_text`` and ``debug_info`` are on the
+        # :class:`ResponsesSupportCompleteWithReferences` protocol but are
+        # not forwarded to ``client.responses.create``. Log when a caller
+        # sets them so the silent drop is visible rather than a footgun.
+        if start_text is not None:
+            _LOGGER.warning(
+                "ResponsesCompleteWithReferences: 'start_text' is "
+                "accepted for protocol compatibility but not forwarded "
+                "to the OpenAI client; injection of a pre-seeded "
+                "assistant message is not supported here."
+            )
+        if debug_info is not None:
+            _LOGGER.warning(
+                "ResponsesCompleteWithReferences: 'debug_info' is "
+                "accepted for protocol compatibility but not forwarded "
+                "to the OpenAI client; attach debug info via a "
+                "custom subscriber instead."
+            )
+
         settings = self._settings
         chat = settings.context.chat
         if chat is None:

@@ -195,6 +195,47 @@ async def test_AI_chat_completions__concurrent_call__raises_reentry_error():
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_AI_chat_completions__unsupported_protocol_kwargs__logged(caplog):
+    """
+    Purpose: ``timeout``, ``start_text``, ``debug_info`` are accepted on the
+      protocol but not forwarded to the OpenAI client; the orchestrator must
+      log a warning when callers set them.
+    Why this matters: Callers will assume ``timeout`` controls the HTTP
+      request. A silent drop is a footgun; a warning makes the mismatch
+      visible without breaking the protocol contract.
+    Setup summary: Call with non-default values for each kwarg and assert the
+      three corresponding warnings were emitted.
+    """
+    fake_client = MagicMock()
+    fake_client.chat.completions.create = AsyncMock(return_value=_FakeStream([]))
+
+    orchestrator = _build_orchestrator(client=fake_client)
+
+    import logging
+
+    with caplog.at_level(
+        logging.WARNING,
+        logger=(
+            "unique_toolkit.framework_utilities.openai.streaming.pipeline."
+            "chat_completions.complete_with_references"
+        ),
+    ):
+        await orchestrator.complete_with_references_async(
+            messages=[{"role": "user", "content": "hi"}],
+            model_name="test-model",
+            timeout=1000,
+            start_text="seed",
+            debug_info={"trace_id": "abc"},
+        )
+
+    messages = [r.getMessage() for r in caplog.records]
+    assert any("timeout=1000" in m for m in messages)
+    assert any("start_text" in m for m in messages)
+    assert any("debug_info" in m for m in messages)
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_AI_chat_completions__happy_path__clears_context_after_completion():
     """
     Purpose: Confirm the normal completion path also clears per-request context.
