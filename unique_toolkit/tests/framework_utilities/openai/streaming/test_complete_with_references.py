@@ -322,3 +322,30 @@ def test_AI_chat_completions__client_without_subscribers__raises_type_error():
 
     orchestrator = _build_orchestrator(client=fake_client)
     assert orchestrator is not None
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_chat_completions__close__cancels_handler_bus_subscription():
+    """
+    Purpose: :meth:`close` must cancel the orchestrator's subscription on
+      the router's text bus so it stops receiving :class:`TextFlushed`.
+    Why this matters: The ``Subscription`` handle returned by
+      :meth:`TypedEventBus.subscribe` was previously ignored; if a router
+      outlived its orchestrator it would keep calling the stale adapter
+      (holding references the caller expects released).
+    Setup summary: Build an orchestrator, assert one handler is registered
+      on the router's text bus, call :meth:`close`, and assert the
+      subscription was removed from the bus handler list.
+    """
+    fake_client = MagicMock()
+    fake_client.chat.completions.create = AsyncMock(return_value=_FakeStream([]))
+    orchestrator = _build_orchestrator(client=fake_client)
+
+    handlers_before = list(orchestrator._router.text_bus._handlers)
+    assert any(h == orchestrator._on_text_flushed for h in handlers_before)
+
+    orchestrator.close()
+
+    handlers_after = list(orchestrator._router.text_bus._handlers)
+    assert not any(h == orchestrator._on_text_flushed for h in handlers_after)

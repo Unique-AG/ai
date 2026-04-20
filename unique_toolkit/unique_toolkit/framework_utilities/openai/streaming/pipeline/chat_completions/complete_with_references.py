@@ -237,12 +237,27 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         self._current_message_id: str | None = None
         self._current_chat_id: str | None = None
         self._in_flight: bool = False
-        self._router.text_bus.subscribe(self._on_text_flushed)
+        # Keep the subscription handle so :meth:`close` can cancel it and
+        # drop the reference to ``self._on_text_flushed`` the router is
+        # holding — otherwise router reuse across orchestrators would leak
+        # old adapter references onto the handler bus.
+        self._text_flush_subscription = self._router.text_bus.subscribe(
+            self._on_text_flushed
+        )
 
     @property
     def bus(self) -> StreamEventBus:
         """Expose the owned bus so callers can attach additional subscribers."""
         return self._bus
+
+    def close(self) -> None:
+        """Cancel adapter subscriptions so the orchestrator releases its refs.
+
+        Safe to call multiple times. After :meth:`close` the orchestrator
+        will no longer receive :class:`TextFlushed` events from the router
+        — construct a fresh instance for further requests.
+        """
+        self._text_flush_subscription.cancel()
 
     async def _on_text_flushed(self, event: TextFlushed) -> None:
         """Adapter: lift a handler-bus :class:`TextFlushed` to an outer :class:`TextDelta`.
