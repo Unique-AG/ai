@@ -243,6 +243,9 @@ def _append_element_to_builder(
         file_contents = [co for co in c.contents if FileUtils.is_file_content(co.key)]
         image_contents = [co for co in c.contents if FileUtils.is_image_content(co.key)]
         if selected_content_ids is not None:
+            file_contents = [
+                co for co in file_contents if co.id in selected_content_ids
+            ]
             image_contents = [
                 co for co in image_contents if co.id in selected_content_ids
             ]
@@ -291,6 +294,9 @@ async def _append_element_to_builder_async(
         file_contents = [co for co in c.contents if FileUtils.is_file_content(co.key)]
         image_contents = [co for co in c.contents if FileUtils.is_image_content(co.key)]
         if selected_content_ids is not None:
+            file_contents = [
+                co for co in file_contents if co.id in selected_content_ids
+            ]
             image_contents = [
                 co for co in image_contents if co.id in selected_content_ids
             ]
