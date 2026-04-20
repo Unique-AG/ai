@@ -14,9 +14,12 @@ if TYPE_CHECKING:
 
     from openai.types.chat.chat_completion_chunk import ChatCompletionChunk
 
+    from unique_toolkit._common.event_bus import TypedEventBus
+
     from ..protocols import (
         ChatCompletionTextHandlerProtocol,
         ChatCompletionToolCallHandlerProtocol,
+        TextFlushed,
     )
 
 
@@ -46,35 +49,41 @@ class ChatCompletionStreamPipeline:
     def _all_handlers(self) -> list[StreamHandlerProtocol]:
         return [h for h in (self._text, self._tools) if h is not None]
 
+    @property
+    def text_flush_bus(self) -> TypedEventBus[TextFlushed]:
+        """Re-expose the text handler's flush bus for orchestrator subscription.
+
+        Subscribers (typically the orchestrator) attach once at construction
+        and receive a :class:`TextFlushed` on every flush boundary crossed
+        during streaming — no explicit drain/pull required.
+        """
+        return self._text.flush_bus
+
     def reset(self) -> None:
         for h in self._all_handlers:
             h.reset()
 
-    async def on_event(self, event: ChatCompletionChunk, *, index: int) -> bool:
+    async def on_event(self, event: ChatCompletionChunk, *, index: int) -> None:
         """Dispatch one chunk to text + tool handlers.
 
-        Returns:
-            True if the text handler signalled a flush boundary this chunk,
-            indicating the caller should observe the updated text and
-            publish a :class:`TextDelta` event.
+        Text flushes are published on the text handler's
+        :attr:`text_flush_bus`; the tool handler has no per-event
+        side-effect surface (final tool calls are read at stream end).
         """
-        flush = await self._text.on_chunk(event, index=index)
+        await self._text.on_chunk(event, index=index)
         if self._tools:
             await self._tools.on_chunk(event)
-        return flush
 
-    async def on_stream_end(self) -> bool:
+    async def on_stream_end(self) -> None:
         """Finalize all handlers.
 
-        Returns:
-            True if the text handler produced a residual flush (buffered
-            replacer output) that should be observed before the final
-            :class:`StreamEnded` event is published.
+        Any residual replacer text produces a final :class:`TextFlushed`
+        on the text handler's bus before the orchestrator publishes
+        :class:`StreamEnded`.
         """
-        flushed = await self._text.on_stream_end()
+        await self._text.on_stream_end()
         if self._tools:
             await self._tools.on_stream_end()
-        return flushed
 
     def get_text(self):
         """Expose the text handler's accumulated state for orchestrator publishing."""

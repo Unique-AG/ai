@@ -2,11 +2,11 @@
 
 Handlers are pluggable components that process specific event types. The system uses **structural typing** (Python Protocols) rather than inheritance.
 
-Handlers are **pure state machines**: they accumulate state only. They do not call the Unique SDK, they do not see retrieved chunks, and they do not publish events themselves. Side-effects live in [subscribers](./overview.md#subscribers) on the `StreamEventBus`.
+Handlers are **pure state machines**: they accumulate state only. They do not call the Unique SDK and they do not see retrieved chunks. Handlers that produce per-event signals (text flushes, tool-activity progress) own a `TypedEventBus[T]` and publish typed payloads on it; the orchestrator subscribes at construction and adapts those payloads to outer-bus events (e.g. `TextFlushed` → `TextDelta`). Side-effects live in [subscribers](./overview.md#subscribers) on the `StreamEventBus`.
 
 ## Base Protocol
 
-Most handlers implement the shared lifecycle protocol:
+All handlers implement the shared lifecycle protocol:
 
 ```python
 class StreamHandlerProtocol(Protocol):
@@ -19,27 +19,27 @@ class StreamHandlerProtocol(Protocol):
         ...
 ```
 
-Text handlers **narrow `on_stream_end`** to return `bool` (see below) so the orchestrator can observe a residual flush from replacer buffers before publishing `StreamEnded`.
+All `on_event` / `on_chunk` / `on_text_delta` / `on_stream_end` methods return `None`. Text handlers publish a `TextFlushed` on their `flush_bus` at every flush boundary (including any residual flush in `on_stream_end`); the code interpreter handler publishes `ActivityProgressUpdate` on its `progress_bus` per state transition.
 
 ## Protocol Hierarchy
 
 ```mermaid
 flowchart TB
-    SHP["StreamHandlerProtocol<br/>(lifecycle, on_stream_end → None)"]
+    SHP["StreamHandlerProtocol<br/>(on_stream_end → None, reset)"]
 
-    TextCC["ChatCompletionTextHandlerProtocol<br/>• on_chunk(event, index) → bool<br/>• on_stream_end() → bool<br/>• get_text() → TextState<br/>• reset()"]
-    TextR["ResponsesTextDeltaHandlerProtocol<br/>• on_text_delta(event) → bool<br/>• on_stream_end() → bool<br/>• get_text() → TextState<br/>• reset()"]
+    TextCC["ChatCompletionTextHandlerProtocol<br/>• flush_bus: TypedEventBus[TextFlushed]<br/>• on_chunk(event, index) → None<br/>• on_stream_end() → None<br/>• get_text() → TextState"]
+    TextR["ResponsesTextDeltaHandlerProtocol<br/>• flush_bus: TypedEventBus[TextFlushed]<br/>• on_text_delta(event) → None<br/>• on_stream_end() → None<br/>• get_text() → TextState"]
 
     SHP --> RTCH["ResponsesToolCallHandlerProtocol<br/>• on_output_item_added(event)<br/>• on_function_arguments_done(event)<br/>• get_tool_calls()"]
     SHP --> RCH["ResponsesCompletedHandlerProtocol<br/>• on_completed(event)<br/>• get_usage()<br/>• get_output()"]
-    SHP --> RCIH["ResponsesCodeInterpreterHandlerProtocol<br/>• on_code_interpreter_event(event)"]
+    SHP --> RCIH["ResponsesCodeInterpreterHandlerProtocol<br/>• progress_bus: TypedEventBus[ActivityProgressUpdate]<br/>• on_code_interpreter_event(event)<br/>• get_appendix() → str | None"]
     SHP --> CCTCH["ChatCompletionToolCallHandlerProtocol<br/>• on_chunk(event)<br/>• get_tool_calls()"]
 
-    TextCC -. "standalone<br/>(narrowed return)" .-> note1[" "]
-    TextR -. "standalone<br/>(narrowed return)" .-> note1
+    TextCC -. "standalone" .-> note1[" "]
+    TextR -. "standalone" .-> note1
 ```
 
-Text handler protocols do not inherit from `StreamHandlerProtocol` so their `on_stream_end` return type can be narrowed from `None` to `bool` without a variance conflict.
+Text handler protocols stand alone (no `StreamHandlerProtocol` inheritance) because their event methods carry `index` or an SDK-specific delta type that doesn't fit the base shape; all still expose `reset()` and `on_stream_end()` via duck-typing.
 
 ## TextState
 
@@ -54,19 +54,38 @@ class TextState:
 
 ## Flush Signalling (text handlers)
 
-Text handlers return `bool` from their event methods:
+Text handlers publish `TextFlushed` on their `flush_bus` at every flush boundary — no bool return values. The orchestrator subscribes once at construction and lifts each flush to a `TextDelta` outer-bus event.
 
-| Method | Return | Meaning |
-|--------|--------|---------|
-| `on_chunk` / `on_text_delta` | `True` | Observable text was produced *and* a flush boundary was crossed — the orchestrator should publish `TextDelta`. |
-| `on_chunk` / `on_text_delta` | `False` | No observable text yet (empty delta, throttled, buffered in a replacer). |
-| `on_stream_end` | `True` | Replacer buffers produced residual text — orchestrator should publish one more `TextDelta` before `StreamEnded`. |
-| `on_stream_end` | `False` | No residual text. |
+```python
+@dataclass(frozen=True, slots=True)
+class TextFlushed:
+    full_text: str
+    original_text: str
+    chunk_index: int | None = None
+```
+
+| Source | Published when | Carries |
+|--------|---------------|---------|
+| `on_chunk` / `on_text_delta` (mid-stream) | Delta carried content *and* a flush boundary was crossed (throttling / replacer release) | Current `TextState` snapshot + `chunk_index` |
+| `on_stream_end` (residual) | Replacer buffers released trailing characters at end-of-stream | Final `TextState` snapshot |
 
 Throttling strategy is handler-local:
 
 - `ChatCompletionTextHandler` flushes every `send_every_n_events` content-carrying chunks.
 - `ResponsesTextDeltaHandler` flushes on every non-empty delta (Responses streams are already pre-chunked by the provider).
+
+## Progress Signalling (code interpreter handler)
+
+`ResponsesCodeInterpreterHandler` publishes `ActivityProgressUpdate` on its `progress_bus` for every genuine state transition (deduplicated by a per-`item_id` `(status, text)` fingerprint). The orchestrator subscribes once at construction and lifts each update to an `ActivityProgress` outer-bus event by attaching `message_id` / `chat_id`. Future progress-producing handlers need only expose the same shape.
+
+```python
+@dataclass(frozen=True, slots=True)
+class ActivityProgressUpdate:
+    correlation_id: str
+    status: ActivityStatus  # "RUNNING" | "COMPLETED" | "FAILED"
+    text: str
+    order: int = 0
+```
 
 ## Why Protocols?
 

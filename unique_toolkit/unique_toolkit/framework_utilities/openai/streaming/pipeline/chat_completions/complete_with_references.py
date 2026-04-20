@@ -33,6 +33,7 @@ from unique_toolkit.language_model.schemas import (
 from unique_toolkit.protocols.support import SupportCompleteWithReferences
 
 from ..events import StreamEnded, StreamEvent, StreamEventBus, StreamStarted, TextDelta
+from ..protocols import TextFlushed
 from ..subscribers import MessagePersistingSubscriber
 from .stream_pipeline import ChatCompletionStreamPipeline
 from .text_handler import ChatCompletionTextHandler
@@ -206,10 +207,36 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         for handler in effective_subscribers:
             self._bus.subscribe(handler)
 
+        # Per-request context for the flush-bus adapter. Set at the top of
+        # :meth:`complete_with_references_async` and cleared in its
+        # ``finally`` block — matches the single-request-at-a-time model
+        # of ``pipeline.reset()``.
+        self._current_message_id: str | None = None
+        self._current_chat_id: str | None = None
+        self._pipeline.text_flush_bus.subscribe(self._on_text_flushed)
+
     @property
     def bus(self) -> StreamEventBus:
         """Expose the owned bus so callers can attach additional subscribers."""
         return self._bus
+
+    async def _on_text_flushed(self, event: TextFlushed) -> None:
+        """Adapter: lift a handler-bus :class:`TextFlushed` to an outer :class:`TextDelta`.
+
+        Guards on the per-request context — if the orchestrator is
+        between requests (e.g. a late publish from a stalled handler),
+        the adapter drops the event rather than publish with stale ids.
+        """
+        if self._current_message_id is None or self._current_chat_id is None:
+            return
+        await self._bus.publish_and_wait_async(
+            TextDelta(
+                message_id=self._current_message_id,
+                chat_id=self._current_chat_id,
+                full_text=event.full_text,
+                original_text=event.original_text,
+            )
+        )
 
     def complete_with_references(
         self,
@@ -267,6 +294,8 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         chat_id = chat.chat_id
 
         self._pipeline.reset()
+        self._current_message_id = message_id
+        self._current_chat_id = chat_id
         await self._bus.publish_and_wait_async(
             StreamStarted(
                 message_id=message_id,
@@ -298,10 +327,8 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
 
             index = 0
             async for chunk in stream:
-                flushed = await self._pipeline.on_event(chunk, index=index)
+                await self._pipeline.on_event(chunk, index=index)
                 index += 1
-                if flushed:
-                    await self._publish_text_delta(message_id, chat_id)
         except httpx.RemoteProtocolError as exc:
             _LOGGER.warning(
                 "Stream connection closed prematurely (incomplete chunked read). "
@@ -309,9 +336,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
                 exc,
             )
         finally:
-            flushed = await self._pipeline.on_stream_end()
-            if flushed:
-                await self._publish_text_delta(message_id, chat_id)
+            await self._pipeline.on_stream_end()
             text_state = self._pipeline.get_text()
             await self._bus.publish_and_wait_async(
                 StreamEnded(
@@ -321,20 +346,11 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
                     original_text=text_state.original_text,
                 )
             )
+            self._current_message_id = None
+            self._current_chat_id = None
 
         return self._pipeline.build_result(
             message_id=message_id,
             chat_id=chat_id,
             created_at=datetime.now(timezone.utc),
-        )
-
-    async def _publish_text_delta(self, message_id: str, chat_id: str) -> None:
-        text_state = self._pipeline.get_text()
-        await self._bus.publish_and_wait_async(
-            TextDelta(
-                message_id=message_id,
-                chat_id=chat_id,
-                full_text=text_state.full_text,
-                original_text=text_state.original_text,
-            )
         )

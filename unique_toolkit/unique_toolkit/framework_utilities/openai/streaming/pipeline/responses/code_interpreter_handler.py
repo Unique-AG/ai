@@ -4,27 +4,25 @@ The handler consumes OpenAI Responses code-interpreter events and keeps two
 pieces of derived state:
 
 * A per-``item_id`` (status, text) fingerprint used to suppress duplicate
-  progress updates; each genuine transition becomes an
-  :class:`ActivityProgressUpdate` in the pending queue (the generic
-  handler-bridge shape defined in :mod:`protocols.common`).
+  progress updates; each genuine transition is published as an
+  :class:`ActivityProgressUpdate` on the handler-owned
+  :class:`TypedEventBus` (:attr:`progress_bus`).
 * The concatenated code the model executed, exposed as an assistant-message
   appendix via :meth:`get_appendix` for the orchestrator to attach to the
   final :class:`StreamEnded` event.
 
 All SDK I/O (``MessageLog`` create/update, ``Message`` modify) lives in
-subscribers reacting to :class:`ActivityProgress` and the appendix-aware
-:class:`MessagePersistingSubscriber`.
+subscribers reacting to the outer-bus :class:`ActivityProgress` event
+(adapted by the orchestrator from :attr:`progress_bus`) and the
+appendix-aware :class:`MessagePersistingSubscriber`.
 
-Structurally, this handler is one of possibly many
-:class:`ActivityProgressProducer` + :class:`AppendixProducer` implementations
-— the pipeline discovers contributors via ``isinstance`` checks rather than
-a CI-specific slot, so future progress-producing handlers need zero
-pipeline changes.
+Structurally this handler owns a :class:`TypedEventBus` just like the
+text handlers do — the pipeline exposes that bus for the orchestrator
+to subscribe to, so future progress-producing handlers only need to
+expose a ``progress_bus`` property to plug in.
 """
 
 from __future__ import annotations
-
-from typing import TYPE_CHECKING
 
 from openai.types.responses.response_code_interpreter_call_code_delta_event import (
     ResponseCodeInterpreterCallCodeDeltaEvent,
@@ -42,10 +40,10 @@ from openai.types.responses.response_code_interpreter_call_interpreting_event im
     ResponseCodeInterpreterCallInterpretingEvent,
 )
 
-from ..protocols.common import ActivityProgressUpdate
+from unique_toolkit._common.event_bus import TypedEventBus
 
-if TYPE_CHECKING:
-    from ..events import ActivityStatus
+from ..events import ActivityStatus
+from ..protocols.common import ActivityProgressUpdate
 
 CodeInterpreterCallEvent = (
     ResponseCodeInterpreterCallCodeDoneEvent
@@ -62,27 +60,26 @@ _APPENDIX_SUFFIX = "\n```"
 class ResponsesCodeInterpreterHandler:
     """Accumulates code-interpreter state without performing any I/O.
 
-    Implements the :class:`ActivityProgressProducer` and
-    :class:`AppendixProducer` capability protocols structurally — the
-    pipeline picks it up via ``isinstance`` alongside any other handler
-    exposing the same shape.
-
-    Private state: ``_code`` (accumulated executed code), ``_last_by_item``
-    (per ``item_id`` fingerprint used to skip duplicate updates), and
-    ``_pending`` (updates waiting to be drained by the orchestrator).
+    Publishes :class:`ActivityProgressUpdate` on its own
+    :class:`TypedEventBus` (accessible via :attr:`progress_bus`) for
+    every genuine state transition, deduplicated by a per-``item_id``
+    ``(status, text)`` fingerprint. Exposes the executed-code appendix
+    via :meth:`get_appendix` for the orchestrator to attach to
+    :class:`StreamEnded`.
     """
 
     def __init__(self) -> None:
         self._code: str = ""
         self._last_by_item: dict[str, tuple[ActivityStatus, str]] = {}
-        self._pending: list[ActivityProgressUpdate] = []
+        self._progress_bus: TypedEventBus[ActivityProgressUpdate] = TypedEventBus()
+
+    @property
+    def progress_bus(self) -> TypedEventBus[ActivityProgressUpdate]:
+        """Handler-local bus carrying progress updates as state transitions."""
+        return self._progress_bus
 
     async def on_code_interpreter_event(self, event: CodeInterpreterCallEvent) -> None:
-        """Map one OpenAI CI event to an optional progress update.
-
-        Pure: mutates only handler state and enqueues a pending update when
-        the (status, text) pair for ``item_id`` changes.
-        """
+        """Map one OpenAI CI event to an optional progress update publish."""
         status: ActivityStatus
         if isinstance(event, ResponseCodeInterpreterCallCodeDoneEvent):
             self._code = event.code
@@ -109,7 +106,8 @@ class ResponsesCodeInterpreterHandler:
         if self._last_by_item.get(item_id) == fingerprint:
             return
         self._last_by_item[item_id] = fingerprint
-        self._pending.append(
+
+        await self._progress_bus.publish_and_wait_async(
             ActivityProgressUpdate(
                 correlation_id=item_id,
                 status=status,
@@ -117,32 +115,17 @@ class ResponsesCodeInterpreterHandler:
             )
         )
 
-    def drain_pending(self) -> list[ActivityProgressUpdate]:
-        """Return and clear all pending progress updates.
-
-        The orchestrator calls this after dispatching each stream event and
-        publishes the results onto the bus.
-        """
-        drained = self._pending
-        self._pending = []
-        return drained
-
     def get_appendix(self) -> str | None:
-        """Return the formatted code appendix, or ``None`` if no code ran.
-
-        The orchestrator attaches this string to :class:`StreamEnded` so
-        the message persister can write ``full_text + appendix`` in a
-        single round-trip.
-        """
+        """Return the formatted code appendix, or ``None`` if no code ran."""
         if not self._code:
             return None
         return _APPENDIX_PREAMBLE + self._code + _APPENDIX_SUFFIX
 
     async def on_stream_end(self) -> None:
-        """No-op: the handler has no resources to release."""
+        """No-op: progress transitions are published as they happen."""
         return
 
     def reset(self) -> None:
+        """Clear accumulated state. Bus subscribers are preserved across requests."""
         self._code = ""
         self._last_by_item = {}
-        self._pending = []

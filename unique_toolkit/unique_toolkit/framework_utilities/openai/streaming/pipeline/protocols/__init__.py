@@ -15,10 +15,10 @@ from .chat_completions import (
     ChatCompletionToolCallHandlerProtocol,
 )
 from .common import (
-    ActivityProgressProducer,
     ActivityProgressUpdate,
     AppendixProducer,
     StreamHandlerProtocol,
+    TextFlushed,
     TextState,
 )
 from .responses import (
@@ -29,7 +29,6 @@ from .responses import (
 )
 
 __all__ = [
-    "ActivityProgressProducer",
     "ActivityProgressUpdate",
     "AppendixProducer",
     "ChatCompletionTextHandlerProtocol",
@@ -39,5 +38,6 @@ __all__ = [
     "ResponsesTextDeltaHandlerProtocol",
     "ResponsesToolCallHandlerProtocol",
     "StreamHandlerProtocol",
+    "TextFlushed",
     "TextState",
 ]

@@ -1,20 +1,24 @@
 """Handler for Chat Completion text deltas — accumulates text via replacers.
 
-This handler is a *pure state machine*: it applies streaming replacers,
+This handler is a *pure state machine*: it applies streaming replacers and
 accumulates both ``full_text`` (normalised) and ``original_text`` (raw
-model output), and tells its caller when a text boundary has been crossed.
-It performs no SDK I/O and knows nothing about retrieved chunks; all
-side-effects live in subscribers of :data:`StreamEvent`.
+model output). At every flush boundary it publishes a :class:`TextFlushed`
+event on its own handler-owned :class:`TypedEventBus` so external
+subscribers (typically the orchestrator, optionally tests or tracers) can
+react without the handler needing to know about the outer
+:class:`StreamEventBus`, ``message_id``, or ``chat_id``.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from unique_toolkit._common.event_bus import TypedEventBus
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
     StreamingReplacerProtocol,
 )
 from unique_toolkit.framework_utilities.openai.streaming.pipeline.protocols import (
+    TextFlushed,
     TextState,
 )
 
@@ -26,7 +30,10 @@ class ChatCompletionTextHandler:
     """Accumulates text from ``ChatCompletionChunk`` events.
 
     Private state: replacer chain, :class:`TextState` (normalised + raw),
-    and a flush counter that throttles observable boundaries.
+    a flush counter that throttles observable boundaries, and a
+    :class:`TypedEventBus` carrying :class:`TextFlushed` events. Expose
+    the bus via :attr:`flush_bus` so the orchestrator can subscribe once
+    at construction and adapt each flush into a :class:`TextDelta`.
     """
 
     def __init__(
@@ -38,21 +45,26 @@ class ChatCompletionTextHandler:
         self._replacers = replacers
         self._send_every_n_events = max(1, send_every_n_events)
         self._state = TextState(full_text="", original_text="")
+        self._flush_bus: TypedEventBus[TextFlushed] = TypedEventBus()
 
-    async def on_chunk(self, event: ChatCompletionChunk, *, index: int) -> bool:
-        """Process one chunk.
+    @property
+    def flush_bus(self) -> TypedEventBus[TextFlushed]:
+        """Handler-local bus carrying :class:`TextFlushed` at every flush."""
+        return self._flush_bus
 
-        Returns:
-            True if this chunk crosses a flush boundary (``send_every_n_events``)
-            and carried content, signalling the caller it should observe the
-            updated :class:`TextState`. False otherwise.
+    async def on_chunk(self, event: ChatCompletionChunk, *, index: int) -> None:
+        """Process one chunk; publish :class:`TextFlushed` on flush boundaries.
+
+        A flush is emitted only when the chunk carries content *and* crosses
+        the configured ``send_every_n_events`` boundary — matching the prior
+        bool-return semantics. All other chunks silently accumulate state.
         """
         if len(event.choices) == 0:
-            return False
+            return
 
         content = event.choices[0].delta.content or ""
         if not content:
-            return False
+            return
 
         self._state.original_text += content
 
@@ -61,14 +73,21 @@ class ChatCompletionTextHandler:
             delta = replacer.process(delta)
         self._state.full_text += delta
 
-        return (index + 1) % self._send_every_n_events == 0
+        if (index + 1) % self._send_every_n_events == 0:
+            await self._flush_bus.publish_and_wait_async(
+                TextFlushed(
+                    full_text=self._state.full_text,
+                    original_text=self._state.original_text,
+                    chunk_index=index,
+                )
+            )
 
-    async def on_stream_end(self) -> bool:
-        """Flush any replacer-buffered text.
+    async def on_stream_end(self) -> None:
+        """Flush any replacer-buffered text and publish a final :class:`TextFlushed`.
 
-        Returns:
-            True if flushing produced observable text that the caller should
-            surface before publishing the final ``StreamEnded`` event.
+        Subscribers can rely on a trailing event when residual replacer
+        output becomes observable at stream end — matching the prior
+        bool-return semantics ("residual flush produced text").
         """
         remaining = ""
         for replacer in self._replacers:
@@ -78,14 +97,20 @@ class ChatCompletionTextHandler:
 
         if remaining:
             self._state.full_text += remaining
-            return True
-        return False
+            await self._flush_bus.publish_and_wait_async(
+                TextFlushed(
+                    full_text=self._state.full_text,
+                    original_text=self._state.original_text,
+                )
+            )
 
     def get_text(self) -> TextState:
         """Return accumulated normalised and original text."""
         return self._state
 
     def reset(self) -> None:
+        """Clear accumulated state. Bus subscribers are intentionally preserved
+        across requests — the orchestrator subscribes once at construction."""
         self._state = TextState(full_text="", original_text="")
         for replacer in self._replacers:
             replacer.flush()

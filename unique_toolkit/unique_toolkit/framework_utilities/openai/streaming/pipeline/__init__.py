@@ -26,7 +26,6 @@ from .events import (
     TextDelta,
 )
 from .protocols import (
-    ActivityProgressProducer,
     ActivityProgressUpdate,
     AppendixProducer,
     ChatCompletionTextHandlerProtocol,
@@ -36,6 +35,7 @@ from .protocols import (
     ResponsesTextDeltaHandlerProtocol,
     ResponsesToolCallHandlerProtocol,
     StreamHandlerProtocol,
+    TextFlushed,
     TextState,
 )
 from .responses import (
@@ -50,7 +50,6 @@ from .subscribers import MessagePersistingSubscriber, ProgressLogPersister
 
 __all__ = [
     "ActivityProgress",
-    "ActivityProgressProducer",
     "ActivityProgressUpdate",
     "ActivityStatus",
     "AppendixProducer",
@@ -78,5 +77,6 @@ __all__ = [
     "StreamHandlerProtocol",
     "StreamStarted",
     "TextDelta",
+    "TextFlushed",
     "TextState",
 ]

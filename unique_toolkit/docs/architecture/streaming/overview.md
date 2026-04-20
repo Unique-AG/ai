@@ -47,15 +47,15 @@ flowchart TB
 - Runs its own `async for` loop (not a shared generic runner)
 - Catches `httpx.RemoteProtocolError` for graceful partial-stream handling
 - Owns a `StreamEventBus` and auto-registers `MessagePersistingSubscriber` (unless the caller passes a pre-configured bus)
-- Publishes `StreamStarted` before the loop, `TextDelta` whenever the pipeline reports a text flush boundary, and `StreamEnded` in `finally`
+- Publishes `StreamStarted` before the loop, `StreamEnded` in `finally`, and adapts handler-bus events (`TextFlushed` → `TextDelta`, `ActivityProgressUpdate` → `ActivityProgress`) reactively by subscribing to the pipeline's handler buses at construction
 - Calls `pipeline.reset()` before each run and `pipeline.on_stream_end()` in `finally`
 
 ### Pipeline (`StreamPipeline`)
 
 - Routes events to typed handlers via `isinstance` checks
 - Unknown events are ignored (forward compatibility)
-- `on_event` returns a `bool` indicating whether the text handler crossed a flush boundary; the orchestrator uses this to decide when to publish `TextDelta`
-- Collects handler outputs via `build_result()`
+- `on_event` returns `None`; per-event signals (text flushes, tool-activity progress) flow through handler-owned buses re-exposed as `text_flush_bus` / `activity_progress_bus`
+- Collects handler outputs via `build_result()` and aggregates `AppendixProducer` contributions via `get_appendices()`
 - **No SDK calls, no bus, no settings** — pure dispatch
 
 ### Handlers
@@ -65,7 +65,7 @@ Small, focused classes that:
 - Process one event type
 - Maintain private state (reset between runs)
 - Implement the handler protocol for their slot
-- **Text handlers return `bool` from `on_chunk` / `on_text_delta` / `on_stream_end`** to signal flush boundaries to the orchestrator; they do not publish events themselves
+- **Signal-producing handlers (text, code interpreter) own a `TypedEventBus`** and publish typed payloads (`TextFlushed`, `ActivityProgressUpdate`) at flush/transition boundaries; the orchestrator subscribes once at construction and lifts each payload to an outer-bus event with request context
 - **No SDK calls, no knowledge of retrieved chunks**
 
 ### Subscribers

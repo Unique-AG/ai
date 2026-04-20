@@ -12,15 +12,15 @@ flowchart TB
 
     subgraph S2["2. STREAMING"]
         S2A["async for event in stream:"]
-        S2B["flushed = pipeline.on_event(event)"]
-        S2C["if flushed:<br/>bus.publish(TextDelta)"]
+        S2B["await pipeline.on_event(event)"]
+        S2C["handler → text_flush_bus → orchestrator adapter → bus.publish(TextDelta)<br/>(no polling, reactive)"]
         S2A --> S2B --> S2C --> S2A
     end
 
     subgraph S3["3. FINALIZE (finally block)"]
-        S3A["pipeline.on_stream_end()<br/>→ residual flush flag"]
-        S3B["if flushed:<br/>bus.publish(TextDelta)"]
-        S3C["bus.publish(StreamEnded)"]
+        S3A["await pipeline.on_stream_end()<br/>(residual flush publishes TextFlushed on handler bus)"]
+        S3B["adapter re-publishes TextDelta on outer bus"]
+        S3C["bus.publish(StreamEnded, appendices=…)"]
         S3A --> S3B --> S3C
     end
 
@@ -66,10 +66,12 @@ def reset(self) -> None:
 
 ### Flush Protocol
 
-Text handlers' `on_stream_end()` cascade-flushes replacers and reports residual state via `bool`:
+Text handlers own a `TypedEventBus[TextFlushed]` (`flush_bus`) and publish on every
+flush boundary — both mid-stream (subject to `send_every_n_events` throttling on the
+Chat Completions handler) and once at `on_stream_end()` for residual replacer output:
 
 ```python
-async def on_stream_end(self) -> bool:
+async def on_stream_end(self) -> None:
     remaining = ""
     for replacer in self._replacers:
         if remaining:
@@ -78,18 +80,46 @@ async def on_stream_end(self) -> bool:
 
     if remaining:
         self._state.full_text += remaining
-        return True
-    return False
+        await self._flush_bus.publish_and_wait_async(
+            TextFlushed(
+                full_text=self._state.full_text,
+                original_text=self._state.original_text,
+            )
+        )
 ```
 
-The orchestrator uses that flag to publish one final `TextDelta` before `StreamEnded`:
+The orchestrator subscribes once at construction; no polling/drain dance is needed:
 
 ```python
-flushed = await self._pipeline.on_stream_end()
-if flushed:
-    await self._publish_text_delta(message_id, chat_id)
-await self._bus.publish_and_wait_async(StreamEnded(...))
+# At construction:
+self._pipeline.text_flush_bus.subscribe(self._on_text_flushed)
+
+# Per request:
+self._current_message_id = message_id
+self._current_chat_id = chat_id
+try:
+    async for chunk in stream:
+        await self._pipeline.on_event(chunk, index=index)
+finally:
+    await self._pipeline.on_stream_end()
+    await self._bus.publish_and_wait_async(StreamEnded(...))
+    self._current_message_id = None
+    self._current_chat_id = None
+
+# Adapter:
+async def _on_text_flushed(self, event: TextFlushed) -> None:
+    await self._bus.publish_and_wait_async(
+        TextDelta(
+            message_id=self._current_message_id,
+            chat_id=self._current_chat_id,
+            full_text=event.full_text,
+            original_text=event.original_text,
+        )
+    )
 ```
+
+The same pattern applies to `ResponsesCodeInterpreterHandler.progress_bus` for
+`ActivityProgressUpdate` → `ActivityProgress`.
 
 ## Concurrency Rules
 
@@ -134,9 +164,7 @@ async def handle_request(event):
 ```python
 try:
     async for event in stream:
-        flushed = await self._pipeline.on_event(event)
-        if flushed:
-            await self._publish_text_delta(message_id, chat_id)
+        await self._pipeline.on_event(event)
 except httpx.RemoteProtocolError as exc:
     _LOGGER.warning(
         "Stream connection closed prematurely. "
@@ -144,10 +172,15 @@ except httpx.RemoteProtocolError as exc:
         exc,
     )
 finally:
-    flushed = await self._pipeline.on_stream_end()
-    if flushed:
-        await self._publish_text_delta(message_id, chat_id)
-    await self._bus.publish_and_wait_async(StreamEnded(..., full_text=..., original_text=...))
+    await self._pipeline.on_stream_end()
+    await self._bus.publish_and_wait_async(
+        StreamEnded(
+            ...,
+            full_text=...,
+            original_text=...,
+            appendices=self._pipeline.get_appendices(),
+        )
+    )
 ```
 
 `StreamEnded` always fires from the `finally` block, so the persister always records

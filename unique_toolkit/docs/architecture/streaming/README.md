@@ -30,15 +30,15 @@ flowchart TB
     subgraph Pipeline["StreamPipeline (pure dispatch)"]
         direction TB
         subgraph Handlers["Handlers (pure state)"]
-            TH["Text<br/>Handler"]
+            TH["Text Handler<br/>+ flush_bus"]
             TOH["Tool<br/>Handler"]
             CH["Completed<br/>Handler"]
-            CIH["CodeInterpreter<br/>Handler"]
+            CIH["CodeInterpreter Handler<br/>+ progress_bus"]
         end
         REP["Replacers<br/>(StreamingPatternReplacer)"]
     end
 
-    subgraph Bus["StreamEventBus"]
+    subgraph Bus["StreamEventBus (outer)"]
         direction TB
         EVT["StreamStarted · TextDelta · StreamEnded · ActivityProgress"]
     end
@@ -51,7 +51,9 @@ flowchart TB
 
     CWR -->|"async for event"| Pipeline
     TH --> REP
-    CWR -->|"publish"| Bus
+    TH -->|"TextFlushed<br/>(handler bus)"| CWR
+    CIH -->|"ActivityProgressUpdate<br/>(handler bus)"| CWR
+    CWR -->|"adapt + publish"| Bus
     Bus --> MP
     Bus --> PLP
     Bus --> EXT
@@ -59,7 +61,7 @@ flowchart TB
     PLP -->|"MessageLog.create_async /<br/>update_async"| SDK
 ```
 
-**Key property:** handlers and pipelines contain *no* SDK calls and *no* knowledge of retrieved chunks. All persistence side-effects live in subscribers wired to the bus — including the code interpreter handler, which now exposes progress updates as :class:`ActivityProgress` events and the executed-code block via `StreamEnded.appendices`.
+**Key property:** handlers and pipelines contain *no* SDK calls and *no* knowledge of retrieved chunks. Handlers that need to surface per-event signals own a typed `TypedEventBus` (`flush_bus`, `progress_bus`), and the orchestrator subscribes once at construction to adapt each signal into an outer-bus `StreamEvent` with request context. All persistence side-effects live in subscribers on the outer bus.
 
 ## Module Layout
 
@@ -70,7 +72,7 @@ streaming/
     ├── __init__.py              # Public API re-exports
     ├── events.py                # StreamStarted, TextDelta, StreamEnded, ActivityProgress, StreamEventBus
     ├── protocols/               # Handler protocols
-    │   ├── common.py            # TextState, StreamHandlerProtocol
+    │   ├── common.py            # TextState, StreamHandlerProtocol, TextFlushed, ActivityProgressUpdate, AppendixProducer
     │   ├── responses.py         # Responses API protocols
     │   └── chat_completions.py  # Chat Completions protocols
     ├── subscribers/             # Default StreamEvent subscribers

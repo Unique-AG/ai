@@ -35,8 +35,11 @@ flowchart TB
 ```python
 # protocols/anthropic.py
 class AnthropicTextHandlerProtocol(Protocol):
-    async def on_content_block_delta(self, event: ContentBlockDeltaEvent) -> bool: ...
-    async def on_stream_end(self) -> bool: ...
+    @property
+    def flush_bus(self) -> TypedEventBus[TextFlushed]: ...
+
+    async def on_content_block_delta(self, event: ContentBlockDeltaEvent) -> None: ...
+    async def on_stream_end(self) -> None: ...
     def get_text(self) -> TextState: ...
     def reset(self) -> None: ...
 
@@ -45,13 +48,16 @@ class AnthropicStreamPipeline:
     def __init__(self, *, text_handler: AnthropicTextHandlerProtocol):
         self._text = text_handler
 
-    async def on_event(self, event: StreamEvent) -> bool:
-        if isinstance(event, ContentBlockDeltaEvent):
-            return await self._text.on_content_block_delta(event)
-        return False
+    @property
+    def text_flush_bus(self) -> TypedEventBus[TextFlushed]:
+        return self._text.flush_bus
 
-    async def on_stream_end(self) -> bool:
-        return await self._text.on_stream_end()
+    async def on_event(self, event: StreamEvent) -> None:
+        if isinstance(event, ContentBlockDeltaEvent):
+            await self._text.on_content_block_delta(event)
+
+    async def on_stream_end(self) -> None:
+        await self._text.on_stream_end()
 
     def get_text(self) -> TextState:
         return self._text.get_text()
@@ -61,23 +67,40 @@ class AnthropicStreamPipeline:
 
 # anthropic/complete_with_references.py
 class AnthropicCompleteWithReferences:
-    def __init__(self, settings, *, pipeline, bus: StreamEventBus | None = None):
-        self._bus = bus or StreamEventBus()
-        if bus is None:
-            self._bus.subscribe(MessagePersistingSubscriber(settings).handle)
-        ...
+    def __init__(self, settings, *, pipeline, subscribers=None):
+        self._bus = StreamEventBus()  # internal; subscribers are the injection point
+        for handler in subscribers or [MessagePersistingSubscriber(settings).handle]:
+            self._bus.subscribe(handler)
+        self._pipeline = pipeline
+        self._current_message_id: str | None = None
+        self._current_chat_id: str | None = None
+        self._pipeline.text_flush_bus.subscribe(self._on_text_flushed)
+
+    async def _on_text_flushed(self, event: TextFlushed) -> None:
+        if self._current_message_id is None:
+            return
+        await self._bus.publish_and_wait_async(
+            TextDelta(
+                message_id=self._current_message_id,
+                chat_id=self._current_chat_id,
+                full_text=event.full_text,
+                original_text=event.original_text,
+            )
+        )
 
     async def complete_with_references_async(self, ...):
         self._pipeline.reset()
+        self._current_message_id = message_id
+        self._current_chat_id = chat_id
         await self._bus.publish_and_wait_async(StreamStarted(...))
         try:
             async for event in stream:
-                if await self._pipeline.on_event(event):
-                    await self._publish_text_delta(...)
+                await self._pipeline.on_event(event)
         finally:
-            if await self._pipeline.on_stream_end():
-                await self._publish_text_delta(...)
+            await self._pipeline.on_stream_end()
             await self._bus.publish_and_wait_async(StreamEnded(...))
+            self._current_message_id = None
+            self._current_chat_id = None
         return self._pipeline.build_result(...)
 ```
 
@@ -87,10 +110,14 @@ class AnthropicCompleteWithReferences:
 
 1. Define a protocol (if new event type)
 2. Implement the handler class (keep it pure — no SDK calls)
-3. Add a slot to the pipeline constructor
-4. Route events in `on_event()`
-5. Expose handler state via getters; collect in `build_result()`
-6. If the handler's output needs to drive side-effects, publish a domain event from the orchestrator or let a subscriber read it via `build_result()` / bus events
+3. If the handler produces per-event signals (text flushes, progress updates),
+   own a `TypedEventBus[T]` and publish on it; expose the bus via a `@property`
+   on the handler and re-expose it on the pipeline. The orchestrator subscribes
+   once at construction and adapts the signal to an outer-bus event.
+4. Add a slot to the pipeline constructor and route events in `on_event()`
+5. Expose handler state via getters; collect in `build_result()`. For final
+   single-shot contributions to the assistant message, implement
+   `AppendixProducer` so the pipeline picks them up in `get_appendices()`.
 
 ### Example: Reasoning Trace Handler
 

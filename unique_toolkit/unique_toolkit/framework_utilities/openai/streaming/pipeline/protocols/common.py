@@ -1,10 +1,14 @@
 """Shared streaming handler types and the base lifecycle protocol.
 
 API-specific handler protocols live in :mod:`chat_completions` and :mod:`responses`.
-This module also declares small *mix-in* structural protocols for optional
-capabilities (activity progress, final-message appendices) so the pipeline
-can collect contributions from any conforming handler without hard-coding
-per-slot knowledge.
+This module also declares:
+
+* Handler-bus payload dataclasses (:class:`TextFlushed`,
+  :class:`ActivityProgressUpdate`) — carried on per-handler
+  :class:`TypedEventBus` instances, adapted by the orchestrator onto the
+  outer :class:`StreamEventBus`.
+* Structural protocols for optional capabilities the pipeline aggregates
+  across handlers (currently :class:`AppendixProducer`).
 """
 
 from __future__ import annotations
@@ -27,8 +31,10 @@ class TextState:
 class StreamHandlerProtocol(Protocol):
     """Lifecycle methods shared by every event handler (any OpenAI streaming surface).
 
-    Text handlers narrow :meth:`on_stream_end` to return ``bool`` so callers
-    can observe a residual flush; all other handlers return ``None``.
+    Handlers that need to surface per-event signals (text flushes, tool
+    activity progress, …) expose a handler-owned :class:`TypedEventBus`
+    instead of returning a signal from their lifecycle methods — see
+    :class:`TextFlushed` / :class:`ActivityProgressUpdate` for payloads.
     """
 
     async def on_stream_end(self) -> None:
@@ -41,37 +47,42 @@ class StreamHandlerProtocol(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class TextFlushed:
+    """The text handler crossed a flush boundary.
+
+    Carried on the handler-owned :class:`TypedEventBus` so subscribers
+    (typically the orchestrator) can adapt it into a full :class:`TextDelta`
+    by attaching request context (``message_id`` / ``chat_id``). The
+    payload mirrors the handler's current :meth:`get_text` state at the
+    moment of the flush.
+
+    Flush boundaries combine two concerns: replacer hold-back release
+    (e.g. a partial ``[source`` pattern finishing into ``[source1]``) and
+    throttling (e.g. ``send_every_n_events`` on the Chat Completions
+    handler). The handler stays ignorant of the outer bus and identity
+    context — it only reports "now is a good time to publish".
+    """
+
+    full_text: str
+    original_text: str
+    chunk_index: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class ActivityProgressUpdate:
     """Handler-local description of a single tool-activity progress transition.
 
-    Handlers that participate in tool-activity tracking accumulate these
-    and expose them via :meth:`ActivityProgressProducer.drain_pending`. The
-    orchestrator wraps each update into an :class:`ActivityProgress` bus
-    event by attaching ``message_id`` / ``chat_id``, so handlers stay
-    ignorant of bus-level identifiers.
+    Carried on the handler-owned :class:`TypedEventBus` so the orchestrator
+    can adapt it into an :class:`ActivityProgress` outer-bus event by
+    attaching ``message_id`` / ``chat_id``. Handlers that participate in
+    tool-activity tracking publish one of these per genuine state change
+    (deduplicated at the handler level).
     """
 
     correlation_id: str
     status: ActivityStatus
     text: str
     order: int = 0
-
-
-@runtime_checkable
-class ActivityProgressProducer(Protocol):
-    """Optional capability: the handler emits per-item progress updates.
-
-    Any handler exposing this shape contributes to the pipeline's
-    :meth:`drain_activity_progress` without needing a dedicated pipeline
-    slot. The pipeline iterates its handlers and probes for this protocol
-    at runtime via :func:`isinstance`, so adding a new progress-producing
-    handler (e.g. a web-search progress handler) requires no pipeline
-    edits.
-    """
-
-    def drain_pending(self) -> list[ActivityProgressUpdate]:
-        """Return and clear progress updates observed since the previous call."""
-        ...
 
 
 @runtime_checkable

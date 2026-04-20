@@ -191,7 +191,7 @@ Handler protocols live under `pipeline/protocols/`: shared `StreamHandlerProtoco
 
 ### OpenAI Responses API
 
-`ResponsesTextDeltaHandler` applies replacers per delta, accumulates `TextState`, and returns `True` when observable text was produced so the orchestrator can publish a `TextDelta` event. `ResponsesToolCallHandler` assembles function calls. `ResponsesCompletedHandler` captures usage and structured output. `ResponsesCodeInterpreterHandler` tracks code-interpreter progress and the executed code, exposing them via `drain_pending()` (the orchestrator publishes each as an `ActivityProgress` bus event) and `get_appendix()` (attached to `StreamEnded.appendices`). None of these handlers call `Message.modify_async` or `MessageLog.*` — those live in `MessagePersistingSubscriber` and `ProgressLogPersister`.
+`ResponsesTextDeltaHandler` applies replacers per delta, accumulates `TextState`, and publishes a `TextFlushed` on its own `flush_bus` (a `TypedEventBus[TextFlushed]`) whenever observable text is produced — the orchestrator subscribes at construction and adapts each flush into a `TextDelta` bus event. `ResponsesToolCallHandler` assembles function calls. `ResponsesCompletedHandler` captures usage and structured output. `ResponsesCodeInterpreterHandler` tracks code-interpreter progress and the executed code: it publishes an `ActivityProgressUpdate` on its own `progress_bus` for every state transition (the orchestrator adapts each into an `ActivityProgress` bus event) and exposes the executed-code block via `get_appendix()` (attached to `StreamEnded.appendices`). None of these handlers call `Message.modify_async` or `MessageLog.*` — those live in `MessagePersistingSubscriber` and `ProgressLogPersister`.
 
 ### OpenAI Chat Completions
 

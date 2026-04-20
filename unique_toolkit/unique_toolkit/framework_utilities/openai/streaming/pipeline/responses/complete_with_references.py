@@ -39,6 +39,7 @@ from ..events import (
     StreamStarted,
     TextDelta,
 )
+from ..protocols import ActivityProgressUpdate, TextFlushed
 from ..subscribers import MessagePersistingSubscriber, ProgressLogPersister
 from .code_interpreter_handler import ResponsesCodeInterpreterHandler
 from .completed_handler import ResponsesCompletedHandler
@@ -238,10 +239,56 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         for handler in effective_subscribers:
             self._bus.subscribe(handler)
 
+        # Per-request context for the handler-bus adapters. Set at the top
+        # of :meth:`complete_with_references_async` and cleared in its
+        # ``finally`` block.
+        self._current_message_id: str | None = None
+        self._current_chat_id: str | None = None
+        self._pipeline.text_flush_bus.subscribe(self._on_text_flushed)
+        progress_bus = self._pipeline.activity_progress_bus
+        if progress_bus is not None:
+            progress_bus.subscribe(self._on_activity_progress_update)
+
     @property
     def bus(self) -> StreamEventBus:
         """Expose the owned bus so callers can attach additional subscribers."""
         return self._bus
+
+    async def _on_text_flushed(self, event: TextFlushed) -> None:
+        """Adapter: lift a handler-bus :class:`TextFlushed` to an outer :class:`TextDelta`."""
+        if self._current_message_id is None or self._current_chat_id is None:
+            return
+        await self._bus.publish_and_wait_async(
+            TextDelta(
+                message_id=self._current_message_id,
+                chat_id=self._current_chat_id,
+                full_text=event.full_text,
+                original_text=event.original_text,
+            )
+        )
+
+    async def _on_activity_progress_update(
+        self, update: ActivityProgressUpdate
+    ) -> None:
+        """Adapter: lift a handler-bus :class:`ActivityProgressUpdate` to outer :class:`ActivityProgress`.
+
+        Attaches ``message_id`` / ``chat_id`` — handlers stay ignorant of
+        bus-level identifiers, which means a future progress-producing
+        handler just needs to publish :class:`ActivityProgressUpdate` on
+        its own bus and the same adapter picks it up.
+        """
+        if self._current_message_id is None or self._current_chat_id is None:
+            return
+        await self._bus.publish_and_wait_async(
+            ActivityProgress(
+                correlation_id=update.correlation_id,
+                message_id=self._current_message_id,
+                chat_id=self._current_chat_id,
+                status=update.status,
+                text=update.text,
+                order=update.order,
+            )
+        )
 
     def complete_with_references(  # noqa: PLR0913
         self,
@@ -367,6 +414,8 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         converted_tools = _convert_tools(tools)
 
         self._pipeline.reset()
+        self._current_message_id = message_id
+        self._current_chat_id = chat_id
         await self._bus.publish_and_wait_async(
             StreamStarted(
                 message_id=message_id,
@@ -409,10 +458,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
                 **create_kwargs,
             )
             async for event in stream:
-                flushed = await self._pipeline.on_event(event)
-                if flushed:
-                    await self._publish_text_delta(message_id, chat_id)
-                await self._publish_activity_progress(message_id, chat_id)
+                await self._pipeline.on_event(event)
         except httpx.RemoteProtocolError as exc:
             _LOGGER.warning(
                 "Stream connection closed prematurely (incomplete chunked read). "
@@ -420,12 +466,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
                 exc,
             )
         finally:
-            flushed = await self._pipeline.on_stream_end()
-            if flushed:
-                await self._publish_text_delta(message_id, chat_id)
-            # Drain one last time in case the final handler flush produced
-            # a terminal progress transition (e.g. a COMPLETED status).
-            await self._publish_activity_progress(message_id, chat_id)
+            await self._pipeline.on_stream_end()
             text_state = self._pipeline.get_text()
             await self._bus.publish_and_wait_async(
                 StreamEnded(
@@ -436,38 +477,11 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
                     appendices=self._pipeline.get_appendices(),
                 )
             )
+            self._current_message_id = None
+            self._current_chat_id = None
 
         return self._pipeline.build_result(
             message_id=message_id,
             chat_id=chat_id,
             created_at=datetime.now(timezone.utc),
-        )
-
-    async def _publish_activity_progress(self, message_id: str, chat_id: str) -> None:
-        """Drain pending progress updates and publish each as :class:`ActivityProgress`.
-
-        Orchestrator-local concern: handlers produce bus-agnostic updates,
-        the orchestrator attaches ``message_id``/``chat_id`` and publishes.
-        """
-        for update in self._pipeline.drain_activity_progress():
-            await self._bus.publish_and_wait_async(
-                ActivityProgress(
-                    correlation_id=update.correlation_id,
-                    message_id=message_id,
-                    chat_id=chat_id,
-                    status=update.status,
-                    text=update.text,
-                    order=update.order,
-                )
-            )
-
-    async def _publish_text_delta(self, message_id: str, chat_id: str) -> None:
-        text_state = self._pipeline.get_text()
-        await self._bus.publish_and_wait_async(
-            TextDelta(
-                message_id=message_id,
-                chat_id=chat_id,
-                full_text=text_state.full_text,
-                original_text=text_state.original_text,
-            )
         )

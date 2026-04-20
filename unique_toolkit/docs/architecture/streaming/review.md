@@ -80,7 +80,7 @@ can be added by subscribing to the bus instead of modifying the pipeline.
 text_handler = ResponsesTextDeltaHandler(replacers=replacers)
 tool_handler = ResponsesToolCallHandler()
 completed_handler = ResponsesCompletedHandler()
-code_interpreter_handler = ResponsesCodeInterpreterHandler(settings)
+code_interpreter_handler = ResponsesCodeInterpreterHandler()
 
 pipeline = ResponsesStreamPipeline(
     text_handler=text_handler,

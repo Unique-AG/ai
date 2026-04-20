@@ -5,9 +5,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 from .common import (
-    ActivityProgressProducer,
+    ActivityProgressUpdate,
     AppendixProducer,
     StreamHandlerProtocol,
+    TextFlushed,
     TextState,
 )
 
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
         ResponseTextDeltaEvent,
     )
 
+    from unique_toolkit._common.event_bus import TypedEventBus
     from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.code_interpreter_handler import (
         CodeInterpreterCallEvent,
     )
@@ -30,19 +32,25 @@ if TYPE_CHECKING:
 
 
 class ResponsesTextDeltaHandlerProtocol(Protocol):
-    """Accumulates text from ``ResponseTextDeltaEvent``.
+    """Accumulates text from ``ResponseTextDeltaEvent`` and publishes flushes.
 
-    Pure state machine: no SDK, no bus, no knowledge of retrieved chunks.
-    Returns a flush flag so the orchestrator can publish :class:`TextDelta`
-    events when observable text was produced.
+    Pure state machine: no SDK, no outer bus, no knowledge of retrieved
+    chunks. Owns a typed :class:`TypedEventBus` carrying
+    :class:`TextFlushed`; external subscribers (typically the
+    orchestrator) adapt those into full :class:`TextDelta` events.
     """
 
-    async def on_text_delta(self, event: ResponseTextDeltaEvent) -> bool:
-        """Process one delta; return True iff observable text was produced."""
+    @property
+    def flush_bus(self) -> TypedEventBus[TextFlushed]:
+        """Handler-owned bus publishing :class:`TextFlushed` on each delta."""
         ...
 
-    async def on_stream_end(self) -> bool:
-        """Flush replacer buffers; return True iff residual text was produced."""
+    async def on_text_delta(self, event: ResponseTextDeltaEvent) -> None:
+        """Process one delta; publish :class:`TextFlushed` on non-empty deltas."""
+        ...
+
+    async def on_stream_end(self) -> None:
+        """Flush replacer buffers; publish a final :class:`TextFlushed` if needed."""
         ...
 
     def reset(self) -> None: ...
@@ -78,20 +86,25 @@ class ResponsesCompletedHandlerProtocol(StreamHandlerProtocol, Protocol):
 
 class ResponsesCodeInterpreterHandlerProtocol(
     StreamHandlerProtocol,
-    ActivityProgressProducer,
     AppendixProducer,
     Protocol,
 ):
     """Accumulates code-interpreter activity as pure state.
 
-    Inherits the generic :class:`ActivityProgressProducer` and
-    :class:`AppendixProducer` capability protocols so the pipeline picks
-    up its contributions (progress updates, executed-code appendix)
-    uniformly with any other handler that exposes the same shapes — no
-    CI-specific wiring in the pipeline. The only CI-specific member is
+    Owns a typed :class:`TypedEventBus` carrying
+    :class:`ActivityProgressUpdate` for tool-activity progress
+    transitions (:attr:`progress_bus`), and inherits the generic
+    :class:`AppendixProducer` capability so the pipeline can aggregate
+    its executed-code appendix alongside any other handler's
+    contributions. The only CI-specific member is
     :meth:`on_code_interpreter_event`, which consumes the OpenAI SDK's
     typed CI events.
     """
+
+    @property
+    def progress_bus(self) -> TypedEventBus[ActivityProgressUpdate]:
+        """Handler-owned bus publishing progress updates per state transition."""
+        ...
 
     async def on_code_interpreter_event(
         self, event: CodeInterpreterCallEvent
