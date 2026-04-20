@@ -1,6 +1,6 @@
 [project]
 name = "custom-assistant"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = [{ name = "Konstantin Krauss", email = "konsti@users.noreply.github.com" }]
 readme = "README.md"
