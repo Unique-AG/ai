@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.77.1] - 2026-04-20
 - Add `selected_content_ids` filtering to history construction and `OpenFileToolRuntime` so only user-selected uploaded images and files are attached when the `enable_selected_uploaded_files_un_18215` feature flag is active
-- Add `compute_selected_uploaded_content_ids` utility in `history_manager/utils.py`
+- Add `get_selected_uploaded_content_ids` utility in `history_manager/utils.py`
 - Thread `selected_content_ids` through `LoopTokenReducer`, `get_full_history_with_contents*`, and `_append_element_to_builder_async`
 - Store `company_id` as instance attribute on `ShowExecutedCodePostprocessor`
 

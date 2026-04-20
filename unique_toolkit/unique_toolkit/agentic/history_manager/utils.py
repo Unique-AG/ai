@@ -16,7 +16,7 @@ from unique_toolkit.language_model.schemas import (
 logger = logging.getLogger(__name__)
 
 
-def compute_selected_uploaded_content_ids(event: ChatEvent) -> set[str] | None:
+def get_selected_uploaded_content_ids(event: ChatEvent) -> set[str] | None:
     """Derive the set of content IDs the user explicitly selected.
 
     Returns ``None`` when the feature flag is disabled (meaning *all*

@@ -14,7 +14,7 @@ from unique_toolkit.agentic.history_manager.history_construction_with_contents i
     get_full_history_with_contents_async,
 )
 from unique_toolkit.agentic.history_manager.utils import (
-    compute_selected_uploaded_content_ids,
+    get_selected_uploaded_content_ids,
     serialize_tool_content_json,
 )
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
@@ -79,7 +79,7 @@ class LoopTokenReducer:
         self._max_db_source_number: int = -1
         self._db_source_map: dict[int, ContentChunk] = {}
         self._enable_tool_call_persistence = enable_tool_call_persistence
-        self._selected_content_ids = compute_selected_uploaded_content_ids(event)
+        self._selected_content_ids = get_selected_uploaded_content_ids(event)
 
     @property
     def max_db_source_number(self) -> int:
