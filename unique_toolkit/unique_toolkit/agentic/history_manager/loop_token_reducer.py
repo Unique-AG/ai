@@ -13,7 +13,10 @@ from unique_toolkit.agentic.history_manager.history_construction_with_contents i
     get_full_history_with_contents_and_tool_calls_async,
     get_full_history_with_contents_async,
 )
-from unique_toolkit.agentic.history_manager.utils import serialize_tool_content_json
+from unique_toolkit.agentic.history_manager.utils import (
+    compute_selected_uploaded_content_ids,
+    serialize_tool_content_json,
+)
 from unique_toolkit.agentic.reference_manager.reference_manager import ReferenceManager
 from unique_toolkit.app.schemas import ChatEvent
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -76,6 +79,7 @@ class LoopTokenReducer:
         self._max_db_source_number: int = -1
         self._db_source_map: dict[int, ContentChunk] = {}
         self._enable_tool_call_persistence = enable_tool_call_persistence
+        self._selected_content_ids = compute_selected_uploaded_content_ids(event)
 
     @property
     def max_db_source_number(self) -> int:
@@ -322,6 +326,7 @@ class LoopTokenReducer:
                 chat_service=self._chat_service,
                 content_service=self._content_service,
                 file_content_serialization_type=file_content_serialization_type,
+                selected_content_ids=self._selected_content_ids,
             )
             self._max_db_source_number = max_src
             self._db_source_map = src_map
@@ -332,6 +337,7 @@ class LoopTokenReducer:
                 chat_service=self._chat_service,
                 content_service=self._content_service,
                 file_content_serialization_type=file_content_serialization_type,
+                selected_content_ids=self._selected_content_ids,
             )
 
         if remove_from_text is not None:

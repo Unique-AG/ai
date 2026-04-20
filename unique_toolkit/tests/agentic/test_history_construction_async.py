@@ -664,3 +664,156 @@ async def test_tool_calls_async_multiple_rounds():
 
     assert isinstance(result, LanguageModelMessages)
     assert len(result.root) >= 4
+
+
+# ---------------------------------------------------------------------------
+# _append_element_to_builder_async — selected_content_ids filtering
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_append_element_to_builder_async_selected_content_ids_filters_images():
+    """When selected_content_ids is set, only matching images should be attached."""
+    from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
+        ChatMessageWithContents,
+        FileContentSerialization,
+    )
+
+    img_selected = _make_image_content(key="selected.png", content_id="img_sel")
+    img_excluded = _make_image_content(key="excluded.png", content_id="img_exc")
+    content_service = MagicMock()
+    content_service.download_content_to_bytes_async = AsyncMock(return_value=b"\x89PNG")
+    builder = MagicMock()
+
+    msg = ChatMessageWithContents(
+        id="m1",
+        chat_id="c1",
+        text="two images",
+        role=ChatRole.USER,
+        gpt_request=None,
+        created_at=datetime(2026, 1, 1, 12, 0),
+        contents=[img_selected, img_excluded],
+    )
+
+    with (
+        patch(
+            "unique_toolkit.agentic.history_manager.history_construction_with_contents.FileUtils.is_file_content",
+            return_value=False,
+        ),
+        patch(
+            "unique_toolkit.agentic.history_manager.history_construction_with_contents.FileUtils.is_image_content",
+            return_value=True,
+        ),
+    ):
+        await _append_element_to_builder_async(
+            builder=builder,
+            c=msg,
+            text="two images",
+            include_images=ImageContentInclusion.ALL,
+            file_content_serialization_type=FileContentSerialization.NONE,
+            content_service=content_service,
+            chat_id="c1",
+            selected_content_ids={"img_sel"},
+        )
+
+    builder.image_message_append.assert_called_once()
+    download_call_args = content_service.download_content_to_bytes_async.call_args_list
+    downloaded_ids = [call.kwargs.get("content_id") for call in download_call_args]
+    assert "img_sel" in downloaded_ids
+    assert "img_exc" not in downloaded_ids
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_append_element_to_builder_async_selected_content_ids_empty_excludes_all():
+    """When selected_content_ids is an empty set, no images should be attached."""
+    from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
+        ChatMessageWithContents,
+        FileContentSerialization,
+    )
+
+    img = _make_image_content(key="photo.png", content_id="img_1")
+    builder = MagicMock()
+
+    msg = ChatMessageWithContents(
+        id="m1",
+        chat_id="c1",
+        text="one image",
+        role=ChatRole.USER,
+        gpt_request=None,
+        created_at=datetime(2026, 1, 1, 12, 0),
+        contents=[img],
+    )
+
+    with (
+        patch(
+            "unique_toolkit.agentic.history_manager.history_construction_with_contents.FileUtils.is_file_content",
+            return_value=False,
+        ),
+        patch(
+            "unique_toolkit.agentic.history_manager.history_construction_with_contents.FileUtils.is_image_content",
+            return_value=True,
+        ),
+    ):
+        await _append_element_to_builder_async(
+            builder=builder,
+            c=msg,
+            text="one image",
+            include_images=ImageContentInclusion.ALL,
+            file_content_serialization_type=FileContentSerialization.NONE,
+            content_service=MagicMock(),
+            chat_id="c1",
+            selected_content_ids=set(),
+        )
+
+    builder.image_message_append.assert_not_called()
+    builder.message_append.assert_called_once()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_append_element_to_builder_async_selected_content_ids_none_includes_all():
+    """When selected_content_ids is None (FF disabled), all images are included."""
+    from unique_toolkit.agentic.history_manager.history_construction_with_contents import (
+        ChatMessageWithContents,
+        FileContentSerialization,
+    )
+
+    img = _make_image_content(key="photo.png", content_id="img_1")
+    content_service = MagicMock()
+    content_service.download_content_to_bytes_async = AsyncMock(return_value=b"\x89PNG")
+    builder = MagicMock()
+
+    msg = ChatMessageWithContents(
+        id="m1",
+        chat_id="c1",
+        text="one image",
+        role=ChatRole.USER,
+        gpt_request=None,
+        created_at=datetime(2026, 1, 1, 12, 0),
+        contents=[img],
+    )
+
+    with (
+        patch(
+            "unique_toolkit.agentic.history_manager.history_construction_with_contents.FileUtils.is_file_content",
+            return_value=False,
+        ),
+        patch(
+            "unique_toolkit.agentic.history_manager.history_construction_with_contents.FileUtils.is_image_content",
+            return_value=True,
+        ),
+    ):
+        await _append_element_to_builder_async(
+            builder=builder,
+            c=msg,
+            text="one image",
+            include_images=ImageContentInclusion.ALL,
+            file_content_serialization_type=FileContentSerialization.NONE,
+            content_service=content_service,
+            chat_id="c1",
+            selected_content_ids=None,
+        )
+
+    builder.image_message_append.assert_called_once()

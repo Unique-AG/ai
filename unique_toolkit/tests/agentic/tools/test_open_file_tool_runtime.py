@@ -54,12 +54,14 @@ def _make_config(
     send_files_in_payload: bool = False,
     send_uploaded_files_in_payload: bool = False,
     use_responses_api: bool = True,
+    selected_content_ids: frozenset[str] | None = None,
 ) -> OpenFileToolRuntimeConfig:
     return OpenFileToolRuntimeConfig(
         enabled=enabled,
         send_files_in_payload=send_files_in_payload,
         send_uploaded_files_in_payload=send_uploaded_files_in_payload,
         use_responses_api=use_responses_api,
+        selected_content_ids=selected_content_ids,
     )
 
 
@@ -134,6 +136,7 @@ class TestOpenFileToolRuntimeConfig:
         assert cfg.send_files_in_payload is False
         assert cfg.send_uploaded_files_in_payload is False
         assert cfg.use_responses_api is False
+        assert cfg.selected_content_ids is None
 
     def test__frozen__cannot_mutate(self):
         """
@@ -1420,6 +1423,82 @@ class TestGetUploadedDocuments:
 
         assert result[0].id == "cont_old"
         assert result[1].id == "cont_new"
+
+    def test__selected_content_ids__filters_to_selected(
+        self, logger, content_service, tool_manager, message_step_logger
+    ):
+        """
+        Purpose: Only documents whose ID is in selected_content_ids are returned.
+        Why this matters: Unselected uploaded files must not be injected into the payload.
+        Setup summary: Two PDFs, only one ID in selected_content_ids, verify only it is returned.
+        """
+        doc_a = _make_content(id="cont_a", key="a.pdf")
+        doc_b = _make_content(id="cont_b", key="b.pdf")
+        content_service.get_documents_uploaded_to_chat.return_value = [doc_a, doc_b]
+
+        rt = OpenFileToolRuntime(
+            logger=logger,
+            config=_make_config(selected_content_ids=frozenset({"cont_a"})),
+            content_service=content_service,
+            tool_manager=tool_manager,
+            message_step_logger=message_step_logger,
+            agent_file_registry=[],
+        )
+
+        result = rt.get_uploaded_documents()
+
+        assert len(result) == 1
+        assert result[0].id == "cont_a"
+
+    def test__selected_content_ids__empty_excludes_all(
+        self, logger, content_service, tool_manager, message_step_logger
+    ):
+        """
+        Purpose: An empty selected_content_ids set excludes all uploaded documents.
+        Why this matters: When the user has deselected everything, nothing should be attached.
+        Setup summary: Two PDFs, empty frozenset for selected_content_ids, verify empty result.
+        """
+        doc_a = _make_content(id="cont_a", key="a.pdf")
+        doc_b = _make_content(id="cont_b", key="b.pdf")
+        content_service.get_documents_uploaded_to_chat.return_value = [doc_a, doc_b]
+
+        rt = OpenFileToolRuntime(
+            logger=logger,
+            config=_make_config(selected_content_ids=frozenset()),
+            content_service=content_service,
+            tool_manager=tool_manager,
+            message_step_logger=message_step_logger,
+            agent_file_registry=[],
+        )
+
+        result = rt.get_uploaded_documents()
+
+        assert result == []
+
+    def test__selected_content_ids__none_includes_all(
+        self, logger, content_service, tool_manager, message_step_logger
+    ):
+        """
+        Purpose: When selected_content_ids is None, no filtering is applied.
+        Why this matters: None means the feature flag is disabled, so all documents are included.
+        Setup summary: Two PDFs, selected_content_ids=None, verify both returned.
+        """
+        doc_a = _make_content(id="cont_a", key="a.pdf")
+        doc_b = _make_content(id="cont_b", key="b.pdf")
+        content_service.get_documents_uploaded_to_chat.return_value = [doc_a, doc_b]
+
+        rt = OpenFileToolRuntime(
+            logger=logger,
+            config=_make_config(selected_content_ids=None),
+            content_service=content_service,
+            tool_manager=tool_manager,
+            message_step_logger=message_step_logger,
+            agent_file_registry=[],
+        )
+
+        result = rt.get_uploaded_documents()
+
+        assert len(result) == 2
 
 
 # ===================================================================
