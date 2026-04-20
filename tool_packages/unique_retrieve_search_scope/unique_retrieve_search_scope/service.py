@@ -70,13 +70,12 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
         try:
             history = await self._chat_service.get_full_history_async()
             for msg in history:
-                if (
-                    msg.role.value == "tool"
-                    and getattr(msg, "name", None) == self.name
-                ):
+                if msg.role.value == "tool" and getattr(msg, "name", None) == self.name:
                     return True
         except Exception:
-            _LOGGER.debug("Could not check history for prior tool response", exc_info=True)
+            _LOGGER.debug(
+                "Could not check history for prior tool response", exc_info=True
+            )
         return False
 
     @staticmethod
@@ -134,6 +133,12 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
             )
 
         total_files = len(raw_entries)
+        if total_files == 0:
+            return ToolCallResponse(
+                id=tool_call.id or "unknown_id",
+                name=self.name,
+                content="No files found in the search scope.",
+            )
 
         max_input_tokens = self.config.language_model_max_input_tokens
         if max_input_tokens is None:
@@ -164,7 +169,7 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
             token_count += entry_tokens
 
         if not display_entries:
-            content = "No files found in the search scope."
+            content = "Token limit to low to display search scope."
         else:
             omitted = total_files - len(display_entries)
             file_list = "\n".join(display_entries)

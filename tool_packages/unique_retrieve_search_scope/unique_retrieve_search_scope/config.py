@@ -2,7 +2,6 @@ from enum import Enum
 from typing import Annotated, Literal
 
 from pydantic import Field
-from pydantic.json_schema import SkipJsonSchema
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 
 from unique_toolkit._common.pydantic.rjsf_tags import RJSFMetaTag
@@ -99,7 +98,9 @@ class RetrieveSearchScopeConfig(BaseToolConfig):
         description="Fraction of the context window reserved for the file list (default 5%).",
     )
 
-    language_model_max_input_tokens: SkipJsonSchema[int | None] = Field(
+    language_model_max_input_tokens: Annotated[
+        int | None, RJSFMetaTag.SpecialWidget.hidden()
+    ] = Field(
         default=None,
         description="Language model maximum input tokens. Injected by the orchestrator at validation time.",
     )

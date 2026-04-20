@@ -355,7 +355,10 @@ class ExperimentalConfig(BaseToolConfig):
         description="If set, the main agent will use the Responses API from OpenAI",
     )
 
-    retrieve_search_scope_config: RetrieveSearchScopeConfig = RetrieveSearchScopeConfig()
+    retrieve_search_scope_config: RetrieveSearchScopeConfig = (
+        RetrieveSearchScopeConfig()
+    )
+
 
 class UniqueAIAgentConfig(BaseToolConfig):
     max_loop_iterations: Annotated[
@@ -415,6 +418,21 @@ class UniqueAIConfig(BaseToolConfig):
         return self
 
     @model_validator(mode="after")
+    def validate_open_file_tool_requires_responses_api(self) -> "UniqueAIConfig":
+        uses_responses_api = (
+            self.agent.experimental.responses_api_config.use_responses_api
+            or self.agent.experimental.use_responses_api
+        )
+        if (
+            self.agent.experimental.open_file_tool_config.enabled
+            and not uses_responses_api
+        ):
+            raise ValueError(
+                "open_file_tool_config.enabled requires the Responses API to be enabled."
+            )
+        return self
+
+    @model_validator(mode="after")
     def inject_retrieve_search_scope_tool(self) -> "UniqueAIConfig":
         tool_names = [t.name for t in self.space.tools]
         has_tool = RetrieveSearchScopeTool.name in tool_names
@@ -433,8 +451,7 @@ class UniqueAIConfig(BaseToolConfig):
             )
         elif not config.enabled and has_tool:
             self.space.tools = [
-                t for t in self.space.tools
-                if t.name != RetrieveSearchScopeTool.name
+                t for t in self.space.tools if t.name != RetrieveSearchScopeTool.name
             ]
 
         return self
