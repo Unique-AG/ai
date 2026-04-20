@@ -14,7 +14,7 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
 from unique_toolkit.agentic.history_manager.utils import (
-    compute_selected_uploaded_content_ids,
+    get_selected_uploaded_content_ids,
 )
 from unique_toolkit.agentic.loop_runner import (
     LoopIterationRunner,
@@ -156,7 +156,7 @@ class UniqueAI:
                 agent_file_registry if agent_file_registry is not None else []
             )
             file_cfg = self._config.agent.experimental.open_file_tool_config
-            selected_ids = compute_selected_uploaded_content_ids(event)
+            selected_ids = get_selected_uploaded_content_ids(event)
             self._open_file_runtime = OpenFileToolRuntime(
                 logger=logger,
                 config=OpenFileToolRuntimeConfig(
