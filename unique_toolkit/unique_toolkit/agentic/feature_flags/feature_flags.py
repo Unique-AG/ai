@@ -21,6 +21,8 @@ class FeatureFlag:
         False
     """
 
+    value: list[str] | bool
+
     def __init__(self, value: list[str] | bool):
         self.value = value
 
