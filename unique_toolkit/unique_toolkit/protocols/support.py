@@ -54,7 +54,7 @@ class SupportsComplete(Protocol):
         temperature: float = DEFAULT_COMPLETE_TEMPERATURE,
         timeout: int = DEFAULT_COMPLETE_TIMEOUT,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
-    ) -> Awaitable[LanguageModelResponse]: ...
+    ) -> LanguageModelResponse: ...
 
 
 class SupportCompleteWithReferences(Protocol):
