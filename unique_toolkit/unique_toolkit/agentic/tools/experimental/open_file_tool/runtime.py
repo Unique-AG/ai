@@ -34,6 +34,7 @@ class OpenFileToolRuntimeConfig:
     send_files_in_payload: bool = False
     send_uploaded_files_in_payload: bool = False
     use_responses_api: bool = False
+    selected_content_ids: frozenset[str] | None = None
 
 
 class OpenFileToolRuntime:
@@ -256,6 +257,12 @@ class OpenFileToolRuntime:
                 if (document.expired_at is None or document.expired_at > now)
                 and document.key.lower().endswith(".pdf")
             ]
+            if self._config.selected_content_ids is not None:
+                uploaded_documents = [
+                    doc
+                    for doc in uploaded_documents
+                    if doc.id in self._config.selected_content_ids
+                ]
             self._cached_uploaded_documents = sorted(
                 uploaded_documents,
                 key=lambda document: (

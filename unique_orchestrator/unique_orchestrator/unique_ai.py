@@ -153,6 +153,7 @@ class UniqueAI:
                 agent_file_registry if agent_file_registry is not None else []
             )
             file_cfg = self._config.agent.experimental.open_file_tool_config
+            selected_ids = self._compute_selected_content_ids(event)
             self._open_file_runtime = OpenFileToolRuntime(
                 logger=logger,
                 config=OpenFileToolRuntimeConfig(
@@ -162,6 +163,9 @@ class UniqueAI:
                     use_responses_api=(
                         self._config.agent.experimental.responses_api_config.use_responses_api
                         or self._config.agent.experimental.use_responses_api
+                    ),
+                    selected_content_ids=(
+                        frozenset(selected_ids) if selected_ids is not None else None
                     ),
                 ),
                 content_service=content_service,
@@ -177,6 +181,17 @@ class UniqueAI:
 
         self._execution_times: list[dict[str, Any]] = []
         self._current_loop_timing: dict[str, Any] = {}
+
+    @staticmethod
+    def _compute_selected_content_ids(event: ChatEvent) -> set[str] | None:
+        if not feature_flags.enable_selected_uploaded_files_un_18215.is_enabled(
+            event.company_id
+        ):
+            return None
+        additional = getattr(event.payload, "additional_parameters", None)
+        if additional is None:
+            return None
+        return set(additional.selected_uploaded_file_ids)
 
     async def _on_cancellation(self, _event: CancellationEvent) -> None:
         """Subscriber called by the cancellation event bus."""
