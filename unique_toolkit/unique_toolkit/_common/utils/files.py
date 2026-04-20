@@ -28,35 +28,67 @@ class FileMimeType(StrEnum):
         mime_type, _ = mimetypes.guess_type(filepath)
         if mime_type is None:
             return None
+
+        return cls.from_mime_string(mime_type)
+
+    @classmethod
+    def from_mime_string(cls, mime: str) -> "FileMimeType | None":
         try:
-            return cls(mime_type)
+            return cls(mime)
         except ValueError:
             return None
+
+    @property
+    def is_docx(self) -> bool:
+        cls = self.__class__
+        return self in {cls.DOCX, cls.DOC}
+
+    @property
+    def is_pdf(self) -> bool:
+        return self == self.__class__.PDF
+
+    @property
+    def is_xlsx(self) -> bool:
+        cls = self.__class__
+        return self in {cls.XLSX, cls.XLS, cls.MSEXCEL, cls.EXCEL}
+
+    @property
+    def is_pptx(self) -> bool:
+        cls = self.__class__
+        return self in {cls.PPTX, cls.PPT, cls.MSPPT}
+
+    @property
+    def is_json(self) -> bool:
+        return self == self.__class__.JSON
+
+    @property
+    def is_csv(self) -> bool:
+        return self == self.__class__.CSV
 
     @classmethod
     def is_docx_mime(cls, filepath: Path) -> bool:
         mime_type = cls.get_mime_from_file_path(filepath)
-        return mime_type in {cls.DOCX, cls.DOC}
+        return mime_type is not None and mime_type.is_docx
 
     @classmethod
     def is_pdf_mime(cls, filepath: Path) -> bool:
         mime_type = cls.get_mime_from_file_path(filepath)
-        return mime_type == cls.PDF
+        return mime_type is not None and mime_type.is_pdf
 
     @classmethod
     def is_xlsx_mime(cls, filepath: Path) -> bool:
         mime_type = cls.get_mime_from_file_path(filepath)
-        return mime_type in {cls.XLSX, cls.XLS, cls.MSEXCEL, cls.EXCEL}
+        return mime_type is not None and mime_type.is_xlsx
 
     @classmethod
     def is_pptx_mime(cls, filepath: Path) -> bool:
         mime_type = cls.get_mime_from_file_path(filepath)
-        return mime_type in {cls.PPTX, cls.PPT, cls.MSPPT}
+        return mime_type is not None and mime_type.is_pptx
 
     @classmethod
     def is_json_mime(cls, filepath: Path) -> bool:
         mime_type = cls.get_mime_from_file_path(filepath)
-        return mime_type == cls.JSON
+        return mime_type is not None and mime_type.is_json
 
     @classmethod
     def is_valid_mime(cls, filepath: Path, valid_mimes: list[FileMimeType]) -> bool:

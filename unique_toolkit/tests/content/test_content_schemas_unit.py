@@ -101,19 +101,78 @@ class TestContentIsIngested:
 
         assert content.is_ingested() is False
 
-    def test__returns_false__when_uniqueIngestionMode_is_SKIP_EXCEL_INGESTION(self):
+    def test__returns_default_if_unknown__when_SKIP_EXCEL_INGESTION_and_no_mime_type(
+        self,
+    ):
         """
-        Purpose: Verify is_ingested returns False when uniqueIngestionMode is
-                 SKIP_EXCEL_INGESTION.
-        Why this matters: Excel files skipped during ingestion must not be treated
-                          as searchable content.
-        Setup summary: Config with uniqueIngestionMode=SKIP_EXCEL_INGESTION; assert False.
+        SKIP_EXCEL_INGESTION without a mime_type is ambiguous — we cannot tell
+        whether the file is an Excel/CSV file, so return default_if_unknown.
         """
         content = make_content(
             applied_ingestion_config={"uniqueIngestionMode": "SKIP_EXCEL_INGESTION"}
         )
 
+        assert content.is_ingested() is True
+        assert content.is_ingested(default_if_unknown=False) is False
+
+    @pytest.mark.parametrize(
+        "mime_type",
+        [
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # xlsx
+            "application/vnd.ms-excel",  # xls
+            "text/csv",
+        ],
+    )
+    def test__returns_false__when_SKIP_EXCEL_INGESTION_and_excel_or_csv_mime(
+        self, mime_type: str
+    ):
+        """
+        SKIP_EXCEL_INGESTION with an Excel or CSV mime type means the file was
+        intentionally skipped — not ingested.
+        """
+        content = make_content(
+            applied_ingestion_config={"uniqueIngestionMode": "SKIP_EXCEL_INGESTION"},
+            mime_type=mime_type,
+        )
+
         assert content.is_ingested() is False
+
+    @pytest.mark.parametrize(
+        "mime_type",
+        [
+            "application/pdf",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "text/plain",
+        ],
+    )
+    def test__returns_true__when_SKIP_EXCEL_INGESTION_and_non_excel_mime(
+        self, mime_type: str
+    ):
+        """
+        SKIP_EXCEL_INGESTION only skips Excel/CSV files; non-Excel content with
+        this mode is still ingested.
+        """
+        content = make_content(
+            applied_ingestion_config={"uniqueIngestionMode": "SKIP_EXCEL_INGESTION"},
+            mime_type=mime_type,
+        )
+
+        assert content.is_ingested() is True
+
+    def test__returns_default_if_unknown__when_SKIP_EXCEL_INGESTION_and_unknown_mime(
+        self,
+    ):
+        """
+        An unrecognised mime string cannot be classified, so fall back to
+        default_if_unknown.
+        """
+        content = make_content(
+            applied_ingestion_config={"uniqueIngestionMode": "SKIP_EXCEL_INGESTION"},
+            mime_type="application/x-totally-unknown",
+        )
+
+        assert content.is_ingested() is True
+        assert content.is_ingested(default_if_unknown=False) is False
 
     @pytest.mark.parametrize(
         "mode",
