@@ -17,6 +17,8 @@ from .chat_completions import (
     ChatCompletionToolCallHandler,
 )
 from .events import (
+    ActivityProgress,
+    ActivityStatus,
     StreamEnded,
     StreamEvent,
     StreamEventBus,
@@ -24,6 +26,9 @@ from .events import (
     TextDelta,
 )
 from .protocols import (
+    ActivityProgressProducer,
+    ActivityProgressUpdate,
+    AppendixProducer,
     ChatCompletionTextHandlerProtocol,
     ChatCompletionToolCallHandlerProtocol,
     ResponsesCodeInterpreterHandlerProtocol,
@@ -41,9 +46,14 @@ from .responses import (
     ResponsesTextDeltaHandler,
     ResponsesToolCallHandler,
 )
-from .subscribers import MessagePersistingSubscriber
+from .subscribers import MessagePersistingSubscriber, ProgressLogPersister
 
 __all__ = [
+    "ActivityProgress",
+    "ActivityProgressProducer",
+    "ActivityProgressUpdate",
+    "ActivityStatus",
+    "AppendixProducer",
     "ChatCompletionStreamPipeline",
     "ChatCompletionTextHandler",
     "ChatCompletionTextHandlerProtocol",
@@ -51,6 +61,7 @@ __all__ = [
     "ChatCompletionToolCallHandlerProtocol",
     "ChatCompletionsCompleteWithReferences",
     "MessagePersistingSubscriber",
+    "ProgressLogPersister",
     "ResponsesCodeInterpreterHandler",
     "ResponsesCodeInterpreterHandlerProtocol",
     "ResponsesCompleteWithReferences",

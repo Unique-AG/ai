@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
 
-from .common import StreamHandlerProtocol, TextState
+from .common import (
+    ActivityProgressProducer,
+    AppendixProducer,
+    StreamHandlerProtocol,
+    TextState,
+)
 
 if TYPE_CHECKING:
     from openai.types.responses import (
@@ -71,8 +76,22 @@ class ResponsesCompletedHandlerProtocol(StreamHandlerProtocol, Protocol):
     def get_output(self) -> list[ResponseOutputItem]: ...
 
 
-class ResponsesCodeInterpreterHandlerProtocol(StreamHandlerProtocol, Protocol):
-    """Manages ``MessageLog`` lifecycle for code interpreter calls (pure side-effects)."""
+class ResponsesCodeInterpreterHandlerProtocol(
+    StreamHandlerProtocol,
+    ActivityProgressProducer,
+    AppendixProducer,
+    Protocol,
+):
+    """Accumulates code-interpreter activity as pure state.
+
+    Inherits the generic :class:`ActivityProgressProducer` and
+    :class:`AppendixProducer` capability protocols so the pipeline picks
+    up its contributions (progress updates, executed-code appendix)
+    uniformly with any other handler that exposes the same shapes — no
+    CI-specific wiring in the pipeline. The only CI-specific member is
+    :meth:`on_code_interpreter_event`, which consumes the OpenAI SDK's
+    typed CI events.
+    """
 
     async def on_code_interpreter_event(
         self, event: CodeInterpreterCallEvent

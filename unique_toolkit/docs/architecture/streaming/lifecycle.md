@@ -165,13 +165,18 @@ if chat is None:
 
 ## SDK Integration Timing
 
-Subscribers (not handlers) talk to the SDK. With the default subscriber:
+Subscribers (not handlers) talk to the SDK. With the default subscribers:
 
-| Phase | Event published | `Message.modify_async` kwargs |
-|-------|----------------|------------------------------|
-| Before stream | `StreamStarted` | `references=[]`, `startedStreamingAt=...` |
-| During stream (per text flush) | `TextDelta` | `text`, `originalText`, `references=filter_cited_sdk_references(chunks, full_text)` |
-| After stream | `StreamEnded` | `text`, `originalText`, `references`, `stoppedStreamingAt`, `completedAt` |
+| Phase | Event published | Subscriber | SDK call |
+|-------|----------------|-----------|----------|
+| Before stream | `StreamStarted` | `MessagePersistingSubscriber` | `Message.modify_async` (`references=[]`, `startedStreamingAt=…`) |
+| During stream (per text flush) | `TextDelta` | `MessagePersistingSubscriber` | `Message.modify_async` (`text`, `originalText`, filtered `references`) |
+| During stream (per tool-activity state change) | `ActivityProgress` | `ProgressLogPersister` | `MessageLog.create_async` on first sighting, `MessageLog.update_async` on transitions (keyed by `correlation_id`) |
+| After stream | `StreamEnded` | `MessagePersistingSubscriber` | `Message.modify_async` (`text + "".join(appendices)`, `references`, `stoppedStreamingAt`, `completedAt`) |
+
+`StreamEnded.appendices` carries blocks contributed by auxiliary handlers (e.g. the code
+interpreter's executed-code block) so the final persist stays a single `Message.modify_async`
+call — no `retrieve` + `modify` round-trip needed.
 
 Throttling is controlled by the **text handler** (`send_every_n_events` on the Chat Completions handler);
 the bus itself does not throttle. To add rate-limiting, wrap the subscriber or add a throttling
@@ -179,19 +184,24 @@ subscriber that forwards a reduced-rate event stream to the persister.
 
 ## Custom Wiring
 
-If a caller wants to replace or augment the default persistence behaviour, they pass a
-pre-configured bus to the orchestrator:
+The bus itself is owned by the orchestrator and cannot be injected; instead, callers
+supply the desired subscribers at construction time (or attach more later via the `bus`
+property):
 
 ```python
-bus = StreamEventBus()
-bus.subscribe(my_tracing_subscriber)
-bus.subscribe(MessagePersistingSubscriber(settings).handle)
-
 orchestrator = ChatCompletionsCompleteWithReferences(
     settings,
     pipeline=pipeline,
-    bus=bus,  # default persister NOT auto-registered when a bus is provided
+    subscribers=[
+        my_tracing_subscriber,
+        MessagePersistingSubscriber(settings).handle,
+    ],
 )
 ```
 
-When no `bus=` is passed, the orchestrator creates one and registers `MessagePersistingSubscriber(settings)` automatically.
+When `subscribers=` is omitted, the orchestrator registers the defaults automatically —
+for `ChatCompletionsCompleteWithReferences` that is `MessagePersistingSubscriber(settings)`;
+for `ResponsesCompleteWithReferences` it is both `MessagePersistingSubscriber(settings)` **and**
+`ProgressLogPersister(settings)` (since the Responses API publishes `ActivityProgress` for
+code interpreter calls). Passing an explicit iterable (including `[]`) is treated as the caller
+having fully specified the subscriber set — the defaults are **not** added.

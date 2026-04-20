@@ -10,14 +10,21 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, overload
 
 import httpx
 from openai import AsyncOpenAI
 
+from unique_toolkit._common.event_bus import Handler
 from unique_toolkit.framework_utilities.openai.client import get_async_openai_client
+from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
+    NORMALIZATION_MAX_MATCH_LENGTH,
+    NORMALIZATION_PATTERNS,
+    StreamingPatternReplacer,
+    StreamingReplacerProtocol,
+)
 from unique_toolkit.language_model.infos import LanguageModelName
 from unique_toolkit.language_model.schemas import (
     LanguageModelMessages,
@@ -25,9 +32,11 @@ from unique_toolkit.language_model.schemas import (
 )
 from unique_toolkit.protocols.support import SupportCompleteWithReferences
 
-from ..events import StreamEnded, StreamEventBus, StreamStarted, TextDelta
+from ..events import StreamEnded, StreamEvent, StreamEventBus, StreamStarted, TextDelta
 from ..subscribers import MessagePersistingSubscriber
 from .stream_pipeline import ChatCompletionStreamPipeline
+from .text_handler import ChatCompletionTextHandler
+from .tool_call_handler import ChatCompletionToolCallHandler
 
 if TYPE_CHECKING:
     from openai.types.chat import (
@@ -69,43 +78,137 @@ def _convert_tools(
     return result or None
 
 
+def _build_default_pipeline() -> ChatCompletionStreamPipeline:
+    """Construct a :class:`ChatCompletionStreamPipeline` with standard defaults.
+
+    The defaults mirror the canonical chat-app example: a text handler wired
+    with the shared citation-normalization replacer plus the tool call
+    handler. Sufficient for the common ``[sourceN]``/``<sup>N</sup>`` flow.
+    """
+    replacers: list[StreamingReplacerProtocol] = [
+        StreamingPatternReplacer(
+            replacements=NORMALIZATION_PATTERNS,
+            max_match_length=NORMALIZATION_MAX_MATCH_LENGTH,
+        )
+    ]
+    return ChatCompletionStreamPipeline(
+        text_handler=ChatCompletionTextHandler(replacers=replacers),
+        tool_call_handler=ChatCompletionToolCallHandler(),
+    )
+
+
 class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
     """``SupportCompleteWithReferences`` backed by the Chat Completions handler pipeline.
 
     Wiring:
 
     * Handlers/pipeline accumulate state only (pure).
-    * This orchestrator owns a :class:`StreamEventBus`.
-    * A default :class:`MessagePersistingSubscriber` is registered on the
-      bus in ``__init__`` to handle ``Message.modify_async`` calls and
-      reference filtering. Callers that want additional subscribers (logging,
-      analytics, ...) can pass a pre-configured bus.
+    * This orchestrator owns its :class:`StreamEventBus` — the bus is not
+      injectable so its lifecycle stays tied to the orchestrator.
+    * A default :class:`MessagePersistingSubscriber` is registered on that
+      bus to handle ``Message.modify_async`` calls and reference filtering.
+      Callers can replace or augment the subscriber set via the
+      ``subscribers`` constructor argument, or attach more after
+      construction through the :attr:`bus` property.
+
+    Two construction shapes are supported via ``@overload``:
+
+    * **Settings-driven** (``settings`` only, optionally ``pipeline`` /
+      ``additional_headers`` / ``subscribers``): client and pipeline are
+      auto-built with sensible defaults (normalization replacers); the
+      default message persister is registered when ``subscribers`` is
+      omitted.
+    * **Instance injection** (``settings`` + explicit ``client``,
+      ``pipeline`` and ``subscribers``): nothing is auto-constructed and
+      no default subscriber is added — the caller owns every collaborator.
     """
+
+    @overload
+    def __init__(
+        self,
+        settings: UniqueSettings,
+        *,
+        pipeline: ChatCompletionStreamPipeline | None = ...,
+        additional_headers: dict[str, str] | None = ...,
+        subscribers: Iterable[Handler[StreamEvent]] | None = ...,
+    ) -> None:
+        """Settings-driven construction with sane defaults.
+
+        Builds an :class:`AsyncOpenAI` client from ``settings`` (with any
+        ``additional_headers``) and a default
+        :class:`ChatCompletionStreamPipeline` when ``pipeline`` is omitted.
+        When ``subscribers`` is ``None`` (default), a
+        :class:`MessagePersistingSubscriber` is auto-registered on the
+        owned bus; pass an explicit iterable (including an empty one) to
+        take full control of the subscriber set.
+        """
+        ...
+
+    @overload
+    def __init__(
+        self,
+        settings: UniqueSettings,
+        *,
+        client: AsyncOpenAI,
+        pipeline: ChatCompletionStreamPipeline,
+        subscribers: Iterable[Handler[StreamEvent]],
+    ) -> None:
+        """Instance-injection construction — reuse pre-built collaborators.
+
+        ``settings`` is still needed at request time to resolve
+        ``chat_id`` / ``message_id``. The bus is still owned internally
+        (not injectable) but every subscriber on it comes from the
+        ``subscribers`` argument — no default persister is added. Use an
+        empty iterable to start with a bare bus and attach subscribers
+        later via :attr:`bus`.
+        """
+        ...
 
     def __init__(
         self,
         settings: UniqueSettings,
         *,
-        pipeline: ChatCompletionStreamPipeline,
+        pipeline: ChatCompletionStreamPipeline | None = None,
         client: AsyncOpenAI | None = None,
+        subscribers: Iterable[Handler[StreamEvent]] | None = None,
         additional_headers: dict[str, str] | None = None,
-        bus: StreamEventBus | None = None,
     ) -> None:
+        if client is not None and additional_headers is not None:
+            # ``additional_headers`` only feeds the default client builder;
+            # failing loudly prevents silently dropping headers when the
+            # caller also passes a pre-built client.
+            raise TypeError(
+                "additional_headers is only honored when the client is "
+                "auto-built from settings; pass a configured AsyncOpenAI "
+                "client instead, or drop additional_headers."
+            )
+
         self._settings = settings
-        self._pipeline = pipeline
-        self._client = client or get_async_openai_client(
-            unique_settings=settings,
-            additional_headers=additional_headers,
+        self._pipeline = pipeline if pipeline is not None else _build_default_pipeline()
+        self._client = (
+            client
+            if client is not None
+            else get_async_openai_client(
+                unique_settings=settings,
+                additional_headers=additional_headers,
+            )
         )
-        self._bus: StreamEventBus = bus if bus is not None else StreamEventBus()
-        # Register the default message persister. Callers who pass a custom
-        # bus have already decided their subscriber set and we do not add to it.
-        if bus is None:
-            self._bus.subscribe(MessagePersistingSubscriber(settings).handle)
+
+        self._bus: StreamEventBus = StreamEventBus()
+        # ``None`` means "use the default persister"; an explicit iterable
+        # (even empty) is treated as the caller having fully specified the
+        # subscriber set — the default is deliberately not added.
+        effective_subscribers: Iterable[Handler[StreamEvent]] = (
+            (MessagePersistingSubscriber(settings).handle,)
+            if subscribers is None
+            else subscribers
+        )
+        for handler in effective_subscribers:
+            self._bus.subscribe(handler)
 
     @property
     def bus(self) -> StreamEventBus:
-        """Expose the bus so callers can attach additional subscribers."""
+        """Expose the owned bus so callers can attach additional subscribers."""
         return self._bus
 
     def complete_with_references(

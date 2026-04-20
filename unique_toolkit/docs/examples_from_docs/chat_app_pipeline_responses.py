@@ -137,7 +137,7 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
         text_handler=text_handler,
         tool_call_handler=tool_call_handler,
         completed_handler=completed_handler,
-        code_interpreter_handler=ResponsesCodeInterpreterHandler(event_settings),
+        code_interpreter_handler=ResponsesCodeInterpreterHandler(),
     )
 
     # --- Stream via the Responses API pipeline ------------------------------

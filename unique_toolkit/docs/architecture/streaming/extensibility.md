@@ -180,17 +180,15 @@ orchestrator.bus.subscribe(TracingSubscriber().handle)
 
 ### Example: Replacing the Default Persister
 
-If you need to customise persistence (e.g. write to a custom backend), pass a pre-configured
-bus — when `bus=` is provided the orchestrator does **not** auto-register the default persister:
+If you need to customise persistence (e.g. write to a custom backend), inject your own
+subscriber list — when `subscribers=` is provided the orchestrator does **not**
+auto-register the default persister:
 
 ```python
-bus = StreamEventBus()
-bus.subscribe(MyCustomPersister().handle)  # instead of MessagePersistingSubscriber
-
 orchestrator = ChatCompletionsCompleteWithReferences(
     settings,
     pipeline=pipeline,
-    bus=bus,
+    subscribers=[MyCustomPersister().handle],  # instead of MessagePersistingSubscriber
 )
 ```
 

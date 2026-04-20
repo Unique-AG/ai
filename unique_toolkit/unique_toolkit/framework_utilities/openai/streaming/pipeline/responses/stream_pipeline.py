@@ -15,6 +15,11 @@ from unique_toolkit.chat.schemas import ChatMessage, ChatMessageRole
 from unique_toolkit.language_model.schemas import ResponsesLanguageModelStreamResponse
 
 from ..protocols import StreamHandlerProtocol
+from ..protocols.common import (
+    ActivityProgressProducer,
+    ActivityProgressUpdate,
+    AppendixProducer,
+)
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -109,6 +114,38 @@ class ResponsesStreamPipeline:
     def get_text(self):
         """Expose the text handler's accumulated state for orchestrator publishing."""
         return self._text.get_text()
+
+    def drain_activity_progress(self) -> list[ActivityProgressUpdate]:
+        """Return and clear progress updates collected from every handler.
+
+        Iterates all registered handlers and asks each one conforming to
+        :class:`ActivityProgressProducer` to drain its pending updates —
+        no per-handler slot is hard-coded, so a new progress-producing
+        handler plugs in simply by exposing ``drain_pending``.
+        """
+        updates: list[ActivityProgressUpdate] = []
+        for handler in self._all_handlers:
+            if isinstance(handler, ActivityProgressProducer):
+                updates.extend(handler.drain_pending())
+        return updates
+
+    def get_appendices(self) -> tuple[str, ...]:
+        """Collect assistant-message appendices contributed by handlers.
+
+        Any handler conforming to :class:`AppendixProducer` can contribute
+        text — the result is the ordered concatenation of non-``None``
+        appendices. The orchestrator attaches the tuple to
+        :class:`StreamEnded` so the message persister writes
+        ``full_text + appendices`` in a single round-trip (avoiding a
+        retrieve + modify dance).
+        """
+        appendices: list[str] = []
+        for handler in self._all_handlers:
+            if isinstance(handler, AppendixProducer):
+                appendix = handler.get_appendix()
+                if appendix is not None:
+                    appendices.append(appendix)
+        return tuple(appendices)
 
     def build_result(
         self,

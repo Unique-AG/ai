@@ -96,12 +96,20 @@ class MessagePersistingSubscriber:
         chunks = self._chunks_by_message.pop(event.message_id, [])
         now = _now_iso()
 
+        # Concatenate any appendices (e.g. a code-interpreter code block)
+        # contributed by auxiliary handlers. This keeps the final persist
+        # to a single Message.modify_async call — appendix-producing
+        # handlers no longer need their own retrieve+modify round-trip.
+        final_text = event.full_text
+        if event.appendices:
+            final_text = final_text + "".join(event.appendices)
+
         await unique_sdk.Message.modify_async(
             id=event.message_id,
             chatId=event.chat_id,
             user_id=self._settings.context.auth.user_id.get_secret_value(),
             company_id=self._settings.context.auth.company_id.get_secret_value(),
-            text=event.full_text or None,
+            text=final_text or None,
             originalText=event.original_text or None,
             references=filter_cited_sdk_references(chunks, event.full_text),
             stoppedStreamingAt=now,  # type: ignore[arg-type]

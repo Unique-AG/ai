@@ -40,11 +40,12 @@ flowchart TB
 
     subgraph Bus["StreamEventBus"]
         direction TB
-        EVT["StreamStarted · TextDelta · StreamEnded"]
+        EVT["StreamStarted · TextDelta · StreamEnded · ActivityProgress"]
     end
 
     subgraph Subs["Subscribers"]
-        MP["MessagePersistingSubscriber<br/>(Message.modify_async +<br/>reference filtering)"]
+        MP["MessagePersistingSubscriber<br/>(Message.modify_async +<br/>reference filtering +<br/>StreamEnded.appendices)"]
+        PLP["ProgressLogPersister<br/>(MessageLog.create/update<br/>keyed by correlation_id)"]
         EXT["Custom subscribers<br/>(logging, metrics, tracing)"]
     end
 
@@ -52,11 +53,13 @@ flowchart TB
     TH --> REP
     CWR -->|"publish"| Bus
     Bus --> MP
+    Bus --> PLP
     Bus --> EXT
     MP -->|"Message.modify_async"| SDK["Unique SDK"]
+    PLP -->|"MessageLog.create_async /<br/>update_async"| SDK
 ```
 
-**Key property:** handlers and pipelines contain *no* SDK calls and *no* knowledge of retrieved chunks. All persistence side-effects live in subscribers wired to the bus.
+**Key property:** handlers and pipelines contain *no* SDK calls and *no* knowledge of retrieved chunks. All persistence side-effects live in subscribers wired to the bus — including the code interpreter handler, which now exposes progress updates as :class:`ActivityProgress` events and the executed-code block via `StreamEnded.appendices`.
 
 ## Module Layout
 
@@ -65,13 +68,14 @@ streaming/
 ├── pattern_replacer.py          # NORMALIZATION_PATTERNS, StreamingPatternReplacer
 └── pipeline/
     ├── __init__.py              # Public API re-exports
-    ├── events.py                # StreamStarted, TextDelta, StreamEnded, StreamEventBus
+    ├── events.py                # StreamStarted, TextDelta, StreamEnded, ActivityProgress, StreamEventBus
     ├── protocols/               # Handler protocols
     │   ├── common.py            # TextState, StreamHandlerProtocol
     │   ├── responses.py         # Responses API protocols
     │   └── chat_completions.py  # Chat Completions protocols
     ├── subscribers/             # Default StreamEvent subscribers
-    │   └── message_persister.py # MessagePersistingSubscriber
+    │   ├── message_persister.py      # MessagePersistingSubscriber (Message.modify_async)
+    │   └── progress_log_persister.py # ProgressLogPersister (MessageLog create/update)
     ├── responses/               # OpenAI Responses API handlers (pure state machines)
     │   ├── stream_pipeline.py
     │   ├── complete_with_references.py

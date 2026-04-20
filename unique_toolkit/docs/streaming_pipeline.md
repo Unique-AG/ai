@@ -100,7 +100,7 @@ flowchart LR
 
 The implementation is a **handler pipeline plus a typed event bus**. `ResponsesStreamPipeline` / `ChatCompletionStreamPipeline` routes each stream event to small typed handlers (text, tools, completed, code interpreter). Handlers are **pure state machines** — they implement structural protocols in `pipeline/protocols/` (`common`, `responses`, `chat_completions`), accumulate state, and expose `get_text()` / `get_tool_calls()` / etc. They do **not** call the Unique SDK and they do **not** see retrieved `ContentChunk`s.
 
-The top-level classes `ResponsesCompleteWithReferences` and `ChatCompletionsCompleteWithReferences` open the async stream from the OpenAI proxy, forward events to the pipeline, build `LanguageModelStreamResponse` / `ResponsesLanguageModelStreamResponse` after `on_stream_end()`, and own a `StreamEventBus`. They publish three domain events — `StreamStarted`, `TextDelta`, `StreamEnded` — consumed by subscribers. The default `MessagePersistingSubscriber` owns all `Message.modify_async` calls and reference filtering.
+The top-level classes `ResponsesCompleteWithReferences` and `ChatCompletionsCompleteWithReferences` open the async stream from the OpenAI proxy, forward events to the pipeline, build `LanguageModelStreamResponse` / `ResponsesLanguageModelStreamResponse` after `on_stream_end()`, and own a `StreamEventBus`. They publish four domain events — `StreamStarted`, `TextDelta`, `StreamEnded`, and `ActivityProgress` (for tool-like activity such as code interpreter). The default subscribers are `MessagePersistingSubscriber` (all `Message.modify_async` calls, including any `StreamEnded.appendices`) and `ProgressLogPersister` (all `MessageLog.create_async` / `update_async` calls keyed by `correlation_id`).
 
 ```mermaid
 flowchart LR
@@ -132,7 +132,8 @@ They run their own `async for` loops (not a shared generic runner) so they can c
 | 2 | **Explicit `reset()` on handlers** | `CompleteWithReferences` calls `pipeline.reset()` before each run so sequential reuse does not leak state. |
 | 3 | **Typed dispatch inside pipelines** | `ResponsesStreamPipeline` / `ChatCompletionStreamPipeline` use `isinstance` on concrete OpenAI SDK event types. Unknown events are ignored for forward compatibility. |
 | 4 | **`NORMALIZATION_PATTERNS` as single source of truth in `pattern_replacer.py`** | Both the streaming replacer and `reference.py:_preprocess_message` import the same pattern list. A parity test ensures both paths produce identical output. |
-| 5 | **Pure handlers, side-effects on the bus** | Handlers know nothing about `unique_sdk` or `ContentChunk`s. The orchestrator publishes `StreamStarted` / `TextDelta` / `StreamEnded`; `MessagePersistingSubscriber` (or any user-registered subscriber) translates those into SDK calls, telemetry, or other side-effects. Callers can pass a custom `bus=` to override the default persister. |
+| 5 | **Pure handlers, side-effects on the bus** | Handlers (including the code interpreter handler) know nothing about `unique_sdk` or `ContentChunk`s. The orchestrator publishes `StreamStarted` / `TextDelta` / `StreamEnded` / `ActivityProgress`; `MessagePersistingSubscriber` and `ProgressLogPersister` (or any user-registered subscriber) translate those into SDK calls, telemetry, or other side-effects. Callers override the defaults via `subscribers=`. |
+| 5b | **Appendices on `StreamEnded` instead of double-writes** | Handlers that want to add content to the final assistant message (e.g. a code block) expose it via the pipeline's `get_appendices()` method. The orchestrator attaches the tuple to `StreamEnded`; `MessagePersistingSubscriber` concatenates `full_text + "".join(appendices)` into a single `Message.modify_async` call — no separate retrieve/modify round-trip. |
 | 6 | **Flush flag on `on_event` / `on_stream_end`** | Text handlers return `bool` to signal that observable text was produced. The orchestrator uses that flag to decide when to publish `TextDelta`, so subscribers can't under- or over-fire on partial buffers. |
 
 ---
@@ -143,15 +144,16 @@ They run their own `async for` loops (not a shared generic runner) so they can c
 streaming/
 ├── pipeline/
 │   ├── __init__.py                               # Public API surface (re-exports)
-│   ├── events.py                                 # StreamStarted, TextDelta, StreamEnded, StreamEventBus
+│   ├── events.py                                 # StreamStarted, TextDelta, StreamEnded, ActivityProgress, StreamEventBus
 │   ├── protocols/                                # Handler protocols (by API + shared base)
 │   │   ├── common.py                             # TextState, StreamHandlerProtocol
 │   │   ├── responses.py                          # Responses*HandlerProtocol
 │   │   ├── chat_completions.py                   # ChatCompletion*HandlerProtocol
 │   │   └── __init__.py                           # Flat re-exports
 │   ├── subscribers/                              # Default StreamEvent subscribers
-│   │   ├── __init__.py                           # Re-exports MessagePersistingSubscriber
-│   │   └── message_persister.py                  # Message.modify_async + reference filtering
+│   │   ├── __init__.py                           # Re-exports MessagePersistingSubscriber, ProgressLogPersister
+│   │   ├── message_persister.py                  # Message.modify_async + reference filtering + appendices
+│   │   └── progress_log_persister.py             # MessageLog.create_async / update_async
 │   ├── responses/                                # OpenAI Responses API (responses.create stream)
 │   │   ├── stream_pipeline.py                    # ResponsesStreamPipeline (pure dispatch)
 │   │   ├── complete_with_references.py           # ResponsesCompleteWithReferences (owns bus)
@@ -189,23 +191,25 @@ Handler protocols live under `pipeline/protocols/`: shared `StreamHandlerProtoco
 
 ### OpenAI Responses API
 
-`ResponsesTextDeltaHandler` applies replacers per delta, accumulates `TextState`, and returns `True` when observable text was produced so the orchestrator can publish a `TextDelta` event. `ResponsesToolCallHandler` assembles function calls. `ResponsesCompletedHandler` captures usage and structured output. `ResponsesCodeInterpreterHandler` manages `MessageLog` for code interpreter runs. None of these handlers call `Message.modify_async` — that lives in `MessagePersistingSubscriber`.
+`ResponsesTextDeltaHandler` applies replacers per delta, accumulates `TextState`, and returns `True` when observable text was produced so the orchestrator can publish a `TextDelta` event. `ResponsesToolCallHandler` assembles function calls. `ResponsesCompletedHandler` captures usage and structured output. `ResponsesCodeInterpreterHandler` tracks code-interpreter progress and the executed code, exposing them via `drain_pending()` (the orchestrator publishes each as an `ActivityProgress` bus event) and `get_appendix()` (attached to `StreamEnded.appendices`). None of these handlers call `Message.modify_async` or `MessageLog.*` — those live in `MessagePersistingSubscriber` and `ProgressLogPersister`.
 
 ### OpenAI Chat Completions
 
 `ChatCompletionTextHandler` applies replacers per chunk (with optional throttling via `send_every_n_events`), accumulates `TextState`, and returns `True` at flush boundaries. `ChatCompletionToolCallHandler` assembles tool calls from chunks. Same principle: no SDK calls; side-effects flow through the bus.
 
-### Default subscriber
+### Default subscribers
 
-`MessagePersistingSubscriber` reacts to the three domain events:
+`MessagePersistingSubscriber` reacts to message-level events:
 
 | Event | `Message.modify_async` kwargs |
 |-------|------------------------------|
 | `StreamStarted` | `references=[]`, `startedStreamingAt` |
 | `TextDelta` | `text`, `originalText`, `references=filter_cited_sdk_references(chunks, full_text)` |
-| `StreamEnded` | `text`, `originalText`, `references`, `stoppedStreamingAt`, `completedAt` |
+| `StreamEnded` | `text=full_text + "".join(appendices)`, `originalText`, `references`, `stoppedStreamingAt`, `completedAt` |
 
 Chunks are stored per `message_id` (seeded on `StreamStarted`, cleared on `StreamEnded`) so concurrent streams with distinct message IDs stay isolated.
+
+`ProgressLogPersister` reacts to `ActivityProgress` and translates each update into a `MessageLog` call — `create_async` on first sighting of a `correlation_id`, `update_async` on subsequent status/text transitions, skipped otherwise. It is registered by default only by `ResponsesCompleteWithReferences` (the Chat Completions pipeline does not currently publish `ActivityProgress`).
 
 ---
 
@@ -308,36 +312,42 @@ Both accept `content_chunks: list[ContentChunk]` — the search results the mode
 | Parameter | Default | Purpose |
 |-----------|---------|---------|
 | `settings` | *(required)* | `UniqueSettings` with auth and chat context. |
-| `pipeline` | *(required)* | Pre-built `ResponsesStreamPipeline` with handlers and replacers configured externally. |
+| `pipeline` | `None` | Optional `ResponsesStreamPipeline`. When omitted, a default pipeline with citation-normalization replacers, tool-call, completed, and code-interpreter handlers is built. |
 | `client` | `None` | Optional pre-built `AsyncOpenAI` client. If `None`, one is created via `get_async_openai_client`. |
 | `additional_headers` | `None` | Extra HTTP headers forwarded to the OpenAI proxy client (only used when `client` is `None`). |
-| `bus` | `None` | Optional pre-configured `StreamEventBus`. When omitted, the orchestrator creates one and auto-registers `MessagePersistingSubscriber(settings)`. When provided, the caller owns the subscriber set (the default persister is **not** auto-added). |
+| `subscribers` | `None` | Handlers to subscribe on the internally-owned bus. `None` registers the defaults `MessagePersistingSubscriber(settings)` **and** `ProgressLogPersister(settings)` (the Responses API publishes `ActivityProgress` for code interpreter). An explicit iterable (including `[]`) takes full ownership of the subscriber set — the defaults are **not** added. |
+
+The bus itself is always created and owned by the orchestrator; it is not injectable. Inspect or extend it after construction through the `bus` property.
 
 ### `ChatCompletionsCompleteWithReferences` constructor parameters
 
 | Parameter | Default | Purpose |
 |-----------|---------|---------|
 | `settings` | *(required)* | `UniqueSettings` with auth and chat context. |
-| `pipeline` | *(required)* | Pre-built `ChatCompletionStreamPipeline` with handlers and replacers configured externally. |
+| `pipeline` | `None` | Optional `ChatCompletionStreamPipeline`. When omitted, a default pipeline with citation-normalization replacers and the standard tool-call handler is built. |
 | `client` | `None` | Optional pre-built `AsyncOpenAI` client. If `None`, one is created via `get_async_openai_client`. |
 | `additional_headers` | `None` | Extra HTTP headers forwarded to the OpenAI proxy client (only used when `client` is `None`). |
-| `bus` | `None` | Same semantics as above. Use it to attach tracing, analytics, or an alternative persister. |
+| `subscribers` | `None` | Handlers to subscribe on the internally-owned bus. `None` registers the default `MessagePersistingSubscriber(settings)`. An explicit iterable (including `[]`) takes full ownership of the subscriber set — the default is **not** added. |
+
+The bus itself is always created and owned by the orchestrator; it is not injectable. Inspect or extend it after construction through the `bus` property.
 
 ### Adding subscribers
 
-When you accept the default bus, attach extras via the `bus` property:
+When you accept the default subscriber set, attach extras via the `bus` property:
 
 ```python
 orchestrator = ChatCompletionsCompleteWithReferences(settings, pipeline=pipeline)
 orchestrator.bus.subscribe(my_tracing_subscriber)       # runs alongside the default persister
 ```
 
-To fully replace persistence, provide a pre-built bus:
+To fully replace persistence, inject your own subscribers:
 
 ```python
-bus = StreamEventBus()
-bus.subscribe(my_custom_persister.handle)
-orchestrator = ChatCompletionsCompleteWithReferences(settings, pipeline=pipeline, bus=bus)
+orchestrator = ChatCompletionsCompleteWithReferences(
+    settings,
+    pipeline=pipeline,
+    subscribers=[my_custom_persister.handle],
+)
 ```
 
 ### Source reference handling
