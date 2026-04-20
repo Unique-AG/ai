@@ -55,6 +55,7 @@ class ShowExecutedCodePostprocessor(ResponsesApiPostprocessor):
     ):
         super().__init__(self.__class__.__name__)
         self._config = config
+        self._company_id = company_id
         self._is_enabled = (
             self._config.enable
             and not feature_flags.enable_code_execution_fence_un_17972.is_enabled(
