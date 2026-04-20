@@ -270,6 +270,10 @@ def build_httpx_requestor(
         ) -> ResponseType:
             headers = context.headers or {}
 
+            # TODO(UN-19748): async path silently drops query params — build and
+            # pass query_params like the sync request() method does (see the
+            # sync branch above which calls create_query_params_from_model and
+            # passes params=query_params to client.request).
             path_params, payload_model, _query_model = (
                 cls._operation.models_from_combined(combined=kwargs)
             )

@@ -187,7 +187,14 @@ class SubAgentEvaluationService(Evaluation):
             display_name = self._evaluation_specs[assistant_id].display_name
 
             for response in sub_agent_responses:
-                assessments = sort_assessments(response.message["assessment"] or [])
+                valid_assessments = [
+                    a
+                    for a in (response.message["assessment"] or [])
+                    if a["label"] in ChatMessageAssessmentLabel
+                ]
+                assessments = sort_assessments(valid_assessments)
+                if not assessments:
+                    continue
                 value = get_worst_label(
                     value, ChatMessageAssessmentLabel(assessments[0]["label"])
                 )
