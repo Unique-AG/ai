@@ -1,6 +1,6 @@
 [project]
 name = "unique-mcp"
-version = "0.3.1"
+version = "0.3.2"
 description = "Add your description here"
 readme = "README.md"
 authors = [
@@ -25,6 +25,9 @@ dev = []
 
 [tool.uv.sources]
 unique-toolkit = { workspace = true }
+
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --import-mode=importlib"

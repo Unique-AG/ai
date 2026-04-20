@@ -22,3 +22,6 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 unique-sdk = { path = "../..", editable = true }
+
+[tool.uv.exclude-newer-package]
+"unique-sdk" = false
