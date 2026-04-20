@@ -1,0 +1,9 @@
+Create or update a task list to track progress. Use for any task involving multiple steps — the user sees this as a live progress indicator.
+
+Provide active_form (present continuous, e.g. "Searching documents") for each task — this is shown to the user as live status text.
+
+{% if parallel_mode -%}
+Mark items in_progress when starting, completed when done. You can mark multiple items in_progress if working on them in parallel.
+{%- else -%}
+Mark exactly one item in_progress at a time. Mark it completed immediately when done, then move to the next item. Do not batch completions.
+{%- endif %}
