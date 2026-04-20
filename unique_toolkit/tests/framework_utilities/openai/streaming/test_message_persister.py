@@ -296,3 +296,57 @@ async def test_AI_persister__register__subscribes_to_text_lifecycle_channels_onl
         )
 
     assert modify.await_count == 3
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_persister__persist_every_n_deltas__throttles_intermediate_writes():
+    """
+    Purpose: ``persist_every_n_deltas`` skips intermediate SDK writes but
+      never suppresses the authoritative final state on ``StreamEnded``.
+    Why this matters: A long stream with ``send_every_n_events=1`` at the
+      handler still produces a write per flush. The subscriber-level knob
+      lets callers coarsen the UI update cadence without losing data —
+      the final write always runs.
+    Setup summary: Construct the persister with ``persist_every_n_deltas=3``,
+      drive five :class:`TextDelta` events, and assert only the 3rd fires
+      a ``modify_async``; then drive :class:`StreamEnded` and assert the
+      final authoritative write still runs.
+    """
+    persister = MessagePersistingSubscriber(
+        _settings_with_chat(), persist_every_n_deltas=3
+    )
+    with patch(_MODIFY, new_callable=AsyncMock) as modify:
+        await persister.on_started(
+            StreamStarted(
+                message_id="amsg-1",
+                chat_id="chat-1",
+                content_chunks=(),
+            )
+        )
+        modify.reset_mock()
+
+        for i in range(5):
+            await persister.on_text_delta(
+                TextDelta(
+                    message_id="amsg-1",
+                    chat_id="chat-1",
+                    full_text=f"t{i}",
+                    original_text=f"t{i}",
+                )
+            )
+
+        assert modify.await_count == 1
+        assert modify.call_args.kwargs["text"] == "t2"
+
+        modify.reset_mock()
+        await persister.on_ended(
+            StreamEnded(
+                message_id="amsg-1",
+                chat_id="chat-1",
+                full_text="final",
+                original_text="final",
+            )
+        )
+        assert modify.await_count == 1
+        assert modify.call_args.kwargs["text"] == "final"

@@ -50,11 +50,31 @@ class MessagePersistingSubscriber:
     Holds the retrieved chunks for the currently active stream (keyed by
     ``message_id``) so reference filtering on :class:`TextDelta` and
     :class:`StreamEnded` uses only what was retrieved for that stream.
+
+    ``persist_every_n_deltas`` throttles SDK writes on the
+    :class:`TextDelta` hot path. The default (``1``) preserves the original
+    behaviour — every flush from the handler produces one write. The
+    handler's own ``send_every_n_events`` knob already throttles on the
+    upstream side (content chunks per flush); this subscriber-level knob
+    adds a secondary throttle measured in *flushes*. Combine them when the
+    handler is configured for low-latency flushes but downstream SDK
+    pressure needs reducing. The final :class:`StreamEnded` write is
+    always performed and is authoritative, so throttling deltas only ever
+    coarsens intermediate UI updates — it never drops data.
     """
 
-    def __init__(self, settings: UniqueSettings) -> None:
+    def __init__(
+        self,
+        settings: UniqueSettings,
+        *,
+        persist_every_n_deltas: int = 1,
+    ) -> None:
         self._settings = settings
         self._chunks_by_message: dict[str, list[ContentChunk]] = {}
+        self._persist_every_n_deltas = max(1, persist_every_n_deltas)
+        # Per-message counter so overlapping streams on the same subscriber
+        # instance don't share a throttle boundary.
+        self._delta_counter_by_message: dict[str, int] = {}
 
     def register(self, bus: StreamEventBus) -> None:
         """Subscribe this persister to the text lifecycle channels on ``bus``.
@@ -86,6 +106,13 @@ class MessagePersistingSubscriber:
     async def on_text_delta(self, event: TextDelta) -> None:
         chunks = self._chunks_by_message.get(event.message_id, [])
 
+        # Apply the per-subscriber throttle. We only skip intermediate
+        # writes — the authoritative final state ships on :class:`StreamEnded`.
+        count = self._delta_counter_by_message.get(event.message_id, 0) + 1
+        self._delta_counter_by_message[event.message_id] = count
+        if count % self._persist_every_n_deltas != 0:
+            return
+
         # Incremental writes are the hot path: a transient SDK failure here
         # must not abort the stream loop. The authoritative final state is
         # written again in :meth:`on_ended`, so a dropped delta degrades
@@ -110,6 +137,7 @@ class MessagePersistingSubscriber:
 
     async def on_ended(self, event: StreamEnded) -> None:
         chunks = self._chunks_by_message.pop(event.message_id, [])
+        self._delta_counter_by_message.pop(event.message_id, None)
         now = _now_iso()
 
         # Concatenate any appendices (e.g. a code-interpreter code block)
