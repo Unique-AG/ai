@@ -21,7 +21,7 @@ class ChatCompletionTextHandlerProtocol(StreamTextHandlerProtocol, Protocol):
     lifecycle) and adds only the Chat Completions consumer method.
     """
 
-    async def on_chunk(self, event: ChatCompletionChunk, *, index: int) -> None:
+    async def on_chunk(self, event: ChatCompletionChunk) -> None:
         """Process one chunk; publish :class:`TextFlushed` on flush boundaries."""
         ...
 

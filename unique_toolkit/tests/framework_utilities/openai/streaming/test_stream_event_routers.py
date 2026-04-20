@@ -74,7 +74,7 @@ class _FakeChatTextHandler:
     router's ``text_bus``.
     """
 
-    chunks: list[tuple[int, ChatCompletionChunk]] = field(default_factory=list)
+    chunks: list[ChatCompletionChunk] = field(default_factory=list)
     ends: int = 0
     flush: bool = False
     end_flush: bool = False
@@ -83,14 +83,14 @@ class _FakeChatTextHandler:
     )
     text_bus: TypedEventBus[TextFlushed] = field(default_factory=TypedEventBus)
 
-    async def on_chunk(self, event: ChatCompletionChunk, *, index: int) -> None:
-        self.chunks.append((index, event))
+    async def on_chunk(self, event: ChatCompletionChunk) -> None:
+        self.chunks.append(event)
         if self.flush:
             await self.text_bus.publish_and_wait_async(
                 TextFlushed(
                     full_text=self.state.full_text,
                     original_text=self.state.original_text,
-                    chunk_index=index,
+                    chunk_index=len(self.chunks) - 1,
                 )
             )
 
@@ -146,8 +146,8 @@ async def test_AI_chat_completion_stream_event_router__on_event__forwards_to_bot
         text_handler=text_h, tool_call_handler=tool_h
     )
     chunk = _chat_chunk(content="hi")
-    await router.on_event(chunk, index=2)
-    assert text_h.chunks == [(2, chunk)]
+    await router.on_event(chunk)
+    assert text_h.chunks == [chunk]
     assert tool_h.calls == [chunk]
 
 
@@ -167,7 +167,7 @@ async def test_AI_chat_completion_stream_event_router__on_event__propagates_flus
     router = ChatCompletionStreamEventRouter(text_handler=text_h)
     received: list[TextFlushed] = []
     router.text_bus.subscribe(received.append)
-    await router.on_event(_chat_chunk(content="x"), index=0)
+    await router.on_event(_chat_chunk(content="x"))
     assert len(received) == 1
     assert received[0].full_text == "hello"
 

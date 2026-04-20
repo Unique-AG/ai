@@ -74,14 +74,14 @@ class ChatCompletionStreamEventRouter:
         for h in self._all_handlers:
             h.reset()
 
-    async def on_event(self, event: ChatCompletionChunk, *, index: int) -> None:
+    async def on_event(self, event: ChatCompletionChunk) -> None:
         """Dispatch one chunk to text + tool handlers.
 
         Text flushes are published on the text handler's
         :attr:`text_bus`; the tool handler has no per-event
         side-effect surface (final tool calls are read at stream end).
         """
-        await self._text.on_chunk(event, index=index)
+        await self._text.on_chunk(event)
         if self._tools:
             await self._tools.on_chunk(event)
 

@@ -42,6 +42,11 @@ class ChatCompletionTextHandler:
         self._replacers = replacers
         self._send_every_n_events = max(1, send_every_n_events)
         self._state = TextState(full_text="", original_text="")
+        # Counts content-bearing chunks only — role-only / tool-call-only
+        # chunks must not shift the flush boundary, otherwise callers that
+        # set ``send_every_n_events`` to throttle SDK writes see irregular
+        # (or missing) flushes.
+        self._content_chunk_index = 0
         self._text_bus: TypedEventBus[TextFlushed] = TypedEventBus()
 
     @property
@@ -49,7 +54,7 @@ class ChatCompletionTextHandler:
         """Handler-local bus carrying :class:`TextFlushed` at every flush."""
         return self._text_bus
 
-    async def on_chunk(self, event: ChatCompletionChunk, *, index: int) -> None:
+    async def on_chunk(self, event: ChatCompletionChunk) -> None:
         """Process one chunk; publish :class:`TextFlushed` on flush boundaries.
 
         A flush is emitted only when the chunk carries content *and* crosses
@@ -62,6 +67,11 @@ class ChatCompletionTextHandler:
         content = event.choices[0].delta.content or ""
         if not content:
             return
+
+        # Increment only after the content guards so the flush boundary
+        # tracks content-bearing chunks — see ``_content_chunk_index``.
+        index = self._content_chunk_index
+        self._content_chunk_index += 1
 
         self._state.original_text += content
 
@@ -109,5 +119,6 @@ class ChatCompletionTextHandler:
         """Clear accumulated state. Bus subscribers are intentionally preserved
         across requests — the orchestrator subscribes once at construction."""
         self._state = TextState(full_text="", original_text="")
+        self._content_chunk_index = 0
         for replacer in self._replacers:
             replacer.flush()

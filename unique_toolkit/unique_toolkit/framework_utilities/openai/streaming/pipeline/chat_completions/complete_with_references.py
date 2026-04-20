@@ -341,10 +341,8 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
                     **optional_create_kwargs,
                 )
 
-                index = 0
                 async for chunk in stream:
-                    await self._router.on_event(chunk, index=index)
-                    index += 1
+                    await self._router.on_event(chunk)
             except httpx.RemoteProtocolError as exc:
                 _LOGGER.warning(
                     "Stream connection closed prematurely (incomplete chunked read). "
