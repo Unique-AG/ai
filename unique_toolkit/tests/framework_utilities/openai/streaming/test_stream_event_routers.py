@@ -1,4 +1,4 @@
-"""Tests for Chat Completions and Responses streaming pipeline routing."""
+"""Tests for Chat Completions and Responses stream event routing."""
 
 from __future__ import annotations
 
@@ -23,8 +23,8 @@ from openai.types.responses.response_function_tool_call_item import (
 from openai.types.responses.response_text_delta_event import Logprob
 
 from unique_toolkit._common.event_bus import TypedEventBus
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.chat_completions.stream_pipeline import (
-    ChatCompletionStreamPipeline,
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.chat_completions.stream_event_router import (
+    ChatCompletionStreamEventRouter,
 )
 from unique_toolkit.framework_utilities.openai.streaming.pipeline.protocols import (
     TextFlushed,
@@ -34,8 +34,8 @@ from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.comp
     ResponsesCompletedHandler,
     _extract_usage,
 )
-from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.stream_pipeline import (
-    ResponsesStreamPipeline,
+from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.stream_event_router import (
+    ResponsesStreamEventRouter,
 )
 from unique_toolkit.framework_utilities.openai.streaming.pipeline.responses.tool_call_handler import (
     ResponsesToolCallHandler,
@@ -74,7 +74,7 @@ class _FakeChatTextHandler:
     The new protocol replaces the bool return value with a handler-owned
     :class:`TypedEventBus` carrying :class:`TextFlushed`. Tests exercise
     both routing and the bus-publish plumbing by subscribing to the
-    pipeline's ``text_flush_bus``.
+    router's ``text_bus``.
     """
 
     chunks: list[tuple[int, ChatCompletionChunk]] = field(default_factory=list)
@@ -84,12 +84,12 @@ class _FakeChatTextHandler:
     state: TextState = field(
         default_factory=lambda: TextState(full_text="hello", original_text="raw")
     )
-    flush_bus: TypedEventBus[TextFlushed] = field(default_factory=TypedEventBus)
+    text_bus: TypedEventBus[TextFlushed] = field(default_factory=TypedEventBus)
 
     async def on_chunk(self, event: ChatCompletionChunk, *, index: int) -> None:
         self.chunks.append((index, event))
         if self.flush:
-            await self.flush_bus.publish_and_wait_async(
+            await self.text_bus.publish_and_wait_async(
                 TextFlushed(
                     full_text=self.state.full_text,
                     original_text=self.state.original_text,
@@ -100,7 +100,7 @@ class _FakeChatTextHandler:
     async def on_stream_end(self) -> None:
         self.ends += 1
         if self.end_flush:
-            await self.flush_bus.publish_and_wait_async(
+            await self.text_bus.publish_and_wait_async(
                 TextFlushed(
                     full_text=self.state.full_text,
                     original_text=self.state.original_text,
@@ -137,7 +137,7 @@ class _FakeChatToolHandler:
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_AI_chat_completion_stream_pipeline__on_event__forwards_to_both_handlers():
+async def test_AI_chat_completion_stream_event_router__on_event__forwards_to_both_handlers():
     """
     Purpose: Verify each chunk is passed to text and tool handlers.
     Why this matters: Chat chunks may carry content and tool deltas together; both paths must run.
@@ -145,37 +145,39 @@ async def test_AI_chat_completion_stream_pipeline__on_event__forwards_to_both_ha
     """
     text_h = _FakeChatTextHandler()
     tool_h = _FakeChatToolHandler()
-    pipe = ChatCompletionStreamPipeline(text_handler=text_h, tool_call_handler=tool_h)
+    router = ChatCompletionStreamEventRouter(
+        text_handler=text_h, tool_call_handler=tool_h
+    )
     chunk = _chat_chunk(content="hi")
-    await pipe.on_event(chunk, index=2)
+    await router.on_event(chunk, index=2)
     assert text_h.chunks == [(2, chunk)]
     assert tool_h.calls == [chunk]
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_AI_chat_completion_stream_pipeline__on_event__propagates_flush_via_bus():
+async def test_AI_chat_completion_stream_event_router__on_event__propagates_flush_via_bus():
     """
     Purpose: ``on_event`` must propagate the text handler's flush via the bus.
-    Why this matters: The orchestrator subscribes to ``text_flush_bus`` to decide
-      when to publish :class:`TextDelta` — the pipeline must re-expose the
+    Why this matters: The orchestrator subscribes to ``text_bus`` to decide
+      when to publish :class:`TextDelta` — the router must re-expose the
       handler's bus faithfully.
     Setup summary: Fake text handler configured to flush; subscribe to the
-      pipeline's ``text_flush_bus``; assert exactly one :class:`TextFlushed`
+      router's ``text_bus``; assert exactly one :class:`TextFlushed`
       is received.
     """
     text_h = _FakeChatTextHandler(flush=True)
-    pipe = ChatCompletionStreamPipeline(text_handler=text_h)
+    router = ChatCompletionStreamEventRouter(text_handler=text_h)
     received: list[TextFlushed] = []
-    pipe.text_flush_bus.subscribe(received.append)
-    await pipe.on_event(_chat_chunk(content="x"), index=0)
+    router.text_bus.subscribe(received.append)
+    await router.on_event(_chat_chunk(content="x"), index=0)
     assert len(received) == 1
     assert received[0].full_text == "hello"
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_AI_chat_completion_stream_pipeline__on_stream_end__finalizes_all_handlers():
+async def test_AI_chat_completion_stream_event_router__on_stream_end__finalizes_all_handlers():
     """
     Purpose: Ensure ``on_stream_end`` calls every registered handler.
     Why this matters: Handlers flush replacer buffers and release resources.
@@ -183,32 +185,34 @@ async def test_AI_chat_completion_stream_pipeline__on_stream_end__finalizes_all_
     """
     text_h = _FakeChatTextHandler()
     tool_h = _FakeChatToolHandler()
-    pipe = ChatCompletionStreamPipeline(text_handler=text_h, tool_call_handler=tool_h)
-    await pipe.on_stream_end()
+    router = ChatCompletionStreamEventRouter(
+        text_handler=text_h, tool_call_handler=tool_h
+    )
+    await router.on_stream_end()
     assert text_h.ends == 1
     assert tool_h.ends == 1
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_AI_chat_completion_stream_pipeline__on_stream_end__publishes_residual_flush():
+async def test_AI_chat_completion_stream_event_router__on_stream_end__publishes_residual_flush():
     """
     Purpose: ``on_stream_end`` causes a residual :class:`TextFlushed` publish.
     Why this matters: Replacer buffers may hold trailing characters that need
       a final emit before :class:`StreamEnded` is published.
     Setup summary: Fake text handler with ``end_flush=True``; subscribe to
-      the pipeline's ``text_flush_bus``; assert one event is received.
+      the router's ``text_bus``; assert one event is received.
     """
     text_h = _FakeChatTextHandler(end_flush=True)
-    pipe = ChatCompletionStreamPipeline(text_handler=text_h)
+    router = ChatCompletionStreamEventRouter(text_handler=text_h)
     received: list[TextFlushed] = []
-    pipe.text_flush_bus.subscribe(received.append)
-    await pipe.on_stream_end()
+    router.text_bus.subscribe(received.append)
+    await router.on_stream_end()
     assert len(received) == 1
 
 
 @pytest.mark.ai
-def test_AI_chat_completion_stream_pipeline__build_result__includes_tool_calls():
+def test_AI_chat_completion_stream_event_router__build_result__includes_tool_calls():
     """
     Purpose: Check build_result merges text state and optional tool calls into the response DTO.
     Why this matters: Callers consume LanguageModelStreamResponse after streaming.
@@ -217,26 +221,28 @@ def test_AI_chat_completion_stream_pipeline__build_result__includes_tool_calls()
     text_h = _FakeChatTextHandler()
     tool_fn = LanguageModelFunction(name="t", arguments={"a": 1})
     tool_h = _FakeChatToolHandler(tools=[tool_fn])
-    pipe = ChatCompletionStreamPipeline(text_handler=text_h, tool_call_handler=tool_h)
+    router = ChatCompletionStreamEventRouter(
+        text_handler=text_h, tool_call_handler=tool_h
+    )
     from datetime import datetime, timezone
 
     created = datetime.now(timezone.utc)
-    result = pipe.build_result(message_id="m1", chat_id="c1", created_at=created)
+    result = router.build_result(message_id="m1", chat_id="c1", created_at=created)
     assert result.message.text == "hello"
     assert result.tool_calls == [tool_fn]
 
 
 @pytest.mark.ai
-def test_AI_chat_completion_stream_pipeline__get_text__delegates_to_text_handler():
+def test_AI_chat_completion_stream_event_router__get_text__delegates_to_text_handler():
     """
-    Purpose: The pipeline exposes the text handler's accumulated state.
+    Purpose: The router exposes the text handler's accumulated state.
     Why this matters: Orchestrators publish ``TextDelta`` using this state — keeping the access
-      path on the pipeline (not the handler directly) avoids leaking handler internals.
+      path on the router (not the handler directly) avoids leaking handler internals.
     Setup summary: Fake handler with fixed state; ``get_text()`` returns it.
     """
     text_h = _FakeChatTextHandler(state=TextState(full_text="a", original_text="b"))
-    pipe = ChatCompletionStreamPipeline(text_handler=text_h)
-    s = pipe.get_text()
+    router = ChatCompletionStreamEventRouter(text_handler=text_h)
+    s = router.get_text()
     assert s.full_text == "a"
     assert s.original_text == "b"
 
@@ -250,12 +256,12 @@ class _FakeResponsesText:
     state: TextState = field(
         default_factory=lambda: TextState(full_text="t", original_text="o")
     )
-    flush_bus: TypedEventBus[TextFlushed] = field(default_factory=TypedEventBus)
+    text_bus: TypedEventBus[TextFlushed] = field(default_factory=TypedEventBus)
 
     async def on_text_delta(self, event: ResponseTextDeltaEvent) -> None:
         self.deltas.append(event)
         if self.flush:
-            await self.flush_bus.publish_and_wait_async(
+            await self.text_bus.publish_and_wait_async(
                 TextFlushed(
                     full_text=self.state.full_text,
                     original_text=self.state.original_text,
@@ -265,7 +271,7 @@ class _FakeResponsesText:
     async def on_stream_end(self) -> None:
         self.ends += 1
         if self.end_flush:
-            await self.flush_bus.publish_and_wait_async(
+            await self.text_bus.publish_and_wait_async(
                 TextFlushed(
                     full_text=self.state.full_text,
                     original_text=self.state.original_text,
@@ -318,21 +324,21 @@ def _text_delta(delta: str) -> ResponseTextDeltaEvent:
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_AI_responses_stream_pipeline__on_event__routes_text_delta_and_publishes_flush():
+async def test_AI_responses_stream_event_router__on_event__routes_text_delta_and_publishes_flush():
     """
     Purpose: ResponseTextDeltaEvent should reach only the text handler and trigger a flush publish.
     Why this matters: Wrong routing would drop tokens; a missing flush publish would suppress TextDelta events.
     Setup summary: Fake text + completed handlers (text flushes); subscribe to
-      the pipeline's ``text_flush_bus``; send delta; assert routing + one bus
+      the router's ``text_bus``; send delta; assert routing + one bus
       publish received.
     """
     text_h = _FakeResponsesText(flush=True)
     done_h = _FakeCompleted()
-    pipe = ResponsesStreamPipeline(text_handler=text_h, completed_handler=done_h)
+    router = ResponsesStreamEventRouter(text_handler=text_h, completed_handler=done_h)
     received: list[TextFlushed] = []
-    pipe.text_flush_bus.subscribe(received.append)
+    router.text_bus.subscribe(received.append)
     ev = _text_delta("abc")
-    await pipe.on_event(ev)
+    await router.on_event(ev)
     assert text_h.deltas == [ev]
     assert done_h.events == []
     assert len(received) == 1
@@ -340,19 +346,19 @@ async def test_AI_responses_stream_pipeline__on_event__routes_text_delta_and_pub
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_AI_responses_stream_pipeline__on_event__non_text_events_do_not_publish_flush():
+async def test_AI_responses_stream_event_router__on_event__non_text_events_do_not_publish_flush():
     """
-    Purpose: Non-text events must not trigger a flush publish on ``text_flush_bus``.
+    Purpose: Non-text events must not trigger a flush publish on ``text_bus``.
     Why this matters: Tool / completion events don't change the accumulated text;
       spurious publishes would produce stale :class:`TextDelta` events.
-    Setup summary: Route an output-item-added event through the pipeline; assert
+    Setup summary: Route an output-item-added event through the router; assert
       the flush bus received nothing.
     """
     text_h = _FakeResponsesText()
     tools = ResponsesToolCallHandler()
-    pipe = ResponsesStreamPipeline(text_handler=text_h, tool_call_handler=tools)
+    router = ResponsesStreamEventRouter(text_handler=text_h, tool_call_handler=tools)
     received: list[TextFlushed] = []
-    pipe.text_flush_bus.subscribe(received.append)
+    router.text_bus.subscribe(received.append)
     item = ResponseFunctionToolCallItem.model_construct(
         id="call-item-1",
         status="in_progress",
@@ -367,13 +373,13 @@ async def test_AI_responses_stream_pipeline__on_event__non_text_events_do_not_pu
         sequence_number=1,
         type="response.output_item.added",
     )
-    await pipe.on_event(added)
+    await router.on_event(added)
     assert received == []
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_AI_responses_stream_pipeline__tool_flow__records_function_call():
+async def test_AI_responses_stream_event_router__tool_flow__records_function_call():
     """
     Purpose: Output-item + arguments-done events should produce a tool call on the handler.
     Why this matters: Downstream execution needs parsed name and arguments from the stream.
@@ -381,7 +387,7 @@ async def test_AI_responses_stream_pipeline__tool_flow__records_function_call():
     """
     text_h = _FakeResponsesText()
     tools = ResponsesToolCallHandler()
-    pipe = ResponsesStreamPipeline(text_handler=text_h, tool_call_handler=tools)
+    router = ResponsesStreamEventRouter(text_handler=text_h, tool_call_handler=tools)
     item = ResponseFunctionToolCallItem.model_construct(
         id="call-item-1",
         status="in_progress",
@@ -396,7 +402,7 @@ async def test_AI_responses_stream_pipeline__tool_flow__records_function_call():
         sequence_number=1,
         type="response.output_item.added",
     )
-    await pipe.on_event(added)
+    await router.on_event(added)
     done = ResponseFunctionCallArgumentsDoneEvent.model_construct(
         type="response.function_call_arguments.done",
         item_id="call-item-1",
@@ -405,7 +411,7 @@ async def test_AI_responses_stream_pipeline__tool_flow__records_function_call():
         output_index=0,
         sequence_number=2,
     )
-    await pipe.on_event(done)
+    await router.on_event(done)
     calls = tools.get_tool_calls()
     assert len(calls) == 1
     assert calls[0].name == "lookup"
@@ -414,7 +420,7 @@ async def test_AI_responses_stream_pipeline__tool_flow__records_function_call():
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_AI_responses_stream_pipeline__on_stream_end__invokes_all_handlers():
+async def test_AI_responses_stream_event_router__on_stream_end__invokes_all_handlers():
     """
     Purpose: on_stream_end must finalize every registered handler.
     Why this matters: Handlers flush buffers and release resources.
@@ -422,15 +428,15 @@ async def test_AI_responses_stream_pipeline__on_stream_end__invokes_all_handlers
     """
     text_h = _FakeResponsesText()
     done_h = _FakeCompleted()
-    pipe = ResponsesStreamPipeline(text_handler=text_h, completed_handler=done_h)
-    await pipe.on_stream_end()
+    router = ResponsesStreamEventRouter(text_handler=text_h, completed_handler=done_h)
+    await router.on_stream_end()
     assert text_h.ends == 1
     assert done_h.ends == 1
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_AI_responses_stream_pipeline__on_stream_end__publishes_residual_flush():
+async def test_AI_responses_stream_event_router__on_stream_end__publishes_residual_flush():
     """
     Purpose: Pipeline publishes a residual :class:`TextFlushed` on ``on_stream_end``.
     Why this matters: Lets the orchestrator publish a final :class:`TextDelta`
@@ -439,10 +445,10 @@ async def test_AI_responses_stream_pipeline__on_stream_end__publishes_residual_f
       the flush bus; assert one event received.
     """
     text_h = _FakeResponsesText(end_flush=True)
-    pipe = ResponsesStreamPipeline(text_handler=text_h)
+    router = ResponsesStreamEventRouter(text_handler=text_h)
     received: list[TextFlushed] = []
-    pipe.text_flush_bus.subscribe(received.append)
-    await pipe.on_stream_end()
+    router.text_bus.subscribe(received.append)
+    await router.on_stream_end()
     assert len(received) == 1
 
 
@@ -480,7 +486,7 @@ def test_AI_extract_usage__returns_none_when_missing():
 
 
 @pytest.mark.ai
-def test_AI_responses_stream_pipeline__build_result__includes_usage_and_original_text():
+def test_AI_responses_stream_event_router__build_result__includes_usage_and_original_text():
     """
     Purpose: build_result should surface text, usage, and output from handlers.
     Why this matters: Streaming API consumers need a single aggregate result object.
@@ -495,9 +501,9 @@ def test_AI_responses_stream_pipeline__build_result__includes_usage_and_original
         prompt_tokens=1, completion_tokens=2, total_tokens=3
     )
     done_h.output = []  # pydantic validates the union; empty list is sufficient here.
-    pipe = ResponsesStreamPipeline(text_handler=text_h, completed_handler=done_h)
+    router = ResponsesStreamEventRouter(text_handler=text_h, completed_handler=done_h)
     created = datetime.now(timezone.utc)
-    r = pipe.build_result(message_id="m", chat_id="c", created_at=created)
+    r = router.build_result(message_id="m", chat_id="c", created_at=created)
     assert r.message.text == "n"
     assert r.message.original_text == "orig"
     assert r.usage is not None

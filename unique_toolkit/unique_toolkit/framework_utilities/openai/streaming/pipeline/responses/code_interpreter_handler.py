@@ -6,20 +6,20 @@ pieces of derived state:
 * A per-``item_id`` (status, text) fingerprint used to suppress duplicate
   progress updates; each genuine transition is published as an
   :class:`ActivityProgressUpdate` on the handler-owned
-  :class:`TypedEventBus` (:attr:`progress_bus`).
+  :class:`TypedEventBus` (:attr:`activity_bus`).
 * The concatenated code the model executed, exposed as an assistant-message
   appendix via :meth:`get_appendix` for the orchestrator to attach to the
   final :class:`StreamEnded` event.
 
 All SDK I/O (``MessageLog`` create/update, ``Message`` modify) lives in
 subscribers reacting to the outer-bus :class:`ActivityProgress` event
-(adapted by the orchestrator from :attr:`progress_bus`) and the
+(adapted by the orchestrator from :attr:`activity_bus`) and the
 appendix-aware :class:`MessagePersistingSubscriber`.
 
 Structurally this handler owns a :class:`TypedEventBus` just like the
 text handlers do — the pipeline exposes that bus for the orchestrator
 to subscribe to, so future progress-producing handlers only need to
-expose a ``progress_bus`` property to plug in.
+expose a ``activity_bus`` property to plug in.
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ class ResponsesCodeInterpreterHandler:
     """Accumulates code-interpreter state without performing any I/O.
 
     Publishes :class:`ActivityProgressUpdate` on its own
-    :class:`TypedEventBus` (accessible via :attr:`progress_bus`) for
+    :class:`TypedEventBus` (accessible via :attr:`activity_bus`) for
     every genuine state transition, deduplicated by a per-``item_id``
     ``(status, text)`` fingerprint. Exposes the executed-code appendix
     via :meth:`get_appendix` for the orchestrator to attach to
@@ -71,12 +71,12 @@ class ResponsesCodeInterpreterHandler:
     def __init__(self) -> None:
         self._code: str = ""
         self._last_by_item: dict[str, tuple[ActivityStatus, str]] = {}
-        self._progress_bus: TypedEventBus[ActivityProgressUpdate] = TypedEventBus()
+        self._activity_bus: TypedEventBus[ActivityProgressUpdate] = TypedEventBus()
 
     @property
-    def progress_bus(self) -> TypedEventBus[ActivityProgressUpdate]:
+    def activity_bus(self) -> TypedEventBus[ActivityProgressUpdate]:
         """Handler-local bus carrying progress updates as state transitions."""
-        return self._progress_bus
+        return self._activity_bus
 
     async def on_code_interpreter_event(self, event: CodeInterpreterCallEvent) -> None:
         """Map one OpenAI CI event to an optional progress update publish."""
@@ -107,7 +107,7 @@ class ResponsesCodeInterpreterHandler:
             return
         self._last_by_item[item_id] = fingerprint
 
-        await self._progress_bus.publish_and_wait_async(
+        await self._activity_bus.publish_and_wait_async(
             ActivityProgressUpdate(
                 correlation_id=item_id,
                 status=status,

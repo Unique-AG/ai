@@ -1,4 +1,4 @@
-"""Chat Completions stream pipeline — routes chunks to typed handlers and builds the final result."""
+"""Chat Completions stream event router — dispatches chunks to typed handlers and builds the final result."""
 
 from __future__ import annotations
 
@@ -23,17 +23,29 @@ if TYPE_CHECKING:
     )
 
 
-class ChatCompletionStreamPipeline:
-    """Routes ``ChatCompletionChunk`` to typed handlers and materialises the result.
+class ChatCompletionStreamEventRouter:
+    """Dispatches ``ChatCompletionChunk`` to typed handlers and materialises the result.
 
-    Unlike the Responses pipeline where event types are distinct, a single
+    Unlike the Responses router where event types are distinct, a single
     ``ChatCompletionChunk`` can carry both content and tool call deltas,
-    so both handlers receive every chunk and inspect it internally.
+    so both handlers receive every chunk (a **broadcast** dispatch) and
+    each handler inspects the chunk internally.
+
+    Responsibilities (by design, small and disjoint):
+
+    * **Dispatch (broadcast)** — every ``ChatCompletionChunk`` is sent to
+      the text handler and, if attached, the tool-call handler.
+    * **Lifecycle fan-out** — ``reset()`` / ``on_stream_end()`` iterate
+      every attached handler.
+    * **Bus re-export** — ``text_bus`` is re-exposed so the orchestrator
+      can adapt inner-bus flushes into outer :class:`TextDelta` events.
+    * **Result aggregation** — ``get_text()`` / ``build_result(...)``
+      pull accumulated state from handlers and shape the toolkit result.
 
     Side-effects (``unique_sdk.Message.modify_async`` for references,
     timestamps, completion) are published as :data:`StreamEvent` on the
-    bus owned by the orchestrator. This class is purely a dispatcher over
-    stateful handlers — no SDK, no settings, no bus.
+    bus owned by the orchestrator. This class is a **router + facade**
+    over stateful handlers — no SDK, no settings, no bus of its own.
     """
 
     def __init__(
@@ -50,14 +62,14 @@ class ChatCompletionStreamPipeline:
         return [h for h in (self._text, self._tools) if h is not None]
 
     @property
-    def text_flush_bus(self) -> TypedEventBus[TextFlushed]:
+    def text_bus(self) -> TypedEventBus[TextFlushed]:
         """Re-expose the text handler's flush bus for orchestrator subscription.
 
         Subscribers (typically the orchestrator) attach once at construction
         and receive a :class:`TextFlushed` on every flush boundary crossed
         during streaming — no explicit drain/pull required.
         """
-        return self._text.flush_bus
+        return self._text.text_bus
 
     def reset(self) -> None:
         for h in self._all_handlers:
@@ -67,7 +79,7 @@ class ChatCompletionStreamPipeline:
         """Dispatch one chunk to text + tool handlers.
 
         Text flushes are published on the text handler's
-        :attr:`text_flush_bus`; the tool handler has no per-event
+        :attr:`text_bus`; the tool handler has no per-event
         side-effect surface (final tool calls are read at stream end).
         """
         await self._text.on_chunk(event, index=index)

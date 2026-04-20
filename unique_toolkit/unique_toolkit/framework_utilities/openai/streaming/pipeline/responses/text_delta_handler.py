@@ -31,7 +31,7 @@ class ResponsesTextDeltaHandler:
     Responses streams are already pre-chunked by the provider — every
     non-empty delta is its own flush boundary and triggers a
     :class:`TextFlushed` publish. The bus is exposed via
-    :attr:`flush_bus`; subscribers registered there survive handler
+    :attr:`text_bus`; subscribers registered there survive handler
     resets (the orchestrator subscribes once at construction).
     """
 
@@ -42,12 +42,12 @@ class ResponsesTextDeltaHandler:
     ) -> None:
         self._replacers = replacers
         self._state = TextState(full_text="", original_text="")
-        self._flush_bus: TypedEventBus[TextFlushed] = TypedEventBus()
+        self._text_bus: TypedEventBus[TextFlushed] = TypedEventBus()
 
     @property
-    def flush_bus(self) -> TypedEventBus[TextFlushed]:
+    def text_bus(self) -> TypedEventBus[TextFlushed]:
         """Handler-local bus carrying :class:`TextFlushed` at every flush."""
-        return self._flush_bus
+        return self._text_bus
 
     async def on_text_delta(self, event: ResponseTextDeltaEvent) -> None:
         """Process one delta; publish :class:`TextFlushed` on non-empty deltas."""
@@ -61,7 +61,7 @@ class ResponsesTextDeltaHandler:
             delta = replacer.process(delta)
         self._state.full_text += delta
 
-        await self._flush_bus.publish_and_wait_async(
+        await self._text_bus.publish_and_wait_async(
             TextFlushed(
                 full_text=self._state.full_text,
                 original_text=self._state.original_text,
@@ -78,7 +78,7 @@ class ResponsesTextDeltaHandler:
 
         if remaining:
             self._state.full_text += remaining
-            await self._flush_bus.publish_and_wait_async(
+            await self._text_bus.publish_and_wait_async(
                 TextFlushed(
                     full_text=self._state.full_text,
                     original_text=self._state.original_text,

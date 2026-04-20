@@ -41,7 +41,7 @@ class ResponsesTextDeltaHandlerProtocol(Protocol):
     """
 
     @property
-    def flush_bus(self) -> TypedEventBus[TextFlushed]:
+    def text_bus(self) -> TypedEventBus[TextFlushed]:
         """Handler-owned bus publishing :class:`TextFlushed` on each delta."""
         ...
 
@@ -93,7 +93,7 @@ class ResponsesCodeInterpreterHandlerProtocol(
 
     Owns a typed :class:`TypedEventBus` carrying
     :class:`ActivityProgressUpdate` for tool-activity progress
-    transitions (:attr:`progress_bus`), and inherits the generic
+    transitions (:attr:`activity_bus`), and inherits the generic
     :class:`AppendixProducer` capability so the pipeline can aggregate
     its executed-code appendix alongside any other handler's
     contributions. The only CI-specific member is
@@ -102,7 +102,7 @@ class ResponsesCodeInterpreterHandlerProtocol(
     """
 
     @property
-    def progress_bus(self) -> TypedEventBus[ActivityProgressUpdate]:
+    def activity_bus(self) -> TypedEventBus[ActivityProgressUpdate]:
         """Handler-owned bus publishing progress updates per state transition."""
         ...
 

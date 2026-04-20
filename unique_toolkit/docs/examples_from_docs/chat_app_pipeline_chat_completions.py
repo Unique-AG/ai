@@ -10,7 +10,6 @@
 # Sources are serialised using the same JSON format as the history manager's
 # transform_chunks_to_string, so multi-turn conversations stay consistent.
 import json
-from re import U
 
 from unique_toolkit import (
     LanguageModelName,
@@ -21,7 +20,7 @@ from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.framework_utilities.openai.streaming.pipeline import (
     ChatCompletionsCompleteWithReferences,
-    ChatCompletionStreamPipeline,
+    ChatCompletionStreamEventRouter,
 )
 from unique_toolkit.framework_utilities.openai.streaming.pipeline.chat_completions import (
     ChatCompletionTextHandler,
@@ -137,20 +136,20 @@ async def main():
 
         tool_call_handler = ChatCompletionToolCallHandler()
 
-        pipeline = ChatCompletionStreamPipeline(
+        router = ChatCompletionStreamEventRouter(
             text_handler=text_handler,
             tool_call_handler=tool_call_handler,
         )
 
-        # --- Stream via the Chat Completions pipeline ---------------------------
-        # PipelineChatCompletionsStreamingHandler handles:
+        # --- Stream via the Chat Completions orchestrator -----------------------
+        # ChatCompletionsCompleteWithReferences handles:
         #   • Live token emission to the Unique platform (users see text stream in)
         #   • Citation normalisation ("source0" → "[0]") across chunk boundaries
         #   • Citation normalisation during streaming (StreamingPatternReplacer)
 
         streaming_handler = ChatCompletionsCompleteWithReferences(
             settings=settings,
-            pipeline=pipeline,
+            router=router,
         )
 
         result = await streaming_handler.complete_with_references_async(

@@ -1,7 +1,7 @@
-"""Pipeline-backed implementation of ``SupportCompleteWithReferences`` for Chat Completions.
+"""Router-backed implementation of ``SupportCompleteWithReferences`` for Chat Completions.
 
 The orchestrator owns the :data:`StreamEvent` bus and the default
-:class:`MessagePersistingSubscriber`. Handlers/pipelines stay pure — all
+:class:`MessagePersistingSubscriber`. Handlers/routers stay pure — all
 ``unique_sdk.Message.modify_async`` calls happen in the subscriber
 reacting to :class:`StreamStarted` / :class:`TextDelta` / :class:`StreamEnded`.
 """
@@ -35,7 +35,7 @@ from unique_toolkit.protocols.support import SupportCompleteWithReferences
 from ..events import StreamEnded, StreamEvent, StreamEventBus, StreamStarted, TextDelta
 from ..protocols import TextFlushed
 from ..subscribers import MessagePersistingSubscriber
-from .stream_pipeline import ChatCompletionStreamPipeline
+from .stream_event_router import ChatCompletionStreamEventRouter
 from .text_handler import ChatCompletionTextHandler
 from .tool_call_handler import ChatCompletionToolCallHandler
 
@@ -79,8 +79,8 @@ def _convert_tools(
     return result or None
 
 
-def _build_default_pipeline() -> ChatCompletionStreamPipeline:
-    """Construct a :class:`ChatCompletionStreamPipeline` with standard defaults.
+def _build_default_router() -> ChatCompletionStreamEventRouter:
+    """Construct a :class:`ChatCompletionStreamEventRouter` with standard defaults.
 
     The defaults mirror the canonical chat-app example: a text handler wired
     with the shared citation-normalization replacer plus the tool call
@@ -92,18 +92,18 @@ def _build_default_pipeline() -> ChatCompletionStreamPipeline:
             max_match_length=NORMALIZATION_MAX_MATCH_LENGTH,
         )
     ]
-    return ChatCompletionStreamPipeline(
+    return ChatCompletionStreamEventRouter(
         text_handler=ChatCompletionTextHandler(replacers=replacers),
         tool_call_handler=ChatCompletionToolCallHandler(),
     )
 
 
 class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
-    """``SupportCompleteWithReferences`` backed by the Chat Completions handler pipeline.
+    """``SupportCompleteWithReferences`` backed by the Chat Completions handler router.
 
     Wiring:
 
-    * Handlers/pipeline accumulate state only (pure).
+    * Handlers/router accumulate state only (pure).
     * This orchestrator owns its :class:`StreamEventBus` — the bus is not
       injectable so its lifecycle stays tied to the orchestrator.
     * A default :class:`MessagePersistingSubscriber` is registered on that
@@ -114,13 +114,13 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
 
     Two construction shapes are supported via ``@overload``:
 
-    * **Settings-driven** (``settings`` only, optionally ``pipeline`` /
-      ``additional_headers`` / ``subscribers``): client and pipeline are
+    * **Settings-driven** (``settings`` only, optionally ``router`` /
+      ``additional_headers`` / ``subscribers``): client and router are
       auto-built with sensible defaults (normalization replacers); the
       default message persister is registered when ``subscribers`` is
       omitted.
     * **Instance injection** (``settings`` + explicit ``client``,
-      ``pipeline`` and ``subscribers``): nothing is auto-constructed and
+      ``router`` and ``subscribers``): nothing is auto-constructed and
       no default subscriber is added — the caller owns every collaborator.
     """
 
@@ -129,7 +129,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         self,
         settings: UniqueSettings,
         *,
-        pipeline: ChatCompletionStreamPipeline | None = ...,
+        router: ChatCompletionStreamEventRouter | None = ...,
         additional_headers: dict[str, str] | None = ...,
         subscribers: Iterable[Handler[StreamEvent]] | None = ...,
     ) -> None:
@@ -137,7 +137,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
 
         Builds an :class:`AsyncOpenAI` client from ``settings`` (with any
         ``additional_headers``) and a default
-        :class:`ChatCompletionStreamPipeline` when ``pipeline`` is omitted.
+        :class:`ChatCompletionStreamEventRouter` when ``router`` is omitted.
         When ``subscribers`` is ``None`` (default), a
         :class:`MessagePersistingSubscriber` is auto-registered on the
         owned bus; pass an explicit iterable (including an empty one) to
@@ -151,7 +151,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         settings: UniqueSettings,
         *,
         client: AsyncOpenAI,
-        pipeline: ChatCompletionStreamPipeline,
+        router: ChatCompletionStreamEventRouter,
         subscribers: Iterable[Handler[StreamEvent]],
     ) -> None:
         """Instance-injection construction — reuse pre-built collaborators.
@@ -169,7 +169,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         self,
         settings: UniqueSettings,
         *,
-        pipeline: ChatCompletionStreamPipeline | None = None,
+        router: ChatCompletionStreamEventRouter | None = None,
         client: AsyncOpenAI | None = None,
         subscribers: Iterable[Handler[StreamEvent]] | None = None,
         additional_headers: dict[str, str] | None = None,
@@ -185,7 +185,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
             )
 
         self._settings = settings
-        self._pipeline = pipeline if pipeline is not None else _build_default_pipeline()
+        self._router = router if router is not None else _build_default_router()
         self._client = (
             client
             if client is not None
@@ -210,10 +210,10 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         # Per-request context for the flush-bus adapter. Set at the top of
         # :meth:`complete_with_references_async` and cleared in its
         # ``finally`` block — matches the single-request-at-a-time model
-        # of ``pipeline.reset()``.
+        # of ``router.reset()``.
         self._current_message_id: str | None = None
         self._current_chat_id: str | None = None
-        self._pipeline.text_flush_bus.subscribe(self._on_text_flushed)
+        self._router.text_bus.subscribe(self._on_text_flushed)
 
     @property
     def bus(self) -> StreamEventBus:
@@ -251,7 +251,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         other_options: dict | None = None,
     ) -> LanguageModelStreamResponse:
-        return asyncio.get_event_loop().run_until_complete(
+        return asyncio.run(
             self.complete_with_references_async(
                 messages=messages,
                 model_name=model_name,
@@ -293,7 +293,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         message_id = chat.last_assistant_message_id
         chat_id = chat.chat_id
 
-        self._pipeline.reset()
+        self._router.reset()
         self._current_message_id = message_id
         self._current_chat_id = chat_id
         await self._bus.publish_and_wait_async(
@@ -327,7 +327,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
 
             index = 0
             async for chunk in stream:
-                await self._pipeline.on_event(chunk, index=index)
+                await self._router.on_event(chunk, index=index)
                 index += 1
         except httpx.RemoteProtocolError as exc:
             _LOGGER.warning(
@@ -336,8 +336,8 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
                 exc,
             )
         finally:
-            await self._pipeline.on_stream_end()
-            text_state = self._pipeline.get_text()
+            await self._router.on_stream_end()
+            text_state = self._router.get_text()
             await self._bus.publish_and_wait_async(
                 StreamEnded(
                     message_id=message_id,
@@ -349,7 +349,7 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
             self._current_message_id = None
             self._current_chat_id = None
 
-        return self._pipeline.build_result(
+        return self._router.build_result(
             message_id=message_id,
             chat_id=chat_id,
             created_at=datetime.now(timezone.utc),

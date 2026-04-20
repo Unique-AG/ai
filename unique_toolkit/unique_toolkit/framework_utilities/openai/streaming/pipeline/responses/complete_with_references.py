@@ -1,13 +1,14 @@
 """Pipeline-backed implementation of ``ResponsesSupportCompleteWithReferences``.
 
 The orchestrator owns the :data:`StreamEvent` bus and the default
-:class:`MessagePersistingSubscriber`. Handlers/pipelines stay pure — all
+:class:`MessagePersistingSubscriber`. Handlers/routers stay pure — all
 ``unique_sdk.Message.modify_async`` calls happen in the subscriber reacting
 to :class:`StreamStarted` / :class:`TextDelta` / :class:`StreamEnded`.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Iterable, Sequence
 from datetime import datetime, timezone
@@ -43,7 +44,7 @@ from ..protocols import ActivityProgressUpdate, TextFlushed
 from ..subscribers import MessagePersistingSubscriber, ProgressLogPersister
 from .code_interpreter_handler import ResponsesCodeInterpreterHandler
 from .completed_handler import ResponsesCompletedHandler
-from .stream_pipeline import ResponsesStreamPipeline
+from .stream_event_router import ResponsesStreamEventRouter
 from .text_delta_handler import ResponsesTextDeltaHandler
 from .tool_call_handler import ResponsesToolCallHandler
 
@@ -97,8 +98,8 @@ def _convert_tools(
     return _convert_tools_to_openai(tools)
 
 
-def _build_default_pipeline() -> ResponsesStreamPipeline:
-    """Construct a :class:`ResponsesStreamPipeline` with standard defaults.
+def _build_default_router() -> ResponsesStreamEventRouter:
+    """Construct a :class:`ResponsesStreamEventRouter` with standard defaults.
 
     The defaults mirror the canonical Responses chat-app example: text
     handler wired with the shared citation-normalization replacer, plus
@@ -112,7 +113,7 @@ def _build_default_pipeline() -> ResponsesStreamPipeline:
             max_match_length=NORMALIZATION_MAX_MATCH_LENGTH,
         )
     ]
-    return ResponsesStreamPipeline(
+    return ResponsesStreamEventRouter(
         text_handler=ResponsesTextDeltaHandler(replacers=replacers),
         tool_call_handler=ResponsesToolCallHandler(),
         completed_handler=ResponsesCompletedHandler(),
@@ -121,11 +122,11 @@ def _build_default_pipeline() -> ResponsesStreamPipeline:
 
 
 class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
-    """``ResponsesSupportCompleteWithReferences`` backed by the handler pipeline.
+    """``ResponsesSupportCompleteWithReferences`` backed by the handler router.
 
     Wiring mirrors :class:`ChatCompletionsCompleteWithReferences`:
 
-    * Handlers/pipeline accumulate state only (pure), including the code
+    * Handlers/router accumulate state only (pure), including the code
       interpreter handler which now just tracks progress updates and the
       executed code.
     * This orchestrator owns its :class:`StreamEventBus` — the bus is not
@@ -142,14 +143,14 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
 
     Two construction shapes are supported via ``@overload``:
 
-    * **Settings-driven** (``settings`` only, optionally ``pipeline`` /
-      ``additional_headers`` / ``subscribers``): client and pipeline are
+    * **Settings-driven** (``settings`` only, optionally ``router`` /
+      ``additional_headers`` / ``subscribers``): client and router are
       auto-built with sensible defaults (normalization replacers plus the
       standard tool-call, completed and code-interpreter handlers); the
       default message persister is registered when ``subscribers`` is
       omitted.
     * **Instance injection** (``settings`` + explicit ``client``,
-      ``pipeline`` and ``subscribers``): nothing is auto-constructed and
+      ``router`` and ``subscribers``): nothing is auto-constructed and
       no default subscriber is added — the caller owns every collaborator.
     """
 
@@ -158,7 +159,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         self,
         settings: UniqueSettings,
         *,
-        pipeline: ResponsesStreamPipeline | None = ...,
+        router: ResponsesStreamEventRouter | None = ...,
         additional_headers: dict[str, str] | None = ...,
         subscribers: Iterable[Handler[StreamEvent]] | None = ...,
     ) -> None:
@@ -166,7 +167,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
 
         Builds an :class:`AsyncOpenAI` client from ``settings`` (with any
         ``additional_headers``) and a default
-        :class:`ResponsesStreamPipeline` when ``pipeline`` is omitted.
+        :class:`ResponsesStreamEventRouter` when ``router`` is omitted.
         When ``subscribers`` is ``None`` (default), a
         :class:`MessagePersistingSubscriber` is auto-registered on the
         owned bus; pass an explicit iterable (including an empty one) to
@@ -180,7 +181,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         settings: UniqueSettings,
         *,
         client: AsyncOpenAI,
-        pipeline: ResponsesStreamPipeline,
+        router: ResponsesStreamEventRouter,
         subscribers: Iterable[Handler[StreamEvent]],
     ) -> None:
         """Instance-injection construction — reuse pre-built collaborators.
@@ -198,7 +199,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         self,
         settings: UniqueSettings,
         *,
-        pipeline: ResponsesStreamPipeline | None = None,
+        router: ResponsesStreamEventRouter | None = None,
         client: AsyncOpenAI | None = None,
         subscribers: Iterable[Handler[StreamEvent]] | None = None,
         additional_headers: dict[str, str] | None = None,
@@ -214,7 +215,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
             )
 
         self._settings = settings
-        self._pipeline = pipeline if pipeline is not None else _build_default_pipeline()
+        self._router = router if router is not None else _build_default_router()
         self._client = (
             client
             if client is not None
@@ -244,10 +245,10 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         # ``finally`` block.
         self._current_message_id: str | None = None
         self._current_chat_id: str | None = None
-        self._pipeline.text_flush_bus.subscribe(self._on_text_flushed)
-        progress_bus = self._pipeline.activity_progress_bus
-        if progress_bus is not None:
-            progress_bus.subscribe(self._on_activity_progress_update)
+        self._router.text_bus.subscribe(self._on_text_flushed)
+        activity_bus = self._router.activity_bus
+        if activity_bus is not None:
+            activity_bus.subscribe(self._on_activity_progress_update)
 
     @property
     def bus(self) -> StreamEventBus:
@@ -315,9 +316,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         reasoning: Reasoning | None = None,
         other_options: dict | None = None,
     ) -> ResponsesLanguageModelStreamResponse:
-        import asyncio
-
-        return asyncio.get_event_loop().run_until_complete(
+        return asyncio.run(
             self.complete_with_references_async(
                 model_name=model_name,
                 messages=messages,
@@ -413,7 +412,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
 
         converted_tools = _convert_tools(tools)
 
-        self._pipeline.reset()
+        self._router.reset()
         self._current_message_id = message_id
         self._current_chat_id = chat_id
         await self._bus.publish_and_wait_async(
@@ -458,7 +457,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
                 **create_kwargs,
             )
             async for event in stream:
-                await self._pipeline.on_event(event)
+                await self._router.on_event(event)
         except httpx.RemoteProtocolError as exc:
             _LOGGER.warning(
                 "Stream connection closed prematurely (incomplete chunked read). "
@@ -466,21 +465,21 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
                 exc,
             )
         finally:
-            await self._pipeline.on_stream_end()
-            text_state = self._pipeline.get_text()
+            await self._router.on_stream_end()
+            text_state = self._router.get_text()
             await self._bus.publish_and_wait_async(
                 StreamEnded(
                     message_id=message_id,
                     chat_id=chat_id,
                     full_text=text_state.full_text,
                     original_text=text_state.original_text,
-                    appendices=self._pipeline.get_appendices(),
+                    appendices=self._router.get_appendices(),
                 )
             )
             self._current_message_id = None
             self._current_chat_id = None
 
-        return self._pipeline.build_result(
+        return self._router.build_result(
             message_id=message_id,
             chat_id=chat_id,
             created_at=datetime.now(timezone.utc),

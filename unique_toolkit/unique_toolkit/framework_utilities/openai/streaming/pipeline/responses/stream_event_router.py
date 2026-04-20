@@ -1,4 +1,4 @@
-"""Responses stream pipeline — routes events to typed handlers and builds the final result."""
+"""Responses stream event router — dispatches events to typed handlers and builds the final result."""
 
 from __future__ import annotations
 
@@ -34,12 +34,26 @@ if TYPE_CHECKING:
     )
 
 
-class ResponsesStreamPipeline:
-    """Routes ``ResponseStreamEvent`` to typed handlers and materialises the result.
+class ResponsesStreamEventRouter:
+    """Dispatches ``ResponseStreamEvent`` to typed handlers and materialises the result.
+
+    Responsibilities (by design, small and disjoint):
+
+    * **Dispatch** — route each ``ResponseStreamEvent`` to the handler
+      whose type it matches (``isinstance`` based). Unknown events are
+      ignored for forward compatibility.
+    * **Lifecycle fan-out** — ``reset()`` / ``on_stream_end()`` iterate
+      every attached handler.
+    * **Bus re-export** — expose ``text_bus`` / ``activity_bus`` so the
+      orchestrator can adapt inner-bus events into outer domain events.
+    * **Result aggregation** — ``get_text()`` / ``get_appendices()`` /
+      ``build_result(...)`` pull accumulated state from handlers and
+      shape the toolkit's final return value.
 
     Side-effects (``unique_sdk.Message.modify_async``) are the concern of
     :data:`StreamEvent` subscribers on the bus owned by the orchestrator.
-    This class is purely a dispatcher — no SDK, no settings, no bus.
+    This class is a **router + facade** over the handlers — no SDK, no
+    settings, no bus of its own.
     """
 
     def __init__(
@@ -64,24 +78,24 @@ class ResponsesStreamPipeline:
         ]
 
     @property
-    def text_flush_bus(self) -> TypedEventBus[TextFlushed]:
+    def text_bus(self) -> TypedEventBus[TextFlushed]:
         """Re-expose the text handler's flush bus for orchestrator subscription."""
-        return self._text.flush_bus
+        return self._text.text_bus
 
     @property
-    def activity_progress_bus(self) -> TypedEventBus[ActivityProgressUpdate] | None:
+    def activity_bus(self) -> TypedEventBus[ActivityProgressUpdate] | None:
         """Re-expose the code-interpreter handler's progress bus, if any.
 
         Returns ``None`` when no code-interpreter handler is registered.
         Future progress-producing handlers that want to plug into the
         same bus can share one :class:`TypedEventBus` instance across
-        handlers, or the pipeline can grow additional ``*_progress_bus``
+        handlers, or the pipeline can grow additional ``*_activity_bus``
         accessors — the adapter pattern in the orchestrator generalises
         without changing the outer event shape.
         """
         if self._ci is None:
             return None
-        return self._ci.progress_bus
+        return self._ci.activity_bus
 
     def reset(self) -> None:
         for h in self._all_handlers:

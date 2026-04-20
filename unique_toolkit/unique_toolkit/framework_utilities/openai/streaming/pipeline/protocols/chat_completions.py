@@ -24,7 +24,7 @@ class ChatCompletionTextHandlerProtocol(Protocol):
     """
 
     @property
-    def flush_bus(self) -> TypedEventBus[TextFlushed]:
+    def text_bus(self) -> TypedEventBus[TextFlushed]:
         """Handler-owned bus publishing :class:`TextFlushed` at flush boundaries."""
         ...
 

@@ -29,7 +29,7 @@ from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentChunk
 from unique_toolkit.framework_utilities.openai.streaming.pipeline import (
     ResponsesCompleteWithReferences,
-    ResponsesStreamPipeline,
+    ResponsesStreamEventRouter,
 )
 from unique_toolkit.framework_utilities.openai.streaming.pattern_replacer import (
     NORMALIZATION_MAX_MATCH_LENGTH,
@@ -117,7 +117,7 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
         ]
     )
 
-    # --- Build handlers and pipeline ----------------------------------------
+    # --- Build handlers and stream event router -----------------------------
     replacers: list[StreamingReplacerProtocol] = [
         StreamingPatternReplacer(
             replacements=NORMALIZATION_PATTERNS,
@@ -133,14 +133,14 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
 
     completed_handler = ResponsesCompletedHandler()
 
-    pipeline = ResponsesStreamPipeline(
+    router = ResponsesStreamEventRouter(
         text_handler=text_handler,
         tool_call_handler=tool_call_handler,
         completed_handler=completed_handler,
         code_interpreter_handler=ResponsesCodeInterpreterHandler(),
     )
 
-    # --- Stream via the Responses API pipeline ------------------------------
+    # --- Stream via the Responses API orchestrator --------------------------
     # ResponsesCompleteWithReferences handles:
     #   • Live token emission to the Unique platform (users see text stream in)
     #   • Citation normalisation ("source0" → "[0]") across chunk boundaries
@@ -150,7 +150,7 @@ for event in get_event_generator(unique_settings=settings, event_type=ChatEvent)
     # prompt field, keeping it separate from the conversation input.
     handler = ResponsesCompleteWithReferences(
         event_settings,
-        pipeline=pipeline,
+        router=router,
     )
 
     code_interpreter_tool = OpenAICodeInterpreterTool(

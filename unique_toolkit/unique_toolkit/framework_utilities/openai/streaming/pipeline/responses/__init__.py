@@ -8,7 +8,7 @@ from .code_interpreter_handler import (
 )
 from .complete_with_references import ResponsesCompleteWithReferences
 from .completed_handler import ResponsesCompletedHandler
-from .stream_pipeline import ResponsesStreamPipeline
+from .stream_event_router import ResponsesStreamEventRouter
 from .text_delta_handler import ResponsesTextDeltaHandler
 from .tool_call_handler import ResponsesToolCallHandler
 
@@ -17,7 +17,7 @@ __all__ = [
     "ResponsesCodeInterpreterHandler",
     "ResponsesCompleteWithReferences",
     "ResponsesCompletedHandler",
-    "ResponsesStreamPipeline",
+    "ResponsesStreamEventRouter",
     "ResponsesTextDeltaHandler",
     "ResponsesToolCallHandler",
 ]

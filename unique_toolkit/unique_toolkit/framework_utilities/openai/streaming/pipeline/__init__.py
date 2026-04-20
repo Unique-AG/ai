@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from .chat_completions import (
     ChatCompletionsCompleteWithReferences,
-    ChatCompletionStreamPipeline,
+    ChatCompletionStreamEventRouter,
     ChatCompletionTextHandler,
     ChatCompletionToolCallHandler,
 )
@@ -42,7 +42,7 @@ from .responses import (
     ResponsesCodeInterpreterHandler,
     ResponsesCompletedHandler,
     ResponsesCompleteWithReferences,
-    ResponsesStreamPipeline,
+    ResponsesStreamEventRouter,
     ResponsesTextDeltaHandler,
     ResponsesToolCallHandler,
 )
@@ -53,7 +53,7 @@ __all__ = [
     "ActivityProgressUpdate",
     "ActivityStatus",
     "AppendixProducer",
-    "ChatCompletionStreamPipeline",
+    "ChatCompletionStreamEventRouter",
     "ChatCompletionTextHandler",
     "ChatCompletionTextHandlerProtocol",
     "ChatCompletionToolCallHandler",
@@ -66,7 +66,7 @@ __all__ = [
     "ResponsesCompleteWithReferences",
     "ResponsesCompletedHandler",
     "ResponsesCompletedHandlerProtocol",
-    "ResponsesStreamPipeline",
+    "ResponsesStreamEventRouter",
     "ResponsesTextDeltaHandler",
     "ResponsesTextDeltaHandlerProtocol",
     "ResponsesToolCallHandler",

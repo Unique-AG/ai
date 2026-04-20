@@ -32,7 +32,7 @@ class ChatCompletionTextHandler:
     Private state: replacer chain, :class:`TextState` (normalised + raw),
     a flush counter that throttles observable boundaries, and a
     :class:`TypedEventBus` carrying :class:`TextFlushed` events. Expose
-    the bus via :attr:`flush_bus` so the orchestrator can subscribe once
+    the bus via :attr:`text_bus` so the orchestrator can subscribe once
     at construction and adapt each flush into a :class:`TextDelta`.
     """
 
@@ -45,12 +45,12 @@ class ChatCompletionTextHandler:
         self._replacers = replacers
         self._send_every_n_events = max(1, send_every_n_events)
         self._state = TextState(full_text="", original_text="")
-        self._flush_bus: TypedEventBus[TextFlushed] = TypedEventBus()
+        self._text_bus: TypedEventBus[TextFlushed] = TypedEventBus()
 
     @property
-    def flush_bus(self) -> TypedEventBus[TextFlushed]:
+    def text_bus(self) -> TypedEventBus[TextFlushed]:
         """Handler-local bus carrying :class:`TextFlushed` at every flush."""
-        return self._flush_bus
+        return self._text_bus
 
     async def on_chunk(self, event: ChatCompletionChunk, *, index: int) -> None:
         """Process one chunk; publish :class:`TextFlushed` on flush boundaries.
@@ -74,7 +74,7 @@ class ChatCompletionTextHandler:
         self._state.full_text += delta
 
         if (index + 1) % self._send_every_n_events == 0:
-            await self._flush_bus.publish_and_wait_async(
+            await self._text_bus.publish_and_wait_async(
                 TextFlushed(
                     full_text=self._state.full_text,
                     original_text=self._state.original_text,
@@ -97,7 +97,7 @@ class ChatCompletionTextHandler:
 
         if remaining:
             self._state.full_text += remaining
-            await self._flush_bus.publish_and_wait_async(
+            await self._text_bus.publish_and_wait_async(
                 TextFlushed(
                     full_text=self._state.full_text,
                     original_text=self._state.original_text,
