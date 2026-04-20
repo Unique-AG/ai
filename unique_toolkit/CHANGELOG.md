@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.76.0] - 2026-04-16
+## [1.76.0] - 2026-04-20
 - Enable `basedpyright` type-checking at `recommended` mode with zero-error CI enforcement
 - Fix type annotations across toolkit (type arguments, null guards, SDK parameter types)
 - Widen `chat_id` from `str` to `str | None` in content search functions to match actual SDK usage
@@ -26,11 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.74.0] - 2026-04-16
 - Add configuration flag to disable display of executed code
-
-## [1.73.1] - 2026-04-16
-- Enable `basedpyright` type-checking at `recommended` mode with zero-error CI enforcement
-- Fix type annotations across toolkit (type arguments, null guards, SDK parameter types)
-- Widen `chat_id` from `str` to `str | None` in content search functions to match actual SDK usage
 
 ## [1.73.0] - 2026-04-15
 - Add support for the Planning Middleware when using responses api
