@@ -188,10 +188,12 @@ class UniqueAI:
             event.company_id
         ):
             return None
-        additional = getattr(event.payload, "additional_parameters", None)
-        if additional is None:
+        if not (
+            hasattr(event.payload, "additional_parameters")
+            and event.payload.additional_parameters
+        ):
             return None
-        return set(additional.selected_uploaded_file_ids)
+        return set(event.payload.additional_parameters.selected_uploaded_file_ids)
 
     async def _on_cancellation(self, _event: CancellationEvent) -> None:
         """Subscriber called by the cancellation event bus."""
@@ -496,9 +498,17 @@ class UniqueAI:
             sub_agent_referencing_instructions = None
 
         uploaded_documents = self._content_service.get_documents_uploaded_to_chat()
+        additional_parameters = (
+            self._event.payload.additional_parameters
+            if (
+                hasattr(self._event.payload, "additional_parameters")
+                and self._event.payload.additional_parameters
+            )
+            else None
+        )
         uploaded_documents = filter_uploaded_documents_by_selection(
             documents=uploaded_documents,
-            additional_parameters=self._event.payload.additional_parameters,
+            additional_parameters=additional_parameters,
             company_id=self._event.company_id,
         )
         uploaded_documents_expired = [

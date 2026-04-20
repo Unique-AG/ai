@@ -100,11 +100,13 @@ class LoopTokenReducer:
         ):
             return None
 
-        additional = getattr(event.payload, "additional_parameters", None)
-        if additional is None:
+        if not (
+            hasattr(event.payload, "additional_parameters")
+            and event.payload.additional_parameters
+        ):
             return None
 
-        return set(additional.selected_uploaded_file_ids)
+        return set(event.payload.additional_parameters.selected_uploaded_file_ids)
 
     def _get_encoder(self, language_model: LMI) -> Callable[[str], list[int]]:
         return language_model.get_encoder()
