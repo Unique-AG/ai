@@ -114,3 +114,49 @@ async def test_AI_text_handler__reset__resets_content_chunk_index():
     await handler.on_chunk(_chunk(content="b"))
     assert len(received) == 1
     assert received[0].chunk_index == 0
+
+
+class _TrailingFlushReplacer:
+    """Replacer that buffers input until ``flush()``."""
+
+    def __init__(self, trailing: str) -> None:
+        self._trailing = trailing
+
+    def process(self, text: str) -> str:
+        return text
+
+    def flush(self) -> str:
+        out = self._trailing
+        self._trailing = ""
+        return out
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_text_handler__on_stream_end__does_not_publish_trailing_flush():
+    """
+    Purpose: ``on_stream_end`` must *not* publish a trailing :class:`TextFlushed`
+      even when replacer residuals append to the accumulated text.
+    Why this matters: :class:`StreamEnded` carries the authoritative final
+      text. A trailing flush caused :class:`MessagePersistingSubscriber` to
+      write the same full state twice (flush + end) against the SDK.
+    Setup summary: Register a replacer that only surfaces its text on
+      ``flush()``, drive one content chunk, call ``on_stream_end``, and
+      assert no additional :class:`TextFlushed` was published while the
+      handler's accumulated ``full_text`` still includes the residual.
+    """
+    replacer = _TrailingFlushReplacer(trailing="!")
+    handler = ChatCompletionTextHandler(
+        replacers=[replacer],  # type: ignore[list-item]
+        send_every_n_events=1,
+    )
+    received: list[TextFlushed] = []
+    handler.text_bus.subscribe(received.append)
+
+    await handler.on_chunk(_chunk(content="hi"))
+    assert len(received) == 1
+
+    await handler.on_stream_end()
+
+    assert len(received) == 1
+    assert handler.get_text().full_text == "hi!"

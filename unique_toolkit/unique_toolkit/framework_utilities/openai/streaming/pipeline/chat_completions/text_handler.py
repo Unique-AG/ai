@@ -90,11 +90,19 @@ class ChatCompletionTextHandler:
             )
 
     async def on_stream_end(self) -> None:
-        """Flush any replacer-buffered text and publish a final :class:`TextFlushed`.
+        """Drain replacer residuals into internal state — **no trailing publish**.
 
-        Subscribers can rely on a trailing event when residual replacer
-        output becomes observable at stream end — matching the prior
-        bool-return semantics ("residual flush produced text").
+        Residual replacer output is appended to ``self._state.full_text`` so
+        that :attr:`TextState.full_text` reflects the final, replaced text
+        once the stream has ended. The orchestrator then reads that state
+        and publishes a single authoritative :class:`StreamEnded` carrying
+        ``full_text`` / ``original_text``.
+
+        Historically this method also emitted a trailing :class:`TextFlushed`
+        so that ``MessagePersistingSubscriber.on_text_delta`` could persist
+        the residual. That produced a redundant double-write (flush + end)
+        of the same final state; :class:`StreamEnded` is now authoritative
+        and the trailing flush is intentionally dropped.
         """
         remaining = ""
         for replacer in self._replacers:
@@ -104,12 +112,6 @@ class ChatCompletionTextHandler:
 
         if remaining:
             self._state.full_text += remaining
-            await self._text_bus.publish_and_wait_async(
-                TextFlushed(
-                    full_text=self._state.full_text,
-                    original_text=self._state.original_text,
-                )
-            )
 
     def get_text(self) -> TextState:
         """Return accumulated normalised and original text."""

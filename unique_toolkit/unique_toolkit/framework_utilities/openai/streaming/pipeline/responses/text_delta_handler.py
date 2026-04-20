@@ -66,7 +66,15 @@ class ResponsesTextDeltaHandler:
         )
 
     async def on_stream_end(self) -> None:
-        """Flush any replacer-buffered text and publish a final event if needed."""
+        """Drain replacer residuals into internal state — **no trailing publish**.
+
+        Appends any buffered replacer output to ``self._state.full_text`` so
+        :attr:`TextState.full_text` reflects the final replaced text, then
+        lets the orchestrator publish a single authoritative
+        :class:`StreamEnded`. The trailing :class:`TextFlushed` that used to
+        live here was redundant with that final event and caused a
+        double-write of the same state to the downstream SDK message.
+        """
         remaining = ""
         for replacer in self._replacers:
             if remaining:
@@ -75,12 +83,6 @@ class ResponsesTextDeltaHandler:
 
         if remaining:
             self._state.full_text += remaining
-            await self._text_bus.publish_and_wait_async(
-                TextFlushed(
-                    full_text=self._state.full_text,
-                    original_text=self._state.original_text,
-                )
-            )
 
     def get_text(self) -> TextState:
         """Return accumulated normalised and original text."""
