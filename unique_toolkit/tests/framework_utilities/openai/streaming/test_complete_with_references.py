@@ -289,3 +289,36 @@ async def test_AI_chat_completions__happy_path__clears_context_after_completion(
 
     assert orchestrator._current_message_id is None
     assert orchestrator._current_chat_id is None
+
+
+@pytest.mark.ai
+def test_AI_chat_completions__client_without_subscribers__raises_type_error():
+    """
+    Purpose: Providing ``client`` without ``router`` and ``subscribers`` must
+      raise ``TypeError`` rather than silently falling through to the default
+      settings-driven construction for those two collaborators.
+    Why this matters: The overload contract is deliberately "all three or
+      none" — mixing a pre-built client with a default router or
+      default-registered subscribers silently couples collaborators the
+      caller never opted into.
+    Setup summary: Try to instantiate with only ``client`` set and assert
+      ``TypeError`` is raised; then instantiate with the complete
+      instance-injection shape and assert it succeeds.
+    """
+    fake_client = MagicMock()
+
+    with pytest.raises(TypeError, match="instance-injection"):
+        ChatCompletionsCompleteWithReferences(
+            _settings_with_chat(),
+            client=fake_client,
+        )
+
+    with pytest.raises(TypeError, match="instance-injection"):
+        ChatCompletionsCompleteWithReferences(
+            _settings_with_chat(),
+            client=fake_client,
+            subscribers=(),
+        )
+
+    orchestrator = _build_orchestrator(client=fake_client)
+    assert orchestrator is not None

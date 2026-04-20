@@ -227,6 +227,17 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
                 "auto-built from settings; pass a configured AsyncOpenAI "
                 "client instead, or drop additional_headers."
             )
+        if client is not None and (router is None or subscribers is None):
+            # Enforce the advertised instance-injection overload shape —
+            # mixing a pre-built client with default-built router /
+            # default-registered subscribers silently mismatches the two
+            # collaborators and hides wiring mistakes.
+            raise TypeError(
+                "When 'client' is provided, 'router' and 'subscribers' "
+                "must also be provided (instance-injection shape). Pass "
+                "an explicit (even empty) 'subscribers' iterable, or drop "
+                "'client' to use the settings-driven construction."
+            )
 
         self._settings = settings
         self._router = router if router is not None else _build_default_router()
