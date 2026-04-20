@@ -305,7 +305,7 @@ class TestTokenTruncation:
         assert not response.successful
         assert "Max_input_tokens not set" in response.error_message
 
-    async def test_extreme_truncation_returns_no_files(
+    async def test_extreme_truncation_returns_token_limit_message(
         self,
         tool: RetrieveSearchScopeTool,
         mock_tool_call: LanguageModelFunction,
@@ -323,7 +323,7 @@ class TestTokenTruncation:
         response = await tool.run(mock_tool_call)
 
         assert response.successful
-        assert "No files found" in response.content
+        assert "Token limit to low to display search scope" in response.content
 
     async def test_no_truncation_when_within_budget(
         self,
