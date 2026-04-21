@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.77.3] - 2026-04-21
+### Added
+- Add experimental `unique_toolkit.experimental.scheduled_task` with `ScheduledTasks`, `Cron`, and low-level `create_scheduled_task` / `update_scheduled_task` / … function wrappers over `unique_sdk.ScheduledTask`
+### Changed
+- **Experimental:** `ScheduledTasks` uses `get` / `get_async` and `update` / `update_async` (replacing `retrieve` / `modify`), and a keyword-only `__init__(**, user_id=..., company_id=...)` constructor
+
 ## [1.77.2] - 2026-04-21
 - Stop uploading orphan `code.txt` / `code_N.txt` artifacts when code interpreter runs without producing container files (UN-19770); inline assistant text is unchanged, real file outputs (charts, CSVs, etc.) are unchanged
 

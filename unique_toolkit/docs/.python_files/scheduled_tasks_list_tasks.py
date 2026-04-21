@@ -41,6 +41,6 @@ scheduled_tasks = ScheduledTasks.from_settings(settings)
 for task in scheduled_tasks.list():
     print(task.id, task.cron_expression, task.prompt[:40])
 
-detail = scheduled_tasks.retrieve(task_id=task.id)
+detail = scheduled_tasks.get(task_id=task.id)
 # ~/~ end
 # ~/~ end

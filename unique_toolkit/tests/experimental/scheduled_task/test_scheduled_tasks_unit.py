@@ -101,7 +101,7 @@ def test_AI_create_forwards_optional_chat_id_and_disabled_flag(
     assert result.enabled is False
 
 
-# ── List / retrieve / delete ──────────────────────────────────────────────────
+# ── List / get / delete ─────────────────────────────────────────────────────
 
 
 def test_AI_list_returns_parsed_models(
@@ -118,14 +118,14 @@ def test_AI_list_returns_parsed_models(
     assert all(isinstance(task, ScheduledTask) for task in result)
 
 
-def test_AI_retrieve_routes_id_to_sdk_id(
+def test_AI_get_routes_id_to_sdk_id(
     monkeypatch: pytest.MonkeyPatch, service: ScheduledTasks
 ) -> None:
-    """retrieve(task_id=...) hits the SDK retrieve endpoint with id=<task_id>."""
+    """get(task_id=...) hits the SDK retrieve endpoint with id=<task_id>."""
     fake = MagicMock(return_value=SAMPLE_TASK)
     monkeypatch.setattr("unique_sdk.ScheduledTask.retrieve", fake)
 
-    result = service.retrieve(task_id="task_abc123")
+    result = service.get(task_id="task_abc123")
 
     fake.assert_called_once_with(
         user_id="user_1", company_id="company_1", id="task_abc123"
@@ -149,13 +149,13 @@ def test_AI_delete_returns_deleted_payload(
     assert result.deleted is True
 
 
-# ── Modify ────────────────────────────────────────────────────────────────────
+# ── Update ────────────────────────────────────────────────────────────────────
 
 
-def test_AI_modify_only_forwards_fields_that_were_set(
+def test_AI_update_only_forwards_fields_that_were_set(
     monkeypatch: pytest.MonkeyPatch, service: ScheduledTasks
 ) -> None:
-    """modify omits untouched fields so the server-side partial update is respected."""
+    """update omits untouched fields so the server-side partial update is respected."""
     captured: dict = {}
 
     def fake_modify(**kwargs):
@@ -164,7 +164,7 @@ def test_AI_modify_only_forwards_fields_that_were_set(
 
     monkeypatch.setattr("unique_sdk.ScheduledTask.modify", fake_modify)
 
-    service.modify(task_id="task_abc123", enabled=False)
+    service.update(task_id="task_abc123", enabled=False)
 
     assert captured["id"] == "task_abc123"
     assert captured["enabled"] is False
@@ -174,7 +174,7 @@ def test_AI_modify_only_forwards_fields_that_were_set(
     assert "chatId" not in captured
 
 
-def test_AI_modify_clear_chat_id_sends_null(
+def test_AI_update_clear_chat_id_sends_null(
     monkeypatch: pytest.MonkeyPatch, service: ScheduledTasks
 ) -> None:
     """clear_chat_id=True translates to chatId=None on the wire (server clears the link)."""
@@ -186,18 +186,18 @@ def test_AI_modify_clear_chat_id_sends_null(
 
     monkeypatch.setattr("unique_sdk.ScheduledTask.modify", fake_modify)
 
-    service.modify(task_id="task_abc123", clear_chat_id=True)
+    service.update(task_id="task_abc123", clear_chat_id=True)
 
     assert "chatId" in captured
     assert captured["chatId"] is None
 
 
-def test_AI_modify_rejects_mixed_chat_id_and_clear_flag(
+def test_AI_update_rejects_mixed_chat_id_and_clear_flag(
     service: ScheduledTasks,
 ) -> None:
     """Passing chat_id= together with clear_chat_id=True raises TypeError before the SDK call."""
     with pytest.raises(TypeError, match="chat_id=|clear_chat_id="):
-        service.modify(
+        service.update(
             task_id="task_abc123",
             chat_id="chat_new",
             clear_chat_id=True,
@@ -210,7 +210,7 @@ def test_AI_modify_rejects_mixed_chat_id_and_clear_flag(
 def test_AI_disable_sends_enabled_false(
     monkeypatch: pytest.MonkeyPatch, service: ScheduledTasks
 ) -> None:
-    """disable is a shortcut that sends enabled=False through modify."""
+    """disable is a shortcut that sends enabled=False through update."""
     captured: dict = {}
 
     def fake_modify(**kwargs):
@@ -227,7 +227,7 @@ def test_AI_disable_sends_enabled_false(
 def test_AI_enable_sends_enabled_true(
     monkeypatch: pytest.MonkeyPatch, service: ScheduledTasks
 ) -> None:
-    """enable is a shortcut that sends enabled=True through modify."""
+    """enable is a shortcut that sends enabled=True through update."""
     captured: dict = {}
 
     def fake_modify(**kwargs):
@@ -263,10 +263,10 @@ async def test_AI_create_async_awaits_sdk_async(
 
 
 @pytest.mark.asyncio
-async def test_AI_modify_async_clear_chat_id_sends_null(
+async def test_AI_update_async_clear_chat_id_sends_null(
     monkeypatch: pytest.MonkeyPatch, service: ScheduledTasks
 ) -> None:
-    """Async modify mirrors the sync clear-chat behaviour (chatId=None on the wire)."""
+    """Async update mirrors the sync clear-chat behaviour (chatId=None on the wire)."""
     captured: dict = {}
 
     async def fake_modify_async(**kwargs):
@@ -275,7 +275,7 @@ async def test_AI_modify_async_clear_chat_id_sends_null(
 
     monkeypatch.setattr("unique_sdk.ScheduledTask.modify_async", fake_modify_async)
 
-    await service.modify_async(task_id="task_abc123", clear_chat_id=True)
+    await service.update_async(task_id="task_abc123", clear_chat_id=True)
 
     assert captured["chatId"] is None
 

@@ -11,12 +11,12 @@ task = scheduled_tasks.create(
 )
 
 print(task.id, task.cron_expression, task.enabled)
-updated = scheduled_tasks.modify(
+updated = scheduled_tasks.update(
     task_id=task.id,
     cron_expression=Cron.EVERY_FIFTEEN_MINUTES,
     enabled=True,
 )
-scheduled_tasks.modify(
+scheduled_tasks.update(
     task_id=task.id,
     clear_chat_id=True,
 )

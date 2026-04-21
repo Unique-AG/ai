@@ -46,7 +46,7 @@ class ScheduledTask(BaseModel):
     - an :attr:`enabled` flag to pause/resume execution without deleting the task.
 
     Maps to ``unique_sdk.ScheduledTask`` and is the return value of every toolkit
-    CRUD method except :meth:`~unique_toolkit.experimental.scheduled_task.service.ScheduledTasks.delete_task`.
+    CRUD method except :meth:`~unique_toolkit.experimental.scheduled_task.service.ScheduledTasks.delete`.
     """
 
     model_config = _model_config
@@ -54,7 +54,7 @@ class ScheduledTask(BaseModel):
     id: str = Field(
         description=(
             "Unique scheduled-task identifier. Stable for the lifetime of the "
-            "task; use it to :meth:`retrieve`, :meth:`modify`, or :meth:`delete` "
+            "task; use it to :meth:`get`, :meth:`update`, or :meth:`delete` "
             "later."
         ),
     )
@@ -130,7 +130,7 @@ class DeletedScheduledTask(BaseModel):
 
     The API echoes the deleted task's id and flags the row as removed. Deletion
     is permanent; a deleted task cannot be recovered, so re-scheduling requires
-    calling :meth:`~unique_toolkit.experimental.scheduled_task.service.ScheduledTasks.create_task`
+    calling :meth:`~unique_toolkit.experimental.scheduled_task.service.ScheduledTasks.create`
     with fresh parameters.
     """
 

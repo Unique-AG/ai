@@ -47,14 +47,14 @@ task = scheduled_tasks.create(
 print(task.id, task.cron_expression, task.enabled)
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#scheduled_tasks_update_schedule_and_enable>>[init]
-updated = scheduled_tasks.modify(
+updated = scheduled_tasks.update(
     task_id=task.id,
     cron_expression=Cron.EVERY_FIFTEEN_MINUTES,
     enabled=True,
 )
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/scheduled_task/scheduled_tasks.md#scheduled_tasks_clear_chat_id>>[init]
-scheduled_tasks.modify(
+scheduled_tasks.update(
     task_id=task.id,
     clear_chat_id=True,
 )

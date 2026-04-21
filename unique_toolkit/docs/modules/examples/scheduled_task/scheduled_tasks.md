@@ -57,7 +57,7 @@ The server expects a classic 5-field UTC cron expression
 (`"minute hour day-of-month month day-of-week"`). To save you from typing
 these by hand, the subpackage ships a `Cron` `StrEnum` of the most common
 schedules. Every member **is** a string, so you can drop it straight into
-`create_task` without any conversion:
+`create` without any conversion:
 
 ```{.python #scheduled_tasks_cron_examples}
 Cron.DAILY_MIDNIGHT         # "0 0 * * *"
@@ -97,17 +97,17 @@ continue an existing chat rather than starting a new one on every run.
 ```
 -->
 
-## List and retrieve tasks
+## List and get tasks
 
 `list()` returns every scheduled task visible to the acting user as fully
-parsed `ScheduledTask` models. Use `retrieve(task_id=...)` to fetch a single
+parsed `ScheduledTask` models. Use `get(task_id=...)` to fetch a single
 one:
 
 ```{.python #scheduled_tasks_list_and_get}
 for task in scheduled_tasks.list():
     print(task.id, task.cron_expression, task.prompt[:40])
 
-detail = scheduled_tasks.retrieve(task_id=task.id)
+detail = scheduled_tasks.get(task_id=task.id)
 ```
 
 <!--
@@ -119,15 +119,15 @@ detail = scheduled_tasks.retrieve(task_id=task.id)
 ```
 -->
 
-## Modify an existing task
+## Update an existing task
 
-`modify` performs a server-side partial update: only the keyword arguments
+`update` performs a server-side partial update: only the keyword arguments
 you pass are sent, every other field keeps its current value. The most common
 adjustments are changing the schedule, swapping the assistant, or flipping
 `enabled` on and off:
 
 ```{.python #scheduled_tasks_update_schedule_and_enable}
-updated = scheduled_tasks.modify(
+updated = scheduled_tasks.update(
     task_id=task.id,
     cron_expression=Cron.EVERY_FIFTEEN_MINUTES,
     enabled=True,
@@ -147,7 +147,7 @@ Omit both to leave the chat setting untouched. Combining them raises
 `TypeError` locally, before any SDK call:
 
 ```{.python #scheduled_tasks_clear_chat_id}
-scheduled_tasks.modify(
+scheduled_tasks.update(
     task_id=task.id,
     clear_chat_id=True,
 )

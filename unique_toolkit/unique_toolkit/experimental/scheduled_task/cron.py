@@ -2,7 +2,7 @@
 
 The server stores schedules as plain cron strings. :class:`Cron` is a
 :class:`~enum.StrEnum` of the most common schedules — every member *is* a
-``str``, so you can drop it straight into :meth:`ScheduledTasks.create_task`
+``str``, so you can drop it straight into :meth:`ScheduledTasks.create`
 without any conversion. For schedules that aren't covered, pass a raw cron
 string.
 
@@ -35,7 +35,7 @@ class Cron(StrEnum):
 
     Each member is a ``str`` subclass, so instances can be passed straight
     through to anything expecting a cron string — including
-    :meth:`ScheduledTasks.create_task`.
+    :meth:`ScheduledTasks.create`.
     """
 
     EVERY_MINUTE = "* * * * *"
