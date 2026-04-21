@@ -1,8 +1,9 @@
-name: "Release · Please (Hotfixes)"
+name: "Release · Please"
 
 on:
   push:
     branches:
+      - "main"
       - "release/*"
 
 permissions:
