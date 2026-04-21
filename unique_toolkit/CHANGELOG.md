@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.79.0] - 2026-04-21
+- Add experimental `unique_toolkit.experimental.content_folder` subpackage exposing `ContentFolder` — the knowledge-base folder (content scope) management service — split into `schemas`, `functions`, and `service` modules. Covers `create` / `read` / `delete` folder lifecycle and `create_access` / `delete_access` for READ/WRITE ACL management, with typed overloads for the two folder-creation shapes (`paths=` accepting `str` or `list[str]`, and `parent_scope_id=` + `relative_path_segments=`) and sync/async variants throughout. Import with `from unique_toolkit.experimental.content_folder import ContentFolder`. The class is **not** registered with `UniqueServiceFactory`; it lives under `experimental` while the API stabilises.
+- Add `create_with_access` / `create_with_access_async` convenience methods on `ContentFolder` that create a folder chain and grant extra ACL entries on the leaf scope in one call, falling back to a minimal `FolderDetail` with the creator's READ+WRITE grants when no extra accesses are requested.
+
 ## [1.78.1] - 2026-04-21
 
 ### Added
