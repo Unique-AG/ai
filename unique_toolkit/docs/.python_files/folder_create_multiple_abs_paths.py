@@ -15,7 +15,7 @@ DEMO_MULTI_B = "/EntangledToolkitDocs/MultiB"
 # ~/~ end
 
 # ~/~ begin <<docs/modules/examples/content/content-folder.md#folder-mgmt-create-multi-paths>>[init]
-created = folder_service.create_folder(paths=[DEMO_MULTI_A, DEMO_MULTI_B])
+created = folder_service.create(paths=[DEMO_MULTI_A, DEMO_MULTI_B])
 for folder in created:
     print(folder.id, folder.name)
 # ~/~ end

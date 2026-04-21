@@ -18,7 +18,7 @@ Folder **creation** supports two shapes that match :class:`unique_sdk.Folder.Cre
 READ and WRITE on **each** folder returned in ``createdFolders``. This makes the new chain
 usable by the creator; it does **not** remove ACL entries the API may add for other principals—
 for strict “only this user” guarantees, the backend would need to expose replace/clear ACL or
-you must call :func:`remove_folder_access` for unwanted grants when you know them.
+you must call :func:`delete_access` for unwanted grants when you know them.
 """
 
 from __future__ import annotations
@@ -32,13 +32,14 @@ from unique_toolkit.experimental.content_folder.schemas import (
     AccessEntityType,
     AccessType,
     CreatedFolder,
+    DeleteResult,
     FolderDetail,
     FolderInfo,
     ScopeAccess,
 )
 
 
-def create_folders(
+def create(
     user_id: str,
     company_id: str,
     *,
@@ -88,7 +89,7 @@ def create_folders(
     return created
 
 
-async def create_folders_async(
+async def create_async(
     user_id: str,
     company_id: str,
     *,
@@ -98,7 +99,7 @@ async def create_folders_async(
     inherit_access: bool = False,
     private_to_creator: bool = True,
 ) -> list[CreatedFolder]:
-    """Async variant of :func:`create_folders`."""
+    """Async variant of :func:`create`."""
     params = _build_create_params(
         absolute_paths=absolute_paths,
         parent_scope_id=parent_scope_id,
@@ -191,7 +192,7 @@ def _grant_creator_access_on_created_folders(
 ) -> None:
     grants = creator_scope_access_grants(user_id)
     for folder in created:
-        add_folder_access(
+        create_access(
             user_id=user_id,
             company_id=company_id,
             scope_id=folder.id,
@@ -209,7 +210,7 @@ async def _grant_creator_access_on_created_folders_async(
     grants = creator_scope_access_grants(user_id)
     await asyncio.gather(
         *[
-            add_folder_access_async(
+            create_access_async(
                 user_id=user_id,
                 company_id=company_id,
                 scope_id=folder.id,
@@ -224,7 +225,7 @@ async def _grant_creator_access_on_created_folders_async(
 # ── Read ──────────────────────────────────────────────────────────────────────
 
 
-def get_folder_info(
+def read(
     user_id: str,
     company_id: str,
     *,
@@ -241,14 +242,14 @@ def get_folder_info(
     return FolderInfo.model_validate(info, by_alias=True, by_name=True)
 
 
-async def get_folder_info_async(
+async def read_async(
     user_id: str,
     company_id: str,
     *,
     scope_id: str | None = None,
     folder_path: str | None = None,
 ) -> FolderInfo:
-    """Async variant of :func:`get_folder_info`."""
+    """Async variant of :func:`read`."""
     params = _build_get_params(scope_id=scope_id, folder_path=folder_path)
     info = await unique_sdk.Folder.get_info_async(
         user_id=user_id,
@@ -261,7 +262,49 @@ async def get_folder_info_async(
 # ── Access management ─────────────────────────────────────────────────────────
 
 
-def add_folder_access(
+def _build_add_access_params(
+    *,
+    scope_id: str | None,
+    folder_path: str | None,
+    scope_accesses: list[ScopeAccess],
+    apply_to_sub_scopes: bool,
+) -> unique_sdk.Folder.AddAccessParams:
+    scope_id, folder_path = _validate_scope_address(
+        scope_id=scope_id, folder_path=folder_path
+    )
+    params = unique_sdk.Folder.AddAccessParams(
+        scopeAccesses=_to_sdk_scope_accesses(scope_accesses),
+        applyToSubScopes=apply_to_sub_scopes,
+    )
+    if scope_id is not None:
+        params["scopeId"] = scope_id
+    if folder_path is not None:
+        params["folderPath"] = folder_path
+    return params
+
+
+def _build_remove_access_params(
+    *,
+    scope_id: str | None,
+    folder_path: str | None,
+    scope_accesses: list[ScopeAccess],
+    apply_to_sub_scopes: bool,
+) -> unique_sdk.Folder.RemoveAccessParams:
+    scope_id, folder_path = _validate_scope_address(
+        scope_id=scope_id, folder_path=folder_path
+    )
+    params = unique_sdk.Folder.RemoveAccessParams(
+        scopeAccesses=_to_sdk_scope_accesses(scope_accesses),
+        applyToSubScopes=apply_to_sub_scopes,
+    )
+    if scope_id is not None:
+        params["scopeId"] = scope_id
+    if folder_path is not None:
+        params["folderPath"] = folder_path
+    return params
+
+
+def create_access(
     user_id: str,
     company_id: str,
     *,
@@ -271,14 +314,12 @@ def add_folder_access(
     apply_to_sub_scopes: bool = False,
 ) -> FolderDetail:
     """Grant READ/WRITE to users or groups (address folder by ``scope_id`` or ``folder_path``)."""
-    params = unique_sdk.Folder.AddAccessParams(
-        scopeAccesses=_to_sdk_scope_accesses(scope_accesses),
-        applyToSubScopes=apply_to_sub_scopes,
+    params = _build_add_access_params(
+        scope_id=scope_id,
+        folder_path=folder_path,
+        scope_accesses=scope_accesses,
+        apply_to_sub_scopes=apply_to_sub_scopes,
     )
-    if scope_id is not None:
-        params["scopeId"] = scope_id
-    if folder_path is not None:
-        params["folderPath"] = folder_path
 
     result = unique_sdk.Folder.add_access(
         user_id=user_id,
@@ -288,7 +329,7 @@ def add_folder_access(
     return FolderDetail.model_validate(result, by_alias=True, by_name=True)
 
 
-async def add_folder_access_async(
+async def create_access_async(
     user_id: str,
     company_id: str,
     *,
@@ -297,15 +338,13 @@ async def add_folder_access_async(
     scope_accesses: list[ScopeAccess],
     apply_to_sub_scopes: bool = False,
 ) -> FolderDetail:
-    """Async variant of :func:`add_folder_access`."""
-    params = unique_sdk.Folder.AddAccessParams(
-        scopeAccesses=_to_sdk_scope_accesses(scope_accesses),
-        applyToSubScopes=apply_to_sub_scopes,
+    """Async variant of :func:`create_access`."""
+    params = _build_add_access_params(
+        scope_id=scope_id,
+        folder_path=folder_path,
+        scope_accesses=scope_accesses,
+        apply_to_sub_scopes=apply_to_sub_scopes,
     )
-    if scope_id is not None:
-        params["scopeId"] = scope_id
-    if folder_path is not None:
-        params["folderPath"] = folder_path
 
     result = await unique_sdk.Folder.add_access_async(
         user_id=user_id,
@@ -315,7 +354,7 @@ async def add_folder_access_async(
     return FolderDetail.model_validate(result, by_alias=True, by_name=True)
 
 
-def remove_folder_access(
+def delete_access(
     user_id: str,
     company_id: str,
     *,
@@ -325,14 +364,12 @@ def remove_folder_access(
     apply_to_sub_scopes: bool = False,
 ) -> FolderDetail:
     """Revoke access entries (address folder by ``scope_id`` or ``folder_path``)."""
-    params = unique_sdk.Folder.RemoveAccessParams(
-        scopeAccesses=_to_sdk_scope_accesses(scope_accesses),
-        applyToSubScopes=apply_to_sub_scopes,
+    params = _build_remove_access_params(
+        scope_id=scope_id,
+        folder_path=folder_path,
+        scope_accesses=scope_accesses,
+        apply_to_sub_scopes=apply_to_sub_scopes,
     )
-    if scope_id is not None:
-        params["scopeId"] = scope_id
-    if folder_path is not None:
-        params["folderPath"] = folder_path
 
     result = unique_sdk.Folder.remove_access(
         user_id=user_id,
@@ -342,7 +379,7 @@ def remove_folder_access(
     return FolderDetail.model_validate(result, by_alias=True, by_name=True)
 
 
-async def remove_folder_access_async(
+async def delete_access_async(
     user_id: str,
     company_id: str,
     *,
@@ -351,15 +388,13 @@ async def remove_folder_access_async(
     scope_accesses: list[ScopeAccess],
     apply_to_sub_scopes: bool = False,
 ) -> FolderDetail:
-    """Async variant of :func:`remove_folder_access`."""
-    params = unique_sdk.Folder.RemoveAccessParams(
-        scopeAccesses=_to_sdk_scope_accesses(scope_accesses),
-        applyToSubScopes=apply_to_sub_scopes,
+    """Async variant of :func:`delete_access`."""
+    params = _build_remove_access_params(
+        scope_id=scope_id,
+        folder_path=folder_path,
+        scope_accesses=scope_accesses,
+        apply_to_sub_scopes=apply_to_sub_scopes,
     )
-    if scope_id is not None:
-        params["scopeId"] = scope_id
-    if folder_path is not None:
-        params["folderPath"] = folder_path
 
     result = await unique_sdk.Folder.remove_access_async(
         user_id=user_id,
@@ -372,14 +407,14 @@ async def remove_folder_access_async(
 # ── Delete ────────────────────────────────────────────────────────────────────
 
 
-def delete_folder(
+def delete(
     user_id: str,
     company_id: str,
     *,
     scope_id: str | None = None,
     folder_path: str | None = None,
     recursive: bool = False,
-) -> unique_sdk.Folder.DeleteResponse:
+) -> DeleteResult:
     """Delete a folder by ``scope_id`` or ``folder_path`` (exactly one required).
 
     Args:
@@ -394,32 +429,34 @@ def delete_folder(
         folder_path=folder_path,
         recursive=recursive,
     )
-    return unique_sdk.Folder.delete(
+    raw = unique_sdk.Folder.delete(
         user_id=user_id,
         company_id=company_id,
         **params,
     )
+    return DeleteResult.model_validate(raw, by_alias=True, by_name=True)
 
 
-async def delete_folder_async(
+async def delete_async(
     user_id: str,
     company_id: str,
     *,
     scope_id: str | None = None,
     folder_path: str | None = None,
     recursive: bool = False,
-) -> unique_sdk.Folder.DeleteResponse:
-    """Async variant of :func:`delete_folder`."""
+) -> DeleteResult:
+    """Async variant of :func:`delete`."""
     params = _build_delete_params(
         scope_id=scope_id,
         folder_path=folder_path,
         recursive=recursive,
     )
-    return await unique_sdk.Folder.delete_async(
+    raw = await unique_sdk.Folder.delete_async(
         user_id=user_id,
         company_id=company_id,
         **params,
     )
+    return DeleteResult.model_validate(raw, by_alias=True, by_name=True)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -434,16 +471,27 @@ def _to_sdk_scope_accesses(
     )
 
 
+def _validate_scope_address(
+    *,
+    scope_id: str | None,
+    folder_path: str | None,
+) -> tuple[str | None, str | None]:
+    """Require exactly one of ``scope_id`` or ``folder_path``."""
+    if scope_id is None and folder_path is None:
+        raise ValueError("Pass exactly one of scope_id or folder_path.")
+    if scope_id is not None and folder_path is not None:
+        raise ValueError("Pass only one of scope_id or folder_path, not both.")
+    return scope_id, folder_path
+
+
 def _build_get_params(
     *,
     scope_id: str | None,
     folder_path: str | None,
 ) -> unique_sdk.Folder.GetParams:
-    if scope_id is None and folder_path is None:
-        raise ValueError("Pass exactly one of scope_id or folder_path.")
-    if scope_id is not None and folder_path is not None:
-        raise ValueError("Pass only one of scope_id or folder_path, not both.")
-
+    scope_id, folder_path = _validate_scope_address(
+        scope_id=scope_id, folder_path=folder_path
+    )
     params = unique_sdk.Folder.GetParams()
     if scope_id is not None:
         params["scopeId"] = scope_id
@@ -458,11 +506,9 @@ def _build_delete_params(
     folder_path: str | None,
     recursive: bool,
 ) -> unique_sdk.Folder.DeleteFolderParams:
-    if scope_id is None and folder_path is None:
-        raise ValueError("Pass exactly one of scope_id or folder_path.")
-    if scope_id is not None and folder_path is not None:
-        raise ValueError("Pass only one of scope_id or folder_path, not both.")
-
+    scope_id, folder_path = _validate_scope_address(
+        scope_id=scope_id, folder_path=folder_path
+    )
     params: unique_sdk.Folder.DeleteFolderParams = {}
     if scope_id is not None:
         params["scopeId"] = scope_id

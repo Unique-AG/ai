@@ -5,7 +5,8 @@ API. The toolkit uses **scope_id** for that value everywhere (same string as in 
 
 **Creating folders** mirrors the backend in two ways:
 
-- **Absolute paths** — full paths from the root, e.g. ``"/Legal/Contracts"``.
+- **Absolute paths** — full paths from the root, e.g. ``"/Legal/Contracts"`` (pass ``paths=`` as
+  ``str`` or ``list[str]``).
 - **Under a parent** — ``parent_scope_id`` plus path **segments** (e.g. ``["2024", "Q1"]``),
   not a second full path string.
 
@@ -16,25 +17,28 @@ By default, :class:`ContentFolder` grants the acting user READ+WRITE on each new
 from __future__ import annotations
 
 from unique_toolkit.experimental.content_folder.functions import (
-    add_folder_access,
-    add_folder_access_async,
-    create_folders,
-    create_folders_async,
+    create,
+    create_access,
+    create_access_async,
+    create_async,
     creator_scope_access_grants,
-    delete_folder,
-    delete_folder_async,
-    get_folder_info,
-    get_folder_info_async,
-    remove_folder_access,
-    remove_folder_access_async,
+    delete,
+    delete_access,
+    delete_access_async,
+    delete_async,
+    read,
+    read_async,
 )
 from unique_toolkit.experimental.content_folder.schemas import (
     AccessEntityType,
     AccessType,
     CreatedFolder,
+    DeleteFolderItem,
+    DeleteResult,
     FolderChild,
     FolderDetail,
     FolderInfo,
+    IngestionConfig,
     ScopeAccess,
 )
 from unique_toolkit.experimental.content_folder.service import ContentFolder
@@ -44,19 +48,22 @@ __all__ = [
     "AccessType",
     "ContentFolder",
     "CreatedFolder",
+    "DeleteFolderItem",
+    "DeleteResult",
     "FolderChild",
     "FolderDetail",
     "FolderInfo",
+    "IngestionConfig",
     "ScopeAccess",
-    "add_folder_access",
-    "add_folder_access_async",
-    "create_folders",
-    "create_folders_async",
+    "create",
+    "create_access",
+    "create_access_async",
+    "create_async",
     "creator_scope_access_grants",
-    "delete_folder",
-    "delete_folder_async",
-    "get_folder_info",
-    "get_folder_info_async",
-    "remove_folder_access",
-    "remove_folder_access_async",
+    "delete",
+    "delete_access",
+    "delete_access_async",
+    "delete_async",
+    "read",
+    "read_async",
 ]

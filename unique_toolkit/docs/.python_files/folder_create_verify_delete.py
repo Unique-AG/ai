@@ -15,13 +15,13 @@ folder_service = ContentFolder.from_settings()
 # ~/~ end
 
 # ~/~ begin <<docs/modules/examples/content/content-folder.md#folder-mgmt-create>>[init]
-created = folder_service.create_folder(path=DEMO_FOLDER_PATH)
+created = folder_service.create(paths=DEMO_FOLDER_PATH)
 leaf = created[-1]
 print(f"Created folder id={leaf.id!r} name={leaf.name!r}")
 # ~/~ end
 
 # ~/~ begin <<docs/modules/examples/content/content-folder.md#folder-mgmt-verify>>[init]
-info = folder_service.get_folder_info(scope_id=leaf.id)
+info = folder_service.read(scope_id=leaf.id)
 print(
     f"Verified id={info.id!r} name={info.name!r} parent_id={info.parent_id!r} "
     f"(created as {DEMO_FOLDER_PATH!r}; compare in the UI)"
@@ -30,12 +30,12 @@ print(
 # ~/~ end
 
 # ~/~ begin <<docs/modules/examples/content/content-folder.md#folder-mgmt-delete>>[init]
-delete_result = folder_service.delete_folder(scope_id=leaf.id)
+delete_result = folder_service.delete(scope_id=leaf.id)
 print(
     "Deleted:",
-    delete_result.get("successFolders"),
+    delete_result.success_folders,
     "Failed:",
-    delete_result.get("failedFolders"),
+    delete_result.failed_folders,
 )
 # ~/~ end
 # ~/~ end

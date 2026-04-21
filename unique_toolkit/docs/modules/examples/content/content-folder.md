@@ -16,12 +16,11 @@ This page focuses on a **short manual test loop**: create a folder, confirm it e
 
 ## Ways to create folders
 
-:meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.create_folder` accepts **exactly one** of these shapes per call (mixing them raises ``TypeError``):
+:meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.create` accepts **exactly one** of these shapes per call (mixing them raises ``TypeError``):
 
 | Style | When to use |
 |-------|-------------|
-| ``path=`` | One absolute path from the KB root, e.g. ``"/Legal/Contracts"``. |
-| ``paths=`` | Several absolute paths in one API call. |
+| ``paths=`` | One or more absolute paths from the KB root—pass a ``str`` for a single path or a ``list[str]`` for several in one API call. |
 | ``parent_scope_id=`` + ``relative_path_segments=`` | You already know the parent folder’s **scope id** and want to create one or more nested segments **by name** (not full paths). |
 
 Segments are **folder names** only—e.g. ``["2026", "Inbox"]`` creates ``Inbox`` under ``2026`` under the given parent—not a second absolute path string.
@@ -34,7 +33,7 @@ DEMO_MULTI_B = "/EntangledToolkitDocs/MultiB"
 ```
 
 ```{.python #folder-mgmt-create-multi-paths}
-created = folder_service.create_folder(paths=[DEMO_MULTI_A, DEMO_MULTI_B])
+created = folder_service.create(paths=[DEMO_MULTI_A, DEMO_MULTI_B])
 for folder in created:
     print(folder.id, folder.name)
 ```
@@ -59,8 +58,8 @@ for folder in created:
 
 Typical sources for ``parent_scope_id``:
 
-- The ``id`` on :class:`~unique_toolkit.experimental.content_folder.schemas.CreatedFolder` after an earlier ``create_folder`` (often ``created[-1].id`` for the leaf of a chain).
-- The ``id`` on :class:`~unique_toolkit.experimental.content_folder.schemas.FolderInfo` from :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.get_folder_info` (by ``scope_id`` or ``folder_path``).
+- The ``id`` on :class:`~unique_toolkit.experimental.content_folder.schemas.CreatedFolder` after an earlier ``create`` (often ``created[-1].id`` for the leaf of a chain).
+- The ``id`` on :class:`~unique_toolkit.experimental.content_folder.schemas.FolderInfo` from :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.read` (by ``scope_id`` or ``folder_path``).
 - Any scope id you already store from the product UI or another API.
 
 Then pass **path segments** (child folder names) to create under that parent:
@@ -70,10 +69,10 @@ PARENT_ROOT = "/EntangledToolkitDocs/ParentRoot"
 ```
 
 ```{.python #folder-mgmt-create-nested-under-parent}
-parent_chain = folder_service.create_folder(path=PARENT_ROOT)
+parent_chain = folder_service.create(paths=PARENT_ROOT)
 parent_scope_id = parent_chain[-1].id
 
-nested_chain = folder_service.create_folder(
+nested_chain = folder_service.create(
     parent_scope_id=parent_scope_id,
     relative_path_segments=["Projects", "Scratch"],
 )
@@ -103,24 +102,24 @@ print("leaf id=", leaf.id, "name=", leaf.name)
 If you have the parent’s **absolute path** but not its id, resolve it once, then create by scope id and segments:
 
 ```{.python #folder-mgmt-create-nested-after-path-lookup}
-parent_meta = folder_service.get_folder_info(folder_path=PARENT_ROOT)
-nested = folder_service.create_folder(
+parent_meta = folder_service.read(folder_path=PARENT_ROOT)
+nested = folder_service.create(
     parent_scope_id=parent_meta.id,
     relative_path_segments=["FromPathLookup"],
 )
 print("leaf", nested[-1].id, nested[-1].name)
 ```
 
-This is the same API shape as above; only the parent id comes from :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.get_folder_info` instead of a previous create result.
+This is the same API shape as above; only the parent id comes from :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.read` instead of a previous create result.
 
 ## Create, verify, delete
 
 Typical flow:
 
-1. **Create** with an absolute path from the knowledge-base root (one of the three supported shapes on :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.create_folder`).
-2. **Verify** with :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.get_folder_info` using the leaf folder’s `scope_id` (last entry returned from create when the path has multiple segments).
+1. **Create** with an absolute path from the knowledge-base root (one of the supported shapes on :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.create`).
+2. **Verify** with :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.read` using the leaf folder’s `scope_id` (last entry returned from create when the path has multiple segments).
 3. **Pause** on a breakpoint or `breakpoint()` after step 2, reload the knowledge-base tree in the product UI, and confirm the folder appears.
-4. **Delete** with :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.delete_folder` using the same `scope_id` (or the absolute `folder_path`). Inspect `successFolders` / `failedFolders` on the SDK response if something does not match expectations.
+4. **Delete** with :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.delete` using the same `scope_id` (or the absolute `folder_path`). Inspect ``success_folders`` / ``failed_folders`` on the :class:`~unique_toolkit.experimental.content_folder.schemas.DeleteResult` if something does not match expectations.
 
 ```{.python #folder-mgmt-imports}
 from __future__ import annotations
@@ -138,13 +137,13 @@ folder_service = ContentFolder.from_settings()
 ```
 
 ```{.python #folder-mgmt-create}
-created = folder_service.create_folder(path=DEMO_FOLDER_PATH)
+created = folder_service.create(paths=DEMO_FOLDER_PATH)
 leaf = created[-1]
 print(f"Created folder id={leaf.id!r} name={leaf.name!r}")
 ```
 
 ```{.python #folder-mgmt-verify}
-info = folder_service.get_folder_info(scope_id=leaf.id)
+info = folder_service.read(scope_id=leaf.id)
 print(
     f"Verified id={info.id!r} name={info.name!r} parent_id={info.parent_id!r} "
     f"(created as {DEMO_FOLDER_PATH!r}; compare in the UI)"
@@ -153,8 +152,8 @@ print(
 ```
 
 ```{.python #folder-mgmt-delete}
-delete_result = folder_service.delete_folder(scope_id=leaf.id)
-print("Deleted:", delete_result.get("successFolders"), "Failed:", delete_result.get("failedFolders"))
+delete_result = folder_service.delete(scope_id=leaf.id)
+print("Deleted:", delete_result.success_folders, "Failed:", delete_result.failed_folders)
 ```
 
 ### Assembled runnable script
@@ -186,13 +185,13 @@ The block below is tangled to `docs/.python_files/` and copied to [examples_from
 If you prefer to address the folder by path instead of id, pass `folder_path=` (still exactly one of `scope_id` or `folder_path`):
 
 ```{.python #folder-mgmt-delete-by-path}
-folder_service.delete_folder(folder_path=DEMO_FOLDER_PATH)
+folder_service.delete(folder_path=DEMO_FOLDER_PATH)
 ```
 
 ## Behaviour notes
 
-- **Creator access:** By default, :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.create_folder` grants the acting user READ and WRITE on created scopes when `inherit_access` is false. See the class docstring for details.
-- **Recursive delete:** Pass `recursive=True` to :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.delete_folder` when the API should remove nested content according to platform rules.
-- **Async:** Use :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.create_folder_async`, :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.get_folder_info_async`, and :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.delete_folder_async` in async code paths.
+- **Creator access:** By default, :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.create` grants the acting user READ and WRITE on created scopes when `inherit_access` is false. See the class docstring for details.
+- **Recursive delete:** Pass `recursive=True` to :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.delete` when the API should remove nested content according to platform rules.
+- **Async:** Use :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.create_async`, :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.read_async`, and :meth:`~unique_toolkit.experimental.content_folder.service.ContentFolder.delete_async` in async code paths.
 
 For uploading and searching documents inside a scope, continue with the [Knowledge Base service examples](kb_service.md).

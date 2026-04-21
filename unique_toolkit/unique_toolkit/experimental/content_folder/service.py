@@ -2,29 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Self, overload
 
-import unique_sdk
-
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.unique_settings import UniqueSettings
-from unique_toolkit.experimental.content_folder.functions import (
-    add_folder_access,
-    add_folder_access_async,
-    create_folders,
-    create_folders_async,
-    creator_scope_access_grants,
-    get_folder_info,
-    get_folder_info_async,
-    remove_folder_access,
-    remove_folder_access_async,
-)
-from unique_toolkit.experimental.content_folder.functions import (
-    delete_folder as delete_folder_api,
-)
-from unique_toolkit.experimental.content_folder.functions import (
-    delete_folder_async as delete_folder_async_api,
-)
+from unique_toolkit.experimental.content_folder import functions as _folder
 from unique_toolkit.experimental.content_folder.schemas import (
     CreatedFolder,
+    DeleteResult,
     FolderDetail,
     FolderInfo,
     ScopeAccess,
@@ -43,9 +26,9 @@ class ContentFolder:
 
     **Creating folders** — pick *one* style per call (type checkers enforce this via overloads):
 
-    1. ``path=`` — a single absolute path from the knowledge-base root.
-    2. ``paths=`` — several absolute paths at once.
-    3. ``parent_scope_id=`` + ``relative_path_segments=`` — nested folders under an existing
+    1. ``paths=`` — one or more absolute paths from the knowledge-base root (``str`` is
+       treated as a single path).
+    2. ``parent_scope_id=`` + ``relative_path_segments=`` — nested folders under an existing
        parent, using path **segments** (not a second full path). Maps to ``parentScopeId`` +
        ``relativePaths``.
 
@@ -58,8 +41,8 @@ class ContentFolder:
     may add for other principals—set ``private_to_creator=False`` only when you intend to
     rely on server defaults or will manage ACL yourself.
 
-    **Delete:** Use :meth:`delete_folder` or :meth:`delete_folder_async` with either
-    ``scope_id`` or ``folder_path`` (same addressing rules as :meth:`get_folder_info`).
+    **Delete:** Use :meth:`delete` or :meth:`delete_async` with either
+    ``scope_id`` or ``folder_path`` (same addressing rules as :meth:`read`).
     """
 
     def __init__(
@@ -103,16 +86,16 @@ class ContentFolder:
     # ── Create ────────────────────────────────────────────────────────────
 
     @overload
-    def create_folder(
+    def create(
         self,
         *,
-        path: str,
+        paths: str,
         inherit_access: bool = False,
         private_to_creator: bool = True,
     ) -> list[CreatedFolder]: ...
 
     @overload
-    def create_folder(
+    def create(
         self,
         *,
         paths: list[str],
@@ -121,7 +104,7 @@ class ContentFolder:
     ) -> list[CreatedFolder]: ...
 
     @overload
-    def create_folder(
+    def create(
         self,
         *,
         parent_scope_id: str,
@@ -130,19 +113,17 @@ class ContentFolder:
         private_to_creator: bool = True,
     ) -> list[CreatedFolder]: ...
 
-    def create_folder(
+    def create(
         self,
         *,
-        path: str | None = None,
-        paths: list[str] | None = None,
+        paths: str | list[str] | None = None,
         parent_scope_id: str | None = None,
         relative_path_segments: list[str] | None = None,
         inherit_access: bool = False,
         private_to_creator: bool = True,
     ) -> list[CreatedFolder]:
         """Create folders. Use one overload shape only; mixing parameters raises ``TypeError``."""
-        return self._create_folder_impl(
-            path=path,
+        return self._create_impl(
             paths=paths,
             parent_scope_id=parent_scope_id,
             relative_path_segments=relative_path_segments,
@@ -150,19 +131,45 @@ class ContentFolder:
             private_to_creator=private_to_creator,
         )
 
-    async def create_folder_async(
+    @overload
+    async def create_async(
         self,
         *,
-        path: str | None = None,
-        paths: list[str] | None = None,
+        paths: str,
+        inherit_access: bool = False,
+        private_to_creator: bool = True,
+    ) -> list[CreatedFolder]: ...
+
+    @overload
+    async def create_async(
+        self,
+        *,
+        paths: list[str],
+        inherit_access: bool = False,
+        private_to_creator: bool = True,
+    ) -> list[CreatedFolder]: ...
+
+    @overload
+    async def create_async(
+        self,
+        *,
+        parent_scope_id: str,
+        relative_path_segments: list[str],
+        inherit_access: bool = False,
+        private_to_creator: bool = True,
+    ) -> list[CreatedFolder]: ...
+
+    async def create_async(
+        self,
+        *,
+        paths: str | list[str] | None = None,
         parent_scope_id: str | None = None,
         relative_path_segments: list[str] | None = None,
         inherit_access: bool = False,
         private_to_creator: bool = True,
     ) -> list[CreatedFolder]:
-        """Async :meth:`create_folder` (same three call shapes: ``path=``, ``paths=``, or ``parent_scope_id=`` + ``relative_path_segments=``)."""
-        return await self._create_folder_impl_async(
-            path=path,
+        """Async :meth:`create` (same shapes: ``paths=``, or ``parent_scope_id=`` + ``relative_path_segments=``)."""
+        return await self._create_impl_async(
             paths=paths,
             parent_scope_id=parent_scope_id,
             relative_path_segments=relative_path_segments,
@@ -170,23 +177,21 @@ class ContentFolder:
             private_to_creator=private_to_creator,
         )
 
-    def _create_folder_impl(
+    def _create_impl(
         self,
         *,
-        path: str | None = None,
-        paths: list[str] | None = None,
+        paths: str | list[str] | None = None,
         parent_scope_id: str | None = None,
         relative_path_segments: list[str] | None = None,
         inherit_access: bool = False,
         private_to_creator: bool = True,
     ) -> list[CreatedFolder]:
         absolute, parent_id, segments = self._normalize_create_args(
-            path=path,
             paths=paths,
             parent_scope_id=parent_scope_id,
             relative_path_segments=relative_path_segments,
         )
-        return create_folders(
+        return _folder.create(
             user_id=self._user_id,
             company_id=self._company_id,
             absolute_paths=absolute,
@@ -196,23 +201,21 @@ class ContentFolder:
             private_to_creator=private_to_creator,
         )
 
-    async def _create_folder_impl_async(
+    async def _create_impl_async(
         self,
         *,
-        path: str | None = None,
-        paths: list[str] | None = None,
+        paths: str | list[str] | None = None,
         parent_scope_id: str | None = None,
         relative_path_segments: list[str] | None = None,
         inherit_access: bool = False,
         private_to_creator: bool = True,
     ) -> list[CreatedFolder]:
         absolute, parent_id, segments = self._normalize_create_args(
-            path=path,
             paths=paths,
             parent_scope_id=parent_scope_id,
             relative_path_segments=relative_path_segments,
         )
-        return await create_folders_async(
+        return await _folder.create_async(
             user_id=self._user_id,
             company_id=self._company_id,
             absolute_paths=absolute,
@@ -225,13 +228,11 @@ class ContentFolder:
     def _normalize_create_args(
         self,
         *,
-        path: str | None,
-        paths: list[str] | None,
+        paths: str | list[str] | None,
         parent_scope_id: str | None,
         relative_path_segments: list[str] | None,
     ) -> tuple[list[str] | None, str | None, list[str] | None]:
         """Return ``(absolute_paths, parent_scope_id, relative_path_segments)`` for the API layer."""
-        n_path = 1 if path is not None else 0
         n_paths = 1 if paths is not None else 0
         n_under = (
             1
@@ -239,53 +240,52 @@ class ContentFolder:
             else 0
         )
 
-        if n_path + n_paths + n_under > 1:
+        if n_paths + n_under > 1:
             raise TypeError(
-                "create_folder: use exactly one style — path=, paths=, or "
+                "create: use exactly one style — paths=, or "
                 "parent_scope_id= with relative_path_segments=."
             )
 
-        if path is not None:
-            return [path], None, None
         if paths is not None:
-            return paths, None, None
+            absolute = [paths] if isinstance(paths, str) else paths
+            return absolute, None, None
         if parent_scope_id is not None or relative_path_segments is not None:
             return None, parent_scope_id, relative_path_segments
 
         raise TypeError(
-            "create_folder: pass path=, paths=, or both parent_scope_id= and relative_path_segments=."
+            "create: pass paths=, or both parent_scope_id= and relative_path_segments=."
         )
 
     # ── Read ──────────────────────────────────────────────────────────────
 
     @overload
-    def get_folder_info(self, *, scope_id: str) -> FolderInfo: ...
+    def read(self, *, scope_id: str) -> FolderInfo: ...
 
     @overload
-    def get_folder_info(self, *, folder_path: str) -> FolderInfo: ...
+    def read(self, *, folder_path: str) -> FolderInfo: ...
 
-    def get_folder_info(
+    def read(
         self,
         *,
         scope_id: str | None = None,
         folder_path: str | None = None,
     ) -> FolderInfo:
         """Load folder metadata by ``scope_id`` or ``folder_path`` (exactly one)."""
-        return get_folder_info(
+        return _folder.read(
             user_id=self._user_id,
             company_id=self._company_id,
             scope_id=scope_id,
             folder_path=folder_path,
         )
 
-    async def get_folder_info_async(
+    async def read_async(
         self,
         *,
         scope_id: str | None = None,
         folder_path: str | None = None,
     ) -> FolderInfo:
-        """Async :meth:`get_folder_info` (pass exactly one of ``scope_id`` or ``folder_path``)."""
-        return await get_folder_info_async(
+        """Async :meth:`read` (pass exactly one of ``scope_id`` or ``folder_path``)."""
+        return await _folder.read_async(
             user_id=self._user_id,
             company_id=self._company_id,
             scope_id=scope_id,
@@ -293,30 +293,30 @@ class ContentFolder:
         )
 
     @overload
-    def delete_folder(
+    def delete(
         self,
         *,
         scope_id: str,
         recursive: bool = False,
-    ) -> unique_sdk.Folder.DeleteResponse: ...
+    ) -> DeleteResult: ...
 
     @overload
-    def delete_folder(
+    def delete(
         self,
         *,
         folder_path: str,
         recursive: bool = False,
-    ) -> unique_sdk.Folder.DeleteResponse: ...
+    ) -> DeleteResult: ...
 
-    def delete_folder(
+    def delete(
         self,
         *,
         scope_id: str | None = None,
         folder_path: str | None = None,
         recursive: bool = False,
-    ) -> unique_sdk.Folder.DeleteResponse:
+    ) -> DeleteResult:
         """Delete a folder by ``scope_id`` or ``folder_path`` (exactly one)."""
-        return delete_folder_api(
+        return _folder.delete(
             user_id=self._user_id,
             company_id=self._company_id,
             scope_id=scope_id,
@@ -325,30 +325,30 @@ class ContentFolder:
         )
 
     @overload
-    async def delete_folder_async(
+    async def delete_async(
         self,
         *,
         scope_id: str,
         recursive: bool = False,
-    ) -> unique_sdk.Folder.DeleteResponse: ...
+    ) -> DeleteResult: ...
 
     @overload
-    async def delete_folder_async(
+    async def delete_async(
         self,
         *,
         folder_path: str,
         recursive: bool = False,
-    ) -> unique_sdk.Folder.DeleteResponse: ...
+    ) -> DeleteResult: ...
 
-    async def delete_folder_async(
+    async def delete_async(
         self,
         *,
         scope_id: str | None = None,
         folder_path: str | None = None,
         recursive: bool = False,
-    ) -> unique_sdk.Folder.DeleteResponse:
-        """Async :meth:`delete_folder` (exactly one of ``scope_id`` or ``folder_path``)."""
-        return await delete_folder_async_api(
+    ) -> DeleteResult:
+        """Async :meth:`delete` (exactly one of ``scope_id`` or ``folder_path``)."""
+        return await _folder.delete_async(
             user_id=self._user_id,
             company_id=self._company_id,
             scope_id=scope_id,
@@ -359,7 +359,7 @@ class ContentFolder:
     # ── Access management ─────────────────────────────────────────────────
 
     @overload
-    def add_access(
+    def create_access(
         self,
         *,
         scope_id: str,
@@ -368,7 +368,7 @@ class ContentFolder:
     ) -> FolderDetail: ...
 
     @overload
-    def add_access(
+    def create_access(
         self,
         *,
         folder_path: str,
@@ -376,7 +376,7 @@ class ContentFolder:
         apply_to_sub_scopes: bool = False,
     ) -> FolderDetail: ...
 
-    def add_access(
+    def create_access(
         self,
         *,
         scope_id: str | None = None,
@@ -385,7 +385,7 @@ class ContentFolder:
         apply_to_sub_scopes: bool = False,
     ) -> FolderDetail:
         """Grant READ/WRITE on a folder (``scope_id=`` or ``folder_path=``)."""
-        return add_folder_access(
+        return _folder.create_access(
             user_id=self._user_id,
             company_id=self._company_id,
             scope_id=scope_id,
@@ -394,7 +394,7 @@ class ContentFolder:
             apply_to_sub_scopes=apply_to_sub_scopes,
         )
 
-    async def add_access_async(
+    async def create_access_async(
         self,
         *,
         scope_id: str | None = None,
@@ -402,8 +402,8 @@ class ContentFolder:
         scope_accesses: list[ScopeAccess],
         apply_to_sub_scopes: bool = False,
     ) -> FolderDetail:
-        """Async :meth:`add_access` (exactly one of ``scope_id`` or ``folder_path``)."""
-        return await add_folder_access_async(
+        """Async :meth:`create_access` (exactly one of ``scope_id`` or ``folder_path``)."""
+        return await _folder.create_access_async(
             user_id=self._user_id,
             company_id=self._company_id,
             scope_id=scope_id,
@@ -413,7 +413,7 @@ class ContentFolder:
         )
 
     @overload
-    def remove_access(
+    def delete_access(
         self,
         *,
         scope_id: str,
@@ -422,7 +422,7 @@ class ContentFolder:
     ) -> FolderDetail: ...
 
     @overload
-    def remove_access(
+    def delete_access(
         self,
         *,
         folder_path: str,
@@ -430,7 +430,7 @@ class ContentFolder:
         apply_to_sub_scopes: bool = False,
     ) -> FolderDetail: ...
 
-    def remove_access(
+    def delete_access(
         self,
         *,
         scope_id: str | None = None,
@@ -439,7 +439,7 @@ class ContentFolder:
         apply_to_sub_scopes: bool = False,
     ) -> FolderDetail:
         """Revoke access entries, addressed by id or path."""
-        return remove_folder_access(
+        return _folder.delete_access(
             user_id=self._user_id,
             company_id=self._company_id,
             scope_id=scope_id,
@@ -448,7 +448,7 @@ class ContentFolder:
             apply_to_sub_scopes=apply_to_sub_scopes,
         )
 
-    async def remove_access_async(
+    async def delete_access_async(
         self,
         *,
         scope_id: str | None = None,
@@ -456,8 +456,8 @@ class ContentFolder:
         scope_accesses: list[ScopeAccess],
         apply_to_sub_scopes: bool = False,
     ) -> FolderDetail:
-        """Async :meth:`remove_access` (exactly one of ``scope_id`` or ``folder_path``)."""
-        return await remove_folder_access_async(
+        """Async :meth:`delete_access` (exactly one of ``scope_id`` or ``folder_path``)."""
+        return await _folder.delete_access_async(
             user_id=self._user_id,
             company_id=self._company_id,
             scope_id=scope_id,
@@ -469,10 +469,10 @@ class ContentFolder:
     # ── Create + access ───────────────────────────────────────────────────
 
     @overload
-    def create_folder_with_access(
+    def create_with_access(
         self,
         *,
-        path: str,
+        paths: str,
         scope_accesses: list[ScopeAccess],
         inherit_access: bool = False,
         private_to_creator: bool = True,
@@ -480,7 +480,7 @@ class ContentFolder:
     ) -> tuple[list[CreatedFolder], FolderDetail]: ...
 
     @overload
-    def create_folder_with_access(
+    def create_with_access(
         self,
         *,
         paths: list[str],
@@ -491,7 +491,7 @@ class ContentFolder:
     ) -> tuple[list[CreatedFolder], FolderDetail]: ...
 
     @overload
-    def create_folder_with_access(
+    def create_with_access(
         self,
         *,
         parent_scope_id: str,
@@ -502,11 +502,10 @@ class ContentFolder:
         apply_to_sub_scopes: bool = False,
     ) -> tuple[list[CreatedFolder], FolderDetail]: ...
 
-    def create_folder_with_access(
+    def create_with_access(
         self,
         *,
-        path: str | None = None,
-        paths: list[str] | None = None,
+        paths: str | list[str] | None = None,
         parent_scope_id: str | None = None,
         relative_path_segments: list[str] | None = None,
         scope_accesses: list[ScopeAccess],
@@ -517,16 +516,15 @@ class ContentFolder:
         """Create folders, then grant ``scope_accesses`` on the leaf folder.
 
         Creator READ/WRITE on the created chain follows ``private_to_creator`` (same as
-        :meth:`create_folder`). Extra principals/groups go in ``scope_accesses`` on the
-        **last** folder in the create response (see :meth:`create_folder` for multi-path
+        :meth:`create`). Extra principals/groups go in ``scope_accesses`` on the
+        **last** folder in the create response (see :meth:`create` for multi-path
         caveats).
 
         If ``scope_accesses`` is empty, no second ``add-access`` call is made; the returned
         :class:`~unique_toolkit.experimental.content_folder.schemas.FolderDetail` is a minimal view
         (leaf id/name and, when ``private_to_creator`` is true, the creator grants only).
         """
-        created = self._create_folder_impl(
-            path=path,
+        created = self._create_impl(
             paths=paths,
             parent_scope_id=parent_scope_id,
             relative_path_segments=relative_path_segments,
@@ -537,11 +535,11 @@ class ContentFolder:
         leaf_scope_id = created[-1].id if created else None
         if leaf_scope_id is None:
             raise ValueError(
-                "No folder was returned from create_folder; cannot attach access."
+                "No folder was returned from create; cannot attach access."
             )
 
         if scope_accesses:
-            detail = self.add_access(
+            detail = self.create_access(
                 scope_id=leaf_scope_id,
                 scope_accesses=scope_accesses,
                 apply_to_sub_scopes=apply_to_sub_scopes,
@@ -551,7 +549,7 @@ class ContentFolder:
                 id=leaf_scope_id,
                 name=created[-1].name,
                 scope_access=(
-                    creator_scope_access_grants(self._user_id)
+                    _folder.creator_scope_access_grants(self._user_id)
                     if private_to_creator and not inherit_access
                     else []
                 ),
@@ -559,11 +557,44 @@ class ContentFolder:
             )
         return created, detail
 
-    async def create_folder_with_access_async(
+    @overload
+    async def create_with_access_async(
         self,
         *,
-        path: str | None = None,
-        paths: list[str] | None = None,
+        paths: str,
+        scope_accesses: list[ScopeAccess],
+        inherit_access: bool = False,
+        private_to_creator: bool = True,
+        apply_to_sub_scopes: bool = False,
+    ) -> tuple[list[CreatedFolder], FolderDetail]: ...
+
+    @overload
+    async def create_with_access_async(
+        self,
+        *,
+        paths: list[str],
+        scope_accesses: list[ScopeAccess],
+        inherit_access: bool = False,
+        private_to_creator: bool = True,
+        apply_to_sub_scopes: bool = False,
+    ) -> tuple[list[CreatedFolder], FolderDetail]: ...
+
+    @overload
+    async def create_with_access_async(
+        self,
+        *,
+        parent_scope_id: str,
+        relative_path_segments: list[str],
+        scope_accesses: list[ScopeAccess],
+        inherit_access: bool = False,
+        private_to_creator: bool = True,
+        apply_to_sub_scopes: bool = False,
+    ) -> tuple[list[CreatedFolder], FolderDetail]: ...
+
+    async def create_with_access_async(
+        self,
+        *,
+        paths: str | list[str] | None = None,
         parent_scope_id: str | None = None,
         relative_path_segments: list[str] | None = None,
         scope_accesses: list[ScopeAccess],
@@ -571,9 +602,8 @@ class ContentFolder:
         private_to_creator: bool = True,
         apply_to_sub_scopes: bool = False,
     ) -> tuple[list[CreatedFolder], FolderDetail]:
-        """Async :meth:`create_folder_with_access` (same create shapes as :meth:`create_folder_async`)."""
-        created = await self._create_folder_impl_async(
-            path=path,
+        """Async :meth:`create_with_access` (same create shapes as :meth:`create_async`)."""
+        created = await self._create_impl_async(
             paths=paths,
             parent_scope_id=parent_scope_id,
             relative_path_segments=relative_path_segments,
@@ -584,11 +614,11 @@ class ContentFolder:
         leaf_scope_id = created[-1].id if created else None
         if leaf_scope_id is None:
             raise ValueError(
-                "No folder was returned from create_folder; cannot attach access."
+                "No folder was returned from create; cannot attach access."
             )
 
         if scope_accesses:
-            detail = await self.add_access_async(
+            detail = await self.create_access_async(
                 scope_id=leaf_scope_id,
                 scope_accesses=scope_accesses,
                 apply_to_sub_scopes=apply_to_sub_scopes,
@@ -598,7 +628,7 @@ class ContentFolder:
                 id=leaf_scope_id,
                 name=created[-1].name,
                 scope_access=(
-                    creator_scope_access_grants(self._user_id)
+                    _folder.creator_scope_access_grants(self._user_id)
                     if private_to_creator and not inherit_access
                     else []
                 ),

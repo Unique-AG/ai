@@ -124,7 +124,7 @@ def mirror_local_folder_to_kb(
 
     def scope_for_kb_dir(kb_dir: str) -> str:
         if kb_dir not in scope_by_kb_dir:
-            created = folder_service.create_folder(path=kb_dir)
+            created = folder_service.create(paths=kb_dir)
             scope_by_kb_dir[kb_dir] = created[-1].id
         return scope_by_kb_dir[kb_dir]
 

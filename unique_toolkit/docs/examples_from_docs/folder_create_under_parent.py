@@ -7,10 +7,10 @@ folder_service = ContentFolder.from_settings()
 
 PARENT_ROOT = "/EntangledToolkitDocs/ParentRoot"
 
-parent_chain = folder_service.create_folder(path=PARENT_ROOT)
+parent_chain = folder_service.create(paths=PARENT_ROOT)
 parent_scope_id = parent_chain[-1].id
 
-nested_chain = folder_service.create_folder(
+nested_chain = folder_service.create(
     parent_scope_id=parent_scope_id,
     relative_path_segments=["Projects", "Scratch"],
 )
