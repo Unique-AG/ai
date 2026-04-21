@@ -486,3 +486,44 @@ class TestAIConstruction:
         """Identity must reject None company/user ids (validate_required_values)."""
         with pytest.raises(ValueError, match="Required values cannot be None"):
             Identity(company_id=None, user_id=USER_ID)  # type: ignore[arg-type]
+
+    def test_AI_from_settings_uses_explicit_settings(self, mocker):
+        """Passing a UniqueSettings forwards its confidential ids verbatim."""
+        settings = mocker.Mock()
+        settings.authcontext.get_confidential_company_id.return_value = "c-42"
+        settings.authcontext.get_confidential_user_id.return_value = "u-42"
+
+        identity = Identity.from_settings(settings)
+
+        assert identity._company_id == "c-42"
+        assert identity._user_id == "u-42"
+
+    def test_AI_from_settings_none_triggers_auto_init(self, mocker):
+        """No-arg call must auto-load via UniqueSettings.from_env_auto_with_sdk_init."""
+        settings = mocker.Mock()
+        settings.authcontext.get_confidential_company_id.return_value = "c-env"
+        settings.authcontext.get_confidential_user_id.return_value = "u-env"
+        auto = mocker.patch(
+            "unique_toolkit.experimental.identity.service.UniqueSettings.from_env_auto_with_sdk_init",
+            return_value=settings,
+        )
+
+        identity = Identity.from_settings()
+
+        auto.assert_called_once_with()
+        assert identity._company_id == "c-env"
+        assert identity._user_id == "u-env"
+
+    def test_AI_from_settings_string_forwards_filename(self, mocker):
+        """Passing a string routes through from_env_auto_with_sdk_init(filename=...)."""
+        settings = mocker.Mock()
+        settings.authcontext.get_confidential_company_id.return_value = "c-file"
+        settings.authcontext.get_confidential_user_id.return_value = "u-file"
+        auto = mocker.patch(
+            "unique_toolkit.experimental.identity.service.UniqueSettings.from_env_auto_with_sdk_init",
+            return_value=settings,
+        )
+
+        Identity.from_settings("my.env")
+
+        auto.assert_called_once_with(filename="my.env")

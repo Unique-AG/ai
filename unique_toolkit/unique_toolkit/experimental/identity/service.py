@@ -123,9 +123,22 @@ class Identity:
     @classmethod
     def from_settings(
         cls,
-        settings: UniqueSettings,
+        settings: UniqueSettings | str | None = None,
     ) -> Self:
-        """Create from :class:`UniqueSettings` (used by :class:`UniqueServiceFactory`)."""
+        """Create from :class:`UniqueSettings` (used by :class:`UniqueServiceFactory`).
+
+        Mirrors :meth:`KnowledgeBaseService.from_settings` so callers can write
+        ``Identity.from_settings()`` in standalone scripts:
+
+        - ``settings=None`` auto-loads from ``unique.env`` via
+          :meth:`UniqueSettings.from_env_auto_with_sdk_init`.
+        - ``settings="my.env"`` loads from the given env file name.
+        - ``settings=<UniqueSettings>`` uses the provided instance as-is.
+        """
+        if settings is None:
+            settings = UniqueSettings.from_env_auto_with_sdk_init()
+        elif isinstance(settings, str):
+            settings = UniqueSettings.from_env_auto_with_sdk_init(filename=settings)
 
         return cls(
             company_id=settings.authcontext.get_confidential_company_id(),
