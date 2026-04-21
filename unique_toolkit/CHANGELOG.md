@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.78.1] - 2026-04-21
+
+### Added
+- Add `UniqueSettings.with_chat(chat_context)` immutable copy method for composing chat context into settings without mutating the original instance
+- Add `enable_mcp_metadata_fallback_un_19145` feature flag for gating backward-compatible flat camelCase `_meta` key parsing in MCP injectors
 ## [1.78.0] - 2026-04-21
 ### Added
 - Add experimental `unique_toolkit.experimental.identity` with `Identity` service (Linux-inspired wrapper over `unique_sdk.User` and `unique_sdk.Group`) exposing `list_users` / `get_user` / `groups_of` / `is_member` / `create_group` / `rename_group` / `delete_group` / `add_members` / `remove_members` / `update_user_configuration` / `update_group_configuration`, with matching async variants

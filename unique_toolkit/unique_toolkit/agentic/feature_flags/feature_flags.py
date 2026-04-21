@@ -91,6 +91,17 @@ class FeatureFlags(BaseSettings):
         description="Use selected_uploaded_files from event payload instead of querying uploaded files from the backend. Can be 'true' or comma-separated company IDs.",
     )
 
+    enable_mcp_metadata_fallback_un_19145: FeatureFlag = Field(
+        default=FeatureFlag(True),
+        description=(
+            "When namespaced MCP `_meta` keys (`unique.app/auth/user-id`, "
+            "`unique.app/chat/chat-id`, ...) are absent, fall back to the flat camelCase "
+            "keys (`userId`, `companyId`, `chatId`, `messageId`) still emitted "
+            "by pre-#22513 monorepo builds. Flip to `False` once the monorepo "
+            "rollout of namespaced keys is complete."
+        ),
+    )
+
     model_config = SettingsConfigDict(
         extra="ignore",
         env_prefix="FEATURE_FLAG_",
