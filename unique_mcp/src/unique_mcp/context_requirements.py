@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 CONTEXT_REQUIREMENTS_META_KEY = "unique.app/context-requirements"
 
@@ -8,8 +8,8 @@ CONTEXT_REQUIREMENTS_META_KEY = "unique.app/context-requirements"
 class ContextRequirements(BaseModel):
     """Declares which ``_meta`` keys a tool expects on every ``callTool``."""
 
-    required: list[str] = []
-    optional: list[str] = []
+    required: list[str] = Field(default_factory=list)
+    optional: list[str] = Field(default_factory=list)
     accepts_custom: bool = False
 
     def to_tool_meta(self) -> dict[str, object]:

@@ -28,7 +28,7 @@ from unique_toolkit.app.unique_settings import (
 from unique_toolkit.services.factory import UniqueServiceFactory
 
 from unique_mcp.auth.zitadel.oauth_proxy import ZitadelOAuthProxySettings
-from unique_mcp.meta_keys import META_FLAT_ALIASES, MetaKeys
+from unique_mcp.meta_keys import _LEGACY_NAMESPACE_ALIASES, META_FLAT_ALIASES, MetaKeys
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,6 +71,12 @@ def _pick_meta(meta: Mapping[str, Any], canonical_key: str) -> str | None:
         flat_alias = META_FLAT_ALIASES.get(canonical_key)
         if flat_alias is not None:
             fallback = meta.get(flat_alias)
+            if isinstance(fallback, str) and fallback:
+                return fallback
+
+        old_ns_key = _LEGACY_NAMESPACE_ALIASES.get(canonical_key)
+        if old_ns_key is not None:
+            fallback = meta.get(old_ns_key)
             if isinstance(fallback, str) and fallback:
                 return fallback
 
@@ -196,13 +202,10 @@ def get_unique_settings() -> UniqueSettings:
 
     if meta is not None:
         auth_context = _auth_from_meta(meta)
-        chat_context = _chat_from_meta(meta)
-        if auth_context is not None:
-            settings = settings.with_auth(auth_context)
-        if chat_context is not None:
+        if chat_context := _chat_from_meta(meta):
             settings = settings.with_chat(chat_context)
         if auth_context is not None:
-            return settings
+            return settings.with_auth(auth_context)
 
     # When `_meta` carries chat keys but no auth keys, we may have applied
     # `with_chat` above and still need JWT/env auth here. `with_auth` keeps
