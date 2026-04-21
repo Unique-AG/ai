@@ -16,6 +16,9 @@ Use this skill **whenever you need input from the user** -- a clarifying questio
 
 > **Rule of thumb:** if you catch yourself about to write "Could you clarify…?" or "Do you want me to…?" or "Which one should I pick?" in chat, stop and call `unique-cli elicit ask` instead.
 
+!!! important "Visibility workaround is always on"
+    The UN-19815 visibility workaround (a short-lived placeholder "thinking" message that makes the elicitation visible in the chat UI) is **enabled by default** whenever you pass `--chat-id`. Always rely on it. **Do not pass `--no-visible`** unless you have independently confirmed that the UN-19815 UI fix is live in the target environment — otherwise the elicitation will be stored by the backend but invisible in the chat. See the [visibility workaround section](#un-19815-visibility-workaround--always-on-by-default) below for details.
+
 ## When to use
 
 | Situation | Use elicitation? |
@@ -118,6 +121,29 @@ unique-cli elicit ask "Please provide report settings" --schema '{
 | `--timeout` | | `300` | Max seconds to block locally before giving up. |
 | `--poll-interval` | | `2.0` | Seconds between status polls. |
 | `--metadata` | | none | `key=value` metadata (repeatable). |
+| `--visible` / `--no-visible` | | **`--visible` (always on)** | UN-19815 workaround: wrap the elicitation in a synthetic "thinking" timeline so the chat UI actually renders it. **Leave this on.** Only disable if you have verified the UN-19815 UI fix is live in your environment. |
+| `--assistant-id` | | `$UNIQUE_ASSISTANT_ID`, else latest assistant in chat | Assistant id for the placeholder message created by the visibility workaround. |
+| `--placeholder-text` | | `Waiting for your answer…` | Text shown on the placeholder thinking step. |
+| `--cleanup` | | `collapse` | How the placeholder is torn down after the user responds: `collapse` sets `completedAt` + a short note; `delete` removes the placeholder message entirely. |
+
+### UN-19815 visibility workaround — always on by default
+
+**You do not need to think about this.** Any time you call `elicit ask` / `elicit create` with `--chat-id`, the CLI automatically wraps the elicitation in a short-lived placeholder "thinking" message so the chat UI actually renders the question. This is the current supported behaviour — not an opt-in.
+
+Why it exists: as of April 2026 the chat UI only renders an elicitation when its host assistant message is actively in the *thinking timeline* display mode ([UN-19815](https://unique-ch.atlassian.net/browse/UN-19815)). Without the workaround, an elicitation created against a chat that has no currently-streaming assistant turn would be stored correctly by the backend but be silently invisible in the UI — users would assume the feature was broken.
+
+How it is kept tidy:
+
+- A placeholder `ASSISTANT` message + `RUNNING` `MessageLog` step are created just before the elicitation.
+- The placeholder is torn down automatically after the user responds (default: `collapse` — sets `completedAt` + a short note; optional: `delete`).
+- Cleanup also runs on local timeout, API error, and Ctrl-C — there is no code path that leaves a dangling thinking bubble.
+- `elicit wait` and `elicit respond` read the cleanup markers out of the elicitation's `metadata` and tear down the placeholder themselves, so scripted flows that split create and respond are safe too.
+
+Rules for agents:
+
+1. **Do not pass `--no-visible`.** It exists only for the day the UN-19815 UI fix ships in your environment; until then the visibility workaround is the only way to make elicitations appear in the chat.
+2. If the chat is brand-new with no prior assistant messages, pass `--assistant-id <id>` or export `UNIQUE_ASSISTANT_ID` so the placeholder can be created. Otherwise the CLI prints a clear error and refuses to create an invisible elicitation.
+3. If you ever need to reason about the placeholder directly, the identifiers are stored in the elicitation's `metadata` under `_uniqueSdkPlaceholderMessageId` / `_uniqueSdkPlaceholderStepId` / `_uniqueSdkPlaceholderChatId` / `_uniqueSdkCleanupMode`. These are SDK-private — do not write to them yourself.
 
 ## Reading the Response
 
@@ -220,12 +246,13 @@ unique-cli elicit respond elicit_abc123 --action CANCEL
 ## Agent Workflow Rules
 
 1. **Default to `elicit ask`.** If you need an answer from the user, use the CLI, not a chat message.
-2. **Never run destructive CLI commands without a confirmation elicitation.** This includes `rm`, `rmdir -r`, bulk renames, large uploads, schedule deletion, etc.
-3. **Pick a meaningful `--tool-name`.** `confirm_delete`, `choose_region`, `pick_report` -- short snake_case describing the intent.
-4. **Constrain answers with a schema** whenever the valid set is finite -- don't rely on parsing free text when `enum` is an option.
-5. **Handle non-ACCEPT outcomes explicitly.** If the status is `DECLINED` / `CANCELLED` / `EXPIRED`, tell the user you stopped and ask what they want to do next instead of silently proceeding.
-6. **Don't spam elicitations.** One well-designed form with several fields is better than five sequential yes/no questions.
-7. **Respect timeouts.** The default `--timeout` is 5 minutes -- raise it only if you genuinely expect the user to take longer.
+2. **Always let the visibility workaround run.** Whenever you pass `--chat-id`, the SDK wraps the elicitation in a placeholder thinking timeline by default so the chat UI renders it ([UN-19815](https://unique-ch.atlassian.net/browse/UN-19815) workaround). **Never pass `--no-visible`** unless you have independently verified the permanent UI fix is live — without the workaround the elicitation is silently invisible to the user.
+3. **Never run destructive CLI commands without a confirmation elicitation.** This includes `rm`, `rmdir -r`, bulk renames, large uploads, schedule deletion, etc.
+4. **Pick a meaningful `--tool-name`.** `confirm_delete`, `choose_region`, `pick_report` -- short snake_case describing the intent.
+5. **Constrain answers with a schema** whenever the valid set is finite -- don't rely on parsing free text when `enum` is an option.
+6. **Handle non-ACCEPT outcomes explicitly.** If the status is `DECLINED` / `CANCELLED` / `EXPIRED`, tell the user you stopped and ask what they want to do next instead of silently proceeding.
+7. **Don't spam elicitations.** One well-designed form with several fields is better than five sequential yes/no questions.
+8. **Respect timeouts.** The default `--timeout` is 5 minutes -- raise it only if you genuinely expect the user to take longer.
 
 ## Prerequisites
 
