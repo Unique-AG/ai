@@ -59,11 +59,17 @@ class MCP(APIResource["MCP"]):
         chatId: str
         arguments: dict[str, Any]
 
-    # Response fields
+    # Response fields.
+    #
+    # The MCP spec only guarantees ``content`` on a successful ``CallToolResult``;
+    # ``isError``, ``mcpServerId``, and ``name`` are optional in practice (some
+    # Unique backend builds omit them on success). Consumers must access these
+    # defensively (e.g. via ``getattr(..., default)``) to stay compatible with
+    # lean server responses.
     content: list[CallToolContentDto]
-    isError: bool
-    mcpServerId: str
-    name: str
+    isError: bool | None
+    mcpServerId: str | None
+    name: str | None
 
     @classmethod
     def call_tool(

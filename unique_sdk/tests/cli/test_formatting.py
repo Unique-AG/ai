@@ -266,18 +266,31 @@ class TestFormatScheduledTasks:
         assert "ASSISTANT" in result
 
 
+class _StubMCPResponse:
+    """Test double that mirrors ``UniqueObject`` missing-key semantics.
+
+    Accessing an attribute that was not set raises ``AttributeError`` (just
+    like ``UniqueObject.__getattr__``), which is the behaviour
+    ``getattr(..., default)`` relies on. ``MagicMock`` cannot be used here
+    because it silently returns a child mock for any missing attribute.
+    """
+
+    def __init__(self, **fields: Any) -> None:
+        self.__dict__.update(fields)
+
+
 def _mcp_response(
     name: str = "search",
     is_error: bool = False,
     server_id: str = "mcp_srv_1",
     content: list[dict[str, Any]] | None = None,
-) -> MagicMock:
-    resp = MagicMock()
-    resp.name = name
-    resp.isError = is_error
-    resp.mcpServerId = server_id
-    resp.content = content if content is not None else []
-    return resp
+) -> _StubMCPResponse:
+    return _StubMCPResponse(
+        name=name,
+        isError=is_error,
+        mcpServerId=server_id,
+        content=content if content is not None else [],
+    )
 
 
 class TestFormatMcpResponse:
@@ -403,3 +416,41 @@ class TestFormatMcpResponse:
         resp = _mcp_response(content=[{"type": "audio", "data": "base64data"}])
         result = format_mcp_response(resp)
         assert "audio/*" in result
+
+    def test_missing_optional_fields_with_tool_name_fallback(self) -> None:
+        """Backend returns only ``content``; header should use caller tool_name."""
+        resp = _StubMCPResponse(content=[{"type": "text", "text": "hello"}])
+        result = format_mcp_response(resp, tool_name="verify_inbox_connection")
+        assert "MCP tool call: verify_inbox_connection" in result
+        assert "Server: <unknown-server>" in result
+        assert "(ERROR)" not in result
+        assert "[text] hello" in result
+
+    def test_missing_optional_fields_without_tool_name(self) -> None:
+        """Without a tool_name fallback, header renders a placeholder tool name."""
+        resp = _StubMCPResponse(content=[{"type": "text", "text": "hi"}])
+        result = format_mcp_response(resp)
+        assert "MCP tool call: <unknown-tool>" in result
+        assert "Server: <unknown-server>" in result
+
+    def test_error_response_missing_other_fields(self) -> None:
+        """``isError: true`` with the rest omitted still formats without crashing."""
+        resp = _StubMCPResponse(
+            isError=True, content=[{"type": "text", "text": "boom"}]
+        )
+        result = format_mcp_response(resp, tool_name="search_emails")
+        assert "MCP tool call: search_emails (ERROR)" in result
+        assert "[text] boom" in result
+
+    def test_explicit_name_wins_over_tool_name(self) -> None:
+        """When the server includes ``name``, it takes precedence over fallback."""
+        resp = _mcp_response(name="server_reported_name")
+        result = format_mcp_response(resp, tool_name="caller_supplied")
+        assert "MCP tool call: server_reported_name" in result
+        assert "caller_supplied" not in result
+
+    def test_missing_content_is_treated_as_empty(self) -> None:
+        resp = _StubMCPResponse()
+        result = format_mcp_response(resp, tool_name="noop")
+        assert "MCP tool call: noop" in result
+        assert "Server: <unknown-server>" in result

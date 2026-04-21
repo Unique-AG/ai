@@ -80,7 +80,14 @@ def cmd_mcp(
             arguments=arguments,
         )
 
-        return format_mcp_response(response)
-
     except (ValueError, OSError, unique_sdk.APIError) as e:
         return f"mcp: {e}"
+
+    try:
+        return format_mcp_response(response, tool_name=name)
+    except Exception as fmt_exc:
+        try:
+            fallback = json.dumps(dict(response), indent=2, default=str)
+        except Exception:
+            fallback = repr(response)
+        return f"mcp: formatter error ({fmt_exc}); raw response:\n{fallback}"
