@@ -233,23 +233,32 @@ class ContentFolder:
         relative_path_segments: list[str] | None,
     ) -> tuple[list[str] | None, str | None, list[str] | None]:
         """Return ``(absolute_paths, parent_scope_id, relative_path_segments)`` for the API layer."""
-        n_paths = 1 if paths is not None else 0
-        n_under = (
-            1
-            if parent_scope_id is not None or relative_path_segments is not None
-            else 0
+        has_paths = paths is not None
+        has_parent_any = (
+            parent_scope_id is not None or relative_path_segments is not None
+        )
+        has_parent_full = (
+            parent_scope_id is not None and relative_path_segments is not None
         )
 
-        if n_paths + n_under > 1:
+        if has_paths and has_parent_any:
             raise TypeError(
                 "create: use exactly one style — paths=, or "
                 "parent_scope_id= with relative_path_segments=."
             )
 
-        if paths is not None:
+        if has_paths:
+            assert paths is not None
             absolute = [paths] if isinstance(paths, str) else paths
             return absolute, None, None
-        if parent_scope_id is not None or relative_path_segments is not None:
+
+        if has_parent_any and not has_parent_full:
+            raise TypeError(
+                "create: parent mode requires both parent_scope_id= and "
+                "relative_path_segments=."
+            )
+
+        if has_parent_full:
             return None, parent_scope_id, relative_path_segments
 
         raise TypeError(

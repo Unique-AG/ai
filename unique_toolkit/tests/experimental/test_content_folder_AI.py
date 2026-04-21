@@ -35,6 +35,23 @@ def test_AI_create_requires_paths_or_parent_shape() -> None:
         create()
 
 
+def test_AI_create_rejects_partial_parent_mode() -> None:
+    """Parent mode requires BOTH ``parent_scope_id=`` and ``relative_path_segments=``.
+
+    Supplying only one half must raise a service-level ``TypeError`` (matching the
+    other shape errors on ``create``) rather than leaking as a downstream
+    ``ValueError`` from the functions layer.
+    """
+    svc = ContentFolder(company_id="c1", user_id="u1")
+    create = cast(Any, svc.create)
+
+    with pytest.raises(TypeError, match="create:.*parent mode"):
+        create(parent_scope_id="p")
+
+    with pytest.raises(TypeError, match="create:.*parent mode"):
+        create(relative_path_segments=["x"])
+
+
 def test_AI_read_requires_exactly_one_address() -> None:
     """Low-level :func:`read` mirrors ``_build_get_params`` mutual-exclusion rules."""
     with pytest.raises(ValueError, match="exactly one"):
