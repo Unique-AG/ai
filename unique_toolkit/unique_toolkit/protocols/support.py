@@ -1,4 +1,4 @@
-from typing import Any, Awaitable, Protocol, Sequence
+from typing import Any, Protocol, Sequence
 
 from openai.types.chat import (
     ChatCompletionMessageParam,
