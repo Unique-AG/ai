@@ -9,7 +9,7 @@ SERVERS = {
 
 
 async def test_server(name: str, url: str):
-    print(f"\n{'=' * 50}")
+    print(f"\n{'='*50}")
     print(f"Connecting to: {name} ({url})")
     print("=" * 50)
 
