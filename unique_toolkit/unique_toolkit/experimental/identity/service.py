@@ -648,9 +648,8 @@ class Identity:
     def from_settings(
         cls,
         settings: UniqueSettings | str | None = None,
-        **_kwargs: Any,
     ) -> Self:
-        """Create from :class:`UniqueSettings` (used by :class:`UniqueServiceFactory`).
+        """Create from :class:`UniqueSettings` — standalone convenience only.
 
         Mirrors :meth:`KnowledgeBaseService.from_settings` so callers can write
         ``Identity.from_settings()`` in standalone scripts:
@@ -660,9 +659,12 @@ class Identity:
         - ``settings="my.env"`` loads from the given env file name.
         - ``settings=<UniqueSettings>`` uses the provided instance as-is.
 
-        ``**_kwargs`` is accepted and ignored so :class:`UniqueServiceFactory`
-        can call ``Identity.from_settings(settings, **kwargs)`` uniformly
-        alongside services that do consume extra kwargs.
+        .. note::
+
+            :class:`Identity` is **not** registered with
+            :class:`UniqueServiceFactory`; experimental services are
+            constructed directly so the experimental dependency stays visible
+            at every call site.
         """
         if settings is None:
             settings = UniqueSettings.from_env_auto_with_sdk_init()

@@ -123,36 +123,17 @@ class UniqueServiceFactory:
         """Register the stable toolkit services with the factory.
 
         Currently registers :class:`KnowledgeBaseService` and :class:`ChatService`.
-        Experimental services live behind a dedicated opt-in
-        (:meth:`register_experimental_services`) so their instability is
-        something callers have to acknowledge explicitly.
+
+        Experimental services (under :mod:`unique_toolkit.experimental`) are
+        intentionally **not** registered here or via any factory helper — their
+        API is unstable and callers should construct them directly (for
+        example, :meth:`Identity.from_settings`) so that the experimental
+        dependency is visible at every call site.
         """
         from unique_toolkit.services.chat_service import ChatService
         from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
         for service_class in [KnowledgeBaseService, ChatService]:
-            if service_class.__name__ not in cls._registry:
-                cls.register(service_class=service_class)
-
-    @classmethod
-    def register_experimental_services(cls) -> None:
-        """Opt-in registration for services under :mod:`unique_toolkit.experimental`.
-
-        These services are not covered by the toolkit's normal stability
-        guarantees and are therefore kept out of the default registry. Call
-        this method once at startup to expose them through the same factory
-        API as the stable services::
-
-            UniqueServiceFactory.register_known_services()
-            UniqueServiceFactory.register_experimental_services()
-
-            identity = factory.get(Identity)
-
-        Currently registers :class:`~unique_toolkit.experimental.identity.Identity`.
-        """
-        from unique_toolkit.experimental.identity import Identity
-
-        for service_class in [Identity]:
             if service_class.__name__ not in cls._registry:
                 cls.register(service_class=service_class)
 
