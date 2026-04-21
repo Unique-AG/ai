@@ -16,9 +16,15 @@ import pytest
 
 import unique_sdk
 from unique_sdk.cli.commands.elicitation import (
+    META_CLEANUP_MODE,
+    META_PLACEHOLDER_CHAT_ID,
+    META_PLACEHOLDER_MESSAGE_ID,
+    META_PLACEHOLDER_STEP_ID,
     _build_create_params,
+    _extract_visibility_context,
     _parse_json_arg,
     _parse_metadata_pairs,
+    _resolve_assistant_id,
     cmd_elicit_ask,
     cmd_elicit_create,
     cmd_elicit_get,
@@ -245,6 +251,30 @@ class TestElicitPending:
         assert "elicit_abc" in out
 
     @patch("unique_sdk.Elicitation.get_pending_elicitations")
+    def test_accepts_plain_list_response(self, mock: MagicMock) -> None:
+        """Regression: backend returns a raw array, not wrapped in dict."""
+        mock.return_value = [_elicitation(eid="e1"), _elicitation(eid="e2")]
+        out = cmd_elicit_pending(_state())
+        assert "2 pending elicitation" in out
+        assert "e1" in out and "e2" in out
+
+    @patch("unique_sdk.Elicitation.get_pending_elicitations")
+    def test_accepts_empty_list_response(self, mock: MagicMock) -> None:
+        mock.return_value = []
+        assert "No pending" in cmd_elicit_pending(_state())
+
+    @patch("unique_sdk.Elicitation.get_pending_elicitations")
+    def test_accepts_wrapped_object_response(self, mock: MagicMock) -> None:
+        mock.return_value = {"elicitations": [_elicitation()]}
+        out = cmd_elicit_pending(_state())
+        assert "1 pending elicitation" in out
+
+    @patch("unique_sdk.Elicitation.get_pending_elicitations")
+    def test_handles_unexpected_response_type(self, mock: MagicMock) -> None:
+        mock.return_value = None
+        assert "No pending" in cmd_elicit_pending(_state())
+
+    @patch("unique_sdk.Elicitation.get_pending_elicitations")
     def test_error(self, mock: MagicMock) -> None:
         mock.side_effect = unique_sdk.APIError("fail")
         assert "elicit:" in cmd_elicit_pending(_state())
@@ -264,9 +294,11 @@ class TestElicitGet:
 
 
 class TestElicitRespond:
+    @patch("unique_sdk.Elicitation.get_elicitation")
     @patch("unique_sdk.Elicitation.respond_to_elicitation")
-    def test_accept(self, mock: MagicMock) -> None:
+    def test_accept(self, mock: MagicMock, mock_get: MagicMock) -> None:
         mock.return_value = {"success": True}
+        mock_get.return_value = _elicitation()
         result = cmd_elicit_respond(
             _state(),
             "elicit_abc",
@@ -276,17 +308,31 @@ class TestElicitRespond:
         assert "OK" in result
         assert mock.call_args[1]["content"] == {"answer": "yes"}
 
+    @patch("unique_sdk.Elicitation.get_elicitation")
     @patch("unique_sdk.Elicitation.respond_to_elicitation")
-    def test_decline(self, mock: MagicMock) -> None:
+    def test_decline(self, mock: MagicMock, mock_get: MagicMock) -> None:
         mock.return_value = {"success": True}
+        mock_get.return_value = _elicitation()
         result = cmd_elicit_respond(_state(), "elicit_abc", action="decline")
         assert "OK" in result
         assert mock.call_args[1]["action"] == "DECLINE"
         assert "content" not in mock.call_args[1]
 
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    @patch("unique_sdk.Elicitation.respond_to_elicitation")
+    def test_reject(self, mock: MagicMock, mock_get: MagicMock) -> None:
+        """Regression: ``REJECT`` is a valid action accepted by the backend."""
+        mock.return_value = {"success": True}
+        mock_get.return_value = _elicitation()
+        result = cmd_elicit_respond(_state(), "elicit_abc", action="reject")
+        assert "OK" in result
+        assert mock.call_args[1]["action"] == "REJECT"
+        assert "content" not in mock.call_args[1]
+
     def test_invalid_action(self) -> None:
         result = cmd_elicit_respond(_state(), "x", action="FROB")
         assert "invalid action" in result
+        assert "REJECT" in result
 
     def test_accept_requires_content(self) -> None:
         result = cmd_elicit_respond(_state(), "x", action="ACCEPT")
@@ -312,6 +358,32 @@ class TestElicitWait:
         result = cmd_elicit_wait(_state(), "elicit_abc", timeout=5)
         assert "RESPONDED" in result
         assert '"answer"' in result
+
+    @patch("unique_sdk.cli.commands.elicitation.time.sleep")
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    def test_terminates_on_accepted_status(
+        self, mock_get: MagicMock, mock_sleep: MagicMock
+    ) -> None:
+        """Regression: platform persists ``ACCEPTED`` when a user confirms a FORM."""
+        mock_get.return_value = _elicitation(
+            status="ACCEPTED", response_content={"answer": "yes"}
+        )
+        result = cmd_elicit_wait(_state(), "elicit_abc", timeout=30)
+        assert "ACCEPTED" in result
+        assert "timed out" not in result
+        assert mock_sleep.call_count == 0
+
+    @patch("unique_sdk.cli.commands.elicitation.time.sleep")
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    def test_terminates_on_rejected_status(
+        self, mock_get: MagicMock, mock_sleep: MagicMock
+    ) -> None:
+        """Regression: platform persists ``REJECTED`` when a user rejects a FORM."""
+        mock_get.return_value = _elicitation(status="REJECTED")
+        result = cmd_elicit_wait(_state(), "elicit_abc", timeout=30)
+        assert "REJECTED" in result
+        assert "timed out" not in result
+        assert mock_sleep.call_count == 0
 
     @patch("unique_sdk.cli.commands.elicitation.time.sleep")
     @patch("unique_sdk.Elicitation.get_elicitation")
@@ -393,6 +465,544 @@ class TestElicitAsk:
         mock_create.side_effect = unique_sdk.APIError("fail")
         result = cmd_elicit_ask(_state(), message="x")
         assert "elicit:" in result
+
+
+# --- Visibility workaround (UN-19815) -----------------------------------
+
+
+def _placeholder_message(
+    eid: str = "msg_placeholder", assistant_id: str = "assistant_1"
+) -> dict[str, Any]:
+    return {
+        "id": eid,
+        "role": "ASSISTANT",
+        "assistantId": assistant_id,
+        "text": None,
+        "completedAt": None,
+        "chatId": "chat_1",
+    }
+
+
+def _step(sid: str = "step_placeholder") -> dict[str, Any]:
+    return {"id": sid, "status": "RUNNING", "text": "Waiting…", "order": 0}
+
+
+def _visible_elicitation(
+    *,
+    eid: str = "elicit_abc",
+    status: str = "PENDING",
+    response_content: Any = None,
+    chat_id: str = "chat_1",
+    placeholder_message_id: str = "msg_placeholder",
+    placeholder_step_id: str = "step_placeholder",
+    cleanup_mode: str = "collapse",
+    extra_metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    metadata: dict[str, Any] = {
+        "messageLogId": placeholder_step_id,
+        META_PLACEHOLDER_MESSAGE_ID: placeholder_message_id,
+        META_PLACEHOLDER_STEP_ID: placeholder_step_id,
+        META_PLACEHOLDER_CHAT_ID: chat_id,
+        META_CLEANUP_MODE: cleanup_mode,
+    }
+    if extra_metadata:
+        metadata.update(extra_metadata)
+    return _elicitation(
+        eid=eid,
+        status=status,
+        response_content=response_content,
+        metadata=metadata,
+    )
+
+
+class TestResolveAssistantId:
+    def test_env_var_wins(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("UNIQUE_ASSISTANT_ID", "from_env")
+        # no Message.list call should be needed
+        assert _resolve_assistant_id(_state(), "chat_1") == "from_env"
+
+    @patch("unique_sdk.Message.list")
+    def test_picks_latest_assistant_message(
+        self,
+        mock_list: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.delenv("UNIQUE_ASSISTANT_ID", raising=False)
+        mock_list.return_value = [
+            {"role": "USER", "assistantId": "should_ignore"},
+            {"role": "ASSISTANT", "assistantId": "older"},
+            {"role": "ASSISTANT", "assistantId": "newest"},
+        ]
+        assert _resolve_assistant_id(_state(), "chat_1") == "newest"
+
+    @patch("unique_sdk.Message.list")
+    def test_none_when_no_assistant(
+        self,
+        mock_list: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.delenv("UNIQUE_ASSISTANT_ID", raising=False)
+        mock_list.return_value = [{"role": "USER", "assistantId": "x"}]
+        assert _resolve_assistant_id(_state(), "chat_1") is None
+
+    @patch("unique_sdk.Message.list")
+    def test_none_when_list_raises(
+        self,
+        mock_list: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.delenv("UNIQUE_ASSISTANT_ID", raising=False)
+        mock_list.side_effect = unique_sdk.APIError("boom")
+        assert _resolve_assistant_id(_state(), "chat_1") is None
+
+    @patch("unique_sdk.Message.list")
+    def test_falls_back_to_debug_info_assistant_id(
+        self,
+        mock_list: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Public REST omits ``assistantId`` at the top level and nests it
+        under ``debugInfo.assistant.id``; the resolver must look there too,
+        otherwise the visibility workaround cannot auto-resolve the
+        assistant for chats fetched via the gateway.
+        """
+        monkeypatch.delenv("UNIQUE_ASSISTANT_ID", raising=False)
+        mock_list.return_value = [
+            {"role": "USER"},
+            {
+                "role": "ASSISTANT",
+                "debugInfo": {
+                    "assistant": {"id": "assistant_from_debug_info", "name": "X"},
+                },
+            },
+        ]
+        assert (
+            _resolve_assistant_id(_state(), "chat_1") == "assistant_from_debug_info"
+        )
+
+    @patch("unique_sdk.Message.list")
+    def test_falls_back_to_debug_info_on_user_message(
+        self,
+        mock_list: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Observed on the QA public gateway: ASSISTANT messages have
+        ``debugInfo.assistant == None`` while USER messages carry the
+        populated ``debugInfo.assistant.id``. Since the chat is bound to a
+        single assistant regardless of message role, the resolver must be
+        willing to read that field from any message.
+        """
+        monkeypatch.delenv("UNIQUE_ASSISTANT_ID", raising=False)
+        mock_list.return_value = [
+            {
+                "role": "USER",
+                "debugInfo": {"assistant": {"id": "assistant_from_user_msg"}},
+            },
+            {"role": "ASSISTANT", "debugInfo": {"assistant": None}},
+        ]
+        assert (
+            _resolve_assistant_id(_state(), "chat_1") == "assistant_from_user_msg"
+        )
+
+
+class TestExtractVisibilityContext:
+    def test_no_metadata(self) -> None:
+        assert _extract_visibility_context({"status": "PENDING"}) is None
+
+    def test_missing_markers(self) -> None:
+        assert _extract_visibility_context({"metadata": {"messageLogId": "x"}}) is None
+
+    def test_with_markers_defaults_collapse(self) -> None:
+        ctx = _extract_visibility_context(_visible_elicitation())
+        assert ctx == ("chat_1", "msg_placeholder", "step_placeholder", "collapse")
+
+    def test_with_markers_delete_mode(self) -> None:
+        ctx = _extract_visibility_context(_visible_elicitation(cleanup_mode="delete"))
+        assert ctx is not None
+        assert ctx[3] == "delete"
+
+    def test_unknown_cleanup_mode_defaults_to_collapse(self) -> None:
+        ctx = _extract_visibility_context(_visible_elicitation(cleanup_mode="garbage"))
+        assert ctx is not None
+        assert ctx[3] == "collapse"
+
+
+@patch("unique_sdk.Message.delete")
+@patch("unique_sdk.Message.modify")
+@patch("unique_sdk.Message.create")
+@patch("unique_sdk.MessageLog.update")
+@patch("unique_sdk.MessageLog.create")
+@patch("unique_sdk.Elicitation.get_elicitation")
+@patch("unique_sdk.Elicitation.create_elicitation")
+class TestVisibleAsk:
+    """``cmd_elicit_ask`` with the UN-19815 visibility workaround."""
+
+    def test_visible_default_creates_placeholder_and_collapses(
+        self,
+        mock_create_elicit: MagicMock,
+        mock_get_elicit: MagicMock,
+        mock_log_create: MagicMock,
+        mock_log_update: MagicMock,
+        mock_msg_create: MagicMock,
+        mock_msg_modify: MagicMock,
+        mock_msg_delete: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("UNIQUE_ASSISTANT_ID", "assistant_1")
+        mock_msg_create.return_value = _placeholder_message()
+        mock_log_create.return_value = _step()
+        mock_create_elicit.return_value = _visible_elicitation()
+        mock_get_elicit.return_value = _visible_elicitation(
+            status="ACCEPTED", response_content={"answer": "yes"}
+        )
+
+        result = cmd_elicit_ask(_state(), message="What?", chat_id="chat_1", timeout=5)
+
+        assert "ACCEPTED" in result
+        # Placeholder created with empty text and no completedAt
+        placeholder_kwargs = mock_msg_create.call_args[1]
+        assert placeholder_kwargs["role"] == "ASSISTANT"
+        assert placeholder_kwargs["text"] is None
+        assert placeholder_kwargs["completedAt"] is None
+        assert placeholder_kwargs["assistantId"] == "assistant_1"
+        # Step created in RUNNING state
+        step_kwargs = mock_log_create.call_args[1]
+        assert step_kwargs["messageId"] == "msg_placeholder"
+        assert step_kwargs["status"] == "RUNNING"
+        # Elicitation carries messageId + metadata.messageLogId + markers
+        elicit_kwargs = mock_create_elicit.call_args[1]
+        assert elicit_kwargs["messageId"] == "msg_placeholder"
+        meta = elicit_kwargs["metadata"]
+        assert meta["messageLogId"] == "step_placeholder"
+        assert meta[META_PLACEHOLDER_MESSAGE_ID] == "msg_placeholder"
+        assert meta[META_PLACEHOLDER_STEP_ID] == "step_placeholder"
+        assert meta[META_PLACEHOLDER_CHAT_ID] == "chat_1"
+        assert meta[META_CLEANUP_MODE] == "collapse"
+        # Cleanup: step completed, message modified (collapse), not deleted
+        assert mock_log_update.call_count == 1
+        log_update_kwargs = mock_log_update.call_args[1]
+        assert log_update_kwargs["status"] == "COMPLETED"
+        assert mock_msg_modify.call_count == 1
+        msg_modify_kwargs = mock_msg_modify.call_args[1]
+        assert msg_modify_kwargs["id"] == "msg_placeholder"
+        assert msg_modify_kwargs["chatId"] == "chat_1"
+        assert msg_modify_kwargs["completedAt"] is not None
+        assert mock_msg_delete.call_count == 0
+
+    def test_no_visible_skips_workaround(
+        self,
+        mock_create_elicit: MagicMock,
+        mock_get_elicit: MagicMock,
+        mock_log_create: MagicMock,
+        mock_log_update: MagicMock,
+        mock_msg_create: MagicMock,
+        mock_msg_modify: MagicMock,
+        mock_msg_delete: MagicMock,
+    ) -> None:
+        mock_create_elicit.return_value = _elicitation()
+        mock_get_elicit.return_value = _elicitation(
+            status="RESPONDED", response_content={"answer": "yes"}
+        )
+
+        result = cmd_elicit_ask(
+            _state(),
+            message="What?",
+            chat_id="chat_1",
+            timeout=5,
+            visible=False,
+        )
+
+        assert "RESPONDED" in result
+        assert mock_msg_create.call_count == 0
+        assert mock_log_create.call_count == 0
+        assert mock_msg_modify.call_count == 0
+        assert mock_msg_delete.call_count == 0
+        # Elicitation should not carry visibility markers
+        elicit_kwargs = mock_create_elicit.call_args[1]
+        assert "messageId" not in elicit_kwargs
+        assert elicit_kwargs.get("metadata") is None
+
+    def test_without_chat_id_skips_workaround(
+        self,
+        mock_create_elicit: MagicMock,
+        mock_get_elicit: MagicMock,
+        mock_log_create: MagicMock,
+        mock_log_update: MagicMock,
+        mock_msg_create: MagicMock,
+        mock_msg_modify: MagicMock,
+        mock_msg_delete: MagicMock,
+    ) -> None:
+        mock_create_elicit.return_value = _elicitation()
+        mock_get_elicit.return_value = _elicitation(
+            status="RESPONDED", response_content={"answer": "yes"}
+        )
+
+        result = cmd_elicit_ask(_state(), message="What?", timeout=5)
+
+        assert "RESPONDED" in result
+        assert mock_msg_create.call_count == 0
+
+    def test_explicit_message_id_skips_workaround(
+        self,
+        mock_create_elicit: MagicMock,
+        mock_get_elicit: MagicMock,
+        mock_log_create: MagicMock,
+        mock_log_update: MagicMock,
+        mock_msg_create: MagicMock,
+        mock_msg_modify: MagicMock,
+        mock_msg_delete: MagicMock,
+    ) -> None:
+        """When caller already supplies --message-id we trust them."""
+        mock_create_elicit.return_value = _elicitation()
+        mock_get_elicit.return_value = _elicitation(
+            status="RESPONDED", response_content={"answer": "yes"}
+        )
+
+        cmd_elicit_ask(
+            _state(),
+            message="What?",
+            chat_id="chat_1",
+            message_id="existing_msg",
+            timeout=5,
+        )
+
+        assert mock_msg_create.call_count == 0
+        elicit_kwargs = mock_create_elicit.call_args[1]
+        assert elicit_kwargs["messageId"] == "existing_msg"
+
+    def test_no_assistant_id_returns_error(
+        self,
+        mock_create_elicit: MagicMock,
+        mock_get_elicit: MagicMock,
+        mock_log_create: MagicMock,
+        mock_log_update: MagicMock,
+        mock_msg_create: MagicMock,
+        mock_msg_modify: MagicMock,
+        mock_msg_delete: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.delenv("UNIQUE_ASSISTANT_ID", raising=False)
+        with patch("unique_sdk.Message.list", return_value=[]):
+            result = cmd_elicit_ask(
+                _state(), message="What?", chat_id="chat_1", timeout=5
+            )
+        assert "cannot ask a visible question without an assistant id" in result
+        assert mock_msg_create.call_count == 0
+        assert mock_create_elicit.call_count == 0
+
+    def test_cleanup_mode_delete(
+        self,
+        mock_create_elicit: MagicMock,
+        mock_get_elicit: MagicMock,
+        mock_log_create: MagicMock,
+        mock_log_update: MagicMock,
+        mock_msg_create: MagicMock,
+        mock_msg_modify: MagicMock,
+        mock_msg_delete: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("UNIQUE_ASSISTANT_ID", "assistant_1")
+        mock_msg_create.return_value = _placeholder_message()
+        mock_log_create.return_value = _step()
+        mock_create_elicit.return_value = _visible_elicitation(cleanup_mode="delete")
+        mock_get_elicit.return_value = _visible_elicitation(
+            status="ACCEPTED", cleanup_mode="delete"
+        )
+
+        cmd_elicit_ask(
+            _state(),
+            message="Delete me",
+            chat_id="chat_1",
+            cleanup_mode="delete",
+            timeout=5,
+        )
+
+        assert mock_msg_delete.call_count == 1
+        assert mock_msg_delete.call_args[1]["chatId"] == "chat_1"
+        assert mock_msg_modify.call_count == 0
+
+    def test_cleanup_on_elicitation_create_failure(
+        self,
+        mock_create_elicit: MagicMock,
+        mock_get_elicit: MagicMock,
+        mock_log_create: MagicMock,
+        mock_log_update: MagicMock,
+        mock_msg_create: MagicMock,
+        mock_msg_modify: MagicMock,
+        mock_msg_delete: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("UNIQUE_ASSISTANT_ID", "assistant_1")
+        mock_msg_create.return_value = _placeholder_message()
+        mock_log_create.return_value = _step()
+        mock_create_elicit.side_effect = unique_sdk.APIError("boom")
+
+        result = cmd_elicit_ask(_state(), message="What?", chat_id="chat_1", timeout=5)
+
+        assert "elicit:" in result
+        # Placeholder was torn down even though elicit creation failed
+        assert mock_log_update.call_count == 1
+        assert mock_msg_modify.call_count == 1
+
+    def test_cleanup_on_wait_timeout(
+        self,
+        mock_create_elicit: MagicMock,
+        mock_get_elicit: MagicMock,
+        mock_log_create: MagicMock,
+        mock_log_update: MagicMock,
+        mock_msg_create: MagicMock,
+        mock_msg_modify: MagicMock,
+        mock_msg_delete: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("UNIQUE_ASSISTANT_ID", "assistant_1")
+        mock_msg_create.return_value = _placeholder_message()
+        mock_log_create.return_value = _step()
+        mock_create_elicit.return_value = _visible_elicitation()
+        mock_get_elicit.return_value = _visible_elicitation(status="PENDING")
+
+        with (
+            patch(
+                "unique_sdk.cli.commands.elicitation.time.monotonic",
+                side_effect=[0.0, 100.0, 200.0],
+            ),
+            patch("unique_sdk.cli.commands.elicitation.time.sleep"),
+        ):
+            result = cmd_elicit_ask(
+                _state(), message="What?", chat_id="chat_1", timeout=10
+            )
+
+        assert "timed out" in result
+        assert mock_msg_modify.call_count == 1
+
+
+class TestVisibleCreate:
+    @patch("unique_sdk.MessageLog.create")
+    @patch("unique_sdk.Message.create")
+    @patch("unique_sdk.Elicitation.create_elicitation")
+    def test_embeds_markers_and_prints_note(
+        self,
+        mock_elicit_create: MagicMock,
+        mock_msg_create: MagicMock,
+        mock_log_create: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("UNIQUE_ASSISTANT_ID", "assistant_1")
+        mock_msg_create.return_value = _placeholder_message()
+        mock_log_create.return_value = _step()
+        mock_elicit_create.return_value = _visible_elicitation()
+
+        result = cmd_elicit_create(
+            _state(),
+            mode="FORM",
+            message="Pick",
+            tool_name="pick",
+            schema='{"type":"object"}',
+            chat_id="chat_1",
+        )
+
+        assert "Created elicitation elicit_abc" in result
+        assert "placeholder assistant message was created" in result
+        kwargs = mock_elicit_create.call_args[1]
+        assert kwargs["messageId"] == "msg_placeholder"
+        assert kwargs["metadata"][META_PLACEHOLDER_MESSAGE_ID] == "msg_placeholder"
+
+
+class TestVisibleWaitCleanup:
+    @patch("unique_sdk.Message.modify")
+    @patch("unique_sdk.MessageLog.update")
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    def test_wait_cleans_up_on_terminal(
+        self,
+        mock_get: MagicMock,
+        mock_log_update: MagicMock,
+        mock_msg_modify: MagicMock,
+    ) -> None:
+        mock_get.return_value = _visible_elicitation(
+            status="REJECTED",
+        )
+        result = cmd_elicit_wait(_state(), "elicit_abc", timeout=5)
+        assert "REJECTED" in result
+        assert mock_log_update.call_count == 1
+        assert mock_msg_modify.call_count == 1
+        # Uses the "other" (non-accepted) collapse text
+        assert mock_msg_modify.call_args[1]["text"] == "Clarifying question closed."
+
+    @patch("unique_sdk.Message.modify")
+    @patch("unique_sdk.MessageLog.update")
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    def test_wait_cleanup_silent_on_failure(
+        self,
+        mock_get: MagicMock,
+        mock_log_update: MagicMock,
+        mock_msg_modify: MagicMock,
+    ) -> None:
+        """Cleanup errors must not mask the successful response."""
+        mock_get.return_value = _visible_elicitation(status="ACCEPTED")
+        mock_log_update.side_effect = unique_sdk.APIError("log boom")
+        mock_msg_modify.side_effect = unique_sdk.APIError("modify boom")
+
+        result = cmd_elicit_wait(_state(), "elicit_abc", timeout=5)
+        assert "ACCEPTED" in result
+
+
+class TestVisibleRespondCleanup:
+    @patch("unique_sdk.Message.modify")
+    @patch("unique_sdk.MessageLog.update")
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    @patch("unique_sdk.Elicitation.respond_to_elicitation")
+    def test_respond_tears_down_placeholder(
+        self,
+        mock_respond: MagicMock,
+        mock_get: MagicMock,
+        mock_log_update: MagicMock,
+        mock_msg_modify: MagicMock,
+    ) -> None:
+        mock_respond.return_value = {"success": True}
+        mock_get.return_value = _visible_elicitation(status="ACCEPTED")
+
+        result = cmd_elicit_respond(
+            _state(),
+            "elicit_abc",
+            action="ACCEPT",
+            content='{"answer": "yes"}',
+        )
+
+        assert "OK" in result
+        assert mock_log_update.call_count == 1
+        assert mock_msg_modify.call_count == 1
+        modify_kwargs = mock_msg_modify.call_args[1]
+        assert modify_kwargs["text"] == "Clarifying question answered."
+        # Regression: `completedAt` must be an ISO-8601 string, not a raw
+        # datetime — the wire serializer (``json.dumps``) can't encode
+        # datetime and the backend rejected such bodies silently, leaving
+        # the placeholder visually "running" in the chat UI.
+        completed_at = modify_kwargs["completedAt"]
+        assert isinstance(completed_at, str)
+        assert completed_at.endswith("Z")
+
+    @patch("unique_sdk.Message.modify")
+    @patch("unique_sdk.MessageLog.update")
+    @patch("unique_sdk.Elicitation.get_elicitation")
+    @patch("unique_sdk.Elicitation.respond_to_elicitation")
+    def test_respond_no_cleanup_when_no_markers(
+        self,
+        mock_respond: MagicMock,
+        mock_get: MagicMock,
+        mock_log_update: MagicMock,
+        mock_msg_modify: MagicMock,
+    ) -> None:
+        mock_respond.return_value = {"success": True}
+        mock_get.return_value = _elicitation()  # no visibility metadata
+
+        cmd_elicit_respond(
+            _state(),
+            "elicit_abc",
+            action="ACCEPT",
+            content='{"answer": "yes"}',
+        )
+        assert mock_log_update.call_count == 0
+        assert mock_msg_modify.call_count == 0
 
 
 # --- Formatters ---------------------------------------------------------
