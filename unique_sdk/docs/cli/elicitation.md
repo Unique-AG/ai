@@ -56,6 +56,22 @@ elicit ask <message> [options]
 | `--timeout` | | `300` | Max seconds to block locally while polling. |
 | `--poll-interval` | | `2.0` | Seconds between polls. |
 | `--metadata` | | none | `key=value` metadata (repeatable). |
+| `--visible` / `--no-visible` | | `--visible` | Wrap the elicitation in a synthetic "thinking" timeline so the chat UI renders it (UN-19815 workaround). |
+| `--assistant-id` | | `$UNIQUE_ASSISTANT_ID`, else latest assistant in chat | Assistant id for the visibility placeholder. |
+| `--placeholder-text` | | `Waiting for your answer…` | Text on the placeholder thinking step. |
+| `--cleanup` | | `collapse` | How to tear down the placeholder afterwards (`collapse` \| `delete`). |
+
+!!! note "UN-19815 visibility workaround"
+    As of April 2026, the chat UI only renders an elicitation when its host
+    assistant message is actively in the *thinking timeline* display mode.
+    Elicitations emitted against a chat without a live streaming turn are
+    stored correctly by the backend but are silently invisible in the UI.
+    When you pass `--chat-id`, the CLI now (by default) materialises a
+    short-lived placeholder assistant message and running step so the UI
+    has somewhere to render the card; the placeholder is collapsed or
+    deleted automatically when the user responds. Pass `--no-visible` to
+    opt out once the permanent UI fix (ticket UN-19815) has landed in your
+    environment.
 
 **Default schema (when `--schema` is omitted):**
 
