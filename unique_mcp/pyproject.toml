@@ -1,6 +1,6 @@
 [project]
 name = "unique-mcp"
-version = "0.3.2"
+version = "0.3.3"
 description = "Add your description here"
 readme = "README.md"
 authors = [
@@ -13,7 +13,7 @@ dependencies = [
     "platformdirs>=4.0.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.0.0",
-    "unique-toolkit>=1.65.2",
+    "unique-toolkit>=1.78.1",
 ]
 
 [build-system]

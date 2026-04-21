@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-04-21
+
+### Added
+- Add `MetaKeys` StrEnum with namespaced `unique.app/auth/*`, `unique.app/chat/*`, and `unique.app/search/*` keys for typed access to MCP `_meta` fields
+- Add `META_FLAT_ALIASES` mapping from legacy camelCase flat keys to namespaced keys for backward compatibility (gated by `enable_mcp_metadata_fallback_un_19145` FF)
+- Add `ContextRequirements` pydantic model and `merge_tool_meta` helper for tools to declare which context keys they require via `unique.app/context-requirements`
+- Add `get_request_meta` injector to expose raw `_meta` dict to MCP tool handlers
+- Refactor `get_unique_settings` to compose `AuthContext` and `ChatContext` from `_meta` using `MetaKeys`, with FF-gated flat alias fallback for pre-migration clients
+- Export `MetaKeys`, `META_FLAT_ALIASES`, `ContextRequirements`, `CONTEXT_REQUIREMENTS_META_KEY`, `merge_tool_meta`, `get_request_meta` from package root
+
 ## [0.3.2] - 2026-04-20
 - Add `[tool.uv.exclude-newer-package]` entry exempting `unique-toolkit` from the root workspace `exclude-newer` cutoff so recent workspace releases resolve correctly under `UV_NO_SOURCES=1`
 

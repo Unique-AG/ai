@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from functools import lru_cache
+from typing import Any
 
 import httpx
 
@@ -17,25 +19,27 @@ except ImportError:
 
 
 from pydantic import BaseModel, SecretStr
+from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
 from unique_toolkit.app.unique_settings import (
     AuthContext,
+    ChatContext,
     UniqueSettings,
 )
 from unique_toolkit.services.factory import UniqueServiceFactory
 
 from unique_mcp.auth.zitadel.oauth_proxy import ZitadelOAuthProxySettings
+from unique_mcp.meta_keys import META_FLAT_ALIASES, MetaKeys
 
 _LOGGER = logging.getLogger(__name__)
 
 _CLAIM_USER_ID = "sub"
 _CLAIM_COMPANY_ID = "urn:zitadel:iam:user:resourceowner:id"
-_META_USER_ID = "unique.app/user-id"
-_META_COMPANY_ID = "unique.app/company-id"
+_MCP_CHAT_CONTEXT_SENTINEL = "mcp-unknown"
 _HTTP_CLIENT = httpx.AsyncClient(timeout=10.0)
 
 
-def _fastmcp_context_to_auth_context() -> AuthContext | None:
-    """Read ``_meta`` from the active FastMCP request, if available."""
+def _read_meta_dict() -> dict[str, Any] | None:
+    """Return the raw ``_meta`` dict of the active FastMCP request, if any."""
     try:
         ctx = get_context()
     except (RuntimeError, LookupError):
@@ -47,14 +51,68 @@ def _fastmcp_context_to_auth_context() -> AuthContext | None:
     rc = ctx.request_context
     if rc is None or rc.meta is None:
         return None
-    meta = dict(rc.meta) or None
-    if meta:
-        uid = meta.get(_META_USER_ID, None)
-        cid = meta.get(_META_COMPANY_ID, None)
-        if uid and isinstance(uid, str) and cid and isinstance(cid, str):
-            _LOGGER.debug("Auth from _meta (user=%s)", uid)
-            return AuthContext(user_id=SecretStr(uid), company_id=SecretStr(cid))
+    meta = dict(rc.meta)
+    return meta or None
+
+
+def _pick_meta(meta: Mapping[str, Any], canonical_key: str) -> str | None:
+    """Look up ``canonical_key`` in ``meta``, with optional flat-camelCase fallback.
+
+    The canonical (namespaced) key is always consulted first. The flat
+    camelCase alias from :data:`META_FLAT_ALIASES` is only tried when the
+    ``enable_mcp_metadata_fallback_un_19145`` feature flag is enabled AND
+    the canonical key is absent. Non-string values are ignored.
+    """
+    value = meta.get(canonical_key)
+    if isinstance(value, str) and value:
+        return value
+
+    if feature_flags.enable_mcp_metadata_fallback_un_19145.is_enabled():
+        flat_alias = META_FLAT_ALIASES.get(canonical_key)
+        if flat_alias is not None:
+            fallback = meta.get(flat_alias)
+            if isinstance(fallback, str) and fallback:
+                return fallback
+
     return None
+
+
+def _auth_from_meta(meta: Mapping[str, Any]) -> AuthContext | None:
+    """Build an :class:`AuthContext` from request ``_meta`` when possible."""
+    uid = _pick_meta(meta, MetaKeys.USER_ID)
+    cid = _pick_meta(meta, MetaKeys.COMPANY_ID)
+    if uid and cid:
+        _LOGGER.debug("Auth from _meta (user=%s)", uid)
+        return AuthContext(user_id=SecretStr(uid), company_id=SecretStr(cid))
+    return None
+
+
+def _chat_from_meta(meta: Mapping[str, Any]) -> ChatContext | None:
+    """Build a :class:`ChatContext` from request ``_meta``.
+
+    Returns ``None`` when no ``chat-id`` is present; otherwise fills the
+    mandatory ``assistant_id`` and other chat-message-scope fields from
+    ``_meta``, falling back to the MCP sentinel when the host did not
+    forward them.
+    """
+    chat_id = _pick_meta(meta, MetaKeys.CHAT_ID)
+    if not chat_id:
+        return None
+
+    assistant_id = _pick_meta(meta, MetaKeys.ASSISTANT_ID) or _MCP_CHAT_CONTEXT_SENTINEL
+    last_user_message_id = _pick_meta(meta, MetaKeys.USER_MESSAGE_ID)
+    last_assistant_message_id = _pick_meta(meta, MetaKeys.LAST_ASSISTANT_MESSAGE_ID)
+    last_user_message_text = _pick_meta(meta, MetaKeys.LAST_USER_MESSAGE_TEXT)
+    parent_chat_id = _pick_meta(meta, MetaKeys.PARENT_CHAT_ID)
+
+    return ChatContext(
+        chat_id=chat_id,
+        assistant_id=assistant_id,
+        last_assistant_message_id=last_assistant_message_id,
+        last_user_message_id=last_user_message_id,
+        last_user_message_text=last_user_message_text,
+        parent_chat_id=parent_chat_id,
+    )
 
 
 def _fastmcp_access_token_to_auth_context() -> AuthContext | None:
@@ -119,18 +177,39 @@ def _base_settings() -> UniqueSettings:
     return UniqueSettings.from_env_auto_with_sdk_init()
 
 
+def get_request_meta() -> dict[str, Any] | None:
+    """Return the raw ``_meta`` dict of the active FastMCP request, if any.
+
+    Public injector, typically used via ``Depends(get_request_meta)`` by
+    tools that need access to request-scope keys that are not covered by
+    :class:`~unique_toolkit.app.unique_settings.AuthContext` or
+    :class:`~unique_toolkit.app.unique_settings.ChatContext` (for example
+    search scoping fields like ``unique.app/search/content-ids``).
+    """
+    return _read_meta_dict()
+
+
 def get_unique_settings() -> UniqueSettings:
     settings = _base_settings()
 
-    # 1. _meta of the request has highest priority
-    if auth_context := _fastmcp_context_to_auth_context():
-        return settings.with_auth(auth_context)
+    meta = _read_meta_dict()
 
-    # 2. JWT claims of IDP have second highest priority
+    if meta is not None:
+        auth_context = _auth_from_meta(meta)
+        chat_context = _chat_from_meta(meta)
+        if auth_context is not None:
+            settings = settings.with_auth(auth_context)
+        if chat_context is not None:
+            settings = settings.with_chat(chat_context)
+        if auth_context is not None:
+            return settings
+
+    # When `_meta` carries chat keys but no auth keys, we may have applied
+    # `with_chat` above and still need JWT/env auth here. `with_auth` keeps
+    # the already-bound chat context (see `UniqueSettings.with_auth`).
     if auth_context := _fastmcp_access_token_to_auth_context():
         return settings.with_auth(auth_context)
 
-    # 3. Use auth from env variables
     return settings
 
 

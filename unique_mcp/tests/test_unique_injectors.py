@@ -13,12 +13,17 @@ from unique_toolkit.app.unique_settings import (
 )
 
 from unique_mcp.auth.zitadel.oauth_proxy import ZitadelOAuthProxySettings
+from unique_mcp.meta_keys import MetaKeys
 from unique_mcp.unique_injectors import (
     _CLAIM_COMPANY_ID,
     _CLAIM_USER_ID,
     UniqueUserInfo,
+    _auth_from_meta,
     _base_settings,
+    _chat_from_meta,
+    _pick_meta,
     _userinfo_to_auth_context,
+    get_request_meta,
     get_unique_service_factory,
     get_unique_settings,
     get_unique_userinfo,
@@ -114,19 +119,16 @@ def test_get_unique_settings__uses_meta_auth__when_present(
     """
     Purpose: _meta-derived auth overrides env when FastMCP request carries both IDs.
     Why this matters: Internal callers can override identity via MCP _meta.
-    Setup summary: Patch from_env and _fastmcp_context_to_auth_context.
+    Setup summary: Patch _base_settings and _read_meta_dict with auth keys.
     """
     with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
         patch(
-            f"{_MOD}._base_settings",
-            return_value=base_settings,
-        ),
-        patch(
-            f"{_MOD}._fastmcp_context_to_auth_context",
-            return_value=AuthContext(
-                user_id=SecretStr("mu"),
-                company_id=SecretStr("mc"),
-            ),
+            f"{_MOD}._read_meta_dict",
+            return_value={
+                MetaKeys.USER_ID: "mu",
+                MetaKeys.COMPANY_ID: "mc",
+            },
         ),
     ):
         s = get_unique_settings()
@@ -144,11 +146,8 @@ def test_get_unique_settings__uses_jwt_claims__when_meta_absent(
     Setup summary: Meta None, access-token helper returns AuthContext from JWT.
     """
     with (
-        patch(
-            f"{_MOD}._base_settings",
-            return_value=base_settings,
-        ),
-        patch(f"{_MOD}._fastmcp_context_to_auth_context", return_value=None),
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(f"{_MOD}._read_meta_dict", return_value=None),
         patch(
             f"{_MOD}._fastmcp_access_token_to_auth_context",
             return_value=AuthContext(
@@ -172,16 +171,13 @@ def test_get_unique_settings__meta_wins_over_jwt(
     Setup summary: Both meta and JWT helpers return auth; expect meta values.
     """
     with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
         patch(
-            f"{_MOD}._base_settings",
-            return_value=base_settings,
-        ),
-        patch(
-            f"{_MOD}._fastmcp_context_to_auth_context",
-            return_value=AuthContext(
-                user_id=SecretStr("meta-u"),
-                company_id=SecretStr("meta-c"),
-            ),
+            f"{_MOD}._read_meta_dict",
+            return_value={
+                MetaKeys.USER_ID: "meta-u",
+                MetaKeys.COMPANY_ID: "meta-c",
+            },
         ),
         patch(
             f"{_MOD}._fastmcp_access_token_to_auth_context",
@@ -197,34 +193,6 @@ def test_get_unique_settings__meta_wins_over_jwt(
 
 
 @pytest.mark.ai
-def test_get_unique_settings__uses_jwt_when_meta_partial_or_absent(
-    base_settings: UniqueSettings,
-) -> None:
-    """
-    Purpose: When _meta does not yield both IDs, JWT claims are used if complete.
-    Why this matters: Partial _meta must not block a valid OAuth JWT.
-    Setup summary: Meta None; JWT helper returns full claims.
-    """
-    with (
-        patch(
-            f"{_MOD}._base_settings",
-            return_value=base_settings,
-        ),
-        patch(f"{_MOD}._fastmcp_context_to_auth_context", return_value=None),
-        patch(
-            f"{_MOD}._fastmcp_access_token_to_auth_context",
-            return_value=AuthContext(
-                user_id=SecretStr("jwt-u"),
-                company_id=SecretStr("jwt-c"),
-            ),
-        ),
-    ):
-        s = get_unique_settings()
-    assert s.authcontext.get_confidential_user_id() == "jwt-u"
-    assert s.authcontext.get_confidential_company_id() == "jwt-c"
-
-
-@pytest.mark.ai
 def test_get_unique_settings__falls_back_to_env__when_no_meta_no_jwt(
     base_settings: UniqueSettings,
 ) -> None:
@@ -234,37 +202,13 @@ def test_get_unique_settings__falls_back_to_env__when_no_meta_no_jwt(
     Setup summary: Both resolution helpers return None; expect base_settings auth.
     """
     with (
-        patch(
-            f"{_MOD}._base_settings",
-            return_value=base_settings,
-        ),
-        patch(f"{_MOD}._fastmcp_context_to_auth_context", return_value=None),
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(f"{_MOD}._read_meta_dict", return_value=None),
         patch(f"{_MOD}._fastmcp_access_token_to_auth_context", return_value=None),
     ):
         s = get_unique_settings()
     assert s.authcontext.get_confidential_user_id() == "dummy_user"
     assert s.authcontext.get_confidential_company_id() == "dummy_company"
-
-
-@pytest.mark.ai
-def test_get_unique_settings__jwt_incomplete_falls_back_to_env(
-    base_settings: UniqueSettings,
-) -> None:
-    """
-    Purpose: Incomplete JWT (missing company claim) does not apply; env auth remains.
-    Why this matters: get_unique_settings does not call userinfo; partial JWT → env.
-    Setup summary: JWT helper returns None (simulating incomplete claims).
-    """
-    with (
-        patch(
-            f"{_MOD}._base_settings",
-            return_value=base_settings,
-        ),
-        patch(f"{_MOD}._fastmcp_context_to_auth_context", return_value=None),
-        patch(f"{_MOD}._fastmcp_access_token_to_auth_context", return_value=None),
-    ):
-        s = get_unique_settings()
-    assert s.authcontext.get_confidential_user_id() == "dummy_user"
 
 
 @pytest.mark.ai
@@ -277,11 +221,8 @@ def test_get_unique_settings__reuses_app_and_api_from_base(
     Setup summary: Patch JWT path; compare app/api identity to base_settings.
     """
     with (
-        patch(
-            f"{_MOD}._base_settings",
-            return_value=base_settings,
-        ),
-        patch(f"{_MOD}._fastmcp_context_to_auth_context", return_value=None),
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(f"{_MOD}._read_meta_dict", return_value=None),
         patch(
             f"{_MOD}._fastmcp_access_token_to_auth_context",
             return_value=AuthContext(
@@ -293,6 +234,111 @@ def test_get_unique_settings__reuses_app_and_api_from_base(
         s = get_unique_settings()
     assert s.app is base_settings.app
     assert s.api is base_settings.api
+
+
+@pytest.mark.ai
+def test_get_unique_settings__binds_chat_context_when_chat_id_present(
+    base_settings: UniqueSettings,
+) -> None:
+    """Purpose: `_meta` carrying chat-id produces settings bound with chat context."""
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(
+            f"{_MOD}._read_meta_dict",
+            return_value={
+                MetaKeys.USER_ID: "u",
+                MetaKeys.COMPANY_ID: "c",
+                MetaKeys.CHAT_ID: "chat-1",
+                MetaKeys.USER_MESSAGE_ID: "um-1",
+            },
+        ),
+    ):
+        s = get_unique_settings()
+
+    assert s.context.chat is not None
+    assert s.context.chat.chat_id == "chat-1"
+
+
+@pytest.mark.ai
+def test_get_unique_settings__meta_chat_only_then_jwt_auth_preserves_chat(
+    base_settings: UniqueSettings,
+) -> None:
+    """Chat from `_meta` without auth must survive a subsequent JWT `with_auth`."""
+    with (
+        patch(f"{_MOD}._base_settings", return_value=base_settings),
+        patch(
+            f"{_MOD}._read_meta_dict",
+            return_value={MetaKeys.CHAT_ID: "chat-1"},
+        ),
+        patch(
+            f"{_MOD}._fastmcp_access_token_to_auth_context",
+            return_value=AuthContext(
+                user_id=SecretStr("jwt-u"),
+                company_id=SecretStr("jwt-c"),
+            ),
+        ),
+    ):
+        s = get_unique_settings()
+
+    assert s.authcontext.get_confidential_user_id() == "jwt-u"
+    assert s.context.chat is not None
+    assert s.context.chat.chat_id == "chat-1"
+
+
+@pytest.mark.ai
+def test_get_request_meta__returns_raw_meta_dict() -> None:
+    """`get_request_meta` is a thin public wrapper over `_read_meta_dict`."""
+    raw = {MetaKeys.CONTENT_IDS: ["c1"]}
+    with patch(f"{_MOD}._read_meta_dict", return_value=raw):
+        assert get_request_meta() == raw
+
+
+@pytest.mark.ai
+def test_pick_meta__prefers_namespaced_over_flat() -> None:
+    """Canonical keys always win over flat aliases."""
+    meta = {MetaKeys.USER_ID: "new", "userId": "old"}
+    assert _pick_meta(meta, MetaKeys.USER_ID) == "new"
+
+
+@pytest.mark.ai
+def test_pick_meta__falls_back_to_flat_when_ff_enabled() -> None:
+    """Flat alias is honoured when the canonical key is absent."""
+    meta = {"userId": "old"}
+    with patch(
+        f"{_MOD}.feature_flags.enable_mcp_metadata_fallback_un_19145.is_enabled",
+        return_value=True,
+    ):
+        assert _pick_meta(meta, MetaKeys.USER_ID) == "old"
+
+
+@pytest.mark.ai
+def test_pick_meta__ignores_flat_when_ff_disabled() -> None:
+    """Flat alias is ignored when the fallback feature flag is off."""
+    meta = {"userId": "old"}
+    with patch(
+        f"{_MOD}.feature_flags.enable_mcp_metadata_fallback_un_19145.is_enabled",
+        return_value=False,
+    ):
+        assert _pick_meta(meta, MetaKeys.USER_ID) is None
+
+
+@pytest.mark.ai
+def test_auth_from_meta__returns_none_when_only_one_id_present() -> None:
+    """Partial auth (user but no company) must not yield an AuthContext."""
+    assert _auth_from_meta({MetaKeys.USER_ID: "u"}) is None
+
+
+@pytest.mark.ai
+def test_chat_from_meta__returns_none_without_chat_id() -> None:
+    assert _chat_from_meta({}) is None
+
+
+@pytest.mark.ai
+def test_chat_from_meta__fills_sentinel_for_missing_assistant_id() -> None:
+    chat = _chat_from_meta({MetaKeys.CHAT_ID: "chat-1"})
+    assert chat is not None
+    assert chat.chat_id == "chat-1"
+    assert chat.assistant_id == "mcp-unknown"
 
 
 @pytest.mark.ai
