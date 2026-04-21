@@ -67,9 +67,9 @@ class MCP(APIResource["MCP"]):
     # defensively (e.g. via ``getattr(..., default)``) to stay compatible with
     # lean server responses.
     content: list[CallToolContentDto]
-    isError: NotRequired[bool]
-    mcpServerId: NotRequired[str]
-    name: NotRequired[str]
+    isError: bool | None
+    mcpServerId: str | None
+    name: str | None
 
     @classmethod
     def call_tool(
