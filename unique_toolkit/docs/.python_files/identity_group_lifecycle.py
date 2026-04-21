@@ -33,10 +33,10 @@ from unique_toolkit.experimental import Identity
 identity = Identity.from_settings()
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/identity/identity_service.md#identity_group_lifecycle>>[init]
-group = identity.create_group(name="release-managers")
+group = identity.groups.create(name="release-managers")
 
-renamed = identity.rename_group(group.id, new_name="release-captains")
+renamed = identity.groups.rename(group.id, new_name="release-captains")
 
-identity.delete_group(renamed.id)
+identity.groups.delete(renamed.id)
 # ~/~ end
 # ~/~ end

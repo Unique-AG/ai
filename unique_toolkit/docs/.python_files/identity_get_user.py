@@ -33,6 +33,6 @@ from unique_toolkit.experimental import Identity
 identity = Identity.from_settings()
 # ~/~ end
 target_email = "ada@example.com"
-user = identity.get_user(email=target_email)
+user = identity.users.get(email=target_email)
 print(user.id, user.display_name)
 # ~/~ end

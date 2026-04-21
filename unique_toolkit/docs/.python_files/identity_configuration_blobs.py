@@ -33,12 +33,12 @@ from unique_toolkit.experimental import Identity
 identity = Identity.from_settings()
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/identity/identity_service.md#identity_configuration_blobs>>[init]
-me = identity.update_user_configuration(
+me = identity.users.update_configuration(
     configuration={"theme": "dark", "sidebar": "collapsed"},
 )
 print(me.user_configuration)
 
-updated_group = identity.update_group_configuration(
+updated_group = identity.groups.update_configuration(
     "g-eng",
     configuration={"default_assistant": "engineering-helper"},
 )

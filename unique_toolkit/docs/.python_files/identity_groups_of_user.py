@@ -33,11 +33,11 @@ from unique_toolkit.experimental import Identity
 identity = Identity.from_settings()
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/identity/identity_service.md#identity_groups_of_user>>[init]
-memberships = identity.groups_of(email="ada@example.com")
+memberships = identity.users.groups_of(email="ada@example.com")
 for m in memberships:
     print(m.id, m.name)
 
-user = identity.get_user(email="ada@example.com")
-is_eng = identity.is_member(user_id=user.id, group_id="g-eng")
+user = identity.users.get(email="ada@example.com")
+is_eng = identity.users.is_member(user_id=user.id, group_id="g-eng")
 # ~/~ end
 # ~/~ end
