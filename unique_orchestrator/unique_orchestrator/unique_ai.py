@@ -423,6 +423,12 @@ class UniqueAI:
             self._config.agent.prompt_config.user_message_prompt_template
         )
 
+        tool_descriptions_with_user_prompts = [
+            prompts.tool_user_prompt
+            for prompts in self._tool_manager.get_tool_prompts()
+        ]
+
+
         used_tools = [t.name for t in self._history_manager.get_tool_calls()]
         sub_agent_calls = self._tool_manager.filter_tool_calls(
             self._history_manager.get_tool_calls(), ["subagent"]
@@ -454,6 +460,7 @@ class UniqueAI:
             tool_descriptions=tool_descriptions,
             used_tools=used_tools,
             mcp_server_user_prompts=list(mcp_server_user_prompts),
+            tool_descriptions_with_user_prompts=tool_descriptions_with_user_prompts,
             use_sub_agent_references=use_sub_agent_references,
             sub_agent_referencing_instructions=sub_agent_referencing_instructions,
             user_metadata=user_metadata,
