@@ -764,6 +764,9 @@
   "file=docs/.python_files/kb_mirror_local_folder_skip_ingest.py": [
     "docs/modules/examples/content/kb_service.md"
   ],
+  "file=docs/.python_files/kb_tree_visible.py": [
+    "docs/modules/examples/experimental/content_tree.md"
+  ],
   "file=docs/.python_files/langchain_simple_invoke.py": [
     "docs/plattforms/langchain/langchain.md"
   ],

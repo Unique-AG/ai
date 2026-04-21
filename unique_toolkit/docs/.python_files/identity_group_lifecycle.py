@@ -6,7 +6,7 @@ from unique_toolkit.app.init_sdk import init_unique_sdk
 from unique_toolkit.app.dev_util import get_event_generator
 from unique_toolkit.app.schemas import ChatEvent 
 from unique_toolkit import ChatService, ContentService, EmbeddingService, LanguageModelService, LanguageModelName, KnowledgeBaseService
-from unique_toolkit.experimental import Identity
+from unique_toolkit.experimental.identity import Identity
 from unique_toolkit.chat.schemas import ChatMessageAssessmentStatus, ChatMessageAssessmentType, ChatMessageAssessmentLabel
 import os
 import io
@@ -29,7 +29,7 @@ from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
 from unique_toolkit.chat.rendering import create_prompt_button_string, create_latex_formula_string
 # ~/~ end
-from unique_toolkit.experimental import Identity
+from unique_toolkit.experimental.identity import Identity
 identity = Identity.from_settings()
 # ~/~ end
 # ~/~ begin <<docs/modules/examples/identity/identity_service.md#identity_group_lifecycle>>[init]

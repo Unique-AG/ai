@@ -1,5 +1,5 @@
 # %%
-from unique_toolkit.experimental import Identity
+from unique_toolkit.experimental.identity import Identity
 
 identity = Identity.from_settings()
 users = identity.users.list(take=10)
