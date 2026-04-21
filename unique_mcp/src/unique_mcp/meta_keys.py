@@ -1,8 +1,8 @@
 """Canonical ``_meta`` key names on the Unique MCP wire.
 
 The monorepo standard (see #22513) namespaces keys under ``unique.app/`` with
-a **scope segment** — ``auth``, ``chat``, ``search`` — so unrelated fields do
-not collide at the top level.
+a **scope segment** — ``auth``, ``chat`` — so unrelated fields do not collide
+at the top level.
 
 Pre-#22513 monorepo builds still emit **flat camelCase** aliases
 (``userId``, ``companyId``, …). Those are tolerated through
@@ -13,6 +13,10 @@ Pre-#22513 monorepo builds still emit **flat camelCase** aliases
 enum value (iteration, reverse lookup via ``MetaKeys("unique.app/auth/user-id")``,
 typed signatures) and a plain ``str`` (dict keys, pydantic ``validation_alias``,
 JSON serialisation).
+
+Tool-specific scoping keys (e.g. ``unique.app/search/*``) are defined in their
+own enum alongside the tool that consumes them — see
+``unique_mcp.internal_search.meta.SearchMetaKeys`` for an example.
 """
 
 from __future__ import annotations
@@ -21,7 +25,11 @@ from enum import StrEnum
 
 
 class MetaKeys(StrEnum):
-    """Canonical namespaced ``_meta`` key names."""
+    """Canonical namespaced ``_meta`` key names for auth and chat context.
+
+    These are infrastructure keys consumed by :func:`get_unique_settings` for
+    every tool.  Tool-specific keys live in their own StrEnum next to the tool.
+    """
 
     # Identity (auth scope)
     USER_ID = "unique.app/auth/user-id"
@@ -34,14 +42,6 @@ class MetaKeys(StrEnum):
     PARENT_CHAT_ID = "unique.app/chat/parent-chat-id"
     LAST_ASSISTANT_MESSAGE_ID = "unique.app/chat/last-assistant-message-id"
     LAST_USER_MESSAGE_TEXT = "unique.app/chat/last-user-message-text"
-
-    # Search scoping
-    CONTENT_IDS = "unique.app/search/content-ids"
-    METADATA_FILTER = "unique.app/search/metadata-filter"
-    SELECTED_UPLOADED_FILE_IDS = "unique.app/search/selected-uploaded-file-ids"
-    LANGUAGE_MODEL_MAX_INPUT_TOKENS = (
-        "unique.app/search/language-model-max-input-tokens"
-    )
 
 
 META_FLAT_ALIASES: dict[str, str] = {
