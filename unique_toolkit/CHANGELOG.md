@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.77.2] - 2026-04-21
+
+### Added
+- Add `UniqueSettings.with_chat(chat_context)` immutable copy method for composing chat context into settings without mutating the original instance
+- Add `enable_mcp_metadata_fallback_un_19145` feature flag for gating backward-compatible flat camelCase `_meta` key parsing in MCP injectors
+
 ## [1.77.1] - 2026-04-20
 - Add `selected_content_ids` filtering to history construction and `OpenFileToolRuntime` so only user-selected uploaded images and files are attached when the `enable_selected_uploaded_files_un_18215` feature flag is active
 - Add `get_selected_uploaded_content_ids` utility in `history_manager/utils.py`
