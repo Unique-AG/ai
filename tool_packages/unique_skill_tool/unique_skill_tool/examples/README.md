@@ -2,13 +2,19 @@
 
 These `.md` files are example skills for the SkillTool. To use them:
 
-1. Create a **scope** in the knowledge base (or use an existing one).
-2. Upload these `.md` files into that scope.
-3. Set `skill_tool_config.scope_id` to the scope's ID in the space configuration.
+1. Create one or more **scopes** in the knowledge base (or use existing ones).
+2. Upload these `.md` files directly into those scopes. Sub-folders are
+   not traversed automatically — add each sub-folder's scope ID to
+   `scope_ids` if you want its skills loaded.
+3. Add every scope ID to `skill_tool_config.scope_ids` in the space
+   configuration (the field accepts a list — click "Add Item" for each).
 4. Set `skill_tool_config.enabled` to `true`.
 
-The SkillTool will automatically discover all `.md` files in the configured scope
-and make them available to the agent.
+The SkillTool fetches all `.md` files from the configured scopes. Only the
+scopes listed in `scope_ids` are queried — sub-folders are not traversed
+automatically, so add each scope you want searched explicitly. Per-user
+folder permissions are enforced by the backend ACL, so users only see
+skills in folders they can access.
 
 ## File format
 

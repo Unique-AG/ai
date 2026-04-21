@@ -29,7 +29,14 @@ from typing import TYPE_CHECKING, Any
 import yaml
 from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
-from unique_toolkit.content.schemas import Content
+from unique_toolkit.content.schemas import Content, ContentInfo
+from unique_toolkit.content.smart_rules import (
+    AndStatement,
+    Operator,
+    OrStatement,
+    Statement,
+)
+from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 if TYPE_CHECKING:
     from unique_toolkit.agentic.tools.tool_manager import (
@@ -42,8 +49,32 @@ if TYPE_CHECKING:
     from unique_orchestrator.config import UniqueAIConfig
 
 
-def _is_markdown(content: Content) -> bool:
+_SUBTREE_PAGE_SIZE = 1000
+
+
+def _is_markdown(content: Content | ContentInfo) -> bool:
     return content.key.lower().endswith(".md")
+
+
+def _build_subtree_metadata_filter(scope_ids: list[str]) -> dict[str, Any]:
+    """Build a UniqueQL filter matching any file under the given scope IDs.
+
+    For each configured scope ID we add a ``folderIdPath CONTAINS
+    uniquepathid://<scope_id>`` predicate, then OR them together. The
+    backend's ACL is then applied to the matching set, so only files
+    the current user can access are returned.
+    """
+    statements: list[Statement | AndStatement | OrStatement] = [
+        Statement(
+            operator=Operator.CONTAINS,
+            value=f"uniquepathid://{scope_id}",
+            path=["folderIdPath"],
+        )
+        for scope_id in scope_ids
+    ]
+    if len(statements) == 1:
+        return statements[0].model_dump(mode="json")
+    return OrStatement(or_list=statements).model_dump(mode="json")
 
 
 def _parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
@@ -72,7 +103,7 @@ def _parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
 
 
 def _build_skill(
-    content: Content,
+    content: Content | ContentInfo,
     file_text: str,
 ) -> SkillDefinition | None:
     """Build a ``SkillDefinition`` from the raw file text of a KB document.
@@ -109,57 +140,71 @@ def _build_skill(
 
 def load_skills_from_knowledge_base(
     content_service: ContentService,
-    scope_id: str,
+    knowledge_base_service: KnowledgeBaseService,
+    scope_ids: list[str],
     logger: Logger,
 ) -> dict[str, SkillDefinition]:
-    """Load all ``.md`` files from *scope_id* and return them as a skill registry.
+    """Load all ``.md`` files from *scope_ids* (recursively) as a skill registry.
 
-    For each markdown document found in the scope, the raw file is
-    downloaded via ``download_content_to_bytes`` and parsed for YAML
-    frontmatter + body content.
+    A single UniqueQL query is issued with a metadata filter that OR's
+    ``folderIdPath CONTAINS uniquepathid://<scope_id>`` for every
+    configured scope. This matches any file whose folder path contains
+    the configured scope at any depth, so:
+
+    * Each configured scope ID acts as a subtree root — all files inside
+      it and any of its descendants are considered.
+    * The backend's ACL is applied to the matching set, so only files
+      the current user can access are returned.
+    * To expose skills to users who only have access to specific
+      sub-folders, configure those sub-folder scope IDs directly.
     """
+    if not scope_ids:
+        logger.info("SkillTool has no scope_ids configured.")
+        return {}
+
+    metadata_filter = _build_subtree_metadata_filter(scope_ids)
+
     try:
-        contents = content_service.search_contents(
-            where={
-                "ownerId": {"equals": scope_id},
-            },
+        paginated = knowledge_base_service.get_paginated_content_infos(
+            metadata_filter=metadata_filter,
+            take=_SUBTREE_PAGE_SIZE,
         )
     except Exception:
         logger.warning(
-            "Failed to list contents in scope_id=%s — "
+            "Failed to list contents for scope_ids=%s — "
             "SkillTool will have an empty registry.",
-            scope_id,
+            scope_ids,
             exc_info=True,
         )
         return {}
 
-    md_contents = [c for c in contents if _is_markdown(c)]
-    if not md_contents:
-        logger.info("No .md files found in scope_id=%s.", scope_id)
+    md_infos = [ci for ci in paginated.content_infos if _is_markdown(ci)]
+    if not md_infos:
+        logger.info("No .md files found for scope_ids=%s.", scope_ids)
         return {}
 
     registry: dict[str, SkillDefinition] = {}
-    for content in md_contents:
+    for info in md_infos:
         try:
             raw_bytes = content_service.download_content_to_bytes(
-                content_id=content.id,
+                content_id=info.id,
             )
             file_text = raw_bytes.decode("utf-8")
         except Exception:
             logger.warning(
                 "Failed to download '%s' (%s) — skipping.",
-                content.key,
-                content.id,
+                info.key,
+                info.id,
                 exc_info=True,
             )
             continue
 
-        skill = _build_skill(content, file_text)
+        skill = _build_skill(info, file_text)
         if skill is None:
             logger.debug(
                 "Skipping '%s' (%s): empty file.",
-                content.key,
-                content.id,
+                info.key,
+                info.id,
             )
             continue
 
@@ -173,9 +218,9 @@ def load_skills_from_knowledge_base(
         registry[skill.name] = skill
 
     logger.info(
-        "Loaded %d skill(s) from knowledge base (scope_id=%s).",
+        "Loaded %d skill(s) from knowledge base (scope_ids=%s).",
         len(registry),
-        scope_id,
+        scope_ids,
     )
     return registry
 
@@ -189,22 +234,31 @@ def configure_skill_tool(
 ) -> None:
     """Register the SkillTool if enabled in the config.
 
-    Lists all ``.md`` files in the configured ``scope_id``, downloads
-    each one, and registers the SkillTool with the parsed skills.
+    Lists all ``.md`` files in the configured ``scope_ids`` (and every
+    sub-folder reachable from them), downloads each one, and registers
+    the SkillTool with the parsed skills.
     """
     skill_config = config.agent.experimental.skill_tool_config
     if not skill_config.enabled:
         return
 
-    if not skill_config.scope_id:
+    if not skill_config.scope_ids:
         logger.warning(
-            "SkillTool is enabled but no scope_id is configured — "
+            "SkillTool is enabled but no scope_ids are configured — "
             "no skills will be loaded."
         )
         return
 
+    knowledge_base_service = KnowledgeBaseService(
+        company_id=event.company_id,
+        user_id=event.user_id,
+    )
+
     registry = load_skills_from_knowledge_base(
-        content_service, skill_config.scope_id, logger
+        content_service=content_service,
+        knowledge_base_service=knowledge_base_service,
+        scope_ids=skill_config.scope_ids,
+        logger=logger,
     )
 
     tool_manager.add_tool(

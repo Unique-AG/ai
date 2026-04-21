@@ -97,12 +97,14 @@ class SkillToolConfig(BaseToolConfig):
         description="The description of the 'arguments' parameter.",
     )
 
-    scope_id: str = Field(
-        default="",
+    scope_ids: list[str] = Field(
+        default_factory=list,
+        title="Scope IDs",
         description=(
-            "Knowledge base scope ID to load skills from. "
-            "All .md files within this scope are treated as skills. "
-            "Leave empty to disable skill loading."
+            "Knowledge base scope IDs to load skills from. Only the "
+            "scopes listed here are queried — sub-folders are not "
+            "traversed automatically, so add each scope you want "
+            "searched explicitly."
         ),
     )
 
