@@ -428,7 +428,6 @@ class UniqueAI:
             for prompts in self._tool_manager.get_tool_prompts()
         ]
 
-
         used_tools = [t.name for t in self._history_manager.get_tool_calls()]
         sub_agent_calls = self._tool_manager.filter_tool_calls(
             self._history_manager.get_tool_calls(), ["subagent"]
