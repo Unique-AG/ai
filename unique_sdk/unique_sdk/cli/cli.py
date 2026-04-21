@@ -779,10 +779,10 @@ def elicit_ask(
     timeout: int,
     poll_interval: float,
     metadata: tuple[str, ...],
-    visible: bool,
-    assistant_id: str | None,
-    placeholder_text: str | None,
-    cleanup_mode: str | None,
+    visible: bool = True,
+    assistant_id: str | None = None,
+    placeholder_text: str | None = None,
+    cleanup_mode: str | None = None,
 ) -> None:
     """Ask the user a question and wait for the answer.
 
@@ -916,10 +916,10 @@ def elicit_create(
     expires_in_seconds: int | None,
     external_elicitation_id: str | None,
     metadata: tuple[str, ...],
-    visible: bool,
-    assistant_id: str | None,
-    placeholder_text: str | None,
-    cleanup_mode: str | None,
+    visible: bool = True,
+    assistant_id: str | None = None,
+    placeholder_text: str | None = None,
+    cleanup_mode: str | None = None,
 ) -> None:
     """Create an elicitation without waiting for the response.
 
