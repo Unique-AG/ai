@@ -38,7 +38,6 @@ from unique_toolkit.experimental.content_folder.schemas import (
     FolderChild,
     FolderDetail,
     FolderInfo,
-    IngestionConfig,
     ScopeAccess,
 )
 from unique_toolkit.experimental.content_folder.service import ContentFolder
@@ -53,7 +52,6 @@ __all__ = [
     "FolderChild",
     "FolderDetail",
     "FolderInfo",
-    "IngestionConfig",
     "ScopeAccess",
     "create",
     "create_access",

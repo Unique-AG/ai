@@ -8,6 +8,7 @@ and the helpers in :mod:`unique_toolkit.experimental.content_folder.functions`.
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Any
 
 from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field
@@ -17,34 +18,6 @@ model_config = ConfigDict(
     populate_by_name=True,
     arbitrary_types_allowed=True,
 )
-
-
-class IngestionConfig(BaseModel):
-    """Folder ingestion settings (API ``ingestionConfig`` / SDK ``Folder.IngestionConfig``)."""
-
-    model_config = ConfigDict(
-        alias_generator=camelize,
-        populate_by_name=True,
-        extra="allow",
-    )
-
-    unique_ingestion_mode: str = Field(
-        default="DEFAULT",
-        alias="uniqueIngestionMode",
-        description="Backend ingestion mode key (required in the HTTP schema; default if omitted).",
-    )
-    chunk_max_tokens: int | None = Field(default=None, alias="chunkMaxTokens")
-    chunk_max_tokens_one_pager: int | None = Field(
-        default=None, alias="chunkMaxTokensOnePager"
-    )
-    chunk_min_tokens: int | None = Field(default=None, alias="chunkMinTokens")
-    chunk_strategy: str | None = Field(default=None, alias="chunkStrategy")
-    document_min_tokens: int | None = Field(default=None, alias="documentMinTokens")
-    excel_read_mode: str | None = Field(default=None, alias="excelReadMode")
-    jpg_read_mode: str | None = Field(default=None, alias="jpgReadMode")
-    pdf_read_mode: str | None = Field(default=None, alias="pdfReadMode")
-    ppt_read_mode: str | None = Field(default=None, alias="pptReadMode")
-    word_read_mode: str | None = Field(default=None, alias="wordReadMode")
 
 
 class DeleteFolderItem(BaseModel):
@@ -140,8 +113,8 @@ class FolderInfo(BaseModel):
 
     id: str = Field(description="Scope id of the folder.")
     name: str = Field(description="Display name / leaf segment of the folder.")
-    ingestion_config: IngestionConfig = Field(
-        default_factory=IngestionConfig,
+    ingestion_config: dict[str, Any] = Field(
+        default_factory=dict,
         description="Ingestion settings for this scope (chunking, read modes, etc.).",
     )
     created_at: str | None = Field(

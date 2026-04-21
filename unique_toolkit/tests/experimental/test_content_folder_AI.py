@@ -11,11 +11,7 @@ from unique_toolkit.experimental.content_folder.functions import (
     create_access,
     read,
 )
-from unique_toolkit.experimental.content_folder.schemas import (
-    DeleteResult,
-    FolderInfo,
-    IngestionConfig,
-)
+from unique_toolkit.experimental.content_folder.schemas import DeleteResult, FolderInfo
 from unique_toolkit.experimental.content_folder.service import ContentFolder
 
 
@@ -77,8 +73,8 @@ def test_AI_delete_result_parses_sdk_shape() -> None:
     assert result.failed_folders == []
 
 
-def test_AI_folder_info_coerces_ingestion_config_dict() -> None:
-    """``FolderInfo.ingestion_config`` uses :class:`IngestionConfig` instead of a bare dict."""
+def test_AI_folder_info_preserves_ingestion_config_as_dict() -> None:
+    """``FolderInfo.ingestion_config`` stays a plain dict until a typed model is introduced."""
     payload = {
         "id": "scope",
         "name": "nm",
@@ -89,8 +85,7 @@ def test_AI_folder_info_coerces_ingestion_config_dict() -> None:
         "externalId": None,
     }
     info = FolderInfo.model_validate(payload, by_alias=True, by_name=True)
-    assert isinstance(info.ingestion_config, IngestionConfig)
-    assert info.ingestion_config.unique_ingestion_mode == "MODE_A"
+    assert info.ingestion_config == {"uniqueIngestionMode": "MODE_A"}
 
 
 @patch("unique_toolkit.experimental.content_folder.functions.create")
