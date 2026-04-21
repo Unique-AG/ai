@@ -668,6 +668,68 @@ class TestCmdMcp:
         )
         assert "mcp:" in result
 
+    @patch("unique_sdk.MCP.call_tool")
+    def test_lean_response_falls_back_to_payload_tool_name(
+        self, mock: MagicMock
+    ) -> None:
+        """Spec-compliant response with only ``content`` must not crash and must
+        show the caller-supplied tool name in the header."""
+
+        class _LeanResponse:
+            """Mimics ``UniqueObject``: missing keys raise ``AttributeError``."""
+
+            def __init__(self) -> None:
+                self.content = [{"type": "text", "text": "hello"}]
+
+        mock.return_value = _LeanResponse()
+        result = cmd_mcp(
+            _state(),
+            chat_id="chat_1",
+            message_id="msg_1",
+            payload='{"name": "search_emails", "arguments": {}}',
+        )
+        assert "MCP tool call: search_emails" in result
+        assert "Server: <unknown-server>" in result
+        assert "[text] hello" in result
+        assert "Traceback" not in result
+
+    @patch("unique_sdk.cli.commands.mcp.format_mcp_response")
+    @patch("unique_sdk.MCP.call_tool")
+    def test_formatter_error_falls_back_to_raw_payload(
+        self, call_mock: MagicMock, fmt_mock: MagicMock
+    ) -> None:
+        """A bug in the formatter must not hide a successful API response."""
+        call_mock.return_value = _mcp_response(
+            tool_name="tool", content=[{"type": "text", "text": "payload"}]
+        )
+        fmt_mock.side_effect = RuntimeError("boom")
+        result = cmd_mcp(
+            _state(),
+            chat_id="chat_1",
+            message_id="msg_1",
+            payload='{"name": "tool", "arguments": {}}',
+        )
+        assert "formatter error" in result
+        assert "raw response:" in result
+
+    @patch("unique_sdk.cli.commands.mcp.format_mcp_response")
+    @patch("unique_sdk.MCP.call_tool")
+    def test_cmd_mcp_forwards_tool_name_to_formatter(
+        self, call_mock: MagicMock, fmt_mock: MagicMock
+    ) -> None:
+        """``cmd_mcp`` must thread the parsed payload name into the formatter."""
+        call_mock.return_value = _mcp_response(content=[])
+        fmt_mock.return_value = "ok"
+        cmd_mcp(
+            _state(),
+            chat_id="chat_1",
+            message_id="msg_1",
+            payload='{"name": "search_emails", "arguments": {}}',
+        )
+        fmt_mock.assert_called_once()
+        _, kwargs = fmt_mock.call_args
+        assert kwargs.get("tool_name") == "search_emails"
+
 
 # --- Scheduled Tasks ---
 
