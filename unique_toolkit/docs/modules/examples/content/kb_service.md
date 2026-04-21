@@ -176,7 +176,7 @@ if __name__ == "__main__":
 
 !!! tip "Verify the result"
 
-    To inspect the resulting folder layout after a mirror, use :class:`~unique_toolkit.content.tree.service.ContentTree` from the companion ``content.tree`` subpackage — see the [content tree example](../../../modules/examples/content/content-tree.md). A combined mirror + verify example will follow in a small follow-up PR.
+    To inspect the resulting folder layout after a mirror, use :class:`~unique_toolkit.experimental.content_tree.service.ContentTree` from the experimental ``content_tree`` subpackage — see the [content tree example](../experimental/content_tree.md). A combined mirror + verify example will follow in a small follow-up PR.
 
 ## Content Download
 

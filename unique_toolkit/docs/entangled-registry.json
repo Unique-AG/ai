@@ -299,6 +299,18 @@
   "#kb-temp-file-cleanup": [
     "docs/knowledge_base/index.md"
   ],
+  "#kb-tree-async-main": [
+    "docs/modules/examples/experimental/content_tree.md"
+  ],
+  "#kb-tree-filter-snippet": [
+    "docs/modules/examples/experimental/content_tree.md"
+  ],
+  "#kb-tree-imports": [
+    "docs/modules/examples/experimental/content_tree.md"
+  ],
+  "#kb-tree-main": [
+    "docs/modules/examples/experimental/content_tree.md"
+  ],
   "#kb_content_search": [
     "docs/modules/examples/content/smart_rules.md"
   ],
@@ -751,6 +763,9 @@
   ],
   "file=docs/.python_files/kb_mirror_local_folder_skip_ingest.py": [
     "docs/modules/examples/content/kb_service.md"
+  ],
+  "file=docs/.python_files/kb_tree_visible.py": [
+    "docs/modules/examples/experimental/content_tree.md"
   ],
   "file=docs/.python_files/langchain_simple_invoke.py": [
     "docs/plattforms/langchain/langchain.md"

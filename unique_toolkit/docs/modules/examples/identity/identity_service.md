@@ -24,13 +24,13 @@ is no positional-argument ordering to remember — you always pass
 `user_id=...`, `company_id=...`.
 
 ```{.python #identity_imports}
-from unique_toolkit.experimental import Identity
+from unique_toolkit.experimental.identity import Identity
 ```
 
 <!--
 ```{.python #identity_service_setup}
 <<common_imports>>
-from unique_toolkit.experimental import Identity
+from unique_toolkit.experimental.identity import Identity
 identity = Identity.from_settings()
 ```
 -->

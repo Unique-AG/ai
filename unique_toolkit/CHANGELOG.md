@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.80.0] - 2026-04-21
+### Added
+- Add experimental `unique_toolkit.experimental.content_tree` subpackage exposing `ContentTree` — a cached view of the KB content visible to the acting user — split into `schemas`, `functions`, and `service` modules. The API is experimental and may change between minor releases.
+- Add `ContentTree.render_visible_tree_async` for directory-style rendering, `list_visible_files_async` and `filter_visible_files_async` for programmatic access, and `search_visible_files_fuzzy_async` for fuzzy search over file names and/or full paths using stdlib `difflib` (case-insensitive by default, tunable via `match_on`, `case_sensitive`, `min_score`, `limit`; returns ranked `FuzzyMatch` records). All four methods share the same cached snapshot so repeated queries hit the backend once.
+
 ## [1.79.0] - 2026-04-21
 - Add experimental `unique_toolkit.experimental.content_folder` subpackage exposing `ContentFolder` — the knowledge-base folder (content scope) management service — split into `schemas`, `functions`, and `service` modules. Covers `create` / `read` / `delete` folder lifecycle and `create_access` / `delete_access` for READ/WRITE ACL management, with typed overloads for the two folder-creation shapes (`paths=` accepting `str` or `list[str]`, and `parent_scope_id=` + `relative_path_segments=`) and sync/async variants throughout. Import with `from unique_toolkit.experimental.content_folder import ContentFolder`. The class is **not** registered with `UniqueServiceFactory`; it lives under `experimental` while the API stabilises.
 - Add `create_with_access` / `create_with_access_async` convenience methods on `ContentFolder` that create a folder chain and grant extra ACL entries on the leaf scope in one call, falling back to a minimal `FolderDetail` with the creator's READ+WRITE grants when no extra accesses are requested.

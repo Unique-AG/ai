@@ -749,7 +749,6 @@ class KnowledgeBaseService:
             return_exceptions=True,
         )
 
-        # Log any exceptions that occurred during parallel fetching
         for result in results:
             if isinstance(result, BaseException):
                 _LOGGER.error("Error fetching paginated content infos", exc_info=result)
@@ -893,9 +892,8 @@ class KnowledgeBaseService:
                 ``(content_info, [folder1, folder2, ..., filename])``.
         """
         content_infos = await self.get_content_infos_async(
-            metadata_filter=metadata_filter
+            metadata_filter=metadata_filter,
         )
-
         scope_ids = self.extract_scope_ids(content_infos)
         scope_id_to_folder_name = await self._translate_scope_ids_async(scope_ids)
 
