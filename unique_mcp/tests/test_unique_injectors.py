@@ -288,7 +288,7 @@ def test_get_unique_settings__meta_chat_only_then_jwt_auth_preserves_chat(
 @pytest.mark.ai
 def test_get_request_meta__returns_raw_meta_dict() -> None:
     """`get_request_meta` is a thin public wrapper over `_read_meta_dict`."""
-    raw = {MetaKeys.CONTENT_IDS: ["c1"]}
+    raw = {"unique.app/search/content-ids": ["c1"]}
     with patch(f"{_MOD}._read_meta_dict", return_value=raw):
         assert get_request_meta() == raw
 

@@ -14,14 +14,14 @@ from unique_mcp.meta_keys import MetaKeys
 def test_to_tool_meta_emits_canonical_key() -> None:
     reqs = ContextRequirements(
         required=[MetaKeys.USER_ID, MetaKeys.COMPANY_ID],
-        optional=[MetaKeys.CONTENT_IDS],
+        optional=["unique.app/search/content-ids"],
     )
     meta = reqs.to_tool_meta()
     assert CONTEXT_REQUIREMENTS_META_KEY in meta
     payload = meta[CONTEXT_REQUIREMENTS_META_KEY]
     assert isinstance(payload, dict)
     assert payload["required"] == [MetaKeys.USER_ID, MetaKeys.COMPANY_ID]
-    assert payload["optional"] == [MetaKeys.CONTENT_IDS]
+    assert payload["optional"] == ["unique.app/search/content-ids"]
     assert payload["accepts_custom"] is False
 
 
