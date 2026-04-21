@@ -307,10 +307,10 @@ def format_mcp_response(response: MCP, *, tool_name: str | None = None) -> str:
             lines.append(f"[audio] ({mime}, base64-encoded data)")
 
         elif content_type == "resource_link":
-            name = item.get("name") or "?"
+            link_name = item.get("name") or "?"
             uri = item.get("uri") or "?"
             desc = item.get("description") or ""
-            lines.append(f"[resource_link] {name}: {uri}")
+            lines.append(f"[resource_link] {link_name}: {uri}")
             if desc:
                 lines.append(f"  {desc}")
 
