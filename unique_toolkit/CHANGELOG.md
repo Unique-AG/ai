@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.77.2] - 2026-04-21
+- Stop uploading orphan `code.txt` / `code_N.txt` artifacts when code interpreter runs without producing container files (UN-19770); inline assistant text is unchanged, real file outputs (charts, CSVs, etc.) are unchanged
+
 ## [1.77.1] - 2026-04-20
 - Add `selected_content_ids` filtering to history construction and `OpenFileToolRuntime` so only user-selected uploaded images and files are attached when the `enable_selected_uploaded_files_un_18215` feature flag is active
 - Add `get_selected_uploaded_content_ids` utility in `history_manager/utils.py`
