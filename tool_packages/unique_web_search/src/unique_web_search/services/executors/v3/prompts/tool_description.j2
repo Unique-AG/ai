@@ -1,10 +1,12 @@
-The WebSearch tool conducts structured web research using a planning-based approach. It searches the internet and reads specific URLs to gather current, accurate information on any topic.
+The WebSearch tool returns current information from the web.
 
-## When to Use
+In V3, each call does **one** thing:
 
-Use WebSearch when you need:
-- Current events, news, or real-time data
-- Recent information that may have changed since your training
-- Specific facts, statistics, or details not in your knowledge base
-- Local or location-specific information
-- Verification of time-sensitive information
+- **search** — Query the search engine. Each returned chunk is JSON with `url`, `domain`, `title`, and `snippet`.
+- **fetch_urls** — Crawl URLs and return one chunk per URL whose body is JSON with numbered `chunks`.
+
+Call **search** first. When the **snippets do not contain** the facts you need, call **fetch_urls** in a **later** invocation: pick the **`url`** values from the search hits that are most relevant and read those pages.
+
+You may chain **multiple** WebSearch invocations (`search` and/or `fetch_urls`) for complex or multi-part questions.
+
+Tool arguments use the `exec` object with `command` set to `search` or `fetch_urls`.

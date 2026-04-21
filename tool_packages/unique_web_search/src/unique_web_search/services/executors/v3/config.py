@@ -1,4 +1,4 @@
-"""Configuration for Web Search V3 (snippet judge + ranked crawl)."""
+"""Configuration for Web Search V3 (search SERP + fetch URLs)."""
 
 from typing import Annotated, Literal
 
@@ -14,32 +14,22 @@ from unique_web_search.services.executors.base_config import (
     BaseWebSearchModeConfig,
     WebSearchMode,
 )
+from unique_web_search.services.executors.v3.llm_judge.config import V3LlmJudgeConfig
 from unique_web_search.services.executors.v3.prompts import (
     DEFAULT_TOOL_DESCRIPTION,
     DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
 )
 from unique_web_search.services.helpers import clean_model_title_generator
-from unique_web_search.services.snippet_judge import SnippetJudgeConfig
 
 
 class WebSearchV3Config(BaseWebSearchModeConfig[WebSearchMode.V3]):
-    """V3 mode: pre-filter search results by relevance (snippet judge) before crawling."""
+    """V3 mode: ``search`` returns SERP rows as JSON chunks; ``fetch_urls`` crawls and processes pages."""
 
     model_config = get_configuration_dict(
         model_title_generator=clean_model_title_generator
     )
     mode: SkipJsonSchema[Literal[WebSearchMode.V3]] = WebSearchMode.V3
 
-    max_steps: int = Field(
-        default=5,
-        title="Maximum Research Steps",
-        description="Maximum number of sequential actions (searches or page reads) in a single research plan.",
-    )
-    snippet_judge_config: SnippetJudgeConfig = Field(
-        default_factory=SnippetJudgeConfig,
-        title="Snippet Judge",
-        description="Relevance filtering of search results before crawling (score + rank).",
-    )
     tool_description: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
@@ -72,6 +62,15 @@ class WebSearchV3Config(BaseWebSearchModeConfig[WebSearchMode.V3]):
         default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3,
         title="Tool Format Information For System Prompt",
         description="Advanced: Instructions that tell the AI how to cite web search sources in its answers (V3 includes domain diversity requirements).",
+    )
+    search_outcome_judge: V3LlmJudgeConfig = Field(
+        default_factory=V3LlmJudgeConfig,
+        title="V3 search-outcome judge",
+        description=(
+            "Optional LLM pass after `search`: whether snippets meet the objective, "
+            "whether to recommend `fetch_urls`, and suggested follow-up search queries "
+            "(stored in debug steps when enabled)."
+        ),
     )
 
     @field_validator("mode", mode="before")

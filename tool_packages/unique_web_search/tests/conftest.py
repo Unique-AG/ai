@@ -156,9 +156,8 @@ def mock_web_search_config_v3():
     config.web_search_mode_config.mode = WebSearchMode.V3
     config.web_search_mode_config.tool_description = "V3 tool description"
     config.web_search_mode_config.tool_description_for_system_prompt = (
-        "V3 system prompt with {{ max_steps }} and {{ date_string }}"
+        "V3 system prompt with {{ date_string }}"
     )
-    config.web_search_mode_config.max_steps = 7
     config.web_search_mode_config.tool_format_information_for_system_prompt = "Test format info\n\n## Domain Diversity Requirement\n\nWhen the current WebSearch tool response"
     config.web_search_mode_config_v3 = config.web_search_mode_config
     return config

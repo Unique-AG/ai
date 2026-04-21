@@ -109,8 +109,13 @@ class BraveSearch(SearchEngine[BraveSearchConfig]):
             WebSearchResult(
                 url=item["url"],
                 title=item["title"],
-                snippet=item.get("description", "No Snippet Found"),
-                content="\n".join(item.get("extra_snippets", [])),
+                snippet=_build_snippet(item),
             )
             for item in search_results
         ]
+
+
+def _build_snippet(item: dict) -> str:
+    main_snippet = item.get("description", "No Snippet Found")
+    extra_snippets = item.get("extra_snippets", [])
+    return "\n".join([main_snippet, *extra_snippets])

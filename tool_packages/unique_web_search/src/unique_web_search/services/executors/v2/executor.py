@@ -13,12 +13,7 @@ from unique_web_search.metrics import (
     search_errors,
     search_total,
 )
-from unique_web_search.schema import (
-    Step,
-    StepDebugInfo,
-    StepType,
-    WebSearchPlan,
-)
+from unique_web_search.schema import StepDebugInfo
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
 )
@@ -27,6 +22,11 @@ from unique_web_search.services.executors.context import (
     ExecutorConfiguration,
     ExecutorServiceContext,
 )
+from unique_web_search.services.executors.v2.schema import (
+    Step,
+    StepType,
+    WebSearchPlan,
+)
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -34,7 +34,7 @@ from unique_web_search.services.search_engine.schema import (
 _LOGGER = logging.getLogger(__name__)
 
 
-class WebSearchV2Executor(BaseWebSearchExecutor):
+class WebSearchV2Executor(BaseWebSearchExecutor[WebSearchPlan]):
     """Executes research plans step by step."""
 
     def __init__(
@@ -54,7 +54,6 @@ class WebSearchV2Executor(BaseWebSearchExecutor):
             tool_parameters=tool_parameters,
         )
 
-        self.tool_parameters = tool_parameters
         self.max_steps = max_steps
 
     async def run(self) -> list[ContentChunk]:

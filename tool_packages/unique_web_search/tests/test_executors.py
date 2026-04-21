@@ -1,7 +1,7 @@
 """Tests for WebSearchV1Executor, WebSearchV2Executor, and WebSearchV3Executor."""
 
 from typing import Any
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -25,8 +25,8 @@ from unique_web_search.services.executors.v2.executor import (
 from unique_web_search.services.executors.v3.executor import (
     WebSearchV3Executor,
 )
+from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 from unique_web_search.services.search_engine.schema import WebSearchResult
-from unique_web_search.services.snippet_judge import SnippetJudgeConfig
 
 
 class TestQueryGenerationAgent:
@@ -719,32 +719,30 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
         ].log_web_search_results.assert_called()
 
 
-class TestWebSearchV3ExecutorExecuteSearchStep:
-    """Tests for WebSearchV3Executor global snippet judging."""
+class TestWebSearchV3ExecutorSearch:
+    """Tests for WebSearchV3Executor ``search`` (SERP-only JSON chunks)."""
 
     @pytest.mark.ai
     @pytest.mark.asyncio
-    async def test_run__judges_all_search_results_together_before_crawling(
+    async def test_run_search__returns_json_chunks_without_crawl(
         self,
         executor_context_objects: dict,
         mock_executor_dependencies: dict,
     ) -> None:
-        """
-        Purpose: Verify V3 waits for all search-step snippets and judges them in one batch.
-        Why this matters: Global ranking should compare snippets across queries before crawling.
-        Setup summary: Use two search steps with two results each; judge returns a cross-query subset.
-        """
-        plan = WebSearchPlan(
-            objective="Find the most relevant recent NVIDIA coverage",
-            query_analysis="Need to compare results across multiple search queries",
-            steps=[
-                Step(step_type=StepType.SEARCH, objective="q1", query_or_url="query 1"),
-                Step(step_type=StepType.SEARCH, objective="q2", query_or_url="query 2"),
-            ],
-            expected_outcome="Best globally ranked URLs are crawled",
+        """V3 search maps SERP rows to ContentChunks with JSON bodies; no crawl or judge."""
+        import json
+
+        tool_parameters = WebSearchV3ToolParameters.model_validate(
+            {
+                "exec": {
+                    "command": "search",
+                    "objective": "Find NVIDIA coverage",
+                    "query": "nvidia coverage",
+                }
+            }
         )
 
-        query_1_results = [
+        serp = [
             WebSearchResult(
                 url="https://example.com/page1",
                 title="Page 1",
@@ -758,87 +756,28 @@ class TestWebSearchV3ExecutorExecuteSearchStep:
                 content="",
             ),
         ]
-        query_2_results = [
-            WebSearchResult(
-                url="https://example.com/page3",
-                title="Page 3",
-                snippet="Snippet 3",
-                content="",
-            ),
-            WebSearchResult(
-                url="https://example.com/page4",
-                title="Page 4",
-                snippet="Snippet 4",
-                content="",
-            ),
-        ]
-
-        mock_executor_dependencies["search_service"].search = AsyncMock(
-            side_effect=[query_1_results, query_2_results]
-        )
-        mock_executor_dependencies["search_service"].requires_scraping = True
+        mock_executor_dependencies["search_service"].search = AsyncMock(return_value=serp)
         mock_executor_dependencies[
             "search_service"
         ].config.search_engine_name.name = "TEST"
-        selected_by_judge = [query_2_results[0], query_1_results[1]]
-        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
-            return_value=["content3", "content2"]
-        )
-        mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
-        mock_executor_dependencies["content_processor"].run = AsyncMock(
-            return_value=[
-                WebPageChunk(
-                    url="https://example.com/page3",
-                    display_link="example.com",
-                    title="Page 3",
-                    snippet="Snippet 3",
-                    content="content3",
-                    order="0",
-                ),
-                WebPageChunk(
-                    url="https://example.com/page2",
-                    display_link="example.com",
-                    title="Page 2",
-                    snippet="Snippet 2",
-                    content="content2",
-                    order="1",
-                ),
-            ]
-        )
-        mock_executor_dependencies["chunk_relevancy_sort_config"].enabled = False
-        mock_executor_dependencies["content_reducer"].side_effect = lambda chunks: (
-            chunks
-        )
-        # Base executor always calls chunk_relevancy_sorter when present; pass chunks through.
-        mock_executor_dependencies["chunk_relevancy_sorter"].run = AsyncMock(
-            side_effect=lambda **kwargs: Mock(content_chunks=kwargs["chunks"])
-        )
+        mock_executor_dependencies["crawler_service"].crawl = AsyncMock()
 
-        judge_config = SnippetJudgeConfig(max_urls_to_select=2)
-
-        with patch(
-            "unique_web_search.services.executors.v3.executor.select_relevant",
-            new_callable=AsyncMock,
-            return_value=selected_by_judge,
-        ) as mocked_select_relevant:
-            executor = WebSearchV3Executor(
-                services=executor_context_objects["services"],
-                config=executor_context_objects["config"],
-                callbacks=executor_context_objects["callbacks"],
-                tool_call=mock_executor_dependencies["tool_call"],
-                tool_parameters=plan,
-                snippet_judge_config=judge_config,
-            )
-            result = await executor.run()
-
-        assert isinstance(result, list)
-        assert result[0].metadata is not None
-        assert result[0].metadata.document == 'example.com: "Page 3"'
-        mocked_select_relevant.assert_awaited_once()
-        assert len(mocked_select_relevant.await_args.kwargs["results"]) == 4
-        mock_executor_dependencies["crawler_service"].crawl.assert_called_once_with(
-            ["https://example.com/page3", "https://example.com/page2"]
+        executor = WebSearchV3Executor(
+            services=executor_context_objects["services"],
+            config=executor_context_objects["config"],
+            callbacks=executor_context_objects["callbacks"],
+            tool_call=mock_executor_dependencies["tool_call"],
+            tool_parameters=tool_parameters,
         )
+        result = await executor.run()
+
+        mock_executor_dependencies["crawler_service"].crawl.assert_not_called()
+        assert len(result) == 2
+        first = json.loads(result[0].text)
+        assert first["url"] == "https://example.com/page1"
+        assert first["domain"] == "example.com"
+        assert first["title"] == "Page 1"
+        assert first["snippet"] == "Snippet 1"
 
 
 class TestWebSearchV2ExecutorExecuteReadUrlStep:

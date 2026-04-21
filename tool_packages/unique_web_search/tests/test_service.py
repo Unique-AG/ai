@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
+from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 from unique_web_search.service import WebSearchTool
 
 
@@ -148,7 +149,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
     ) -> None:
         """
         Purpose: Verify tool_description_for_system_prompt renders Jinja placeholders for V3.
-        Why this matters: V3 uses dynamic date, max_steps, and engine-mode injection.
+        Why this matters: V3 uses dynamic date in the system prompt template.
         Setup summary: Mock WebSearchTool with V3 config containing Jinja placeholders.
         """
         from unique_web_search.services.search_engine.base import SearchEngineType
@@ -170,7 +171,7 @@ class TestWebSearchToolDescriptionForSystemPrompt:
         result: str = tool.tool_description_for_system_prompt()
 
         assert isinstance(result, str)
-        assert "V3 system prompt with 7 and " in result
+        assert result.startswith("V3 system prompt with ")
         assert "{{ date_string }}" not in result
 
 
@@ -753,16 +754,9 @@ class TestWebSearchToolRun:
         )
         mocker.patch.object(WebSearchTool, "_get_executor", return_value=mock_executor)
 
-        plan = WebSearchPlan(
-            objective="test",
-            query_analysis="test",
-            steps=[],
-            expected_outcome="test",
-        )
-
         tool = WebSearchTool.__new__(WebSearchTool)
         tool.config = mock_web_search_config_v3
-        tool.tool_parameter_calls = WebSearchPlan
+        tool.tool_parameter_calls = WebSearchV3ToolParameters
         tool.logger = Mock()
         tool._message_step_logger = Mock()
         tool._tool_progress_reporter = None
@@ -778,7 +772,13 @@ class TestWebSearchToolRun:
 
         tool_call = Mock()
         tool_call.id = "test-id"
-        tool_call.arguments = plan.model_dump()
+        tool_call.arguments = {
+            "exec": {
+                "command": "search",
+                "objective": "test",
+                "query": "test",
+            }
+        }
 
         result = await tool.run(tool_call)
 

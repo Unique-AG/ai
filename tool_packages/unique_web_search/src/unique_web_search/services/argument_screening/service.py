@@ -14,7 +14,6 @@ from pydantic import Field, PrivateAttr
 from unique_toolkit._common.utils.structured_output.schema import StructuredOutputModel
 from unique_toolkit._common.validators import LMI
 from unique_toolkit.language_model import LanguageModelService
-from unique_toolkit.language_model.builder import MessagesBuilder
 
 from unique_web_search.schema import StepDebugInfo
 from unique_web_search.services.argument_screening.config import (
@@ -22,6 +21,11 @@ from unique_web_search.services.argument_screening.config import (
 )
 from unique_web_search.services.argument_screening.exceptions import (
     ArgumentScreeningUnparseableResponseException,
+)
+from unique_web_search.services.message_log import WebSearchMessageLogger
+from unique_web_search.services.structured_llm import (
+    StructuredLlmUnparseableResponseError,
+    complete_structured_llm,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,8 +58,8 @@ class ArgumentScreeningService:
         self._language_model_service = language_model_service
         self._language_model = language_model
         self._config = config
-
-    async def __call__(self, arguments: dict) -> ArgumentScreeningResult:
+        
+    async def __call__(self, arguments: dict, message_log_callback: WebSearchMessageLogger) -> ArgumentScreeningResult:
         """Screen tool call arguments; raises on rejection.
 
         Args:
@@ -68,10 +72,18 @@ class ArgumentScreeningService:
             return ArgumentScreeningResult(
                 go=True, reason="Argument screening disabled"
             )
+            
+        await message_log_callback.post_message("PII Detection running...")
 
         start_time = time()
         result = await self._screen_arguments(arguments)
         result._execution_time = time() - start_time
+        
+        if not result.go:
+            await message_log_callback.log_progress(f"PII Detection: {result.reason}")
+        else:
+            await message_log_callback.log_progress("PII Detection completed!")
+            
         return result
 
     async def _screen_arguments(self, arguments: dict) -> ArgumentScreeningResult:
@@ -83,27 +95,19 @@ class ArgumentScreeningService:
             guidelines=self._config.guidelines,
         )
 
-        messages = (
-            MessagesBuilder()
-            .system_message_append(self._config.system_prompt)
-            .user_message_append(user_prompt)
-            .build()
-        )
-
-        response = await self._language_model_service.complete_async(
-            messages,
-            model_name=self._language_model.name,
-            structured_output_model=ArgumentScreeningResult,
-            structured_output_enforce_schema=True,
-        )
-
-        parsed = response.choices[0].message.parsed
-        if parsed is None:
+        try:
+            result = await complete_structured_llm(
+                self._language_model_service,
+                self._language_model,
+                system_message=self._config.system_prompt,
+                user_message=user_prompt,
+                response_model=ArgumentScreeningResult,
+            )
+        except StructuredLlmUnparseableResponseError as e:
             raise ArgumentScreeningUnparseableResponseException(
                 reason="Argument screening agent failed to return a valid response"
-            )
+            ) from e
 
-        result = ArgumentScreeningResult.model_validate(parsed)
         _LOGGER.info(f"Argument screening verdict: go={result.go}")
         return result
 

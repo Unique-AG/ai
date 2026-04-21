@@ -10,8 +10,8 @@ from unique_web_search.services.executors.base_config import (
     WebSearchMode,
 )
 from unique_web_search.services.executors.v2.prompts import (
-    DEFAULT_TOOL_DESCRIPTION,
-    DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+    TOOL_DESCRIPTION,
+    TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
 )
 from unique_web_search.services.helpers import clean_model_title_generator
 
@@ -30,20 +30,20 @@ class WebSearchV2Config(BaseWebSearchModeConfig[WebSearchMode.V2]):
     tool_description: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=len(DEFAULT_TOOL_DESCRIPTION.split("\n"))
+            rows=len(TOOL_DESCRIPTION.split("\n"))
         ),
     ] = Field(
-        default=DEFAULT_TOOL_DESCRIPTION,
+        default=TOOL_DESCRIPTION,
         title="Tool Description",
         description="Advanced: Description that helps the AI model decide when to use web search.",
     )
     tool_description_for_system_prompt: Annotated[
         str,
         RJSFMetaTag.StringWidget.textarea(
-            rows=int(len(DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT.split("\n")) / 2)
+            rows=int(len(TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT.split("\n")) / 2)
         ),
     ] = Field(
-        default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
+        default=TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
         title="Tool Description For System Prompt",
         description="Advanced: Detailed instructions for the AI model on how to plan and execute web research.",
     )

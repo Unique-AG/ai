@@ -1,51 +1,47 @@
-"""Web Search V3 executor: globally judge snippets before crawling."""
+"""Web Search V3 executor: one command per invocation (`search` or `fetch_urls`)."""
 
-import asyncio
+from __future__ import annotations
+
+import json
 import logging
 from time import time
 
+from unidecode import unidecode
 from unique_toolkit.content import ContentChunk
-from unique_toolkit.content.schemas import ContentMetadata
 from unique_toolkit.language_model import LanguageModelFunction
 from unique_toolkit.monitoring import metric_scope
 
 from unique_web_search.metrics import (
-    llm_duration,
-    llm_errors,
+    crawl_duration,
+    crawl_errors,
     search_duration,
     search_errors,
     search_total,
 )
-from unique_web_search.schema import Step, StepDebugInfo, StepType, WebSearchPlan
+from unique_web_search.schema import StepDebugInfo
+from unique_web_search.services.executors.base_executor import BaseWebSearchExecutor
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
     ExecutorConfiguration,
     ExecutorServiceContext,
 )
-from unique_web_search.services.executors.v2.executor import (
-    WebSearchV2Executor,
+from unique_web_search.services.executors.v3.llm_judge.config import V3LlmJudgeConfig
+from unique_web_search.services.executors.v3.llm_judge.service import (
+    V3SearchOutcomeJudge,
 )
-from unique_web_search.services.helpers import extract_registered_domain
-from unique_web_search.services.search_engine.schema import (
-    WebSearchResult,
+from unique_web_search.services.executors.v3.schema import (
+    WebSearchV3CommandType,
+    WebSearchV3FetchUrlsCommand,
+    WebSearchV3SearchCommand,
+    WebSearchV3ToolParameters,
 )
-from unique_web_search.services.snippet_judge import (
-    SnippetJudgeConfig,
-    select_relevant,
-)
+from unique_web_search.services.search_engine.schema import WebSearchResult
 
 _LOGGER = logging.getLogger(__name__)
-_WEB_SEARCH_V3_SOURCE_LABEL_KEY = "websearch_v3_source_label"
 
 
-class WebSearchV3Executor(WebSearchV2Executor):
-    """Executes research plans with snippet-based relevance filtering before crawling.
-
-    V3 first collects all snippets from all search steps, then runs a single
-    global snippet-judge pass across the combined result set, and only then
-    crawls the top-ranked URLs. This lets the judge compare snippets across
-    search queries and reward diversity globally instead of per query.
-    """
+class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
+    """Run either ``search`` (SERP-only JSON chunks) or ``fetch_urls`` (crawl + pipeline)."""
 
     def __init__(
         self,
@@ -53,9 +49,8 @@ class WebSearchV3Executor(WebSearchV2Executor):
         config: ExecutorConfiguration,
         callbacks: ExecutorCallbacks,
         tool_call: LanguageModelFunction,
-        tool_parameters: WebSearchPlan,
-        max_steps: int = 3,
-        snippet_judge_config: SnippetJudgeConfig | None = None,
+        tool_parameters: WebSearchV3ToolParameters,
+        search_outcome_judge_config: V3LlmJudgeConfig | None = None,
     ):
         super().__init__(
             services=services,
@@ -63,197 +58,188 @@ class WebSearchV3Executor(WebSearchV2Executor):
             callbacks=callbacks,
             tool_call=tool_call,
             tool_parameters=tool_parameters,
-            max_steps=max_steps,
         )
-        self.snippet_judge_config = snippet_judge_config or SnippetJudgeConfig()
-        _LOGGER.info(
-            f"Snippet judge config: {self.snippet_judge_config.model_dump_json()}"
+        self._search_outcome_judge_config = (
+            search_outcome_judge_config or V3LlmJudgeConfig()
+        )
+        self._search_outcome_judge = V3SearchOutcomeJudge(
+            self.language_model_service,
+            self.language_model,
+            self._search_outcome_judge_config,
         )
 
     async def run(self) -> list[ContentChunk]:
-        await self._enforce_max_steps()
+        cmd = self.tool_parameters.exec
+        match cmd.command:
+            case WebSearchV3CommandType.SEARCH:
+                await self._message_log_callback.post_message("_Searching Web_")
+                return await self._run_search(cmd)
+            case WebSearchV3CommandType.FETCH_URLS:
+                await self._message_log_callback.post_message("_Fetching URLs_")
+                return await self._run_fetch_urls(cmd)
+            case _:
+                raise ValueError(f"Invalid command: {cmd.command}")
+
+    async def _run_search(self, cmd: WebSearchV3SearchCommand) -> list[ContentChunk]:
+        objective = cmd.objective
+        query_in = cmd.query
 
         self.notify_name = "**Searching Web**"
-        self.notify_message = self.tool_parameters.objective
-
+        self.notify_message = objective
         await self.notify_callback()
-        await self._message_log_callback.log_progress("_Searching Web_")
 
-        elicited_steps = await self._elicitate_steps(self.tool_parameters.steps)
-        search_steps = [
-            step for step in elicited_steps if step.step_type == StepType.SEARCH
-        ]
-        read_url_steps = [
-            step for step in elicited_steps if step.step_type == StepType.READ_URL
-        ]
+        elicited = await self._ff_elicitate_queries([query_in])
+        query = elicited[0]
 
-        search_results_nested, read_url_results_nested = await asyncio.gather(
-            self._run_search_steps(search_steps),
-            self._run_read_url_steps(read_url_steps),
-        )
-
-        search_results = self._flatten_results(search_results_nested)
-        read_url_results = self._flatten_results(read_url_results_nested)
-
-        if self.search_service.requires_scraping and search_results:
-            search_results = await self._judge_all_search_results(search_results)
-            if search_results:
-                search_results = await self._crawl_search_results(
-                    "SEARCH.global", search_results
-                )
-
-        results = search_results + read_url_results
-
-        self.notify_name = "**Analyzing Web Pages**"
-        self.notify_message = self.tool_parameters.expected_outcome
-        await self.notify_callback()
-        await self._message_log_callback.log_progress("_Analyzing Web Pages_")
-
-        content_results = await self._content_processing(
-            self.tool_parameters.objective, results
-        )
-
-        if self.chunk_relevancy_sort_config.enabled:
-            self.notify_name = "**Resorting Sources**"
-            self.notify_message = self.tool_parameters.objective
-            await self.notify_callback()
-            await self._message_log_callback.log_progress("_Resorting Sources_")
-
-        selected_chunks = await self._select_relevant_sources(
-            self.tool_parameters.objective, content_results
-        )
-        return self._annotate_chunks_for_agent(selected_chunks)
-
-    def _annotate_chunks_for_agent(
-        self, chunks: list[ContentChunk]
-    ) -> list[ContentChunk]:
-        """Attach source labels only for V3 web-search chunks."""
-        for chunk in chunks:
-            if not chunk.url or not chunk.title:
-                continue
-            chunk.metadata = ContentMetadata(
-                key=_WEB_SEARCH_V3_SOURCE_LABEL_KEY,
-                mime_type="text/plain",
-                document=chunk.title,
-            )
-        return chunks
-
-    async def _run_search_steps(
-        self, steps: list[Step]
-    ) -> list[list[WebSearchResult] | BaseException]:
-        tasks = [asyncio.create_task(self._execute_search_step(step)) for step in steps]
-        if not tasks:
-            return []
-        return await asyncio.gather(*tasks, return_exceptions=True)
-
-    async def _run_read_url_steps(
-        self, steps: list[Step]
-    ) -> list[list[WebSearchResult] | BaseException]:
-        tasks = [
-            asyncio.create_task(self._execute_read_url_step(step)) for step in steps
-        ]
-        if not tasks:
-            return []
-        return await asyncio.gather(*tasks, return_exceptions=True)
-
-    def _flatten_results(
-        self, results_nested: list[list[WebSearchResult] | BaseException]
-    ) -> list[WebSearchResult]:
-        results: list[WebSearchResult] = []
-        for result in results_nested:
-            if isinstance(result, BaseException):
-                _LOGGER.exception(f"Error executing step: {result}")
-            else:
-                results.extend(result)
-        return results
-
-    async def _execute_search_step(self, step: Step) -> list[WebSearchResult]:
-        """Run the search step but defer judging/crawling until all snippets are collected."""
-        step_name = step.step_type.name
         self.debug_info.steps.append(
             StepDebugInfo(
-                step_name=step_name,
+                step_name="SEARCH",
                 execution_time=0,
-                config=step.model_dump(),
+                config={"objective": objective, "query": query},
             )
         )
 
         engine = self.search_service.config.search_engine_name.value
         time_start = time()
-        _LOGGER.info(f"Company {self.company_id} Searching with {self.search_service}")
+        _LOGGER.info(
+            "Company %s Searching with %s", self.company_id, self.search_service
+        )
 
-        await self._message_log_callback.log_queries([step.query_or_url])
+        await self._message_log_callback.log_queries([query])
         with metric_scope(search_duration, search_errors, engine=engine):
             search_total.labels(engine=engine).inc()
-            results = await self.search_service.search(step.query_or_url)
+            results = await self.search_service.search(query)
         await self._message_log_callback.log_web_search_results(results)
 
         delta_time = time() - time_start
-
         self.debug_info.steps.append(
             StepDebugInfo(
-                step_name=f"{step_name}.search",
+                step_name="SEARCH.search",
                 execution_time=delta_time,
                 config=self.search_service.config.search_engine_name.name,
                 extra={
-                    "query": step.query_or_url,
+                    "query": query,
                     "number_of_results": len(results),
                     "urls": [result.url for result in results],
                 },
             )
         )
+        _LOGGER.info("Searched with %s in %s seconds", self.search_service, delta_time)
 
-        _LOGGER.info(
-            f"Searched with {self.search_service} completed in {delta_time} seconds"
+        judge_start = time()
+        verdict = await self._search_outcome_judge.judge(
+            objective,
+            results,
+            self._message_log_callback,
         )
-        return results
-
-    async def _judge_all_search_results(
-        self,
-        results: list[WebSearchResult],
-    ) -> list[WebSearchResult]:
-        """Run one global snippet judge pass across all collected search results."""
-        if not results or not self.search_service.requires_scraping:
-            return results
-
-        number_before_judge = len(results)
-        time_judge_start = time()
-        _LOGGER.info(
-            f"Company {self.company_id} Running global snippet judge to narrow results"
-        )
-        try:
-            with metric_scope(llm_duration, llm_errors, purpose="snippet_judge"):
-                selected = await select_relevant(
-                    objective=self.tool_parameters.objective,
-                    results=results,
-                    language_model_service=self.language_model_service,
-                    language_model=self.language_model,
-                    config=self.snippet_judge_config,
-                )
-            _LOGGER.info(
-                f"Company {self.company_id} Snippet judge selected {len(selected)} results from {number_before_judge}"
-            )
-
-            results = selected
-        except Exception as e:
-            _LOGGER.warning("Snippet judge failed, using all search results: %s", e)
-            results = results[: self.snippet_judge_config.max_urls_to_select]
-
-        judge_time = time() - time_judge_start
+        judge_dt = time() - judge_start
         self.debug_info.steps.append(
             StepDebugInfo(
-                step_name="SEARCH.global.snippet_judge",
-                execution_time=judge_time,
-                config="snippet_judge",
-                extra={
-                    "number_of_results_before": number_before_judge,
-                    "number_of_results_after": len(results),
-                    "selected_domains": [result.display_link for result in results],
-                    "selected_registered_domains": [
-                        extract_registered_domain(result.url) for result in results
-                    ],
-                    "selected_urls": [result.url for result in results],
-                },
+                step_name="v3.search_outcome_judge",
+                execution_time=judge_dt,
+                config="enabled",
+                extra=verdict.model_dump(),
             )
         )
-        return results
+
+        if verdict.url_indices_to_fetch:
+            urls_to_fetch = [results[i].url for i in verdict.url_indices_to_fetch]
+            contents = await self.crawler_service.crawl(urls_to_fetch)
+            for i, content in zip(verdict.url_indices_to_fetch, contents):
+                results[i].content = content
+
+        chunks = self._serp_results_to_content_chunks(results)
+        return chunks
+
+    def _serp_results_to_content_chunks(
+        self, results: list[WebSearchResult]
+    ) -> list[ContentChunk]:
+        """One chunk per SERP row; ``text`` is JSON with url, domain, title, snippet."""
+        out: list[ContentChunk] = []
+        for i, r in enumerate(results):
+            payload = {
+                "url": r.url,
+                "domain": r.display_link,
+                "title": r.title,
+                "snippet": r.snippet,
+            }
+            if r.content:
+                payload["content"] = r.content
+
+            text = json.dumps(payload, ensure_ascii=False)
+
+            title_ascii = unidecode(r.title)
+            name = f'{r.display_link}: "{title_ascii}"'
+            out.append(
+                ContentChunk(
+                    id=name,
+                    text=text,
+                    order=i,
+                    start_page=None,
+                    end_page=None,
+                    key=name,
+                    chunk_id=str(i),
+                    url=r.url,
+                    title=name,
+                )
+            )
+        return out
+
+    async def _run_fetch_urls(
+        self, cmd: WebSearchV3FetchUrlsCommand
+    ) -> list[ContentChunk]:
+
+        self.notify_name = "**Reading Web Pages**"
+        self.notify_message = cmd.objective
+        await self.notify_callback()
+
+        self.debug_info.steps.append(
+            StepDebugInfo(
+                step_name="FETCH_URLS",
+                execution_time=0,
+                config={"objective": cmd.objective, "urls": list(cmd.urls)},
+            )
+        )
+
+        urls = list(cmd.urls)
+        crawler = self.crawler_service.config.crawler_type.value
+        time_start = time()
+        _LOGGER.info("Company %s Crawling %s URLs", self.company_id, len(urls))
+
+        await self._message_log_callback.log_queries(urls)
+        with metric_scope(crawl_duration, crawl_errors, crawler=crawler):
+            contents = await self.crawler_service.crawl(urls)
+        delta_time = time() - time_start
+
+        results = [
+            WebSearchResult(url=u, content=c, snippet="", title="")
+            for u, c in zip(urls, contents)
+        ]
+        await self._message_log_callback.log_web_search_results(results)
+
+        self.debug_info.steps.append(
+            StepDebugInfo(
+                step_name="FETCH_URLS.crawl",
+                execution_time=delta_time,
+                config=self.crawler_service.config.crawler_type.name,
+                extra={"urls": urls, "number_of_results": len(results)},
+            )
+        )
+
+        self.notify_name = "**Analyzing Web Pages**"
+        self.notify_message = cmd.objective
+        await self.notify_callback()
+        await self._message_log_callback.log_progress("_Analyzing Web Pages_")
+
+        content_results = await self._content_processing(cmd.objective, results)
+
+        if self.chunk_relevancy_sort_config.enabled:
+            self.notify_name = "**Resorting Sources**"
+            self.notify_message = cmd.objective
+            await self.notify_callback()
+            await self._message_log_callback.log_progress("_Resorting Sources_")
+
+        flat_chunks = await self._select_relevant_sources(
+            cmd.objective, content_results
+        )
+        return flat_chunks

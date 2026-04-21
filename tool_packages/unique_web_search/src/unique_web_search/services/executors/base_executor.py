@@ -1,7 +1,9 @@
 import logging
 from abc import ABC, abstractmethod
 from time import time
+from typing import Generic, TypeVar
 
+from pydantic import BaseModel
 from unique_toolkit.agentic.feature_flags import feature_flags
 from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
@@ -14,8 +16,6 @@ from unique_web_search.metrics import llm_duration, llm_errors
 from unique_web_search.schema import (
     StepDebugInfo,
     WebPageChunk,
-    WebSearchPlan,
-    WebSearchToolParameters,
 )
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
@@ -29,14 +29,16 @@ from unique_web_search.services.search_engine.schema import (
 _LOGGER = logging.getLogger(__name__)
 
 
-class BaseWebSearchExecutor(ABC):
+T = TypeVar("T", bound=BaseModel)
+
+class BaseWebSearchExecutor(ABC, Generic[T]):
     def __init__(
         self,
         services: ExecutorServiceContext,
         config: ExecutorConfiguration,
         callbacks: ExecutorCallbacks,
         tool_call: LanguageModelFunction,
-        tool_parameters: WebSearchPlan | WebSearchToolParameters,
+        tool_parameters: T,
     ):
         # Extract from service context
         self.search_service = services.search_engine_service

@@ -20,7 +20,7 @@ from unique_web_search.metrics import (
     search_errors,
     search_total,
 )
-from unique_web_search.schema import StepDebugInfo, WebSearchToolParameters
+from unique_web_search.schema import StepDebugInfo
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
 )
@@ -30,6 +30,7 @@ from unique_web_search.services.executors.context import (
     ExecutorServiceContext,
 )
 from unique_web_search.services.executors.v1.config import RefineQueryMode
+from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -133,7 +134,7 @@ async def query_generation_agent(
     return structured_output_model.model_validate(parsed_response)
 
 
-class WebSearchV1Executor(BaseWebSearchExecutor):
+class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
     """Executes research plans step by step."""
 
     @override
@@ -156,7 +157,6 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             tool_parameters=tool_parameters,
         )
         self.mode = mode
-        self.tool_parameters = tool_parameters
         self.refine_query_system_prompt = refine_query_system_prompt
         self.max_queries = max_queries
 

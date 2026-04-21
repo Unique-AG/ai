@@ -24,11 +24,7 @@ from unique_toolkit.monitoring import metric_scope
 
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.metrics import tool_duration, tool_empty_results, tool_errors
-from unique_web_search.schema import (
-    WebSearchDebugInfo,
-    WebSearchPlan,
-    WebSearchToolParameters,
-)
+from unique_web_search.schema import WebSearchDebugInfo
 from unique_web_search.services.argument_screening import (
     ArgumentScreeningService,
 )
@@ -48,6 +44,12 @@ from unique_web_search.services.executors.context import (
     ExecutorConfiguration,
     ExecutorServiceContext,
 )
+from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
+from unique_web_search.services.executors.v2.schema import WebSearchPlan
+from unique_web_search.services.executors.v3.schema import (
+    WebSearchV3CommandType,
+    WebSearchV3ToolParameters,
+)
 from unique_web_search.services.message_log import WebSearchMessageLogger
 from unique_web_search.services.query_elicitation import QueryElicitationService
 from unique_web_search.services.search_engine import (
@@ -62,6 +64,15 @@ from unique_web_search.utils import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Experimental: nudge orchestrator after V3 `search` to follow up with `fetch_urls`.
+_EXPERIMENTAL_V3_SEARCH_FETCH_REMINDER = (
+    "[WebSearch V3] This turn was `search` (titles/snippets only). "
+    "If what you need is not fully present in those snippets, make another WebSearch "
+    "call with `exec.command` set to `fetch_urls` and put the chosen HTTP(S) URLs in "
+    "`exec.urls` (take `url` from the search-hit JSON you just got; prefer a small, "
+    "high-signal set)."
+)
 
 
 class WebSearchTool(Tool[WebSearchConfig]):
@@ -115,6 +126,24 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         self.content_reducer = content_reducer
 
+    def _tool_response_system_reminder(
+        self,
+        parameters: WebSearchPlan | WebSearchToolParameters | WebSearchV3ToolParameters,
+    ) -> str:
+        """Merge configured tool-response reminder with experimental V3 search nudge."""
+        rem = self.config.experimental_features.tool_response_system_reminder
+        base = rem.get_reminder_prompt
+        parts: list[str] = []
+        if base:
+            parts.append(base)
+        if (
+            self.config.web_search_mode_config.mode == WebSearchMode.V3
+            and isinstance(parameters, WebSearchV3ToolParameters)
+            and parameters.exec.command == WebSearchV3CommandType.SEARCH
+        ):
+            parts.append(_EXPERIMENTAL_V3_SEARCH_FETCH_REMINDER)
+        return "\n\n".join(parts)
+
     def _resolve_search_engine_mode(self) -> SearchEngineMode:
         """Derive the search-engine mode, respecting CustomAPI overrides."""
         cfg = self.search_engine_service.config
@@ -129,10 +158,13 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 self.config.web_search_mode_config.tool_parameters_description.date_restrict_description,
             )
         else:
-            engine_mode = self._resolve_search_engine_mode()
-            self.tool_parameter_calls = WebSearchPlan.with_search_engine_mode(
-                engine_mode
-            )
+            if self.config.web_search_mode_config.mode == WebSearchMode.V3:
+                self.tool_parameter_calls = WebSearchV3ToolParameters
+            else:
+                engine_mode = self._resolve_search_engine_mode()
+                self.tool_parameter_calls = WebSearchPlan.with_search_engine_mode(
+                    engine_mode
+                )
 
         tool_description = self.config.web_search_mode_config.tool_description
 
@@ -147,28 +179,26 @@ class WebSearchTool(Tool[WebSearchConfig]):
         if mode_config.mode == WebSearchMode.V1:
             return mode_config.tool_description_for_system_prompt
 
-        engine_mode = self._resolve_search_engine_mode()
         template = Template(mode_config.tool_description_for_system_prompt)
 
-        render_vars: dict[str, object] = {
-            "max_steps": mode_config.max_steps,
-            "date_string": datetime.now().strftime("%A %B %d, %Y"),
-            "search_engine_mode": engine_mode.value,
-            "tool_parameters_schema": WebSearchPlan.schema_hint(engine_mode),
-            "example_simple": WebSearchPlan.build_example_simple(
-                engine_mode
-            ).model_dump_json(indent=2),
-            "example_complex": WebSearchPlan.build_example_complex(
-                engine_mode
-            ).model_dump_json(indent=2),
-        }
-
         if mode_config.mode == WebSearchMode.V3:
-            render_vars["example_fsi"] = WebSearchPlan.build_example_fsi(
-                engine_mode
-            ).model_dump_json(indent=2)
+            return template.render(
+                date_string=datetime.now().strftime("%A %B %d, %Y"),
+            )
 
-        return template.render(**render_vars)
+        engine_mode = self._resolve_search_engine_mode()
+        return template.render(
+            max_steps=mode_config.max_steps,
+            date_string=datetime.now().strftime("%A %B %d, %Y"),
+            search_engine_mode=engine_mode.value,
+            tool_parameters_schema=WebSearchPlan.schema_hint(engine_mode),
+            example_simple=WebSearchPlan.build_example_simple(
+                engine_mode
+            ).model_dump_json(indent=2),
+            example_complex=WebSearchPlan.build_example_complex(
+                engine_mode
+            ).model_dump_json(indent=2),
+        )
 
     def tool_format_information_for_system_prompt(self) -> str:
         if self.config.web_search_active_mode == WebSearchMode.V3:
@@ -188,7 +218,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         screening_service = await self._get_argument_screening_service_if_ff_enabled()
 
-        debug_info = WebSearchDebugInfo(parameters=parameters.model_dump())
+        parameters_dump = parameters.model_dump()
+        debug_info = WebSearchDebugInfo(parameters=parameters_dump)
 
         web_search_message_logger = WebSearchMessageLogger(
             message_step_logger=self._message_step_logger,
@@ -203,7 +234,10 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         try:
             if screening_service is not None:
-                screening_result = await screening_service(parameters.model_dump())
+                screening_result = await screening_service(
+                    parameters_dump, web_search_message_logger
+                )
+
                 debug_info.steps.append(
                     screening_service.build_step_debug_info_from_result(
                         screening_result
@@ -246,7 +280,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 name=self.name,
                 debug_info=debug_info.model_dump(with_debug_details=self.debug),
                 content_chunks=content_chunks,
-                system_reminder=self.config.experimental_features.tool_response_system_reminder.get_reminder_prompt,
+                system_reminder=self._tool_response_system_reminder(parameters),
             )
 
         except Exception as e:
@@ -271,7 +305,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
     def _get_executor(
         self,
         tool_call: LanguageModelFunction,
-        parameters: WebSearchPlan | WebSearchToolParameters,
+        parameters: WebSearchPlan | WebSearchToolParameters | WebSearchV3ToolParameters,
         debug_info: WebSearchDebugInfo,
         web_search_message_logger: WebSearchMessageLogger,
     ) -> WebSearchV1Executor | WebSearchV2Executor | WebSearchV3Executor:
@@ -306,19 +340,19 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
         search_config = self.config.web_search_mode_config
-        if isinstance(parameters, WebSearchPlan):
-            if search_config.mode == WebSearchMode.V3:
-                assert isinstance(search_config, WebSearchV3Config)
+        if search_config.mode == WebSearchMode.V3:
+            assert isinstance(search_config, WebSearchV3Config)
+            assert isinstance(parameters, WebSearchV3ToolParameters)
 
-                return WebSearchV3Executor(
-                    services=services,
-                    config=config,
-                    callbacks=callbacks,
-                    tool_call=tool_call,
-                    tool_parameters=parameters,
-                    max_steps=search_config.max_steps,
-                    snippet_judge_config=search_config.snippet_judge_config,
-                )
+            return WebSearchV3Executor(
+                services=services,
+                config=config,
+                callbacks=callbacks,
+                tool_call=tool_call,
+                tool_parameters=parameters,
+                search_outcome_judge_config=search_config.search_outcome_judge,
+            )
+        if isinstance(parameters, WebSearchPlan):
             assert search_config.mode == WebSearchMode.V2
             return WebSearchV2Executor(
                 services=services,
