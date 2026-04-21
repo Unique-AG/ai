@@ -87,6 +87,8 @@ nav:
     - Knowledge Base:
       - Base Service: modules/examples/content/kb_service.md
       - Smart Rules: modules/examples/content/smart_rules.md
+    - Scheduled Tasks (experimental):
+      - Service: modules/examples/scheduled_task/scheduled_tasks.md
   - Tutorials:
     - Agentic Table App: tutorials/agentic_table_app.md
     - Code Execution: tutorials/code_execution.md
