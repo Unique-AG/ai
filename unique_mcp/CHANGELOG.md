@@ -6,13 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.3.3] - 2026-04-21
-
-### Added
-- Add `MetaKeys` StrEnum with `unique.app/auth/*` and `unique.app/chat/*` infrastructure keys; tool-specific keys (e.g. search) are defined alongside their tool
-- Add `META_FLAT_ALIASES` for backward-compatible flat camelCase key fallback, gated by `enable_mcp_metadata_fallback_un_19145` FF
-- Add `ContextRequirements` model and `merge_tool_meta` helper so tools can declare required/optional `_meta` keys via `unique.app/context-requirements`
-- Add `get_request_meta` injector exposing raw `_meta` to tool handlers
-- Refactor `get_unique_settings` to compose auth and chat context from `_meta` using `MetaKeys`, with FF-gated flat alias fallback
+- Add `MetaKeys` StrEnum (`unique.app/auth/*`, `unique.app/chat/*`) and `META_FLAT_ALIASES` for FF-gated camelCase fallback
+- Add `ContextRequirements` + `merge_tool_meta` for tools to declare required `_meta` keys
+- Add `get_request_meta` injector; refactor `get_unique_settings` to compose auth/chat context from `_meta`
 
 ## [0.3.2] - 2026-04-20
 - Add `[tool.uv.exclude-newer-package]` entry exempting `unique-toolkit` from the root workspace `exclude-newer` cutoff so recent workspace releases resolve correctly under `UV_NO_SOURCES=1`
