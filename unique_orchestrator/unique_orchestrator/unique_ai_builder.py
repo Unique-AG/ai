@@ -77,6 +77,7 @@ from unique_toolkit.protocols.support import ResponsesSupportCompleteWithReferen
 
 from unique_orchestrator._builders import (
     build_loop_iteration_runner,
+    build_responses_loop_iteration_runner,
 )
 from unique_orchestrator._builders.open_file_setup import (
     configure_file_payload,
@@ -440,7 +441,7 @@ async def _build_responses(
         tool_manager=tool_manager,
     )
 
-    loop_iteration_runner = build_loop_iteration_runner(
+    loop_iteration_runner = build_responses_loop_iteration_runner(
         config=config,
         history_manager=common_components.history_manager,
         openai_client=client,

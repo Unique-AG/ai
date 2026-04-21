@@ -50,6 +50,9 @@ from unique_toolkit.protocols.support import (
     SupportCompleteWithReferences,
 )
 
+from unique_orchestrator._builders.inject_tool_reminders import (
+    inject_tool_reminders_into_user_message,
+)
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.utils import filter_uploaded_documents_by_selection
 
@@ -405,17 +408,20 @@ class UniqueAI:
                         messages
                     )
                 )
+
+        tool_reminders: list[str] = []
+        for prompts in self._tool_manager.get_tool_prompts():
+            if prompts.tool_system_reminder:
+                tool_reminders.append(prompts.tool_system_reminder)
+        messages = inject_tool_reminders_into_user_message(
+            messages, tool_reminders
+        )
         return messages
 
     async def _render_user_prompt(self) -> str:
         user_message_template = jinja2.Template(
             self._config.agent.prompt_config.user_message_prompt_template
         )
-
-        tool_descriptions_with_user_prompts = [
-            prompts.tool_user_prompt
-            for prompts in self._tool_manager.get_tool_prompts()
-        ]
 
         used_tools = [t.name for t in self._history_manager.get_tool_calls()]
         sub_agent_calls = self._tool_manager.filter_tool_calls(
@@ -448,7 +454,6 @@ class UniqueAI:
             tool_descriptions=tool_descriptions,
             used_tools=used_tools,
             mcp_server_user_prompts=list(mcp_server_user_prompts),
-            tool_descriptions_with_user_prompts=tool_descriptions_with_user_prompts,
             use_sub_agent_references=use_sub_agent_references,
             sub_agent_referencing_instructions=sub_agent_referencing_instructions,
             user_metadata=user_metadata,

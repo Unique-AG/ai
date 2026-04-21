@@ -82,15 +82,36 @@ class SkillTool(Tool[SkillToolConfig]):
         )
 
     def tool_description_for_system_prompt(self) -> str:
-        listing = format_skill_listing(
-            skills=list(self._registry.values()),
-            config=self.config,
+        """Static instructions for the system prompt.
+
+        The skill listing is intentionally NOT rendered here. It is
+        injected per-turn as a ``<system-reminder>`` block via
+        ``SkillTool`` prompt / system-reminder split).
+        """
+        return self.config.tool_description_for_system_prompt
+
+    def tool_description_for_user_prompt(self) -> str:
+        return self.config.tool_description_for_user_prompt
+
+    def tool_system_reminder(self) -> str:
+        """Per-turn ``<system-reminder>`` block listing available skills.
+
+        Renders :attr:`SkillToolConfig.tool_system_reminder` as a
+        Jinja template with the budget-aware ``skill_list``. Returned
+        verbatim by the orchestrator as a ``{"type": "text"}`` part
+        on the latest user message every loop iteration (see
+        ``unique_orchestrator._builders.inject_tool_reminders``), so
+        the listing cannot go stale. Returns an empty string when the
+        registry is empty or the reminder template is unset.
+        """
+        skills = list(self._registry.values())
+        if not skills or not self.config.tool_system_reminder:
+            return ""
+
+        listing = format_skill_listing(skills=skills, config=self.config)
+        return jinja2.Template(self.config.tool_system_reminder).render(
+            skill_list=listing
         )
-        skill_list = (
-            f"Available skills:\n{listing}" if listing else "No skills available."
-        )
-        template = jinja2.Template(self.config.tool_description_for_system_prompt)
-        return template.render(skill_list=skill_list)
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         args = tool_call.arguments or {}

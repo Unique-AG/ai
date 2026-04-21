@@ -15,8 +15,7 @@ DEFAULT_TOOL_DESCRIPTION = (
 )
 
 DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = (
-    "You have access to the Skill tool which lets you activate specialized "
-    "capabilities. Available skills are listed below.\n\n"
+    "Execute a skill within the main conversation.\n\n"
     "CRITICAL — Skill tool has HIGHEST PRIORITY among all tools:\n"
     "1. Before you call ANY other tool (InternalSearch, OpenFile, etc.) or "
     "generate ANY response, check if a skill matches the user's request.\n"
@@ -29,10 +28,26 @@ DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT = (
     "5. After the skill is loaded, follow its instructions directly. The "
     "skill may tell you to call other tools (e.g. InternalSearch) as part "
     "of its workflow — that is expected.\n\n"
-    "{{ skill_list }}\n\n"
+    "Important:\n"
+    "- Available skills are listed in system-reminder messages in the "
+    "conversation. The listing is refreshed every turn — do not rely on a "
+    "name unless it appears in the most recent reminder.\n"
+    "- The skill description in the listing is a summary. The full "
+    "instructions are injected into the conversation only after you invoke "
+    "the tool.\n\n"
     "How to invoke:\n"
-    '- skill_name: "analyze-data" — invoke a skill by name\n'
-    '- skill_name: "summarize", arguments: "focus on key metrics" — invoke with arguments'
+    '- name: "analyze-data" — invoke a skill by name\n'
+    '- name: "summarize", arguments: "focus on key metrics" — invoke with arguments'
+)
+
+DEFAULT_TOOL_DESCRIPTION_FOR_USER_PROMPT = ""
+
+DEFAULT_TOOL_SYSTEM_REMINDER = (
+    "<system-reminder>\n"
+    "The following skills are available. Use the Skill tool to invoke them.\n"
+    "\n"
+    "{{ skill_list }}\n"
+    "</system-reminder>"
 )
 
 DEFAULT_TOOL_PARAMETER_SKILL_NAME_DESCRIPTION = (
@@ -79,6 +94,30 @@ class SkillToolConfig(BaseToolConfig):
     ] = Field(
         default=DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
         description="Instructions for the system prompt explaining how to use skills.",
+    )
+
+    tool_description_for_user_prompt: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=5),
+    ] = Field(
+        default=DEFAULT_TOOL_DESCRIPTION_FOR_USER_PROMPT,
+        description=(
+            "Optional extra text appended to the per-turn user-message "
+            "injection.."
+        ),
+    )
+
+    tool_system_reminder: Annotated[
+        str,
+        RJSFMetaTag.StringWidget.textarea(rows=5),
+    ] = Field(
+        default=DEFAULT_TOOL_SYSTEM_REMINDER,
+        description=(
+            "Per-turn ``<system-reminder>`` template injected into the "
+            "user message. Jinja variable ``skill_list`` is rendered "
+            "with the budget-aware skill listing. Refreshed every loop "
+            "iteration."
+        ),
     )
 
     tool_parameter_description_skill_name: Annotated[

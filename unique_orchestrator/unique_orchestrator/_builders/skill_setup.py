@@ -49,7 +49,8 @@ if TYPE_CHECKING:
     from unique_orchestrator.config import UniqueAIConfig
 
 
-_SUBTREE_PAGE_SIZE = 1000
+_SUBTREE_PAGE_SIZE = 100
+_MAX_SUBTREE_ITEMS = 10_000
 
 
 def _is_markdown(content: Content | ContentInfo) -> bool:
@@ -146,10 +147,12 @@ def load_skills_from_knowledge_base(
 ) -> dict[str, SkillDefinition]:
     """Load all ``.md`` files from *scope_ids* (recursively) as a skill registry.
 
-    A single UniqueQL query is issued with a metadata filter that OR's
-    ``folderIdPath CONTAINS uniquepathid://<scope_id>`` for every
-    configured scope. This matches any file whose folder path contains
-    the configured scope at any depth, so:
+    Pages through ``/content/infos`` with a UniqueQL metadata filter that
+    OR's ``folderIdPath CONTAINS uniquepathid://<scope_id>`` for every
+    configured scope. The public API caps ``take`` at 100, so results are
+    accumulated across pages up to ``_MAX_SUBTREE_ITEMS``. This matches
+    any file whose folder path contains the configured scope at any
+    depth, so:
 
     * Each configured scope ID acts as a subtree root — all files inside
       it and any of its descendants are considered.
@@ -164,11 +167,22 @@ def load_skills_from_knowledge_base(
 
     metadata_filter = _build_subtree_metadata_filter(scope_ids)
 
+    all_infos: list[ContentInfo] = []
+    skip = 0
     try:
-        paginated = knowledge_base_service.get_paginated_content_infos(
-            metadata_filter=metadata_filter,
-            take=_SUBTREE_PAGE_SIZE,
-        )
+        while skip < _MAX_SUBTREE_ITEMS:
+            paginated = knowledge_base_service.get_paginated_content_infos(
+                metadata_filter=metadata_filter,
+                skip=skip,
+                take=_SUBTREE_PAGE_SIZE,
+            )
+            all_infos.extend(paginated.content_infos)
+            skip += len(paginated.content_infos)
+            if (
+                len(paginated.content_infos) < _SUBTREE_PAGE_SIZE
+                or skip >= paginated.total_count
+            ):
+                break
     except Exception:
         logger.warning(
             "Failed to list contents for scope_ids=%s — "
@@ -178,7 +192,7 @@ def load_skills_from_knowledge_base(
         )
         return {}
 
-    md_infos = [ci for ci in paginated.content_infos if _is_markdown(ci)]
+    md_infos = [ci for ci in all_infos if _is_markdown(ci)]
     if not md_infos:
         logger.info("No .md files found for scope_ids=%s.", scope_ids)
         return {}

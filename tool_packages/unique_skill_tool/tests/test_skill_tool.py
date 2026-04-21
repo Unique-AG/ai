@@ -194,22 +194,119 @@ class TestSkillToolDescription:
 
 
 class TestSkillToolSystemPrompt:
-    def test_includes_skill_listing(self) -> None:
+    """The system prompt must NOT contain the skill listing.
+
+    Mirrors Claude Code: the listing lives in per-turn
+    ``<system-reminder>`` blocks (see :class:`TestSkillToolUserPrompt`),
+    not in the static system prompt, so it cannot go stale.
+    """
+
+    def test_does_not_include_skill_listing(self) -> None:
         skills = [_make_skill("my-skill", description="Does stuff")]
         tool = _make_tool(registry=_make_registry(*skills))
 
         prompt = tool.tool_description_for_system_prompt()
 
-        assert "Available skills:" in prompt
-        assert "my-skill" in prompt
-        assert "Does stuff" in prompt
+        assert "my-skill" not in prompt
+        assert "Does stuff" not in prompt
+        assert "Available skills:" not in prompt
 
-    def test_empty_registry_no_listing(self) -> None:
+    def test_points_to_system_reminder(self) -> None:
+        tool = _make_tool()
+        prompt = tool.tool_description_for_system_prompt()
+
+        assert "system-reminder" in prompt.lower()
+
+    def test_empty_registry_still_static_only(self) -> None:
         tool = _make_tool(registry={})
         prompt = tool.tool_description_for_system_prompt()
 
         assert "Available skills:" not in prompt
-        assert "No skills available." in prompt
+        assert "Execute a skill" in prompt
+
+
+# ---------------------------------------------------------------------------
+# SkillTool.tool_description_for_user_prompt()
+# ---------------------------------------------------------------------------
+
+
+class TestSkillToolUserPrompt:
+    """Literal extra text appended per-turn to the user message.
+
+    The skill listing lives in :meth:`SkillTool.tool_system_reminder`
+    (see :class:`TestSkillToolSystemReminder`), NOT here. This method
+    only returns ``config.tool_description_for_user_prompt`` verbatim,
+    mirroring every other tool.
+    """
+
+    def test_returns_config_value_verbatim(self) -> None:
+        config = SkillToolConfig(
+            enabled=True,
+            tool_description_for_user_prompt="extra prompt text",
+        )
+        tool = _make_tool(config=config)
+
+        assert tool.tool_description_for_user_prompt() == "extra prompt text"
+
+    def test_does_not_include_skill_listing(self) -> None:
+        skills = [_make_skill("my-skill", description="Does stuff")]
+        tool = _make_tool(registry=_make_registry(*skills))
+
+        user_prompt = tool.tool_description_for_user_prompt()
+
+        assert "my-skill" not in user_prompt
+        assert "<system-reminder>" not in user_prompt
+
+    def test_default_config_returns_empty(self) -> None:
+        tool = _make_tool()
+
+        assert tool.tool_description_for_user_prompt() == ""
+
+
+# ---------------------------------------------------------------------------
+# SkillTool.tool_system_reminder()
+# ---------------------------------------------------------------------------
+
+
+class TestSkillToolSystemReminder:
+    """Per-turn ``<system-reminder>`` listing injected into the user message."""
+
+    def test_includes_system_reminder_block(self) -> None:
+        skills = [_make_skill("my-skill", description="Does stuff")]
+        tool = _make_tool(registry=_make_registry(*skills))
+
+        reminder = tool.tool_system_reminder()
+
+        assert "<system-reminder>" in reminder
+        assert "</system-reminder>" in reminder
+
+    def test_includes_claude_code_preamble(self) -> None:
+        tool = _make_tool()
+        reminder = tool.tool_system_reminder()
+
+        assert (
+            "The following skills are available. "
+            "Use the Skill tool to invoke them." in reminder
+        )
+
+    def test_includes_skill_listing(self) -> None:
+        skills = [_make_skill("my-skill", description="Does stuff")]
+        tool = _make_tool(registry=_make_registry(*skills))
+
+        reminder = tool.tool_system_reminder()
+
+        assert "- my-skill: Does stuff" in reminder
+
+    def test_empty_registry_returns_empty_string(self) -> None:
+        tool = _make_tool(registry={})
+
+        assert tool.tool_system_reminder() == ""
+
+    def test_empty_reminder_template_returns_empty(self) -> None:
+        config = SkillToolConfig(enabled=True, tool_system_reminder="")
+        tool = _make_tool(config=config)
+
+        assert tool.tool_system_reminder() == ""
 
 
 # ---------------------------------------------------------------------------

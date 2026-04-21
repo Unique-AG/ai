@@ -104,7 +104,7 @@ class Tool(ABC, Generic[ConfigType]):
         return ""
 
     # TODO: This method should be a property
-    def tool_system_reminder_for_user_prompt(self) -> str:
+    def tool_system_reminder(self) -> str:
         """A per-turn ``<system-reminder>`` block for the tool.
 
         Override this when the tool's state changes between turns and
@@ -152,7 +152,7 @@ class Tool(ABC, Generic[ConfigType]):
             input_model=self.tool_description_as_json(),
             tool_user_prompt=self.tool_description_for_user_prompt(),
             tool_format_information_for_user_prompt=self.tool_format_information_for_user_prompt(),
-            tool_system_reminder_for_user_prompt=self.tool_system_reminder_for_user_prompt(),
+            tool_system_reminder=self.tool_system_reminder(),
         )
 
     @overload
