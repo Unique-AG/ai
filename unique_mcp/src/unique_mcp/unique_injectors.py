@@ -28,7 +28,7 @@ from unique_toolkit.app.unique_settings import (
 from unique_toolkit.services.factory import UniqueServiceFactory
 
 from unique_mcp.auth.zitadel.oauth_proxy import ZitadelOAuthProxySettings
-from unique_mcp.meta_keys import _LEGACY_NAMESPACE_ALIASES, META_FLAT_ALIASES, MetaKeys
+from unique_mcp.meta_keys import META_FLAT_ALIASES, MetaKeys
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,12 +71,6 @@ def _pick_meta(meta: Mapping[str, Any], canonical_key: str) -> str | None:
         flat_alias = META_FLAT_ALIASES.get(canonical_key)
         if flat_alias is not None:
             fallback = meta.get(flat_alias)
-            if isinstance(fallback, str) and fallback:
-                return fallback
-
-        old_ns_key = _LEGACY_NAMESPACE_ALIASES.get(canonical_key)
-        if old_ns_key is not None:
-            fallback = meta.get(old_ns_key)
             if isinstance(fallback, str) and fallback:
                 return fallback
 

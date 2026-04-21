@@ -27,15 +27,4 @@ META_FLAT_ALIASES: dict[str, str] = {
 }
 """Flat camelCase aliases from pre-#22513 builds, used for FF-gated fallback."""
 
-_LEGACY_NAMESPACE_ALIASES: dict[str, str] = {
-    MetaKeys.USER_ID: "unique.app/user-id",
-    MetaKeys.COMPANY_ID: "unique.app/company-id",
-}
-"""Pre-scope-segment namespace keys (pre-#22513) — no ``/auth/`` segment.
-
-Clients still sending ``unique.app/user-id`` instead of
-``unique.app/auth/user-id`` are covered by this second FF-gated fallback pass.
-"""
-
-
-__all__ = ["MetaKeys", "META_FLAT_ALIASES", "_LEGACY_NAMESPACE_ALIASES"]
+__all__ = ["MetaKeys", "META_FLAT_ALIASES"]

@@ -13,7 +13,7 @@ from unique_toolkit.app.unique_settings import (
 )
 
 from unique_mcp.auth.zitadel.oauth_proxy import ZitadelOAuthProxySettings
-from unique_mcp.meta_keys import _LEGACY_NAMESPACE_ALIASES, MetaKeys
+from unique_mcp.meta_keys import MetaKeys
 from unique_mcp.unique_injectors import (
     _CLAIM_COMPANY_ID,
     _CLAIM_USER_ID,
@@ -320,36 +320,6 @@ def test_pick_meta__ignores_flat_when_ff_disabled() -> None:
         return_value=False,
     ):
         assert _pick_meta(meta, MetaKeys.USER_ID) is None
-
-
-@pytest.mark.ai
-def test_pick_meta__uses_legacy_namespace_alias_when_ff_enabled() -> None:
-    """Old ``unique.app/user-id`` (pre-scope-segment) resolves via FF-gated fallback."""
-    old_key = _LEGACY_NAMESPACE_ALIASES[MetaKeys.USER_ID]
-    with patch(
-        f"{_MOD}.feature_flags.enable_mcp_metadata_fallback_un_19145.is_enabled",
-        return_value=True,
-    ):
-        assert _pick_meta({old_key: "u1"}, MetaKeys.USER_ID) == "u1"
-
-
-@pytest.mark.ai
-def test_pick_meta__ignores_legacy_namespace_alias_when_ff_disabled() -> None:
-    """Old ``unique.app/user-id`` must not resolve when the fallback FF is off."""
-    old_key = _LEGACY_NAMESPACE_ALIASES[MetaKeys.USER_ID]
-    with patch(
-        f"{_MOD}.feature_flags.enable_mcp_metadata_fallback_un_19145.is_enabled",
-        return_value=False,
-    ):
-        assert _pick_meta({old_key: "u1"}, MetaKeys.USER_ID) is None
-
-
-@pytest.mark.ai
-def test_pick_meta__canonical_wins_over_legacy_namespace() -> None:
-    """Canonical key takes priority over old-namespace alias even when both present."""
-    old_key = _LEGACY_NAMESPACE_ALIASES[MetaKeys.USER_ID]
-    result = _pick_meta({MetaKeys.USER_ID: "new", old_key: "old"}, MetaKeys.USER_ID)
-    assert result == "new"
 
 
 @pytest.mark.ai
