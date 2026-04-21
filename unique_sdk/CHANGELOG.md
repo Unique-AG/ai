@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.9] - 2026-04-21
+- Docs: update the `unique-cli-elicitation` skill to require both `--chat-id "$UNIQUE_CHAT_ID"` and `--message-id "$UNIQUE_MESSAGE_ID"` on every `elicit ask` call, explain that every elicitation is anchored to a `(chatId, messageId)` pair in the backend, and document the two new env vars agents should always forward
+
 ## [0.11.8] - 2026-04-21
 - Workaround for UN-19815: `elicit ask` / `elicit create` now wrap the elicitation in a short-lived placeholder "thinking" timeline (a placeholder `ASSISTANT` message + a `RUNNING` `MessageLog` step) so the chat UI actually renders the elicitation while it is pending. The placeholder is torn down automatically (collapsed or deleted) when the user responds, on timeout, on API error, or on Ctrl-C
 - Add `--visible` / `--no-visible`, `--assistant-id`, `--placeholder-text`, `--cleanup` flags to `elicit ask` and `elicit create` in both the one-shot CLI and the REPL shell. The workaround is enabled by default whenever `--chat-id` is passed and `--message-id` is not; pass `--no-visible` to opt out once the UN-19815 UI fix lands

@@ -5396,7 +5396,7 @@ dev = []
 
 [[package]]
 name = "unique-sdk"
-version = "0.11.8"
+version = "0.11.9"
 source = { editable = "unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
