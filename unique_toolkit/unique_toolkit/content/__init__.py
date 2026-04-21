@@ -1,4 +1,7 @@
 from .constants import DOMAIN_NAME as DOMAIN_NAME
+from .folder import (
+    ContentFolder as ContentFolder,
+)
 from .schemas import (
     Content as Content,
 )

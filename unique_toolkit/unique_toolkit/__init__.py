@@ -1,6 +1,7 @@
 # Re-export commonly used classes for easier imports
 from unique_toolkit.chat import ChatService
 from unique_toolkit.content import ContentService
+from unique_toolkit.content.folder import ContentFolder
 from unique_toolkit.data_extraction import (
     StructuredOutputDataExtractor,
     StructuredOutputDataExtractorConfig,
@@ -51,6 +52,7 @@ except ImportError:
 
 __all__ = [
     "ChatService",
+    "ContentFolder",
     "ContentService",
     "EmbeddingService",
     "get_openai_client",

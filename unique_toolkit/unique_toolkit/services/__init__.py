@@ -3,6 +3,7 @@ from unique_toolkit.app.unique_settings import (
     ChatContext,
     UniqueContext,
 )
+from unique_toolkit.content.folder import ContentFolder
 from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit.services.factory import (
     ServiceNotRegisteredError,
@@ -16,6 +17,7 @@ __all__ = [
     "AuthContext",
     "ChatContext",
     "ChatService",
+    "ContentFolder",
     "KnowledgeBaseService",
     "UniqueContext",
     "UniqueServiceFactory",
