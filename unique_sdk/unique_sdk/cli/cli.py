@@ -680,7 +680,7 @@ def elicit() -> None:
       create    Low-level: create a FORM or URL elicitation
       pending   List pending elicitations for the current user
       get       Show details of a single elicitation by ID
-      respond   Respond to an elicitation (ACCEPT / DECLINE / CANCEL)
+      respond   Respond to an elicitation (ACCEPT / DECLINE / CANCEL / REJECT)
       wait      Poll an elicitation until it reaches a terminal state
     """
 
@@ -1035,7 +1035,7 @@ def elicit_wait(
 @click.argument("elicitation_id")
 @click.option(
     "--action",
-    type=click.Choice(["ACCEPT", "DECLINE", "CANCEL"], case_sensitive=False),
+    type=click.Choice(["ACCEPT", "DECLINE", "CANCEL", "REJECT"], case_sensitive=False),
     required=True,
     help="Response action.",
 )

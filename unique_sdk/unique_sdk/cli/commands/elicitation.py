@@ -238,17 +238,34 @@ def _create_visibility_context(
     if not isinstance(placeholder_id, str) or not placeholder_id:
         raise ValueError("platform did not return a placeholder message id")
 
-    step = unique_sdk.MessageLog.create(
-        user_id=state.config.user_id,
-        company_id=state.config.company_id,
-        messageId=placeholder_id,
-        text=placeholder_text,
-        status="RUNNING",
-        order=0,
-    )
-    step_id = cast(dict[str, Any], step).get("id")
-    if not isinstance(step_id, str) or not step_id:
-        raise ValueError("platform did not return a step id for the placeholder")
+    # Create the MessageLog step atomically with the placeholder: if this
+    # fails (or the platform returns malformed data), the placeholder would
+    # otherwise dangle forever in the chat UI as a spinning "thinking"
+    # bubble with no ``completedAt`` and no caller-visible id to clean up.
+    # Delete it on the error path so the user never sees a ghost message.
+    try:
+        step = unique_sdk.MessageLog.create(
+            user_id=state.config.user_id,
+            company_id=state.config.company_id,
+            messageId=placeholder_id,
+            text=placeholder_text,
+            status="RUNNING",
+            order=0,
+        )
+        step_id = cast(dict[str, Any], step).get("id")
+        if not isinstance(step_id, str) or not step_id:
+            raise ValueError("platform did not return a step id for the placeholder")
+    except BaseException:
+        try:
+            unique_sdk.Message.delete(
+                placeholder_id,
+                state.config.user_id,
+                state.config.company_id,
+                chatId=chat_id,
+            )
+        except unique_sdk.APIError:
+            pass
+        raise
 
     return placeholder_id, step_id
 

@@ -100,7 +100,7 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --timeout <seconds>            Max wait (default: 300)
         --poll-interval <seconds>      Poll frequency (default: 2.0)
       elicit respond <id> [opts]     Respond on behalf of the user
-        --action ACCEPT|DECLINE|CANCEL Response action (required)
+        --action ACCEPT|DECLINE|CANCEL|REJECT Response action (required)
         --content <json>               Response body (required for ACCEPT)
 
     Scheduled tasks:
@@ -584,7 +584,7 @@ class UniqueShell(cmd.Cmd):
           --metadata key=value         Metadata (repeatable)
 
         Respond options:
-          --action ACCEPT|DECLINE|CANCEL  Action (required)
+          --action ACCEPT|DECLINE|CANCEL|REJECT  Action (required)
           --content <json>                Response body (required for ACCEPT)
 
         Examples:
@@ -839,7 +839,7 @@ class UniqueShell(cmd.Cmd):
         if opts is None:
             return
         if not opts["action"]:
-            self._print("Error: --action ACCEPT|DECLINE|CANCEL is required.")
+            self._print("Error: --action ACCEPT|DECLINE|CANCEL|REJECT is required.")
             return
         self._print(
             cmd_elicit_respond(
