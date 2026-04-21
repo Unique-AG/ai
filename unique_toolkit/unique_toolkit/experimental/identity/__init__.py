@@ -12,30 +12,16 @@ subpackage also exposes the Pydantic schemas used on responses.
 """
 
 from unique_toolkit.experimental.identity.schemas import (
-    GroupDeleted as GroupDeleted,
+    GroupDeleted,
+    GroupInfo,
+    GroupMember,
+    GroupMembership,
+    GroupWithConfiguration,
+    UserGroupMembership,
+    UserInfo,
+    UserWithConfiguration,
 )
-from unique_toolkit.experimental.identity.schemas import (
-    GroupInfo as GroupInfo,
-)
-from unique_toolkit.experimental.identity.schemas import (
-    GroupMember as GroupMember,
-)
-from unique_toolkit.experimental.identity.schemas import (
-    GroupMembership as GroupMembership,
-)
-from unique_toolkit.experimental.identity.schemas import (
-    GroupWithConfiguration as GroupWithConfiguration,
-)
-from unique_toolkit.experimental.identity.schemas import (
-    UserGroupMembership as UserGroupMembership,
-)
-from unique_toolkit.experimental.identity.schemas import (
-    UserInfo as UserInfo,
-)
-from unique_toolkit.experimental.identity.schemas import (
-    UserWithConfiguration as UserWithConfiguration,
-)
-from unique_toolkit.experimental.identity.service import Identity as Identity
+from unique_toolkit.experimental.identity.service import Identity
 
 __all__ = [
     "GroupDeleted",
