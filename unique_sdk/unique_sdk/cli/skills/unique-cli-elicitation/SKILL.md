@@ -27,6 +27,9 @@ Use this skill **whenever you need input from the user** -- a clarifying questio
 unique-cli elicit ask "<question>" [options]
 ```
 
+!!! danger "`--chat-id` and `--message-id` are MANDATORY"
+    You **must always pass both** `--chat-id "$UNIQUE_CHAT_ID"` **and** `--message-id "$UNIQUE_MESSAGE_ID"` on every `elicit ask` call. These environment variables are always available in the agent environment. Without both flags the elicitation is not correctly anchored to the current conversation and the user will not see it.
+
 ## When to use
 
 | Situation | Use elicitation? |
@@ -43,7 +46,9 @@ unique-cli elicit ask "<question>" [options]
 ### Minimal — free-text answer
 
 ```bash
-unique-cli elicit ask "Which quarter should I report on?" --chat-id "$CHAT_ID"
+unique-cli elicit ask "Which quarter should I report on?" \
+  --chat-id "$UNIQUE_CHAT_ID" \
+  --message-id "$UNIQUE_MESSAGE_ID"
 ```
 
 Under the hood this creates a form with a single required string field `answer`. The reply you receive will look like:
@@ -65,7 +70,8 @@ Provide an explicit JSON schema so the user sees proper UI controls instead of a
 
 ```bash
 unique-cli elicit ask "Which report format do you want?" \
-  --chat-id "$CHAT_ID" \
+  --chat-id "$UNIQUE_CHAT_ID" \
+  --message-id "$UNIQUE_MESSAGE_ID" \
   --schema '{
     "type": "object",
     "properties": {
@@ -85,7 +91,8 @@ Always use this before `rm`, `rmdir -r`, mass uploads, or anything irreversible.
 
 ```bash
 unique-cli elicit ask "Confirm deleting /Archive/2024 and everything inside it" \
-  --chat-id "$CHAT_ID" \
+  --chat-id "$UNIQUE_CHAT_ID" \
+  --message-id "$UNIQUE_MESSAGE_ID" \
   --schema '{
     "type": "object",
     "properties": {
@@ -104,7 +111,8 @@ Proceed **only** if the response contains `"confirm": true`. Treat `DECLINED`, `
 
 ```bash
 unique-cli elicit ask "Please provide report settings" \
-  --chat-id "$CHAT_ID" \
+  --chat-id "$UNIQUE_CHAT_ID" \
+  --message-id "$UNIQUE_MESSAGE_ID" \
   --schema '{
     "type": "object",
     "properties": {
@@ -121,7 +129,8 @@ unique-cli elicit ask "Please provide report settings" \
 
 | Option | Short | Default | Description |
 |--------|-------|---------|-------------|
-| `--chat-id` | `-c` | none | Chat to show the question in. **Pass this.** Without `--chat-id` the visibility workaround cannot run and the user will not see the elicitation. |
+| `--chat-id` | `-c` | none | **MANDATORY.** Chat to show the question in. Always pass `"$UNIQUE_CHAT_ID"`. Without it the visibility workaround cannot run and the user will not see the elicitation. |
+| `--message-id` | `-m` | none | **MANDATORY.** The current assistant message ID. Always pass `"$UNIQUE_MESSAGE_ID"`. Anchors the elicitation to the correct message in the conversation thread. |
 | `--tool-name` | `-t` | `agent_question` | Short snake_case label shown to the user (e.g. `clarify`, `confirm_delete`, `choose_report`). |
 | `--schema` | | single `answer` string | JSON Schema for the form body. |
 | `--expires-in` | | none | Seconds before the request auto-expires on the platform. |
@@ -159,11 +168,14 @@ If the CLI itself times out locally (`elicit: timed out after Ns ...`), raise `-
 In a shell script or agent tool wrapper, capture the output and pull out the `Response:` line:
 
 ```bash
-result=$(unique-cli elicit ask "Which region?" --chat-id "$CHAT_ID" --schema '{
-  "type":"object",
-  "properties":{"region":{"type":"string","enum":["EU","US","APAC"]}},
-  "required":["region"]
-}')
+result=$(unique-cli elicit ask "Which region?" \
+  --chat-id "$UNIQUE_CHAT_ID" \
+  --message-id "$UNIQUE_MESSAGE_ID" \
+  --schema '{
+    "type":"object",
+    "properties":{"region":{"type":"string","enum":["EU","US","APAC"]}},
+    "required":["region"]
+  }')
 
 answer=$(echo "$result" | awk -F'Response:[[:space:]]*' '/^Response:/{print $2}')
 region=$(echo "$answer" | jq -r '.region')
@@ -185,14 +197,15 @@ esac
 ## Agent workflow rules
 
 1. **Default to `elicit ask`.** If you need an answer from the user, use this command, not a chat message. Do not use any of the other `elicit *` subcommands from an agent.
-2. **Always pass `--chat-id`.** Without it the elicitation is not attached to a chat and the user will not see it.
-3. **Never pass `--no-visible`.** See the warning above. The visibility workaround is mandatory today.
-4. **Never run destructive CLI commands without a confirmation elicitation.** This includes `rm`, `rmdir -r`, bulk renames, large uploads, schedule deletion, etc.
-5. **Pick a meaningful `--tool-name`.** `confirm_delete`, `choose_region`, `pick_report` -- short snake_case describing the intent.
-6. **Constrain answers with a schema** whenever the valid set is finite -- don't rely on parsing free text when `enum` is an option.
-7. **Handle non-`RESPONDED` outcomes explicitly.** If the status is `DECLINED` / `CANCELLED` / `EXPIRED`, tell the user you stopped and ask what they want to do next instead of silently proceeding.
-8. **Don't spam elicitations.** One well-designed form with several fields is better than five sequential yes/no questions.
-9. **Respect timeouts.** The default `--timeout` is 5 minutes -- raise it only if you genuinely expect the user to take longer.
+2. **Always pass `--chat-id "$UNIQUE_CHAT_ID"`.** Without it the elicitation is not attached to a chat and the user will not see it.
+3. **Always pass `--message-id "$UNIQUE_MESSAGE_ID"`.** This anchors the elicitation to the current message in the conversation. Both `$UNIQUE_CHAT_ID` and `$UNIQUE_MESSAGE_ID` are always available as environment variables — never omit either.
+4. **Never pass `--no-visible`.** See the warning above. The visibility workaround is mandatory today.
+5. **Never run destructive CLI commands without a confirmation elicitation.** This includes `rm`, `rmdir -r`, bulk renames, large uploads, schedule deletion, etc.
+6. **Pick a meaningful `--tool-name`.** `confirm_delete`, `choose_region`, `pick_report` -- short snake_case describing the intent.
+7. **Constrain answers with a schema** whenever the valid set is finite -- don't rely on parsing free text when `enum` is an option.
+8. **Handle non-`RESPONDED` outcomes explicitly.** If the status is `DECLINED` / `CANCELLED` / `EXPIRED`, tell the user you stopped and ask what they want to do next instead of silently proceeding.
+9. **Don't spam elicitations.** One well-designed form with several fields is better than five sequential yes/no questions.
+10. **Respect timeouts.** The default `--timeout` is 5 minutes -- raise it only if you genuinely expect the user to take longer.
 
 ## Prerequisites
 
@@ -203,6 +216,8 @@ UNIQUE_USER_ID    # User ID (required)
 UNIQUE_COMPANY_ID # Company ID (required)
 UNIQUE_API_KEY    # API key -- optional on localhost / secured cluster
 UNIQUE_APP_ID     # App ID -- optional on localhost / secured cluster
+UNIQUE_CHAT_ID    # Current chat ID -- always pass as --chat-id (required)
+UNIQUE_MESSAGE_ID # Current message ID -- always pass as --message-id (required)
 ```
 
 Install: `pip install unique-sdk`

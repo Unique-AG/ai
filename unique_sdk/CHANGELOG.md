@@ -5,10 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.11.9] - 2026-04-21
+## [0.11.10] - 2026-04-21
 - Fix `unique-cli mcp` crashing with `AttributeError: isError` on spec-compliant `CallToolResult` responses that only include `content`. `format_mcp_response` now reads `isError`, `name`, and `mcpServerId` defensively via `getattr(..., default)` and accepts a keyword-only `tool_name` fallback so the header stays informative when the server omits `name`
 - `cmd_mcp` now threads the parsed payload name into `format_mcp_response` and wraps the final format step in a defensive `try/except` that prints the raw response payload instead of a traceback if the formatter ever errors
 - Mark `MCP.isError`, `MCP.name`, `MCP.mcpServerId` as `NotRequired` on the response type to match the MCP spec and the Unique backend's observed behaviour (typing-only change)
+
+## [0.11.9] - 2026-04-21
+- Docs: update the `unique-cli-elicitation` skill to require both `--chat-id "$UNIQUE_CHAT_ID"` and `--message-id "$UNIQUE_MESSAGE_ID"` on every `elicit ask` call, explain that every elicitation is anchored to a `(chatId, messageId)` pair in the backend, and document the two new env vars agents should always forward
 
 ## [0.11.8] - 2026-04-21
 - Workaround for UN-19815: `elicit ask` / `elicit create` now wrap the elicitation in a short-lived placeholder "thinking" timeline (a placeholder `ASSISTANT` message + a `RUNNING` `MessageLog` step) so the chat UI actually renders the elicitation while it is pending. The placeholder is torn down automatically (collapsed or deleted) when the user responds, on timeout, on API error, or on Ctrl-C

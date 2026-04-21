@@ -8,8 +8,8 @@
     Import it via:
 
     ```python
-    from unique_toolkit.experimental import Identity
-    # or, explicitly:
+    from unique_toolkit.experimental.identity import Identity
+    # or, with sub-services:
     from unique_toolkit.experimental.identity import Identity, Users, Groups
     ```
 
