@@ -533,3 +533,19 @@ class TestDefaultRegistrations:
 
         svc = UniqueServiceFactory.create("ChatService", settings=settings_with_chat)
         assert isinstance(svc, ChatService)
+
+    @pytest.mark.ai
+    def test_AI_identity_not_registered_by_default(self, settings: UniqueSettings):
+        """
+        Purpose: Experimental Identity must not leak into the factory registry.
+        Why this matters: Experimental services deliberately have no factory
+            registration path (neither in ``register_known_services`` nor a
+            dedicated opt-in). Callers must import and construct them directly
+            (e.g. ``Identity.from_settings()``) so the experimental dependency
+            is visible at every call site.
+        Setup summary: register_known_services via fixture; try to create "Identity" by
+            string name (Identity deliberately no longer satisfies ServiceProtocol,
+            so it cannot be passed as a class); expect ServiceNotRegisteredError.
+        """
+        with pytest.raises(ServiceNotRegisteredError):
+            UniqueServiceFactory.create("Identity", settings=settings)

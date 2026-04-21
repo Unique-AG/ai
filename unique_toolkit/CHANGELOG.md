@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.78.0] - 2026-04-21
+### Added
+- Add experimental `unique_toolkit.experimental.identity` with `Identity` service (Linux-inspired wrapper over `unique_sdk.User` and `unique_sdk.Group`) exposing `list_users` / `get_user` / `groups_of` / `is_member` / `create_group` / `rename_group` / `delete_group` / `add_members` / `remove_members` / `update_user_configuration` / `update_group_configuration`, with matching async variants
+- Export `Identity` from `unique_toolkit.experimental`; expose typed schemas (`UserInfo`, `GroupInfo`, `UserGroupMembership`, `GroupMembership`, `GroupDeleted`, `UserWithConfiguration`) and low-level function wrappers in `unique_toolkit.experimental.identity.functions`
+- Add `Identity.from_settings()` auto-loading constructor (matches `KnowledgeBaseService`) and enforce `@overload` contract that `get_user` / `groups_of` accept exactly one of `user_id` / `email` / `user_name`
+
 ## [1.77.3] - 2026-04-21
 ### Added
 - Add experimental `unique_toolkit.experimental.scheduled_task` with `ScheduledTasks`, `Cron`, and low-level `create_scheduled_task` / `update_scheduled_task` / … function wrappers over `unique_sdk.ScheduledTask`

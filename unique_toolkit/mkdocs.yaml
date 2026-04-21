@@ -89,6 +89,8 @@ nav:
       - Smart Rules: modules/examples/content/smart_rules.md
     - Scheduled Tasks (experimental):
       - Service: modules/examples/scheduled_task/scheduled_tasks.md
+    - "Identity (Experimental)":
+      - Users & Groups: modules/examples/identity/identity_service.md
   - Tutorials:
     - Agentic Table App: tutorials/agentic_table_app.md
     - Code Execution: tutorials/code_execution.md
@@ -118,6 +120,8 @@ nav:
     - Framework Utilities:
       - OpenAI Client: modules/openai.md
       - Langchain Client: modules/langchain.md
+    - Experimental Modules:
+      - Identity Module: modules/identity.md
     - Deprecated Modules:
       - Content Module: modules/content.md
       - Embedding Module: modules/embedding.md

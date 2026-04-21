@@ -1,5 +1,6 @@
-<!--
-```{.python #common_imports}
+# ~/~ begin <<docs/modules/examples/identity/identity_service.md#./docs/.python_files/identity_list_users_and_groups.py>>[init]
+# ~/~ begin <<docs/modules/examples/identity/identity_service.md#identity_service_setup>>[init]
+# ~/~ begin <<docs/setup/_common_imports.md#common_imports>>[init]
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.app.init_sdk import init_unique_sdk
 from unique_toolkit.app.dev_util import get_event_generator
@@ -27,5 +28,17 @@ from unique_toolkit.framework_utilities.openai.message_builder import (
 from pydantic import Field
 from unique_toolkit import LanguageModelToolDescription
 from unique_toolkit.chat.rendering import create_prompt_button_string, create_latex_formula_string
-```
--->
+# ~/~ end
+from unique_toolkit.experimental import Identity
+identity = Identity.from_settings()
+# ~/~ end
+# ~/~ begin <<docs/modules/examples/identity/identity_service.md#identity_list_users_and_groups>>[init]
+users = identity.users.list(take=10)
+for user in users:
+    print(user.id, user.display_name, user.email)
+
+groups = identity.groups.list(take=10)
+for group in groups:
+    print(group.id, group.name)
+# ~/~ end
+# ~/~ end
