@@ -1,0 +1,133 @@
+name: "[CI] Publish dev builds to PyPI"
+
+# On every push to `main`, build and publish .devN wheels of every
+# publishable AI-repo package to PyPI.
+#
+# Version scheme:  YYYY.WW.0.dev<commit-count>
+#   - YYYY.WW is the *next* scheduled release cycle, computed by
+#     `.github/scripts/compute-calver.sh` (reads .release-please-manifest.json,
+#     or falls back to the next even ISO week).
+#   - commit-count = number of commits reachable from HEAD; monotonic and
+#     unique per push.
+#
+# Skipped when the push is the release-please bot merging a stable release
+# (the tag-based publish handles those via ci-publish.yaml).
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.guard.outputs.publish }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 1
+          fetch-tags: true
+
+      - name: Skip release-please / release-cut commits
+        id: guard
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          # We skip dev-publishing a commit when any of the following hold:
+          #   1. A per-package release tag already points at HEAD
+          #      (e.g. `unique-toolkit-v2026.18.0`) — those are published by
+          #      `ci-publish.yaml` via the `release:published` event.
+          #   2. The commit message is a release-please merge title
+          #      (`chore: release …` / `chore(main): release …`) — these can
+          #      fire before the tag is created, so rely on the subject.
+          #   3. The commit body carries a `Release-As:` trailer — this is
+          #      the `release-cut` prepare commit; nothing to publish yet.
+          TAGS=$(git tag --points-at HEAD || true)
+          echo "Tags at HEAD: ${TAGS:-<none>}"
+          echo "Subject: $(echo "$COMMIT_MSG" | head -n1)"
+
+          if echo "$TAGS" | grep -qE '^unique-[a-z0-9_-]+-v[0-9]'; then
+            echo "Release tag present — skipping."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif echo "$COMMIT_MSG" | head -n1 | grep -qE '^chore(\([^)]+\))?: release'; then
+            echo "Release-please merge commit — skipping."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif echo "$COMMIT_MSG" | grep -qE '^Release-As:'; then
+            echo "Release-cut prepare commit — skipping."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  resolve-matrix:
+    needs: guard
+    if: needs.guard.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+      dev_version: ${{ steps.version.outputs.dev_version }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/get-packages-matrix
+        id: pkgs
+
+      - name: Filter publishable packages
+        id: resolve
+        run: |
+          PACKAGES='${{ steps.pkgs.outputs.packages }}'
+          FILTERED=$(echo "$PACKAGES" | jq -c '{include: [.[] | select((.publish_skip != true) and (.pypi_name != null))]}')
+          echo "matrix=$FILTERED" >> "$GITHUB_OUTPUT"
+
+      - name: Compute dev version
+        id: version
+        run: |
+          CV="$(./.github/scripts/compute-calver.sh)"
+          N="$(git rev-list --count HEAD)"
+          DEV="${CV}.0.dev${N}"
+          echo "dev_version=$DEV" >> "$GITHUB_OUTPUT"
+          echo "Dev version: $DEV"
+
+  publish:
+    needs: resolve-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.resolve-matrix.outputs.matrix) }}
+    name: publish-dev-${{ matrix.id }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          version: '0.11.5'
+
+      - name: Rewrite pyproject.toml for dev version
+        env:
+          DEV_VERSION: ${{ needs.resolve-matrix.outputs.dev_version }}
+          PYPROJECT: ${{ matrix.dir }}/pyproject.toml
+        run: |
+          uv run --quiet --with tomlkit -- \
+            python3 .github/scripts/rewrite-pyproject-for-dev.py "$PYPROJECT" "$DEV_VERSION"
+
+      - name: Build package
+        working-directory: ${{ matrix.dir }}
+        env:
+          UV_NO_SOURCES: 1
+        run: uv build -o dist
+
+      - name: Publish to PyPI
+        working-directory: ${{ matrix.dir }}
+        run: uv publish --username __token__ --password "${{ secrets.PYPI_TOKEN }}"

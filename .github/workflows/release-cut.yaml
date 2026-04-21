@@ -1,4 +1,17 @@
-name: "Release · Cut Branch"
+name: "Release · Cut"
+
+# Two-phase release-cut workflow:
+#
+#   1. mode=prepare       (run first, from `main`)
+#      Pushes an empty `Release-As: YYYY.WW.0` commit to `main`.
+#      Release-please updates its standing Release PR on `main` to target
+#      YYYY.WW.0. A human reviews/merges it, which tags the stable release.
+#
+#   2. mode=cut-branch    (run second, from `main`, after the Release PR
+#                          has been merged and tagged)
+#      Creates the `release/YYYY.WW` branch from the tagged commit on
+#      `main`. Subsequent fixes land on that branch; release-please running
+#      on `release/*` produces patch Release PRs (YYYY.WW.N).
 
 permissions:
   contents: write
@@ -6,23 +19,30 @@ permissions:
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: "Which phase to run"
+        required: true
+        type: choice
+        options:
+          - prepare
+          - cut-branch
       year:
-        description: "Year (YYYY). Leave empty for current year."
+        description: "Year (YYYY). Leave empty to compute from manifest/today."
         required: false
         type: string
       week:
-        description: "Calendar week (WW). Leave empty for current week."
-        required: false
-        type: string
-      commit_sha:
-        description: "Commit SHA to branch from. Defaults to HEAD of main."
+        description: "Calendar week (WW). Leave empty to compute from manifest/today."
         required: false
         type: string
 
 jobs:
-  cut-branch:
+  cut:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      INPUT_MODE: ${{ inputs.mode }}
+      INPUT_YEAR: ${{ inputs.year }}
+      INPUT_WEEK: ${{ inputs.week }}
     steps:
       - name: Ensure workflow runs from main
         run: |
@@ -32,53 +52,90 @@ jobs:
             exit 1
           fi
 
-      - name: Compute branch name
-        id: branch
-        run: |
-          YEAR="${{ inputs.year }}"
-          WEEK="${{ inputs.week }}"
-          [[ -z "$YEAR" ]] && YEAR=$(date +"%Y")
-          [[ -z "$WEEK" ]] && WEEK=$(date +"%V")
-
-          WEEK=$(printf "%02d" "$((10#$WEEK))")
-
-          if (( 10#$WEEK % 2 != 0 )); then
-            echo "::error::Week $WEEK is odd — releases use even-numbered weeks. Pass an explicit 'week' input to override."
-            exit 1
-          fi
-
-          BRANCH="release/${YEAR}.${WEEK}"
-          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
-          echo "Release branch: $BRANCH"
-
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify commit
-        id: verify
+      - name: Compute target YYYY.WW
+        id: cv
         run: |
-          if [[ -n "${{ inputs.commit_sha }}" ]]; then
-            git fetch origin "${{ inputs.commit_sha }}" --depth=1
-            SHA=$(git rev-parse --verify "${{ inputs.commit_sha }}")
+          if [[ -n "$INPUT_YEAR" && -n "$INPUT_WEEK" ]]; then
+            YEAR="$INPUT_YEAR"
+            WEEK=$(printf "%02d" "$((10#$INPUT_WEEK))")
+            if (( 10#$WEEK % 2 != 0 )); then
+              echo "::error::Week $WEEK is odd — releases use even-numbered weeks. Pass an explicit 'week' input only when overriding."
+              exit 1
+            fi
+            CV="${YEAR}.${WEEK}"
           else
-            SHA=$(git rev-parse HEAD)
+            CV="$(./.github/scripts/compute-calver.sh)"
           fi
-          echo "sha=$SHA" >> $GITHUB_OUTPUT
-          echo "Branching from: $SHA"
+          echo "calver=$CV" >> "$GITHUB_OUTPUT"
+          echo "branch=release/$CV" >> "$GITHUB_OUTPUT"
+          echo "version=${CV}.0" >> "$GITHUB_OUTPUT"
+          echo "Target release cycle: $CV (version ${CV}.0, branch release/$CV)"
 
-      - name: Check branch does not exist
+      - name: Configure git
         run: |
-          BRANCH="${{ steps.branch.outputs.branch }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # -----------------------------------------------------------------
+      # Mode: prepare
+      # Push an empty Release-As commit so release-please targets YYYY.WW.0
+      # on the standing main Release PR.
+      # -----------------------------------------------------------------
+      - name: Prepare — push Release-As trailer to main
+        if: inputs.mode == 'prepare'
+        env:
+          VERSION: ${{ steps.cv.outputs.version }}
+        run: |
+          # Bail if a Release-As trailer for this version is already present in
+          # unreleased main history. Cheaper than sifting through PR state, and
+          # idempotent if someone clicks Run twice.
+          if git log origin/main --grep "^Release-As: ${VERSION}$" --fixed-strings -n 1 --format=%H | grep -q .; then
+            echo "Release-As: ${VERSION} is already present on main; nothing to do."
+            exit 0
+          fi
+
+          git commit --allow-empty \
+            -m "chore: release ${VERSION}" \
+            -m "Release-As: ${VERSION}"
+          git push origin HEAD:main
+          echo "Pushed Release-As: ${VERSION} trailer. Release-please will update the main Release PR shortly."
+
+      # -----------------------------------------------------------------
+      # Mode: cut-branch
+      # After the main Release PR has merged and the YYYY.WW.0 tag lands,
+      # branch release/YYYY.WW from the tagged commit.
+      # -----------------------------------------------------------------
+      - name: Cut-branch — verify release was merged and tagged
+        if: inputs.mode == 'cut-branch'
+        id: tag
+        env:
+          VERSION: ${{ steps.cv.outputs.version }}
+        run: |
+          git fetch --tags origin
+          TAG="unique-toolkit-v${VERSION}"
+          if ! git rev-parse --verify "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "::error::tag ${TAG} not found. Did the main Release PR merge?"
+            exit 1
+          fi
+          SHA=$(git rev-list -n 1 "refs/tags/${TAG}")
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "Tagged commit: $SHA"
+
+      - name: Cut-branch — create release branch
+        if: inputs.mode == 'cut-branch'
+        env:
+          BRANCH: ${{ steps.cv.outputs.branch }}
+          SHA: ${{ steps.tag.outputs.sha }}
+        run: |
           if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
             echo "::error::Branch $BRANCH already exists on remote"
             exit 1
           fi
-
-      - name: Create and push release branch
-        run: |
-          git checkout "${{ steps.verify.outputs.sha }}"
-          git checkout -b "${{ steps.branch.outputs.branch }}"
-          git push origin "${{ steps.branch.outputs.branch }}"
-          echo "Created and pushed ${{ steps.branch.outputs.branch }}"
+          git push origin "${SHA}:refs/heads/${BRANCH}"
+          echo "Created branch $BRANCH at $SHA"

@@ -55,5 +55,25 @@
     "connectors/unique_six": {
       "component": "unique-six"
     }
-  }
+  },
+  "plugins": [
+    {
+      "type": "linked-versions",
+      "groupName": "ai",
+      "components": [
+        "unique-sdk",
+        "unique-toolkit",
+        "unique-mcp",
+        "unique-orchestrator",
+        "unique-web-search",
+        "unique-swot",
+        "unique-deep-research",
+        "unique-internal-search",
+        "unique-follow-up-questions",
+        "unique-stock-ticker",
+        "unique-quartr",
+        "unique-six"
+      ]
+    }
+  ]
 }
