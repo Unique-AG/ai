@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.8] - 2026-04-21
+- Workaround for UN-19815: `elicit ask` / `elicit create` now wrap the elicitation in a short-lived placeholder "thinking" timeline (a placeholder `ASSISTANT` message + a `RUNNING` `MessageLog` step) so the chat UI actually renders the elicitation while it is pending. The placeholder is torn down automatically (collapsed or deleted) when the user responds, on timeout, on API error, or on Ctrl-C
+- Add `--visible` / `--no-visible`, `--assistant-id`, `--placeholder-text`, `--cleanup` flags to `elicit ask` and `elicit create` in both the one-shot CLI and the REPL shell. The workaround is enabled by default whenever `--chat-id` is passed and `--message-id` is not; pass `--no-visible` to opt out once the UN-19815 UI fix lands
+- `elicit wait` and `elicit respond` now auto-clean any placeholder a prior `elicit create --visible` left behind, by reading the placeholder ids back from the elicitation's `metadata`
+- Serialize `completedAt` as an ISO-8601 UTC string (not a raw `datetime`) when collapsing the visibility placeholder via `Message.modify`, so the `PATCH /messages/{id}` body is accepted by the backend; without this the placeholder would stay visually "running" after the user responded
+- Fix `elicit pending` crashing with `AttributeError: 'list' object has no attribute 'get'` — the backend returns a raw JSON array; both list and dict shapes are now accepted
+- Fix `elicit wait` / `elicit ask` never terminating when the user answers — `ACCEPTED` and `REJECTED` are now recognised as terminal statuses alongside `RESPONDED` / `DECLINED` / `CANCELLED` / `EXPIRED` / `COMPLETED`
+- Accept `REJECT` as a valid `elicit respond --action` value (forwarded to the backend as `REJECT`)
+- Update the `unique-cli-elicitation` skill and the CLI docs page with the new flags and a note on when to turn the workaround off
+
+## [0.11.7] - 2026-04-20
+- Chore: exempt `unique-sdk` from the workspace root `exclude-newer` cutoff so recent SDK releases resolve correctly under `UV_NO_SOURCES=1`
+
+## [0.11.6] - 2026-04-20
+- Add `mimeType` field to `Content`
+
 ## [0.11.5] - 2026-04-16
 - Add `elicit` CLI command group with `ask`, `create`, `pending`, `get`, `wait`, `respond` subcommands for both one-shot and interactive REPL modes, wrapping the existing `Elicitation` API resource
 - Add `elicit ask` convenience command that creates a FORM elicitation and blocks until the user responds, declines, cancels, or the request expires

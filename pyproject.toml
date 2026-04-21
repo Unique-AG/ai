@@ -64,7 +64,19 @@ constraint-dependencies = [
 ]
 
 [tool.uv.exclude-newer-package]
+"unique-sdk" = false
 "unique-toolkit" = false
+"unique-mcp" = false
+"unique-orchestrator" = false
+"unique-web-search" = false
+"unique-internal-search" = false
+"unique-swot" = false
+"unique-deep-research" = false
+"unique-stock-ticker" = false
+"unique-follow-up-questions" = false
+"unique-six" = false
+"unique-search-proxy" = false
+"unique-quartr" = false
 "cryptography" = "2026-04-09"
 "langchain-core" = "2026-04-09"
 "langsmith" = "2026-04-15"

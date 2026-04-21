@@ -203,6 +203,30 @@
   "#get_openai_client": [
     "docs/plattforms/openai/openai.md"
   ],
+  "#identity_configuration_blobs": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "#identity_get_user_overloads": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "#identity_group_lifecycle": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "#identity_groups_of_user": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "#identity_imports": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "#identity_list_users_and_groups": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "#identity_membership": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "#identity_service_setup": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
   "#import_language_model_name": [
     "docs/modules/examples/chat/chat_service.md"
   ],
@@ -386,6 +410,36 @@
   "#rendering_prompt_buttons": [
     "docs/modules/examples/chat/advanced_rendering.md"
   ],
+  "#scheduled_tasks_async": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_clear_chat_id": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_create": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_cron_examples": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_delete": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_imports": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_list_and_get": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_setup": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_setup_from_settings": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "#scheduled_tasks_update_schedule_and_enable": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
   "#smart_rule_custom_metadata": [
     "docs/modules/examples/content/smart_rules.md"
   ],
@@ -521,6 +575,24 @@
   "#upload_with_reference_upload_document": [
     "docs/tutorials/file_creation_and_upload_to_chat.md"
   ],
+  "file=./docs/.python_files/identity_configuration_blobs.py": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "file=./docs/.python_files/identity_get_user.py": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "file=./docs/.python_files/identity_group_lifecycle.py": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "file=./docs/.python_files/identity_groups_of_user.py": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "file=./docs/.python_files/identity_list_users_and_groups.py": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "file=./docs/.python_files/identity_membership.py": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
   "file=./docs/.python_files/kb_content_chunk_search_with_smart_rule_on_folders.py": [
     "docs/modules/examples/content/smart_rules.md"
   ],
@@ -559,6 +631,24 @@
   ],
   "file=./docs/.python_files/kb_update_metadata_with_smart_rule.py": [
     "docs/modules/examples/content/smart_rules.md"
+  ],
+  "file=./docs/.python_files/scheduled_tasks_async.py": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "file=./docs/.python_files/scheduled_tasks_create_task.py": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "file=./docs/.python_files/scheduled_tasks_delete_task.py": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "file=./docs/.python_files/scheduled_tasks_list_tasks.py": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "file=./docs/.python_files/scheduled_tasks_setup.py": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
+  ],
+  "file=./docs/.python_files/scheduled_tasks_update_task.py": [
+    "docs/modules/examples/scheduled_task/scheduled_tasks.md"
   ],
   "file=docs/.python_files/chat_app_minimal.py": [
     "docs/modules/examples/chat/chat_service.md"

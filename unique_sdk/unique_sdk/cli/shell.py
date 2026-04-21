@@ -76,6 +76,10 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --timeout <seconds>            Max wait time (default: 300)
         --poll-interval <seconds>      Poll frequency (default: 2.0)
         --metadata key=value           Metadata (repeatable)
+        --no-visible                   Skip the UN-19815 visibility workaround
+        --assistant-id <id>            Assistant id for the placeholder message
+        --placeholder-text <text>      Text on the placeholder thinking step
+        --cleanup collapse|delete      How to tear down the placeholder
       elicit create <message> [opts] Fire-and-forget create
         --mode FORM|URL                Display mode (required)
         --tool-name / -t <name>        Tool label (required)
@@ -86,13 +90,17 @@ OVERVIEW_HELP = textwrap.dedent("""\
         --expires-in <seconds>         Auto-expire
         --external-id <id>             External tracking ID
         --metadata key=value           Metadata (repeatable)
+        --no-visible                   Skip the UN-19815 visibility workaround
+        --assistant-id <id>            Assistant id for the placeholder message
+        --placeholder-text <text>      Text on the placeholder thinking step
+        --cleanup collapse|delete      Placeholder teardown mode
       elicit pending                 List pending elicitations
       elicit get <id>                Show one elicitation
       elicit wait <id> [opts]        Poll until answered / expired
         --timeout <seconds>            Max wait (default: 300)
         --poll-interval <seconds>      Poll frequency (default: 2.0)
       elicit respond <id> [opts]     Respond on behalf of the user
-        --action ACCEPT|DECLINE|CANCEL Response action (required)
+        --action ACCEPT|DECLINE|CANCEL|REJECT Response action (required)
         --content <json>               Response body (required for ACCEPT)
 
     Scheduled tasks:
@@ -576,7 +584,7 @@ class UniqueShell(cmd.Cmd):
           --metadata key=value         Metadata (repeatable)
 
         Respond options:
-          --action ACCEPT|DECLINE|CANCEL  Action (required)
+          --action ACCEPT|DECLINE|CANCEL|REJECT  Action (required)
           --content <json>                Response body (required for ACCEPT)
 
         Examples:
@@ -649,6 +657,10 @@ class UniqueShell(cmd.Cmd):
             "action": None,
             "content": None,
             "metadata": [],
+            "visible": True,
+            "assistant_id": None,
+            "placeholder_text": None,
+            "cleanup_mode": None,
         }
         positional: list[str] = []
 
@@ -711,6 +723,27 @@ class UniqueShell(cmd.Cmd):
                 k, v = kv.split("=", 1)
                 out["metadata"].append((k, v))
                 i += 2
+            elif tok == "--no-visible":
+                out["visible"] = False
+                i += 1
+            elif tok == "--visible":
+                out["visible"] = True
+                i += 1
+            elif tok == "--assistant-id" and i + 1 < len(parts):
+                out["assistant_id"] = parts[i + 1]
+                i += 2
+            elif tok == "--placeholder-text" and i + 1 < len(parts):
+                out["placeholder_text"] = parts[i + 1]
+                i += 2
+            elif tok == "--cleanup" and i + 1 < len(parts):
+                mode = parts[i + 1].lower()
+                if mode not in ("collapse", "delete"):
+                    self._print(
+                        f"Invalid --cleanup: {parts[i + 1]} (expected collapse or delete)"
+                    )
+                    return None
+                out["cleanup_mode"] = mode
+                i += 2
             else:
                 positional.append(tok)
                 i += 1
@@ -729,20 +762,24 @@ class UniqueShell(cmd.Cmd):
             self._print("Usage: elicit ask <message> [options]")
             return
 
-        self._print(
-            cmd_elicit_ask(
-                self.state,
-                message=message,
-                tool_name=opts["tool_name"] or "agent_question",
-                schema=opts["schema"],
-                chat_id=opts["chat_id"],
-                message_id=opts["message_id"],
-                expires_in_seconds=opts["expires_in_seconds"],
-                timeout=opts["timeout"],
-                poll_interval=opts["poll_interval"],
-                metadata=opts["metadata"] or None,
-            )
-        )
+        ask_kwargs: dict[str, Any] = {
+            "message": message,
+            "tool_name": opts["tool_name"] or "agent_question",
+            "schema": opts["schema"],
+            "chat_id": opts["chat_id"],
+            "message_id": opts["message_id"],
+            "expires_in_seconds": opts["expires_in_seconds"],
+            "timeout": opts["timeout"],
+            "poll_interval": opts["poll_interval"],
+            "metadata": opts["metadata"] or None,
+            "visible": opts["visible"],
+            "assistant_id": opts["assistant_id"],
+        }
+        if opts["placeholder_text"] is not None:
+            ask_kwargs["placeholder_text"] = opts["placeholder_text"]
+        if opts["cleanup_mode"] is not None:
+            ask_kwargs["cleanup_mode"] = opts["cleanup_mode"]
+        self._print(cmd_elicit_ask(self.state, **ask_kwargs))
 
     def _elicit_create(self, parts: list[str]) -> None:
         """Parse and run ``elicit create``."""
@@ -762,21 +799,25 @@ class UniqueShell(cmd.Cmd):
             self._print("Error: --tool-name / -t is required.")
             return
 
-        self._print(
-            cmd_elicit_create(
-                self.state,
-                mode=opts["mode"],
-                message=message,
-                tool_name=opts["tool_name"],
-                schema=opts["schema"],
-                url=opts["url"],
-                chat_id=opts["chat_id"],
-                message_id=opts["message_id"],
-                expires_in_seconds=opts["expires_in_seconds"],
-                external_elicitation_id=opts["external_elicitation_id"],
-                metadata=opts["metadata"] or None,
-            )
-        )
+        create_kwargs: dict[str, Any] = {
+            "mode": opts["mode"],
+            "message": message,
+            "tool_name": opts["tool_name"],
+            "schema": opts["schema"],
+            "url": opts["url"],
+            "chat_id": opts["chat_id"],
+            "message_id": opts["message_id"],
+            "expires_in_seconds": opts["expires_in_seconds"],
+            "external_elicitation_id": opts["external_elicitation_id"],
+            "metadata": opts["metadata"] or None,
+            "visible": opts["visible"],
+            "assistant_id": opts["assistant_id"],
+        }
+        if opts["placeholder_text"] is not None:
+            create_kwargs["placeholder_text"] = opts["placeholder_text"]
+        if opts["cleanup_mode"] is not None:
+            create_kwargs["cleanup_mode"] = opts["cleanup_mode"]
+        self._print(cmd_elicit_create(self.state, **create_kwargs))
 
     def _elicit_wait(self, elicitation_id: str, parts: list[str]) -> None:
         """Parse and run ``elicit wait``."""
@@ -798,7 +839,7 @@ class UniqueShell(cmd.Cmd):
         if opts is None:
             return
         if not opts["action"]:
-            self._print("Error: --action ACCEPT|DECLINE|CANCEL is required.")
+            self._print("Error: --action ACCEPT|DECLINE|CANCEL|REJECT is required.")
             return
         self._print(
             cmd_elicit_respond(

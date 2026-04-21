@@ -120,8 +120,15 @@ class UniqueServiceFactory:
 
     @classmethod
     def register_known_services(cls) -> None:
-        """Register the default services with the factory.
-        Currently only registers the KnowledgeBaseService and ChatService.
+        """Register the stable toolkit services with the factory.
+
+        Currently registers :class:`KnowledgeBaseService` and :class:`ChatService`.
+
+        Experimental services (under :mod:`unique_toolkit.experimental`) are
+        intentionally **not** registered here or via any factory helper — their
+        API is unstable and callers should construct them directly (for
+        example, :meth:`Identity.from_settings`) so that the experimental
+        dependency is visible at every call site.
         """
         from unique_toolkit.services.chat_service import ChatService
         from unique_toolkit.services.knowledge_base import KnowledgeBaseService
