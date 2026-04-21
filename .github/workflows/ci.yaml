@@ -84,9 +84,56 @@ jobs:
     permissions:
       pull-requests: read
 
+  no-manual-release:
+    name: No Manual Release Changes
+    if: github.event_name == 'pull_request' && github.actor != 'release-please[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Check for forbidden version/changelog changes
+        run: |
+          set -euo pipefail
+
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          CHANGED=$(git diff --name-only "$BASE" "$HEAD")
+
+          ERRORS=()
+
+          while IFS= read -r file; do
+            if [[ "$file" == */CHANGELOG.md || "$file" == "CHANGELOG.md" ]]; then
+              ERRORS+=("$file")
+            fi
+          done <<< "$CHANGED"
+
+          if echo "$CHANGED" | grep -qx '.release-please-manifest.json'; then
+            ERRORS+=(".release-please-manifest.json")
+          fi
+
+          TOMLS=$(echo "$CHANGED" | grep 'pyproject.toml$' || true)
+          for toml in $TOMLS; do
+            if git diff "$BASE" "$HEAD" -- "$toml" | grep -qE '^\+version = '; then
+              ERRORS+=("$toml (version changed)")
+            fi
+          done
+
+          if [[ ${#ERRORS[@]} -gt 0 ]]; then
+            echo "::error::Manual version/changelog changes are not allowed — release-please manages these automatically."
+            echo ""
+            echo "The following files must not be changed in regular PRs:"
+            for err in "${ERRORS[@]}"; do
+              echo "  - $err"
+            done
+            exit 1
+          fi
+
+          echo "No forbidden version/changelog changes detected."
+
   status:
     name: Gatekeeper
-    needs: [detect-changes, lint, test, types, coverage, deps, config, pr-title]
+    needs: [detect-changes, lint, test, types, coverage, deps, config, pr-title, no-manual-release]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -103,6 +150,7 @@ jobs:
           DEPS: ${{ needs.deps.result }}
           CONFIG: ${{ needs.config.result }}
           PR_TITLE: ${{ needs.pr-title.result }}
+          NO_MANUAL_RELEASE: ${{ needs.no-manual-release.result }}
         run: |
           echo "=== CI Status Summary ==="
           echo "detect-changes: $DETECT_CHANGES"
@@ -113,13 +161,14 @@ jobs:
           echo "deps: $DEPS"
           echo "config: $CONFIG"
           echo "pr-title: $PR_TITLE"
+          echo "no-manual-release: $NO_MANUAL_RELEASE"
           echo "========================="
 
           failed=false
 
           # Required checks (skipped is OK for when no packages changed or merge_group).
           # Types: failure means a package with typecheck_require_zero_errors failed, so we treat it as blocking.
-          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "types:$TYPES" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "pr-title:$PR_TITLE"; do
+          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "types:$TYPES" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "pr-title:$PR_TITLE" "no-manual-release:$NO_MANUAL_RELEASE"; do
             name="${check%%:*}"
             result="${check##*:}"
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
