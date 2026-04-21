@@ -678,6 +678,22 @@ def cmd_elicit_wait(
     except unique_sdk.APIError as exc:
         return f"elicit: {exc}"
     finally:
+        # If the poll loop exited before we ever received a response
+        # (e.g. the very first ``get_elicitation`` raised ``APIError``),
+        # ``last`` is still ``None`` — but the elicitation may still have
+        # a visibility placeholder attached via its ``metadata``. Make one
+        # last best-effort read so we can still reach the cleanup path.
+        if last is None:
+            try:
+                last = dict(
+                    unique_sdk.Elicitation.get_elicitation(
+                        user_id=state.config.user_id,
+                        company_id=state.config.company_id,
+                        elicitation_id=elicitation_id,
+                    )
+                )
+            except unique_sdk.APIError:
+                last = None
         ctx = _extract_visibility_context(last)
         if ctx is not None:
             vis_chat_id, placeholder_id, step_id, cleanup_mode = ctx
