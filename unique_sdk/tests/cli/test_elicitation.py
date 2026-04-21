@@ -576,9 +576,7 @@ class TestResolveAssistantId:
                 },
             },
         ]
-        assert (
-            _resolve_assistant_id(_state(), "chat_1") == "assistant_from_debug_info"
-        )
+        assert _resolve_assistant_id(_state(), "chat_1") == "assistant_from_debug_info"
 
     @patch("unique_sdk.Message.list")
     def test_falls_back_to_debug_info_on_user_message(
@@ -600,9 +598,7 @@ class TestResolveAssistantId:
             },
             {"role": "ASSISTANT", "debugInfo": {"assistant": None}},
         ]
-        assert (
-            _resolve_assistant_id(_state(), "chat_1") == "assistant_from_user_msg"
-        )
+        assert _resolve_assistant_id(_state(), "chat_1") == "assistant_from_user_msg"
 
 
 class TestExtractVisibilityContext:
