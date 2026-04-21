@@ -32,7 +32,7 @@ from unique_toolkit.content import (
 )
 
 
-class InternalSearchBaseService(
+class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
     BaseService[
         InternalSearchResult,
         InternalSearchConfig,

@@ -13,9 +13,9 @@ from unique_toolkit.components.internal_search.knowledge_base.config import (
     KnowledgeBaseInternalSearchConfig,
 )
 from unique_toolkit.components.internal_search.knowledge_base.schemas import (
-    UNSET,
     KnowledgeBaseInternalSearchDeps,
     KnowledgeBaseInternalSearchState,
+    _UnsetType,
 )
 from unique_toolkit.services import UniqueServiceFactory
 
@@ -25,11 +25,11 @@ class KnowledgeBaseInternalSearchService(
 ):
     _state: KnowledgeBaseInternalSearchState
     _dependencies: KnowledgeBaseInternalSearchDeps
-    _config: KnowledgeBaseInternalSearchConfig
+    _config: KnowledgeBaseInternalSearchConfig  # pyright: ignore[reportIncompatibleVariableOverride]
     _config_model_cls = KnowledgeBaseInternalSearchConfig
 
     @classmethod
-    def from_config(cls, config: KnowledgeBaseInternalSearchConfig) -> Self:
+    def from_config(cls, config: KnowledgeBaseInternalSearchConfig) -> Self:  # pyright: ignore[reportIncompatibleMethodOverride]
         instance = cls()
         instance._config = config
         return instance
@@ -90,8 +90,8 @@ class KnowledgeBaseInternalSearchService(
 
     @property
     def _effective_metadata_filter(self) -> dict[str, Any] | None:
-        if self._state.metadata_filter_override is not UNSET:
-            return self._state.metadata_filter_override  # type: ignore
+        if not isinstance(self._state.metadata_filter_override, _UnsetType):
+            return self._state.metadata_filter_override
         if self._context.chat is not None:
             return self._context.chat.metadata_filter
         return self._config.metadata_filter

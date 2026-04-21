@@ -80,12 +80,12 @@ class _StateMixin(ABC, Generic[ServiceState]):
 class _ProgressMixin(Generic[ProgressMessage]):
     """Concrete by default — no-op bus unless something subscribes."""
 
-    _progress_publisher: TypedEventBus[ProgressMessage]
+    def __init__(self) -> None:
+        super().__init__()
+        self._progress_publisher: TypedEventBus[ProgressMessage] = TypedEventBus()
 
     @property
     def progress_publisher(self) -> TypedEventBus[ProgressMessage]:
-        if not hasattr(self, "_progress_publisher"):
-            self._progress_publisher: TypedEventBus[ProgressMessage] = TypedEventBus()
         return self._progress_publisher
 
     async def post_progress_message(self, message: ProgressMessage) -> None:
@@ -102,7 +102,7 @@ class _DependenciesMixin(ABC, Generic[Deps]):
     def dependencies(self, deps: Deps) -> None: ...
 
 
-class BaseService(
+class BaseService(  # pyright: ignore[reportImplicitAbstractClass]
     _RunMixin[RunResult],
     _ConfigMixin[Config],
     _ContextMixin[UniqueContext],
@@ -142,28 +142,28 @@ class BaseService(
         return self._context  # type: ignore[attr-defined]
 
     @context.setter
-    def context(self, value: UniqueContext) -> None:
-        self._context = value
+    def context(self, context: UniqueContext) -> None:
+        self._context = context
 
     @property
     def state(self) -> ServiceState:
         return self._state  # type: ignore[attr-defined]
 
     @state.setter
-    def state(self, value: ServiceState) -> None:
-        self._state = value
+    def state(self, state: ServiceState) -> None:
+        self._state = state
 
     @property
     def dependencies(self) -> Deps:
         return self._dependencies  # type: ignore[attr-defined]
 
     @dependencies.setter
-    def dependencies(self, value: Deps) -> None:
-        self._dependencies = value
+    def dependencies(self, deps: Deps) -> None:
+        self._dependencies = deps
 
     @cached_property
     def logger(self) -> logging.Logger:
         return logging.getLogger(f"{type(self).__module__}.{type(self).__qualname__}")
 
 
-__all__ = ["BaseService"]
+__all__ = ["BaseService", "_SettingsMixin"]
