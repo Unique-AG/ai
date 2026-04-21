@@ -1,11 +1,25 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 
-from unique_mcp.meta_keys import MetaKeys
+
+class SearchMetaKeys(StrEnum):
+    """Canonical ``_meta`` keys for internal-search tool scoping.
+
+    These are tool-specific and have no flat camelCase aliases — clients must
+    always send them under their ``unique.app/search/*`` canonical form.
+    """
+
+    CONTENT_IDS = "unique.app/search/content-ids"
+    METADATA_FILTER = "unique.app/search/metadata-filter"
+    SELECTED_UPLOADED_FILE_IDS = "unique.app/search/selected-uploaded-file-ids"
+    LANGUAGE_MODEL_MAX_INPUT_TOKENS = (
+        "unique.app/search/language-model-max-input-tokens"
+    )
 
 
 class InternalSearchRequestMeta(BaseModel):
@@ -25,19 +39,19 @@ class InternalSearchRequestMeta(BaseModel):
 
     selected_uploaded_file_ids: list[str] | None = Field(
         default=None,
-        validation_alias=MetaKeys.SELECTED_UPLOADED_FILE_IDS,
+        validation_alias=SearchMetaKeys.SELECTED_UPLOADED_FILE_IDS,
     )
     content_ids: list[str] | None = Field(
         default=None,
-        validation_alias=MetaKeys.CONTENT_IDS,
+        validation_alias=SearchMetaKeys.CONTENT_IDS,
     )
     metadata_filter: dict[str, object] | None = Field(
         default=None,
-        validation_alias=MetaKeys.METADATA_FILTER,
+        validation_alias=SearchMetaKeys.METADATA_FILTER,
     )
     language_model_max_input_tokens: int | None = Field(
         default=None,
-        validation_alias=MetaKeys.LANGUAGE_MODEL_MAX_INPUT_TOKENS,
+        validation_alias=SearchMetaKeys.LANGUAGE_MODEL_MAX_INPUT_TOKENS,
     )
 
     @classmethod
@@ -55,4 +69,4 @@ class InternalSearchRequestMeta(BaseModel):
         return self.content_ids
 
 
-__all__ = ["InternalSearchRequestMeta"]
+__all__ = ["InternalSearchRequestMeta", "SearchMetaKeys"]
