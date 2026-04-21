@@ -1,25 +1,10 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from types import SimpleNamespace
 
 import pytest
-from mcp.types import TextContent
-from pydantic import SecretStr
-from unique_toolkit.app.unique_settings import (
-    AuthContext,
-    UniqueApi,
-    UniqueApp,
-    UniqueSettings,
-)
-from unique_toolkit.components.internal_search.base.schemas import (
-    InternalSearchResult,
-    InternalSearchState,
-)
-from unique_toolkit.components.internal_search.knowledge_base.schemas import (
-    KnowledgeBaseInternalSearchState,
-)
-from unique_toolkit.content.schemas import ContentChunk
 
+from unique_mcp.context_requirements import CONTEXT_REQUIREMENTS_META_KEY
 from unique_mcp.internal_search.config import (
     ChatInternalSearchMcpConfig,
     KnowledgeBaseInternalSearchMcpConfig,
@@ -30,45 +15,15 @@ from unique_mcp.internal_search.provider import (
     KnowledgeBaseInternalSearchToolProvider,
     _format_tool_result,
 )
+from unique_mcp.meta_keys import MetaKeys
 
-
-def _base_settings() -> UniqueSettings:
-    return UniqueSettings(
-        auth=AuthContext(
-            user_id=SecretStr("user-1"),
-            company_id=SecretStr("company-1"),
-        ),
-        app=UniqueApp(),
-        api=UniqueApi(),
-    )
-
-
-@pytest.mark.ai
-def test_chat_provider__build_service_binds_settings_with_placeholders():
-    provider = ChatInternalSearchToolProvider(
-        config=ChatInternalSearchMcpConfig(),
-        context_provider=MagicMock(),
-    )
-    request_meta = InternalSearchRequestMeta.from_request_meta(
-        {"unique.app/chat-id": "chat-1"}
-    )
-    fake_service = MagicMock()
-    fake_service.bind_settings.return_value = fake_service
-
-    with patch(
-        "unique_mcp.internal_search.provider.ChatInternalSearchService.from_config",
-        return_value=fake_service,
-    ):
-        service = provider._build_service(
-            settings=_base_settings(),
-            request_meta=request_meta,
-        )
-
-    bind_settings = fake_service.bind_settings.call_args.args[0]
-    assert service is fake_service
-    assert bind_settings.context.chat is not None
-    assert bind_settings.context.chat.chat_id == "chat-1"
-    assert bind_settings.context.chat.assistant_id == "mcp-internal-search"
+# Deferred import — importing InternalSearchState pulls the unique-toolkit
+# internal-search package which is not required for every test here.
+from unique_toolkit.components.internal_search.base.schemas import InternalSearchState  # noqa: E402
+from unique_toolkit.components.internal_search.knowledge_base.schemas import (  # noqa: E402
+    KnowledgeBaseInternalSearchState,
+)
+from unique_toolkit.content.schemas import ContentChunk  # noqa: E402
 
 
 @pytest.mark.ai
@@ -76,8 +31,8 @@ def test_chat_provider__populate_state_sets_content_ids():
     service = SimpleNamespace(state=InternalSearchState(search_queries=[]))
     request_meta = InternalSearchRequestMeta.from_request_meta(
         {
-            "unique.app/selected-uploaded-file-ids": ["file-1", "file-2"],
-            "unique.app/language-model-max-input-tokens": 128000,
+            MetaKeys.SELECTED_UPLOADED_FILE_IDS: ["file-1", "file-2"],
+            MetaKeys.LANGUAGE_MODEL_MAX_INPUT_TOKENS: 128000,
         }
     )
 
@@ -99,8 +54,8 @@ def test_kb_provider__populate_state_sets_content_ids_and_metadata_override():
     )
     request_meta = InternalSearchRequestMeta.from_request_meta(
         {
-            "unique.app/content-ids": ["doc-1"],
-            "unique.app/metadata-filter": {"kind": "policy"},
+            MetaKeys.CONTENT_IDS: ["doc-1"],
+            MetaKeys.METADATA_FILTER: {"kind": "policy"},
         }
     )
 
@@ -114,35 +69,45 @@ def test_kb_provider__populate_state_sets_content_ids_and_metadata_override():
 
 
 @pytest.mark.ai
-def test_kb_provider__build_service_binds_settings():
-    provider = KnowledgeBaseInternalSearchToolProvider(
-        config=KnowledgeBaseInternalSearchMcpConfig(),
-        context_provider=MagicMock(),
-    )
-    fake_service = MagicMock()
-    fake_service.bind_settings.return_value = fake_service
-
-    with patch(
-        "unique_mcp.internal_search.provider.KnowledgeBaseInternalSearchService.from_config",
-        return_value=fake_service,
-    ):
-        service = provider._build_service(settings=_base_settings())
-
-    fake_service.bind_settings.assert_called_once()
-    assert service is fake_service
-
-
-@pytest.mark.ai
 def test_provider__format_result_returns_chunk_text_and_meta():
     chunk = ContentChunk(chunk_id="c1", text="chunk text", start_page=1, end_page=1)
     result = _format_tool_result(
         config=KnowledgeBaseInternalSearchMcpConfig(),
-        result=InternalSearchResult(
+        result=SimpleNamespace(
             chunks=[chunk],
             debug_info={"searchStrings": ["chunk"]},
         ),
     )
 
-    assert isinstance(result.content[0], TextContent)
     assert result.content[0].text == "chunk text"
     assert result.content[0].meta["chunk"]["chunk_id"] == "c1"
+
+
+@pytest.mark.ai
+def test_chat_config_default_tool_meta_includes_context_requirements():
+    config = ChatInternalSearchMcpConfig()
+
+    reqs = config.tool_meta[CONTEXT_REQUIREMENTS_META_KEY]
+    assert isinstance(reqs, dict)
+    assert MetaKeys.CHAT_ID in reqs["required"]
+    assert MetaKeys.USER_ID in reqs["required"]
+    assert MetaKeys.CONTENT_IDS in reqs["optional"]
+
+
+@pytest.mark.ai
+def test_kb_config_default_tool_meta_includes_context_requirements():
+    config = KnowledgeBaseInternalSearchMcpConfig()
+
+    reqs = config.tool_meta[CONTEXT_REQUIREMENTS_META_KEY]
+    assert isinstance(reqs, dict)
+    assert MetaKeys.USER_ID in reqs["required"]
+    assert MetaKeys.COMPANY_ID in reqs["required"]
+    assert MetaKeys.CHAT_ID not in reqs["required"]
+
+
+@pytest.mark.ai
+def test_providers_can_be_constructed_without_context_provider():
+    ChatInternalSearchToolProvider(config=ChatInternalSearchMcpConfig())
+    KnowledgeBaseInternalSearchToolProvider(
+        config=KnowledgeBaseInternalSearchMcpConfig()
+    )

@@ -3,14 +3,15 @@ from __future__ import annotations
 import pytest
 
 from unique_mcp.internal_search.meta import InternalSearchRequestMeta
+from unique_mcp.meta_keys import MetaKeys
 
 
 @pytest.mark.ai
 def test_request_meta__allows_extra_fields():
     meta = InternalSearchRequestMeta.from_request_meta(
         {
-            "unique.app/chat-id": "chat-1",
-            "unique.app/content-ids": ["c1"],
+            MetaKeys.CHAT_ID: "chat-1",
+            MetaKeys.CONTENT_IDS: ["c1"],
             "custom.extra": "kept",
         }
     )
@@ -21,46 +22,53 @@ def test_request_meta__allows_extra_fields():
 
 
 @pytest.mark.ai
-def test_to_chat_context__raises_when_chat_id_missing():
-    meta = InternalSearchRequestMeta.from_request_meta({})
-
-    with pytest.raises(ValueError, match="unique.app/chat-id"):
-        _ = meta.to_chat_context()
-
-
-@pytest.mark.ai
-def test_to_chat_context__fills_mcp_placeholders_for_non_search_fields():
-    meta = InternalSearchRequestMeta.from_request_meta({"unique.app/chat-id": "chat-1"})
-
-    chat_context = meta.to_chat_context()
-
-    assert chat_context.chat_id == "chat-1"
-    assert chat_context.assistant_id == "mcp-internal-search"
-    assert chat_context.last_assistant_message_id == "mcp-internal-search"
-    assert chat_context.last_user_message_id == "mcp-internal-search"
-    assert chat_context.last_user_message_text == "mcp-internal-search"
-
-
-@pytest.mark.ai
-def test_to_chat_context__preserves_explicit_values():
+def test_request_meta__accepts_namespaced_keys():
     meta = InternalSearchRequestMeta.from_request_meta(
         {
-            "unique.app/chat-id": "chat-1",
-            "unique.app/assistant-id": "assistant-1",
-            "unique.app/last-assistant-message-id": "am-1",
-            "unique.app/last-user-message-id": "um-1",
-            "unique.app/last-user-message-text": "hello",
-            "unique.app/parent-chat-id": "parent-1",
-            "unique.app/metadata-filter": {"kind": "report"},
+            MetaKeys.USER_ID: "user-1",
+            MetaKeys.COMPANY_ID: "company-1",
+            MetaKeys.CHAT_ID: "chat-1",
+            MetaKeys.USER_MESSAGE_ID: "um-1",
+            MetaKeys.CONTENT_IDS: ["c1", "c2"],
+            MetaKeys.METADATA_FILTER: {"kind": "report"},
+            MetaKeys.LANGUAGE_MODEL_MAX_INPUT_TOKENS: 128000,
         }
     )
 
-    chat_context = meta.to_chat_context()
+    assert meta.user_id == "user-1"
+    assert meta.company_id == "company-1"
+    assert meta.chat_id == "chat-1"
+    assert meta.last_user_message_id == "um-1"
+    assert meta.content_ids == ["c1", "c2"]
+    assert meta.metadata_filter == {"kind": "report"}
+    assert meta.language_model_max_input_tokens == 128000
 
-    assert chat_context.chat_id == "chat-1"
-    assert chat_context.assistant_id == "assistant-1"
-    assert chat_context.last_assistant_message_id == "am-1"
-    assert chat_context.last_user_message_id == "um-1"
-    assert chat_context.last_user_message_text == "hello"
-    assert chat_context.parent_chat_id == "parent-1"
-    assert chat_context.metadata_filter == {"kind": "report"}
+
+@pytest.mark.ai
+def test_request_meta__accepts_flat_camel_case_aliases():
+    meta = InternalSearchRequestMeta.from_request_meta(
+        {
+            "userId": "user-1",
+            "companyId": "company-1",
+            "chatId": "chat-1",
+            "messageId": "um-1",
+        }
+    )
+
+    assert meta.user_id == "user-1"
+    assert meta.company_id == "company-1"
+    assert meta.chat_id == "chat-1"
+    assert meta.last_user_message_id == "um-1"
+
+
+@pytest.mark.ai
+def test_chat_content_ids_prefers_selected_uploaded_file_ids():
+    meta = InternalSearchRequestMeta.from_request_meta(
+        {
+            MetaKeys.SELECTED_UPLOADED_FILE_IDS: ["f1"],
+            MetaKeys.CONTENT_IDS: ["c1"],
+        }
+    )
+
+    assert meta.chat_content_ids == ["f1"]
+    assert meta.knowledge_base_content_ids == ["c1"]

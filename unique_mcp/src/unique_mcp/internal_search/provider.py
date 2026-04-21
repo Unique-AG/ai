@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Annotated, override
+from typing import Annotated, Any
 
 from fastmcp import FastMCP
 from fastmcp.dependencies import Depends
 from mcp.types import CallToolResult, TextContent
 from pydantic import Field
+from typing_extensions import override
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.components.internal_search import (
     ChatInternalSearchService,
@@ -24,7 +25,7 @@ from unique_mcp.internal_search.config import (
 )
 from unique_mcp.internal_search.meta import InternalSearchRequestMeta
 from unique_mcp.provider.base import BaseProvider
-from unique_mcp.provider.context_provider import UniqueContextProvider
+from unique_mcp.unique_injectors import get_request_meta, get_unique_settings
 
 
 def _populate_common_state(
@@ -80,33 +81,13 @@ def _format_tool_result(
 
 class ChatInternalSearchToolProvider(BaseProvider):
     _config: ChatInternalSearchMcpConfig
-    _context_provider: UniqueContextProvider
 
     def __init__(
         self,
         *,
         config: ChatInternalSearchMcpConfig,
-        context_provider: UniqueContextProvider,
     ) -> None:
         self._config = config
-        self._context_provider = context_provider
-
-    def _build_service(
-        self,
-        *,
-        settings: UniqueSettings,
-        request_meta: InternalSearchRequestMeta,
-    ) -> ChatInternalSearchService:
-        chat_settings = UniqueSettings(
-            auth=settings.authcontext,
-            app=settings.app,
-            api=settings.api,
-            chat_event_filter_options=settings.chat_event_filter_options,
-            chat=request_meta.to_chat_context(),
-        )
-        return ChatInternalSearchService.from_config(
-            self._config.execution_config
-        ).bind_settings(chat_settings)
 
     @override
     def register(self, *, mcp: FastMCP) -> None:
@@ -120,15 +101,13 @@ class ChatInternalSearchToolProvider(BaseProvider):
                 str | list[str],
                 Field(description=self._config.param_description_search_string),
             ],
-            settings: UniqueSettings = Depends(self._context_provider.get_settings),
+            settings: UniqueSettings = Depends(get_unique_settings),
+            request_meta_raw: dict[str, Any] | None = Depends(get_request_meta),
         ) -> CallToolResult:
-            request_meta = InternalSearchRequestMeta.from_request_meta(
-                self._context_provider.get_request_meta()
-            )
-            service = self._build_service(
-                settings=settings,
-                request_meta=request_meta,
-            )
+            request_meta = InternalSearchRequestMeta.from_request_meta(request_meta_raw)
+            service = ChatInternalSearchService.from_config(
+                self._config.execution_config
+            ).bind_settings(settings)
             _populate_common_state(
                 service=service,
                 search_string=search_string,
@@ -141,23 +120,13 @@ class ChatInternalSearchToolProvider(BaseProvider):
 
 class KnowledgeBaseInternalSearchToolProvider(BaseProvider):
     _config: KnowledgeBaseInternalSearchMcpConfig
-    _context_provider: UniqueContextProvider
 
     def __init__(
         self,
         *,
         config: KnowledgeBaseInternalSearchMcpConfig,
-        context_provider: UniqueContextProvider,
     ) -> None:
         self._config = config
-        self._context_provider = context_provider
-
-    def _build_service(
-        self, *, settings: UniqueSettings
-    ) -> KnowledgeBaseInternalSearchService:
-        return KnowledgeBaseInternalSearchService.from_config(
-            self._config.execution_config
-        ).bind_settings(settings)
 
     @override
     def register(self, *, mcp: FastMCP) -> None:
@@ -171,12 +140,13 @@ class KnowledgeBaseInternalSearchToolProvider(BaseProvider):
                 str | list[str],
                 Field(description=self._config.param_description_search_string),
             ],
-            settings: UniqueSettings = Depends(self._context_provider.get_settings),
+            settings: UniqueSettings = Depends(get_unique_settings),
+            request_meta_raw: dict[str, Any] | None = Depends(get_request_meta),
         ) -> CallToolResult:
-            request_meta = InternalSearchRequestMeta.from_request_meta(
-                self._context_provider.get_request_meta()
-            )
-            service = self._build_service(settings=settings)
+            request_meta = InternalSearchRequestMeta.from_request_meta(request_meta_raw)
+            service = KnowledgeBaseInternalSearchService.from_config(
+                self._config.execution_config
+            ).bind_settings(settings)
             _populate_common_state(
                 service=service,
                 search_string=search_string,

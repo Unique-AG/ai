@@ -6,9 +6,45 @@ from unique_toolkit.components.internal_search import (
     KnowledgeBaseInternalSearchConfig,
 )
 
+from unique_mcp.context_requirements import ContextRequirements, merge_tool_meta
+from unique_mcp.meta_keys import MetaKeys
+
 DEFAULT_SEARCH_STRING_DESCRIPTION = (
     "The search string, or list of search strings, used to retrieve relevant "
     "internal search results."
+)
+
+
+_CHAT_CONTEXT_REQUIREMENTS = ContextRequirements(
+    required=[
+        MetaKeys.USER_ID,
+        MetaKeys.COMPANY_ID,
+        MetaKeys.CHAT_ID,
+    ],
+    optional=[
+        MetaKeys.USER_MESSAGE_ID,
+        MetaKeys.ASSISTANT_ID,
+        MetaKeys.PARENT_CHAT_ID,
+        MetaKeys.LAST_ASSISTANT_MESSAGE_ID,
+        MetaKeys.LAST_USER_MESSAGE_TEXT,
+        MetaKeys.CONTENT_IDS,
+        MetaKeys.SELECTED_UPLOADED_FILE_IDS,
+        MetaKeys.METADATA_FILTER,
+        MetaKeys.LANGUAGE_MODEL_MAX_INPUT_TOKENS,
+    ],
+)
+
+
+_KNOWLEDGE_BASE_CONTEXT_REQUIREMENTS = ContextRequirements(
+    required=[
+        MetaKeys.USER_ID,
+        MetaKeys.COMPANY_ID,
+    ],
+    optional=[
+        MetaKeys.CONTENT_IDS,
+        MetaKeys.METADATA_FILTER,
+        MetaKeys.LANGUAGE_MODEL_MAX_INPUT_TOKENS,
+    ],
 )
 
 
@@ -44,6 +80,14 @@ class ChatInternalSearchMcpConfig(BaseInternalSearchMcpConfig):
         default="No relevant chat files or chat-scoped content were found.",
         description="Fallback text returned when the search yields no chunks.",
     )
+    tool_meta: dict[str, object] = Field(
+        default_factory=lambda: merge_tool_meta(None, _CHAT_CONTEXT_REQUIREMENTS),
+        description=(
+            "Additional MCP tool metadata exposed during registration. Defaults "
+            "to a `unique.app/context-requirements` declaration covering the "
+            "chat-scoped request `_meta` keys the tool consumes."
+        ),
+    )
     execution_config: InternalSearchConfig = Field(
         default_factory=InternalSearchConfig,
         description="Runtime configuration forwarded to ChatInternalSearchService.",
@@ -62,6 +106,16 @@ class KnowledgeBaseInternalSearchMcpConfig(BaseInternalSearchMcpConfig):
     no_results_message: str = Field(
         default="No relevant Knowledge Base content was found.",
         description="Fallback text returned when the search yields no chunks.",
+    )
+    tool_meta: dict[str, object] = Field(
+        default_factory=lambda: merge_tool_meta(
+            None, _KNOWLEDGE_BASE_CONTEXT_REQUIREMENTS
+        ),
+        description=(
+            "Additional MCP tool metadata exposed during registration. Defaults "
+            "to a `unique.app/context-requirements` declaration covering the "
+            "auth + search-scoping keys the knowledge-base tool consumes."
+        ),
     )
     execution_config: KnowledgeBaseInternalSearchConfig = Field(
         default_factory=KnowledgeBaseInternalSearchConfig,
