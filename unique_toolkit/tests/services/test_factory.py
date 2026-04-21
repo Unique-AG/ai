@@ -533,3 +533,59 @@ class TestDefaultRegistrations:
 
         svc = UniqueServiceFactory.create("ChatService", settings=settings_with_chat)
         assert isinstance(svc, ChatService)
+
+    @pytest.mark.ai
+    def test_AI_identity_not_registered_by_default(self, settings: UniqueSettings):
+        """
+        Purpose: Experimental Identity must not leak into the default registry.
+        Why this matters: register_known_services() is called at startup; auto-registering
+            experimental services would expose them as "stable" and silently bypass
+            the explicit opt-in that signals their instability to callers.
+        Setup summary: register_known_services via fixture; try to create Identity; expect error.
+        """
+        from unique_toolkit.experimental.identity import Identity
+
+        with pytest.raises(ServiceNotRegisteredError):
+            UniqueServiceFactory.create(Identity, settings=settings)
+
+
+# ---------------------------------------------------------------------------
+# Tests: experimental registrations (explicit opt-in)
+# ---------------------------------------------------------------------------
+
+
+class TestExperimentalRegistrations:
+    @pytest.mark.ai
+    def test_AI_register_experimental_services_registers_identity(
+        self, settings: UniqueSettings
+    ):
+        """
+        Purpose: Opt-in helper must expose Identity via the factory.
+        Why this matters: Callers that accept the experimental status want a single
+            entry point (``register_experimental_services``) rather than importing and
+            registering each service manually.
+        Setup summary: Call register_experimental_services; create Identity; assert isinstance.
+        """
+        from unique_toolkit.experimental.identity import Identity
+
+        UniqueServiceFactory.register_experimental_services()
+        svc = UniqueServiceFactory.create(Identity, settings=settings)
+
+        assert isinstance(svc, Identity)
+        assert svc._company_id == "company-1"
+        assert svc._user_id == "user-1"
+
+    @pytest.mark.ai
+    def test_AI_register_experimental_services_idempotent(
+        self, settings: UniqueSettings
+    ):
+        """
+        Purpose: Calling the opt-in twice must not raise or double-register.
+        Why this matters: Startup code paths may call the helper defensively; a second
+            call should be a safe no-op just like ``register_known_services``.
+        Setup summary: Call register_experimental_services twice; ensure registry has one entry.
+        """
+        UniqueServiceFactory.register_experimental_services()
+        UniqueServiceFactory.register_experimental_services()
+
+        assert "Identity" in UniqueServiceFactory._registry

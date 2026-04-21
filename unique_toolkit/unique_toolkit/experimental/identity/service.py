@@ -124,6 +124,7 @@ class Identity:
     def from_settings(
         cls,
         settings: UniqueSettings | str | None = None,
+        **_kwargs: Any,
     ) -> Self:
         """Create from :class:`UniqueSettings` (used by :class:`UniqueServiceFactory`).
 
@@ -134,6 +135,10 @@ class Identity:
           :meth:`UniqueSettings.from_env_auto_with_sdk_init`.
         - ``settings="my.env"`` loads from the given env file name.
         - ``settings=<UniqueSettings>`` uses the provided instance as-is.
+
+        ``**_kwargs`` is accepted and ignored so :class:`UniqueServiceFactory`
+        can call ``Identity.from_settings(settings, **kwargs)`` uniformly
+        alongside services that do consume extra kwargs.
         """
         if settings is None:
             settings = UniqueSettings.from_env_auto_with_sdk_init()
