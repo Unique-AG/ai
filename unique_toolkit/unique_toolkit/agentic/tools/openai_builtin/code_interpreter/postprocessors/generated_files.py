@@ -358,7 +358,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
             logger, {"chat_id": chat_id or "n/a"}
         )
 
-        self._orphan_code_blocks: list[CodeInterpreterBlock] = []
         self._short_term_memory_manager = None
         if chat_id is not None and user_id is not None and company_id is not None:
             self._short_term_memory_manager = _init_short_term_memory_manager(
@@ -465,34 +464,11 @@ class DisplayCodeInterpreterFilesPostProcessor(
             )
         save_ms = (time.monotonic() - phase_t0) * 1000
 
-        phase_t0 = time.monotonic()
-        try:
-            if feature_flags.enable_code_execution_fence_un_17972.is_enabled(
-                self._company_id
-            ):
-                self._orphan_code_blocks = await self._upload_orphan_code_as_txt(
-                    loop_response
-                )
-                if self._orphan_code_blocks:
-                    self._log.info(
-                        "run() produced %d orphan code block(s)",
-                        len(self._orphan_code_blocks),
-                    )
-            else:
-                self._orphan_code_blocks = []
-        except Exception:
-            self._log.exception(
-                "run() failed to process orphan code blocks; "
-                "file replacement will still proceed."
-            )
-            self._orphan_code_blocks = []
-        orphan_ms = (time.monotonic() - phase_t0) * 1000
-
         total_ms = (time.monotonic() - run_t0) * 1000
         self._log.info(
             "run() finished — content_map has %d entries (%d ok, %d failed). "
             "Timing: total=%.0fms, load_stm=%.0fms, download_upload=%.0fms, "
-            "save_stm=%.0fms, orphan=%.0fms",
+            "save_stm=%.0fms",
             len(self._content_map),
             len(succeeded),
             len(failed),
@@ -500,7 +476,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
             load_ms,
             download_upload_ms,
             save_ms,
-            orphan_ms,
         )
 
     @override
@@ -623,25 +598,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
             changed |= fences_changed
             if fences_changed:
                 self._log.info("Fence injection modified the message text")
-
-            if self._orphan_code_blocks:
-                for block in self._orphan_code_blocks:
-                    for file in block.files:
-                        loop_response.message.references.append(
-                            ContentReference(
-                                sequence_number=ref_number,
-                                source_id=file.content_id,
-                                source="node-ingestion-chunks",
-                                url=f"unique://content/{file.content_id}",
-                                name=file.filename,
-                            )
-                        )
-                        ref_number += 1
-                changed = True
-                self._log.info(
-                    "Added %d orphan code block(s) to message references",
-                    len(self._orphan_code_blocks),
-                )
 
         _warn_missing_content_ids(loop_response.message.text or "", self._content_map)
         loop_response.message.text, dangling_replaced = _replace_dangling_sandbox_links(
@@ -962,74 +918,6 @@ class DisplayCodeInterpreterFilesPostProcessor(
             len(content_infos),
             (time.monotonic() - t0) * 1000,
         )
-
-    async def _upload_orphan_code_as_txt(
-        self, loop_response: ResponsesLanguageModelStreamResponse
-    ) -> list[CodeInterpreterBlock]:
-        """Upload source **code** from calls that produced no container files as .txt artifacts.
-
-        When code interpreter runs but generates no files or images, the response
-        text has no sandbox links for fence injection to hook onto.  This method
-        converts those "orphan" calls into downloadable .txt files (the executed
-        code, not stdout) so the postprocessor can attach a reference for download.
-
-        Called only when the fence feature flag is enabled.  Skipped entirely if
-        any container files were produced (normal fencing handles those).
-        """
-        if loop_response.container_files:
-            return []
-
-        calls = loop_response.code_interpreter_calls
-        if not calls:
-            return []
-
-        assert self._chat_service is not None  # Checked in __init__
-
-        use_numeric_suffix = len(calls) > 1
-        orphan_blocks: list[CodeInterpreterBlock] = []
-
-        for i, call in enumerate(calls):
-            if not call.code:
-                continue
-
-            # Always persist the executed source as the downloadable .txt (not stdout),
-            # so the attachment matches what ran in the sandbox.
-            txt_content = call.code
-            filename = f"code_{i + 1}.txt" if use_numeric_suffix else "code.txt"
-
-            try:
-                content = await self._build_retry()(
-                    self._chat_service.upload_to_chat_from_bytes_async,
-                    content=txt_content.encode("utf-8"),
-                    content_name=filename,
-                    mime_type="text/plain",
-                    skip_ingestion=True,
-                    hide_in_chat=True,
-                )
-            except Exception:
-                self._log.exception(
-                    "Failed to upload orphan code block as txt for call %d ('%s'); "
-                    "falling back to legacy code block display.",
-                    i,
-                    filename,
-                )
-                continue
-
-            orphan_file = CodeInterpreterFile(
-                filename=filename,
-                content_id=content.id,
-                type="document",
-            )
-            orphan_blocks.append(
-                CodeInterpreterBlock(code=call.code, files=[orphan_file])
-            )
-            self._log.info(
-                "Uploaded orphan code block as '%s' (content_id=%s)",
-                filename,
-                content.id,
-            )
-
-        return orphan_blocks
 
 
 def _get_file_type(filename: str) -> CodeInterpreterFileType:
