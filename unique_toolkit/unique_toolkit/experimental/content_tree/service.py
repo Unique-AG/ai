@@ -23,7 +23,7 @@ import difflib
 import functools
 import json
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, Self, overload
+from typing import TYPE_CHECKING, Any, Protocol, Self, overload
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -42,6 +42,25 @@ from unique_toolkit.experimental.content_tree.schemas import (
 
 if TYPE_CHECKING:
     from unique_toolkit.app.unique_settings import UniqueContext
+
+
+class _CachedResolveTaskFactory(Protocol):
+    """Structural type for :func:`functools.cache`-wrapped resolve-task factory.
+
+    :func:`functools.cache` returns a ``_lru_cache_wrapper`` that exposes
+    ``cache_clear`` / ``cache_info`` in addition to being callable. Static
+    checkers see the return annotation as a plain ``Callable`` and reject the
+    attribute access; this Protocol captures the real runtime shape so we can
+    type ``cache_clear`` without a per-call ``type: ignore``.
+    """
+
+    def __call__(
+        self,
+        filter_key: str,
+        max_concurrent_scope_lookups: int,
+    ) -> asyncio.Task[list[tuple[ContentInfo, list[str]]]]: ...
+
+    def cache_clear(self) -> None: ...
 
 
 class ContentTree:
@@ -85,10 +104,9 @@ class ContentTree:
         # task cache (class-level binding would leak across instances). The
         # cached factory returns an :class:`asyncio.Task`: concurrent misses
         # hit the same task → single-flight for free, stdlib-only.
-        self._resolve_task: Callable[
-            [str, int],
-            asyncio.Task[list[tuple[ContentInfo, list[str]]]],
-        ] = functools.cache(self._create_resolve_task)
+        self._resolve_task: _CachedResolveTaskFactory = functools.cache(
+            self._create_resolve_task
+        )
 
     # ── Read-only identity (frozen via the property mechanic) ────────────
 
@@ -183,7 +201,7 @@ class ContentTree:
         knowledge base (upload, delete, folder rename, …) when the next read
         must reflect that change.
         """
-        self._resolve_task.cache_clear()  # type: ignore[attr-defined]
+        self._resolve_task.cache_clear()
 
     def _create_resolve_task(
         self,
