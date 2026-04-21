@@ -324,10 +324,15 @@ class Identity:
         configuration: dict[str, Any],
         target_user_id: str | None = None,
     ) -> UserWithConfiguration:
-        """Replace the configuration blob of the acting user (or ``target_user_id``).
+        """Replace the configuration blob of the acting user.
 
-        The underlying endpoint only authorises ``target_user_id == self._user_id``.
-        The parameter exists for completeness but most callers can omit it.
+        The underlying endpoint only authorises updating the acting user's own
+        configuration. ``target_user_id`` exists for API symmetry but, when
+        provided, must equal ``self._user_id`` — otherwise :class:`ValueError`
+        is raised to avoid silently ignoring the caller's intent.
+
+        :raises ValueError: when ``target_user_id`` is set and differs from
+            the service's acting user.
         """
         return update_user_configuration(
             user_id=self._user_id,
@@ -342,7 +347,11 @@ class Identity:
         configuration: dict[str, Any],
         target_user_id: str | None = None,
     ) -> UserWithConfiguration:
-        """Async :meth:`update_user_configuration`."""
+        """Async :meth:`update_user_configuration`.
+
+        :raises ValueError: when ``target_user_id`` is set and differs from
+            the service's acting user. See :meth:`update_user_configuration`.
+        """
         return await update_user_configuration_async(
             user_id=self._user_id,
             company_id=self._company_id,

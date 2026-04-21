@@ -257,6 +257,56 @@ class TestAIUpdateUserConfiguration:
             userConfiguration={"theme": "dark"},
         )
 
+    def test_AI_update_user_configuration_rejects_other_target(self, identity, mocker):
+        """Passing target_user_id != self must raise instead of silently swapping."""
+        mock = mocker.patch(
+            "unique_toolkit.experimental.identity.functions.User.update_user_configuration"
+        )
+
+        with pytest.raises(ValueError, match="target_user_id must equal user_id"):
+            identity.update_user_configuration(
+                configuration={"theme": "dark"}, target_user_id="someone-else"
+            )
+
+        mock.assert_not_called()
+
+    def test_AI_update_user_configuration_accepts_self_target(self, identity, mocker):
+        """Explicitly passing the acting user's own id is allowed."""
+        mock = mocker.patch(
+            "unique_toolkit.experimental.identity.functions.User.update_user_configuration",
+            return_value={
+                **_user_payload(id=USER_ID),
+                "userConfiguration": {"theme": "light"},
+            },
+        )
+
+        user = identity.update_user_configuration(
+            configuration={"theme": "light"}, target_user_id=USER_ID
+        )
+
+        assert user.user_configuration == {"theme": "light"}
+        mock.assert_called_once_with(
+            user_id=USER_ID,
+            company_id=COMPANY_ID,
+            userConfiguration={"theme": "light"},
+        )
+
+    @pytest.mark.asyncio
+    async def test_AI_update_user_configuration_async_rejects_other_target(
+        self, identity, mocker
+    ):
+        """Async variant enforces the same self-update invariant."""
+        mock = mocker.patch(
+            "unique_toolkit.experimental.identity.functions.User.update_user_configuration_async"
+        )
+
+        with pytest.raises(ValueError, match="target_user_id must equal user_id"):
+            await identity.update_user_configuration_async(
+                configuration={"theme": "dark"}, target_user_id="someone-else"
+            )
+
+        mock.assert_not_called()
+
 
 # ── Groups ────────────────────────────────────────────────────────────────────
 

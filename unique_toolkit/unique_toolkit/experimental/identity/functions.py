@@ -209,7 +209,13 @@ def update_user_configuration(
     The SDK only supports this call for ``target_user_id == user_id`` (the acting
     user). Callers that need to mutate other users' config must delegate to a
     service user.
+
+    :raises ValueError: when ``target_user_id`` differs from the acting
+        ``user_id`` — the underlying SDK endpoint only updates the acting
+        user's own configuration, so any other target would be silently
+        ignored.
     """
+    _assert_self_update(user_id=user_id, target_user_id=target_user_id)
     payload = User.update_user_configuration(
         user_id=target_user_id,
         company_id=company_id,
@@ -225,7 +231,12 @@ async def update_user_configuration_async(
     target_user_id: str,
     configuration: dict[str, Any],
 ) -> UserWithConfiguration:
-    """Async :func:`update_user_configuration`."""
+    """Async :func:`update_user_configuration`.
+
+    :raises ValueError: when ``target_user_id`` differs from the acting
+        ``user_id``. See :func:`update_user_configuration` for rationale.
+    """
+    _assert_self_update(user_id=user_id, target_user_id=target_user_id)
     payload = await User.update_user_configuration_async(
         user_id=target_user_id,
         company_id=company_id,
@@ -534,6 +545,22 @@ def _build_create_group_params(
     if external_id is not None:
         params["externalId"] = external_id
     return params
+
+
+def _assert_self_update(*, user_id: str, target_user_id: str) -> None:
+    """Fail fast when an update-configuration call targets another user.
+
+    ``unique_sdk.User.update_user_configuration`` is authenticated as
+    ``user_id`` and always writes to that same user's configuration — the
+    ``target_user_id`` would otherwise be silently swapped in as the acting
+    user. Raising here keeps the intent of the caller honest.
+    """
+    if target_user_id != user_id:
+        raise ValueError(
+            "update_user_configuration: target_user_id must equal user_id; the "
+            "underlying SDK endpoint only updates the acting user's own "
+            f"configuration (got user_id={user_id!r}, target_user_id={target_user_id!r})."
+        )
 
 
 def _only_match(
