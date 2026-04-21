@@ -7,58 +7,33 @@ from unique_mcp.meta_keys import MetaKeys
 
 
 @pytest.mark.ai
-def test_request_meta__allows_extra_fields():
+def test_request_meta__parses_search_scoping_keys():
     meta = InternalSearchRequestMeta.from_request_meta(
         {
-            MetaKeys.CHAT_ID: "chat-1",
-            MetaKeys.CONTENT_IDS: ["c1"],
-            "custom.extra": "kept",
-        }
-    )
-
-    assert meta.chat_id == "chat-1"
-    assert meta.content_ids == ["c1"]
-    assert meta.model_extra == {"custom.extra": "kept"}
-
-
-@pytest.mark.ai
-def test_request_meta__accepts_namespaced_keys():
-    meta = InternalSearchRequestMeta.from_request_meta(
-        {
-            MetaKeys.USER_ID: "user-1",
-            MetaKeys.COMPANY_ID: "company-1",
-            MetaKeys.CHAT_ID: "chat-1",
-            MetaKeys.USER_MESSAGE_ID: "um-1",
             MetaKeys.CONTENT_IDS: ["c1", "c2"],
             MetaKeys.METADATA_FILTER: {"kind": "report"},
             MetaKeys.LANGUAGE_MODEL_MAX_INPUT_TOKENS: 128000,
         }
     )
 
-    assert meta.user_id == "user-1"
-    assert meta.company_id == "company-1"
-    assert meta.chat_id == "chat-1"
-    assert meta.last_user_message_id == "um-1"
     assert meta.content_ids == ["c1", "c2"]
     assert meta.metadata_filter == {"kind": "report"}
     assert meta.language_model_max_input_tokens == 128000
 
 
 @pytest.mark.ai
-def test_request_meta__accepts_flat_camel_case_aliases():
+def test_request_meta__ignores_unknown_and_identity_keys():
     meta = InternalSearchRequestMeta.from_request_meta(
         {
-            "userId": "user-1",
-            "companyId": "company-1",
-            "chatId": "chat-1",
-            "messageId": "um-1",
+            MetaKeys.CONTENT_IDS: ["c1"],
+            MetaKeys.USER_ID: "user-1",  # identity — handled by get_unique_settings
+            MetaKeys.CHAT_ID: "chat-1",  # identity — handled by get_unique_settings
+            "custom.extra": "ignored",
         }
     )
 
-    assert meta.user_id == "user-1"
-    assert meta.company_id == "company-1"
-    assert meta.chat_id == "chat-1"
-    assert meta.last_user_message_id == "um-1"
+    assert meta.content_ids == ["c1"]
+    assert meta.model_extra is None
 
 
 @pytest.mark.ai
@@ -72,3 +47,15 @@ def test_chat_content_ids_prefers_selected_uploaded_file_ids():
 
     assert meta.chat_content_ids == ["f1"]
     assert meta.knowledge_base_content_ids == ["c1"]
+
+
+@pytest.mark.ai
+def test_chat_content_ids_empty_list_does_not_fall_back_to_content_ids():
+    meta = InternalSearchRequestMeta.from_request_meta(
+        {
+            MetaKeys.SELECTED_UPLOADED_FILE_IDS: [],
+            MetaKeys.CONTENT_IDS: ["c1"],
+        }
+    )
+
+    assert meta.chat_content_ids == []
