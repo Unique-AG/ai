@@ -95,6 +95,10 @@ class Space(APIResource["Space"]):
     class GetChatMessagesParams(RequestOptions):
         """
         Parameters for getting chat messages.
+
+        Attributes:
+            skip: Number of messages to skip. Server default: 0.
+            take: Number of messages to return. Server default: 10, max: 100.
         """
 
         skip: NotRequired[int]
@@ -103,6 +107,11 @@ class Space(APIResource["Space"]):
     class GetSpacesParams(RequestOptions):
         """
         Parameters for listing spaces.
+
+        Attributes:
+            name: Optional case-insensitive partial name filter. Server default: no filter.
+            skip: Number of records to skip for pagination. Server default: 0, min: 0.
+            take: Number of records to return. Server default: 50, min: 1, max: 1000.
         """
 
         name: NotRequired[str | None]
