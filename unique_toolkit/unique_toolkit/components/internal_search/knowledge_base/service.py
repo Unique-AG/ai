@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Self
+from typing import Any, Self, cast
 
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.components.internal_search.base import (
@@ -91,7 +91,7 @@ class KnowledgeBaseInternalSearchService(
     @property
     def _effective_metadata_filter(self) -> dict[str, Any] | None:
         if self._state.metadata_filter_override is not UNSET:
-            return self._state.metadata_filter_override  # type: ignore
+            return cast("dict[str, Any] | None", self._state.metadata_filter_override)
         if self._context.chat is not None:
             return self._context.chat.metadata_filter
         return self._config.metadata_filter

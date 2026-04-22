@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel
-from pydantic_settings import BaseSettings
 from typing_extensions import Self
 
 from unique_toolkit._common.event_bus import TypedEventBus
@@ -15,7 +14,6 @@ from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 
 RunResult = TypeVar("RunResult", bound=BaseModel)
 Config = TypeVar("Config", bound=BaseModel)
-Settings = TypeVar("Settings", bound=BaseSettings)
 Context = TypeVar("Context")
 ServiceState = TypeVar("ServiceState")
 ProgressMessage = TypeVar("ProgressMessage")
@@ -46,14 +44,6 @@ class _ConfigMixin(ABC, Generic[Config]):
         return cls.from_config(parsed)
 
 
-class _SettingsMixin(ABC, Generic[Settings]):
-    """Implement if the service needs immutable env-var settings loaded at init."""
-
-    @property
-    @abstractmethod
-    def settings(self) -> Settings: ...
-
-
 class _ContextMixin(ABC, Generic[Context]):
     @property
     @abstractmethod
@@ -80,8 +70,6 @@ class _StateMixin(ABC, Generic[ServiceState]):
 class _ProgressMixin(Generic[ProgressMessage]):
     """Concrete by default — no-op bus unless something subscribes."""
 
-    _progress_publisher: TypedEventBus[ProgressMessage]
-
     @property
     def progress_publisher(self) -> TypedEventBus[ProgressMessage]:
         if not hasattr(self, "_progress_publisher"):
@@ -103,6 +91,7 @@ class _DependenciesMixin(ABC, Generic[Deps]):
 
 
 class BaseService(
+    ABC,
     _RunMixin[RunResult],
     _ConfigMixin[Config],
     _ContextMixin[UniqueContext],
