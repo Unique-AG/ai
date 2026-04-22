@@ -75,37 +75,45 @@ def mock_unique_ai(monkeypatch: pytest.MonkeyPatch) -> "UniqueAI":
 
 
 class TestPreloadSkillsInRun:
-    """Covers the ``preload_invoked_skills`` call site in ``UniqueAI.run``."""
+    """Covers the ``preload_invoked_skills`` call site in ``UniqueAI.run``.
+
+    We can't run the entire ``run()`` method end-to-end (it calls a dozen
+    async collaborators), but we *can* short-circuit it via a sentinel
+    exception raised right after the preload block. The important thing
+    is that the test reaches and executes lines 214–221.
+    """
+
+    class _StopRun(Exception):
+        """Sentinel used to exit ``run()`` after the preload block."""
+
+    async def _run_until_preload(
+        self,
+        ua: "UniqueAI",
+        preload_return: str | None,
+    ) -> None:
+        ua._chat_service.modify_assistant_message_async = AsyncMock()
+        ua._chat_service.cancellation.on_cancellation.subscribe = MagicMock(
+            side_effect=TestPreloadSkillsInRun._StopRun
+        )
+
+        with (
+            patch(
+                "unique_orchestrator.unique_ai.preload_invoked_skills",
+                new=AsyncMock(return_value=preload_return),
+            ),
+            patch("unique_orchestrator.unique_ai.feature_flags") as mock_feature_flags,
+        ):
+            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = True
+            with pytest.raises(TestPreloadSkillsInRun._StopRun):
+                await ua.run()
 
     @pytest.mark.asyncio
     async def test_stripped_text_replaces_user_message(
         self, mock_unique_ai: "UniqueAI"
     ) -> None:
-        """When preload returns stripped text, the user message is overwritten."""
         mock_unique_ai._event.payload.user_message.text = "/foo the real query"
 
-        with (
-            patch(
-                "unique_orchestrator.unique_ai.preload_invoked_skills",
-                new=AsyncMock(return_value="the real query"),
-            ),
-            patch(
-                "unique_orchestrator.unique_ai.feature_flags"
-            ) as mock_feature_flags,
-        ):
-            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = True
-            mock_unique_ai._chat_service.cancellation.on_cancellation.subscribe = (
-                MagicMock(return_value=MagicMock())
-            )
-            mock_unique_ai._chat_service.cancellation.on_cancellation.unsubscribe = (
-                MagicMock()
-            )
-            mock_unique_ai._chat_service.cancellation.check_cancellation_async = (
-                AsyncMock(return_value=True)
-            )
-            # Short-circuit ``run`` immediately by treating the loop as cancelled
-            # after preload runs.
-            await mock_unique_ai.run()
+        await self._run_until_preload(mock_unique_ai, "the real query")
 
         assert mock_unique_ai._event.payload.user_message.text == "the real query"
 
@@ -113,29 +121,9 @@ class TestPreloadSkillsInRun:
     async def test_no_skills_leaves_user_message_untouched(
         self, mock_unique_ai: "UniqueAI"
     ) -> None:
-        """When preload returns None, the user message is not touched."""
         mock_unique_ai._event.payload.user_message.text = "plain question"
 
-        with (
-            patch(
-                "unique_orchestrator.unique_ai.preload_invoked_skills",
-                new=AsyncMock(return_value=None),
-            ),
-            patch(
-                "unique_orchestrator.unique_ai.feature_flags"
-            ) as mock_feature_flags,
-        ):
-            mock_feature_flags.enable_new_answers_ui_un_14411.is_enabled.return_value = True
-            mock_unique_ai._chat_service.cancellation.on_cancellation.subscribe = (
-                MagicMock(return_value=MagicMock())
-            )
-            mock_unique_ai._chat_service.cancellation.on_cancellation.unsubscribe = (
-                MagicMock()
-            )
-            mock_unique_ai._chat_service.cancellation.check_cancellation_async = (
-                AsyncMock(return_value=True)
-            )
-            await mock_unique_ai.run()
+        await self._run_until_preload(mock_unique_ai, None)
 
         assert mock_unique_ai._event.payload.user_message.text == "plain question"
 
