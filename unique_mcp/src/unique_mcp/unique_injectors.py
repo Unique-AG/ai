@@ -99,19 +99,14 @@ def _chat_from_meta(meta: Mapping[str, Any]) -> ChatContext | None:
     if not chat_id:
         return None
 
-    assistant_id = _pick_meta(meta, MetaKeys.ASSISTANT_ID) or _MCP_CHAT_CONTEXT_SENTINEL
-    last_user_message_id = _pick_meta(meta, MetaKeys.USER_MESSAGE_ID)
-    last_assistant_message_id = _pick_meta(meta, MetaKeys.LAST_ASSISTANT_MESSAGE_ID)
-    last_user_message_text = _pick_meta(meta, MetaKeys.LAST_USER_MESSAGE_TEXT)
-    parent_chat_id = _pick_meta(meta, MetaKeys.PARENT_CHAT_ID)
-
     return ChatContext(
         chat_id=chat_id,
-        assistant_id=assistant_id,
-        last_assistant_message_id=last_assistant_message_id,
-        last_user_message_id=last_user_message_id,
-        last_user_message_text=last_user_message_text,
-        parent_chat_id=parent_chat_id,
+        assistant_id=_pick_meta(meta, MetaKeys.ASSISTANT_ID)
+        or _MCP_CHAT_CONTEXT_SENTINEL,
+        last_user_message_id=_pick_meta(meta, MetaKeys.USER_MESSAGE_ID),
+        last_assistant_message_id=_pick_meta(meta, MetaKeys.LAST_ASSISTANT_MESSAGE_ID),
+        last_user_message_text=_pick_meta(meta, MetaKeys.LAST_USER_MESSAGE_TEXT),
+        parent_chat_id=_pick_meta(meta, MetaKeys.PARENT_CHAT_ID),
     )
 
 
