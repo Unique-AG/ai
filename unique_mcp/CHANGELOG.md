@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-04-22
+- Add `MetaKeys` StrEnum (`unique.app/auth/*`, `unique.app/chat/*`) and `META_FLAT_ALIASES` for FF-gated camelCase fallback
+- Add `ContextRequirements` + `merge_tool_meta` for tools to declare required `_meta` keys
+- Add `get_request_meta` injector for tools that need raw `_meta` access beyond auth/chat context
+- Refactor `get_unique_settings` to compose auth/chat context from `_meta` using `MetaKeys`
+
 ## [0.3.2] - 2026-04-20
 - Add `[tool.uv.exclude-newer-package]` entry exempting `unique-toolkit` from the root workspace `exclude-newer` cutoff so recent workspace releases resolve correctly under `UV_NO_SOURCES=1`
 
