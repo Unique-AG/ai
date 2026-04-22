@@ -5,10 +5,10 @@ from typing_extensions import override
 from unique_toolkit._common.token import count_tokens
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.config import (
-    DisplayMode,
-    RetrieveSearchScopeConfig,
     _RETURNS_FLAT,
     _RETURNS_TREE,
+    DisplayMode,
+    RetrieveSearchScopeConfig,
 )
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
