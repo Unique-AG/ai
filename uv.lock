@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-08T12:08:49.478002Z"
+exclude-newer = "2026-04-08T14:38:35.201257Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5308,7 +5308,7 @@ dev = []
 
 [[package]]
 name = "unique-mcp"
-version = "0.3.2"
+version = "0.3.3"
 source = { editable = "unique_mcp" }
 dependencies = [
     { name = "fastmcp" },
