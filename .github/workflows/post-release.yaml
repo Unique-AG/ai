@@ -1,0 +1,59 @@
+name: "Release · Post-merge"
+
+# Runs right after release-please merges its Release PR on `main`. In a
+# single pass it:
+#
+#   1. Cuts `release/YYYY.WW` from the tagged commit (so hotfixes have a
+#      dedicated branch).
+#   2. Arms the *next* cycle by pushing `Release-As: <next-YYYY.WW>.0` to
+#      `main`. Release-please then opens a fresh Release PR already
+#      targeting the correct next CalVer — no SemVer placeholder, no
+#      manual follow-up click.
+#
+# Release-please's group-pull-request-title-pattern is
+# `chore: release ${branch}` (see release-please-config.json), so the
+# merge commit on `main` lands with subject `chore: release main`. That's
+# our discriminator.
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  actions: write  # needed for `gh workflow run release-please.yaml`
+
+jobs:
+  post-release:
+    # Only the release-please merge commit on main should trigger this.
+    if: "${{ startsWith(github.event.head_commit.message, 'chore: release main') }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cut release branch from tagged commit
+        run: ./.github/scripts/cut-release-branch.sh
+
+      - name: Arm next cycle on main
+        run: ./.github/scripts/prepare-next-cycle.sh
+
+      - name: Kick release-please
+        # The push above used GITHUB_TOKEN and therefore did not fire
+        # release-please.yaml via its push trigger. Invoke it manually so
+        # the standing Release PR is refreshed immediately.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run release-please.yaml --ref main
+
+      - name: Summary
+        run: |
+          echo "### Post-release actions" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Cut \`release/\` branch from the tagged release commit" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Pushed \`Release-As:\` trailer on \`main\` to arm the next cycle" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Kicked release-please to refresh the standing Release PR" >> "$GITHUB_STEP_SUMMARY"

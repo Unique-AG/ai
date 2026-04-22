@@ -5,6 +5,10 @@ on:
     branches:
       - "main"
       - "release/*"
+  # Manual trigger so the `release-cut` and `post-release` workflows can
+  # kick release-please right after pushing a `Release-As:` trailer with
+  # GITHUB_TOKEN (which by design does not fire push-triggered workflows).
+  workflow_dispatch:
 
 permissions:
   contents: write
