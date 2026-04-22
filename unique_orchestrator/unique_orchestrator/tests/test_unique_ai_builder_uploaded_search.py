@@ -309,9 +309,11 @@ class TestConfigureUploadedSearchToolIngestionFilter:
         event.payload.tool_choices = tool_choices or []
         return event
 
-    def _make_doc(self, applied_ingestion_config):
+    def _make_doc(self, applied_ingestion_config, mime_type=None):
         return Content(
-            expired_at=None, applied_ingestion_config=applied_ingestion_config
+            expired_at=None,
+            applied_ingestion_config=applied_ingestion_config,
+            mime_type=mime_type,
         )
 
     def _run(self, docs, tool_choices=None):
@@ -343,10 +345,29 @@ class TestConfigureUploadedSearchToolIngestionFilter:
         assert UploadedSearchTool.name not in tool_names
 
     def test_skip_excel_ingestion_mode_is_excluded(self):
-        doc = self._make_doc({"uniqueIngestionMode": "SKIP_EXCEL_INGESTION"})
+        # SKIP_EXCEL_INGESTION only excludes the doc when the mime type is
+        # actually Excel/CSV (see unique_toolkit.Content.is_ingested after
+        # #1454). A SKIP_EXCEL_INGESTION doc with a non-Excel or unknown
+        # mime type is still considered ingested.
+        doc = self._make_doc(
+            {"uniqueIngestionMode": "SKIP_EXCEL_INGESTION"},
+            mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
         common = self._run([doc])
         tool_names = [t.name for t in common.tool_manager_config.tools]
         assert UploadedSearchTool.name not in tool_names
+
+    def test_skip_excel_ingestion_with_non_excel_mime_is_included(self):
+        # Counterpart to test_skip_excel_ingestion_mode_is_excluded: a doc
+        # with SKIP_EXCEL_INGESTION but a non-Excel mime is considered
+        # ingested and must keep the uploaded search tool enabled.
+        doc = self._make_doc(
+            {"uniqueIngestionMode": "SKIP_EXCEL_INGESTION"},
+            mime_type="application/pdf",
+        )
+        common = self._run([doc])
+        tool_names = [t.name for t in common.tool_manager_config.tools]
+        assert UploadedSearchTool.name in tool_names
 
     def test_mixed_docs_tool_added_when_at_least_one_is_ingested(self):
         skip_doc = self._make_doc({"uniqueIngestionMode": "SKIP_INGESTION"})
@@ -358,7 +379,10 @@ class TestConfigureUploadedSearchToolIngestionFilter:
     def test_all_skip_docs_tool_not_added(self):
         docs = [
             self._make_doc({"uniqueIngestionMode": "SKIP_INGESTION"}),
-            self._make_doc({"uniqueIngestionMode": "SKIP_EXCEL_INGESTION"}),
+            self._make_doc(
+                {"uniqueIngestionMode": "SKIP_EXCEL_INGESTION"},
+                mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
         ]
         common = self._run(docs)
         tool_names = [t.name for t in common.tool_manager_config.tools]
