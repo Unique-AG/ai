@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.80.1] - 2026-04-22
+### Fixed
+- Code interpreter fence system prompt (`DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): tighten HTML/CSS guidance for chat iframe rendering (UN-19711) — forbid viewport/percentage heights on `html`/`body`, require bounded measurable heights for chart/dashboard containers, and discourage top-level `position: fixed`/`absolute` that break auto-height measurement.
+
 ## [1.80.0] - 2026-04-21
 ### Added
 - Add experimental `unique_toolkit.experimental.content_tree` subpackage exposing `ContentTree` — a cached view of the KB content visible to the acting user — split into `schemas`, `functions`, and `service` modules. The API is experimental and may change between minor releases.
