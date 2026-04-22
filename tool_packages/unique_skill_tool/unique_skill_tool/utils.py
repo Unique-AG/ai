@@ -78,10 +78,6 @@ def format_skill_listing(
 
     name_overhead = sum(len(s.name) + 4 for s in skills) + len(skills) - 1
     available_for_descs = budget - name_overhead
-
-    if len(skills) == 0:
-        return ""
-
     max_desc_len = available_for_descs // len(skills)
 
     if max_desc_len < MIN_DESC_LENGTH:
