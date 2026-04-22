@@ -7,6 +7,7 @@ from unique_toolkit.components.internal_search import (
 )
 
 from unique_mcp.context_requirements import ContextRequirements, merge_tool_meta
+from unique_mcp.internal_search.meta import SearchMetaKeys
 from unique_mcp.meta_keys import MetaKeys
 
 DEFAULT_SEARCH_STRING_DESCRIPTION = (
@@ -27,10 +28,10 @@ _CHAT_CONTEXT_REQUIREMENTS = ContextRequirements(
         MetaKeys.PARENT_CHAT_ID,
         MetaKeys.LAST_ASSISTANT_MESSAGE_ID,
         MetaKeys.LAST_USER_MESSAGE_TEXT,
-        MetaKeys.CONTENT_IDS,
-        MetaKeys.SELECTED_UPLOADED_FILE_IDS,
-        MetaKeys.METADATA_FILTER,
-        MetaKeys.LANGUAGE_MODEL_MAX_INPUT_TOKENS,
+        SearchMetaKeys.CONTENT_IDS,
+        SearchMetaKeys.SELECTED_UPLOADED_FILE_IDS,
+        SearchMetaKeys.METADATA_FILTER,
+        SearchMetaKeys.LANGUAGE_MODEL_MAX_INPUT_TOKENS,
     ],
 )
 
@@ -41,9 +42,9 @@ _KNOWLEDGE_BASE_CONTEXT_REQUIREMENTS = ContextRequirements(
         MetaKeys.COMPANY_ID,
     ],
     optional=[
-        MetaKeys.CONTENT_IDS,
-        MetaKeys.METADATA_FILTER,
-        MetaKeys.LANGUAGE_MODEL_MAX_INPUT_TOKENS,
+        SearchMetaKeys.CONTENT_IDS,
+        SearchMetaKeys.METADATA_FILTER,
+        SearchMetaKeys.LANGUAGE_MODEL_MAX_INPUT_TOKENS,
     ],
 )
 
