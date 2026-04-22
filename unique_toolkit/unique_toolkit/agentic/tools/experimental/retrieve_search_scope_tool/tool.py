@@ -7,7 +7,8 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.config import (
     DisplayMode,
     RetrieveSearchScopeConfig,
-    build_system_prompt,
+    _RETURNS_FLAT,
+    _RETURNS_TREE,
 )
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -49,7 +50,10 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
 
     @override
     def tool_description_for_system_prompt(self) -> str:
-        return build_system_prompt(self.config.display_mode)
+        prompt = self.config.tool_description_for_system_prompt
+        if self.config.display_mode == DisplayMode.tree:
+            prompt = prompt.replace(_RETURNS_FLAT, _RETURNS_TREE)
+        return prompt
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return []
