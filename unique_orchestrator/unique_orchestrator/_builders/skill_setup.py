@@ -135,7 +135,7 @@ def _build_skill(
     return SkillDefinition(
         name=name,
         description=description,
-        content=body or file_text,
+        content=body,
     )
 
 
