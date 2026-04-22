@@ -3,7 +3,7 @@
 Covers:
 - SkillTool.run() with valid, unknown, and empty skill names
 - Skill name normalization
-- Tool description enum generation from registry
+- Tool description enum generation from skill registry
 - Budget-aware skill listing (format_skill_listing)
 """
 
@@ -46,21 +46,21 @@ def _make_skill(
     )
 
 
-def _make_registry(*skills: SkillDefinition) -> dict[str, SkillDefinition]:
+def _make_skill_registry(*skills: SkillDefinition) -> dict[str, SkillDefinition]:
     return {s.name: s for s in skills}
 
 
 def _make_tool(
-    registry: dict[str, SkillDefinition] | None = None,
+    skill_registry: dict[str, SkillDefinition] | None = None,
     config: SkillToolConfig | None = None,
 ) -> SkillTool:
-    if registry is None:
-        registry = _make_registry(_make_skill())
+    if skill_registry is None:
+        skill_registry = _make_skill_registry(_make_skill())
     if config is None:
         config = SkillToolConfig(enabled=True)
 
     event = MagicMock()
-    return SkillTool(event=event, registry=registry, config=config)
+    return SkillTool(event=event, skill_registry=skill_registry, config=config)
 
 
 def _make_tool_call(
@@ -101,7 +101,7 @@ class TestSkillToolRun:
     @pytest.mark.asyncio
     async def test_valid_skill_returns_content(self) -> None:
         skill = _make_skill(content="Step 1: Do the thing.\nStep 2: Done.")
-        tool = _make_tool(registry=_make_registry(skill))
+        tool = _make_tool(skill_registry=_make_skill_registry(skill))
 
         result = await tool.run(_make_tool_call("test-skill"))
 
@@ -153,7 +153,7 @@ class TestSkillToolRun:
     @pytest.mark.asyncio
     async def test_error_lists_available_skills(self) -> None:
         skills = [_make_skill("alpha"), _make_skill("beta")]
-        tool = _make_tool(registry=_make_registry(*skills))
+        tool = _make_tool(skill_registry=_make_skill_registry(*skills))
 
         result = await tool.run(_make_tool_call("gamma"))
 
@@ -169,7 +169,7 @@ class TestSkillToolRun:
 class TestSkillToolDescription:
     def test_enum_contains_skill_names(self) -> None:
         skills = [_make_skill("analyze"), _make_skill("summarize")]
-        tool = _make_tool(registry=_make_registry(*skills))
+        tool = _make_tool(skill_registry=_make_skill_registry(*skills))
 
         desc = tool.tool_description()
         params = desc.parameters
@@ -179,7 +179,7 @@ class TestSkillToolDescription:
         assert set(enum_values) == {"analyze", "summarize"}
 
     def test_empty_registry_has_no_enum(self) -> None:
-        tool = _make_tool(registry={})
+        tool = _make_tool(skill_registry={})
 
         desc = tool.tool_description()
         params = desc.parameters
@@ -203,7 +203,7 @@ class TestSkillToolSystemPrompt:
 
     def test_does_not_include_skill_listing(self) -> None:
         skills = [_make_skill("my-skill", description="Does stuff")]
-        tool = _make_tool(registry=_make_registry(*skills))
+        tool = _make_tool(skill_registry=_make_skill_registry(*skills))
 
         prompt = tool.tool_description_for_system_prompt()
 
@@ -218,7 +218,7 @@ class TestSkillToolSystemPrompt:
         assert "system-reminder" in prompt.lower()
 
     def test_empty_registry_still_static_only(self) -> None:
-        tool = _make_tool(registry={})
+        tool = _make_tool(skill_registry={})
         prompt = tool.tool_description_for_system_prompt()
 
         assert "Available skills:" not in prompt
@@ -250,7 +250,7 @@ class TestSkillToolUserPrompt:
 
     def test_does_not_include_skill_listing(self) -> None:
         skills = [_make_skill("my-skill", description="Does stuff")]
-        tool = _make_tool(registry=_make_registry(*skills))
+        tool = _make_tool(skill_registry=_make_skill_registry(*skills))
 
         user_prompt = tool.tool_description_for_user_prompt()
 
@@ -273,7 +273,7 @@ class TestSkillToolSystemReminder:
 
     def test_includes_system_reminder_block(self) -> None:
         skills = [_make_skill("my-skill", description="Does stuff")]
-        tool = _make_tool(registry=_make_registry(*skills))
+        tool = _make_tool(skill_registry=_make_skill_registry(*skills))
 
         reminder = tool.tool_system_reminder()
 
@@ -291,19 +291,19 @@ class TestSkillToolSystemReminder:
 
     def test_includes_skill_listing(self) -> None:
         skills = [_make_skill("my-skill", description="Does stuff")]
-        tool = _make_tool(registry=_make_registry(*skills))
+        tool = _make_tool(skill_registry=_make_skill_registry(*skills))
 
         reminder = tool.tool_system_reminder()
 
         assert "- my-skill: Does stuff" in reminder
 
     def test_empty_registry_returns_empty_string(self) -> None:
-        tool = _make_tool(registry={})
+        tool = _make_tool(skill_registry={})
 
         assert tool.tool_system_reminder() == ""
 
     def test_empty_reminder_template_returns_empty(self) -> None:
-        config = SkillToolConfig(enabled=True, tool_system_reminder="")
+        config = SkillToolConfig(enabled=True, tool_system_reminder_for_user_message="")
         tool = _make_tool(config=config)
 
         assert tool.tool_system_reminder() == ""

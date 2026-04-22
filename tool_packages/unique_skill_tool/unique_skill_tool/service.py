@@ -17,24 +17,17 @@ from unique_skill_tool.schemas import (
 )
 from unique_skill_tool.utils import (
     format_skill_listing,
+    normalize_skill_name,
 )
-
-
-def normalize_skill_name(skill: str) -> str:
-    """Strip whitespace and a leading ``/`` from a skill name."""
-    skill = skill.strip()
-    if skill.startswith("/"):
-        return skill[1:]
-    return skill
 
 
 class SkillTool(Tool[SkillToolConfig]):
     """Tool that lets the agent activate a named skill.
 
     The agent calls this with a ``skill_name`` it sees in the skill listing
-    (system prompt).  The tool looks up the skill in the registry and returns
-    its full content as the tool response so the agent can follow those
-    instructions.
+    (system prompt).  The tool looks up the skill in the skill registry
+    and returns its full content as the tool response so the agent can
+    follow those instructions.
     """
 
     name = "Skill"
@@ -42,21 +35,21 @@ class SkillTool(Tool[SkillToolConfig]):
     def __init__(
         self,
         event: ChatEvent,
-        registry: dict[str, SkillDefinition],
+        skill_registry: dict[str, SkillDefinition],
         config: SkillToolConfig,
     ) -> None:
         super().__init__(config, event)
-        self._registry = registry
+        self._skill_registry = skill_registry
 
     @property
-    def registry(self) -> dict[str, SkillDefinition]:
-        return self._registry
+    def skill_registry(self) -> dict[str, SkillDefinition]:
+        return self._skill_registry
 
     def display_name(self) -> str:
         return "Skill"
 
     def tool_description(self) -> LanguageModelToolDescription:
-        skill_names = list(self._registry.keys())
+        skill_names = list(self._skill_registry.keys())
 
         skill_name_schema: dict = {
             "type": "string",
@@ -96,22 +89,22 @@ class SkillTool(Tool[SkillToolConfig]):
     def tool_system_reminder(self) -> str:
         """Per-turn ``<system-reminder>`` block listing available skills.
 
-        Renders :attr:`SkillToolConfig.tool_system_reminder` as a
+        Renders :attr:`SkillToolConfig.tool_system_reminder_for_user_message` as a
         Jinja template with the budget-aware ``skill_list``. Returned
         verbatim by the orchestrator as a ``{"type": "text"}`` part
         on the latest user message every loop iteration (see
         ``unique_orchestrator._builders.inject_tool_reminders``), so
         the listing cannot go stale. Returns an empty string when the
-        registry is empty or the reminder template is unset.
+        skill registry is empty or the reminder template is unset.
         """
-        skills = list(self._registry.values())
-        if not skills or not self.config.tool_system_reminder:
+        skills = list(self._skill_registry.values())
+        if not skills or not self.config.tool_system_reminder_for_user_message:
             return ""
 
         listing = format_skill_listing(skills=skills, config=self.config)
-        return jinja2.Template(self.config.tool_system_reminder).render(
-            skill_list=listing
-        )
+        return jinja2.Template(
+            self.config.tool_system_reminder_for_user_message
+        ).render(skill_list=listing)
 
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         args = tool_call.arguments or {}
@@ -126,10 +119,10 @@ class SkillTool(Tool[SkillToolConfig]):
             )
 
         skill_name = normalize_skill_name(raw_skill_name)
-        skill = self._registry.get(skill_name)
+        skill = self._skill_registry.get(skill_name)
 
         if skill is None:
-            available = ", ".join(sorted(self._registry.keys()))
+            available = ", ".join(sorted(self._skill_registry.keys()))
             return ToolCallResponse(
                 id=tool_call.id,  # type: ignore
                 name=self.name,

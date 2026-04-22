@@ -34,7 +34,7 @@ def get_char_budget(
 def _get_skill_description(skill: SkillDefinition, max_chars: int) -> str:
     desc = skill.description
     if len(desc) > max_chars:
-        return desc[: max_chars - 1] + "\u2026"
+        return desc[: max_chars - 1] + "..."
     return desc
 
 
@@ -86,3 +86,11 @@ def format_skill_listing(
     return "\n".join(
         f"- {s.name}: {_get_skill_description(s, max_desc_len)}" for s in skills
     )
+
+
+def normalize_skill_name(skill: str) -> str:
+    """Strip whitespace and a leading ``/`` from a skill name."""
+    skill = skill.strip()
+    if skill.startswith("/"):
+        return skill[1:]
+    return skill
