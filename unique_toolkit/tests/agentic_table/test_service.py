@@ -21,6 +21,7 @@ from unique_toolkit.agentic_table.service import (
     AgenticTableService,
     LockedAgenticTableError,
 )
+from unique_toolkit.language_model.schemas import LanguageModelMessageRole
 
 TABLE_ID = "table-123"
 USER_ID = "user-1"
@@ -86,7 +87,11 @@ class TestSetCell:
 
     @pytest.mark.asyncio
     async def test_set_cell_with_log_entries(self, service: AgenticTableService):
-        log_entry = LogEntry(text="log text", created_at="2024-01-01T00:00:00Z")
+        log_entry = LogEntry(
+            text="log text",
+            created_at="2024-01-01T00:00:00Z",
+            actor_type=LanguageModelMessageRole.ASSISTANT,
+        )
 
         with patch(
             "unique_toolkit.agentic_table.service.AgenticTable.set_cell",
@@ -668,18 +673,16 @@ class TestSetCellMetadata:
                 column=0,
                 selected=True,
                 selection_method=SelectionMethod.MANUAL,
-                agreement_status=AgreementStatus.AGREE,
+                agreement_status=AgreementStatus.MATCH,
             )
 
         kwargs = mock_set.await_args.kwargs
         assert kwargs["selected"] is True
         assert kwargs["selectionMethod"] == SelectionMethod.MANUAL
-        assert kwargs["agreementStatus"] == AgreementStatus.AGREE
+        assert kwargs["agreementStatus"] == AgreementStatus.MATCH
 
     @pytest.mark.asyncio
-    async def test_set_cell_metadata_failure_raises(
-        self, service: AgenticTableService
-    ):
+    async def test_set_cell_metadata_failure_raises(self, service: AgenticTableService):
         with patch(
             "unique_toolkit.agentic_table.service.AgenticTable.set_cell_metadata",
             new=AsyncMock(return_value={"status": False, "message": "nope"}),
@@ -690,9 +693,7 @@ class TestSetCellMetadata:
 
 class TestUpdateRowVerificationStatus:
     @pytest.mark.asyncio
-    async def test_update_row_verification_status(
-        self, service: AgenticTableService
-    ):
+    async def test_update_row_verification_status(self, service: AgenticTableService):
         with patch(
             "unique_toolkit.agentic_table.service.AgenticTable.bulk_update_status",
             new=AsyncMock(return_value=None),
