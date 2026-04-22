@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.0] - 2026-04-22
+- Add RetrieveSearchScope experimental tool wiring: inject/remove the tool from space tools based on `retrieve_search_scope_config.enabled`, propagate `language_model_max_input_tokens` for token-limited file listing
+
 ## [1.22.2] - 2026-04-22
 - Align `SKIP_EXCEL_INGESTION` tests in `_configure_uploaded_search_tool` with the new `Content.is_ingested` semantics from `unique_toolkit` 1.80.1; also pin non-Excel behavior with a regression test.
 

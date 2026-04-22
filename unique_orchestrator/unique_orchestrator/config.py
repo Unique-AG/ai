@@ -36,6 +36,10 @@ from unique_toolkit.agentic.tools.a2a.evaluation import SubAgentEvaluationServic
 from unique_toolkit.agentic.tools.experimental.open_file_tool.config import (
     OpenFileToolConfig,
 )
+from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool import (
+    RetrieveSearchScopeConfig,
+    RetrieveSearchScopeTool,
+)
 from unique_toolkit.agentic.tools.openai_builtin.base import OpenAIBuiltInToolName
 from unique_toolkit.agentic.tools.schemas import BaseToolConfig
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
@@ -114,11 +118,11 @@ class SpaceConfigBase(BaseToolConfig, Generic[T]):
         cls, tools: list[ToolBuildConfig], info: ValidationInfo
     ) -> list[ToolBuildConfig]:
         for tool in tools:
-            if tool.name == InternalSearchTool.name:
-                tool.configuration.language_model_max_input_tokens = (  # type: ignore
-                    info.data["language_model"].token_limits.token_limit_input
-                )
-            elif tool.name == WebSearchTool.name:
+            if tool.name in (
+                InternalSearchTool.name,
+                WebSearchTool.name,
+                RetrieveSearchScopeTool.name,
+            ):
                 tool.configuration.language_model_max_input_tokens = (  # type: ignore
                     info.data["language_model"].token_limits.token_limit_input
                 )
@@ -353,6 +357,10 @@ class ExperimentalConfig(BaseToolConfig):
         description="If set, the main agent will use the Responses API from OpenAI",
     )
 
+    retrieve_search_scope_config: RetrieveSearchScopeConfig = (
+        RetrieveSearchScopeConfig()
+    )
+
 
 class UniqueAIAgentConfig(BaseToolConfig):
     max_loop_iterations: Annotated[
@@ -424,6 +432,30 @@ class UniqueAIConfig(BaseToolConfig):
             raise ValueError(
                 "open_file_tool_config.enabled requires the Responses API to be enabled."
             )
+        return self
+
+    @model_validator(mode="after")
+    def inject_retrieve_search_scope_tool(self) -> "UniqueAIConfig":
+        tool_names = [t.name for t in self.space.tools]
+        has_tool = RetrieveSearchScopeTool.name in tool_names
+        config = self.agent.experimental.retrieve_search_scope_config
+
+        if config.enabled and not has_tool:
+            config.language_model_max_input_tokens = (
+                self.space.language_model.token_limits.token_limit_input
+            )
+            self.space.tools.append(
+                ToolBuildConfig(
+                    name=RetrieveSearchScopeTool.name,
+                    display_name=RetrieveSearchScopeTool.default_display_name,
+                    configuration=config,
+                )
+            )
+        elif not config.enabled and has_tool:
+            self.space.tools = [
+                t for t in self.space.tools if t.name != RetrieveSearchScopeTool.name
+            ]
+
         return self
 
     @property
