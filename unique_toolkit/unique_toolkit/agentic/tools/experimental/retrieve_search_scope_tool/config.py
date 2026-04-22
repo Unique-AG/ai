@@ -20,15 +20,7 @@ DEFAULT_TOOL_DESCRIPTION = (
     "Generally, this tool should be called before performing internal or web search."
 )
 
-_RETURNS_FLAT = (
-    "Returns all file names that are in the currently searchable knowledge base."
-)
-_RETURNS_TREE = (
-    "Returns a folder tree of all files in the currently searchable knowledge base, "
-    "showing how they are nested in the directory structure."
-)
-
-_TOOL_SYSTEM_PROMPT_TEMPLATE = (
+DEFAULT_TOOL_SYSTEM_PROMPT = (
     "Use RetrieveSearchScope to determine the internally searchable files "
     "and metadata about them.\n\n"
     "**When to call the tool:**\n"
@@ -39,7 +31,7 @@ _TOOL_SYSTEM_PROMPT_TEMPLATE = (
     "is the better option.\n"
     "**3. Important: Only call RetrieveSearchScope ONCE per conversation.**\n\n"
     "**How the tool works:**\n"
-    "- {returns_description}\n"
+    "- Returns all file names that are in the currently searchable knowledge base.\n"
     "- Useful metadata is passed along with the file names, e.g. openable files "
     "come with a scope id.\n"
     "- The return is token-limited: if the file list exceeds the budget, "
@@ -53,10 +45,6 @@ _TOOL_SYSTEM_PROMPT_TEMPLATE = (
     "(a file name in the query promotes chunks from that file).\n"
     "3. Inform the user about available sources when relevant.\n"
     "4. Files that come with a content id can be opened with a file opener tool."
-)
-
-DEFAULT_TOOL_SYSTEM_PROMPT = _TOOL_SYSTEM_PROMPT_TEMPLATE.format(
-    returns_description=_RETURNS_FLAT,
 )
 
 

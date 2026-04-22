@@ -5,8 +5,6 @@ from typing_extensions import override
 from unique_toolkit._common.token import count_tokens
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.config import (
-    _RETURNS_FLAT,
-    _RETURNS_TREE,
     DisplayMode,
     RetrieveSearchScopeConfig,
 )
@@ -52,7 +50,11 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
     def tool_description_for_system_prompt(self) -> str:
         prompt = self.config.tool_description_for_system_prompt
         if self.config.display_mode == DisplayMode.tree:
-            prompt = prompt.replace(_RETURNS_FLAT, _RETURNS_TREE)
+            prompt = prompt.replace(
+                "Returns all file names that are in the currently searchable knowledge base.",
+                "Returns a folder tree of all files in the currently searchable knowledge base, "
+                "showing how they are nested in the directory structure.",
+            )
         return prompt
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
@@ -71,7 +73,7 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
         try:
             history = await self._chat_service.get_full_history_async()
             for msg in history:
-                if str(msg.role) == "tool" and getattr(msg, "name", None) == self.name:
+                if msg.role.value == "tool" and getattr(msg, "name", None) == self.name:
                     return True
         except Exception:
             _LOGGER.debug(

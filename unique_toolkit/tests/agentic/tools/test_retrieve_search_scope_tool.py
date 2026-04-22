@@ -5,6 +5,9 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 from pytest_mock import MockerFixture
+from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.content.schemas import ContentInfo
+from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.config import (
     DisplayMode,
@@ -13,9 +16,6 @@ from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.config
 from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.tool import (
     RetrieveSearchScopeTool,
 )
-from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.content.schemas import ContentInfo
-from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 _TOOL_MODULE = (
     "unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.tool"
@@ -354,7 +354,7 @@ class TestHistoryGuard:
         self, tool: RetrieveSearchScopeTool, mock_tool_call: LanguageModelFunction
     ):
         prior_msg = Mock()
-        prior_msg.role = "tool"
+        prior_msg.role.value = "tool"
         prior_msg.name = "RetrieveSearchScope"
 
         mock_chat_service = Mock()
@@ -373,7 +373,7 @@ class TestHistoryGuard:
         mocker: MockerFixture,
     ):
         user_msg = Mock()
-        user_msg.role = "user"
+        user_msg.role.value = "user"
         user_msg.name = None
 
         mock_chat_service = Mock()
