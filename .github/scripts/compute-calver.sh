@@ -68,15 +68,26 @@ calver_from_manifest() {
 
 calver_from_today() {
   local year week
-  year=$(date -u +"%G")
-  week=$(date -u +"%V")
+  # TODAY is an optional override used by BATS tests for determinism.
+  # In CI and local runs it is unset and we fall back to `date -u`.
+  if [[ -n "${TODAY:-}" ]]; then
+    year=$(date -u -d "$TODAY" +"%G")
+    week=$(date -u -d "$TODAY" +"%V")
+  else
+    year=$(date -u +"%G")
+    week=$(date -u +"%V")
+  fi
   # advance_weeks snaps odd results to the next even week, including
   # rolling week 53 (always odd) to week 2 of the next ISO year.
   advance_weeks "$year" "$week" 0
 }
 
-if out=$(calver_from_manifest); then
-  echo "$out"
-else
-  calver_from_today
+# Only execute when invoked directly; sourcing (e.g. from BATS tests)
+# gets access to the helper functions without running main.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  if out=$(calver_from_manifest); then
+    echo "$out"
+  else
+    calver_from_today
+  fi
 fi

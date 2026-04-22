@@ -4,7 +4,6 @@
 # Get the directory of this helper script
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS_DIR="$(dirname "$TESTS_DIR")"
-SCRIPT="$SCRIPTS_DIR/validate-changelog-version-bump.sh"
 
 # Test package name used in tests
 TEST_PACKAGE="test_package"
