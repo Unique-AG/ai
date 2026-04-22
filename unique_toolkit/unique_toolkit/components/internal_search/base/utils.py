@@ -72,6 +72,10 @@ def _deduplicate_search_results(
     for result in search_results:
         for chunk in result.chunks:
             if not chunk.chunk_id:
+                _logger.warning(
+                    "Skipping chunk without chunk_id during deduplication (query=%r)",
+                    result.query,
+                )
                 continue
             counter_chunks += 1
             if chunk.chunk_id not in seen_chunk_ids:

@@ -49,19 +49,11 @@ class _ContextMixin(ABC, Generic[Context]):
     @abstractmethod
     def context(self) -> Context: ...
 
-    @context.setter
-    @abstractmethod
-    def context(self, context: Context) -> None: ...
-
 
 class _StateMixin(ABC, Generic[ServiceState]):
     @property
     @abstractmethod
     def state(self) -> ServiceState: ...
-
-    @state.setter
-    @abstractmethod
-    def state(self, state: ServiceState) -> None: ...
 
     @abstractmethod
     def reset_state(self) -> None: ...
@@ -70,10 +62,12 @@ class _StateMixin(ABC, Generic[ServiceState]):
 class _ProgressMixin(Generic[ProgressMessage]):
     """Concrete by default — no-op bus unless something subscribes."""
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._progress_publisher: TypedEventBus[ProgressMessage] = TypedEventBus()
+
     @property
     def progress_publisher(self) -> TypedEventBus[ProgressMessage]:
-        if not hasattr(self, "_progress_publisher"):
-            self._progress_publisher: TypedEventBus[ProgressMessage] = TypedEventBus()
         return self._progress_publisher
 
     async def post_progress_message(self, message: ProgressMessage) -> None:
@@ -85,13 +79,8 @@ class _DependenciesMixin(ABC, Generic[Deps]):
     @abstractmethod
     def dependencies(self) -> Deps: ...
 
-    @dependencies.setter
-    @abstractmethod
-    def dependencies(self, deps: Deps) -> None: ...
 
-
-class BaseService(
-    ABC,
+class BaseService(  # pyright: ignore[reportImplicitAbstractClass]
     _RunMixin[RunResult],
     _ConfigMixin[Config],
     _ContextMixin[UniqueContext],
