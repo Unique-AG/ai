@@ -5,10 +5,6 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 from pytest_mock import MockerFixture
-from unique_toolkit.app.schemas import ChatEvent
-from unique_toolkit.content.schemas import ContentInfo
-from unique_toolkit.language_model.schemas import LanguageModelFunction
-
 from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.config import (
     DisplayMode,
     RetrieveSearchScopeConfig,
@@ -16,6 +12,9 @@ from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.config
 from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.tool import (
     RetrieveSearchScopeTool,
 )
+from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.content.schemas import ContentInfo
+from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 _TOOL_MODULE = (
     "unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.tool"

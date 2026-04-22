@@ -7,6 +7,7 @@ from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.config import (
     DisplayMode,
     RetrieveSearchScopeConfig,
+    build_system_prompt,
 )
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -48,14 +49,7 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
 
     @override
     def tool_description_for_system_prompt(self) -> str:
-        prompt = self.config.tool_description_for_system_prompt
-        if self.config.display_mode == DisplayMode.tree:
-            prompt = prompt.replace(
-                "Returns all file names that are in the currently searchable knowledge base.",
-                "Returns a folder tree of all files in the currently searchable knowledge base, "
-                "showing how they are nested in the directory structure.",
-            )
-        return prompt
+        return build_system_prompt(self.config.display_mode)
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return []
@@ -73,7 +67,7 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
         try:
             history = await self._chat_service.get_full_history_async()
             for msg in history:
-                if msg.role.value == "tool" and getattr(msg, "name", None) == self.name:
+                if msg.role.value == "tool" and getattr(msg, "name", None) == self.name:  # type: ignore[comparison-overlap]
                     return True
         except Exception:
             _LOGGER.debug(
