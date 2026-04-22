@@ -86,7 +86,7 @@ class SkillTool(Tool[SkillToolConfig]):
     def tool_description_for_user_prompt(self) -> str:
         return self.config.tool_description_for_user_prompt
 
-    def tool_system_reminder(self) -> str:
+    def tool_system_reminder_for_user_prompt(self) -> str:
         """Per-turn ``<system-reminder>`` block listing available skills.
 
         Renders :attr:`SkillToolConfig.tool_system_reminder_for_user_message` as a

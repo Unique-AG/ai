@@ -2,13 +2,11 @@
 
 Tools expose two per-turn hooks:
 
-- :meth:`Tool.tool_system_reminder` — a ``<system-reminder>`` block
+- `Tool.tool_system_reminder_for_user_prompt` — a ``<system-reminder>`` block
   describing the tool's current state (e.g. the Skill tool's listing
   of currently-available skills). Regenerated every loop iteration.
-- :meth:`Tool.tool_description_for_user_prompt` — static per-turn
-  description text the tool wants appended to the user message.
 
-The orchestrator collects both, filters empties, and hands the list
+The orchestrator collects it, filters empties, and hands the list
 to this module. We surface each string as its own
 ``{"type": "text"}`` entry on the latest user message, prepended
 before the residual query text::
@@ -20,12 +18,6 @@ before the residual query text::
         {"type": "text", "text": "commit my staged changes"}
       ]
     }
-
-This used to be done by rendering the reminders inline into the user
-message string in ``user_message_prompt.jinja2`` and then
-regex-extracting the ``<system-reminder>`` blocks back out in a
-post-processing pass. That round-trip is unnecessary: we build the
-parts directly here.
 
 The user message may already be a multi-part list when this runs
 (the open-file tool injects file parts before this step), so both

@@ -233,7 +233,7 @@ class TestSkillToolSystemPrompt:
 class TestSkillToolUserPrompt:
     """Literal extra text appended per-turn to the user message.
 
-    The skill listing lives in :meth:`SkillTool.tool_system_reminder`
+    The skill listing lives in :meth:`SkillTool.tool_system_reminder_for_user_prompt`
     (see :class:`TestSkillToolSystemReminder`), NOT here. This method
     only returns ``config.tool_description_for_user_prompt`` verbatim,
     mirroring every other tool.
@@ -264,7 +264,7 @@ class TestSkillToolUserPrompt:
 
 
 # ---------------------------------------------------------------------------
-# SkillTool.tool_system_reminder()
+# SkillTool.tool_system_reminder_for_user_prompt()
 # ---------------------------------------------------------------------------
 
 
@@ -275,14 +275,14 @@ class TestSkillToolSystemReminder:
         skills = [_make_skill("my-skill", description="Does stuff")]
         tool = _make_tool(skill_registry=_make_skill_registry(*skills))
 
-        reminder = tool.tool_system_reminder()
+        reminder = tool.tool_system_reminder_for_user_prompt()
 
         assert "<system-reminder>" in reminder
         assert "</system-reminder>" in reminder
 
     def test_includes_claude_code_preamble(self) -> None:
         tool = _make_tool()
-        reminder = tool.tool_system_reminder()
+        reminder = tool.tool_system_reminder_for_user_prompt()
 
         assert (
             "The following skills are available. "
@@ -293,20 +293,20 @@ class TestSkillToolSystemReminder:
         skills = [_make_skill("my-skill", description="Does stuff")]
         tool = _make_tool(skill_registry=_make_skill_registry(*skills))
 
-        reminder = tool.tool_system_reminder()
+        reminder = tool.tool_system_reminder_for_user_prompt()
 
         assert "- my-skill: Does stuff" in reminder
 
     def test_empty_registry_returns_empty_string(self) -> None:
         tool = _make_tool(skill_registry={})
 
-        assert tool.tool_system_reminder() == ""
+        assert tool.tool_system_reminder_for_user_prompt() == ""
 
     def test_empty_reminder_template_returns_empty(self) -> None:
         config = SkillToolConfig(enabled=True, tool_system_reminder_for_user_message="")
         tool = _make_tool(config=config)
 
-        assert tool.tool_system_reminder() == ""
+        assert tool.tool_system_reminder_for_user_prompt() == ""
 
 
 # ---------------------------------------------------------------------------

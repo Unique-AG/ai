@@ -1,4 +1,4 @@
-"""Helpers for the experimental Skill tool.
+"""Helpers for the Skill tool.
 
 Loads skill definitions from the knowledge base and registers the
 SkillTool with the tool manager.
@@ -53,11 +53,11 @@ _SUBTREE_PAGE_SIZE = 100
 _MAX_SUBTREE_ITEMS = 10_000
 
 
-def _is_markdown(content: Content | ContentInfo) -> bool:
+def _is_markdown(*, content: Content | ContentInfo) -> bool:
     return content.key.lower().endswith(".md")
 
 
-def _build_subtree_metadata_filter(scope_ids: list[str]) -> dict[str, Any]:
+def _build_subtree_metadata_filter(*, scope_ids: list[str]) -> dict[str, Any]:
     """Build a UniqueQL filter matching any file under the given scope IDs.
 
     For each configured scope ID we add a ``folderIdPath CONTAINS
@@ -78,7 +78,7 @@ def _build_subtree_metadata_filter(scope_ids: list[str]) -> dict[str, Any]:
     return OrStatement(or_list=statements).model_dump(mode="json")
 
 
-def _parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
+def _parse_frontmatter(*, text: str) -> tuple[dict[str, Any], str]:
     """Split YAML frontmatter from the markdown body.
 
     Returns ``(frontmatter_dict, body)``.  If no frontmatter is found,
@@ -104,33 +104,30 @@ def _parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
 
 
 def _build_skill(
+    *,
     content: Content | ContentInfo,
     file_text: str,
+    logger: Logger,
 ) -> SkillDefinition | None:
     """Build a ``SkillDefinition`` from the raw file text of a KB document.
 
     Parses YAML frontmatter for ``name`` and ``description``.
-    Falls back to KB-level ``content.metadata``, then to the file stem
-    for the name.  The legacy ``skill_name`` key is still accepted as a
-    fallback for backward compatibility.
     """
     if not file_text.strip():
         return None
 
-    kb_meta = content.metadata or {}
-    frontmatter, body = _parse_frontmatter(file_text)
+    frontmatter, body = _parse_frontmatter(text=file_text)
 
-    name = (
-        frontmatter.get("name")
-        or frontmatter.get("skill_name")
-        or kb_meta.get("name")
-        or kb_meta.get("skill_name")
-        or content.title
-        or PurePosixPath(content.key).stem
-        or content.id
-    )
+    name = frontmatter.get("name")
+    description = frontmatter.get("description")
 
-    description = frontmatter.get("description") or kb_meta.get("description") or ""
+    if not name or not description:
+        logger.warning(
+            "Skipping '%s' (%s): wrong skill format.",
+            content.key,
+            content.id,
+        )
+        return None
 
     return SkillDefinition(
         name=name,
@@ -140,12 +137,13 @@ def _build_skill(
 
 
 def load_skills_from_knowledge_base(
+    *,
     content_service: ContentService,
     knowledge_base_service: KnowledgeBaseService,
     scope_ids: list[str],
     logger: Logger,
 ) -> dict[str, SkillDefinition]:
-    """Load all ``.md`` files from *scope_ids* (recursively) as a skill registry.
+    """Load all ``.md`` files from *scope_ids* (recursively) into a skill registry.
 
     Pages through ``/content/infos`` with a UniqueQL metadata filter that
     OR's ``folderIdPath CONTAINS uniquepathid://<scope_id>`` for every
@@ -165,7 +163,7 @@ def load_skills_from_knowledge_base(
         logger.info("SkillTool has no scope_ids configured.")
         return {}
 
-    metadata_filter = _build_subtree_metadata_filter(scope_ids)
+    metadata_filter = _build_subtree_metadata_filter(scope_ids=scope_ids)
 
     all_infos: list[ContentInfo] = []
     skip = 0
@@ -186,18 +184,18 @@ def load_skills_from_knowledge_base(
     except Exception:
         logger.warning(
             "Failed to list contents for scope_ids=%s — "
-            "SkillTool will have an empty registry.",
+            "SkillTool will have an empty skill registry.",
             scope_ids,
             exc_info=True,
         )
         return {}
 
-    md_infos = [ci for ci in all_infos if _is_markdown(ci)]
+    md_infos = [ci for ci in all_infos if _is_markdown(content=ci)]
     if not md_infos:
         logger.info("No .md files found for scope_ids=%s.", scope_ids)
         return {}
 
-    registry: dict[str, SkillDefinition] = {}
+    skill_registry: dict[str, SkillDefinition] = {}
     for info in md_infos:
         try:
             raw_bytes = content_service.download_content_to_bytes(
@@ -213,7 +211,7 @@ def load_skills_from_knowledge_base(
             )
             continue
 
-        skill = _build_skill(info, file_text)
+        skill = _build_skill(content=info, file_text=file_text, logger=logger)
         if skill is None:
             logger.debug(
                 "Skipping '%s' (%s): empty file.",
@@ -222,24 +220,25 @@ def load_skills_from_knowledge_base(
             )
             continue
 
-        if skill.name in registry:
+        if skill.name in skill_registry:
             logger.warning(
                 "Duplicate skill name '%s' — keeping the first occurrence.",
                 skill.name,
             )
             continue
 
-        registry[skill.name] = skill
+        skill_registry[skill.name] = skill
 
     logger.info(
         "Loaded %d skill(s) from knowledge base (scope_ids=%s).",
-        len(registry),
+        len(skill_registry),
         scope_ids,
     )
-    return registry
+    return skill_registry
 
 
 def configure_skill_tool(
+    *,
     config: UniqueAIConfig,
     event: ChatEvent,
     logger: Logger,
@@ -268,7 +267,7 @@ def configure_skill_tool(
         user_id=event.user_id,
     )
 
-    registry = load_skills_from_knowledge_base(
+    skill_registry = load_skills_from_knowledge_base(
         content_service=content_service,
         knowledge_base_service=knowledge_base_service,
         scope_ids=skill_config.scope_ids,
@@ -278,7 +277,7 @@ def configure_skill_tool(
     tool_manager.add_tool(
         SkillTool(
             event=event,
-            registry=registry,
+            skill_registry=skill_registry,
             config=skill_config,
         )
     )

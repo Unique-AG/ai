@@ -147,4 +147,4 @@ class ToolPrompts(BaseModel):
     tool_format_information_for_user_prompt: str
     tool_description: str
     input_model: dict[str, Any]
-    tool_system_reminder: str = ""
+    tool_system_reminder_for_user_prompt: str = ""
