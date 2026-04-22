@@ -590,6 +590,45 @@ class TestConfigureSkillTool:
 
         tool_manager.add_tool.assert_not_called()
 
+    def test_empty_registry_does_not_register_tool(
+        self, logger: Logger, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """If the skill registry ends up empty (KB error, no .md files, or all
+        malformed), the SkillTool must not be registered. Its system prompt
+        claims HIGHEST PRIORITY and would otherwise waste iterations or
+        provoke hallucinated skill names when no skills exist.
+        """
+        config = self._build_config(enabled=True, scope_ids=["scope-1"])
+        tool_manager = MagicMock()
+
+        import unique_orchestrator._builders.skill_setup as skill_setup
+
+        fake_kb_service = MagicMock()
+        monkeypatch.setattr(
+            skill_setup,
+            "KnowledgeBaseService",
+            lambda **kwargs: fake_kb_service,
+        )
+        monkeypatch.setattr(
+            skill_setup,
+            "load_skills_from_knowledge_base",
+            lambda **kwargs: {},
+        )
+
+        event = MagicMock()
+        event.company_id = "co-1"
+        event.user_id = "u-1"
+
+        configure_skill_tool(
+            config=config,
+            event=event,
+            logger=logger,
+            content_service=MagicMock(),
+            tool_manager=tool_manager,
+        )
+
+        tool_manager.add_tool.assert_not_called()
+
     def test_registers_tool_when_enabled_and_scoped(
         self, logger: Logger, monkeypatch: pytest.MonkeyPatch
     ) -> None:

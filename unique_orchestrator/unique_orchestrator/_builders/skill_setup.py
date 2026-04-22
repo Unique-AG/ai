@@ -284,6 +284,12 @@ def configure_skill_tool(
         logger=logger,
     )
 
+    if not skill_registry:
+        logger.info(
+            "SkillTool has an empty skill registry — tool will not be registered."
+        )
+        return
+
     tool_manager.add_tool(
         SkillTool(
             event=event,
