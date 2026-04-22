@@ -21,6 +21,11 @@ from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 from unique_orchestrator._builders.skill_setup import (
     _build_skill,
+    _build_subtree_metadata_filter,
+    _is_markdown,
+    _parse_frontmatter,
+    configure_skill_tool,
+    load_skills_from_knowledge_base,
     preload_invoked_skills,
 )
 
@@ -252,3 +257,357 @@ class TestBuildSkill:
         skill = _build_skill(content=content, file_text="   \n\n", logger=logger)
 
         assert skill is None
+
+    def test_missing_description_returns_none(self, logger: Logger) -> None:
+        file_text = "---\nname: foo\n---\nbody\n"
+        content = MagicMock()
+        content.key = "broken.md"
+        content.id = "c6"
+
+        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+
+        assert skill is None
+
+    def test_non_dict_frontmatter_returns_none(self, logger: Logger) -> None:
+        """YAML that parses to a non-dict (e.g. a list) should be rejected."""
+        file_text = "---\n- foo\n- bar\n---\nbody\n"
+        content = MagicMock()
+        content.key = "broken.md"
+        content.id = "c7"
+
+        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+
+        assert skill is None
+
+    def test_invalid_yaml_falls_back_and_returns_none(self, logger: Logger) -> None:
+        """Unparseable YAML frontmatter falls back to 'no frontmatter' path."""
+        file_text = "---\n: : : bad yaml\n---\nbody\n"
+        content = MagicMock()
+        content.key = "broken.md"
+        content.id = "c8"
+
+        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+
+        assert skill is None
+
+
+class TestParseFrontmatter:
+    def test_no_leading_triple_dash_returns_empty(self) -> None:
+        fm, body = _parse_frontmatter(text="# Heading\nbody\n")
+        assert fm == {}
+        assert body == "# Heading\nbody\n"
+
+    def test_unterminated_frontmatter_returns_empty(self) -> None:
+        fm, body = _parse_frontmatter(text="---\nname: foo\nno closing\n")
+        assert fm == {}
+        assert body == "---\nname: foo\nno closing\n"
+
+    def test_parses_valid_frontmatter(self) -> None:
+        fm, body = _parse_frontmatter(
+            text="---\nname: foo\ndescription: bar\n---\nhello\n"
+        )
+        assert fm == {"name": "foo", "description": "bar"}
+        assert body == "hello\n"
+
+    def test_invalid_yaml_returns_empty(self) -> None:
+        fm, body = _parse_frontmatter(text="---\n: : : bad\n---\nbody\n")
+        assert fm == {}
+        assert body == "---\n: : : bad\n---\nbody\n"
+
+    def test_non_dict_yaml_returns_empty(self) -> None:
+        fm, body = _parse_frontmatter(text="---\n- a\n- b\n---\nbody\n")
+        assert fm == {}
+        assert body == "---\n- a\n- b\n---\nbody\n"
+
+
+class TestIsMarkdown:
+    def test_lowercase_md(self) -> None:
+        content = MagicMock()
+        content.key = "readme.md"
+        assert _is_markdown(content=content) is True
+
+    def test_uppercase_md(self) -> None:
+        content = MagicMock()
+        content.key = "README.MD"
+        assert _is_markdown(content=content) is True
+
+    def test_non_markdown(self) -> None:
+        content = MagicMock()
+        content.key = "data.txt"
+        assert _is_markdown(content=content) is False
+
+
+class TestBuildSubtreeMetadataFilter:
+    def test_single_scope_returns_single_statement(self) -> None:
+        result = _build_subtree_metadata_filter(scope_ids=["scope-1"])
+
+        assert result["operator"] == "contains"
+        assert result["value"] == "uniquepathid://scope-1"
+        assert result["path"] == ["folderIdPath"]
+
+    def test_multiple_scopes_wrapped_in_or(self) -> None:
+        result = _build_subtree_metadata_filter(
+            scope_ids=["scope-1", "scope-2", "scope-3"]
+        )
+
+        assert "or" in result
+        predicates = result["or"]
+        assert len(predicates) == 3
+        assert [p["value"] for p in predicates] == [
+            "uniquepathid://scope-1",
+            "uniquepathid://scope-2",
+            "uniquepathid://scope-3",
+        ]
+
+
+def _fake_info(content_id: str, key: str) -> MagicMock:
+    info = MagicMock()
+    info.id = content_id
+    info.key = key
+    return info
+
+
+def _paginated(infos: list[MagicMock], total: int) -> MagicMock:
+    paginated = MagicMock()
+    paginated.content_infos = infos
+    paginated.total_count = total
+    return paginated
+
+
+class TestLoadSkillsFromKnowledgeBase:
+    def test_empty_scope_ids_returns_empty(self, logger: Logger) -> None:
+        content_service = MagicMock()
+        knowledge_base_service = MagicMock()
+
+        result = load_skills_from_knowledge_base(
+            content_service=content_service,
+            knowledge_base_service=knowledge_base_service,
+            scope_ids=[],
+            logger=logger,
+        )
+
+        assert result == {}
+        knowledge_base_service.get_paginated_content_infos.assert_not_called()
+
+    def test_pagination_error_returns_empty(self, logger: Logger) -> None:
+        content_service = MagicMock()
+        knowledge_base_service = MagicMock()
+        knowledge_base_service.get_paginated_content_infos.side_effect = RuntimeError(
+            "boom"
+        )
+
+        result = load_skills_from_knowledge_base(
+            content_service=content_service,
+            knowledge_base_service=knowledge_base_service,
+            scope_ids=["scope-1"],
+            logger=logger,
+        )
+
+        assert result == {}
+
+    def test_no_markdown_files_returns_empty(self, logger: Logger) -> None:
+        content_service = MagicMock()
+        knowledge_base_service = MagicMock()
+        knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
+            [_fake_info("c1", "foo.txt"), _fake_info("c2", "bar.pdf")],
+            total=2,
+        )
+
+        result = load_skills_from_knowledge_base(
+            content_service=content_service,
+            knowledge_base_service=knowledge_base_service,
+            scope_ids=["scope-1"],
+            logger=logger,
+        )
+
+        assert result == {}
+        content_service.download_content_to_bytes.assert_not_called()
+
+    def test_download_failure_skips_entry(self, logger: Logger) -> None:
+        content_service = MagicMock()
+        content_service.download_content_to_bytes.side_effect = [
+            RuntimeError("download failed"),
+            b"---\nname: bar\ndescription: d\n---\nbody\n",
+        ]
+        knowledge_base_service = MagicMock()
+        knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
+            [_fake_info("c1", "foo.md"), _fake_info("c2", "bar.md")],
+            total=2,
+        )
+
+        result = load_skills_from_knowledge_base(
+            content_service=content_service,
+            knowledge_base_service=knowledge_base_service,
+            scope_ids=["scope-1"],
+            logger=logger,
+        )
+
+        assert set(result.keys()) == {"bar"}
+
+    def test_empty_file_is_skipped(self, logger: Logger) -> None:
+        content_service = MagicMock()
+        content_service.download_content_to_bytes.return_value = b"   \n"
+        knowledge_base_service = MagicMock()
+        knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
+            [_fake_info("c1", "empty.md")],
+            total=1,
+        )
+
+        result = load_skills_from_knowledge_base(
+            content_service=content_service,
+            knowledge_base_service=knowledge_base_service,
+            scope_ids=["scope-1"],
+            logger=logger,
+        )
+
+        assert result == {}
+
+    def test_duplicate_names_keep_first(self, logger: Logger) -> None:
+        content_service = MagicMock()
+        content_service.download_content_to_bytes.side_effect = [
+            b"---\nname: dup\ndescription: first\n---\nFIRST\n",
+            b"---\nname: dup\ndescription: second\n---\nSECOND\n",
+        ]
+        knowledge_base_service = MagicMock()
+        knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
+            [_fake_info("c1", "a.md"), _fake_info("c2", "b.md")],
+            total=2,
+        )
+
+        result = load_skills_from_knowledge_base(
+            content_service=content_service,
+            knowledge_base_service=knowledge_base_service,
+            scope_ids=["scope-1"],
+            logger=logger,
+        )
+
+        assert set(result.keys()) == {"dup"}
+        assert result["dup"].description == "first"
+        assert result["dup"].content == "FIRST\n"
+
+    def test_successful_load_returns_registry(self, logger: Logger) -> None:
+        content_service = MagicMock()
+        content_service.download_content_to_bytes.side_effect = [
+            b"---\nname: foo\ndescription: d1\n---\nFOO\n",
+            b"---\nname: bar\ndescription: d2\n---\nBAR\n",
+        ]
+        knowledge_base_service = MagicMock()
+        knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
+            [_fake_info("c1", "foo.md"), _fake_info("c2", "bar.md")],
+            total=2,
+        )
+
+        result = load_skills_from_knowledge_base(
+            content_service=content_service,
+            knowledge_base_service=knowledge_base_service,
+            scope_ids=["scope-1"],
+            logger=logger,
+        )
+
+        assert set(result.keys()) == {"foo", "bar"}
+        assert result["foo"].content == "FOO\n"
+        assert result["bar"].content == "BAR\n"
+
+    def test_paginates_across_multiple_pages(self, logger: Logger) -> None:
+        """Break-out condition: ``len(page) < PAGE_SIZE`` terminates the loop."""
+        content_service = MagicMock()
+        content_service.download_content_to_bytes.return_value = (
+            b"---\nname: s\ndescription: d\n---\nBODY\n"
+        )
+        knowledge_base_service = MagicMock()
+        page1 = _paginated(
+            [_fake_info(f"c{i}", f"a{i}.md") for i in range(100)], total=150
+        )
+        page2 = _paginated(
+            [_fake_info(f"c{i}", f"b{i}.md") for i in range(50)], total=150
+        )
+        knowledge_base_service.get_paginated_content_infos.side_effect = [page1, page2]
+
+        load_skills_from_knowledge_base(
+            content_service=content_service,
+            knowledge_base_service=knowledge_base_service,
+            scope_ids=["scope-1"],
+            logger=logger,
+        )
+
+        assert knowledge_base_service.get_paginated_content_infos.call_count == 2
+
+
+class TestConfigureSkillTool:
+    def _build_config(
+        self, *, enabled: bool, scope_ids: list[str] | None = None
+    ) -> MagicMock:
+        from unique_skill_tool.config import SkillToolConfig
+
+        skill_config = SkillToolConfig(enabled=enabled, scope_ids=scope_ids or [])
+        config = MagicMock()
+        config.agent.experimental.skill_tool_config = skill_config
+        return config
+
+    def test_disabled_is_noop(self, logger: Logger) -> None:
+        config = self._build_config(enabled=False)
+        tool_manager = MagicMock()
+
+        configure_skill_tool(
+            config=config,
+            event=MagicMock(),
+            logger=logger,
+            content_service=MagicMock(),
+            tool_manager=tool_manager,
+        )
+
+        tool_manager.add_tool.assert_not_called()
+
+    def test_enabled_without_scopes_is_noop(self, logger: Logger) -> None:
+        config = self._build_config(enabled=True, scope_ids=[])
+        tool_manager = MagicMock()
+
+        configure_skill_tool(
+            config=config,
+            event=MagicMock(),
+            logger=logger,
+            content_service=MagicMock(),
+            tool_manager=tool_manager,
+        )
+
+        tool_manager.add_tool.assert_not_called()
+
+    def test_registers_tool_when_enabled_and_scoped(
+        self, logger: Logger, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        config = self._build_config(enabled=True, scope_ids=["scope-1"])
+        tool_manager = MagicMock()
+
+        # Stub out the knowledge-base client so no network / auth is needed.
+        import unique_orchestrator._builders.skill_setup as skill_setup
+
+        fake_kb_service = MagicMock()
+        monkeypatch.setattr(
+            skill_setup,
+            "KnowledgeBaseService",
+            lambda **kwargs: fake_kb_service,
+        )
+        monkeypatch.setattr(
+            skill_setup,
+            "load_skills_from_knowledge_base",
+            lambda **kwargs: {
+                "foo": SkillDefinition(name="foo", description="d", content="c")
+            },
+        )
+
+        event = MagicMock()
+        event.company_id = "co-1"
+        event.user_id = "u-1"
+
+        configure_skill_tool(
+            config=config,
+            event=event,
+            logger=logger,
+            content_service=MagicMock(),
+            tool_manager=tool_manager,
+        )
+
+        tool_manager.add_tool.assert_called_once()
+        registered = tool_manager.add_tool.call_args.args[0]
+        assert isinstance(registered, SkillTool)
+        assert "foo" in registered.skill_registry
