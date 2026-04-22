@@ -207,7 +207,7 @@ jobs:
           CYCLE_FLOOR: ${{ needs.resolve.outputs.cycle_floor }}
           PYPROJECT: ${{ matrix.dir }}/pyproject.toml
         run: |
-          uv run --quiet --no-project --with tomlkit -- \
+          uv run --quiet --no-project --with 'tomlkit==0.14.0' -- \
             python3 .github/scripts/rewrite-pyproject-for-dev.py \
               "$PYPROJECT" "$DEV_VERSION" "$CYCLE_FLOOR"
 
