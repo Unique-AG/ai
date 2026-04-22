@@ -1,6 +1,6 @@
 """Pure functions behind the content-tree view.
 
-These helpers are decoupled from :class:`~unique_toolkit.experimental.content_tree.service.ContentTree`
+These helpers are decoupled from :class:`~unique_toolkit.experimental.capabilities.content_tree.service.ContentTree`
 so that other callers (scripts, notebooks, ad-hoc tooling) can compose the same
 listing + scope-id-resolution logic without constructing a service instance.
 
@@ -29,7 +29,7 @@ from unique_toolkit.content.functions import (
     get_folder_info_async,
 )
 from unique_toolkit.content.schemas import ContentInfo, PaginatedContentInfos
-from unique_toolkit.experimental.content_tree.schemas import PathTrieNode
+from unique_toolkit.experimental.capabilities.content_tree.schemas import PathTrieNode
 
 _LOGGER = logging.getLogger(f"toolkit.experimental.content_tree.{__name__}")
 

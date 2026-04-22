@@ -1,4 +1,4 @@
-"""``unique_toolkit.experimental.identity`` — user and group directory management.
+"""``unique_toolkit.experimental.clients.identity`` — user and group directory management.
 
 .. warning::
 
@@ -21,7 +21,7 @@ The Pydantic response schemas (``UserInfo``, ``GroupInfo``, ...) are also
 re-exported here for convenience.
 """
 
-from unique_toolkit.experimental.identity.schemas import (
+from unique_toolkit.experimental.clients.identity.schemas import (
     GroupDeleted,
     GroupInfo,
     GroupMember,
@@ -31,7 +31,7 @@ from unique_toolkit.experimental.identity.schemas import (
     UserInfo,
     UserWithConfiguration,
 )
-from unique_toolkit.experimental.identity.service import Groups, Identity, Users
+from unique_toolkit.experimental.clients.identity.service import Groups, Identity, Users
 
 __all__ = [
     "GroupDeleted",

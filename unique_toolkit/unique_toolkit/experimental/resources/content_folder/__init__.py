@@ -26,7 +26,7 @@ lift it into its own capability then.
 
 from __future__ import annotations
 
-from unique_toolkit.experimental.content_folder.functions import (
+from unique_toolkit.experimental.resources.content_folder.functions import (
     create,
     create_access,
     create_access_async,
@@ -39,7 +39,7 @@ from unique_toolkit.experimental.content_folder.functions import (
     read,
     read_async,
 )
-from unique_toolkit.experimental.content_folder.schemas import (
+from unique_toolkit.experimental.resources.content_folder.schemas import (
     AccessEntityType,
     AccessType,
     CreatedFolder,
@@ -50,7 +50,7 @@ from unique_toolkit.experimental.content_folder.schemas import (
     FolderInfo,
     ScopeAccess,
 )
-from unique_toolkit.experimental.content_folder.service import ContentFolder
+from unique_toolkit.experimental.resources.content_folder.service import ContentFolder
 
 __all__ = [
     "AccessEntityType",

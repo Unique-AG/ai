@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, Any, Self, overload
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.unique_settings import UniqueSettings
-from unique_toolkit.experimental.content_folder import functions as _folder
-from unique_toolkit.experimental.content_folder.schemas import (
+from unique_toolkit.experimental.resources.content_folder import functions as _folder
+from unique_toolkit.experimental.resources.content_folder.schemas import (
     CreatedFolder,
     DeleteResult,
     FolderDetail,
@@ -22,7 +22,7 @@ class ContentFolder:
 
     **Scope id:** A knowledge-base folder is a *content scope*; its id is ``scopeId`` in
     the HTTP API. The toolkit uses ``scope_id`` for that same string (e.g. the ``id`` field
-    on :class:`~unique_toolkit.experimental.content_folder.schemas.CreatedFolder`).
+    on :class:`~unique_toolkit.experimental.resources.content_folder.schemas.CreatedFolder`).
 
     **Creating folders** — pick *one* style per call (type checkers enforce this via overloads):
 
@@ -530,7 +530,7 @@ class ContentFolder:
         caveats).
 
         If ``scope_accesses`` is empty, no second ``add-access`` call is made; the returned
-        :class:`~unique_toolkit.experimental.content_folder.schemas.FolderDetail` is a minimal view
+        :class:`~unique_toolkit.experimental.resources.content_folder.schemas.FolderDetail` is a minimal view
         (leaf id/name and, when ``private_to_creator`` is true, the creator grants only).
         """
         created = self._create_impl(

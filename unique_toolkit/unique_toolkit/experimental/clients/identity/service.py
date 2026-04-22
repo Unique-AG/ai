@@ -37,7 +37,7 @@ from typing import TYPE_CHECKING, Any, Self, overload
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.unique_settings import UniqueSettings
-from unique_toolkit.experimental.identity.functions import (
+from unique_toolkit.experimental.clients.identity.functions import (
     DEFAULT_LIST_SKIP,
     DEFAULT_LIST_TAKE,
     add_group_members,
@@ -65,7 +65,7 @@ from unique_toolkit.experimental.identity.functions import (
     update_user_configuration,
     update_user_configuration_async,
 )
-from unique_toolkit.experimental.identity.schemas import (
+from unique_toolkit.experimental.clients.identity.schemas import (
     GroupDeleted,
     GroupInfo,
     GroupMembership,
@@ -87,7 +87,7 @@ class Users:
 
     .. warning::
 
-        **Experimental.** Part of :mod:`unique_toolkit.experimental.identity`.
+        **Experimental.** Part of :mod:`unique_toolkit.experimental.clients.identity`.
         The API may change without notice.
 
     Surface:
@@ -119,7 +119,7 @@ class Users:
     ) -> list[UserInfo]:
         """List users, optionally filtered server-side (``getent passwd``).
 
-        ``skip``/``take`` default to a 0/:data:`~unique_toolkit.experimental.identity.functions.DEFAULT_LIST_TAKE`
+        ``skip``/``take`` default to a 0/:data:`~unique_toolkit.experimental.clients.identity.functions.DEFAULT_LIST_TAKE`
         pagination window; callers can widen or shrink it as needed.
         """
         return list_users(
@@ -387,7 +387,7 @@ class Groups:
 
     .. warning::
 
-        **Experimental.** Part of :mod:`unique_toolkit.experimental.identity`.
+        **Experimental.** Part of :mod:`unique_toolkit.experimental.clients.identity`.
         The API may change without notice.
 
     Surface:
@@ -607,7 +607,7 @@ class Identity:
 
     .. warning::
 
-        **Experimental.** Import path is :mod:`unique_toolkit.experimental.identity`.
+        **Experimental.** Import path is :mod:`unique_toolkit.experimental.clients.identity`.
         The API may change without notice.
 
     :class:`Identity` owns two sub-services:
