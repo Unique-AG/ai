@@ -13,8 +13,49 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
 - Manage space chats
 - Retrieve space configuration
 - Access message history
+- List and filter spaces
 
 ## Methods
+
+??? example "`unique_sdk.Space.get_spaces` - List spaces"
+
+    List all spaces accessible to the user, with optional filtering by name and pagination.
+
+    **Parameters:**
+
+    - `name` (str, optional) - Filter by name (case-insensitive partial match)
+    - `skip` (int, optional) - Number of records to skip for pagination (default: 0, min: 0)
+    - `take` (int, optional) - Number of records to return (default: 50, min: 1, max: 1000)
+
+    **Returns:**
+
+    Returns a [`Spaces`](#getspacesresponse) object.
+
+    **Example - List all spaces:**
+
+    ```python
+    result = unique_sdk.Space.get_spaces(
+        user_id=user_id,
+        company_id=company_id,
+    )
+
+    for space in result["data"]:
+        print(f"{space['id']}: {space['name']}")
+    ```
+
+    **Example - Filter by name with pagination:**
+
+    ```python
+    result = unique_sdk.Space.get_spaces(
+        user_id=user_id,
+        company_id=company_id,
+        name="support",
+        skip=0,
+        take=10,
+    )
+
+    print(f"Found {len(result['data'])} spaces")
+    ```
 
 ??? example "`unique_sdk.Space.create_space` - Create a new space"
 
@@ -573,6 +614,16 @@ Spaces are conversational assistants with configured tools, scope rules, and mod
     ```
 
 ## Return Types
+
+#### Spaces {#getspacesresponse}
+
+??? note "The `Spaces` object contains a list of spaces"
+
+    **Fields:**
+
+    - `data` (List[Space]) - List of space objects. See [`Space`](#space) for structure.
+
+    **Returned by:** `Space.get_spaces()`, `Space.get_spaces_async()`
 
 #### Space.Message {#spacemessage}
 
