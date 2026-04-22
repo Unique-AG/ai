@@ -6,6 +6,11 @@ name: "[CI] Publish dev builds to PyPI"
 # merge or the release-cut trailer commit (the tag-based publish in
 # ci-publish.yaml handles those).
 #
+# Change detection reuses the same `detect-changes` + `select-packages`
+# composite actions that drive pull-request CI, so the definition of
+# "this package changed" (including doc/markdown exclusions) is
+# identical across lint/test/typecheck/publish.
+#
 # Version scheme
 # ==============
 #   Own version:  YYYY.WW.0.dev<commit-count>
@@ -79,33 +84,84 @@ jobs:
     if: needs.guard.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.matrix.outputs.matrix }}
+      matrix: ${{ steps.publishable.outputs.matrix }}
       dev_version: ${{ steps.version.outputs.dev_version }}
       cycle_floor: ${{ steps.version.outputs.cycle_floor }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          # Need enough history for `git diff <before>..<after>` and
-          # `git rev-list --count HEAD` to be accurate.
+          # Need enough history for `git rev-list --count HEAD` and for
+          # paths-filter to diff before..after.
           fetch-depth: 0
 
-      - name: Detect changed publishable packages
-        id: matrix
+      - name: Invalidator override (force all packages on pipeline changes)
+        id: invalidator
         env:
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.event.after }}
         run: |
-          MATRIX="$(./.github/scripts/detect-changed-packages.sh "$BEFORE" "$AFTER")"
+          # If any file that affects the publish machinery itself changed,
+          # set selected=all so every publishable package is rebuilt and
+          # the change is exercised end-to-end. Otherwise we stay in
+          # auto-detect mode (selected='').
+          INVALIDATORS=(
+            ".github/workflows/publish-dev.yaml"
+            ".github/scripts/rewrite-pyproject-for-dev.py"
+            ".github/scripts/compute-calver.sh"
+            ".github/actions/get-packages-matrix/package_configuration.json"
+            ".github/actions/detect-changes/action.yml"
+            ".github/actions/select-packages/action.yml"
+            ".github/actions/publish-to-pypi-with-uv/action.yml"
+          )
+          NULL_SHA="0000000000000000000000000000000000000000"
+          if [[ -z "$BEFORE" || "$BEFORE" == "$NULL_SHA" ]] \
+             || ! git rev-parse --verify --quiet "${BEFORE}^{commit}" >/dev/null; then
+            echo "base unavailable — forcing selected=all" >&2
+            echo "selected=all" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CHANGED="$(git diff --name-only "$BEFORE" "$AFTER" -- || true)"
+          for path in "${INVALIDATORS[@]}"; do
+            if grep -qxF "$path" <<<"$CHANGED"; then
+              echo "invalidator '${path}' changed — forcing selected=all" >&2
+              echo "selected=all" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "selected=" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/detect-changes
+        id: detect
+
+      - uses: ./.github/actions/get-packages-matrix
+        id: pkgs
+
+      - uses: ./.github/actions/select-packages
+        id: select
+        with:
+          packages: ${{ steps.pkgs.outputs.packages }}
+          selected: ${{ steps.invalidator.outputs.selected }}
+          changes: ${{ steps.detect.outputs.changes }}
+
+      - name: Drop non-publishable packages
+        id: publishable
+        env:
+          RAW_MATRIX: ${{ steps.select.outputs.matrix }}
+        run: |
+          # The shared matrix includes connectors/unique_search_proxy
+          # (publish_skip=true) and any future entry without a pypi_name.
+          # Strip them here so the publish strategy only spins up jobs for
+          # things we actually ship.
+          MATRIX=$(jq -c '{include: [.include[] | select((.publish_skip != true) and (.pypi_name != null))]}' <<<"$RAW_MATRIX")
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
           {
-            echo "### Dev publish — change detection"
+            echo "### Dev publish — selection"
             echo ""
-            echo "- Base: \`$BEFORE\`"
-            echo "- Head: \`$AFTER\`"
-            echo "- Packages selected: $(echo "$MATRIX" | jq -r '.include | length')"
+            echo "- Selected override: \`${{ steps.invalidator.outputs.selected || 'auto-detect' }}\`"
+            echo "- Packages queued: $(jq '.include | length' <<<"$MATRIX")"
             echo ""
             echo '```json'
-            echo "$MATRIX" | jq .
+            jq . <<<"$MATRIX"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
