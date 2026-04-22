@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.81.0] - 2026-04-22
+### Added
+- `AgenticTableService.update_row_verification_status`: optional `locked` argument, forwarded to SDK `bulk_update_status` (public `POST .../rows/bulk-update-status`).
+- Re-export `MagicTableActivityResponse`, `MagicTableArtifactType`, and `MagicTableMetadataEntry` from `unique_toolkit.agentic_table`.
+
+### Changed
+- Require `unique-sdk>=0.11.12,<0.12` (aligns with public magic-table REST typings and `includeRowMetadata` / `includeSheetMetadata` on sheet GET).
+- **Agentic table:** `get_sheet(..., include_row_metadata=True)` passes `includeRowMetadata` on batched `get_sheet_data` and skips per-row `get_cell` when cells already include `rowMetadata`; legacy `get_cell` hydration remains when the gateway omits row metadata on sheet cells.
+- **Agentic table:** `ArtifactType` is now an alias of SDK `MagicTableArtifactType`; `ArtifactData.artifact_type` is typed as `MagicTableArtifactType`.
+- **Agentic table:** `MagicTableSheet.chat_id` is optional (`str | None`) to match optional `chatId` on sheet payloads.
+- **Agentic table:** `set_artifact` accepts optional `mime_type` and `name` (omitted on the wire when `None`, matching SDK `SetArtifact`).
+
 ## [1.80.3] - 2026-04-22
 ### Changed
 - Code interpreter default tool description (`DEFAULT_TOOL_DESCRIPTION`) and default system-prompt descriptions (both `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT` and `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): explicitly instruct the model to always use code execution for Excel (`.xls`, `.xlsx`) and CSV uploads (UN-19449), pairing with the backend auto-switch to "skip ingestion for Excel" (UN-19448). Short description now also names file uploads, chart/dashboard/visualization intents explicitly and forbids ASCII-art answers for plotting requests.
