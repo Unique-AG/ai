@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.13] - 2026-04-22
+- Add `Module` API resource: full CRUD for assistant modules (`list`, `retrieve`, `create`, `modify`, `delete` + async variants). Mirrors the new `POST/GET/PATCH/DELETE /modules` endpoints added in Unique-AG/monorepo#22845. Includes `Module.ListParams`, `Module.CreateParams`, `Module.ModifyParams`, and `Module.DeletedObject` typed helpers; exports `Module` from the top-level `unique_sdk` package
+- Docs: add `docs/api_resources/module.md` reference
+
 ## [0.11.12] - 2026-04-22
 - `AgenticTable.GetSheetData`: add `includeSheetMetadata` and `includeRowMetadata` (optional GET query params; `includeRowMetadata` for `GET /magic-table/{tableId}` aligns with in-flight public API work)
 - Align other `AgenticTable` request/response types with the public magic-table REST contract (`2023-12-06` / `node-chat`): `RowVerificationStatus` uses `NEEDS_REVIEW` to match `MagicTableRowStatus`; `MagicTableAction` adds `InsertRow` and `GenerateOverview`; `bulk_update_status` adds optional `locked`; `SetArtifact` optional `name`/`mimeType` and `MagicTableArtifactType` including `AGENTIC_REPORT`; `set_activity` returns `MagicTableActivityResponse`, `set_artifact` returns `ColumnMetadataUpdateStatus`; extend cell/sheet TypedDicts (`metaData`, `rowMetadata`, `magicTableSheetMetadata`, optional `chatId` / `magicTableRowCount`); export `AgenticTableCellMetaData`, `MagicTableActivityResponse`, `MagicTableArtifactType`, `MagicTableMetadataEntry`
