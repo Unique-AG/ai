@@ -1,8 +1,8 @@
 """Pydantic models for knowledge-base folders (content scopes).
 
 These mirror the ``Folder`` resources returned by the Unique API and are the
-value types exchanged with :class:`~unique_toolkit.experimental.content_folder.service.ContentFolder`
-and the helpers in :mod:`unique_toolkit.experimental.content_folder.functions`.
+value types exchanged with :class:`~unique_toolkit.experimental.resources.content_folder.service.ContentFolder`
+and the helpers in :mod:`unique_toolkit.experimental.resources.content_folder.functions`.
 """
 
 from __future__ import annotations

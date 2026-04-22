@@ -18,7 +18,7 @@ string.
 Example
 -------
 
-    >>> from unique_toolkit.experimental.scheduled_task import Cron
+    >>> from unique_toolkit.experimental.resources.scheduled_task import Cron
     >>> Cron.DAILY_MIDNIGHT
     <Cron.DAILY_MIDNIGHT: '0 0 * * *'>
     >>> str(Cron.DAILY_MIDNIGHT)
