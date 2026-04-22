@@ -15,11 +15,14 @@
 #      be snapped forward to the next even week, chaining into the
 #      year rollover above when needed.
 #
-# The script has two modes:
-#   - `calver_from_manifest`: pick the highest CalVer version in
-#     .release-please-manifest.json and advance by one cycle (+2).
+# The script today has a single mode:
 #   - `calver_from_today`: start from today's ISO (year, week) and
 #     snap to the next even week (+0 through advance_weeks).
+#
+# The manifest-first selector (pick the highest CalVer in
+# .release-please-manifest.json and advance by +2) ships in the
+# follow-up release-process PR alongside release-please itself, so
+# its tests live there too.
 
 load test_helper
 
@@ -153,64 +156,6 @@ teardown() {
 }
 
 # ---------------------------------------------------------------------------
-# calver_from_manifest
-# ---------------------------------------------------------------------------
-
-write_manifest() {
-    local path="$1"
-    shift
-    printf '%s\n' "$@" > "$path"
-}
-
-@test "calver_from_manifest: picks the highest CalVer and advances by +2" {
-    write_manifest manifest.json \
-      '{' \
-      '  "unique_toolkit": "2026.10.0",' \
-      '  "unique_orchestrator": "2026.08.1"' \
-      '}'
-    MANIFEST=manifest.json run calver_from_manifest
-    [ "$status" -eq 0 ]
-    [ "$output" = "2026.12" ]
-}
-
-@test "calver_from_manifest: a single CalVer entry determines the next cycle" {
-    write_manifest manifest.json \
-      '{' \
-      '  "unique_toolkit": "2026.52.0"' \
-      '}'
-    MANIFEST=manifest.json run calver_from_manifest
-    [ "$status" -eq 0 ]
-    # 2026 is a 53-week year; 52+2 wraps to 2027.02 via the even-snap rule.
-    [ "$output" = "2027.02" ]
-}
-
-@test "calver_from_manifest: ignores SemVer entries mixed with CalVer" {
-    write_manifest manifest.json \
-      '{' \
-      '  "unique_toolkit": "2026.10.0",' \
-      '  "unique_sdk": "0.11.6"' \
-      '}'
-    MANIFEST=manifest.json run calver_from_manifest
-    [ "$status" -eq 0 ]
-    [ "$output" = "2026.12" ]
-}
-
-@test "calver_from_manifest: fails when the manifest has only SemVer values" {
-    write_manifest manifest.json \
-      '{' \
-      '  "unique_toolkit": "1.80.1",' \
-      '  "unique_sdk": "0.11.6"' \
-      '}'
-    MANIFEST=manifest.json run calver_from_manifest
-    [ "$status" -ne 0 ]
-}
-
-@test "calver_from_manifest: fails when the manifest file is missing" {
-    MANIFEST=missing.json run calver_from_manifest
-    [ "$status" -ne 0 ]
-}
-
-# ---------------------------------------------------------------------------
 # calver_from_today (deterministic via TODAY)
 # ---------------------------------------------------------------------------
 
@@ -240,18 +185,9 @@ write_manifest() {
 # script as a whole (invoked, not sourced)
 # ---------------------------------------------------------------------------
 
-@test "compute-calver.sh: falls back to today when manifest has no CalVer" {
-    write_manifest manifest.json '{ "unique_toolkit": "1.80.1" }'
-    # 2025-03-05 -> week 10, even, no snap needed.
-    MANIFEST=manifest.json TODAY=2025-03-05 run bash "$SCRIPT"
+@test "compute-calver.sh: emits today's cycle when invoked directly" {
+    # 2025-03-05 -> ISO week 10 of 2025, already even.
+    TODAY=2025-03-05 run bash "$SCRIPT"
     [ "$status" -eq 0 ]
     [ "$output" = "2025.10" ]
-}
-
-@test "compute-calver.sh: prefers manifest CalVer over today when both are usable" {
-    write_manifest manifest.json '{ "unique_toolkit": "2026.10.0" }'
-    # Today is irrelevant when the manifest already has a CalVer.
-    MANIFEST=manifest.json TODAY=2025-03-05 run bash "$SCRIPT"
-    [ "$status" -eq 0 ]
-    [ "$output" = "2026.12" ]
 }

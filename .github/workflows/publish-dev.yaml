@@ -2,14 +2,16 @@ name: "[CI] Publish dev builds to PyPI"
 
 # On every push to `main`, build and publish `.devN` wheels of the
 # publishable AI-repo packages whose sources actually changed in the
-# push range. Skipped entirely when the push is a release-please bot
-# merge or the release-cut trailer commit (the tag-based publish in
-# ci-publish.yaml handles those).
+# push range.
 #
 # Change detection reuses the same `detect-changes` + `select-packages`
 # composite actions that drive pull-request CI, so the definition of
 # "this package changed" (including doc/markdown exclusions) is
 # identical across lint/test/typecheck/publish.
+#
+# The release-please / release-cut / release-tag skip guard lands in
+# the follow-up release-process PR alongside those workflows — none of
+# their trigger commits can land on main until that PR merges.
 #
 # Version scheme
 # ==============
@@ -38,50 +40,7 @@ permissions:
   contents: read
 
 jobs:
-  guard:
-    runs-on: ubuntu-latest
-    outputs:
-      should_publish: ${{ steps.guard.outputs.publish }}
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          fetch-depth: 1
-          fetch-tags: true
-
-      - name: Skip release-please / release-cut commits
-        id: guard
-        env:
-          COMMIT_MSG: ${{ github.event.head_commit.message }}
-        run: |
-          # We skip dev-publishing a commit when any of the following hold:
-          #   1. A per-package release tag already points at HEAD
-          #      (e.g. `unique-toolkit-v2026.18.0`) — those are published by
-          #      `ci-publish.yaml` via the `release:published` event.
-          #   2. The commit message is a release-please merge title
-          #      (`chore: release …` / `chore(main): release …`) — these can
-          #      fire before the tag is created, so rely on the subject.
-          #   3. The commit body carries a `Release-As:` trailer — this is
-          #      the `release-cut` prepare commit; nothing to publish yet.
-          TAGS=$(git tag --points-at HEAD || true)
-          echo "Tags at HEAD: ${TAGS:-<none>}"
-          echo "Subject: $(echo "$COMMIT_MSG" | head -n1)"
-
-          if echo "$TAGS" | grep -qE '^unique-[a-z0-9_-]+-v[0-9]'; then
-            echo "Release tag present — skipping."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-          elif echo "$COMMIT_MSG" | head -n1 | grep -qE '^chore(\([^)]+\))?: release'; then
-            echo "Release-please merge commit — skipping."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-          elif echo "$COMMIT_MSG" | grep -qE '^Release-As:'; then
-            echo "Release-cut prepare commit — skipping."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          fi
-
   resolve:
-    needs: guard
-    if: needs.guard.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.publishable.outputs.matrix }}

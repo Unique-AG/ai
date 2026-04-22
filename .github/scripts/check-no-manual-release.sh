@@ -3,8 +3,10 @@ set -euo pipefail
 
 # Checks that a PR does not manually modify files owned by release-please:
 #   - CHANGELOG.md in any package
-#   - .release-please-manifest.json
 #   - version = "..." lines in pyproject.toml
+#
+# The `.release-please-manifest.json` protection is added alongside the
+# release-please workflow itself in the follow-up release-process PR.
 #
 # Usage: check-no-manual-release.sh <base-sha> <head-sha>
 
@@ -23,10 +25,6 @@ while IFS= read -r file; do
     ERRORS+=("$file")
   fi
 done <<< "$CHANGED"
-
-if echo "$CHANGED" | grep -qx '.release-please-manifest.json'; then
-  ERRORS+=(".release-please-manifest.json")
-fi
 
 TOMLS=$(echo "$CHANGED" | grep 'pyproject.toml$' || true)
 for toml in $TOMLS; do
