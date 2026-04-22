@@ -21,8 +21,12 @@ Planned contents (current home → new home):
 * ``short_term_memory``← :mod:`unique_toolkit.short_term_memory`
 * ``elicitation``      ← :mod:`unique_toolkit.elicitation`
 * ``agentic_table``    ← :mod:`unique_toolkit.agentic_table`
-* ``identity``         ← :mod:`unique_toolkit.experimental.identity`
+* ``users``            ← :mod:`unique_toolkit.experimental.identity` (user part)
+* ``groups``           ← :mod:`unique_toolkit.experimental.identity` (group part)
 * ``content_folder``   ← :mod:`unique_toolkit.experimental.content_folder`
 * ``content_tree``     ← :mod:`unique_toolkit.experimental.content_tree`
 * ``scheduled_task``   ← :mod:`unique_toolkit.experimental.scheduled_task`
+
+``identity`` itself is a facade (see :mod:`..clients.identity`), not a
+resource — it bundles :mod:`.users` + :mod:`.groups`.
 """
