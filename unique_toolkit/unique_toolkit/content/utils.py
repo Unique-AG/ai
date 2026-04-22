@@ -261,6 +261,7 @@ def map_content(content: dict[str, Any]):
         applied_ingestion_config=content.get("appliedIngestionConfig"),
         expired_at=content.get("expiredAt"),
         metadata=content.get("metadata"),
+        mime_type=content.get("mimeType"),
     )
 
 
