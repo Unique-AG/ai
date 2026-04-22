@@ -60,12 +60,6 @@ DEFAULT_TOOL_SYSTEM_PROMPT = _TOOL_SYSTEM_PROMPT_TEMPLATE.format(
 )
 
 
-def build_system_prompt(display_mode: "DisplayMode") -> str:
-    """Render the system prompt with the appropriate returns description."""
-    desc = _RETURNS_TREE if display_mode == DisplayMode.tree else _RETURNS_FLAT
-    return _TOOL_SYSTEM_PROMPT_TEMPLATE.format(returns_description=desc)
-
-
 class RetrieveSearchScopeConfig(BaseToolConfig):
     """Configuration for the RetrieveSearchScope tool."""
 
