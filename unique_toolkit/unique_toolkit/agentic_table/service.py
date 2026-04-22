@@ -307,7 +307,12 @@ class AgenticTableService:
             includeCells=False,
             includeLogHistory=False,
         )
-        return sheet_info["magicTableRowCount"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
+        row_count = sheet_info.get("magicTableRowCount")
+        if row_count is None:
+            raise RuntimeError(
+                "Expected magicTableRowCount in sheet response when includeRowCount=True"
+            )
+        return row_count
 
     async def get_sheet(
         self,
@@ -341,7 +346,11 @@ class AgenticTableService:
             includeLogHistory=False,
             includeCellMetaData=False,
         )
-        total_rows = sheet_info["magicTableRowCount"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
+        total_rows = sheet_info.get("magicTableRowCount")
+        if total_rows is None:
+            raise RuntimeError(
+                "Expected magicTableRowCount in sheet response when includeRowCount=True"
+            )
         if end_row is None or end_row > total_rows:
             end_row = total_rows
         if start_row > end_row:
@@ -411,7 +420,9 @@ class AgenticTableService:
                     for cell in batch_cells:
                         row_order = cell.get("rowOrder")  # type: ignore[assignment]
                         if row_order is not None and row_order in row_metadata_map:  # pyright: ignore[reportUnnecessaryComparison]
-                            cell["rowMetadata"] = row_metadata_map[row_order]
+                            cell["rowMetadata"] = row_metadata_map[  # pyright: ignore[reportGeneralTypeIssues]
+                                row_order
+                            ]
 
                 cells.extend(batch_cells)
 
@@ -431,10 +442,8 @@ class AgenticTableService:
             tableId=self.table_id,
             includeSheetMetadata=True,
         )
-        return [
-            RowMetadataEntry.model_validate(metadata)
-            for metadata in sheet_info["magicTableSheetMetadata"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
-        ]
+        raw_metadata = sheet_info.get("magicTableSheetMetadata") or []
+        return [RowMetadataEntry.model_validate(metadata) for metadata in raw_metadata]
 
     async def set_cell_metadata(
         self,
