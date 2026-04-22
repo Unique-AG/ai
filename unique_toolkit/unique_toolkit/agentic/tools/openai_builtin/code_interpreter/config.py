@@ -61,6 +61,11 @@ Handling User Queries:
 # Used when the code-execution fence feature flag (UN-17972) is enabled.
 # The frontend derives the artifact title from the filename itself, so the
 # LLM no longer needs to produce a markdown heading before the sandbox link.
+#
+# UN-19711 / Horizon follow-up: The HTML rules in the fence prompt reduce iframe height
+# collapse when chat auto-measures the embedded document. Remaining gaps belong in the
+# Next.js monorepo `HtmlRendering` component (e.g. respect declared dimensions, harden
+# postMessage sizing, iframe sandbox/CSP and WebGL when product wants full fidelity).
 DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE = """
 Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc.
 
@@ -92,8 +97,14 @@ HTML files — CRITICAL rules:
 - Whenever you create HTML (dashboards, charts, tables, reports, interactive widgets), you MUST save it as a `.html` file and reference it using the sandbox link format above.
 - HTML files MUST follow these best practices so they render correctly in the UI:
   - Use a valid HTML5 document structure: `<!DOCTYPE html>`, `<html>`, `<head>` (with `<meta charset="UTF-8">` and `<meta name="viewport" content="width=device-width, initial-scale=1.0">`), and `<body>`.
-  - Make the layout self-contained: inline all CSS in a `<style>` block and all JavaScript in a `<script>` block. Do NOT rely on external CDN links that may be blocked.
-  - Use relative or fluid sizing (%, vw/vh, flexbox, CSS grid) rather than fixed pixel widths so the content fits any iframe size.
+  - Make the layout self-contained: inline all CSS in a `<style>` block and all JavaScript in a `<script>` block. Do NOT rely on external CDN links that may be blocked — **except** for Plotly (see Plotly bullet below): `include_plotlyjs="cdn"` is required there so the HTML stays small enough to upload; a full inlined Plotly bundle is multi-megabyte and often fails.
+  - Width: use fluid width (`width: 100%`, flexbox, CSS grid) so the content fits the iframe. Fixed pixel widths are discouraged.
+  - Height — CRITICAL for correct rendering in our chat iframe:
+    - NEVER set `height: 100%`, `min-height: 100%`, `height: 100vh` or any viewport-relative height on `<html>` or `<body>`. Let the document height be determined by its content. The chat iframe auto-sizes to the content; percentage/viewport heights on `html`/`body` collapse or cause measurement loops.
+    - The main content container MUST have a bounded, measurable height. For charts/dashboards either (a) give the chart container an explicit pixel height (e.g. `height: 500px`) or (b) use `aspect-ratio` together with a `width` so height is derived. Do NOT leave the top-level container with no intrinsic height.
+    - Do NOT use `position: fixed` or `position: absolute` on top-level layout elements — they remove the element from the flow and the iframe cannot measure it.
+    - Plotly users — CRITICAL: Plotly's `fig.write_html(...)` / `fig.to_html(...)` defaults emit a `<div class="plotly-graph-div" style="height:100%; width:100%;">` with no wrapper height (iframe collapse) **and** inline the entire Plotly JS bundle (~3MB), which often fails KB upload. You MUST pass `include_plotlyjs="cdn"`, `full_html=True`, and `default_height` (and `default_width` when relevant). Example: `fig.write_html(path, full_html=True, include_plotlyjs="cdn", default_height="600px")`. If you hand-write the wrapper HTML around a Plotly div, wrap the `plotly-graph-div` in a container with an explicit pixel height and never leave the graph div at `height:100%`.
+    - Single-chart HTML files — always add an outer wrapper with an explicit `height` (e.g. `<div style="height:600px">…chart…</div>`) so the document has a non-zero intrinsic height, even if the chart library defaults to percentage sizing.
   - Apply clean, readable typography: prefer system fonts (`-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`) and sufficient contrast (WCAG AA minimum).
   - Use semantic HTML elements (`<table>` for tabular data, `<button>` for actions, `<h1>`–`<h6>` for headings, `alt` attributes on `<img>` tags). Avoid using `<div>` for everything.
   - Do NOT use `window.parent`, `window.top`, or any attempt to access the parent frame.

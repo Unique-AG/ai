@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import click
 
 from unique_sdk.cli import __version__
@@ -678,7 +680,7 @@ def elicit() -> None:
       create    Low-level: create a FORM or URL elicitation
       pending   List pending elicitations for the current user
       get       Show details of a single elicitation by ID
-      respond   Respond to an elicitation (ACCEPT / DECLINE / CANCEL)
+      respond   Respond to an elicitation (ACCEPT / DECLINE / CANCEL / REJECT)
       wait      Poll an elicitation until it reaches a terminal state
     """
 
@@ -728,6 +730,43 @@ def elicit() -> None:
     multiple=True,
     help="Metadata key=value pairs (repeatable).",
 )
+@click.option(
+    "--visible/--no-visible",
+    "visible",
+    default=True,
+    show_default=True,
+    help=(
+        "Wrap the elicitation in a placeholder 'thinking' timeline so the "
+        "chat UI renders it (UN-19815 workaround). Requires --chat-id; the "
+        "placeholder is collapsed or deleted automatically after the user "
+        "responds."
+    ),
+)
+@click.option(
+    "--assistant-id",
+    default=None,
+    help=(
+        "Assistant id to use when creating the visibility placeholder. "
+        "Defaults to $UNIQUE_ASSISTANT_ID, else the latest assistant in the "
+        "chat."
+    ),
+)
+@click.option(
+    "--placeholder-text",
+    default=None,
+    help="Text shown on the placeholder 'thinking' step while waiting.",
+)
+@click.option(
+    "--cleanup",
+    "cleanup_mode",
+    type=click.Choice(["collapse", "delete"], case_sensitive=False),
+    default=None,
+    help=(
+        "How to tear down the visibility placeholder after the user "
+        "responds. 'collapse' (default) sets completedAt + a short note; "
+        "'delete' removes the placeholder message entirely."
+    ),
+)
 @click.pass_context
 def elicit_ask(
     ctx: click.Context,
@@ -740,6 +779,10 @@ def elicit_ask(
     timeout: int,
     poll_interval: float,
     metadata: tuple[str, ...],
+    visible: bool = True,
+    assistant_id: str | None = None,
+    placeholder_text: str | None = None,
+    cleanup_mode: str | None = None,
 ) -> None:
     """Ask the user a question and wait for the answer.
 
@@ -763,20 +806,24 @@ def elicit_ask(
         k, v = kv.split("=", 1)
         parsed_metadata.append((k, v))
 
-    click.echo(
-        cmd_elicit_ask(
-            LazyState.get(ctx),
-            message=message,
-            tool_name=tool_name,
-            schema=schema,
-            chat_id=chat_id,
-            message_id=message_id,
-            expires_in_seconds=expires_in_seconds,
-            timeout=timeout,
-            poll_interval=poll_interval,
-            metadata=parsed_metadata or None,
-        )
-    )
+    ask_kwargs: dict[str, Any] = {
+        "message": message,
+        "tool_name": tool_name,
+        "schema": schema,
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "expires_in_seconds": expires_in_seconds,
+        "timeout": timeout,
+        "poll_interval": poll_interval,
+        "metadata": parsed_metadata or None,
+        "visible": visible,
+        "assistant_id": assistant_id,
+    }
+    if placeholder_text is not None:
+        ask_kwargs["placeholder_text"] = placeholder_text
+    if cleanup_mode is not None:
+        ask_kwargs["cleanup_mode"] = cleanup_mode.lower()
+    click.echo(cmd_elicit_ask(LazyState.get(ctx), **ask_kwargs))
 
 
 @elicit.command(name="create")
@@ -819,6 +866,43 @@ def elicit_ask(
     multiple=True,
     help="Metadata key=value pairs (repeatable).",
 )
+@click.option(
+    "--visible/--no-visible",
+    "visible",
+    default=True,
+    show_default=True,
+    help=(
+        "Wrap the elicitation in a placeholder 'thinking' timeline so the "
+        "chat UI renders it (UN-19815 workaround). Requires --chat-id; the "
+        "placeholder is collapsed or deleted automatically when the user "
+        "responds or when you call `elicit wait` on the returned id."
+    ),
+)
+@click.option(
+    "--assistant-id",
+    default=None,
+    help=(
+        "Assistant id to use when creating the visibility placeholder. "
+        "Defaults to $UNIQUE_ASSISTANT_ID, else the latest assistant in the "
+        "chat."
+    ),
+)
+@click.option(
+    "--placeholder-text",
+    default=None,
+    help="Text shown on the placeholder 'thinking' step while pending.",
+)
+@click.option(
+    "--cleanup",
+    "cleanup_mode",
+    type=click.Choice(["collapse", "delete"], case_sensitive=False),
+    default=None,
+    help=(
+        "How to tear down the visibility placeholder after the user "
+        "responds. 'collapse' (default) sets completedAt + a short note; "
+        "'delete' removes the placeholder message entirely."
+    ),
+)
 @click.pass_context
 def elicit_create(
     ctx: click.Context,
@@ -832,6 +916,10 @@ def elicit_create(
     expires_in_seconds: int | None,
     external_elicitation_id: str | None,
     metadata: tuple[str, ...],
+    visible: bool = True,
+    assistant_id: str | None = None,
+    placeholder_text: str | None = None,
+    cleanup_mode: str | None = None,
 ) -> None:
     """Create an elicitation without waiting for the response.
 
@@ -857,21 +945,25 @@ def elicit_create(
         k, v = kv.split("=", 1)
         parsed_metadata.append((k, v))
 
-    click.echo(
-        cmd_elicit_create(
-            LazyState.get(ctx),
-            mode=mode,
-            message=message,
-            tool_name=tool_name,
-            schema=schema,
-            url=url,
-            chat_id=chat_id,
-            message_id=message_id,
-            expires_in_seconds=expires_in_seconds,
-            external_elicitation_id=external_elicitation_id,
-            metadata=parsed_metadata or None,
-        )
-    )
+    create_kwargs: dict[str, Any] = {
+        "mode": mode,
+        "message": message,
+        "tool_name": tool_name,
+        "schema": schema,
+        "url": url,
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "expires_in_seconds": expires_in_seconds,
+        "external_elicitation_id": external_elicitation_id,
+        "metadata": parsed_metadata or None,
+        "visible": visible,
+        "assistant_id": assistant_id,
+    }
+    if placeholder_text is not None:
+        create_kwargs["placeholder_text"] = placeholder_text
+    if cleanup_mode is not None:
+        create_kwargs["cleanup_mode"] = cleanup_mode.lower()
+    click.echo(cmd_elicit_create(LazyState.get(ctx), **create_kwargs))
 
 
 @elicit.command(name="pending")
@@ -943,7 +1035,7 @@ def elicit_wait(
 @click.argument("elicitation_id")
 @click.option(
     "--action",
-    type=click.Choice(["ACCEPT", "DECLINE", "CANCEL"], case_sensitive=False),
+    type=click.Choice(["ACCEPT", "DECLINE", "CANCEL", "REJECT"], case_sensitive=False),
     required=True,
     help="Response action.",
 )

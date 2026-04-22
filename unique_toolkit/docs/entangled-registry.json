@@ -191,6 +191,51 @@
   "#event-driven-ngrok-run-app": [
     "docs/application_types/event_driven/event_driven_as_app_with_ngrok.md"
   ],
+  "#folder-mgmt-constants": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "#folder-mgmt-constants-multi": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "#folder-mgmt-constants-nested": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "#folder-mgmt-create": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "#folder-mgmt-create-multi-paths": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "#folder-mgmt-create-nested-after-path-lookup": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "#folder-mgmt-create-nested-under-parent": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "#folder-mgmt-delete": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "#folder-mgmt-delete-by-path": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "#folder-mgmt-imports": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "#folder-mgmt-init": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "#folder-mgmt-main": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "#folder-mgmt-main-multi": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "#folder-mgmt-main-nested": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "#folder-mgmt-verify": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
   "#free_user_input": [
     "docs/tutorials/file_creation_and_upload_to_chat.md"
   ],
@@ -203,6 +248,30 @@
   "#get_openai_client": [
     "docs/plattforms/openai/openai.md"
   ],
+  "#identity_configuration_blobs": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "#identity_get_user_overloads": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "#identity_group_lifecycle": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "#identity_groups_of_user": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "#identity_imports": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "#identity_list_users_and_groups": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "#identity_membership": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "#identity_service_setup": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
   "#import_language_model_name": [
     "docs/modules/examples/chat/chat_service.md"
   ],
@@ -212,11 +281,35 @@
   "#initialize_kb_service_standalone": [
     "docs/knowledge_base/index.md"
   ],
+  "#kb-mirror-local-imports": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "#kb-mirror-local-mirror-fn": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "#kb-mirror-local-run": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "#kb-mirror-main": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
   "#kb-service-make-document-available": [
     "docs/modules/examples/content/kb_service.md"
   ],
   "#kb-temp-file-cleanup": [
     "docs/knowledge_base/index.md"
+  ],
+  "#kb-tree-async-main": [
+    "docs/modules/examples/experimental/content_tree.md"
+  ],
+  "#kb-tree-filter-snippet": [
+    "docs/modules/examples/experimental/content_tree.md"
+  ],
+  "#kb-tree-imports": [
+    "docs/modules/examples/experimental/content_tree.md"
+  ],
+  "#kb-tree-main": [
+    "docs/modules/examples/experimental/content_tree.md"
   ],
   "#kb_content_search": [
     "docs/modules/examples/content/smart_rules.md"
@@ -551,6 +644,24 @@
   "#upload_with_reference_upload_document": [
     "docs/tutorials/file_creation_and_upload_to_chat.md"
   ],
+  "file=./docs/.python_files/identity_configuration_blobs.py": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "file=./docs/.python_files/identity_get_user.py": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "file=./docs/.python_files/identity_group_lifecycle.py": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "file=./docs/.python_files/identity_groups_of_user.py": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "file=./docs/.python_files/identity_list_users_and_groups.py": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
+  "file=./docs/.python_files/identity_membership.py": [
+    "docs/modules/examples/identity/identity_service.md"
+  ],
   "file=./docs/.python_files/kb_content_chunk_search_with_smart_rule_on_folders.py": [
     "docs/modules/examples/content/smart_rules.md"
   ],
@@ -640,6 +751,21 @@
   ],
   "file=docs/.python_files/chat_with_streamed_references.py": [
     "docs/modules/examples/chat/chat_service.md"
+  ],
+  "file=docs/.python_files/folder_create_multiple_abs_paths.py": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "file=docs/.python_files/folder_create_under_parent.py": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "file=docs/.python_files/folder_create_verify_delete.py": [
+    "docs/modules/examples/content/content-folder.md"
+  ],
+  "file=docs/.python_files/kb_mirror_local_folder_skip_ingest.py": [
+    "docs/modules/examples/content/kb_service.md"
+  ],
+  "file=docs/.python_files/kb_tree_visible.py": [
+    "docs/modules/examples/experimental/content_tree.md"
   ],
   "file=docs/.python_files/langchain_simple_invoke.py": [
     "docs/plattforms/langchain/langchain.md"

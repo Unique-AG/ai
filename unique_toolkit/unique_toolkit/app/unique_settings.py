@@ -623,6 +623,22 @@ class UniqueSettings:
             env_file=self._env_file,
         )
 
+    def with_chat(self, chat: ChatContextProtocol | None) -> Self:
+        """Return a copy of the settings with the new chat context.
+
+        Passing ``None`` clears any existing chat context; this mirrors the
+        semantics of :meth:`with_auth` and is how MCP request handlers opt out
+        of chat scoping when the request does not carry chat identifiers.
+        """
+        return self.__class__(
+            auth=self._context.auth,
+            app=self.app,
+            api=self.api,
+            chat_event_filter_options=self.chat_event_filter_options,
+            chat=chat,
+            env_file=self._env_file,
+        )
+
     @property
     def api(self) -> UniqueApi:
         return self._env.api
