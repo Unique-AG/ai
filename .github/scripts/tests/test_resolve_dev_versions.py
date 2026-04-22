@@ -1,17 +1,12 @@
 """Unit tests for `.github/scripts/resolve-dev-versions.py`.
 
-These tests cover the three version-resolution branches the workflow
-relies on:
+Covers the three dep-pin branches the workflow relies on — sibling
+``==``, in-cycle ``>=`` latest dev, pyproject-stable fallback ``>=`` —
+plus the per-package dev counter behaviour.
 
-  * packages with *no* versions yet (fresh PyPI name)
-  * packages with stable versions but *no* dev in the current cycle
-  * packages with a dev sequence already live in the current cycle
-
-and verify cross-dep pin selection (sibling ``==``, latest-dev ``>=``,
-last-stable ``>=`` fallback).
-
-We invoke the resolver via its public functions so PyPI is never
-actually contacted — a fake ``fetcher`` is injected instead.
+PyPI is never contacted; a fake ``fetcher`` is injected into
+``highest_dev_in_cycle`` and the on-disk pyproject read is stubbed via
+``REPO_ROOT``.
 """
 
 from __future__ import annotations
@@ -22,9 +17,14 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-SCRIPT = REPO_ROOT / ".github" / "scripts" / "resolve-dev-versions.py"
+SCRIPT = (
+    Path(__file__).resolve().parents[3]
+    / ".github"
+    / "scripts"
+    / "resolve-dev-versions.py"
+)
 
 
 def _load_module():
@@ -39,153 +39,128 @@ def _load_module():
 rdv = _load_module()
 
 
-def _fake_pypi(versions_by_name: dict[str, list[str]]):
-    def fetcher(name: str, _base_url: str) -> list[str]:
+def _fake_fetcher(versions_by_name: dict[str, list[str]]):
+    def fetcher(name: str, _base: str) -> list[str]:
         return list(versions_by_name.get(name, []))
 
     return fetcher
 
 
-def _pub(id_: str, pypi_name: str) -> "rdv.Publishable":
-    return rdv.Publishable(id=id_, pypi_name=pypi_name)
-
-
-class ClassifyVersionsTests(unittest.TestCase):
-    def test_empty(self) -> None:
-        state = rdv.classify_versions([], "2026.18")
-        self.assertIsNone(state.max_dev_in_cycle)
-        self.assertIsNone(state.last_stable)
-
-    def test_only_stable(self) -> None:
-        state = rdv.classify_versions(
-            ["2026.10.0", "2026.14.0", "2026.14.1"], "2026.18"
+class HighestDevInCycleTests(unittest.TestCase):
+    def test_returns_none_when_empty(self) -> None:
+        self.assertIsNone(
+            rdv.highest_dev_in_cycle(
+                "foo", "2026.18", "", fetcher=_fake_fetcher({"foo": []})
+            )
         )
-        self.assertIsNone(state.max_dev_in_cycle)
-        self.assertEqual(state.last_stable, "2026.14.1")
 
-    def test_ignores_devs_from_other_cycles(self) -> None:
-        state = rdv.classify_versions(
-            ["2026.16.0.dev4", "2026.16.0.dev5", "2026.14.0"], "2026.18"
+    def test_returns_none_when_only_other_cycles_or_stables(self) -> None:
+        self.assertIsNone(
+            rdv.highest_dev_in_cycle(
+                "foo",
+                "2026.18",
+                "",
+                fetcher=_fake_fetcher(
+                    {"foo": ["2026.16.0.dev4", "2026.14.0", "0.3.0", "2026.18.0rc1"]}
+                ),
+            )
         )
-        self.assertIsNone(state.max_dev_in_cycle)
-        self.assertEqual(state.last_stable, "2026.14.0")
 
-    def test_picks_highest_dev_in_cycle(self) -> None:
-        state = rdv.classify_versions(
-            ["2026.18.0.dev0", "2026.18.0.dev12", "2026.18.0.dev5", "2026.14.0"],
-            "2026.18",
+    def test_picks_highest_matching_devN(self) -> None:
+        self.assertEqual(
+            12,
+            rdv.highest_dev_in_cycle(
+                "foo",
+                "2026.18",
+                "",
+                fetcher=_fake_fetcher(
+                    {
+                        "foo": [
+                            "2026.18.0.dev0",
+                            "2026.18.0.dev5",
+                            "2026.18.0.dev12",
+                            "2026.18.1",  # hotfix patch, not a cycle dev
+                            "2026.14.0",
+                        ]
+                    }
+                ),
+            ),
         )
-        self.assertEqual(state.max_dev_in_cycle, 12)
-        self.assertEqual(state.last_stable, "2026.14.0")
-
-    def test_ignores_non_devN_prereleases(self) -> None:
-        state = rdv.classify_versions(
-            ["2026.18.0rc1", "2026.18.0a2", "2026.14.0"], "2026.18"
-        )
-        self.assertIsNone(state.max_dev_in_cycle)
-        self.assertEqual(state.last_stable, "2026.14.0")
-
-    def test_ignores_hotfix_patches(self) -> None:
-        # 2026.18.1 is a hotfix, not a fresh cycle. The resolver only
-        # treats `YYYY.WW.0.devN` as a cycle-dev pre-release — which is
-        # what release-please will actually ship.
-        state = rdv.classify_versions(
-            ["2026.18.0", "2026.18.1", "2026.18.2"], "2026.18"
-        )
-        self.assertIsNone(state.max_dev_in_cycle)
-        self.assertEqual(state.last_stable, "2026.18.2")
 
 
 class ResolveTests(unittest.TestCase):
     def setUp(self) -> None:
         self.cycle = "2026.18"
         self.publishable = [
-            _pub("toolkit", "unique_toolkit"),
-            _pub("sdk", "unique_sdk"),
-            _pub("orchestrator", "unique_orchestrator"),
-            _pub("mcp", "unique-mcp"),
+            {"id": "toolkit", "pypi_name": "unique_toolkit", "dir": "unique_toolkit"},
+            {"id": "sdk", "pypi_name": "unique_sdk", "dir": "unique_sdk"},
+            {"id": "mcp", "pypi_name": "unique-mcp", "dir": "unique_mcp"},
         ]
 
-    def _resolve(self, selected_ids: list[str], pypi: dict[str, list[str]]):
-        return rdv.resolve(
-            cycle=self.cycle,
-            selected_ids=selected_ids,
-            publishable=self.publishable,
-            pypi_base_url="https://pypi.example",
-            fetcher=_fake_pypi(pypi),
-        )
+    def _resolve(self, selected_ids, pypi, on_disk):
+        # on_disk maps "<pkg dir>" -> "version" to stub the pyproject
+        # fallback read without touching the filesystem.
+        def fake_read(pkg_dir: Path) -> str:
+            return on_disk[str(pkg_dir)]
 
-    def test_fresh_cycle_first_push_single_package(self) -> None:
+        with patch.object(rdv, "read_pyproject_version", side_effect=fake_read):
+            return rdv.resolve(
+                cycle=self.cycle,
+                selected_ids=selected_ids,
+                publishable=self.publishable,
+                pypi_base_url="",
+                fetcher=_fake_fetcher(pypi),
+            )
+
+    def test_fresh_cycle_first_push_uses_pyproject_for_unchanged(self) -> None:
         new_versions, dep_pins = self._resolve(
             ["toolkit"],
-            {
-                "unique_toolkit": ["1.69.0", "2026.14.0"],
-                "unique_sdk": ["0.10.85", "2026.14.0"],
-                "unique_orchestrator": ["2026.14.0"],
-                "unique-mcp": ["0.3.0"],
-            },
+            pypi={"unique_toolkit": [], "unique_sdk": [], "unique-mcp": []},
+            on_disk={"unique_sdk": "0.11.6", "unique_mcp": "0.3.3"},
         )
         self.assertEqual(new_versions, {"toolkit": "2026.18.0.dev0"})
-        # Selected package pins to ==dev0.
         self.assertEqual(dep_pins["unique-toolkit"], "==2026.18.0.dev0")
-        # Non-selected deps fall back to last stable.
-        self.assertEqual(dep_pins["unique-sdk"], ">=2026.14.0")
-        self.assertEqual(dep_pins["unique-orchestrator"], ">=2026.14.0")
-        self.assertEqual(dep_pins["unique-mcp"], ">=0.3.0")
+        self.assertEqual(dep_pins["unique-sdk"], ">=0.11.6")
+        self.assertEqual(dep_pins["unique-mcp"], ">=0.3.3")
 
-    def test_cycle_with_existing_devs_for_unchanged_deps(self) -> None:
+    def test_cycle_with_existing_devs_for_unchanged(self) -> None:
         new_versions, dep_pins = self._resolve(
             ["toolkit"],
-            {
-                "unique_toolkit": ["2026.14.0", "2026.18.0.dev3"],
-                # sdk already has dev2 live in this cycle.
-                "unique_sdk": ["0.10.85", "2026.18.0.dev2"],
-                # orchestrator only has a stable — last stable wins.
-                "unique_orchestrator": ["2026.14.0"],
+            pypi={
+                "unique_toolkit": ["2026.18.0.dev3"],
+                "unique_sdk": ["2026.18.0.dev2", "0.11.6"],
                 "unique-mcp": [],
             },
+            on_disk={"unique_mcp": "0.3.3"},
         )
         self.assertEqual(new_versions, {"toolkit": "2026.18.0.dev4"})
         self.assertEqual(dep_pins["unique-toolkit"], "==2026.18.0.dev4")
         self.assertEqual(dep_pins["unique-sdk"], ">=2026.18.0.dev2")
-        self.assertEqual(dep_pins["unique-orchestrator"], ">=2026.14.0")
-        # Brand-new package with no stable and no dev: ">=0".
-        self.assertEqual(dep_pins["unique-mcp"], ">=0")
+        self.assertEqual(dep_pins["unique-mcp"], ">=0.3.3")
 
     def test_siblings_in_same_push_lockstep(self) -> None:
         new_versions, dep_pins = self._resolve(
             ["toolkit", "sdk"],
-            {
-                "unique_toolkit": ["2026.18.0.dev5", "2026.14.0"],
-                "unique_sdk": ["2026.18.0.dev9", "2026.14.0"],
-                "unique_orchestrator": ["2026.14.0"],
-                "unique-mcp": ["0.3.0"],
+            pypi={
+                "unique_toolkit": ["2026.18.0.dev5"],
+                "unique_sdk": ["2026.18.0.dev9"],
+                "unique-mcp": [],
             },
+            on_disk={"unique_mcp": "0.3.3"},
         )
         self.assertEqual(
-            new_versions,
-            {"toolkit": "2026.18.0.dev6", "sdk": "2026.18.0.dev10"},
+            new_versions, {"toolkit": "2026.18.0.dev6", "sdk": "2026.18.0.dev10"}
         )
-        # Both siblings pin each other with ==<sibling's new version>.
         self.assertEqual(dep_pins["unique-toolkit"], "==2026.18.0.dev6")
         self.assertEqual(dep_pins["unique-sdk"], "==2026.18.0.dev10")
-        self.assertEqual(dep_pins["unique-orchestrator"], ">=2026.14.0")
-        self.assertEqual(dep_pins["unique-mcp"], ">=0.3.0")
+        self.assertEqual(dep_pins["unique-mcp"], ">=0.3.3")
 
     def test_pep503_normalization(self) -> None:
         _, dep_pins = self._resolve(
             ["toolkit"],
-            {
-                n: ["2026.14.0"]
-                for n in (
-                    "unique_toolkit",
-                    "unique_sdk",
-                    "unique_orchestrator",
-                    "unique-mcp",
-                )
-            },
+            pypi={"unique_toolkit": [], "unique_sdk": [], "unique-mcp": []},
+            on_disk={"unique_sdk": "0.11.6", "unique_mcp": "0.3.3"},
         )
-        # All keys are PEP 503 normalized — underscores -> hyphens.
         self.assertIn("unique-toolkit", dep_pins)
         self.assertIn("unique-sdk", dep_pins)
         self.assertIn("unique-mcp", dep_pins)
@@ -198,21 +173,21 @@ class ResolveTests(unittest.TestCase):
                 selected_ids=[],
                 publishable=self.publishable,
                 pypi_base_url="",
-                fetcher=_fake_pypi({}),
+                fetcher=_fake_fetcher({}),
             )
 
     def test_unknown_selected_id(self) -> None:
         with self.assertRaises(SystemExit):
             rdv.resolve(
                 cycle=self.cycle,
-                selected_ids=["toolkit", "mystery"],
+                selected_ids=["mystery"],
                 publishable=self.publishable,
                 pypi_base_url="",
-                fetcher=_fake_pypi({}),
+                fetcher=_fake_fetcher({}),
             )
 
 
-class PackageConfigLoadTests(unittest.TestCase):
+class LoadPublishableTests(unittest.TestCase):
     def test_skips_publish_skip_and_missing_pypi_name(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "pkgs.json"
@@ -220,18 +195,14 @@ class PackageConfigLoadTests(unittest.TestCase):
                 json.dumps(
                     [
                         {"id": "toolkit", "pypi_name": "unique_toolkit"},
-                        {
-                            "id": "proxy",
-                            "pypi_name": "unique_search_proxy",
-                            "publish_skip": True,
-                        },
-                        {"id": "no_name"},  # omitted silently
+                        {"id": "proxy", "pypi_name": "x", "publish_skip": True},
+                        {"id": "no_name"},
                         {"id": "sdk", "pypi_name": "unique_sdk"},
                     ]
                 )
             )
-            pubs = rdv.load_publishable(path)
-            self.assertEqual([p.id for p in pubs], ["toolkit", "sdk"])
+            pubs = rdv._load_publishable(path)
+            self.assertEqual([p["id"] for p in pubs], ["toolkit", "sdk"])
 
 
 if __name__ == "__main__":
