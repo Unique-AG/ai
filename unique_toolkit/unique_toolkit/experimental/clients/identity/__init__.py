@@ -1,4 +1,4 @@
-"""``unique_toolkit.experimental.clients.identity`` — user and group directory management.
+"""``unique_toolkit.experimental.clients.identity`` — the :class:`Identity` facade.
 
 .. warning::
 
@@ -6,32 +6,35 @@
     :mod:`unique_toolkit.experimental` and its public API may change without
     notice. It is not covered by the toolkit's normal stability guarantees.
 
-A thin, Linux-inspired wrapper around :mod:`unique_sdk.User` and
-:mod:`unique_sdk.Group`. The package exposes:
+:class:`Identity` is the one-stop facade that bundles both directory
+resources behind a single ``(user_id, company_id)`` object:
 
-- :class:`Identity` — facade that bundles both sub-services behind
-  ``.users`` and ``.groups``.
-- :class:`Users` — CRUD-style API for users (``list``, ``get``,
-  ``update_configuration``) plus ``groups_of`` / ``is_member``.
-- :class:`Groups` — CRUD-style API for groups (``list``, ``create``,
-  ``delete``, ``rename``, ``update_configuration``) plus
-  ``add_members`` / ``remove_members``.
+- :attr:`Identity.users` → :class:`~unique_toolkit.experimental.resources.users.Users`
+- :attr:`Identity.groups` → :class:`~unique_toolkit.experimental.resources.groups.Groups`
 
-The Pydantic response schemas (``UserInfo``, ``GroupInfo``, ...) are also
-re-exported here for convenience.
+For convenience, the :class:`Users` and :class:`Groups` services together
+with their Pydantic response schemas (:class:`UserInfo`, :class:`GroupInfo`,
+...) are re-exported here. The actual implementations live in
+:mod:`unique_toolkit.experimental.resources.users` and
+:mod:`unique_toolkit.experimental.resources.groups`; import from there when
+you only need a single resource.
 """
 
-from unique_toolkit.experimental.clients.identity.schemas import (
+from unique_toolkit.experimental.clients.identity.service import Identity
+from unique_toolkit.experimental.resources.groups import (
     GroupDeleted,
     GroupInfo,
     GroupMember,
     GroupMembership,
+    Groups,
     GroupWithConfiguration,
+)
+from unique_toolkit.experimental.resources.users import (
     UserGroupMembership,
     UserInfo,
+    Users,
     UserWithConfiguration,
 )
-from unique_toolkit.experimental.clients.identity.service import Groups, Identity, Users
 
 __all__ = [
     "GroupDeleted",
