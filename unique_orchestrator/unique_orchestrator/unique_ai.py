@@ -211,17 +211,18 @@ class UniqueAI:
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )
 
-        stripped_text = await preload_invoked_skills(
-            event=self._event,
-            tool_manager=self._tool_manager,
-            history_manager=self._history_manager,
-            logger=self._logger,
-        )
-        if stripped_text is not None:
-            self._event.payload.user_message.text = stripped_text
-
         self._execution_times = []
         run_start = time.perf_counter()
+
+        if self._config.agent.experimental.skill_tool_config.enabled:
+            stripped_text = await preload_invoked_skills(
+                event=self._event,
+                tool_manager=self._tool_manager,
+                history_manager=self._history_manager,
+                logger=self._logger,
+            )
+            if stripped_text is not None:
+                self._event.payload.user_message.text = stripped_text
 
         sub = self._chat_service.cancellation.on_cancellation.subscribe(
             self._on_cancellation
