@@ -27,16 +27,10 @@ class Module(APIResource["Module"]):
     def class_url(cls) -> str:
         return cls.RESOURCE_URL
 
-    # -- Nested param / return types ----------------------------------------
-
     class ListParams(RequestOptions):
-        """Optional filters for listing modules."""
-
         assistantId: NotRequired[str | None]
 
     class CreateParams(RequestOptions):
-        """Parameters for creating a module."""
-
         assistantId: str
         name: str
         description: NotRequired[str | None]
@@ -48,8 +42,6 @@ class Module(APIResource["Module"]):
         moduleTemplateId: NotRequired[str | None]
 
     class ModifyParams(RequestOptions):
-        """Parameters for updating a module.  All fields are optional."""
-
         name: NotRequired[str | None]
         description: NotRequired[str | None]
         weight: NotRequired[int | None]
@@ -62,8 +54,6 @@ class Module(APIResource["Module"]):
         id: str
         object: str
         deleted: bool
-
-    # -- Instance fields (typing only) --------------------------------------
 
     id: str
     name: str
@@ -78,8 +68,6 @@ class Module(APIResource["Module"]):
     createdAt: str
     updatedAt: str
 
-    # -- Sync methods -------------------------------------------------------
-
     @classmethod
     def list(
         cls,
@@ -87,8 +75,27 @@ class Module(APIResource["Module"]):
         company_id: str,
         **params: Unpack["Module.ListParams"],
     ) -> builtins.list["Module"]:
-        """List all modules, optionally filtered by assistantId."""
         result = cls._static_request(
+            "get",
+            cls.RESOURCE_URL,
+            user_id,
+            company_id,
+            params or None,
+        )
+        if isinstance(result, builtins.list):
+            data = result
+        else:
+            data = result.get("data", []) if hasattr(result, "get") else []
+        return cast(builtins.list["Module"], data)
+
+    @classmethod
+    async def list_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Module.ListParams"],
+    ) -> builtins.list["Module"]:
+        result = await cls._static_request_async(
             "get",
             cls.RESOURCE_URL,
             user_id,
@@ -108,11 +115,23 @@ class Module(APIResource["Module"]):
         company_id: str,
         id: str,
     ) -> "Module":
-        """Retrieve a single module by ID."""
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
         return cast(
             "Module",
             cls._static_request("get", url, user_id, company_id),
+        )
+
+    @classmethod
+    async def retrieve_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        id: str,
+    ) -> "Module":
+        url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
+        return cast(
+            "Module",
+            await cls._static_request_async("get", url, user_id, company_id),
         )
 
     @classmethod
@@ -122,10 +141,27 @@ class Module(APIResource["Module"]):
         company_id: str,
         **params: Unpack["Module.CreateParams"],
     ) -> "Module":
-        """Create a new module."""
         return cast(
             "Module",
             cls._static_request(
+                "post",
+                cls.RESOURCE_URL,
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def create_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["Module.CreateParams"],
+    ) -> "Module":
+        return cast(
+            "Module",
+            await cls._static_request_async(
                 "post",
                 cls.RESOURCE_URL,
                 user_id,
@@ -142,81 +178,10 @@ class Module(APIResource["Module"]):
         id: str,
         **params: Unpack["Module.ModifyParams"],
     ) -> "Module":
-        """Update an existing module.  Only supplied fields are changed."""
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
         return cast(
             "Module",
             cls._static_request("patch", url, user_id, company_id, params),
-        )
-
-    @classmethod
-    def delete(
-        cls,
-        user_id: str,
-        company_id: str,
-        id: str,
-    ) -> "Module.DeletedObject":
-        """Permanently delete a module."""
-        url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
-        return cast(
-            "Module.DeletedObject",
-            cls._static_request("delete", url, user_id, company_id),
-        )
-
-    # -- Async methods ------------------------------------------------------
-
-    @classmethod
-    async def list_async(
-        cls,
-        user_id: str,
-        company_id: str,
-        **params: Unpack["Module.ListParams"],
-    ) -> builtins.list["Module"]:
-        """Async list all modules, optionally filtered by assistantId."""
-        result = await cls._static_request_async(
-            "get",
-            cls.RESOURCE_URL,
-            user_id,
-            company_id,
-            params or None,
-        )
-        if isinstance(result, builtins.list):
-            data = result
-        else:
-            data = result.get("data", []) if hasattr(result, "get") else []
-        return cast(builtins.list["Module"], data)
-
-    @classmethod
-    async def retrieve_async(
-        cls,
-        user_id: str,
-        company_id: str,
-        id: str,
-    ) -> "Module":
-        """Async retrieve a single module by ID."""
-        url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
-        return cast(
-            "Module",
-            await cls._static_request_async("get", url, user_id, company_id),
-        )
-
-    @classmethod
-    async def create_async(
-        cls,
-        user_id: str,
-        company_id: str,
-        **params: Unpack["Module.CreateParams"],
-    ) -> "Module":
-        """Async create a new module."""
-        return cast(
-            "Module",
-            await cls._static_request_async(
-                "post",
-                cls.RESOURCE_URL,
-                user_id,
-                company_id,
-                params,
-            ),
         )
 
     @classmethod
@@ -227,11 +192,23 @@ class Module(APIResource["Module"]):
         id: str,
         **params: Unpack["Module.ModifyParams"],
     ) -> "Module":
-        """Async update an existing module.  Only supplied fields are changed."""
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
         return cast(
             "Module",
             await cls._static_request_async("patch", url, user_id, company_id, params),
+        )
+
+    @classmethod
+    def delete(
+        cls,
+        user_id: str,
+        company_id: str,
+        id: str,
+    ) -> "Module.DeletedObject":
+        url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
+        return cast(
+            "Module.DeletedObject",
+            cls._static_request("delete", url, user_id, company_id),
         )
 
     @classmethod
@@ -241,7 +218,6 @@ class Module(APIResource["Module"]):
         company_id: str,
         id: str,
     ) -> "Module.DeletedObject":
-        """Async permanently delete a module."""
         url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(id))
         return cast(
             "Module.DeletedObject",
