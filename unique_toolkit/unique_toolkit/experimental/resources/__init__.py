@@ -24,9 +24,14 @@ Planned contents (current home → new home):
 * ``users``            ← :mod:`unique_toolkit.experimental.identity` (user part)
 * ``groups``           ← :mod:`unique_toolkit.experimental.identity` (group part)
 * ``content_folder``   ← :mod:`unique_toolkit.experimental.content_folder`
-* ``content_tree``     ← :mod:`unique_toolkit.experimental.content_tree`
 * ``scheduled_task``   ← :mod:`unique_toolkit.experimental.scheduled_task`
 
-``identity`` itself is a facade (see :mod:`..clients.identity`), not a
-resource — it bundles :mod:`.users` + :mod:`.groups`.
+Two things that *look* like they should live here but do not:
+
+* ``identity`` is a facade (see :mod:`..clients.identity`), not a
+  resource — it bundles :mod:`.users` + :mod:`.groups`.
+* ``content_tree`` is a capability (see :mod:`..capabilities.content_tree`)
+  — it does not wrap a ``unique_sdk`` endpoint, it composes the ``content``
+  resource into a derived view (parallel pagination, scope-id resolution,
+  trie rendering, fuzzy search).
 """
