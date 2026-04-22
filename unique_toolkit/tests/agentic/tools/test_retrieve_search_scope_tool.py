@@ -353,7 +353,7 @@ class TestHistoryGuard:
         self, tool: RetrieveSearchScopeTool, mock_tool_call: LanguageModelFunction
     ):
         prior_msg = Mock()
-        prior_msg.role.value = "tool"
+        prior_msg.role = "tool"
         prior_msg.name = "RetrieveSearchScope"
 
         mock_chat_service = Mock()
@@ -372,7 +372,7 @@ class TestHistoryGuard:
         mocker: MockerFixture,
     ):
         user_msg = Mock()
-        user_msg.role.value = "user"
+        user_msg.role = "user"
         user_msg.name = None
 
         mock_chat_service = Mock()
