@@ -25,6 +25,5 @@ META_FLAT_ALIASES: dict[str, str] = {
     MetaKeys.CHAT_ID: "chatId",
     MetaKeys.USER_MESSAGE_ID: "messageId",
 }
-"""Flat camelCase aliases from pre-#22513 builds, used for FF-gated fallback."""
 
 __all__ = ["MetaKeys", "META_FLAT_ALIASES"]
