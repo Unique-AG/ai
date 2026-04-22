@@ -20,4 +20,7 @@ Planned contents (current home → new home):
 * ``config_checker``         ← :mod:`unique_toolkit._common.config_checker`
 * ``docx_generator``         ← :mod:`unique_toolkit._common.docx_generator`
 * ``tokenization``           ← :mod:`unique_toolkit._common.token`
+* ``content_tree``           ← :mod:`unique_toolkit.experimental.content_tree`
+  (derived tree/fuzzy-search view over the ``content`` resource; does not
+  wrap an SDK endpoint of its own)
 """
