@@ -102,14 +102,14 @@ class UniqueServiceFactory:
         """Create a :class:`KnowledgeBaseService` using the pre-bound context."""
         return self.get(KnowledgeBaseService, **kwargs)
 
-    def chunk_relevancy_sorter(self, **kwargs: Any) -> ChunkRelevancySorter:
+    def chunk_relevancy_sorter(self) -> ChunkRelevancySorter:
         """Create a :class:`ChunkRelevancySorter` using the pre-bound context."""
         # issue with circular imports - need to use this
         from unique_toolkit._common.chunk_relevancy_sorter.service import (
             ChunkRelevancySorter as _ChunkRelevancySorter,
         )
 
-        return _ChunkRelevancySorter.from_settings(self._settings, **kwargs)
+        return _ChunkRelevancySorter.from_settings(self._settings)
 
     # ── Class-level registry operations ──────────────────────────────────────
 

@@ -1,5 +1,5 @@
 import asyncio
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from typing import Any, Self
 
@@ -33,6 +33,7 @@ from unique_toolkit.content import (
 
 
 class InternalSearchBaseService(
+    ABC,
     BaseService[
         InternalSearchResult,
         InternalSearchConfig,
