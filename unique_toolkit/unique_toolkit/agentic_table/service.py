@@ -282,7 +282,7 @@ class AgenticTableService:
             includeCells=False,
             includeLogHistory=False,
         )
-        return sheet_info["magicTableRowCount"]
+        return sheet_info["magicTableRowCount"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
 
     async def get_sheet(
         self,
@@ -316,7 +316,7 @@ class AgenticTableService:
             includeLogHistory=False,
             includeCellMetaData=False,
         )
-        total_rows = sheet_info["magicTableRowCount"]
+        total_rows = sheet_info["magicTableRowCount"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
         if end_row is None or end_row > total_rows:
             end_row = total_rows
         if start_row > end_row:
@@ -391,7 +391,7 @@ class AgenticTableService:
         )
         return [
             RowMetadataEntry.model_validate(metadata)
-            for metadata in sheet_info["magicTableSheetMetadata"]
+            for metadata in sheet_info["magicTableSheetMetadata"]  # pyright: ignore[reportTypedDictNotRequiredAccess]
         ]
 
     async def set_cell_metadata(

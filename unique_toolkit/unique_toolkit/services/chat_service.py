@@ -1924,7 +1924,7 @@ class ChatService(ChatServiceDeprecated):
         search_language: str = DEFAULT_SEARCH_LANGUAGE,
         reranker_config: ContentRerankerConfig | None = None,
         scope_ids: list[str] | None = None,
-        metadata_filter: dict | None = None,
+        metadata_filter: dict[str, object] | None = None,
         content_ids: list[str] | None = None,
         score_threshold: float | None = None,
     ) -> list[ContentChunk]:
@@ -1948,7 +1948,7 @@ class ChatService(ChatServiceDeprecated):
     async def search_contents_async(
         self,
         *,
-        where: dict,
+        where: dict[str, object],
         include_failed_content: bool = False,
     ) -> list[Content]:
         """Search content files uploaded to this chat session."""

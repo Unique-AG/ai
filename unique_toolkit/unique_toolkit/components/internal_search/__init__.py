@@ -2,8 +2,8 @@ from .base import (
     DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED,
     DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED,
     HasChunkRelevancySorter,
+    InternalSearchBaseService,
     InternalSearchConfig,
-    InternalSearchExecutionBaseService,
     InternalSearchProgressMessage,
     InternalSearchResult,
     InternalSearchStage,
@@ -24,7 +24,7 @@ __all__ = [
     # base
     "HasChunkRelevancySorter",
     "InternalSearchConfig",
-    "InternalSearchExecutionBaseService",
+    "InternalSearchBaseService",
     "InternalSearchProgressMessage",
     "InternalSearchResult",
     "InternalSearchStage",
