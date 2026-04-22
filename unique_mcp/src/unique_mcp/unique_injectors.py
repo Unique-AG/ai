@@ -178,13 +178,9 @@ def _base_settings() -> UniqueSettings:
 
 
 def get_request_meta() -> dict[str, Any] | None:
-    """Return the raw ``_meta`` dict of the active FastMCP request, if any.
+    """Standard injector for raw ``_meta`` access.
 
-    Public injector, typically used via ``Depends(get_request_meta)`` by
-    tools that need access to request-scope keys that are not covered by
-    :class:`~unique_toolkit.app.unique_settings.AuthContext` or
-    :class:`~unique_toolkit.app.unique_settings.ChatContext` (for example
-    search scoping fields like ``unique.app/search/content-ids``).
+    Use via ``Depends(get_request_meta)`` instead of reaching into FastMCP internals.
     """
     return _fastmcp_read_meta_dict()
 
