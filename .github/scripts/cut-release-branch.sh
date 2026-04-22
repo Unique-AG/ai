@@ -55,26 +55,15 @@ CYCLE="${VERSION%.0}"
 BRANCH="release/${CYCLE}"
 TAG="${SENTINEL_PKG}-v${VERSION}"
 
-# release-please.yaml runs concurrently on the same push and is what
-# actually creates the sentinel tag. Poll until the tag shows up (or we
-# hit the timeout) so we survive the race without relying on cross-
-# workflow chaining. Defaults: 5 minutes, refetching every 10s.
-TIMEOUT="${CUT_BRANCH_TIMEOUT:-300}"
-INTERVAL="${CUT_BRANCH_INTERVAL:-10}"
-deadline=$(( SECONDS + TIMEOUT ))
-
-while true; do
-  git fetch --quiet --tags "$REMOTE"
-  if git rev-parse --verify "refs/tags/${TAG}" >/dev/null 2>&1; then
-    break
-  fi
-  if (( SECONDS >= deadline )); then
-    echo "::error::tag ${TAG} not found after ${TIMEOUT}s. Did release-please create the tag?" >&2
-    exit 1
-  fi
-  echo "Tag ${TAG} not visible yet; retrying in ${INTERVAL}s"
-  sleep "$INTERVAL"
-done
+# This script runs in the `cut-and-arm` job of release-please.yaml, which
+# `needs:` the release-please job. That guarantees the sentinel tag has
+# already been pushed by the time we get here, so a single fetch is
+# enough — no polling or race-handling needed.
+git fetch --quiet --tags "$REMOTE"
+if ! git rev-parse --verify "refs/tags/${TAG}" >/dev/null 2>&1; then
+  echo "::error::tag ${TAG} not found. Did release-please create the tag?" >&2
+  exit 1
+fi
 
 SHA=$(git rev-list -n 1 "refs/tags/${TAG}")
 

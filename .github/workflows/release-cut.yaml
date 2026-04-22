@@ -1,7 +1,7 @@
 name: "Release · Cut (manual override)"
 
-# In steady state the release-cut is fully automated by
-# `post-release.yaml`: merging the Release PR on `main` cuts the
+# In steady state the release-cut is fully automated by the `cut-and-arm`
+# job in `release-please.yaml`: merging the Release PR on `main` cuts the
 # `release/YYYY.WW` branch and arms the next cycle automatically.
 #
 # This workflow is the manual escape hatch for cases where that
