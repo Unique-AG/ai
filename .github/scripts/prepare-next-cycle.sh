@@ -57,8 +57,14 @@ if ! git config user.email >/dev/null 2>&1; then
 fi
 
 git fetch --no-tags "$REMOTE" "$BRANCH"
-if git log "${REMOTE}/${BRANCH}" --grep "^Release-As: ${VERSION}$" \
-      --fixed-strings -n 1 --format=%H | grep -q .; then
+# Escape regex metachars in VERSION (dots) so the BRE below matches literally,
+# while keeping `^`/`$` as line anchors. `--fixed-strings` can't be used here
+# because it would also neuter the anchors and cause false positives for
+# versions that share a numeric prefix (e.g. 2026.20.0 vs 2026.20.0.dev1).
+ESCAPED_VERSION="${VERSION//./\\.}"
+if git log "${REMOTE}/${BRANCH}" \
+      --grep "^Release-As: ${ESCAPED_VERSION}$" \
+      -n 1 --format=%H | grep -q .; then
   echo "Release-As: ${VERSION} already present on ${REMOTE}/${BRANCH}; nothing to do."
   exit 0
 fi

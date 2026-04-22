@@ -11,7 +11,11 @@ set -euo pipefail
 BASE="${1:?Usage: $0 <base-sha> <head-sha>}"
 HEAD="${2:?Usage: $0 <base-sha> <head-sha>}"
 
-CHANGED=$(git diff --name-only "$BASE" "$HEAD")
+# Diff from the merge-base, not the base tip, so changes landed on the
+# base branch (e.g. release-please merges) don't show up as if the PR
+# author made them.
+MERGE_BASE=$(git merge-base "$BASE" "$HEAD")
+CHANGED=$(git diff --name-only "$MERGE_BASE" "$HEAD")
 ERRORS=()
 
 while IFS= read -r file; do
@@ -26,7 +30,7 @@ fi
 
 TOMLS=$(echo "$CHANGED" | grep 'pyproject.toml$' || true)
 for toml in $TOMLS; do
-  if git diff "$BASE" "$HEAD" -- "$toml" | grep -qE '^\+version = '; then
+  if git diff "$MERGE_BASE" "$HEAD" -- "$toml" | grep -qE '^\+version = '; then
     ERRORS+=("$toml (version changed)")
   fi
 done

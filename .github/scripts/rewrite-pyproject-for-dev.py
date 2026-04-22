@@ -50,12 +50,22 @@ AI_PACKAGES = {
 _REQ_RE = re.compile(r"^\s*([A-Za-z0-9_.\-]+)(\[[^\]]*\])?\s*(.*)$")
 
 
+def _normalize(name: str) -> str:
+    # PEP 503 project name normalization — underscores and dots collapse
+    # to hyphens, so `unique_toolkit`, `unique.toolkit` and `unique-toolkit`
+    # all compare equal.
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+_AI_PACKAGES_NORMALIZED = {_normalize(n) for n in AI_PACKAGES}
+
+
 def rewrite_req(raw: str, dev_version: str) -> tuple[str, bool]:
     m = _REQ_RE.match(raw)
     if not m:
         return raw, False
     name, extras = m.group(1), m.group(2) or ""
-    if name.lower() not in AI_PACKAGES:
+    if _normalize(name) not in _AI_PACKAGES_NORMALIZED:
         return raw, False
     return f"{name}{extras}>={dev_version}", True
 
