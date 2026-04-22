@@ -67,7 +67,7 @@ class RetrieveSearchScopeTool(Tool[RetrieveSearchScopeConfig]):
         try:
             history = await self._chat_service.get_full_history_async()
             for msg in history:
-                if msg.role.value == "tool" and getattr(msg, "name", None) == self.name:  # type: ignore[comparison-overlap]
+                if str(msg.role) == "tool" and getattr(msg, "name", None) == self.name:
                     return True
         except Exception:
             _LOGGER.debug(
