@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel
-from pydantic_settings import BaseSettings
 from typing_extensions import Self
 
 from unique_toolkit._common.event_bus import TypedEventBus
@@ -15,7 +14,6 @@ from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 
 RunResult = TypeVar("RunResult", bound=BaseModel)
 Config = TypeVar("Config", bound=BaseModel)
-Settings = TypeVar("Settings", bound=BaseSettings)
 Context = TypeVar("Context")
 ServiceState = TypeVar("ServiceState")
 ProgressMessage = TypeVar("ProgressMessage")
@@ -46,32 +44,16 @@ class _ConfigMixin(ABC, Generic[Config]):
         return cls.from_config(parsed)
 
 
-class _SettingsMixin(ABC, Generic[Settings]):
-    """Implement if the service needs immutable env-var settings loaded at init."""
-
-    @property
-    @abstractmethod
-    def settings(self) -> Settings: ...
-
-
 class _ContextMixin(ABC, Generic[Context]):
     @property
     @abstractmethod
     def context(self) -> Context: ...
-
-    @context.setter
-    @abstractmethod
-    def context(self, context: Context) -> None: ...
 
 
 class _StateMixin(ABC, Generic[ServiceState]):
     @property
     @abstractmethod
     def state(self) -> ServiceState: ...
-
-    @state.setter
-    @abstractmethod
-    def state(self, state: ServiceState) -> None: ...
 
     @abstractmethod
     def reset_state(self) -> None: ...
@@ -96,10 +78,6 @@ class _DependenciesMixin(ABC, Generic[Deps]):
     @property
     @abstractmethod
     def dependencies(self) -> Deps: ...
-
-    @dependencies.setter
-    @abstractmethod
-    def dependencies(self, deps: Deps) -> None: ...
 
 
 class BaseService(  # pyright: ignore[reportImplicitAbstractClass]
@@ -166,4 +144,4 @@ class BaseService(  # pyright: ignore[reportImplicitAbstractClass]
         return logging.getLogger(f"{type(self).__module__}.{type(self).__qualname__}")
 
 
-__all__ = ["BaseService", "_SettingsMixin"]
+__all__ = ["BaseService"]
