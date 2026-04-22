@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Code interpreter fence system prompt (`DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): tighten HTML/CSS guidance for chat iframe rendering (UN-19711) — forbid viewport/percentage heights on `html`/`body`, require bounded measurable heights for chart/dashboard containers, discourage top-level `position: fixed`/`absolute` that break auto-height measurement, and require Plotly `write_html`/`to_html` to use `include_plotlyjs="cdn"` plus `default_height` so outputs stay uploadable and measurable in chat.
 
+## [1.80.2] - 2026-04-22
+### Added
+- Add `Tool.tool_system_reminder_for_user_prompt()` hook returning a per-turn `<system-reminder>` string that the orchestrator can inject as its own `{"type": "text"}` part on the latest user message. Override in tools whose state changes between turns (e.g. the Skill tool's list of currently loaded skills). Defaults to `""`.
+- Add `tool_system_reminder_for_user_prompt` field to `ToolPrompts`; populated automatically from the new hook in `Tool.prompts()`.
+
 ## [1.80.1] - 2026-04-22
 - Fix is_ingested logic on `Content`. Specifically, when ingestion mode is `SKIP_EXCEL_INGESTION`, only returns `False` is mime type is excel or csv
 

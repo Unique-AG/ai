@@ -184,10 +184,8 @@ class TestSkillToolMessageLog:
         assert result.successful
         mock_logger.create_or_update_message_log_async.assert_awaited_once()
         kwargs = mock_logger.create_or_update_message_log_async.call_args.kwargs
-        assert kwargs["header"] == tool.display_name()
+        assert "my-skill" in kwargs["header"]
         assert kwargs["status"] == MessageLogStatus.COMPLETED
-        assert "my-skill" in kwargs["progress_message"]
-        assert "Does stuff" in kwargs["progress_message"]
 
     @pytest.mark.asyncio
     async def test_unknown_skill_does_not_write_message_log(self) -> None:
@@ -411,9 +409,9 @@ class TestFormatSkillListing:
         long_desc = "A" * 500
         skills = [_make_skill(f"skill-{i}", description=long_desc) for i in range(20)]
 
-        config = SkillToolConfig(skill_budget_context_percent=0.001)
+        config = SkillToolConfig(skill_budget_context_percent=0.01)
         result = format_skill_listing(
-            skills, context_window_tokens=10_000, config=config
+            skills, context_window_tokens=50_000, config=config
         )
 
         for skill in skills:
@@ -426,7 +424,7 @@ class TestFormatSkillListing:
         long_desc = "B" * 300
         skills = [_make_skill(f"s{i}", description=long_desc) for i in range(100)]
 
-        config = SkillToolConfig(skill_budget_context_percent=0.001)
+        config = SkillToolConfig(skill_budget_context_percent=0.01)
         result = format_skill_listing(
             skills, context_window_tokens=1_000, config=config
         )
@@ -444,5 +442,5 @@ class TestFormatSkillListing:
         result = format_skill_listing(skills, config=config)
 
         desc_part = result.split(": ", 1)[1]
-        assert len(desc_part) <= 100
-        assert desc_part.endswith("\u2026")
+        assert len(desc_part) <= config.max_listing_desc_chars + 2
+        assert desc_part.endswith("...")

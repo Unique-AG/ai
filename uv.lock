@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-08T08:06:09.370781Z"
+exclude-newer = "2026-04-08T08:12:34.662663Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5336,7 +5336,7 @@ dev = []
 
 [[package]]
 name = "unique-orchestrator"
-version = "1.22.2"
+version = "1.23.0"
 source = { editable = "unique_orchestrator" }
 dependencies = [
     { name = "jinja2" },
@@ -5582,7 +5582,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-version = "1.82.0"
+version = "1.80.2"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
