@@ -12,6 +12,16 @@ API. The toolkit uses **scope_id** for that value everywhere (same string as in 
 
 By default, :class:`ContentFolder` grants the acting user READ+WRITE on each new folder
 (``private_to_creator=True``) unless you inherit parent ACL or opt out—see service docs.
+
+**Classification note (reorg proposal).** The ``private_to_creator`` ACL
+grant on create is *toolkit* behavior layered on top of two raw SDK calls
+(``Folder.create`` + ``Folder.create_access``), which in isolation would
+argue for extracting a ``capabilities/content_acl`` module. It stays inline
+here for two reasons: (1) it is opt-out (``private_to_creator=False`` falls
+through to pure SDK semantics), and (2) it preserves the common-case
+invariant that a creator can read the folder they just created. If more
+ACL-shaped behavior (role replacement, bulk reassignment, audit) shows up,
+lift it into its own capability then.
 """
 
 from __future__ import annotations
