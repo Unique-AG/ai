@@ -40,6 +40,18 @@ jobs:
       - name: Cut release branch from tagged commit
         run: ./.github/scripts/cut-release-branch.sh
 
+      - name: Kick ci-publish for stable wheels
+        # release-please.yaml creates GitHub releases using the default
+        # GITHUB_TOKEN, and GitHub's anti-recursion rule means those
+        # `release:published` events never fire ci-publish.yaml. Dispatch
+        # it here so stable wheels actually land on PyPI. `package=all`
+        # matches the lockstep release (all packages at YYYY.WW.0). Runs
+        # before the next-cycle arm so the checked-out ref still points at
+        # the release commit whose versions match the freshly created tags.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run ci-publish.yaml --ref main -f package=all
+
       - name: Arm next cycle on main
         run: ./.github/scripts/prepare-next-cycle.sh
 
@@ -55,5 +67,6 @@ jobs:
         run: |
           echo "### Post-release actions" >> "$GITHUB_STEP_SUMMARY"
           echo "- Cut \`release/\` branch from the tagged release commit" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Kicked \`ci-publish.yaml\` (package=all) to publish stable wheels to PyPI" >> "$GITHUB_STEP_SUMMARY"
           echo "- Pushed \`Release-As:\` trailer on \`main\` to arm the next cycle" >> "$GITHUB_STEP_SUMMARY"
           echo "- Kicked release-please to refresh the standing Release PR" >> "$GITHUB_STEP_SUMMARY"
