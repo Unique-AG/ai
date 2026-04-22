@@ -53,6 +53,7 @@ from unique_toolkit.protocols.support import (
 from unique_orchestrator._builders.inject_tool_reminders import (
     inject_tool_reminders_into_user_message,
 )
+from unique_orchestrator._builders.skill_setup import preload_invoked_skills
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.utils import filter_uploaded_documents_by_selection
 
@@ -209,6 +210,15 @@ class UniqueAI:
             await self._chat_service.modify_assistant_message_async(
                 content="Starting agentic loop..."  # TODO: this must be more informative
             )
+
+        stripped_text = await preload_invoked_skills(
+            event=self._event,
+            tool_manager=self._tool_manager,
+            history_manager=self._history_manager,
+            logger=self._logger,
+        )
+        if stripped_text is not None:
+            self._event.payload.user_message.text = stripped_text
 
         self._execution_times = []
         run_start = time.perf_counter()

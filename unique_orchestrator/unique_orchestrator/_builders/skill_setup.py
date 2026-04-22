@@ -28,6 +28,8 @@ from typing import TYPE_CHECKING, Any
 import yaml
 from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
+from unique_skill_tool.utils import extract_prefix_skills
+from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.content.schemas import Content, ContentInfo
 from unique_toolkit.content.smart_rules import (
     AndStatement,
@@ -35,9 +37,11 @@ from unique_toolkit.content.smart_rules import (
     OrStatement,
     Statement,
 )
+from unique_toolkit.language_model.schemas import LanguageModelFunction
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
 if TYPE_CHECKING:
+    from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
     from unique_toolkit.agentic.tools.tool_manager import (
         ResponsesApiToolManager,
         ToolManager,
@@ -280,3 +284,64 @@ def configure_skill_tool(
             config=skill_config,
         )
     )
+
+
+async def preload_invoked_skills(
+    *,
+    event: ChatEvent,
+    tool_manager: ToolManager | ResponsesApiToolManager,
+    history_manager: HistoryManager,
+    logger: Logger,
+) -> str | None:
+    """Preload skills invoked as ``/skill-name`` prefix(es) in the user message.
+
+    Mirrors the normal mid-loop activation path so preloaded skills are
+    indistinguishable from skills the model activates itself:
+
+    1. Parses consecutive ``/skill-name`` tokens from the start of the
+       user message.
+    2. For each matched skill, synthesizes a ``LanguageModelFunction``
+       and runs it through the already-registered ``SkillTool`` — the
+       exact same code path ``UniqueAI._handle_tool_calls`` uses.
+    3. Appends the synthetic assistant tool-call message plus the
+       resulting tool-result messages to history, so the first model
+       turn sees the skills as already-activated tool calls.
+    4. Strips the matched ``/skill-name`` tokens from the user message
+       so the rendered turn shows only the user's actual query.
+
+    No-ops when the SkillTool is not registered or no tokens match.
+    """
+    skill_tool = tool_manager.get_tool_by_name(SkillTool.name)
+    if not isinstance(skill_tool, SkillTool):
+        return None
+
+    original_text = event.payload.user_message.text or ""
+
+    skills, stripped_text = extract_prefix_skills(
+        original_text, skill_tool.skill_registry
+    )
+    if not skills:
+        return None
+
+    tool_calls: list[LanguageModelFunction] = []
+    responses: list[ToolCallResponse] = []
+    for skill in skills:
+        tool_call = LanguageModelFunction(
+            name=SkillTool.name,
+            arguments={"skill_name": skill.name},
+        )
+        response = await skill_tool.run(tool_call)
+        tool_calls.append(tool_call)
+        responses.append(response)
+        history_manager.add_tool_call(tool_call)
+
+    history_manager._append_tool_calls_to_history(tool_calls)
+    history_manager.add_tool_call_results(responses)
+
+    logger.info(
+        "Preloaded %d skill(s) from slash invocation: %s",
+        len(skills),
+        [s.name for s in skills],
+    )
+
+    return stripped_text
