@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.11] - 2026-04-22
+- Add `Space.get_spaces` / `Space.get_spaces_async` to list spaces with optional name filter and skip/take pagination
+
 ## [0.11.10] - 2026-04-21
 - Fix `unique-cli mcp` crashing with `AttributeError: isError` on spec-compliant `CallToolResult` responses that only include `content`. `format_mcp_response` now reads `isError`, `name`, and `mcpServerId` defensively via `getattr(..., default)` and accepts a keyword-only `tool_name` fallback so the header stays informative when the server omits `name`
 - `cmd_mcp` now threads the parsed payload name into `format_mcp_response` and wraps the final format step in a defensive `try/except` that prints the raw response payload instead of a traceback if the formatter ever errors
