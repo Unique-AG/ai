@@ -84,26 +84,33 @@ def _build_subtree_metadata_filter(*, scope_ids: list[str]) -> dict[str, Any]:
 def _parse_frontmatter(*, text: str) -> tuple[dict[str, Any], str]:
     """Split YAML frontmatter from the markdown body.
 
+    Follows the standard YAML frontmatter convention: the document must
+    begin with a ``---`` delimiter on its own line, and the frontmatter
+    block ends at the next ``---`` (or ``...``) on its own line.  ``---``
+    appearing inside values (e.g. ``name: my---skill``) is not treated as
+    a delimiter.
+
     Returns ``(frontmatter_dict, body)``.  If no frontmatter is found,
     the dict is empty and the full text is returned as the body.
     """
-    if not text.startswith("---"):
+    lines = text.splitlines(keepends=True)
+    if not lines or lines[0].rstrip("\r\n") != "---":
         return {}, text
 
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return {}, text
+    for idx in range(1, len(lines)):
+        stripped = lines[idx].rstrip("\r\n")
+        if stripped == "---" or stripped == "...":
+            fm_text = "".join(lines[1:idx])
+            body = "".join(lines[idx + 1 :]).lstrip("\n")
+            try:
+                fm = yaml.safe_load(fm_text)
+            except yaml.YAMLError:
+                return {}, text
+            if not isinstance(fm, dict):
+                return {}, text
+            return fm, body
 
-    try:
-        fm = yaml.safe_load(parts[1])
-    except yaml.YAMLError:
-        return {}, text
-
-    if not isinstance(fm, dict):
-        return {}, text
-
-    body = parts[2].lstrip("\n")
-    return fm, body
+    return {}, text
 
 
 def _build_skill(

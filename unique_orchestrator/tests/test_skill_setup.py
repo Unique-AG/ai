@@ -319,6 +319,28 @@ class TestParseFrontmatter:
         assert fm == {}
         assert body == "---\n- a\n- b\n---\nbody\n"
 
+    def test_inline_triple_dash_in_value_is_not_delimiter(self) -> None:
+        """``---`` inside a value must not terminate the frontmatter block."""
+        text = (
+            "---\n"
+            "name: my---skill\n"
+            "description: uses --- internally\n"
+            "---\n"
+            "real body\n"
+        )
+        fm, body = _parse_frontmatter(text=text)
+        assert fm == {
+            "name": "my---skill",
+            "description": "uses --- internally",
+        }
+        assert body == "real body\n"
+
+    def test_leading_dash_not_on_own_line_is_not_frontmatter(self) -> None:
+        """Text starting with ``---foo`` (no newline) is not frontmatter."""
+        fm, body = _parse_frontmatter(text="---not-a-delimiter\nname: foo\n---\nbody\n")
+        assert fm == {}
+        assert body == "---not-a-delimiter\nname: foo\n---\nbody\n"
+
 
 class TestIsMarkdown:
     def test_lowercase_md(self) -> None:
