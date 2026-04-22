@@ -271,15 +271,26 @@ def format_elicitation_response(
     return "\n".join(_pad_columns(rows))
 
 
-def format_mcp_response(response: MCP) -> str:
-    """Format an MCP tool call response for terminal display."""
-    error_tag = " (ERROR)" if response.isError else ""
-    header = f"MCP tool call: {response.name}{error_tag}"
-    server_line = f"Server: {response.mcpServerId}"
+def format_mcp_response(response: MCP, *, tool_name: str | None = None) -> str:
+    """Format an MCP tool call response for terminal display.
+
+    The MCP spec only guarantees ``content`` in a successful ``CallToolResult``.
+    ``isError``, ``name``, and ``mcpServerId`` are optional in practice (some
+    Unique backend builds omit them on success), so we access them defensively
+    and fall back to the caller-supplied tool name when the server omits it.
+    """
+    is_error = bool(getattr(response, "isError", False))
+    name = getattr(response, "name", None) or tool_name or "<unknown-tool>"
+    server_id = getattr(response, "mcpServerId", None) or "<unknown-server>"
+    content = getattr(response, "content", None) or []
+
+    error_tag = " (ERROR)" if is_error else ""
+    header = f"MCP tool call: {name}{error_tag}"
+    server_line = f"Server: {server_id}"
 
     lines: list[str] = [header, server_line, ""]
 
-    for item in response.content:
+    for item in content:
         content_type = item.get("type", "unknown")
 
         if content_type == "text":
@@ -296,10 +307,10 @@ def format_mcp_response(response: MCP) -> str:
             lines.append(f"[audio] ({mime}, base64-encoded data)")
 
         elif content_type == "resource_link":
-            name = item.get("name") or "?"
+            link_name = item.get("name") or "?"
             uri = item.get("uri") or "?"
             desc = item.get("description") or ""
-            lines.append(f"[resource_link] {name}: {uri}")
+            lines.append(f"[resource_link] {link_name}: {uri}")
             if desc:
                 lines.append(f"  {desc}")
 

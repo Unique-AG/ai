@@ -87,6 +87,14 @@ nav:
     - Knowledge Base:
       - Base Service: modules/examples/content/kb_service.md
       - Smart Rules: modules/examples/content/smart_rules.md
+    - Content Folder(experimental):
+      - Content folder service: modules/examples/content/content-folder.md
+    - Content Tree (experimental):
+      - Content tree service: modules/examples/experimental/content_tree.md
+    - Scheduled Tasks (experimental):
+      - Service: modules/examples/scheduled_task/scheduled_tasks.md
+    - Identity (experimental):
+      - Users & Groups: modules/examples/identity/identity_service.md
   - Tutorials:
     - Agentic Table App: tutorials/agentic_table_app.md
     - Code Execution: tutorials/code_execution.md
@@ -116,6 +124,8 @@ nav:
     - Framework Utilities:
       - OpenAI Client: modules/openai.md
       - Langchain Client: modules/langchain.md
+    - Experimental Modules:
+      - Identity Module: modules/identity.md
     - Deprecated Modules:
       - Content Module: modules/content.md
       - Embedding Module: modules/embedding.md

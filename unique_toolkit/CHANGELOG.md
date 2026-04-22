@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.80.0] - 2026-04-21
+### Added
+- Add experimental `unique_toolkit.experimental.content_tree` subpackage exposing `ContentTree` — a cached view of the KB content visible to the acting user — split into `schemas`, `functions`, and `service` modules. The API is experimental and may change between minor releases.
+- Add `ContentTree.render_visible_tree_async` for directory-style rendering, `list_visible_files_async` and `filter_visible_files_async` for programmatic access, and `search_visible_files_fuzzy_async` for fuzzy search over file names and/or full paths using stdlib `difflib` (case-insensitive by default, tunable via `match_on`, `case_sensitive`, `min_score`, `limit`; returns ranked `FuzzyMatch` records). All four methods share the same cached snapshot so repeated queries hit the backend once.
+
+## [1.79.0] - 2026-04-21
+- Add experimental `unique_toolkit.experimental.content_folder` subpackage exposing `ContentFolder` — the knowledge-base folder (content scope) management service — split into `schemas`, `functions`, and `service` modules. Covers `create` / `read` / `delete` folder lifecycle and `create_access` / `delete_access` for READ/WRITE ACL management, with typed overloads for the two folder-creation shapes (`paths=` accepting `str` or `list[str]`, and `parent_scope_id=` + `relative_path_segments=`) and sync/async variants throughout. Import with `from unique_toolkit.experimental.content_folder import ContentFolder`. The class is **not** registered with `UniqueServiceFactory`; it lives under `experimental` while the API stabilises.
+- Add `create_with_access` / `create_with_access_async` convenience methods on `ContentFolder` that create a folder chain and grant extra ACL entries on the leaf scope in one call, falling back to a minimal `FolderDetail` with the creator's READ+WRITE grants when no extra accesses are requested.
+
+## [1.78.1] - 2026-04-21
+
+### Added
+- Add `UniqueSettings.with_chat(chat_context)` immutable copy method for composing chat context into settings without mutating the original instance
+- Add `enable_mcp_metadata_fallback_un_19145` feature flag for gating backward-compatible flat camelCase `_meta` key parsing in MCP injectors
+## [1.78.0] - 2026-04-21
+### Added
+- Add experimental `unique_toolkit.experimental.identity` with `Identity` service (Linux-inspired wrapper over `unique_sdk.User` and `unique_sdk.Group`) exposing `list_users` / `get_user` / `groups_of` / `is_member` / `create_group` / `rename_group` / `delete_group` / `add_members` / `remove_members` / `update_user_configuration` / `update_group_configuration`, with matching async variants
+- Export `Identity` from `unique_toolkit.experimental`; expose typed schemas (`UserInfo`, `GroupInfo`, `UserGroupMembership`, `GroupMembership`, `GroupDeleted`, `UserWithConfiguration`) and low-level function wrappers in `unique_toolkit.experimental.identity.functions`
+- Add `Identity.from_settings()` auto-loading constructor (matches `KnowledgeBaseService`) and enforce `@overload` contract that `get_user` / `groups_of` accept exactly one of `user_id` / `email` / `user_name`
+
+## [1.77.3] - 2026-04-21
+### Added
+- Add experimental `unique_toolkit.experimental.scheduled_task` with `ScheduledTasks`, `Cron`, and low-level `create_scheduled_task` / `update_scheduled_task` / … function wrappers over `unique_sdk.ScheduledTask`
+### Changed
+- **Experimental:** `ScheduledTasks` uses `get` / `get_async` and `update` / `update_async` (replacing `retrieve` / `modify`), and a keyword-only `__init__(**, user_id=..., company_id=...)` constructor
+
+## [1.77.2] - 2026-04-21
+- Stop uploading orphan `code.txt` / `code_N.txt` artifacts when code interpreter runs without producing container files (UN-19770); inline assistant text is unchanged, real file outputs (charts, CSVs, etc.) are unchanged
+
 ## [1.77.1] - 2026-04-20
 - Add `selected_content_ids` filtering to history construction and `OpenFileToolRuntime` so only user-selected uploaded images and files are attached when the `enable_selected_uploaded_files_un_18215` feature flag is active
 - Add `get_selected_uploaded_content_ids` utility in `history_manager/utils.py`
