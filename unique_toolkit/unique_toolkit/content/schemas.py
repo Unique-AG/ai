@@ -10,6 +10,7 @@ from humps import camelize
 from pydantic import BaseModel, ConfigDict, Field
 
 from unique_toolkit._common.config_checker import register_config
+from unique_toolkit._common.utils.files import FileMimeType
 
 # set config to convert camelCase to snake_case
 model_config = ConfigDict(
@@ -142,6 +143,7 @@ class Content(BaseModel):
         description="The title of the content. For documents this is the title of the document.",
     )
     url: str | None = None
+    mime_type: str | None = None
     chunks: list[ContentChunk] = []
     write_url: str | None = None
     read_url: str | None = None
@@ -160,10 +162,22 @@ class Content(BaseModel):
         ):
             return default_if_unknown
 
-        return self.applied_ingestion_config["uniqueIngestionMode"] not in (
-            "SKIP_INGESTION",
-            "SKIP_EXCEL_INGESTION",
-        )
+        if self.applied_ingestion_config["uniqueIngestionMode"] == "SKIP_INGESTION":
+            return False
+
+        elif (
+            self.applied_ingestion_config["uniqueIngestionMode"]
+            == "SKIP_EXCEL_INGESTION"
+        ):
+            if (
+                self.mime_type is None
+                or (mime_type := FileMimeType.from_mime_string(self.mime_type)) is None
+            ):
+                return default_if_unknown
+
+            return not (mime_type.is_xlsx or mime_type.is_csv)
+
+        return True
 
 
 class ContentReference(BaseModel):
