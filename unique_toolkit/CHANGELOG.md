@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.82.0] - 2026-04-22
+- Add `RetrieveSearchScopeTool` as an experimental tool: lists all files in the knowledge base before searching, supports flat and tree display modes, token-limited truncation, and once-per-conversation guard
+- Export `RetrieveSearchScopeTool`, `RetrieveSearchScopeConfig`, and `DisplayMode` from `unique_toolkit.agentic.tools.experimental`
+
 ## [1.81.0] - 2026-04-22
 ### Added
 - `AgenticTableService.update_row_verification_status`: optional `locked` argument, forwarded to SDK `bulk_update_status` (public `POST .../rows/bulk-update-status`).
