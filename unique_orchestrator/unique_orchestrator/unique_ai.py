@@ -413,9 +413,7 @@ class UniqueAI:
         for prompts in self._tool_manager.get_tool_prompts():
             if prompts.tool_system_reminder_for_user_prompt:
                 tool_reminders.append(prompts.tool_system_reminder_for_user_prompt)
-        messages = inject_tool_reminders_into_user_message(
-            messages, tool_reminders
-        )
+        messages = inject_tool_reminders_into_user_message(messages, tool_reminders)
         return messages
 
     async def _render_user_prompt(self) -> str:

@@ -23,7 +23,6 @@ content injected when the skill is invoked.
 from __future__ import annotations
 
 from logging import Logger
-from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Any
 
 import yaml

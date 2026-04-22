@@ -49,7 +49,10 @@ class TestInjectToolReminders:
         assert isinstance(content, list)
         assert len(content) == 2
         assert content[0] == {"type": "text", "text": reminder}  # type: ignore[comparison-overlap]
-        assert content[1] == {"type": "text", "text": "commit my staged changes as a fix"}  # type: ignore[comparison-overlap]
+        assert content[1] == {
+            "type": "text",
+            "text": "commit my staged changes as a fix",
+        }  # type: ignore[comparison-overlap]
 
     def test_multiple_reminders_preserved_in_order(self) -> None:
         msgs = LanguageModelMessages([_user("query text")])
