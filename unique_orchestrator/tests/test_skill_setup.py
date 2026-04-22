@@ -3,8 +3,9 @@
 The preloader runs before the first LLM iteration. When the user message
 starts with ``/skill-name`` tokens, it activates each matching skill via
 the exact same path the model would take mid-loop (SkillTool.run +
-history_manager.add_tool_call_results), then strips the tokens from the
-user message so the rendered turn shows only the actual query.
+history_manager.add_tool_call_results), and returns the user message
+with the matched ``/skill-name`` tokens stripped so the caller can
+render the turn showing only the actual query.
 """
 
 from __future__ import annotations
@@ -18,7 +19,10 @@ from unique_skill_tool.service import SkillTool
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
-from unique_orchestrator._builders.skill_setup import preload_invoked_skills
+from unique_orchestrator._builders.skill_setup import (
+    _build_skill,
+    preload_invoked_skills,
+)
 
 
 def _make_skill(name: str, content: str = "skill body") -> SkillDefinition:
@@ -65,14 +69,14 @@ class TestPreloadInvokedSkills:
         history_manager = MagicMock()
         tool_manager = _FakeToolManager(skill_tool=None)
 
-        await preload_invoked_skills(
+        stripped_text = await preload_invoked_skills(
             event=event,
             tool_manager=tool_manager,  # type: ignore[arg-type]
             history_manager=history_manager,
             logger=logger,
         )
 
-        assert event.payload.user_message.text == "/foo question"
+        assert stripped_text is None
         history_manager.add_tool_call.assert_not_called()
         history_manager._append_tool_calls_to_history.assert_not_called()
         history_manager.add_tool_call_results.assert_not_called()
@@ -84,14 +88,14 @@ class TestPreloadInvokedSkills:
         skill_tool = _make_skill_tool([_make_skill("foo")])
         tool_manager = _FakeToolManager(skill_tool=skill_tool)
 
-        await preload_invoked_skills(
+        stripped_text = await preload_invoked_skills(
             event=event,
             tool_manager=tool_manager,  # type: ignore[arg-type]
             history_manager=history_manager,
             logger=logger,
         )
 
-        assert event.payload.user_message.text == "just a normal question"
+        assert stripped_text is None
         history_manager.add_tool_call.assert_not_called()
 
     @pytest.mark.asyncio
@@ -101,14 +105,14 @@ class TestPreloadInvokedSkills:
         skill_tool = _make_skill_tool([_make_skill("foo", content="FOO BODY")])
         tool_manager = _FakeToolManager(skill_tool=skill_tool)
 
-        await preload_invoked_skills(
+        stripped_text = await preload_invoked_skills(
             event=event,
             tool_manager=tool_manager,  # type: ignore[arg-type]
             history_manager=history_manager,
             logger=logger,
         )
 
-        assert event.payload.user_message.text == "what are the revenue trends?"
+        assert stripped_text == "what are the revenue trends?"
 
         history_manager.add_tool_call.assert_called_once()
         synthetic_call = history_manager.add_tool_call.call_args.args[0]
@@ -139,14 +143,14 @@ class TestPreloadInvokedSkills:
         )
         tool_manager = _FakeToolManager(skill_tool=skill_tool)
 
-        await preload_invoked_skills(
+        stripped_text = await preload_invoked_skills(
             event=event,
             tool_manager=tool_manager,  # type: ignore[arg-type]
             history_manager=history_manager,
             logger=logger,
         )
 
-        assert event.payload.user_message.text == "tell me more"
+        assert stripped_text == "tell me more"
 
         assert history_manager.add_tool_call.call_count == 2
         call_args = [c.args[0] for c in history_manager.add_tool_call.call_args_list]
@@ -168,12 +172,83 @@ class TestPreloadInvokedSkills:
         skill_tool = _make_skill_tool([_make_skill("foo")])
         tool_manager = _FakeToolManager(skill_tool=skill_tool)
 
-        await preload_invoked_skills(
+        stripped_text = await preload_invoked_skills(
             event=event,
             tool_manager=tool_manager,  # type: ignore[arg-type]
             history_manager=history_manager,
             logger=logger,
         )
 
+        assert stripped_text is None
         assert event.payload.user_message.text == "/unknown /foo question"
         history_manager.add_tool_call.assert_not_called()
+
+
+class TestBuildSkill:
+    def test_parses_frontmatter_and_body(self, logger: Logger) -> None:
+        file_text = (
+            "---\n"
+            "name: summarize\n"
+            "description: Summarize a document.\n"
+            "---\n"
+            "\n"
+            "# Summarize\n"
+            "Do the thing.\n"
+        )
+        content = MagicMock()
+        content.key = "summarize.md"
+        content.id = "c1"
+
+        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+
+        assert skill is not None
+        assert skill.name == "summarize"
+        assert skill.description == "Summarize a document."
+        assert skill.content == "# Summarize\nDo the thing.\n"
+
+    def test_empty_body_does_not_leak_frontmatter(self, logger: Logger) -> None:
+        """Regression: when the body after frontmatter is empty, we must not
+        fall back to the raw file text — that would inject the YAML
+        frontmatter (``---\\nname: ...\\n---``) into the skill prompt.
+        """
+        file_text = "---\nname: empty\ndescription: An empty skill.\n---\n"
+        content = MagicMock()
+        content.key = "empty.md"
+        content.id = "c2"
+
+        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+
+        assert skill is not None
+        assert skill.name == "empty"
+        assert skill.content == ""
+        assert "---" not in skill.content
+        assert "name:" not in skill.content
+
+    def test_missing_name_returns_none(self, logger: Logger) -> None:
+        file_text = "---\ndescription: No name here.\n---\nbody\n"
+        content = MagicMock()
+        content.key = "broken.md"
+        content.id = "c3"
+
+        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+
+        assert skill is None
+
+    def test_no_frontmatter_returns_none(self, logger: Logger) -> None:
+        file_text = "# Just a markdown file\nwith no frontmatter.\n"
+        content = MagicMock()
+        content.key = "plain.md"
+        content.id = "c4"
+
+        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+
+        assert skill is None
+
+    def test_empty_file_returns_none(self, logger: Logger) -> None:
+        content = MagicMock()
+        content.key = "empty.md"
+        content.id = "c5"
+
+        skill = _build_skill(content=content, file_text="   \n\n", logger=logger)
+
+        assert skill is None
