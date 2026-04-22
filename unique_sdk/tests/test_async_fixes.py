@@ -26,6 +26,68 @@ async def test_set_column_metadata_uses_async_request():
 
 
 @pytest.mark.asyncio
+async def test_get_sheet_data_forwards_include_sheet_metadata_query_param():
+    with patch.object(
+        AgenticTable, "_static_request_async", new_callable=AsyncMock
+    ) as mock_req:
+        mock_req.return_value = {
+            "sheetId": "s1",
+            "name": "n",
+            "state": "IDLE",
+            "chatId": "ch1",
+            "createdBy": "u0",
+            "companyId": "c1",
+            "createdAt": "t0",
+            "magicTableRowCount": 0,
+        }
+
+        await AgenticTable.get_sheet_data(
+            user_id="u1",
+            company_id="c1",
+            tableId="t1",
+            includeCells=True,
+            includeSheetMetadata=True,
+        )
+
+        mock_req.assert_awaited_once()
+        _method, _url, _uid, _cid, params = mock_req.await_args[0]
+        assert params["tableId"] == "t1"
+        assert params["includeCells"] is True
+        assert params["includeSheetMetadata"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_sheet_data_forwards_include_row_metadata_query_param():
+    with patch.object(
+        AgenticTable, "_static_request_async", new_callable=AsyncMock
+    ) as mock_req:
+        mock_req.return_value = {
+            "sheetId": "s1",
+            "name": "n",
+            "state": "IDLE",
+            "chatId": "ch1",
+            "createdBy": "u0",
+            "companyId": "c1",
+            "createdAt": "t0",
+            "magicTableRowCount": 0,
+        }
+
+        await AgenticTable.get_sheet_data(
+            user_id="u1",
+            company_id="c1",
+            tableId="t1",
+            includeCells=True,
+            includeRowMetadata=True,
+        )
+
+        mock_req.assert_awaited_once()
+        _method, _url, _uid, _cid, params = mock_req.await_args[0]
+        assert params["tableId"] == "t1"
+        assert params["includeCells"] is True
+        assert params["includeRowMetadata"] is True
+
+
+@pytest.mark.asyncio
 async def test_wait_for_ingestion_completion_uses_async_search():
     with patch(
         "unique_sdk.utils.file_io.Content.search_async", new_callable=AsyncMock
