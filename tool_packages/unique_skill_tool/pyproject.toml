@@ -55,7 +55,7 @@ DEP002 = ["unique-toolkit"]
 DEP003 = ["unique_toolkit"]
 
 [tool.basedpyright]
-typeCheckingMode = "standard"
+typeCheckingMode = "recommended"
 include = ["unique_skill_tool"]
 exclude = ["**/tests/**", "**/test_*.py"]
 

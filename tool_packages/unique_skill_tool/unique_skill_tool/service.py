@@ -52,7 +52,7 @@ class SkillTool(Tool[SkillToolConfig]):
     def tool_description(self) -> LanguageModelToolDescription:
         skill_names = list(self._skill_registry.keys())
 
-        skill_name_schema: dict = {
+        skill_name_schema: dict[str, str | list[str]] = {
             "type": "string",
             "description": self.config.tool_parameter_description_skill_name,
         }
