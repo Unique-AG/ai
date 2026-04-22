@@ -10,6 +10,14 @@ A thin, typed wrapper around :class:`unique_sdk.ScheduledTask`. The single
 entry point is :class:`ScheduledTasks`; the subpackage also re-exports the
 Pydantic schemas used on responses, plus a :class:`Cron` ``StrEnum`` of
 ready-made cron strings for the most common schedules.
+
+**Classification note (reorg proposal).** This subpackage stays under
+:mod:`..resources` even though it ships its own :mod:`.cron` helper: the
+``Cron`` enum is single-purpose plumbing for the resource (the backend
+expects cron strings on every mutation), it imports nothing outside this
+package, and extracting it would only split one cohesive SDK wrapper into
+two without improving the public surface. Promote ``cron`` to
+:mod:`..capabilities` only if a second resource starts needing it.
 """
 
 from unique_toolkit.experimental.scheduled_task.cron import Cron as Cron
