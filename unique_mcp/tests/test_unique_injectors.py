@@ -119,12 +119,12 @@ def test_get_unique_settings__uses_meta_auth__when_present(
     """
     Purpose: _meta-derived auth overrides env when FastMCP request carries both IDs.
     Why this matters: Internal callers can override identity via MCP _meta.
-    Setup summary: Patch _base_settings and _fastmcp_read_meta_dict with auth keys.
+    Setup summary: Patch _base_settings and get_request_meta with auth keys.
     """
     with (
         patch(f"{_MOD}._base_settings", return_value=base_settings),
         patch(
-            f"{_MOD}._fastmcp_read_meta_dict",
+            f"{_MOD}.get_request_meta",
             return_value={
                 MetaKeys.USER_ID: "mu",
                 MetaKeys.COMPANY_ID: "mc",
@@ -147,7 +147,7 @@ def test_get_unique_settings__uses_jwt_claims__when_meta_absent(
     """
     with (
         patch(f"{_MOD}._base_settings", return_value=base_settings),
-        patch(f"{_MOD}._fastmcp_read_meta_dict", return_value=None),
+        patch(f"{_MOD}.get_request_meta", return_value=None),
         patch(
             f"{_MOD}._fastmcp_access_token_to_auth_context",
             return_value=AuthContext(
@@ -173,7 +173,7 @@ def test_get_unique_settings__meta_wins_over_jwt(
     with (
         patch(f"{_MOD}._base_settings", return_value=base_settings),
         patch(
-            f"{_MOD}._fastmcp_read_meta_dict",
+            f"{_MOD}.get_request_meta",
             return_value={
                 MetaKeys.USER_ID: "meta-u",
                 MetaKeys.COMPANY_ID: "meta-c",
@@ -203,7 +203,7 @@ def test_get_unique_settings__falls_back_to_env__when_no_meta_no_jwt(
     """
     with (
         patch(f"{_MOD}._base_settings", return_value=base_settings),
-        patch(f"{_MOD}._fastmcp_read_meta_dict", return_value=None),
+        patch(f"{_MOD}.get_request_meta", return_value=None),
         patch(f"{_MOD}._fastmcp_access_token_to_auth_context", return_value=None),
     ):
         s = get_unique_settings()
@@ -222,7 +222,7 @@ def test_get_unique_settings__reuses_app_and_api_from_base(
     """
     with (
         patch(f"{_MOD}._base_settings", return_value=base_settings),
-        patch(f"{_MOD}._fastmcp_read_meta_dict", return_value=None),
+        patch(f"{_MOD}.get_request_meta", return_value=None),
         patch(
             f"{_MOD}._fastmcp_access_token_to_auth_context",
             return_value=AuthContext(
@@ -244,7 +244,7 @@ def test_get_unique_settings__binds_chat_context_when_chat_id_present(
     with (
         patch(f"{_MOD}._base_settings", return_value=base_settings),
         patch(
-            f"{_MOD}._fastmcp_read_meta_dict",
+            f"{_MOD}.get_request_meta",
             return_value={
                 MetaKeys.USER_ID: "u",
                 MetaKeys.COMPANY_ID: "c",
@@ -267,7 +267,7 @@ def test_get_unique_settings__meta_chat_only_then_jwt_auth_preserves_chat(
     with (
         patch(f"{_MOD}._base_settings", return_value=base_settings),
         patch(
-            f"{_MOD}._fastmcp_read_meta_dict",
+            f"{_MOD}.get_request_meta",
             return_value={MetaKeys.CHAT_ID: "chat-1"},
         ),
         patch(

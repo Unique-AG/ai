@@ -181,6 +181,8 @@ def get_request_meta() -> dict[str, Any] | None:
     """Standard injector for raw ``_meta`` access.
 
     Use via ``Depends(get_request_meta)`` instead of reaching into FastMCP internals.
+    Centralising here means the meta source (FastMCP today, potentially multiple
+    sources in the future) can evolve without touching tool code.
     """
     return _fastmcp_read_meta_dict()
 
@@ -188,7 +190,7 @@ def get_request_meta() -> dict[str, Any] | None:
 def get_unique_settings() -> UniqueSettings:
     settings = _base_settings()
 
-    meta = _fastmcp_read_meta_dict()
+    meta = get_request_meta()
 
     if meta is not None:
         auth_context = _auth_from_meta(meta)
