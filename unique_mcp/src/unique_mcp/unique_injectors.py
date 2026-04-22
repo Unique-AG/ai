@@ -193,14 +193,10 @@ def get_unique_settings() -> UniqueSettings:
     meta = get_request_meta()
 
     if meta is not None:
-        auth_context = _auth_from_meta(meta)
-        chat_context = _chat_from_meta(meta)
-        if auth_context is not None:
-            settings = settings.with_auth(auth_context)
-        if chat_context is not None:
+        if chat_context := _chat_from_meta(meta):
             settings = settings.with_chat(chat_context)
-        if auth_context is not None:
-            return settings
+        if auth_context := _auth_from_meta(meta):
+            return settings.with_auth(auth_context)
 
     # When `_meta` carries chat keys but no auth keys, we may have applied
     # `with_chat` above and still need JWT/env auth here. `with_auth` keeps
