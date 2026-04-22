@@ -1,4 +1,5 @@
 import logging
+from typing import Any, cast
 
 from typing_extensions import deprecated
 from unique_sdk import (
@@ -230,43 +231,20 @@ class AgenticTableService:
             mime_type: The MIME type of the artifact (optional on the wire; include when known).
             name: The display name of the artifact (optional on the wire; include when known).
         """
-        if mime_type is None and name is None:
-            await AgenticTable.set_artifact(
-                user_id=self._user_id,
-                company_id=self._company_id,
-                tableId=self.table_id,
-                artifactType=artifact_type,
-                contentId=content_id,
-            )
-        elif mime_type is not None and name is None:
-            await AgenticTable.set_artifact(
-                user_id=self._user_id,
-                company_id=self._company_id,
-                tableId=self.table_id,
-                artifactType=artifact_type,
-                contentId=content_id,
-                mimeType=mime_type,
-            )
-        elif mime_type is None and name is not None:
-            await AgenticTable.set_artifact(
-                user_id=self._user_id,
-                company_id=self._company_id,
-                tableId=self.table_id,
-                artifactType=artifact_type,
-                contentId=content_id,
-                name=name,
-            )
-        else:
-            assert mime_type is not None and name is not None
-            await AgenticTable.set_artifact(
-                user_id=self._user_id,
-                company_id=self._company_id,
-                tableId=self.table_id,
-                artifactType=artifact_type,
-                contentId=content_id,
-                mimeType=mime_type,
-                name=name,
-            )
+        extras: dict[str, str] = {}
+        if mime_type is not None:
+            extras["mimeType"] = mime_type
+        if name is not None:
+            extras["name"] = name
+        # ``Unpack[SetArtifact]`` + dynamic keys: basedpyright cannot tie ``extras`` to optional fields.
+        await AgenticTable.set_artifact(
+            user_id=self._user_id,
+            company_id=self._company_id,
+            tableId=self.table_id,
+            artifactType=artifact_type,
+            contentId=content_id,
+            **cast(Any, extras),
+        )
 
     @deprecated("Use set_column_style instead.")
     async def set_column_width(self, column: int, width: int):
