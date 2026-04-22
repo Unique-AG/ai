@@ -72,8 +72,9 @@ extra configuration is needed beyond having `gdate` on `PATH`.
 5. For scripts that need a repo fixture, use `setup_test_repo` to create a
    mock git repository.
 
-See `test_compute_calver.bats` for a function-level example and
-`test_helper.bash` for repo-fixture helpers.
+See `test_compute_calver.bats` for a function-level example,
+`test_detect_changed_packages.bats` for a subprocess-with-fixture-repo
+example, and `test_helper.bash` for repo-fixture helpers.
 
 ## CI Integration
 

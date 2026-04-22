@@ -1,17 +1,28 @@
 name: "[CI] Publish dev builds to PyPI"
 
-# On every push to `main`, build and publish .devN wheels of every
-# publishable AI-repo package to PyPI.
+# On every push to `main`, build and publish `.devN` wheels of the
+# publishable AI-repo packages whose sources actually changed in the
+# push range. Skipped entirely when the push is a release-please bot
+# merge or the release-cut trailer commit (the tag-based publish in
+# ci-publish.yaml handles those).
 #
-# Version scheme:  YYYY.WW.0.dev<commit-count>
-#   - YYYY.WW is the *next* scheduled release cycle, computed by
-#     `.github/scripts/compute-calver.sh` (reads .release-please-manifest.json,
-#     or falls back to the next even ISO week).
-#   - commit-count = number of commits reachable from HEAD; monotonic and
-#     unique per push.
+# Version scheme
+# ==============
+#   Own version:  YYYY.WW.0.dev<commit-count>
+#     - YYYY.WW is the next scheduled release cycle, computed by
+#       `.github/scripts/compute-calver.sh` (manifest-first, ISO
+#       week-fallback).
+#     - commit-count is monotonic and unique per push, so every push
+#       produces a strictly-newer pre-release version.
 #
-# Skipped when the push is the release-please bot merging a stable release
-# (the tag-based publish handles those via ci-publish.yaml).
+#   Dep floor:    YYYY.WW.0.dev0
+#     - Cross-package AI deps get this floor via
+#       `.github/scripts/rewrite-pyproject-for-dev.py`. Any dev wheel
+#       published in the current cycle satisfies the floor, so
+#       selectively-published wheels remain mutually installable
+#       regardless of which packages ran on a given push. Across
+#       cycles the floor isolates naturally — `2026.18.x.devN` never
+#       satisfies `>=2026.20.0.dev0`.
 
 on:
   push:
@@ -63,27 +74,40 @@ jobs:
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
-  resolve-matrix:
+  resolve:
     needs: guard
     if: needs.guard.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.resolve.outputs.matrix }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
       dev_version: ${{ steps.version.outputs.dev_version }}
+      cycle_floor: ${{ steps.version.outputs.cycle_floor }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
+          # Need enough history for `git diff <before>..<after>` and
+          # `git rev-list --count HEAD` to be accurate.
           fetch-depth: 0
 
-      - uses: ./.github/actions/get-packages-matrix
-        id: pkgs
-
-      - name: Filter publishable packages
-        id: resolve
+      - name: Detect changed publishable packages
+        id: matrix
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
         run: |
-          PACKAGES='${{ steps.pkgs.outputs.packages }}'
-          FILTERED=$(echo "$PACKAGES" | jq -c '{include: [.[] | select((.publish_skip != true) and (.pypi_name != null))]}')
-          echo "matrix=$FILTERED" >> "$GITHUB_OUTPUT"
+          MATRIX="$(./.github/scripts/detect-changed-packages.sh "$BEFORE" "$AFTER")"
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Dev publish — change detection"
+            echo ""
+            echo "- Base: \`$BEFORE\`"
+            echo "- Head: \`$AFTER\`"
+            echo "- Packages selected: $(echo "$MATRIX" | jq -r '.include | length')"
+            echo ""
+            echo '```json'
+            echo "$MATRIX" | jq .
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Compute dev version
         id: version
@@ -91,15 +115,22 @@ jobs:
           CV="$(./.github/scripts/compute-calver.sh)"
           N="$(git rev-list --count HEAD)"
           DEV="${CV}.0.dev${N}"
+          FLOOR="${CV}.0.dev0"
           echo "dev_version=$DEV" >> "$GITHUB_OUTPUT"
-          echo "Dev version: $DEV"
+          echo "cycle_floor=$FLOOR" >> "$GITHUB_OUTPUT"
+          {
+            echo ""
+            echo "- Dev version: \`$DEV\`"
+            echo "- Dep floor:   \`$FLOOR\`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   publish:
-    needs: resolve-matrix
+    needs: resolve
+    if: fromJson(needs.resolve.outputs.matrix).include[0] != null
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.resolve-matrix.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
     name: publish-dev-${{ matrix.id }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -116,11 +147,13 @@ jobs:
 
       - name: Rewrite pyproject.toml for dev version
         env:
-          DEV_VERSION: ${{ needs.resolve-matrix.outputs.dev_version }}
+          DEV_VERSION: ${{ needs.resolve.outputs.dev_version }}
+          CYCLE_FLOOR: ${{ needs.resolve.outputs.cycle_floor }}
           PYPROJECT: ${{ matrix.dir }}/pyproject.toml
         run: |
           uv run --quiet --no-project --with tomlkit -- \
-            python3 .github/scripts/rewrite-pyproject-for-dev.py "$PYPROJECT" "$DEV_VERSION"
+            python3 .github/scripts/rewrite-pyproject-for-dev.py \
+              "$PYPROJECT" "$DEV_VERSION" "$CYCLE_FLOOR"
 
       - name: Show rewrite diff
         run: |
