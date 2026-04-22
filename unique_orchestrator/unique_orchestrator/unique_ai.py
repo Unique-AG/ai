@@ -646,8 +646,11 @@ class UniqueAI:
             for tool in self._tool_manager.available_tools
         }
 
-        # Tool names that should not be logged in the message steps
-        tool_names_not_to_log = ["DeepResearch"]
+        # Tool names that should not be logged in the "Triggered Tool Calls"
+        # step. The Skill tool emits its own message log entry per invocation
+        # (see ``unique_skill_tool.SkillTool._log_skill_loaded``), so it is
+        # redundant and noisy to also list it here.
+        tool_names_not_to_log = ["DeepResearch", "Skill"]
 
         used_tools: dict[str, int] = {}
         for tool_call in tool_calls:

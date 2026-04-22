@@ -9,9 +9,10 @@ Covers:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from unique_toolkit.chat.schemas import MessageLogStatus
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
 from unique_skill_tool.config import (
@@ -159,6 +160,61 @@ class TestSkillToolRun:
 
         assert "alpha" in result.error_message
         assert "beta" in result.error_message
+
+
+class TestSkillToolMessageLog:
+    """When a skill is loaded, a COMPLETED message log step is emitted.
+
+    Mirrors the Internal Search tool pattern: the user sees a step in
+    the assistant message log indicating which skill was activated.
+    """
+
+    @pytest.mark.asyncio
+    async def test_valid_skill_writes_completed_message_log(self) -> None:
+        skill = _make_skill("my-skill", description="Does stuff")
+        tool = _make_tool(skill_registry=_make_skill_registry(skill))
+        mock_logger = MagicMock()
+        mock_logger.create_or_update_message_log_async = AsyncMock(
+            return_value=MagicMock()
+        )
+        tool._message_step_logger = mock_logger
+
+        result = await tool.run(_make_tool_call("my-skill"))
+
+        assert result.successful
+        mock_logger.create_or_update_message_log_async.assert_awaited_once()
+        kwargs = mock_logger.create_or_update_message_log_async.call_args.kwargs
+        assert kwargs["header"] == tool.display_name()
+        assert kwargs["status"] == MessageLogStatus.COMPLETED
+        assert "my-skill" in kwargs["progress_message"]
+        assert "Does stuff" in kwargs["progress_message"]
+
+    @pytest.mark.asyncio
+    async def test_unknown_skill_does_not_write_message_log(self) -> None:
+        tool = _make_tool()
+        mock_logger = MagicMock()
+        mock_logger.create_or_update_message_log_async = AsyncMock()
+        tool._message_step_logger = mock_logger
+
+        result = await tool.run(_make_tool_call("nonexistent"))
+
+        assert not result.successful
+        mock_logger.create_or_update_message_log_async.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_message_log_failure_does_not_break_skill_loading(self) -> None:
+        skill = _make_skill("my-skill")
+        tool = _make_tool(skill_registry=_make_skill_registry(skill))
+        mock_logger = MagicMock()
+        mock_logger.create_or_update_message_log_async = AsyncMock(
+            side_effect=RuntimeError("backend down")
+        )
+        tool._message_step_logger = mock_logger
+
+        result = await tool.run(_make_tool_call("my-skill"))
+
+        assert result.successful
+        assert "skill_loaded" in result.content
 
 
 # ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@ from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.agentic.tools.tool import Tool
 from unique_toolkit.app.schemas import ChatEvent
+from unique_toolkit.chat.schemas import MessageLog, MessageLogStatus
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
     LanguageModelToolDescription,
@@ -131,6 +132,8 @@ class SkillTool(Tool[SkillToolConfig]):
                 ),
             )
 
+        await self._log_skill_loaded(skill_name=skill_name, skill=skill)
+
         content_parts = [
             f"<skill_loaded>{skill_name}</skill_loaded>",
             f"Skill '{skill_name}' is now active. Follow the instructions below.",
@@ -150,6 +153,25 @@ class SkillTool(Tool[SkillToolConfig]):
                 "again for the same skill in this turn."
             ),
         )
+
+    async def _log_skill_loaded(
+        self, *, skill_name: str, skill: SkillDefinition
+    ) -> MessageLog | None:
+        """Emit a completed message log entry for the loaded skill."""
+        progress_message = f"Loaded skill `{skill_name}`"
+
+        try:
+            return await self._message_step_logger.create_or_update_message_log_async(
+                active_message_log=None,
+                header=progress_message,
+                status=MessageLogStatus.COMPLETED,
+            )
+        except Exception:
+            self.logger.debug(
+                "SkillTool: failed to write skill-loaded message log",
+                exc_info=True,
+            )
+            return None
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return []
