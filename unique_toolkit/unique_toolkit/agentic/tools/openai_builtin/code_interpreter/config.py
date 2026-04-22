@@ -49,6 +49,8 @@ Handling User Queries:
 - Whenever the user query requires using the python tool, you must always think first about the steps required.
 - CRITICAL: If any step generates a plot or visualization, that code block MUST include `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` as the final lines. Code that only calls `plt.show()` without saving will NOT display the image to the user.
 - CRITICAL: NEVER reference a `sandbox:/mnt/data/<filename>` link unless you have already executed code in this response that saved that exact file. Referencing a file that was not created by executed code will result in a broken link.
+- CRITICAL: For Excel files (`.xls`, `.xlsx`) and CSV files uploaded to the chat, ALWAYS use this tool to read and process them (e.g. `pandas.read_excel`, `pandas.read_csv`, `openpyxl`). Do NOT rely on the chat's text content or prior ingestion for spreadsheet data — the raw file contents are only accessible via code execution from `/mnt/data/<filename>`.
+- For calculation, retrieval, or exploratory-analysis answers, return the result concisely in the chat as markdown (key numbers inline, short tables where useful). Do NOT produce a separate artifact file (HTML, PDF, etc.) unless the user explicitly asked for a downloadable output or the request clearly calls for a dashboard/report.
 - Use the tool multiple times:
     - You MUST NOT guess anything about the structure of the data / files uploaded. Rather, you MUST perform some data exploration first.
         - Example: User uploads an excel files and asks a question about it. First Read the data, explore the columns, columns types, etc. Then use the tool to answer the user's query.
@@ -118,6 +120,8 @@ Handling User Queries:
 - CRITICAL: If any step generates a plot or visualization, that code block MUST include `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` as the final lines. Code that only calls `plt.show()` without saving will NOT display the image to the user.
 - CRITICAL: NEVER reference a `sandbox:/mnt/data/<filename>` link unless you have already executed code in this response that saved that exact file. Referencing a file that was not created by executed code will result in a broken link.
 - CRITICAL: The sandbox has NO internet access. NEVER use `requests`, `httpx`, `urllib`, or any other HTTP library to fetch data from the web — these calls will always fail. If the user's query requires live web data (e.g. market prices, news, APIs), you MUST retrieve it using the web search tool first and then pass the result into the code interpreter.
+- CRITICAL: For Excel files (`.xls`, `.xlsx`) and CSV files uploaded to the chat, ALWAYS use this tool to read and process them (e.g. `pandas.read_excel`, `pandas.read_csv`, `openpyxl`). Do NOT rely on the chat's text content or prior ingestion for spreadsheet data — the raw file contents are only accessible via code execution from `/mnt/data/<filename>`.
+- For calculation, retrieval, or exploratory-analysis answers, return the result concisely in the chat as markdown (key numbers inline, short tables where useful). Do NOT produce a separate artifact file (HTML, PDF, etc.) unless the user explicitly asked for a downloadable output or the request clearly calls for a dashboard/report.
 - Use the tool multiple times:
     - You MUST NOT guess anything about the structure of the data / files uploaded. Rather, you MUST perform some data exploration first.
         - Example: User uploads an excel files and asks a question about it. First Read the data, explore the columns, columns types, etc. Then use the tool to answer the user's query.
@@ -129,7 +133,7 @@ Handling User Queries:
 
 
 DEFAULT_TOOL_DESCRIPTION_FOR_USER_PROMPT = ""
-DEFAULT_TOOL_DESCRIPTION = "Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc."
+DEFAULT_TOOL_DESCRIPTION = "Use this tool to run Python code: generate plots, process Excel/CSV files, perform calculations, create dashboards and data visualizations. ALWAYS use this tool when the user uploads a file (especially Excel/CSV) or asks for any chart, plot, graph, dashboard, analysis, visualization, or equation. Do not answer plotting or graphing requests with text or ASCII art — always produce a real image via the tool."
 
 
 @register_config()
