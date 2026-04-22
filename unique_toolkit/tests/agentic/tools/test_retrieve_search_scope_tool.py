@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 from pytest_mock import MockerFixture
+
 from unique_toolkit.agentic.tools.experimental.retrieve_search_scope_tool.config import (
     DisplayMode,
     RetrieveSearchScopeConfig,
