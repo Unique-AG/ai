@@ -322,11 +322,7 @@ class TestParseFrontmatter:
     def test_inline_triple_dash_in_value_is_not_delimiter(self) -> None:
         """``---`` inside a value must not terminate the frontmatter block."""
         text = (
-            "---\n"
-            "name: my---skill\n"
-            "description: uses --- internally\n"
-            "---\n"
-            "real body\n"
+            "---\nname: my---skill\ndescription: uses --- internally\n---\nreal body\n"
         )
         fm, body = _parse_frontmatter(text=text)
         assert fm == {
