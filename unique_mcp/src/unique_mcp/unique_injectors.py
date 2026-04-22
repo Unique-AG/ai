@@ -38,7 +38,7 @@ _MCP_CHAT_CONTEXT_SENTINEL = "mcp-unknown"
 _HTTP_CLIENT = httpx.AsyncClient(timeout=10.0)
 
 
-def _read_meta_dict() -> dict[str, Any] | None:
+def _fastmcp_read_meta_dict() -> dict[str, Any] | None:
     """Return the raw ``_meta`` dict of the active FastMCP request, if any."""
     try:
         ctx = get_context()
@@ -186,13 +186,13 @@ def get_request_meta() -> dict[str, Any] | None:
     :class:`~unique_toolkit.app.unique_settings.ChatContext` (for example
     search scoping fields like ``unique.app/search/content-ids``).
     """
-    return _read_meta_dict()
+    return _fastmcp_read_meta_dict()
 
 
 def get_unique_settings() -> UniqueSettings:
     settings = _base_settings()
 
-    meta = _read_meta_dict()
+    meta = _fastmcp_read_meta_dict()
 
     if meta is not None:
         auth_context = _auth_from_meta(meta)
