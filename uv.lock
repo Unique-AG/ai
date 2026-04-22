@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-08T14:38:35.201257Z"
+exclude-newer = "2026-04-08T15:00:33.734659Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5313,6 +5313,7 @@ source = { editable = "unique_mcp" }
 dependencies = [
     { name = "fastmcp" },
     { name = "httpx" },
+    { name = "mcp" },
     { name = "platformdirs" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -5323,6 +5324,7 @@ dependencies = [
 requires-dist = [
     { name = "fastmcp", specifier = ">=3.1.1,<4" },
     { name = "httpx", specifier = ">=0.28.0" },
+    { name = "mcp", specifier = ">=1.26.0" },
     { name = "platformdirs", specifier = ">=4.0.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },

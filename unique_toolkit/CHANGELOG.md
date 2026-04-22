@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.81.0] - 2026-04-22
+### Added
+- Add `BaseService` composable mixin framework (`components/parts.py`) with typed run, config, context, state, progress, and dependency mixins
+- Add `InternalSearchBaseService` with shared async run pipeline (normalise → collect → resort → finalize)
+- Add `ChatInternalSearchService` and `KnowledgeBaseInternalSearchService` concrete implementations
+- Add `search_content_chunks_async` and `search_contents_async` methods to `ChatService`
+- Register `ChunkRelevancySorter` as `UniqueServiceFactory` convenience method (`factory.chunk_relevancy_sorter()`)
+
 ## [1.80.3] - 2026-04-22
 ### Changed
 - Code interpreter default tool description (`DEFAULT_TOOL_DESCRIPTION`) and default system-prompt descriptions (both `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT` and `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): explicitly instruct the model to always use code execution for Excel (`.xls`, `.xlsx`) and CSV uploads (UN-19449), pairing with the backend auto-switch to "skip ingestion for Excel" (UN-19448). Short description now also names file uploads, chart/dashboard/visualization intents explicitly and forbids ASCII-art answers for plotting requests.

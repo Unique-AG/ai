@@ -1,12 +1,19 @@
+from __future__ import annotations
+
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Callable, ClassVar, Protocol, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Protocol, overload
 
 from typing_extensions import Self, TypeVar
 
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.services.chat_service import ChatService
 from unique_toolkit.services.knowledge_base import KnowledgeBaseService
+
+if TYPE_CHECKING:
+    from unique_toolkit._common.chunk_relevancy_sorter.service import (
+        ChunkRelevancySorter,
+    )
 
 
 class ServiceProtocol(Protocol):
@@ -95,6 +102,15 @@ class UniqueServiceFactory:
         """Create a :class:`KnowledgeBaseService` using the pre-bound context."""
         return self.get(KnowledgeBaseService, **kwargs)
 
+    def chunk_relevancy_sorter(self, **kwargs: Any) -> ChunkRelevancySorter:
+        """Create a :class:`ChunkRelevancySorter` using the pre-bound context."""
+        # issue with circular imports - need to use this
+        from unique_toolkit._common.chunk_relevancy_sorter.service import (
+            ChunkRelevancySorter as _ChunkRelevancySorter,
+        )
+
+        return _ChunkRelevancySorter.from_settings(self._settings, **kwargs)
+
     # ── Class-level registry operations ──────────────────────────────────────
 
     @classmethod
@@ -120,23 +136,15 @@ class UniqueServiceFactory:
 
     @classmethod
     def register_known_services(cls) -> None:
-        """Register the stable toolkit services with the factory.
-
-        Currently registers :class:`KnowledgeBaseService` and :class:`ChatService`.
-
-        Experimental services (under :mod:`unique_toolkit.experimental`) are
-        intentionally **not** registered here or via any factory helper — their
-        API is unstable and callers should construct them directly (for
-        example, :meth:`Identity.from_settings`) so that the experimental
-        dependency is visible at every call site.
+        """Register the default services with the factory.
+        Currently only registers the KnowledgeBaseService and ChatService.
+        ChunkRelevancySorter is intentionally excluded to avoid circular imports at
+        package init time — use the ``chunk_relevancy_sorter()`` convenience method instead.
         """
         from unique_toolkit.services.chat_service import ChatService
         from unique_toolkit.services.knowledge_base import KnowledgeBaseService
 
-        for service_class in [
-            KnowledgeBaseService,
-            ChatService,
-        ]:
+        for service_class in [KnowledgeBaseService, ChatService]:
             if service_class.__name__ not in cls._registry:
                 cls.register(service_class=service_class)
 

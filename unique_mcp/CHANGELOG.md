@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-04-22
+- Add `unique_mcp.internal_search` MCP surface with `chat_internal_search` and `knowledge_base_internal_search` tool variants
+- Add `SearchMetaKeys` StrEnum for tool-scoped search `_meta` keys (`unique.app/search/*`)
+- Rewire internal search providers to use `get_unique_settings` and `get_request_meta` injectors
+
 ## [0.3.3] - 2026-04-22
 - Add `MetaKeys` StrEnum (`unique.app/auth/*`, `unique.app/chat/*`) and `META_FLAT_ALIASES` for FF-gated camelCase fallback
 - Add `ContextRequirements` + `merge_tool_meta` for tools to declare required `_meta` keys
