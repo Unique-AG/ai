@@ -50,20 +50,23 @@ AI_PACKAGES = {
 _REQ_RE = re.compile(r"^\s*([A-Za-z0-9_.\-]+)(\[[^\]]*\])?\s*(.*)$")
 
 
-def rewrite_req(raw: str, dev_version: str) -> str:
+def rewrite_req(raw: str, dev_version: str) -> tuple[str, bool]:
     m = _REQ_RE.match(raw)
     if not m:
-        return raw
+        return raw, False
     name, extras = m.group(1), m.group(2) or ""
     if name.lower() not in AI_PACKAGES:
-        return raw
-    return f"{name}{extras}>={dev_version}"
+        return raw, False
+    return f"{name}{extras}>={dev_version}", True
 
 
-def rewrite_array(arr, dev_version: str) -> None:
+def rewrite_array(arr, dev_version: str, changes: list[tuple[str, str]]) -> None:
     for i, item in enumerate(arr):
         if isinstance(item, str):
-            arr[i] = rewrite_req(item, dev_version)
+            new, changed = rewrite_req(item, dev_version)
+            if changed:
+                changes.append((item, new))
+                arr[i] = new
 
 
 def main() -> int:
@@ -81,19 +84,30 @@ def main() -> int:
     if project is None:
         raise SystemExit(f"{pyproject}: no [project] table")
 
+    prev_version = str(project.get("version", "<unset>"))
     project["version"] = dev_version
+
+    changes: list[tuple[str, str]] = []
 
     deps = project.get("dependencies")
     if deps is not None:
-        rewrite_array(deps, dev_version)
+        rewrite_array(deps, dev_version, changes)
 
     opt_deps = project.get("optional-dependencies")
     if opt_deps is not None:
         for _group, items in opt_deps.items():
-            rewrite_array(items, dev_version)
+            rewrite_array(items, dev_version, changes)
 
     pyproject.write_text(tomlkit.dumps(doc))
-    print(f"{pyproject}: version -> {dev_version}")
+
+    print(f"{pyproject}:")
+    print(f"  version: {prev_version} -> {dev_version}")
+    if changes:
+        print(f"  dependencies rewritten ({len(changes)}):")
+        for before, after in changes:
+            print(f"    {before!r} -> {after!r}")
+    else:
+        print("  dependencies: no AI cross-deps to rewrite")
     return 0
 
 

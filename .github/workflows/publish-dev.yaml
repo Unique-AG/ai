@@ -119,14 +119,42 @@ jobs:
           DEV_VERSION: ${{ needs.resolve-matrix.outputs.dev_version }}
           PYPROJECT: ${{ matrix.dir }}/pyproject.toml
         run: |
-          uv run --quiet --with tomlkit -- \
+          uv run --quiet --no-project --with tomlkit -- \
             python3 .github/scripts/rewrite-pyproject-for-dev.py "$PYPROJECT" "$DEV_VERSION"
+
+      - name: Show rewrite diff
+        run: |
+          echo "### ${{ matrix.id }} — pyproject.toml rewrite" >> "$GITHUB_STEP_SUMMARY"
+          echo '```diff' >> "$GITHUB_STEP_SUMMARY"
+          git --no-pager diff --no-color -- "${{ matrix.dir }}/pyproject.toml" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build package
         working-directory: ${{ matrix.dir }}
         env:
           UV_NO_SOURCES: 1
         run: uv build -o dist
+
+      - name: Show wheel metadata
+        working-directory: ${{ matrix.dir }}
+        run: |
+          WHEEL=$(ls dist/*.whl | head -n1)
+          echo "### ${{ matrix.id }} — wheel METADATA ($(basename "$WHEEL"))" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          # Extract METADATA from the wheel (it's a zip). Show name, version,
+          # and every Requires-Dist so the recorded dep graph is auditable
+          # from the Actions summary alone.
+          python3 -c "
+          import sys, zipfile, re
+          wheel = sys.argv[1]
+          with zipfile.ZipFile(wheel) as zf:
+              meta_name = next(n for n in zf.namelist() if n.endswith('.dist-info/METADATA'))
+              text = zf.read(meta_name).decode()
+          for line in text.splitlines():
+              if re.match(r'^(Name|Version|Requires-Dist):', line):
+                  print(line)
+          " "$WHEEL" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish to PyPI
         working-directory: ${{ matrix.dir }}
