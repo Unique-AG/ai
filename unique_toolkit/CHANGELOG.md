@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Code interpreter default tool description (`DEFAULT_TOOL_DESCRIPTION`) and default system-prompt descriptions (both `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT` and `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): explicitly instruct the model to always use code execution for Excel (`.xls`, `.xlsx`) and CSV uploads (UN-19449), pairing with the backend auto-switch to "skip ingestion for Excel" (UN-19448). Short description now also names file uploads, chart/dashboard/visualization intents explicitly and forbids ASCII-art answers for plotting requests.
 - Code interpreter default system-prompt descriptions: return calculation, retrieval, and exploratory-analysis answers concisely as inline markdown in chat rather than emitting a separate artifact file, unless the user explicitly asked for a downloadable output (UN-19364).
 
-## [1.80.3] - 2026-04-22
+## [1.80.2] - 2026-04-22
 ### Fixed
 - Code interpreter fence system prompt (`DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): tighten HTML/CSS guidance for chat iframe rendering (UN-19711) — forbid viewport/percentage heights on `html`/`body`, require bounded measurable heights for chart/dashboard containers, discourage top-level `position: fixed`/`absolute` that break auto-height measurement, and require Plotly `write_html`/`to_html` to use `include_plotlyjs="cdn"` plus `default_height` so outputs stay uploadable and measurable in chat.
 
