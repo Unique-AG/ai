@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `AgenticTableService.update_row_verification_status`: optional `locked` argument, forwarded to SDK `bulk_update_status` (public `POST .../rows/bulk-update-status`).
 - Re-export `MagicTableActivityResponse`, `MagicTableArtifactType`, and `MagicTableMetadataEntry` from `unique_toolkit.agentic_table`.
+- Tests: `tests/test_agentic_table_get_sheet_row_metadata.py` and `tests/test_agentic_table_service_coverage.py` exercise agentic-table sheet row metadata, `set_artifact` extras, `get_sheet_metadata`, `get_num_rows` / `get_sheet` row-count validation, `update_row_verification_status` with and without `locked`, and the row-metadata batch helper (CI diff-cover on changed lines).
 
 ### Changed
 - Require `unique-sdk>=0.11.12,<0.12` (aligns with public magic-table REST typings and `includeRowMetadata` / `includeSheetMetadata` on sheet GET).
