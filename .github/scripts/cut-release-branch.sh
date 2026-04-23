@@ -55,7 +55,7 @@ CYCLE="${VERSION%.0}"
 BRANCH="release/${CYCLE}"
 TAG="${SENTINEL_PKG}-v${VERSION}"
 
-# This script runs in the `cut-and-arm` job of release-please.yaml, which
+# This script runs in the `cut-and-arm` job of cd-release.yaml, which
 # `needs:` the release-please job. That guarantees the sentinel tag has
 # already been pushed by the time we get here, so a single fetch is
 # enough — no polling or race-handling needed.

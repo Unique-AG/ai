@@ -1,4 +1,4 @@
-name: "Release · Please"
+name: "[CD] Release Pipeline"
 
 # Single entry point for the full release pipeline. One workflow so the
 # three post-release steps (cut branch, kick ci-publish, arm next cycle)
@@ -89,7 +89,7 @@ jobs:
         # armed CalVer.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run release-please.yaml --ref main
+        run: gh workflow run cd-release.yaml --ref main
 
       - name: Summary
         run: |

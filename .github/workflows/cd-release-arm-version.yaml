@@ -1,7 +1,7 @@
-name: "Release · Cut (manual override)"
+name: "[CD] Release · Arm Version"
 
 # In steady state the release-cut is fully automated by the `cut-and-arm`
-# job in `release-please.yaml`: merging the Release PR on `main` cuts the
+# job in `cd-release.yaml`: merging the Release PR on `main` cuts the
 # `release/YYYY.WW` branch and arms the next cycle automatically.
 #
 # This workflow is the manual escape hatch for cases where that
@@ -19,7 +19,7 @@ name: "Release · Cut (manual override)"
 
 permissions:
   contents: write
-  actions: write  # needed for `gh workflow run release-please.yaml`
+  actions: write  # needed for `gh workflow run cd-release.yaml`
 
 on:
   workflow_dispatch:
@@ -60,8 +60,8 @@ jobs:
 
       - name: Kick release-please
         # The push above used GITHUB_TOKEN and therefore did not fire
-        # release-please.yaml via its push trigger. Invoke it manually so
+        # cd-release.yaml via its push trigger. Invoke it manually so
         # the standing Release PR is refreshed immediately.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run release-please.yaml --ref main
+        run: gh workflow run cd-release.yaml --ref main
