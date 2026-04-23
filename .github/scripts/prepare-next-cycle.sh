@@ -119,5 +119,3 @@ gh pr create \
   --body "Arms the next CalVer cycle. Once merged, release-please will retarget the standing Release PR to \`${VERSION}\`."
 
 echo "Opened arm PR for ${VERSION}. Release-please will update the ${BRANCH} Release PR once it is merged."
-
-
