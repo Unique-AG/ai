@@ -41,29 +41,6 @@ runs:
         # uv pip install is fully workspace-agnostic.
         uv venv --python "${{ inputs.python_version }}"
 
-        # Collect constraint-dependencies from all workspace members' pyproject.toml
-        # files (not just the current package). This ensures transitive constraints
-        # like lxml>=5.0.0 (defined in unique_toolkit) are applied even when
-        # installing unique_mcp which depends on toolkit indirectly.
-        REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
-        python3 -c "
-        import tomllib, pathlib, sys
-        seen = set()
-        for p in pathlib.Path(sys.argv[1]).rglob('pyproject.toml'):
-            if '.venv' in p.parts or 'tutorials' in p.parts:
-                continue
-            data = tomllib.loads(p.read_text())
-            for dep in data.get('tool', {}).get('uv', {}).get('constraint-dependencies', []):
-                if dep not in seen:
-                    seen.add(dep)
-                    print(dep)
-        " "$REPO_ROOT" > /tmp/constraints.txt
-
-        CONSTRAINT_ARGS=""
-        if [ -s /tmp/constraints.txt ]; then
-          CONSTRAINT_ARGS="--constraint /tmp/constraints.txt"
-        fi
-
         EXTRAS=""
         for e in $(echo "${{ inputs.extras }}" | tr ',' ' '); do
           [ -n "$e" ] && EXTRAS="${EXTRAS:+$EXTRAS,}$e"
@@ -75,7 +52,42 @@ runs:
           PKG_SPEC="-e ."
         fi
 
-        uv pip install $PKG_SPEC --resolution lowest-direct $CONSTRAINT_ARGS
+        uv pip install $PKG_SPEC --resolution lowest-direct
+
+    - name: Reinstall workspace packages from source
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      env:
+        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
+      run: |
+        # External deps stay at their lowest-direct versions; workspace packages
+        # must always reflect current source code, not a stale PyPI snapshot.
+        REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
+
+        # Emit "<name>\t<path>" for every workspace member
+        while IFS=$'\t' read -r name path; do
+          [ -z "$name" ] && continue
+          if uv pip show "$name" >/dev/null 2>&1; then
+            uv pip install --no-deps -e "$path"
+          fi
+        done < <(python3 - "$REPO_ROOT" <<'EOF'
+        import tomllib, pathlib, sys
+        repo_root = pathlib.Path(sys.argv[1])
+        with open(repo_root / "pyproject.toml", "rb") as f:
+            root = tomllib.load(f)
+        members = root.get("tool", {}).get("uv", {}).get("workspace", {}).get("members", [])
+        for pattern in members:
+            for member_dir in sorted(repo_root.glob(pattern)):
+                toml = member_dir / "pyproject.toml"
+                if not toml.exists():
+                    continue
+                with open(toml, "rb") as f:
+                    data = tomllib.load(f)
+                name = data.get("project", {}).get("name", "")
+                if name:
+                    print(f"{name}\t{member_dir}")
+        EOF
+        )
 
     - name: Install dev tools
       shell: bash
@@ -89,12 +101,12 @@ runs:
         # Package-level dev group: package-specific test deps (e.g. responses for unique_six)
         uv export --frozen --only-group dev --no-hashes 2>/dev/null | uv pip install -r - 2>/dev/null || true
 
-    - name: Show installed unique-* packages
+    - name: Show installed packages
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
         VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
-      run: .venv/bin/pip list | grep -i unique || true
+      run: uv pip list
 
     - name: Run deptry
       shell: bash
