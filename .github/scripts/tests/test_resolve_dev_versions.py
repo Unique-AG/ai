@@ -1,7 +1,7 @@
 """Unit tests for `.github/scripts/resolve-dev-versions.py`.
 
 Covers the three dep-pin branches the workflow relies on — sibling
-``==``, in-cycle ``>=`` latest dev, pyproject-stable fallback ``>=`` —
+``>=``, in-cycle ``>=`` latest dev, pyproject-stable fallback ``>=`` —
 plus the per-package dev counter behaviour.
 
 PyPI is never contacted; a fake ``fetcher`` is injected into
@@ -119,7 +119,7 @@ class ResolveTests(unittest.TestCase):
             on_disk={"unique_sdk": "0.11.6", "unique_mcp": "0.3.3"},
         )
         self.assertEqual(new_versions, {"toolkit": "2026.18.0.dev0"})
-        self.assertEqual(dep_pins["unique-toolkit"], "==2026.18.0.dev0")
+        self.assertEqual(dep_pins["unique-toolkit"], ">=2026.18.0.dev0")
         self.assertEqual(dep_pins["unique-sdk"], ">=0.11.6")
         self.assertEqual(dep_pins["unique-mcp"], ">=0.3.3")
 
@@ -134,7 +134,7 @@ class ResolveTests(unittest.TestCase):
             on_disk={"unique_mcp": "0.3.3"},
         )
         self.assertEqual(new_versions, {"toolkit": "2026.18.0.dev4"})
-        self.assertEqual(dep_pins["unique-toolkit"], "==2026.18.0.dev4")
+        self.assertEqual(dep_pins["unique-toolkit"], ">=2026.18.0.dev4")
         self.assertEqual(dep_pins["unique-sdk"], ">=2026.18.0.dev2")
         self.assertEqual(dep_pins["unique-mcp"], ">=0.3.3")
 
@@ -151,8 +151,8 @@ class ResolveTests(unittest.TestCase):
         self.assertEqual(
             new_versions, {"toolkit": "2026.18.0.dev6", "sdk": "2026.18.0.dev10"}
         )
-        self.assertEqual(dep_pins["unique-toolkit"], "==2026.18.0.dev6")
-        self.assertEqual(dep_pins["unique-sdk"], "==2026.18.0.dev10")
+        self.assertEqual(dep_pins["unique-toolkit"], ">=2026.18.0.dev6")
+        self.assertEqual(dep_pins["unique-sdk"], ">=2026.18.0.dev10")
         self.assertEqual(dep_pins["unique-mcp"], ">=0.3.3")
 
     def test_pep503_normalization(self) -> None:
@@ -206,7 +206,7 @@ class MainOutputFilesTests(unittest.TestCase):
             def fake_resolve(**_):
                 return (
                     {"toolkit": "2026.18.0.dev0"},
-                    {"unique-toolkit": "==2026.18.0.dev0"},
+                    {"unique-toolkit": ">=2026.18.0.dev0"},
                 )
 
             with patch.object(rdv, "resolve", side_effect=fake_resolve):

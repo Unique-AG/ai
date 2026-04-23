@@ -18,7 +18,7 @@ From that we produce:
 
   * ``dep_pins``: for every publishable AI package, the PEP 440 spec
     suffix downstream wheels should use for it:
-      - package is a sibling in this push   -> ``==<new version>``
+      - package is a sibling in this push   -> ``>=<new version>``
       - cycle already has a dev on PyPI     -> ``>={cycle}.0.dev<N>``
       - otherwise                           -> ``>=<pyproject version>``
 
@@ -114,7 +114,7 @@ def resolve(
         if pkg["id"] in selected:
             next_n = 0 if dev_n is None else dev_n + 1
             new_versions[pkg["id"]] = f"{cycle}.0.dev{next_n}"
-            dep_pins[key] = f"=={new_versions[pkg['id']]}"
+            dep_pins[key] = f">={new_versions[pkg['id']]}"
         elif dev_n is not None:
             dep_pins[key] = f">={cycle}.0.dev{dev_n}"
         else:

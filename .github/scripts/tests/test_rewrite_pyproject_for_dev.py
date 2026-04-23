@@ -72,18 +72,18 @@ class RewriteTests(unittest.TestCase):
     def test_rewrites_own_version_and_ai_deps(self) -> None:
         out = self._run(
             {
-                "unique-sdk": "==2026.18.0.dev3",
+                "unique-sdk": ">=2026.18.0.dev3",
                 "unique-orchestrator": ">=2026.18.0.dev1",
                 "unique-mcp": ">=2026.14.0",
             },
         )
         self.assertIn('version = "2026.18.0.dev7"', out)
-        self.assertIn('"unique-sdk==2026.18.0.dev3"', out)
+        self.assertIn('"unique-sdk>=2026.18.0.dev3"', out)
         self.assertIn('"unique_orchestrator>=2026.18.0.dev1"', out)
         self.assertIn('"unique-mcp[extra]>=2026.14.0"', out)
 
     def test_leaves_non_ai_deps_alone(self) -> None:
-        out = self._run({"unique-sdk": "==2026.18.0.dev3"})
+        out = self._run({"unique-sdk": ">=2026.18.0.dev3"})
         self.assertIn('"pydantic>=2.0"', out)
         self.assertIn('"prometheus-client>=0.17"', out)
 
@@ -92,7 +92,7 @@ class RewriteTests(unittest.TestCase):
         # (e.g. unique-mcp 0.3.3). The rewriter must pass it through.
         out = self._run(
             {
-                "unique-sdk": "==2026.18.0.dev3",
+                "unique-sdk": ">=2026.18.0.dev3",
                 "unique-mcp": ">=0.3.3",
                 "unique-orchestrator": ">=1.22.2",
             }
@@ -101,7 +101,7 @@ class RewriteTests(unittest.TestCase):
         self.assertIn('"unique_orchestrator>=1.22.2"', out)
 
     def test_preserves_other_tool_tables(self) -> None:
-        out = self._run({"unique-sdk": "==2026.18.0.dev3"})
+        out = self._run({"unique-sdk": ">=2026.18.0.dev3"})
         self.assertIn("[tool.some-tool]", out)
         self.assertIn("keep_me = true", out)
 
@@ -110,12 +110,12 @@ class RewriteTests(unittest.TestCase):
         # the dep-pin map keys on the normalized "unique-orchestrator".
         out = self._run(
             {
-                "unique-orchestrator": "==2026.18.0.dev2",
-                "unique-sdk": "==2026.18.0.dev3",
+                "unique-orchestrator": ">=2026.18.0.dev2",
+                "unique-sdk": ">=2026.18.0.dev3",
                 "unique-mcp": ">=2026.14.0",
             }
         )
-        self.assertIn('"unique_orchestrator==2026.18.0.dev2"', out)
+        self.assertIn('"unique_orchestrator>=2026.18.0.dev2"', out)
 
     def test_rejects_unknown_dep_pin_format(self) -> None:
         with tempfile.TemporaryDirectory() as td:
