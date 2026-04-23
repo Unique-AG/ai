@@ -1,6 +1,6 @@
 [project]
 name = "unique_skill_tool"
-version = "2026.16.0"
+version = "2026.18.0"
 description = ""
 readme = "README.md"
 license = { text = "Proprietary" }
