@@ -116,6 +116,8 @@ gh pr create \
   --base "$BRANCH" \
   --head "$CYCLE_BRANCH" \
   --title "chore: arm release ${VERSION}" \
-  --body "Arms the next CalVer cycle. Once merged, release-please will retarget the standing Release PR to \`${VERSION}\`."
+  --body "Arms the next CalVer cycle. Once merged, release-please will retarget the standing Release PR to \`${VERSION}\`.
+
+Release-As: ${VERSION}"
 
 echo "Opened arm PR for ${VERSION}. Release-please will update the ${BRANCH} Release PR once it is merged."
