@@ -40,6 +40,11 @@ runs:
           rm -f .basedpyright/baseline.json
         fi
 
+    - name: Show installed unique-* packages
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: uv pip list | grep -i unique || true
+
     - name: Run basedpyright
       shell: bash
       working-directory: ${{ inputs.package_dir }}
