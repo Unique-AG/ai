@@ -30,7 +30,11 @@ runs:
         CHANGES='${{ inputs.changes }}'
 
         if [ "$SELECTED" = "all" ]; then
-          MATRIX="$PACKAGES"
+          # Compact the JSON so GITHUB_OUTPUT below stays single-line.
+          # inputs.packages arrives pretty-printed from get-packages-matrix
+          # (heredoc of package_configuration.json), which breaks the
+          # `name=value` GITHUB_OUTPUT syntax when written unchanged.
+          MATRIX=$(echo "$PACKAGES" | jq -c '.')
         elif [ -n "$SELECTED" ]; then
           # Filter by selected package id
           MATRIX=$(echo "$PACKAGES" | jq -c --arg id "$SELECTED" '[.[] | select(.id == $id)]')
