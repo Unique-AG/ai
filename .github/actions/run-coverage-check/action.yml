@@ -13,13 +13,6 @@ inputs:
     description: 'Extra names to install (e.g., "--extra fastapi --extra monitoring")'
     required: false
     default: ''
-  use_workspace:
-    description: >
-      When true (default), workspace sources are used for all intra-monorepo
-      deps. Set to false only on release branches to validate that the package
-      resolves correctly against its declared bounds on PyPI.
-    required: false
-    default: 'true'
   base_ref:
     description: 'Base branch/ref for comparison'
     required: false
@@ -45,28 +38,6 @@ runs:
       run: |
         EXTRA_FLAGS=$(echo "${{ inputs.install_args }}" | grep -oP '(?<=--extra )\w+' | sed 's/^/--extra /' | paste -sd ' ' -)
         uv sync --locked --inexact $EXTRA_FLAGS
-
-    - name: Reinstall intra-monorepo deps from PyPI
-      if: inputs.use_workspace != 'true'
-      shell: bash
-      working-directory: ${{ inputs.package_dir }}
-      env:
-        UV_NO_SOURCES: 1
-      run: |
-        WORKSPACE_PKGS=$(python3 -c "
-        import tomllib
-        with open('pyproject.toml', 'rb') as f:
-            data = tomllib.load(f)
-        sources = data.get('tool', {}).get('uv', {}).get('sources', {})
-        pkgs = [name for name, src in sources.items() if src.get('workspace') or 'path' in src]
-        print(' '.join(pkgs))
-        ")
-        if [ -z "$WORKSPACE_PKGS" ]; then exit 0; fi
-        REINSTALL_ARGS=""
-        for pkg in $WORKSPACE_PKGS; do
-          REINSTALL_ARGS="$REINSTALL_ARGS --reinstall-package $pkg"
-        done
-        uv pip install $REINSTALL_ARGS .
 
     - name: Show installed unique-* packages
       shell: bash
