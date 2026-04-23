@@ -357,7 +357,7 @@ class ExperimentalConfig(BaseToolConfig):
 class UniqueAIAgentConfig(BaseToolConfig):
     max_loop_iterations: Annotated[
         int, *ClipInt(min_value=1, max_value=LIMIT_MAX_LOOP_ITERATIONS)
-    ] = 5
+    ] = 20
 
     input_token_distribution: HistoryConfig = Field(
         default=HistoryConfig(),
