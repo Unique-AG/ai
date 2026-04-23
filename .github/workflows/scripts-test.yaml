@@ -5,28 +5,45 @@ on:
     paths:
       - ".github/scripts/**"
       - ".github/workflows/scripts-test.yaml"
+      - ".github/actions/get-packages-matrix/package_configuration.json"
   push:
     branches:
       - main
     paths:
       - ".github/scripts/**"
       - ".github/workflows/scripts-test.yaml"
+      - ".github/actions/get-packages-matrix/package_configuration.json"
 
 jobs:
   test-scripts:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
-      
+
       - name: Install BATS
         run: |
           sudo apt-get update
           sudo apt-get install -y bats
-      
+
       - name: Run BATS tests
         run: |
           bats .github/scripts/tests/*.bats --tap
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          version: '0.11.5'
+
+      - name: Run Python unit tests
+        run: |
+          # Resolver tests need only stdlib; rewriter tests need tomlkit.
+          # One venv for both keeps the step simple.
+          uv run --quiet --no-project --with 'tomlkit==0.14.0' -- \
+            python3 -m unittest discover \
+              --start-directory .github/scripts/tests \
+              --pattern 'test_*.py' \
+              --verbose

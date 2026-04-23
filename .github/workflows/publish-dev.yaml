@@ -1,0 +1,251 @@
+name: "[CI] Publish dev builds to PyPI"
+
+# On every push to `main`, build and publish `.devN` wheels of the
+# publishable AI-repo packages whose sources actually changed in the
+# push range.
+#
+# Change detection reuses the same `detect-changes` + `select-packages`
+# composite actions that drive pull-request CI, so the definition of
+# "this package changed" (including doc/markdown exclusions) is
+# identical across lint/test/typecheck/publish.
+#
+# The release-please / release-cut / release-tag skip guard lands in
+# the follow-up release-process PR alongside those workflows — none of
+# their trigger commits can land on main until that PR merges.
+#
+# Version scheme
+# ==============
+#   Cycle:    YYYY.WW (next even ISO week), from `compute-calver.sh`.
+#   Own ver:  YYYY.WW.0.devN — per-package, contiguous counter within a
+#             cycle. N is derived from PyPI: look up the highest dev
+#             already published for this package in this cycle and add
+#             one (or start at 0). Each package therefore gets a clean
+#             `dev0, dev1, dev2, ...` sequence on PyPI with no gaps.
+#
+# Dep pins (cross-package AI deps, per publish)
+# =============================================
+#   Computed once in `resolve` and stamped into every wheel's
+#   Requires-Dist by `rewrite-pyproject-for-dev.py`:
+#     - dep IS publishing in this push          -> `==<its new_version>`
+#         (siblings are locked together so `pip install` always pulls a
+#          mutually-consistent set)
+#     - dep has a dev wheel in the current cycle -> `>=<highest dev>`
+#         (older locally-installed dev wheels do not satisfy the floor,
+#          so `pip install -U` correctly upgrades them)
+#     - otherwise                                -> `>=<last stable>`
+#         (a fresh cycle with no dev wheels yet; the dep has not changed
+#          since its last stable, so that is the honest floor)
+#
+# Serialization
+# =============
+#   The workflow runs under a global `publish-dev` concurrency group
+#   with `cancel-in-progress: false`, so two pushes never race on the
+#   same PyPI write. Each run observes the previous run's published
+#   versions before computing its own devN counters.
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-dev
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.publishable.outputs.matrix }}
+      new_versions: ${{ steps.resolve_versions.outputs.new_versions }}
+      dep_pins: ${{ steps.resolve_versions.outputs.dep_pins }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          # Enough history for paths-filter to diff before..after.
+          fetch-depth: 0
+
+      - name: Invalidator override (force all packages on pipeline changes)
+        id: invalidator
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          # If any file that affects the publish machinery itself changed,
+          # set selected=all so every publishable package is rebuilt and
+          # the change is exercised end-to-end. Otherwise we stay in
+          # auto-detect mode (selected='').
+          INVALIDATORS=(
+            ".github/workflows/publish-dev.yaml"
+            ".github/scripts/rewrite-pyproject-for-dev.py"
+            ".github/scripts/resolve-dev-versions.py"
+            ".github/scripts/compute-calver.sh"
+            ".github/actions/get-packages-matrix/package_configuration.json"
+            ".github/actions/detect-changes/action.yml"
+            ".github/actions/select-packages/action.yml"
+            ".github/actions/publish-to-pypi-with-uv/action.yml"
+          )
+          NULL_SHA="0000000000000000000000000000000000000000"
+          if [[ -z "$BEFORE" || "$BEFORE" == "$NULL_SHA" ]] \
+             || ! git rev-parse --verify --quiet "${BEFORE}^{commit}" >/dev/null; then
+            echo "base unavailable — forcing selected=all" >&2
+            echo "selected=all" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CHANGED="$(git diff --name-only "$BEFORE" "$AFTER" -- || true)"
+          for path in "${INVALIDATORS[@]}"; do
+            if grep -qxF "$path" <<<"$CHANGED"; then
+              echo "invalidator '${path}' changed — forcing selected=all" >&2
+              echo "selected=all" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "selected=" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/detect-changes
+        id: detect
+
+      - uses: ./.github/actions/get-packages-matrix
+        id: pkgs
+
+      - uses: ./.github/actions/select-packages
+        id: select
+        with:
+          packages: ${{ steps.pkgs.outputs.packages }}
+          selected: ${{ steps.invalidator.outputs.selected }}
+          changes: ${{ steps.detect.outputs.changes }}
+
+      - name: Drop non-publishable packages
+        id: publishable
+        env:
+          RAW_MATRIX: ${{ steps.select.outputs.matrix }}
+        run: |
+          # The shared matrix includes connectors/unique_search_proxy
+          # (publish_skip=true) and any future entry without a pypi_name.
+          # Strip them here so the publish strategy only spins up jobs for
+          # things we actually ship.
+          MATRIX=$(jq -c '{include: [.include[] | select((.publish_skip != true) and (.pypi_name != null))]}' <<<"$RAW_MATRIX")
+          SELECTED_IDS=$(jq -c '[.include[].id]' <<<"$MATRIX")
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "selected_ids=$SELECTED_IDS" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Dev publish — selection"
+            echo ""
+            echo "- Selected override: \`${{ steps.invalidator.outputs.selected || 'auto-detect' }}\`"
+            echo "- Packages queued: $(jq '.include | length' <<<"$MATRIX")"
+            echo ""
+            echo '```json'
+            jq . <<<"$MATRIX"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install uv
+        if: fromJson(steps.publishable.outputs.matrix).include[0] != null
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          version: '0.11.5'
+
+      - name: Compute CalVer cycle
+        id: calver
+        if: fromJson(steps.publishable.outputs.matrix).include[0] != null
+        run: |
+          CYCLE="$(./.github/scripts/compute-calver.sh)"
+          echo "cycle=$CYCLE" >> "$GITHUB_OUTPUT"
+          echo "- CalVer cycle: \`$CYCLE\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Resolve dev versions and dep pins
+        id: resolve_versions
+        if: fromJson(steps.publishable.outputs.matrix).include[0] != null
+        env:
+          CYCLE: ${{ steps.calver.outputs.cycle }}
+          SELECTED_IDS: ${{ steps.publishable.outputs.selected_ids }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/resolve"
+          uv run --quiet --no-project -- \
+            python3 .github/scripts/resolve-dev-versions.py \
+              --cycle "$CYCLE" \
+              --selected-ids "$SELECTED_IDS" \
+              --output-dir "$RUNNER_TEMP/resolve" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+          {
+            echo "new_versions<<EOF"
+            cat "$RUNNER_TEMP/resolve/new_versions.json"
+            echo "EOF"
+            echo "dep_pins<<EOF"
+            cat "$RUNNER_TEMP/resolve/dep_pins.json"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: resolve
+    if: fromJson(needs.resolve.outputs.matrix).include[0] != null
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
+    name: publish-dev-${{ matrix.id }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          version: '0.11.5'
+
+      - name: Rewrite pyproject.toml for dev version
+        env:
+          OWN_VERSION: ${{ fromJson(needs.resolve.outputs.new_versions)[matrix.id] }}
+          DEP_PINS: ${{ needs.resolve.outputs.dep_pins }}
+          PYPROJECT: ${{ matrix.dir }}/pyproject.toml
+        run: |
+          uv run --quiet --no-project --with 'tomlkit==0.14.0' -- \
+            python3 .github/scripts/rewrite-pyproject-for-dev.py \
+              "$PYPROJECT" \
+              --own-version "$OWN_VERSION" \
+              --dep-pins "$DEP_PINS"
+
+      - name: Show rewrite diff
+        run: |
+          echo "### ${{ matrix.id }} — pyproject.toml rewrite" >> "$GITHUB_STEP_SUMMARY"
+          echo '```diff' >> "$GITHUB_STEP_SUMMARY"
+          git --no-pager diff --no-color -- "${{ matrix.dir }}/pyproject.toml" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build package
+        working-directory: ${{ matrix.dir }}
+        env:
+          UV_NO_SOURCES: 1
+        run: uv build -o dist
+
+      - name: Show wheel metadata
+        working-directory: ${{ matrix.dir }}
+        run: |
+          WHEEL=$(ls dist/*.whl | head -n1)
+          echo "### ${{ matrix.id }} — wheel METADATA ($(basename "$WHEEL"))" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          # Extract METADATA from the wheel (it's a zip). Show name, version,
+          # and every Requires-Dist so the recorded dep graph is auditable
+          # from the Actions summary alone.
+          python3 -c "
+          import sys, zipfile, re
+          wheel = sys.argv[1]
+          with zipfile.ZipFile(wheel) as zf:
+              meta_name = next(n for n in zf.namelist() if n.endswith('.dist-info/METADATA'))
+              text = zf.read(meta_name).decode()
+          for line in text.splitlines():
+              if re.match(r'^(Name|Version|Requires-Dist):', line):
+                  print(line)
+          " "$WHEEL" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish to PyPI
+        working-directory: ${{ matrix.dir }}
+        run: uv publish --username __token__ --password "${{ secrets.PYPI_TOKEN }}"
