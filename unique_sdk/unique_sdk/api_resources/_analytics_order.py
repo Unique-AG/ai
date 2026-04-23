@@ -12,19 +12,11 @@ from unique_sdk._util import classproperty
 
 
 class AnalyticsOrder(APIResource["AnalyticsOrder"]):
-    """Analytics order resource for generating and managing analytics reports.
-
-    Supports creating, listing, retrieving, deleting, and downloading
-    analytics orders via the public API.
-    """
-
     @classproperty
     def OBJECT_NAME(cls) -> Literal["analytics-order"]:
         return "analytics-order"
 
     RESOURCE_URL = "/analytics/orders"
-
-    # -- Nested param types ------------------------------------------------
 
     class CreateParams(RequestOptions):
         type: str
@@ -35,8 +27,6 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
     class ListParams(RequestOptions):
         skip: NotRequired[int | None]
         take: NotRequired[int | None]
-
-    # -- Instance fields (typing only) -------------------------------------
 
     id: str
     companyId: str
@@ -49,8 +39,6 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
     createdBy: str
     object: str
 
-    # -- Class methods: sync -----------------------------------------------
-
     @classmethod
     def create(
         cls,
@@ -61,6 +49,24 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         return cast(
             "AnalyticsOrder",
             cls._static_request(
+                "post",
+                cls.RESOURCE_URL,
+                user_id,
+                company_id,
+                params,
+            ),
+        )
+
+    @classmethod
+    async def create_async(
+        cls,
+        user_id: str,
+        company_id: str,
+        **params: Unpack["AnalyticsOrder.CreateParams"],
+    ) -> "AnalyticsOrder":
+        return cast(
+            "AnalyticsOrder",
+            await cls._static_request_async(
                 "post",
                 cls.RESOURCE_URL,
                 user_id,
@@ -89,63 +95,6 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         return cast(builtins.list["AnalyticsOrder"], items)
 
     @classmethod
-    def retrieve(
-        cls,
-        user_id: str,
-        company_id: str,
-        order_id: str,
-    ) -> "AnalyticsOrder":
-        url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(order_id))
-        return cast(
-            "AnalyticsOrder",
-            cls._static_request("get", url, user_id, company_id),
-        )
-
-    @classmethod
-    def delete(
-        cls,
-        user_id: str,
-        company_id: str,
-        order_id: str,
-    ) -> "AnalyticsOrder":
-        url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(order_id))
-        return cast(
-            "AnalyticsOrder",
-            cls._static_request("delete", url, user_id, company_id),
-        )
-
-    @classmethod
-    def download(
-        cls,
-        user_id: str,
-        company_id: str,
-        order_id: str,
-    ) -> str:
-        """Download analytics order CSV content. Order must be in DONE state."""
-        url = "%s/%s/download" % (cls.RESOURCE_URL, quote_plus(order_id))
-        return cast(str, cls._static_request("get", url, user_id, company_id))
-
-    # -- Class methods: async ----------------------------------------------
-
-    @classmethod
-    async def create_async(
-        cls,
-        user_id: str,
-        company_id: str,
-        **params: Unpack["AnalyticsOrder.CreateParams"],
-    ) -> "AnalyticsOrder":
-        return cast(
-            "AnalyticsOrder",
-            await cls._static_request_async(
-                "post",
-                cls.RESOURCE_URL,
-                user_id,
-                company_id,
-                params,
-            ),
-        )
-
-    @classmethod
     async def list_async(
         cls,
         user_id: str,
@@ -165,6 +114,19 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         return cast(builtins.list["AnalyticsOrder"], items)
 
     @classmethod
+    def retrieve(
+        cls,
+        user_id: str,
+        company_id: str,
+        order_id: str,
+    ) -> "AnalyticsOrder":
+        url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(order_id))
+        return cast(
+            "AnalyticsOrder",
+            cls._static_request("get", url, user_id, company_id),
+        )
+
+    @classmethod
     async def retrieve_async(
         cls,
         user_id: str,
@@ -175,6 +137,19 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         return cast(
             "AnalyticsOrder",
             await cls._static_request_async("get", url, user_id, company_id),
+        )
+
+    @classmethod
+    def delete(
+        cls,
+        user_id: str,
+        company_id: str,
+        order_id: str,
+    ) -> "AnalyticsOrder":
+        url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(order_id))
+        return cast(
+            "AnalyticsOrder",
+            cls._static_request("delete", url, user_id, company_id),
         )
 
     @classmethod
@@ -191,13 +166,22 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         )
 
     @classmethod
+    def download(
+        cls,
+        user_id: str,
+        company_id: str,
+        order_id: str,
+    ) -> str:
+        url = "%s/%s/download" % (cls.RESOURCE_URL, quote_plus(order_id))
+        return cast(str, cls._static_request("get", url, user_id, company_id))
+
+    @classmethod
     async def download_async(
         cls,
         user_id: str,
         company_id: str,
         order_id: str,
     ) -> str:
-        """Async download analytics order CSV content. Order must be in DONE state."""
         url = "%s/%s/download" % (cls.RESOURCE_URL, quote_plus(order_id))
         return cast(
             str, await cls._static_request_async("get", url, user_id, company_id)
