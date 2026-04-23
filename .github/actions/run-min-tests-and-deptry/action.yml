@@ -106,7 +106,7 @@ runs:
       working-directory: ${{ inputs.package_dir }}
       env:
         VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
-      run: .venv/bin/pip list
+      run: uv pip list
 
     - name: Run deptry
       shell: bash
