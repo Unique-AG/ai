@@ -1,4 +1,4 @@
-name: "[CI] Publish to PyPI"
+name: "[CD] Publish to PyPI"
 
 on:
   release:

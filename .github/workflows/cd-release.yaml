@@ -36,7 +36,7 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  # Dispatch ci-publish.yaml for stable wheels. Works for both main
+  # Dispatch cd-publish.yaml for stable wheels. Works for both main
   # (YYYY.WW.0) and release/* (YYYY.WW.PATCH) since both flows land tags
   # the same way. Runs on a separate runner so it doesn't block
   # cut-and-arm.
@@ -55,7 +55,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh workflow run ci-publish.yaml \
+          gh workflow run cd-publish.yaml \
             --ref "${{ github.ref_name }}" \
             -f package=all \
             -f ref="${{ github.sha }}"
@@ -96,7 +96,7 @@ jobs:
           {
             echo "### Post-release actions"
             echo "- Cut \`release/\` branch from the tagged release commit"
-            echo "- Kicked \`ci-publish.yaml\` (package=all) via \`publish-stable\` job"
+            echo "- Kicked \`cd-publish.yaml\` (package=all) via \`publish-stable\` job"
             echo "- Pushed \`Release-As:\` trailer on \`main\` to arm the next cycle"
             echo "- Kicked release-please to refresh the standing Release PR"
           } >> "$GITHUB_STEP_SUMMARY"
