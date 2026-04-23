@@ -77,6 +77,44 @@ runs:
 
         uv pip install $PKG_SPEC --resolution lowest-direct $CONSTRAINT_ARGS
 
+    - name: Reinstall workspace packages from source
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      env:
+        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
+      run: |
+        # External deps stay at their lowest-direct versions; workspace packages
+        # must always reflect current source code, not a stale PyPI snapshot.
+        REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
+        python3 - "$REPO_ROOT" <<'EOF'
+        import tomllib, pathlib, subprocess, sys
+
+        repo_root = pathlib.Path(sys.argv[1])
+        with open(repo_root / "pyproject.toml", "rb") as f:
+            root = tomllib.load(f)
+
+        members = root.get("tool", {}).get("uv", {}).get("workspace", {}).get("members", [])
+        for pattern in members:
+            for member_dir in sorted(repo_root.glob(pattern)):
+                toml = member_dir / "pyproject.toml"
+                if not toml.exists():
+                    continue
+                with open(toml, "rb") as f:
+                    data = tomllib.load(f)
+                name = data.get("project", {}).get("name", "")
+                # Only reinstall if the package is actually present in the venv
+                check = subprocess.run(
+                    [".venv/bin/pip", "show", name],
+                    cwd=repo_root,
+                    capture_output=True,
+                )
+                if check.returncode == 0:
+                    subprocess.run(
+                        ["uv", "pip", "install", "-e", str(member_dir)],
+                        check=True,
+                    )
+        EOF
+
     - name: Install dev tools
       shell: bash
       working-directory: ${{ inputs.package_dir }}
