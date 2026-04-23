@@ -46,7 +46,7 @@ class ContentChunk(BaseModel):
     )
     key: str | None = Field(
         default=None,
-        description="The key of the chunk. For document chunks this is the the filename",
+        description="The key of the chunk. For document chunks this is the filename",
     )
     chunk_id: str | None = Field(
         default=None,
@@ -136,7 +136,7 @@ class Content(BaseModel):
     )
     key: str = Field(
         default="",
-        description="The key of the content. For documents this is the the filename",
+        description="The key of the content. For documents this is the filename",
     )
     title: str | None = Field(
         default=None,
