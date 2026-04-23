@@ -83,3 +83,5 @@ if _CONFIG_CHECKER_AVAILABLE:
 # Add langchain-specific exports if available
 if _LANGCHAIN_AVAILABLE:
     __all__.append("get_langchain_client")
+
+# ci-trigger
