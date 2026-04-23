@@ -70,6 +70,7 @@ constraint-dependencies = [
 "unique-orchestrator" = false
 "unique-web-search" = false
 "unique-internal-search" = false
+"unique-skill-tool" = false
 "unique-swot" = false
 "unique-deep-research" = false
 "unique-stock-ticker" = false
