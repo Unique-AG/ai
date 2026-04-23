@@ -88,10 +88,7 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
             company_id,
             params,
         )
-        if isinstance(result, builtins.list):
-            return cast(builtins.list["AnalyticsOrder"], result)
-        items = result.get("items", []) if hasattr(result, "get") else []
-        return cast(builtins.list["AnalyticsOrder"], items)
+        return cast(builtins.list["AnalyticsOrder"], result.get("items", []))
 
     @classmethod
     async def list_async(
@@ -107,10 +104,7 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
             company_id,
             params,
         )
-        if isinstance(result, builtins.list):
-            return cast(builtins.list["AnalyticsOrder"], result)
-        items = result.get("items", []) if hasattr(result, "get") else []
-        return cast(builtins.list["AnalyticsOrder"], items)
+        return cast(builtins.list["AnalyticsOrder"], result.get("items", []))
 
     @classmethod
     def retrieve(
