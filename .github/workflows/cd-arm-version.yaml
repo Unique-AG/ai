@@ -19,7 +19,7 @@ name: "[CD] Release · Arm Version"
 
 permissions:
   contents: write
-  actions: write  # needed for `gh workflow run cd-release.yaml`
+  pull-requests: write
 
 on:
   workflow_dispatch:
@@ -51,17 +51,10 @@ jobs:
       - name: Arm cycle
         env:
           YEAR_WEEK: ${{ inputs.year_week }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [[ -n "$YEAR_WEEK" ]]; then
             ./.github/scripts/prepare-next-cycle.sh --year-week "$YEAR_WEEK"
           else
             ./.github/scripts/prepare-next-cycle.sh
           fi
-
-      - name: Kick release-please
-        # The push above used GITHUB_TOKEN and therefore did not fire
-        # cd-release.yaml via its push trigger. Invoke it manually so
-        # the standing Release PR is refreshed immediately.
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run cd-release.yaml --ref main
