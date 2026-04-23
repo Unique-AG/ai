@@ -67,7 +67,7 @@ fi
 
 SHA=$(git rev-list -n 1 "refs/tags/${TAG}")
 
-if git ls-remote --heads "$REMOTE" "$BRANCH" | grep -q "$BRANCH"; then
+if git ls-remote --heads "$REMOTE" "$BRANCH" | grep -qF "$BRANCH"; then
   echo "::error::branch ${BRANCH} already exists on ${REMOTE}" >&2
   exit 1
 fi
