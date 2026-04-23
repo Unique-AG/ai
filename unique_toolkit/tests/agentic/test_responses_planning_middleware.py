@@ -3,12 +3,13 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from openai.types.responses import Response, ResponseOutputMessage, ResponseOutputText
+from openai.types.responses import Response, ResponseFunctionToolCall
 
 from unique_toolkit.agentic.loop_runner.middleware.planning.planning import (
+    _PLAN_TOOL_NAME,
     PlanningConfig,
     ResponsesPlanningMiddleware,
-    _get_first_output_text,
+    _get_first_tool_call_arguments,
 )
 from unique_toolkit.language_model.schemas import (
     LanguageModelAssistantMessage,
@@ -21,13 +22,14 @@ def _make_middleware(
     *,
     loop_runner: AsyncMock | None = None,
     history_manager: MagicMock | None = None,
+    config: PlanningConfig | None = None,
 ) -> tuple[ResponsesPlanningMiddleware, AsyncMock, AsyncMock]:
     """Create a ResponsesPlanningMiddleware with mocked dependencies."""
     openai_client = AsyncMock()
     runner = loop_runner or AsyncMock()
     middleware = ResponsesPlanningMiddleware(
         loop_runner=runner,
-        config=PlanningConfig(),
+        config=config or PlanningConfig(),
         openai_client=openai_client,
         history_manager=history_manager,
     )
@@ -40,17 +42,17 @@ def _make_model_mock(name: str = "gpt-4o") -> MagicMock:
     return model
 
 
-def _make_response(output_text: str = '{"plan": "do stuff"}') -> MagicMock:
-    """Create a mock Response with a single ResponseOutputMessage containing text."""
-    text_content = MagicMock(spec=ResponseOutputText)
-    text_content.type = "output_text"
-    text_content.text = output_text
+def _make_tool_call(arguments: str = '{"plan": "do stuff"}') -> MagicMock:
+    call = MagicMock(spec=ResponseFunctionToolCall)
+    call.arguments = arguments
+    call.name = _PLAN_TOOL_NAME
+    return call
 
-    message = MagicMock(spec=ResponseOutputMessage)
-    message.content = [text_content]
 
+def _make_response(arguments: str = '{"plan": "do stuff"}') -> MagicMock:
+    """Create a mock Response whose output contains a single forced tool call."""
     response = MagicMock(spec=Response)
-    response.output = [message]
+    response.output = [_make_tool_call(arguments)]
     return response
 
 
@@ -222,6 +224,103 @@ async def test_responses_planning__passes_model_name_to_openai() -> None:
     assert create_call.call_args[1]["model"] == "o3-mini"
 
 
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_responses_planning__forwards_whitelisted_options() -> None:
+    """
+    Purpose: Whitelisted Responses options (e.g. ``reasoning``, ``temperature``)
+    present on the loop-runner kwargs should flow into the plan call.
+    Why this matters: Reasoning models and temperature tuning must apply to the
+    planning step just like the main loop.
+    """
+    middleware, _, openai_client = _make_middleware()
+    openai_client.responses.create = AsyncMock(return_value=_make_response())
+
+    reasoning = {"effort": "high"}
+    await middleware(
+        **_base_kwargs(reasoning=reasoning, temperature=0.1, top_p=0.5)
+    )
+
+    call_kwargs = openai_client.responses.create.call_args[1]
+    assert call_kwargs["reasoning"] == reasoning
+    assert call_kwargs["temperature"] == 0.1
+    assert call_kwargs["top_p"] == 0.5
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_responses_planning__does_not_forward_non_whitelisted_options() -> None:
+    """
+    Purpose: Loop-runner kwargs that conflict with the forced-tool-call setup
+    (``tools``, ``tool_choices``, ``text``) or are loop-runner control knobs
+    must not leak into ``responses.create``.
+    """
+    middleware, _, openai_client = _make_middleware()
+    openai_client.responses.create = AsyncMock(return_value=_make_response())
+
+    await middleware(
+        **_base_kwargs(
+            tools=[MagicMock()],
+            tool_choices=[{"type": "function", "name": "other"}],
+            text={"format": {"type": "text"}},
+        )
+    )
+
+    call_kwargs = openai_client.responses.create.call_args[1]
+    # Our forced plan tool is the only tool, and tool_choice targets it.
+    assert len(call_kwargs["tools"]) == 1
+    assert call_kwargs["tools"][0]["name"] == _PLAN_TOOL_NAME
+    assert call_kwargs["tool_choice"] == {
+        "type": "function",
+        "name": _PLAN_TOOL_NAME,
+    }
+    assert "text" not in call_kwargs
+    assert "tool_choices" not in call_kwargs
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_responses_planning__respects_ignored_options_for_whitelisted() -> None:
+    """
+    Purpose: Options named in ``config.ignored_options`` are dropped even if
+    they are on the whitelist.
+    """
+    config = PlanningConfig(ignored_options=["reasoning", "temperature"])
+    middleware, _, openai_client = _make_middleware(config=config)
+    openai_client.responses.create = AsyncMock(return_value=_make_response())
+
+    await middleware(
+        **_base_kwargs(reasoning={"effort": "high"}, temperature=0.2, top_p=0.9)
+    )
+
+    call_kwargs = openai_client.responses.create.call_args[1]
+    assert "reasoning" not in call_kwargs
+    assert "temperature" not in call_kwargs
+    assert call_kwargs["top_p"] == 0.9
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_responses_planning__forwards_and_filters_other_options() -> None:
+    """
+    Purpose: Keys from the ``other_options`` dict are forwarded, minus any that
+    appear in ``ignored_options``.
+    Why this matters: ``other_options`` is the escape hatch for options not in
+    the whitelist; ``ignored_options`` must still gate it.
+    """
+    config = PlanningConfig(ignored_options=["parallel_tool_calls", "store"])
+    middleware, _, openai_client = _make_middleware(config=config)
+    openai_client.responses.create = AsyncMock(return_value=_make_response())
+
+    await middleware(
+        **_base_kwargs(other_options={"user": "u-1", "store": True})
+    )
+
+    call_kwargs = openai_client.responses.create.call_args[1]
+    assert call_kwargs["user"] == "u-1"
+    assert "store" not in call_kwargs
+
+
 # ============================================================================
 # Tests for _run_plan_step
 # ============================================================================
@@ -229,18 +328,16 @@ async def test_responses_planning__passes_model_name_to_openai() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.ai
-async def test_run_plan_step__returns_none_on_empty_output_text() -> None:
+async def test_run_plan_step__returns_none_on_empty_arguments() -> None:
     """
-    Purpose: Verify _run_plan_step returns None when the response has empty output_text.
+    Purpose: Verify _run_plan_step returns None when the tool call has empty arguments.
     Why this matters: Empty plans should be treated as failures and trigger the fallback path.
-    Setup summary: Mock response.output_text as empty string.
     """
     middleware, _, openai_client = _make_middleware()
-    empty_response = _make_response(output_text="")
-    openai_client.responses.create = AsyncMock(return_value=empty_response)
+    openai_client.responses.create = AsyncMock(return_value=_make_response(""))
 
     result = await middleware._run_plan_step(
-        openai_messages="test", model_name="gpt-4o"
+        openai_messages="test", model_name="gpt-4o", forwarded_options={}
     )
 
     assert result is None
@@ -248,18 +345,17 @@ async def test_run_plan_step__returns_none_on_empty_output_text() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.ai
-async def test_run_plan_step__returns_text_on_success() -> None:
+async def test_run_plan_step__returns_arguments_on_success() -> None:
     """
-    Purpose: Verify _run_plan_step returns the output text string on success.
-    Why this matters: The caller uses the returned text to build the assistant message.
-    Setup summary: Mock a valid response, verify the text is returned.
+    Purpose: Verify _run_plan_step returns the tool call arguments on success.
     """
     middleware, _, openai_client = _make_middleware()
-    plan_response = _make_response('{"plan": "search"}')
-    openai_client.responses.create = AsyncMock(return_value=plan_response)
+    openai_client.responses.create = AsyncMock(
+        return_value=_make_response('{"plan": "search"}')
+    )
 
     result = await middleware._run_plan_step(
-        openai_messages="test", model_name="gpt-4o"
+        openai_messages="test", model_name="gpt-4o", forwarded_options={}
     )
 
     assert result == '{"plan": "search"}'
@@ -271,13 +367,12 @@ async def test_run_plan_step__returns_none_on_exception() -> None:
     """
     Purpose: Verify _run_plan_step returns None when the OpenAI call raises.
     Why this matters: The @failsafe_async decorator should catch exceptions and return None.
-    Setup summary: Mock openai_client to raise, verify None returned.
     """
     middleware, _, openai_client = _make_middleware()
     openai_client.responses.create = AsyncMock(side_effect=RuntimeError("API down"))
 
     result = await middleware._run_plan_step(
-        openai_messages="test", model_name="gpt-4o"
+        openai_messages="test", model_name="gpt-4o", forwarded_options={}
     )
 
     assert result is None
@@ -285,84 +380,102 @@ async def test_run_plan_step__returns_none_on_exception() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.ai
-async def test_run_plan_step__sends_json_schema_format() -> None:
+async def test_run_plan_step__sends_forced_tool_call() -> None:
     """
-    Purpose: Verify the planning schema is sent as a JSON schema format parameter.
-    Why this matters: Structured output requires the correct format specification.
-    Setup summary: Inspect the `text` kwarg passed to openai_client.responses.create.
+    Purpose: The plan step must issue a forced function tool call carrying the
+    planning JSON schema.
+    Why this matters: This is the core fix for the duplicate-output issue the
+    Responses API exhibits with ``text.format=json_schema``.
     """
     middleware, _, openai_client = _make_middleware()
     openai_client.responses.create = AsyncMock(return_value=_make_response())
 
-    await middleware._run_plan_step(openai_messages="test", model_name="gpt-4o")
+    await middleware._run_plan_step(
+        openai_messages="test", model_name="gpt-4o", forwarded_options={}
+    )
 
     call_kwargs = openai_client.responses.create.call_args[1]
-    text_param = call_kwargs["text"]
-    assert "format" in text_param
-    assert text_param["format"]["type"] == "json_schema"
-    assert "schema" in text_param["format"]
+    assert "text" not in call_kwargs
+    assert call_kwargs["tool_choice"] == {
+        "type": "function",
+        "name": _PLAN_TOOL_NAME,
+    }
+    tools = call_kwargs["tools"]
+    assert len(tools) == 1
+    assert tools[0]["type"] == "function"
+    assert tools[0]["name"] == _PLAN_TOOL_NAME
+    assert isinstance(tools[0]["parameters"], dict)
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_run_plan_step__splats_forwarded_options() -> None:
+    """
+    Purpose: ``forwarded_options`` are spread as kwargs onto ``responses.create``.
+    """
+    middleware, _, openai_client = _make_middleware()
+    openai_client.responses.create = AsyncMock(return_value=_make_response())
+
+    await middleware._run_plan_step(
+        openai_messages="test",
+        model_name="gpt-4o",
+        forwarded_options={"reasoning": {"effort": "low"}, "temperature": 0.3},
+    )
+
+    call_kwargs = openai_client.responses.create.call_args[1]
+    assert call_kwargs["reasoning"] == {"effort": "low"}
+    assert call_kwargs["temperature"] == 0.3
 
 
 # ============================================================================
-# Tests for _get_first_output_text
+# Tests for _get_first_tool_call_arguments
 # ============================================================================
 
 
 @pytest.mark.ai
-def test_get_first_output_text__picks_first_message_from_multiple_outputs() -> None:
+def test_get_first_tool_call_arguments__picks_first_call_from_multiple() -> None:
     """
-    Purpose: Verify that only the first viable message text is returned when
-    the response contains multiple output items.
-    Why this matters: The Responses API can return multiple outputs; we must
-    use only the first text to avoid concatenating unrelated content.
+    Purpose: When multiple tool-call items are returned, only the first one's
+    arguments are used.
+    Why this matters: Avoids concatenating / confusing duplicate plans.
     """
-    text1 = MagicMock(spec=ResponseOutputText)
-    text1.type = "output_text"
-    text1.text = "first plan"
-
-    text2 = MagicMock(spec=ResponseOutputText)
-    text2.type = "output_text"
-    text2.text = "second plan"
-
-    msg1 = MagicMock(spec=ResponseOutputMessage)
-    msg1.content = [text1]
-
-    msg2 = MagicMock(spec=ResponseOutputMessage)
-    msg2.content = [text2]
-
     response = MagicMock(spec=Response)
-    response.output = [msg1, msg2]
+    response.output = [_make_tool_call("first plan"), _make_tool_call("second plan")]
 
-    assert _get_first_output_text(response) == "first plan"
+    assert _get_first_tool_call_arguments(response) == "first plan"
 
 
 @pytest.mark.ai
-def test_get_first_output_text__skips_non_message_outputs() -> None:
+def test_get_first_tool_call_arguments__skips_non_tool_call_outputs() -> None:
     """
-    Purpose: Verify that non-message output items (e.g. tool calls) are skipped.
-    Why this matters: The output list can contain tool calls and other item types.
+    Purpose: Non-tool-call output items (e.g. plain messages) must be skipped.
     """
-    tool_call = MagicMock()  # Not a ResponseOutputMessage
-
-    text = MagicMock(spec=ResponseOutputText)
-    text.type = "output_text"
-    text.text = "the plan"
-
-    msg = MagicMock(spec=ResponseOutputMessage)
-    msg.content = [text]
+    other = MagicMock()  # not a ResponseFunctionToolCall
 
     response = MagicMock(spec=Response)
-    response.output = [tool_call, msg]
+    response.output = [other, _make_tool_call("the plan")]
 
-    assert _get_first_output_text(response) == "the plan"
+    assert _get_first_tool_call_arguments(response) == "the plan"
 
 
 @pytest.mark.ai
-def test_get_first_output_text__returns_none_for_empty_output() -> None:
+def test_get_first_tool_call_arguments__returns_none_for_empty_output() -> None:
     """
     Purpose: Verify None is returned when the output list is empty.
     """
     response = MagicMock(spec=Response)
     response.output = []
 
-    assert _get_first_output_text(response) is None
+    assert _get_first_tool_call_arguments(response) is None
+
+
+@pytest.mark.ai
+def test_get_first_tool_call_arguments__returns_none_for_empty_arguments() -> None:
+    """
+    Purpose: A tool call with empty ``arguments`` yields None.
+    """
+    call = _make_tool_call("")
+    response = MagicMock(spec=Response)
+    response.output = [call]
+
+    assert _get_first_tool_call_arguments(response) is None
