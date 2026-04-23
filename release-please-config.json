@@ -54,6 +54,9 @@
     },
     "connectors/unique_six": {
       "component": "unique-six"
+    },
+    "tool_packages/unique_skill_tool": {
+      "component": "unique-skill-tool"
     }
   },
   "plugins": [
@@ -72,7 +75,8 @@
         "unique-follow-up-questions",
         "unique-stock-ticker",
         "unique-quartr",
-        "unique-six"
+        "unique-six",
+        "unique-skill-tool"
       ]
     }
   ]

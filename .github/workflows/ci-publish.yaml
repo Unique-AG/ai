@@ -23,6 +23,7 @@ on:
           - internal_search
           - quartr
           - six
+          - skill_tool
         default: ""
       ref:
         description: "Git ref (SHA or tag) to check out. Defaults to github.sha when omitted."

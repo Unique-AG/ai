@@ -10,5 +10,6 @@
   "postprocessors/unique_follow_up_questions": "1.1.18",
   "postprocessors/unique_stock_ticker": "1.1.5",
   "connectors/unique_quartr": "0.2.10",
-  "connectors/unique_six": "0.1.7"
+  "connectors/unique_six": "0.1.7",
+  "tool_packages/unique_skill_tool": "2026.16.0"
 }
