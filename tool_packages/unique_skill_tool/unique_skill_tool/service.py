@@ -132,7 +132,7 @@ class SkillTool(Tool[SkillToolConfig]):
                 ),
             )
 
-        await self._log_skill_loaded(skill_name=skill_name, skill=skill)
+        self._active_message_log = await self._log_skill_loaded(skill_name=skill_name)
 
         content_parts = [
             f"<skill_loaded>{skill_name}</skill_loaded>",
@@ -154,9 +154,7 @@ class SkillTool(Tool[SkillToolConfig]):
             ),
         )
 
-    async def _log_skill_loaded(
-        self, *, skill_name: str, skill: SkillDefinition
-    ) -> MessageLog | None:
+    async def _log_skill_loaded(self, *, skill_name: str) -> MessageLog | None:
         """Emit a completed message log entry for the loaded skill."""
         progress_message = f"Loaded skill `{skill_name}`"
 
