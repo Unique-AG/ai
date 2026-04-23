@@ -13,6 +13,13 @@ inputs:
     description: 'Extra names to install (e.g., "--extra fastapi --extra monitoring")'
     required: false
     default: ''
+  use_workspace:
+    description: >
+      When true (default), workspace sources are used for all intra-monorepo
+      deps. Set to false only on release branches to validate that the package
+      resolves correctly against its declared bounds on PyPI.
+    required: false
+    default: 'true'
   base_ref:
     description: 'Base branch/ref for comparison'
     required: false
@@ -31,14 +38,21 @@ runs:
         package_dir: ${{ inputs.package_dir }}
         python_version: ${{ inputs.python_version }}
 
-    - name: Install extra dependencies from PyPI
+    - name: Install optional extras
       if: inputs.install_args != ''
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: |
+        EXTRA_FLAGS=$(echo "${{ inputs.install_args }}" | grep -oP '(?<=--extra )\w+' | sed 's/^/--extra /' | paste -sd ' ' -)
+        uv sync --locked --inexact $EXTRA_FLAGS
+
+    - name: Reinstall intra-monorepo deps from PyPI
+      if: inputs.use_workspace != 'true'
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
       run: |
-        EXTRAS=$(echo "${{ inputs.install_args }}" | grep -oP '(?<=--extra )\w+' | paste -sd ',' -)
         WORKSPACE_PKGS=$(python3 -c "
         import tomllib
         with open('pyproject.toml', 'rb') as f:
@@ -47,11 +61,17 @@ runs:
         pkgs = [name for name, src in sources.items() if src.get('workspace') or 'path' in src]
         print(' '.join(pkgs))
         ")
+        if [ -z "$WORKSPACE_PKGS" ]; then exit 0; fi
         REINSTALL_ARGS=""
         for pkg in $WORKSPACE_PKGS; do
           REINSTALL_ARGS="$REINSTALL_ARGS --reinstall-package $pkg"
         done
-        uv pip install $REINSTALL_ARGS ".[${EXTRAS}]"
+        uv pip install $REINSTALL_ARGS .
+
+    - name: Show installed unique-* packages
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: uv pip list | grep -i unique || true
 
     - name: Fetch base branch
       if: inputs.base_ref != ''
