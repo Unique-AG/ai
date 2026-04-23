@@ -1,6 +1,6 @@
 import asyncio
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from unique_sdk.api_resources._analytics_order import AnalyticsOrder
 
@@ -76,7 +76,7 @@ async def run_analytics_order(
         create_kwargs["assistant_id"] = assistant_id
 
     order = await AnalyticsOrder.create_async(user_id, company_id, **create_kwargs)
-    order_id = str(order.get("id"))
+    order_id = cast(str, order.get("id"))
 
     final_order = await _poll_until_terminal(
         user_id, company_id, order_id, poll_interval, max_wait
