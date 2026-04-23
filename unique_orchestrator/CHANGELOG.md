@@ -5,18 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v1.22.2...unique-orchestrator-v2026.18.0) (2026-04-23)
-
-
-### Features
-
-* **unique-orchestrator:** Increase max loops ([#1486](https://github.com/Unique-AG/ai/issues/1486)) ([c036e38](https://github.com/Unique-AG/ai/commit/c036e382c73abcc66a71ed50097322b31c2533b5))
-* **unique-orchestrator:** skills tool ([#1485](https://github.com/Unique-AG/ai/issues/1485)) ([636db3d](https://github.com/Unique-AG/ai/commit/636db3d26f89f623793c43f157de8556911654d1))
-
-
-### Miscellaneous
-
-* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
+## [1.23.0] - 2026-04-22
+### Added
+- Add `unique-skill-tool` workspace dependency and wire the `SkillTool` into the orchestrator via `_builders/skill_setup.py` (`configure_skill_tool`), called from both the Responses and Completions build paths.
+- Expose `skill_tool_config: SkillToolConfig` on `ExperimentalConfig` to configure the skill tool alongside `open_file_tool_config`.
+- Inject per-turn tool `<system-reminder>` blocks into the latest user message via `_builders/inject_tool_reminders.py` (`inject_tool_reminders_into_user_message`), using the new `ToolPrompts.tool_system_reminder_for_user_prompt` field from `unique-toolkit>=1.80.2`. Lets stateful tools (e.g. the Skill tool) surface fresh state on every loop iteration.
 
 ## [1.22.2] - 2026-04-22
 - Align `SKIP_EXCEL_INGESTION` tests in `_configure_uploaded_search_tool` with the new `Content.is_ingested` semantics from `unique_toolkit` 1.80.1; also pin non-Excel behavior with a regression test.
