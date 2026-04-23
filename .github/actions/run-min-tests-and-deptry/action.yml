@@ -110,7 +110,7 @@ runs:
                 )
                 if check.returncode == 0:
                     subprocess.run(
-                        ["uv", "pip", "install", "-e", str(member_dir)],
+                        ["uv", "pip", "install", "--no-deps", "-e", str(member_dir)],
                         check=True,
                     )
         EOF
