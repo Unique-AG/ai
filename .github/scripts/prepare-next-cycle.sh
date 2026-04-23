@@ -102,8 +102,14 @@ git commit --allow-empty \
   -m "chore: arm release ${VERSION}" \
   -m "Release-As: ${VERSION}"
 
-# Force-push so a retry after a partial failure (branch pushed but gh pr create
-# failed, or a previously closed arm PR) doesn't hit a non-fast-forward error.
+# Populate the local tracking ref so --force-with-lease has something to
+# compare against. Without this fetch, --force-with-lease treats a missing
+# tracking ref as "expect the remote branch not to exist" and rejects the push
+# when the branch already exists (e.g. branch pushed but gh pr create failed,
+# or a previously closed arm PR). The || true handles the case where the branch
+# does not yet exist on the remote.
+git fetch --no-tags "$REMOTE" \
+  "refs/heads/${CYCLE_BRANCH}:refs/remotes/${REMOTE}/${CYCLE_BRANCH}" 2>/dev/null || true
 git push --force-with-lease "$REMOTE" "HEAD:refs/heads/${CYCLE_BRANCH}"
 
 gh pr create \
