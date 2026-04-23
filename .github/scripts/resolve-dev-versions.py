@@ -154,8 +154,12 @@ def main(argv: list[str] | None = None) -> int:
 
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "new_versions.json").write_text(json.dumps(new_versions, indent=2))
-    (out / "dep_pins.json").write_text(json.dumps(dep_pins, indent=2))
+    # Trailing newline is required: the publish-dev workflow streams these
+    # files into GITHUB_OUTPUT as multiline values terminated by a delimiter
+    # on its own line. Without the final `\n`, `cat file; echo DELIM` emits
+    # `...}DELIM` on one line and GitHub reports "Matching delimiter not found".
+    (out / "new_versions.json").write_text(json.dumps(new_versions, indent=2) + "\n")
+    (out / "dep_pins.json").write_text(json.dumps(dep_pins, indent=2) + "\n")
 
     print("### Dev publish — version resolution\n")
     print(f"- Cycle: `{args.cycle}`")

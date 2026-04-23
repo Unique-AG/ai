@@ -187,6 +187,48 @@ class ResolveTests(unittest.TestCase):
             )
 
 
+class MainOutputFilesTests(unittest.TestCase):
+    """Guards that the JSON files consumed by publish-dev.yaml end with
+    a trailing newline. The workflow streams them into GITHUB_OUTPUT with
+    a delimiter on its own line; without the final `\\n`, GitHub reports
+    "Matching delimiter not found"."""
+
+    def test_files_end_with_newline(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            cfg = Path(td) / "pkgs.json"
+            cfg.write_text(
+                json.dumps(
+                    [{"id": "toolkit", "pypi_name": "unique_toolkit", "dir": "u"}]
+                )
+            )
+            out = Path(td) / "out"
+
+            def fake_resolve(**_):
+                return (
+                    {"toolkit": "2026.18.0.dev0"},
+                    {"unique-toolkit": "==2026.18.0.dev0"},
+                )
+
+            with patch.object(rdv, "resolve", side_effect=fake_resolve):
+                rc = rdv.main(
+                    [
+                        "--cycle",
+                        "2026.18",
+                        "--selected-ids",
+                        json.dumps(["toolkit"]),
+                        "--output-dir",
+                        str(out),
+                        "--package-config",
+                        str(cfg),
+                        "--pypi-base-url",
+                        "",
+                    ]
+                )
+            self.assertEqual(rc, 0)
+            self.assertTrue((out / "new_versions.json").read_text().endswith("\n"))
+            self.assertTrue((out / "dep_pins.json").read_text().endswith("\n"))
+
+
 class LoadPublishableTests(unittest.TestCase):
     def test_skips_publish_skip_and_missing_pypi_name(self) -> None:
         with tempfile.TemporaryDirectory() as td:
