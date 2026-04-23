@@ -443,7 +443,7 @@ class TestFormatSkillListing:
         result = format_skill_listing(skills, config=config)
 
         desc_part = result.split(": ", 1)[1]
-        assert len(desc_part) <= config.max_listing_desc_chars + 2
+        assert len(desc_part) <= config.max_listing_desc_chars
         assert desc_part.endswith("...")
 
 
@@ -543,3 +543,16 @@ class TestExtractPrefixSkills:
         skills, remaining = extract_prefix_skills("/foo hi", {})
         assert skills == []
         assert remaining == "/foo hi"
+
+    def test_name_starting_with_digit_is_matched(self) -> None:
+        """Schema allows names starting with digits (e.g. ``5-forces``)."""
+        reg = _make_skill_registry(_make_skill("5-forces"))
+        skills, remaining = extract_prefix_skills("/5-forces rest", reg)
+        assert [s.name for s in skills] == ["5-forces"]
+        assert remaining == "rest"
+
+    def test_all_digits_name_is_matched(self) -> None:
+        reg = _make_skill_registry(_make_skill("123"))
+        skills, remaining = extract_prefix_skills("/123 rest", reg)
+        assert [s.name for s in skills] == ["123"]
+        assert remaining == "rest"

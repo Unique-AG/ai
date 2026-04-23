@@ -13,7 +13,7 @@ from unique_skill_tool.schemas import (
 
 MIN_DESC_LENGTH = 20
 
-_SKILL_PREFIX_TOKEN_RE = re.compile(r"\A\s*/([A-Za-z][A-Za-z0-9_-]*)(?=\s|\Z)")
+_SKILL_PREFIX_TOKEN_RE = re.compile(r"\A\s*/([A-Za-z0-9][A-Za-z0-9_-]*)(?=\s|\Z)")
 
 
 def get_char_budget(
@@ -38,7 +38,7 @@ def get_char_budget(
 def _get_skill_description(skill: SkillDefinition, max_chars: int) -> str:
     desc = skill.description
     if len(desc) > max_chars:
-        return desc[: max_chars - 1] + "..."
+        return desc[: max_chars - 3] + "..."
     return desc
 
 
