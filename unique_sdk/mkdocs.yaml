@@ -72,6 +72,7 @@ nav:
     - Message Assessment: api_resources/message_assessment.md
     - Message Execution: api_resources/message_execution.md
     - Message Log: api_resources/message_log.md
+    - MCP: api_resources/mcp.md
     - ScheduledTask: api_resources/scheduled_task.md
     - Search: api_resources/search.md
     - SearchString: api_resources/search_string.md
