@@ -63,13 +63,18 @@ runs:
         # External deps stay at their lowest-direct versions; workspace packages
         # must always reflect current source code, not a stale PyPI snapshot.
         REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
-        python3 - "$REPO_ROOT" <<'EOF'
-        import tomllib, pathlib, subprocess, sys
 
+        # Emit "<name>\t<path>" for every workspace member
+        while IFS=$'\t' read -r name path; do
+          [ -z "$name" ] && continue
+          if uv pip show "$name" >/dev/null 2>&1; then
+            uv pip install --no-deps -e "$path"
+          fi
+        done < <(python3 - "$REPO_ROOT" <<'EOF'
+        import tomllib, pathlib, sys
         repo_root = pathlib.Path(sys.argv[1])
         with open(repo_root / "pyproject.toml", "rb") as f:
             root = tomllib.load(f)
-
         members = root.get("tool", {}).get("uv", {}).get("workspace", {}).get("members", [])
         for pattern in members:
             for member_dir in sorted(repo_root.glob(pattern)):
@@ -79,18 +84,10 @@ runs:
                 with open(toml, "rb") as f:
                     data = tomllib.load(f)
                 name = data.get("project", {}).get("name", "")
-                # Only reinstall if the package is actually present in the venv
-                check = subprocess.run(
-                    [".venv/bin/pip", "show", name],
-                    cwd=repo_root,
-                    capture_output=True,
-                )
-                if check.returncode == 0:
-                    subprocess.run(
-                        ["uv", "pip", "install", "--no-deps", "-e", str(member_dir)],
-                        check=True,
-                    )
+                if name:
+                    print(f"{name}\t{member_dir}")
         EOF
+        )
 
     - name: Install dev tools
       shell: bash
