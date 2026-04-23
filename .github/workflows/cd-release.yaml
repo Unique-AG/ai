@@ -31,7 +31,7 @@ jobs:
       releases_created: ${{ steps.rp.outputs.releases_created }}
     steps:
       - id: rp
-        uses: googleapis/release-please-action@a02a34c4d625f9be7cb89f4291f3d4484fec4e28 # v4
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
