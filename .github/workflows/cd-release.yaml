@@ -29,12 +29,59 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       releases_created: ${{ steps.rp.outputs.releases_created }}
+      prs: ${{ steps.rp.outputs.prs }}
     steps:
       - id: rp
         uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  # After release-please updates the PR with new version bumps it does not
+  # update uv.lock. This job checks out the PR branch, reruns uv lock, and
+  # commits the result so the lockfile stays consistent with pyproject.toml.
+  update-release-lockfile:
+    needs: release-please
+    if: needs.release-please.outputs.releases_created != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Parse release PR branch
+        id: pr-info
+        env:
+          PRS_JSON: ${{ needs.release-please.outputs.prs }}
+        run: |
+          branch=$(echo "${PRS_JSON:-[]}" | jq -r '.[0].headBranchName // empty')
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release PR branch
+        if: steps.pr-info.outputs.branch != ''
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ steps.pr-info.outputs.branch }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup uv
+        if: steps.pr-info.outputs.branch != ''
+        uses: ./.github/actions/setup-uv
+        with:
+          install_dependencies: "false"
+
+      - name: Regenerate lockfile
+        if: steps.pr-info.outputs.branch != ''
+        run: uv lock
+
+      - name: Commit lockfile if changed
+        if: steps.pr-info.outputs.branch != ''
+        run: |
+          if git diff --quiet uv.lock; then
+            echo "uv.lock is already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add uv.lock
+          git commit -m "chore: regenerate uv.lock for release"
+          git push
 
   # Dispatch cd-publish.yaml for stable wheels. Works for both main
   # (YYYY.WW.0) and release/* (YYYY.WW.PATCH) since both flows land tags
