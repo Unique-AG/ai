@@ -55,10 +55,11 @@ jobs:
         id: pr-info
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_BRANCH: ${{ github.ref_name }}
         run: |
           branch=$(gh pr list \
             --repo "${{ github.repository }}" \
-            --base "${{ github.ref_name }}" \
+            --base "$BASE_BRANCH" \
             --label "autorelease: pending" \
             --state open \
             --json headRefName \
@@ -80,9 +81,11 @@ jobs:
 
       - name: Seed lockfile from base branch before regenerating
         if: steps.pr-info.outputs.branch != ''
+        env:
+          BASE_BRANCH: ${{ github.ref_name }}
         run: |
-          git fetch --depth=1 origin "${{ github.ref_name }}"
-          git show "origin/${{ github.ref_name }}:uv.lock" > uv.lock
+          git fetch --depth=1 origin "$BASE_BRANCH"
+          git show "origin/$BASE_BRANCH:uv.lock" > uv.lock
 
       - name: Regenerate lockfile
         if: steps.pr-info.outputs.branch != ''
@@ -119,11 +122,13 @@ jobs:
       - name: Kick ci-publish for stable wheels
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_SHA: ${{ github.sha }}
         run: |
           gh workflow run cd-publish.yaml \
-            --ref "${{ github.ref_name }}" \
+            --ref "$REF_NAME" \
             -f package=all \
-            -f ref="${{ github.sha }}"
+            -f ref="$REF_SHA"
 
   # Main-only post-release chores. Skipped on release/* because hotfix
   # cycles don't cut a new branch and don't advance the next CalVer.
