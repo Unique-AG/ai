@@ -36,7 +36,6 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
     createdAt: str
     updatedAt: str
     stateUpdatedAt: str
-    createdBy: str
     object: str
 
     @classmethod
