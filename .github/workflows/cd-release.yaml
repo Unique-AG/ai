@@ -58,6 +58,7 @@ jobs:
         run: |
           branch=$(gh pr list \
             --repo "${{ github.repository }}" \
+            --base "${{ github.ref_name }}" \
             --label "autorelease: pending" \
             --state open \
             --json headRefName \
