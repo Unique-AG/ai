@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import override
 
-import jinja2
+from jinja2.sandbox import SandboxedEnvironment
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -110,9 +110,11 @@ class SkillTool(Tool[SkillToolConfig]):
             return ""
 
         listing = format_skill_listing(skills=skills, config=self.config)
-        return jinja2.Template(
-            self.config.tool_system_reminder_for_user_message
-        ).render(skill_list=listing)
+        return (
+            SandboxedEnvironment()
+            .from_string(self.config.tool_system_reminder_for_user_message)
+            .render(skill_list=listing)
+        )
 
     @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
