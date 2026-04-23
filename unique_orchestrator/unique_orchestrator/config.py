@@ -134,7 +134,7 @@ class UniqueAISpaceConfig(SpaceConfigBase):
 UniqueAISpaceConfig.model_rebuild()
 
 LIMIT_MAX_TOOL_CALLS_PER_ITERATION = 50
-LIMIT_MAX_LOOP_ITERATIONS = 10
+LIMIT_MAX_LOOP_ITERATIONS = 50
 
 _MODEL_FAMILIES = ("qwen", "mistral")
 
