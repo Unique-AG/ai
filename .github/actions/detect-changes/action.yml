@@ -47,6 +47,9 @@ runs:
           internal_search:
             - 'tool_packages/unique_internal_search/**'
             - '!tool_packages/unique_internal_search/**/*.md'
+          skill_tool:
+            - 'tool_packages/unique_skill_tool/**'
+            - '!tool_packages/unique_skill_tool/**/*.md'
           quartr:
             - 'connectors/unique_quartr/**'
             - '!connectors/unique_quartr/**/*.md'
