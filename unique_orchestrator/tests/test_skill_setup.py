@@ -209,7 +209,7 @@ class TestBuildSkill:
         assert skill is not None
         assert skill.name == "summarize"
         assert skill.description == "Summarize a document."
-        assert skill.content == "# Summarize\nDo the thing.\n"
+        assert skill.content == "# Summarize\nDo the thing."
 
     def test_empty_body_does_not_leak_frontmatter(self, logger: Logger) -> None:
         """Regression: when the body after frontmatter is empty, we must not
@@ -290,26 +290,83 @@ class TestBuildSkill:
 
         assert skill is None
 
+    @pytest.mark.parametrize(
+        "bad_name",
+        [
+            "Has Spaces",
+            "UPPERCASE",
+            "has_underscore",
+            "has.dot",
+            "has:colon",
+            'has"quote',
+            "héllo",
+            "-leading-hyphen",
+            "trailing-hyphen-",
+            "double--hyphen",
+            "a" * 65,
+        ],
+    )
+    def test_invalid_name_returns_none(self, logger: Logger, bad_name: str) -> None:
+        """Names that wouldn't round-trip through an OpenAI function enum
+        (non-kebab-case, whitespace, punctuation, non-ASCII, >64 chars) are
+        rejected before they reach the tool schema.
+        """
+        file_text = f"---\nname: '{bad_name}'\ndescription: d\n---\nbody\n"
+        content = MagicMock()
+        content.key = "bad-name.md"
+        content.id = "c-bad"
+
+        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+
+        assert skill is None
+        logger.warning.assert_called_once()  # type: ignore[attr-defined]
+
+    @pytest.mark.parametrize(
+        "good_name",
+        [
+            "foo",
+            "foo-bar",
+            "summarize-report",
+            "a1-b2-c3",
+            "a" * 64,
+            "x",
+        ],
+    )
+    def test_valid_kebab_case_name_accepted(
+        self, logger: Logger, good_name: str
+    ) -> None:
+        file_text = f"---\nname: {good_name}\ndescription: d\n---\nbody\n"
+        content = MagicMock()
+        content.key = "ok.md"
+        content.id = "c-ok"
+
+        skill = _build_skill(content=content, file_text=file_text, logger=logger)
+
+        assert skill is not None
+        assert skill.name == good_name
+
 
 class TestParseFrontmatter:
     def test_no_leading_triple_dash_returns_empty(self) -> None:
         fm, body = _parse_frontmatter(text="# Heading\nbody\n")
         assert fm == {}
-        assert body == "# Heading\nbody\n"
+        assert body == "# Heading\nbody"
 
     def test_unterminated_frontmatter_returns_empty(self) -> None:
         fm, body = _parse_frontmatter(text="---\nname: foo\nno closing\n")
         assert fm == {}
-        assert body == "---\nname: foo\nno closing\n"
+        assert body == "---\nname: foo\nno closing"
 
     def test_parses_valid_frontmatter(self) -> None:
         fm, body = _parse_frontmatter(
             text="---\nname: foo\ndescription: bar\n---\nhello\n"
         )
         assert fm == {"name": "foo", "description": "bar"}
-        assert body == "hello\n"
+        assert body == "hello"
 
     def test_invalid_yaml_returns_empty(self) -> None:
+        """Malformed YAML raises — we fall back to the raw text so the
+        frontmatter block doesn't leak into the prompt."""
         fm, body = _parse_frontmatter(text="---\n: : : bad\n---\nbody\n")
         assert fm == {}
         assert body == "---\n: : : bad\n---\nbody\n"
@@ -317,7 +374,7 @@ class TestParseFrontmatter:
     def test_non_dict_yaml_returns_empty(self) -> None:
         fm, body = _parse_frontmatter(text="---\n- a\n- b\n---\nbody\n")
         assert fm == {}
-        assert body == "---\n- a\n- b\n---\nbody\n"
+        assert body == "body"
 
     def test_inline_triple_dash_in_value_is_not_delimiter(self) -> None:
         """``---`` inside a value must not terminate the frontmatter block."""
@@ -329,13 +386,13 @@ class TestParseFrontmatter:
             "name": "my---skill",
             "description": "uses --- internally",
         }
-        assert body == "real body\n"
+        assert body == "real body"
 
     def test_leading_dash_not_on_own_line_is_not_frontmatter(self) -> None:
         """Text starting with ``---foo`` (no newline) is not frontmatter."""
         fm, body = _parse_frontmatter(text="---not-a-delimiter\nname: foo\n---\nbody\n")
         assert fm == {}
-        assert body == "---not-a-delimiter\nname: foo\n---\nbody\n"
+        assert body == "---not-a-delimiter\nname: foo\n---\nbody"
 
 
 class TestIsMarkdown:
@@ -393,11 +450,12 @@ def _paginated(infos: list[MagicMock], total: int) -> MagicMock:
 
 
 class TestLoadSkillsFromKnowledgeBase:
-    def test_empty_scope_ids_returns_empty(self, logger: Logger) -> None:
+    @pytest.mark.asyncio
+    async def test_empty_scope_ids_returns_empty(self, logger: Logger) -> None:
         content_service = MagicMock()
         knowledge_base_service = MagicMock()
 
-        result = load_skills_from_knowledge_base(
+        result = await load_skills_from_knowledge_base(
             content_service=content_service,
             knowledge_base_service=knowledge_base_service,
             scope_ids=[],
@@ -407,14 +465,15 @@ class TestLoadSkillsFromKnowledgeBase:
         assert result == {}
         knowledge_base_service.get_paginated_content_infos.assert_not_called()
 
-    def test_pagination_error_returns_empty(self, logger: Logger) -> None:
+    @pytest.mark.asyncio
+    async def test_pagination_error_returns_empty(self, logger: Logger) -> None:
         content_service = MagicMock()
         knowledge_base_service = MagicMock()
         knowledge_base_service.get_paginated_content_infos.side_effect = RuntimeError(
             "boom"
         )
 
-        result = load_skills_from_knowledge_base(
+        result = await load_skills_from_knowledge_base(
             content_service=content_service,
             knowledge_base_service=knowledge_base_service,
             scope_ids=["scope-1"],
@@ -423,15 +482,17 @@ class TestLoadSkillsFromKnowledgeBase:
 
         assert result == {}
 
-    def test_no_markdown_files_returns_empty(self, logger: Logger) -> None:
+    @pytest.mark.asyncio
+    async def test_no_markdown_files_returns_empty(self, logger: Logger) -> None:
         content_service = MagicMock()
+        content_service.download_content_to_bytes_async = AsyncMock()
         knowledge_base_service = MagicMock()
         knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
             [_fake_info("c1", "foo.txt"), _fake_info("c2", "bar.pdf")],
             total=2,
         )
 
-        result = load_skills_from_knowledge_base(
+        result = await load_skills_from_knowledge_base(
             content_service=content_service,
             knowledge_base_service=knowledge_base_service,
             scope_ids=["scope-1"],
@@ -439,21 +500,24 @@ class TestLoadSkillsFromKnowledgeBase:
         )
 
         assert result == {}
-        content_service.download_content_to_bytes.assert_not_called()
+        content_service.download_content_to_bytes_async.assert_not_awaited()
 
-    def test_download_failure_skips_entry(self, logger: Logger) -> None:
+    @pytest.mark.asyncio
+    async def test_download_failure_skips_entry(self, logger: Logger) -> None:
         content_service = MagicMock()
-        content_service.download_content_to_bytes.side_effect = [
-            RuntimeError("download failed"),
-            b"---\nname: bar\ndescription: d\n---\nbody\n",
-        ]
+        content_service.download_content_to_bytes_async = AsyncMock(
+            side_effect=[
+                RuntimeError("download failed"),
+                b"---\nname: bar\ndescription: d\n---\nbody\n",
+            ]
+        )
         knowledge_base_service = MagicMock()
         knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
             [_fake_info("c1", "foo.md"), _fake_info("c2", "bar.md")],
             total=2,
         )
 
-        result = load_skills_from_knowledge_base(
+        result = await load_skills_from_knowledge_base(
             content_service=content_service,
             knowledge_base_service=knowledge_base_service,
             scope_ids=["scope-1"],
@@ -462,16 +526,19 @@ class TestLoadSkillsFromKnowledgeBase:
 
         assert set(result.keys()) == {"bar"}
 
-    def test_empty_file_is_skipped(self, logger: Logger) -> None:
+    @pytest.mark.asyncio
+    async def test_empty_file_is_skipped(self, logger: Logger) -> None:
         content_service = MagicMock()
-        content_service.download_content_to_bytes.return_value = b"   \n"
+        content_service.download_content_to_bytes_async = AsyncMock(
+            return_value=b"   \n"
+        )
         knowledge_base_service = MagicMock()
         knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
             [_fake_info("c1", "empty.md")],
             total=1,
         )
 
-        result = load_skills_from_knowledge_base(
+        result = await load_skills_from_knowledge_base(
             content_service=content_service,
             knowledge_base_service=knowledge_base_service,
             scope_ids=["scope-1"],
@@ -480,19 +547,22 @@ class TestLoadSkillsFromKnowledgeBase:
 
         assert result == {}
 
-    def test_duplicate_names_keep_first(self, logger: Logger) -> None:
+    @pytest.mark.asyncio
+    async def test_duplicate_names_keep_first(self, logger: Logger) -> None:
         content_service = MagicMock()
-        content_service.download_content_to_bytes.side_effect = [
-            b"---\nname: dup\ndescription: first\n---\nFIRST\n",
-            b"---\nname: dup\ndescription: second\n---\nSECOND\n",
-        ]
+        content_service.download_content_to_bytes_async = AsyncMock(
+            side_effect=[
+                b"---\nname: dup\ndescription: first\n---\nFIRST\n",
+                b"---\nname: dup\ndescription: second\n---\nSECOND\n",
+            ]
+        )
         knowledge_base_service = MagicMock()
         knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
             [_fake_info("c1", "a.md"), _fake_info("c2", "b.md")],
             total=2,
         )
 
-        result = load_skills_from_knowledge_base(
+        result = await load_skills_from_knowledge_base(
             content_service=content_service,
             knowledge_base_service=knowledge_base_service,
             scope_ids=["scope-1"],
@@ -501,21 +571,24 @@ class TestLoadSkillsFromKnowledgeBase:
 
         assert set(result.keys()) == {"dup"}
         assert result["dup"].description == "first"
-        assert result["dup"].content == "FIRST\n"
+        assert result["dup"].content == "FIRST"
 
-    def test_successful_load_returns_registry(self, logger: Logger) -> None:
+    @pytest.mark.asyncio
+    async def test_successful_load_returns_registry(self, logger: Logger) -> None:
         content_service = MagicMock()
-        content_service.download_content_to_bytes.side_effect = [
-            b"---\nname: foo\ndescription: d1\n---\nFOO\n",
-            b"---\nname: bar\ndescription: d2\n---\nBAR\n",
-        ]
+        content_service.download_content_to_bytes_async = AsyncMock(
+            side_effect=[
+                b"---\nname: foo\ndescription: d1\n---\nFOO\n",
+                b"---\nname: bar\ndescription: d2\n---\nBAR\n",
+            ]
+        )
         knowledge_base_service = MagicMock()
         knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
             [_fake_info("c1", "foo.md"), _fake_info("c2", "bar.md")],
             total=2,
         )
 
-        result = load_skills_from_knowledge_base(
+        result = await load_skills_from_knowledge_base(
             content_service=content_service,
             knowledge_base_service=knowledge_base_service,
             scope_ids=["scope-1"],
@@ -523,14 +596,58 @@ class TestLoadSkillsFromKnowledgeBase:
         )
 
         assert set(result.keys()) == {"foo", "bar"}
-        assert result["foo"].content == "FOO\n"
-        assert result["bar"].content == "BAR\n"
+        assert result["foo"].content == "FOO"
+        assert result["bar"].content == "BAR"
 
-    def test_paginates_across_multiple_pages(self, logger: Logger) -> None:
+    @pytest.mark.asyncio
+    async def test_downloads_run_concurrently(self, logger: Logger) -> None:
+        """All file downloads must be awaited concurrently via ``asyncio.gather``,
+        not sequentially — otherwise per-request build latency scales with the
+        number of skills.
+        """
+        import asyncio
+
+        started = 0
+        peak_in_flight = 0
+        in_flight = 0
+
+        async def fake_download(*, content_id: str) -> bytes:
+            nonlocal started, in_flight, peak_in_flight
+            started += 1
+            in_flight += 1
+            peak_in_flight = max(peak_in_flight, in_flight)
+            try:
+                await asyncio.sleep(0)
+                await asyncio.sleep(0)
+                return f"---\nname: s{content_id}\ndescription: d\n---\nbody\n".encode()
+            finally:
+                in_flight -= 1
+
+        content_service = MagicMock()
+        content_service.download_content_to_bytes_async = AsyncMock(
+            side_effect=fake_download
+        )
+        knowledge_base_service = MagicMock()
+        knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
+            [_fake_info(f"c{i}", f"s{i}.md") for i in range(10)], total=10
+        )
+
+        result = await load_skills_from_knowledge_base(
+            content_service=content_service,
+            knowledge_base_service=knowledge_base_service,
+            scope_ids=["scope-1"],
+            logger=logger,
+        )
+
+        assert len(result) == 10
+        assert peak_in_flight == 10
+
+    @pytest.mark.asyncio
+    async def test_paginates_across_multiple_pages(self, logger: Logger) -> None:
         """Break-out condition: ``len(page) < PAGE_SIZE`` terminates the loop."""
         content_service = MagicMock()
-        content_service.download_content_to_bytes.return_value = (
-            b"---\nname: s\ndescription: d\n---\nBODY\n"
+        content_service.download_content_to_bytes_async = AsyncMock(
+            return_value=b"---\nname: s\ndescription: d\n---\nBODY\n"
         )
         knowledge_base_service = MagicMock()
         page1 = _paginated(
@@ -541,7 +658,7 @@ class TestLoadSkillsFromKnowledgeBase:
         )
         knowledge_base_service.get_paginated_content_infos.side_effect = [page1, page2]
 
-        load_skills_from_knowledge_base(
+        await load_skills_from_knowledge_base(
             content_service=content_service,
             knowledge_base_service=knowledge_base_service,
             scope_ids=["scope-1"],
@@ -562,11 +679,12 @@ class TestConfigureSkillTool:
         config.agent.experimental.skill_tool_config = skill_config
         return config
 
-    def test_disabled_is_noop(self, logger: Logger) -> None:
+    @pytest.mark.asyncio
+    async def test_disabled_is_noop(self, logger: Logger) -> None:
         config = self._build_config(enabled=False)
         tool_manager = MagicMock()
 
-        configure_skill_tool(
+        await configure_skill_tool(
             config=config,
             event=MagicMock(),
             logger=logger,
@@ -576,11 +694,12 @@ class TestConfigureSkillTool:
 
         tool_manager.add_tool.assert_not_called()
 
-    def test_enabled_without_scopes_is_noop(self, logger: Logger) -> None:
+    @pytest.mark.asyncio
+    async def test_enabled_without_scopes_is_noop(self, logger: Logger) -> None:
         config = self._build_config(enabled=True, scope_ids=[])
         tool_manager = MagicMock()
 
-        configure_skill_tool(
+        await configure_skill_tool(
             config=config,
             event=MagicMock(),
             logger=logger,
@@ -590,7 +709,8 @@ class TestConfigureSkillTool:
 
         tool_manager.add_tool.assert_not_called()
 
-    def test_empty_registry_does_not_register_tool(
+    @pytest.mark.asyncio
+    async def test_empty_registry_does_not_register_tool(
         self, logger: Logger, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """If the skill registry ends up empty (KB error, no .md files, or all
@@ -609,17 +729,21 @@ class TestConfigureSkillTool:
             "KnowledgeBaseService",
             lambda **kwargs: fake_kb_service,
         )
+
+        async def _fake_load(**kwargs: object) -> dict[str, SkillDefinition]:
+            return {}
+
         monkeypatch.setattr(
             skill_setup,
             "load_skills_from_knowledge_base",
-            lambda **kwargs: {},
+            _fake_load,
         )
 
         event = MagicMock()
         event.company_id = "co-1"
         event.user_id = "u-1"
 
-        configure_skill_tool(
+        await configure_skill_tool(
             config=config,
             event=event,
             logger=logger,
@@ -629,7 +753,8 @@ class TestConfigureSkillTool:
 
         tool_manager.add_tool.assert_not_called()
 
-    def test_registers_tool_when_enabled_and_scoped(
+    @pytest.mark.asyncio
+    async def test_registers_tool_when_enabled_and_scoped(
         self, logger: Logger, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         config = self._build_config(enabled=True, scope_ids=["scope-1"])
@@ -644,19 +769,21 @@ class TestConfigureSkillTool:
             "KnowledgeBaseService",
             lambda **kwargs: fake_kb_service,
         )
+
+        async def _fake_load(**kwargs: object) -> dict[str, SkillDefinition]:
+            return {"foo": SkillDefinition(name="foo", description="d", content="c")}
+
         monkeypatch.setattr(
             skill_setup,
             "load_skills_from_knowledge_base",
-            lambda **kwargs: {
-                "foo": SkillDefinition(name="foo", description="d", content="c")
-            },
+            _fake_load,
         )
 
         event = MagicMock()
         event.company_id = "co-1"
         event.user_id = "u-1"
 
-        configure_skill_tool(
+        await configure_skill_tool(
             config=config,
             event=event,
             logger=logger,

@@ -35,7 +35,7 @@ You are an expert document summarizer...
 
 | Frontmatter key | Required | Purpose                                                     |
 |-----------------|----------|-------------------------------------------------------------|
-| `name`          | No       | Skill identifier (defaults to file name without `.md`)      |
+| `name`          | Yes      | Skill identifier (defaults to file name without `.md`)      |
 | `description`   | Yes      | Short description shown to the LLM in the skill listing — include guidance on when to activate this skill |
 
 Everything below the frontmatter is the **skill body** — the full prompt
@@ -45,8 +45,7 @@ instructions injected when the agent invokes the skill.
 
 | File                      | Purpose                                    |
 |---------------------------|--------------------------------------------|
-| `summarize-document.md`   | Structured document summarization          |
 | `analyze-data.md`         | Tabular / numerical data analysis          |
+| `analyze-factsheet.md`    | Factsheet data analysis                    |
 | `draft-email.md`          | Professional email drafting                |
 | `review-contract.md`      | Contract risk analysis and review          |
-| `translate-document.md`   | Document translation with locale awareness |

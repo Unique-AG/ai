@@ -18,14 +18,32 @@ Skill files are ``.md`` documents with optional YAML frontmatter::
 The frontmatter fields are used for the skill listing shown to the
 LLM.  The body (everything after the frontmatter) is the prompt
 content injected when the skill is invoked.
+
+TODO: Add a skill-path reconciliation module that supports both KB
+layouts and infers the skill name when frontmatter ``name:`` is
+missing. Today every ``.md`` is treated as an independent skill and
+is skipped unless the frontmatter carries both ``name`` and
+``description`` — a folder-based skill (``<scope>/draft-email/
+SKILL.md`` + assets) is indistinguishable from a flat-layout skill
+(``<scope>/draft-email.md``), and authors must repeat the name in
+frontmatter even though the filename or folder already implies it.
+
+Target layouts:
+  * flat:   ``<scope>/draft-email.md``
+            -> name inferred from filename stem
+  * folder: ``<scope>/draft-email/SKILL.md`` + sibling assets
+            -> name inferred from folder name; other ``.md`` files in
+               the folder are treated as assets, not separate skills
 """
 
 from __future__ import annotations
 
+import asyncio
 from logging import Logger
 from typing import TYPE_CHECKING, Any
 
-import yaml
+import frontmatter
+from pydantic import ValidationError
 from unique_skill_tool.schemas import SkillDefinition
 from unique_skill_tool.service import SkillTool
 from unique_skill_tool.utils import extract_prefix_skills
@@ -84,33 +102,16 @@ def _build_subtree_metadata_filter(*, scope_ids: list[str]) -> dict[str, Any]:
 def _parse_frontmatter(*, text: str) -> tuple[dict[str, Any], str]:
     """Split YAML frontmatter from the markdown body.
 
-    Follows the standard YAML frontmatter convention: the document must
-    begin with a ``---`` delimiter on its own line, and the frontmatter
-    block ends at the next ``---`` (or ``...``) on its own line.  ``---``
-    appearing inside values (e.g. ``name: my---skill``) is not treated as
-    a delimiter.
-
-    Returns ``(frontmatter_dict, body)``.  If no frontmatter is found,
-    the dict is empty and the full text is returned as the body.
+    Thin wrapper around ``python-frontmatter``. On a YAML parse error
+    we fall back to ``({}, text)`` so a broken skill file never leaks
+    its raw ``---\\nname: ...\\n---`` block into the LLM prompt.
     """
-    lines = text.splitlines(keepends=True)
-    if not lines or lines[0].rstrip("\r\n") != "---":
+    try:
+        post = frontmatter.loads(text)
+    except Exception:
         return {}, text
 
-    for idx in range(1, len(lines)):
-        stripped = lines[idx].rstrip("\r\n")
-        if stripped == "---" or stripped == "...":
-            fm_text = "".join(lines[1:idx])
-            body = "".join(lines[idx + 1 :]).lstrip("\n")
-            try:
-                fm = yaml.safe_load(fm_text)
-            except yaml.YAMLError:
-                return {}, text
-            if not isinstance(fm, dict):
-                return {}, text
-            return fm, body
-
-    return {}, text
+    return dict(post.metadata), post.content
 
 
 def _build_skill(
@@ -121,7 +122,10 @@ def _build_skill(
 ) -> SkillDefinition | None:
     """Build a ``SkillDefinition`` from the raw file text of a KB document.
 
-    Parses YAML frontmatter for ``name`` and ``description``.
+    Parses YAML frontmatter for ``name`` and ``description``. A malformed
+    ``name`` (non-kebab-case, contains whitespace/punctuation, too long)
+    is rejected by ``SkillDefinition`` rather than silently flowing into
+    the OpenAI tool enum where the model could never emit it verbatim.
     """
     if not file_text.strip():
         return None
@@ -139,14 +143,23 @@ def _build_skill(
         )
         return None
 
-    return SkillDefinition(
-        name=name,
-        description=description,
-        content=body,
-    )
+    try:
+        return SkillDefinition(
+            name=name,
+            description=description,
+            content=body,
+        )
+    except ValidationError as exc:
+        logger.warning(
+            "Skipping '%s' (%s): invalid skill definition: %s",
+            content.key,
+            content.id,
+            exc.errors(include_url=False),
+        )
+        return None
 
 
-def load_skills_from_knowledge_base(
+async def load_skills_from_knowledge_base(
     *,
     content_service: ContentService,
     knowledge_base_service: KnowledgeBaseService,
@@ -168,6 +181,10 @@ def load_skills_from_knowledge_base(
       the current user can access are returned.
     * To expose skills to users who only have access to specific
       sub-folders, configure those sub-folder scope IDs directly.
+
+    File downloads are fanned out concurrently via ``asyncio.gather`` so
+    per-request build latency stays ~O(1) in the number of skills rather
+    than O(N) synchronous HTTP round-trips.
     """
     if not scope_ids:
         logger.info("SkillTool has no scope_ids configured.")
@@ -205,16 +222,30 @@ def load_skills_from_knowledge_base(
         logger.info("No .md files found for scope_ids=%s.", scope_ids)
         return {}
 
+    download_results = await asyncio.gather(
+        *(
+            content_service.download_content_to_bytes_async(content_id=info.id)
+            for info in md_infos
+        ),
+        return_exceptions=True,
+    )
+
     skill_registry: dict[str, SkillDefinition] = {}
-    for info in md_infos:
-        try:
-            raw_bytes = content_service.download_content_to_bytes(
-                content_id=info.id,
-            )
-            file_text = raw_bytes.decode("utf-8")
-        except Exception:
+    for info, result in zip(md_infos, download_results, strict=True):
+        if isinstance(result, BaseException):
             logger.warning(
                 "Failed to download '%s' (%s) — skipping.",
+                info.key,
+                info.id,
+                exc_info=result,
+            )
+            continue
+
+        try:
+            file_text = result.decode("utf-8")
+        except UnicodeDecodeError:
+            logger.warning(
+                "Failed to decode '%s' (%s) as UTF-8 — skipping.",
                 info.key,
                 info.id,
                 exc_info=True,
@@ -247,7 +278,7 @@ def load_skills_from_knowledge_base(
     return skill_registry
 
 
-def configure_skill_tool(
+async def configure_skill_tool(
     *,
     config: UniqueAIConfig,
     event: ChatEvent,
@@ -258,8 +289,8 @@ def configure_skill_tool(
     """Register the SkillTool if enabled in the config.
 
     Lists all ``.md`` files in the configured ``scope_ids`` (and every
-    sub-folder reachable from them), downloads each one, and registers
-    the SkillTool with the parsed skills.
+    sub-folder reachable from them), downloads each one concurrently,
+    and registers the SkillTool with the parsed skills.
     """
     skill_config = config.agent.experimental.skill_tool_config
     if not skill_config.enabled:
@@ -277,7 +308,7 @@ def configure_skill_tool(
         user_id=event.user_id,
     )
 
-    skill_registry = load_skills_from_knowledge_base(
+    skill_registry = await load_skills_from_knowledge_base(
         content_service=content_service,
         knowledge_base_service=knowledge_base_service,
         scope_ids=skill_config.scope_ids,

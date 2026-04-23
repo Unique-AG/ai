@@ -141,7 +141,7 @@ async def build_unique_ai(
             common_components=common_components,
         )
     else:
-        return _build_completions(
+        return await _build_completions(
             event=event,
             logger=logger,
             config=config,
@@ -433,7 +433,7 @@ async def _build_responses(
             history_manager=history_manager,
         )
 
-    configure_skill_tool(
+    await configure_skill_tool(
         config=config,
         event=event,
         logger=logger,
@@ -487,7 +487,7 @@ async def _build_responses(
     )
 
 
-def _build_completions(
+async def _build_completions(
     event: ChatEvent,
     logger: Logger,
     config: UniqueAIConfig,
@@ -511,7 +511,7 @@ def _build_completions(
     if not has_tool_choices and has_valid_uploaded_documents:
         tool_manager.add_forced_tool(UploadedSearchTool.name)
 
-    configure_skill_tool(
+    await configure_skill_tool(
         config=config,
         event=event,
         logger=logger,
