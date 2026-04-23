@@ -35,11 +35,13 @@ async def main() -> None:
         _print_result(result)
 
         # --- Call 2: override auth via _meta ---
-        meta_user = os.environ.get("UNIQUE_AUTH_USER_ID", "meta-test-user")
-        meta_company = os.environ.get("UNIQUE_AUTH_COMPANY_ID", "meta-test-company")
         meta_override = {
-            MetaKeys.USER_ID.value: meta_user,
-            MetaKeys.COMPANY_ID.value: meta_company,
+            MetaKeys.USER_ID.value: os.environ.get(
+                "UNIQUE_AUTH_USER_ID", "meta-test-user"
+            ),
+            MetaKeys.COMPANY_ID.value: os.environ.get(
+                "UNIQUE_AUTH_COMPANY_ID", "meta-test-company"
+            ),
         }
         print(f"\n--- Call 2: auth from _meta {meta_override} ---")
         result = await client.call_tool("search", SEARCH_ARGS, meta=meta_override)

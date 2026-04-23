@@ -56,13 +56,3 @@ async def search(
             for chunk in content_chunks
         ],
     )
-
-
-@tool
-def show_env() -> dict:
-    import os
-
-    return {
-        "UNIQUE_AUTH_USER_ID": os.getenv("UNIQUE_AUTH_USER_ID"),
-        "UNIQUE_AUTH_COMPANY_ID": os.getenv("UNIQUE_AUTH_COMPANY_ID"),
-    }
