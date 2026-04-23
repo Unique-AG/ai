@@ -89,6 +89,13 @@ runs:
         # Package-level dev group: package-specific test deps (e.g. responses for unique_six)
         uv export --frozen --only-group dev --no-hashes 2>/dev/null | uv pip install -r - 2>/dev/null || true
 
+    - name: Show installed unique-* packages
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      env:
+        VIRTUAL_ENV: ${{ github.workspace }}/${{ inputs.package_dir }}/.venv
+      run: .venv/bin/pip list | grep -i unique || true
+
     - name: Run deptry
       shell: bash
       working-directory: ${{ inputs.package_dir }}

@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.82.0] - 2026-04-22
+### Added
+- Add `Tool.tool_system_reminder_for_user_prompt()` hook returning a per-turn `<system-reminder>` string that the orchestrator can inject as its own `{"type": "text"}` part on the latest user message. Override in tools whose state changes between turns (e.g. the Skill tool's list of currently loaded skills). Defaults to `""`.
+- Add `tool_system_reminder_for_user_prompt` field to `ToolPrompts`; populated automatically from the new hook in `Tool.prompts()`.
+
+## [1.81.0] - 2026-04-22
+### Added
+- `AgenticTableService.update_row_verification_status`: optional `locked` argument, forwarded to SDK `bulk_update_status` (public `POST .../rows/bulk-update-status`).
+- Re-export `MagicTableActivityResponse`, `MagicTableArtifactType`, and `MagicTableMetadataEntry` from `unique_toolkit.agentic_table`.
+- Tests: `tests/test_agentic_table_get_sheet_row_metadata.py` and `tests/test_agentic_table_service_coverage.py` exercise agentic-table sheet row metadata, `set_artifact` extras, `get_sheet_metadata`, `get_num_rows` / `get_sheet` row-count validation, `update_row_verification_status` with and without `locked`, and the row-metadata batch helper (CI diff-cover on changed lines).
+
+### Changed
+- Require `unique-sdk>=0.11.12,<0.12` (aligns with public magic-table REST typings and `includeRowMetadata` / `includeSheetMetadata` on sheet GET).
+- **Agentic table:** `get_sheet(..., include_row_metadata=True)` passes `includeRowMetadata` on batched `get_sheet_data` and skips per-row `get_cell` when cells already include `rowMetadata`; legacy `get_cell` hydration remains when the gateway omits row metadata on sheet cells.
+- **Agentic table:** `ArtifactType` is now an alias of SDK `MagicTableArtifactType`; `ArtifactData.artifact_type` is typed as `MagicTableArtifactType`.
+- **Agentic table:** `MagicTableSheet.chat_id` is optional (`str | None`) to match optional `chatId` on sheet payloads.
+- **Agentic table:** `set_artifact` accepts optional `mime_type` and `name` (omitted on the wire when `None`, matching SDK `SetArtifact`).
+
+## [1.80.3] - 2026-04-22
+### Changed
+- Code interpreter default tool description (`DEFAULT_TOOL_DESCRIPTION`) and default system-prompt descriptions (both `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT` and `DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): explicitly instruct the model to always use code execution for Excel (`.xls`, `.xlsx`) and CSV uploads (UN-19449), pairing with the backend auto-switch to "skip ingestion for Excel" (UN-19448). Short description now also names file uploads, chart/dashboard/visualization intents explicitly and forbids ASCII-art answers for plotting requests.
+- Code interpreter default system-prompt descriptions: return calculation, retrieval, and exploratory-analysis answers concisely as inline markdown in chat rather than emitting a separate artifact file, unless the user explicitly asked for a downloadable output (UN-19364).
+
 ## [1.80.2] - 2026-04-22
 ### Fixed
 - Code interpreter fence system prompt (`DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE`): tighten HTML/CSS guidance for chat iframe rendering (UN-19711) — forbid viewport/percentage heights on `html`/`body`, require bounded measurable heights for chart/dashboard containers, discourage top-level `position: fixed`/`absolute` that break auto-height measurement, and require Plotly `write_html`/`to_html` to use `include_plotlyjs="cdn"` plus `default_height` so outputs stay uploadable and measurable in chat.

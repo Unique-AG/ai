@@ -57,7 +57,8 @@ jobs:
         run: |
           gh workflow run ci-publish.yaml \
             --ref "${{ github.ref_name }}" \
-            -f package=all
+            -f package=all \
+            -f ref="${{ github.sha }}"
 
   # Main-only post-release chores. Skipped on release/* because hotfix
   # cycles don't cut a new branch and don't advance the next CalVer.

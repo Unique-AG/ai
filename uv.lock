@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-08T11:39:35.57966Z"
+exclude-newer = "2026-04-09T09:51:43.07642Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -25,11 +25,12 @@ unique-follow-up-questions = false
 langsmith = "2026-04-15T22:00:00Z"
 unique-six = false
 python-multipart = "2026-04-11T22:00:00Z"
-unique-stock-ticker = false
+unique-quartr = false
 unique-web-search = false
 unique-deep-research = false
+unique-stock-ticker = false
 unique-search-proxy = false
-unique-quartr = false
+unique-skill-tool = false
 
 [manifest]
 members = [
@@ -43,6 +44,7 @@ members = [
     "unique-sdk",
     "unique-search-proxy",
     "unique-six",
+    "unique-skill-tool",
     "unique-stock-ticker",
     "unique-swot",
     "unique-toolkit",
@@ -5308,7 +5310,7 @@ dev = []
 
 [[package]]
 name = "unique-mcp"
-version = "0.3.2"
+version = "0.3.3"
 source = { editable = "unique_mcp" }
 dependencies = [
     { name = "fastmcp" },
@@ -5396,7 +5398,7 @@ dev = []
 
 [[package]]
 name = "unique-sdk"
-version = "0.11.11"
+version = "0.11.12"
 source = { editable = "unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
@@ -5497,6 +5499,26 @@ requires-dist = [
 dev = [{ name = "responses", specifier = ">=0.25.0" }]
 
 [[package]]
+name = "unique-skill-tool"
+version = "2026.16.0"
+source = { editable = "tool_packages/unique_skill_tool" }
+dependencies = [
+    { name = "jinja2" },
+    { name = "pydantic" },
+    { name = "unique-toolkit" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "jinja2", specifier = ">=3.1.0,<4" },
+    { name = "pydantic", specifier = ">=2.8.2,<3" },
+    { name = "unique-toolkit", editable = "unique_toolkit" },
+]
+
+[package.metadata.requires-dev]
+dev = []
+
+[[package]]
 name = "unique-stock-ticker"
 version = "1.1.6"
 source = { editable = "postprocessors/unique_stock_ticker" }
@@ -5556,7 +5578,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-version = "1.80.2"
+version = "1.82.0"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },

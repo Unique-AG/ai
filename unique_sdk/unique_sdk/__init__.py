@@ -110,6 +110,7 @@ from unique_sdk._unique_ql import UQLCombinator as UQLCombinator
 from .api_resources._agentic_table import (
     AgenticTable as AgenticTable,
     AgenticTableCell as AgenticTableCell,
+    AgenticTableCellMetaData as AgenticTableCellMetaData,
     AgenticTableSheet as AgenticTableSheet,
     AgenticTableSheetState as AgenticTableSheetState,
     LogEntry as LogEntry,
@@ -120,4 +121,7 @@ from .api_resources._agentic_table import (
     AgreementStatus as AgreementStatus,
     RowVerificationStatus as RowVerificationStatus,
     MagicTableAction as MagicTableAction,
+    MagicTableActivityResponse as MagicTableActivityResponse,
+    MagicTableArtifactType as MagicTableArtifactType,
+    MagicTableMetadataEntry as MagicTableMetadataEntry,
 )

@@ -15,6 +15,7 @@ on:
           - deep_research
           - swot
           - internal_search
+          - skill_tool
           - stock_ticker
           - follow_up_questions
           - six
@@ -44,6 +45,8 @@ jobs:
               - 'tool_packages/unique_swot/**'
             internal_search:
               - 'tool_packages/unique_internal_search/**'
+            skill_tool:
+              - 'tool_packages/unique_skill_tool/**'
             stock_ticker:
               - 'postprocessors/unique_stock_ticker/**'
             follow_up_questions:
@@ -61,6 +64,7 @@ jobs:
               {"id": "deep_research", "dir": "tool_packages/unique_deep_research", "python": "3.12"},
               {"id": "swot", "dir": "tool_packages/unique_swot", "python": "3.12"},
               {"id": "internal_search", "dir": "tool_packages/unique_internal_search", "python": "3.12"},
+              {"id": "skill_tool", "dir": "tool_packages/unique_skill_tool", "python": "3.12"},
               {"id": "stock_ticker", "dir": "postprocessors/unique_stock_ticker", "python": "3.12"},
               {"id": "follow_up_questions", "dir": "postprocessors/unique_follow_up_questions", "python": "3.12"},
               {"id": "six", "dir": "connectors/unique_six", "python": "3.12"}

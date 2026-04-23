@@ -24,6 +24,10 @@ on:
           - quartr
           - six
         default: ""
+      ref:
+        description: "Git ref (SHA or tag) to check out. Defaults to github.sha when omitted."
+        required: false
+        default: ""
 
 jobs:
   resolve-package:
@@ -92,7 +96,7 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          ref: ${{ github.event.release.tag_name || github.ref }}
+          ref: ${{ github.event.release.tag_name || inputs.ref || github.sha }}
 
       - name: Publish with uv
         uses: ./.github/actions/publish-to-pypi-with-uv
