@@ -29,7 +29,6 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         take: NotRequired[int | None]
 
     id: str
-    companyId: str
     type: str
     state: str
     configuration: dict[str, Any]
