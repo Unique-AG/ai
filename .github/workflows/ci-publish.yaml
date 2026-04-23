@@ -50,11 +50,15 @@ jobs:
 
       - name: Resolve packages to publish
         id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_PACKAGE: ${{ inputs.package }}
         run: |
           PACKAGES='${{ steps.filter.outputs.packages }}'
 
-          if [[ "${{ github.event_name }}" == "release" ]]; then
-            TAG="${{ github.event.release.tag_name }}"
+          if [[ "$EVENT_NAME" == "release" ]]; then
+            TAG="$RELEASE_TAG"
             # Tag format: <component>-v<version>, e.g. unique-toolkit-v2026.18.0
             COMPONENT="${TAG%-v*}"
 
@@ -70,8 +74,8 @@ jobs:
 
             MATRIX=$(echo "$PACKAGES" | jq -c --arg dir "$PKG_DIR" \
               '{include: [.[] | select(.dir == $dir)]}')
-          elif [[ -n "${{ inputs.package }}" && "${{ inputs.package }}" != "" ]]; then
-            SELECTED="${{ inputs.package }}"
+          elif [[ -n "$INPUT_PACKAGE" && "$INPUT_PACKAGE" != "" ]]; then
+            SELECTED="$INPUT_PACKAGE"
             if [[ "$SELECTED" == "all" ]]; then
               MATRIX=$(echo "$PACKAGES" | jq -c '{include: .}')
             else
