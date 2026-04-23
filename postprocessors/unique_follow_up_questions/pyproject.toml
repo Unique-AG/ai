@@ -14,12 +14,12 @@ requires-python = ">=3.12,<4"
 dependencies = [
     "pydantic>=2.8.2",
     "jinja2>=3.1.6",
-    "unique-toolkit>=1.50.4",
+    "unique-toolkit>=2026.18.0.dev0",
 ]
 
 [dependency-groups]
 dev = [
-    "unique-sdk",
+    "unique-sdk>=2026.18.0.dev0",
 ]
 
 [build-system]
