@@ -152,36 +152,6 @@ Create and manage analytics orders with:
 
 ## Use Cases
 
-??? example "Poll until done, then download"
-
-    ```python
-    import time
-    import unique_sdk
-
-    # Create order
-    order = unique_sdk.AnalyticsOrder.create(
-        user_id=user_id,
-        company_id=company_id,
-        type="CHAT_ANALYTICS",
-        start_date="2024-01-01",
-        end_date="2024-12-31",
-    )
-    order_id = order["id"]
-
-    # Poll until terminal state
-    while True:
-        order = unique_sdk.AnalyticsOrder.retrieve(user_id, company_id, order_id)
-        if order["state"] in ("DONE", "ERROR"):
-            break
-        time.sleep(5)
-
-    # Save CSV if successful
-    if order["state"] == "DONE":
-        csv_content = unique_sdk.AnalyticsOrder.download(user_id, company_id, order_id)
-        with open("report.csv", "w") as f:
-            f.write(csv_content)
-    ```
-
 ??? example "List and clean up old orders"
 
     ```python
@@ -197,29 +167,6 @@ Create and manage analytics orders with:
         if order["state"] == "ERROR":
             unique_sdk.AnalyticsOrder.delete(user_id, company_id, order["id"])
             print(f"Deleted failed order: {order['id']}")
-    ```
-
-??? example "End-to-end with the run utility"
-
-    For a single async call that handles creation, polling, and CSV saving, use the [Analytics order run utility](../utilities/analytics_order_run.md):
-
-    ```python
-    import asyncio
-    from unique_sdk.utils.analytics_order_run import run_analytics_order
-
-    async def main():
-        result = await run_analytics_order(
-            user_id=user_id,
-            company_id=company_id,
-            type="CHAT_ANALYTICS",
-            start_date="2024-01-01",
-            end_date="2024-12-31",
-            save_csv_to="./report.csv",
-        )
-        print(result["order"]["state"])  # "DONE"
-        print(result.get("csv_path"))    # "./report.csv"
-
-    asyncio.run(main())
     ```
 
 ## Return Types
