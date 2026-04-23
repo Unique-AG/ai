@@ -25,11 +25,12 @@ def main() -> None:
         zitadel_oauth_proxy_settings=zitadel_settings,
     )
 
-    file_system_provider = FileSystemProvider(Path(__file__).parent)
+    tools_provider = FileSystemProvider(Path(__file__).parent / "tools")
 
     mcp = FastMCP(
-        "Knowledge Base Search 🚀", auth=oauth_proxy, providers=[file_system_provider]
+        "Knowledge Base Search 🚀", auth=oauth_proxy, providers=[tools_provider]
     )
+
     mcp.mount(get_custom_routes_provider())
 
     # TODO: Talk to Andreas why we need this

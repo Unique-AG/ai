@@ -110,13 +110,26 @@ curl -X POST http://localhost:8003/mcp \
 
 ## 5. Developing with the MCP Inspector
 
-Start the official mcp inspector using 
+Start the MCP Inspector against the local streamable HTTP endpoint defined in [`inspector_mcp_server.json`](./inspector_mcp_server.json):
 
-```
-npx @modelcontextprotocol/inspector
+```bash
+npx @modelcontextprotocol/inspector --config ./inspector_mcp_server.json --server default-server
 ```
 
-The MCP Inspector act as an MCP Client, there if you want to authenticate we must register its redirect URI (usually http://localhost:6247/oauth/callback) on our IDP (in this case Zitadel).
+That config points the client at `http://localhost:8003/mcp` (run `uv run mcp-search` first). The Inspector acts as an MCP client; for OAuth you must register its redirect URI with your IdP (often `http://localhost:6274/oauth/callback` or similar—check the Inspector’s console output).
+
+### `user_id` and `company_id` in tool calls
+
+The Unique stack resolves **user** and **company** for tools from the MCP request. You can supply them in the **`_meta`** object sent with tool invocations, using these keys:
+
+| Key | Purpose |
+|-----|---------|
+| `unique.app/auth/user-id` | User id |
+| `unique.app/auth/company-id` | Company id |
+
+**Both** keys must be set to non-empty strings in `_meta` for that path to apply; otherwise identity falls back to the OAuth token (JWT claims / userinfo) and, when configured, environment variables such as `UNIQUE_AUTH_USER_ID` and `UNIQUE_AUTH_COMPANY_ID`.
+
+See also `MetaKeys` in `unique_mcp` and the example in [`src/mcp_search/mcp_client.py`](./src/mcp_search/mcp_client.py) (`call_tool(..., meta={...})`).
 
 
 

@@ -18,7 +18,7 @@ from unique_toolkit.services.factory import UniqueServiceFactory
         "unique.app/system-prompt": "Choose this tool if you need to search in the knowledge base",
     },
 )
-async def _search(
+async def search(
     search_string: Annotated[
         str,
         Field(
@@ -56,3 +56,13 @@ async def _search(
             for chunk in content_chunks
         ],
     )
+
+
+@tool
+def show_env() -> dict:
+    import os
+
+    return {
+        "UNIQUE_AUTH_USER_ID": os.getenv("UNIQUE_AUTH_USER_ID"),
+        "UNIQUE_AUTH_COMPANY_ID": os.getenv("UNIQUE_AUTH_COMPANY_ID"),
+    }
