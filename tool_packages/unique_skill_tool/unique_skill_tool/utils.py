@@ -26,7 +26,7 @@ def get_char_budget(
     (converted to characters via ``CHARS_PER_TOKEN``).  Falls back to
     ``DEFAULT_CHAR_BUDGET`` when the context window size is unknown.
     """
-    if context_window_tokens:
+    if context_window_tokens is not None:
         return int(
             context_window_tokens
             * CHARS_PER_TOKEN
