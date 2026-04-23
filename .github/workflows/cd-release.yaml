@@ -78,11 +78,11 @@ jobs:
         with:
           install_dependencies: "false"
 
-      - name: Seed lockfile from main before regenerating
+      - name: Seed lockfile from base branch before regenerating
         if: steps.pr-info.outputs.branch != ''
         run: |
-          git fetch --depth=1 origin main
-          git show origin/main:uv.lock > uv.lock
+          git fetch --depth=1 origin "${{ github.ref_name }}"
+          git show "origin/${{ github.ref_name }}:uv.lock" > uv.lock
 
       - name: Regenerate lockfile
         if: steps.pr-info.outputs.branch != ''
