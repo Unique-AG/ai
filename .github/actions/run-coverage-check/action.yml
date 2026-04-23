@@ -73,6 +73,11 @@ runs:
           uv pip install $REINSTALL_ARGS .
         fi
 
+    - name: Show installed unique-* packages
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: uv pip list | grep -i unique || true
+
     - name: Fetch base branch
       if: inputs.base_ref != ''
       shell: bash
