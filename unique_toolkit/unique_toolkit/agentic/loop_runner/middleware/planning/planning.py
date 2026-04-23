@@ -7,11 +7,12 @@ from openai.types.responses import (
     Response,
     ResponseFunctionToolCall,
     ResponseInputItemParam,
+    ToolParam,
 )
 from openai.types.responses.function_tool_param import FunctionToolParam
 from pydantic import BaseModel, Field
 
-from unique_toolkit import LanguageModelService
+from unique_toolkit import LanguageModelService, LanguageModelToolDescription
 from unique_toolkit._common.execution import failsafe_async
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
@@ -180,15 +181,18 @@ class ResponsesPlanningMiddleware(ResponsesLoopIterationRunner):
         forwarded.update({k: v for k, v in other_options.items() if k not in ignored})
         return forwarded
 
-    @failsafe_async(failure_return_value=None, logger=_LOGGER)
-    async def _run_plan_step(
-        self,
-        openai_messages: str | list[ResponseInputItemParam],
-        model_name: str,
-        forwarded_options: dict[str, Any],
-    ) -> str | None:
-        planning_schema = get_planning_schema(self._config.planning_schema_config)
+    def _build_tools(
+        self, kwargs: _ResponsesLoopIterationRunnerKwargs
+    ) -> list[FunctionToolParam | ToolParam]:
+        """
+        Build the tool list sent to the planning call: the forced ``plan`` tool
+        plus the loop runner's regular tools (converted to Responses API shape).
 
+        Passing the regular tools gives the model the information it needs to
+        reason about *which* tool to call next, even though ``tool_choice``
+        pins the actual call to ``plan``.
+        """
+        planning_schema = get_planning_schema(self._config.planning_schema_config)
         plan_tool = FunctionToolParam(
             type="function",
             name=_PLAN_TOOL_NAME,
@@ -197,10 +201,30 @@ class ResponsesPlanningMiddleware(ResponsesLoopIterationRunner):
             strict=False,
         )
 
+        extra_tools: list[FunctionToolParam | ToolParam] = []
+        for tool in kwargs.get("tools") or []:
+            if isinstance(tool, LanguageModelToolDescription):
+                converted = tool.to_openai(mode="responses")
+            else:
+                converted = tool
+            if converted.get("name") == _PLAN_TOOL_NAME:
+                continue
+            extra_tools.append(converted)
+
+        return [plan_tool, *extra_tools]
+
+    @failsafe_async(failure_return_value=None, logger=_LOGGER)
+    async def _run_plan_step(
+        self,
+        openai_messages: str | list[ResponseInputItemParam],
+        model_name: str,
+        tools: list[FunctionToolParam | ToolParam],
+        forwarded_options: dict[str, Any],
+    ) -> str | None:
         response = await self._openai_client.responses.create(
             model=model_name,
             input=openai_messages,
-            tools=[plan_tool],
+            tools=tools,
             tool_choice={"type": "function", "name": _PLAN_TOOL_NAME},
             parallel_tool_calls=False,
             **forwarded_options,
@@ -221,6 +245,7 @@ class ResponsesPlanningMiddleware(ResponsesLoopIterationRunner):
         output_text = await self._run_plan_step(
             openai_messages=openai_messages,
             model_name=kwargs["model"].name,
+            tools=self._build_tools(kwargs),
             forwarded_options=self._build_forwarded_options(kwargs),
         )
 

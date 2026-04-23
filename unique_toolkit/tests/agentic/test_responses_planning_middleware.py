@@ -237,9 +237,7 @@ async def test_responses_planning__forwards_whitelisted_options() -> None:
     openai_client.responses.create = AsyncMock(return_value=_make_response())
 
     reasoning = {"effort": "high"}
-    await middleware(
-        **_base_kwargs(reasoning=reasoning, temperature=0.1, top_p=0.5)
-    )
+    await middleware(**_base_kwargs(reasoning=reasoning, temperature=0.1, top_p=0.5))
 
     call_kwargs = openai_client.responses.create.call_args[1]
     assert call_kwargs["reasoning"] == reasoning
@@ -252,30 +250,116 @@ async def test_responses_planning__forwards_whitelisted_options() -> None:
 async def test_responses_planning__does_not_forward_non_whitelisted_options() -> None:
     """
     Purpose: Loop-runner kwargs that conflict with the forced-tool-call setup
-    (``tools``, ``tool_choices``, ``text``) or are loop-runner control knobs
-    must not leak into ``responses.create``.
+    (``tool_choices``, ``text``) must not leak into ``responses.create``.
+    (``tools`` is handled separately — see the tool-passthrough tests.)
     """
     middleware, _, openai_client = _make_middleware()
     openai_client.responses.create = AsyncMock(return_value=_make_response())
 
     await middleware(
         **_base_kwargs(
-            tools=[MagicMock()],
             tool_choices=[{"type": "function", "name": "other"}],
             text={"format": {"type": "text"}},
         )
     )
 
     call_kwargs = openai_client.responses.create.call_args[1]
-    # Our forced plan tool is the only tool, and tool_choice targets it.
-    assert len(call_kwargs["tools"]) == 1
-    assert call_kwargs["tools"][0]["name"] == _PLAN_TOOL_NAME
     assert call_kwargs["tool_choice"] == {
         "type": "function",
         "name": _PLAN_TOOL_NAME,
     }
     assert "text" not in call_kwargs
     assert "tool_choices" not in call_kwargs
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_responses_planning__forwards_loop_runner_tools() -> None:
+    """
+    Purpose: The loop runner's ``tools`` are passed alongside the forced
+    ``plan`` tool so the model can reason about what it will eventually call.
+    Why this matters: The planning prompt explicitly asks the model to name
+    the next tool to invoke; it needs the tool catalogue in context.
+    """
+    middleware, _, openai_client = _make_middleware()
+    openai_client.responses.create = AsyncMock(return_value=_make_response())
+
+    existing_tool: dict = {
+        "type": "function",
+        "name": "search_docs",
+        "description": "Search the docs.",
+        "parameters": {"type": "object", "properties": {}},
+        "strict": False,
+    }
+    await middleware(**_base_kwargs(tools=[existing_tool]))
+
+    call_kwargs = openai_client.responses.create.call_args[1]
+    names = [t["name"] for t in call_kwargs["tools"]]
+    assert names[0] == _PLAN_TOOL_NAME
+    assert "search_docs" in names
+    assert call_kwargs["tool_choice"] == {
+        "type": "function",
+        "name": _PLAN_TOOL_NAME,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_responses_planning__converts_tool_description_objects() -> None:
+    """
+    Purpose: ``LanguageModelToolDescription`` instances in ``tools`` are
+    converted to the Responses-API ``FunctionToolParam`` shape before being
+    sent.
+    """
+    from pydantic import BaseModel
+
+    from unique_toolkit.language_model.schemas import LanguageModelToolDescription
+
+    class _Params(BaseModel):
+        query: str
+
+    tool_desc = LanguageModelToolDescription(
+        name="search_docs",
+        description="Search the docs.",
+        parameters=_Params,
+    )
+
+    middleware, _, openai_client = _make_middleware()
+    openai_client.responses.create = AsyncMock(return_value=_make_response())
+
+    await middleware(**_base_kwargs(tools=[tool_desc]))
+
+    call_kwargs = openai_client.responses.create.call_args[1]
+    names = [t["name"] for t in call_kwargs["tools"]]
+    assert names == [_PLAN_TOOL_NAME, "search_docs"]
+    search_tool = call_kwargs["tools"][1]
+    assert search_tool["type"] == "function"
+    assert isinstance(search_tool["parameters"], dict)
+
+
+@pytest.mark.asyncio
+@pytest.mark.ai
+async def test_responses_planning__drops_duplicate_plan_named_tool() -> None:
+    """
+    Purpose: If a loop-runner tool happens to be named ``plan``, it is dropped
+    in favor of the middleware's forced planning tool.
+    """
+    middleware, _, openai_client = _make_middleware()
+    openai_client.responses.create = AsyncMock(return_value=_make_response())
+
+    conflicting: dict = {
+        "type": "function",
+        "name": _PLAN_TOOL_NAME,
+        "description": "impostor",
+        "parameters": {"type": "object", "properties": {}},
+        "strict": False,
+    }
+    await middleware(**_base_kwargs(tools=[conflicting]))
+
+    tools = openai_client.responses.create.call_args[1]["tools"]
+    plan_tools = [t for t in tools if t["name"] == _PLAN_TOOL_NAME]
+    assert len(plan_tools) == 1
+    assert plan_tools[0]["description"] != "impostor"
 
 
 @pytest.mark.asyncio
@@ -312,9 +396,7 @@ async def test_responses_planning__forwards_and_filters_other_options() -> None:
     middleware, _, openai_client = _make_middleware(config=config)
     openai_client.responses.create = AsyncMock(return_value=_make_response())
 
-    await middleware(
-        **_base_kwargs(other_options={"user": "u-1", "store": True})
-    )
+    await middleware(**_base_kwargs(other_options={"user": "u-1", "store": True}))
 
     call_kwargs = openai_client.responses.create.call_args[1]
     assert call_kwargs["user"] == "u-1"
@@ -337,7 +419,7 @@ async def test_run_plan_step__returns_none_on_empty_arguments() -> None:
     openai_client.responses.create = AsyncMock(return_value=_make_response(""))
 
     result = await middleware._run_plan_step(
-        openai_messages="test", model_name="gpt-4o", forwarded_options={}
+        openai_messages="test", model_name="gpt-4o", tools=[], forwarded_options={}
     )
 
     assert result is None
@@ -355,7 +437,7 @@ async def test_run_plan_step__returns_arguments_on_success() -> None:
     )
 
     result = await middleware._run_plan_step(
-        openai_messages="test", model_name="gpt-4o", forwarded_options={}
+        openai_messages="test", model_name="gpt-4o", tools=[], forwarded_options={}
     )
 
     assert result == '{"plan": "search"}'
@@ -372,7 +454,7 @@ async def test_run_plan_step__returns_none_on_exception() -> None:
     openai_client.responses.create = AsyncMock(side_effect=RuntimeError("API down"))
 
     result = await middleware._run_plan_step(
-        openai_messages="test", model_name="gpt-4o", forwarded_options={}
+        openai_messages="test", model_name="gpt-4o", tools=[], forwarded_options={}
     )
 
     assert result is None
@@ -390,8 +472,13 @@ async def test_run_plan_step__sends_forced_tool_call() -> None:
     middleware, _, openai_client = _make_middleware()
     openai_client.responses.create = AsyncMock(return_value=_make_response())
 
+    prepared_tools = middleware._build_tools({})
+
     await middleware._run_plan_step(
-        openai_messages="test", model_name="gpt-4o", forwarded_options={}
+        openai_messages="test",
+        model_name="gpt-4o",
+        tools=prepared_tools,
+        forwarded_options={},
     )
 
     call_kwargs = openai_client.responses.create.call_args[1]
@@ -419,6 +506,7 @@ async def test_run_plan_step__splats_forwarded_options() -> None:
     await middleware._run_plan_step(
         openai_messages="test",
         model_name="gpt-4o",
+        tools=[],
         forwarded_options={"reasoning": {"effort": "low"}, "temperature": 0.3},
     )
 
