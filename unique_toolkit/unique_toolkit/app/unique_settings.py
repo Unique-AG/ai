@@ -406,7 +406,7 @@ class UniqueChatEventFilterOptions(BaseSettings):
 class UniqueEnvironment:
     """
     Contains all settings that come exclusively from the environment.
-    This means if a setting can be intialized from either request or the environment, this class will not contain it.
+    This means if a setting can be initialized from either request or the environment, this class will not contain it.
     """
 
     def __init__(self, app: UniqueApp, api: UniqueApi) -> None:
