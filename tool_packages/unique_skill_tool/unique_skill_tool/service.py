@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import override
+
 import jinja2
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.factory import ToolFactory
@@ -46,9 +48,11 @@ class SkillTool(Tool[SkillToolConfig]):
     def skill_registry(self) -> dict[str, SkillDefinition]:
         return self._skill_registry
 
+    @override
     def display_name(self) -> str:
         return "Skill"
 
+    @override
     def tool_description(self) -> LanguageModelToolDescription:
         skill_names = list(self._skill_registry.keys())
 
@@ -75,6 +79,7 @@ class SkillTool(Tool[SkillToolConfig]):
             },
         )
 
+    @override
     def tool_description_for_system_prompt(self) -> str:
         """Static instructions for the system prompt.
 
@@ -84,9 +89,11 @@ class SkillTool(Tool[SkillToolConfig]):
         """
         return self.config.tool_description_for_system_prompt
 
+    @override
     def tool_description_for_user_prompt(self) -> str:
         return self.config.tool_description_for_user_prompt
 
+    @override
     def tool_system_reminder_for_user_prompt(self) -> str:
         """Per-turn ``<system-reminder>`` block listing available skills.
 
@@ -107,6 +114,7 @@ class SkillTool(Tool[SkillToolConfig]):
             self.config.tool_system_reminder_for_user_message
         ).render(skill_list=listing)
 
+    @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         args = tool_call.arguments or {}
         raw_skill_name: str = args.get("skill_name", "")
@@ -171,9 +179,11 @@ class SkillTool(Tool[SkillToolConfig]):
             )
             return None
 
+    @override
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return []
 
+    @override
     def get_evaluation_checks_based_on_tool_response(
         self, tool_response: ToolCallResponse
     ) -> list[EvaluationMetricName]:

@@ -57,6 +57,19 @@ typeCheckingMode = "recommended"
 include = ["unique_skill_tool"]
 exclude = ["**/tests/**", "**/test_*.py"]
 
+# Any-cascade: originates from jinja2 and LanguageModelFunction.arguments in
+# unique_toolkit; not fixable from this package.
+reportAny = "none"
+reportUnknownVariableType = "none"
+reportUnknownMemberType = "none"
+reportUnknownArgumentType = "none"
+
+# unique_toolkit submodules ship no inline stubs; suppressed identically to toolkit.
+reportMissingTypeStubs = "none"
+
+# base-class/mixin patterns make per-attribute annotations impractical.
+reportUnannotatedClassAttribute = "none"
+
 [tool.pytest.ini_options]
 addopts = "--strict-markers --import-mode=importlib"
 asyncio_mode = "auto"
