@@ -1,18 +1,18 @@
 import json
 import logging
-from typing import Unpack
+from typing import Any, Unpack
 
 from openai import AsyncOpenAI
 from openai.types.responses import (
     Response,
-    ResponseFormatTextJSONSchemaConfigParam,
+    ResponseFunctionToolCall,
     ResponseInputItemParam,
-    ResponseOutputMessage,
-    ResponseTextConfigParam,
+    ToolParam,
 )
+from openai.types.responses.function_tool_param import FunctionToolParam
 from pydantic import BaseModel, Field
 
-from unique_toolkit import LanguageModelService
+from unique_toolkit import LanguageModelService, LanguageModelToolDescription
 from unique_toolkit._common.execution import failsafe_async
 from unique_toolkit._common.pydantic_helpers import get_configuration_dict
 from unique_toolkit.agentic.history_manager.history_manager import HistoryManager
@@ -40,11 +40,36 @@ from unique_toolkit.language_model.schemas import (
 _LOGGER = logging.getLogger(__name__)
 
 
-def _get_first_output_text(response: Response) -> str | None:
+_PLAN_TOOL_NAME = "plan"
+_PLAN_TOOL_DESCRIPTION = (
+    "Record the plan for the next step. Call this tool exactly once."
+)
+
+# Kwargs from _ResponsesLoopIterationRunnerKwargs that make sense to forward to
+# the planning `responses.create` call. We deliberately exclude anything that
+# conflicts with the forced-tool-call setup (`tools`, `tool_choices`, `text`,
+# `parallel_tool_calls`) and anything that is a loop-runner control knob rather
+# than a model option.
+_FORWARDABLE_RESPONSES_OPTIONS: frozenset[str] = frozenset(
+    {
+        "temperature",
+        "top_p",
+        "reasoning",
+        "max_output_tokens",
+        "metadata",
+        "include",
+        "instructions",
+    }
+)
+
+
+def _get_first_tool_call_arguments(response: Response) -> str | None:
     """
-    The Responses API can return multiple output items when doing structured output
-    (https://community.openai.com/t/multiple-outputs-from-responses-api/1291026),
-    We should tell the model not to do this in the schema, as well as extract only the first one
+    Extract the arguments of the first ``function_call`` output item.
+
+    Using a forced tool call (``tool_choice={"type": "function", ...}``) avoids
+    the duplicate-output issue the Responses API exhibits with
+    ``text.format=json_schema`` structured output.
     """
     if len(response.output) > 1:
         _LOGGER.warning(
@@ -53,10 +78,8 @@ def _get_first_output_text(response: Response) -> str | None:
         )
 
     for item in response.output:
-        if isinstance(item, ResponseOutputMessage):
-            for content in item.content:
-                if content.type == "output_text" and content.text:
-                    return content.text
+        if isinstance(item, ResponseFunctionToolCall) and item.arguments:
+            return item.arguments
     return None
 
 
@@ -144,32 +167,70 @@ class ResponsesPlanningMiddleware(ResponsesLoopIterationRunner):
         self._history_manager = history_manager
         self._openai_client = openai_client
 
+    def _build_forwarded_options(
+        self, kwargs: _ResponsesLoopIterationRunnerKwargs
+    ) -> dict[str, Any]:
+        ignored = set(self._config.ignored_options)
+        forwarded: dict[str, Any] = {
+            k: v
+            for k, v in kwargs.items()
+            if k in _FORWARDABLE_RESPONSES_OPTIONS and k not in ignored
+        }
+
+        other_options = kwargs.get("other_options") or {}
+        forwarded.update({k: v for k, v in other_options.items() if k not in ignored})
+        return forwarded
+
+    def _build_tools(
+        self, kwargs: _ResponsesLoopIterationRunnerKwargs
+    ) -> list[FunctionToolParam | ToolParam]:
+        """
+        Build the tool list sent to the planning call: the forced ``plan`` tool
+        plus the loop runner's regular tools (converted to Responses API shape).
+
+        Passing the regular tools gives the model the information it needs to
+        reason about *which* tool to call next, even though ``tool_choice``
+        pins the actual call to ``plan``.
+        """
+        planning_schema = get_planning_schema(self._config.planning_schema_config)
+        plan_tool = FunctionToolParam(
+            type="function",
+            name=_PLAN_TOOL_NAME,
+            description=_PLAN_TOOL_DESCRIPTION,
+            parameters=planning_schema,
+            strict=False,
+        )
+
+        extra_tools: list[FunctionToolParam | ToolParam] = []
+        for tool in kwargs.get("tools") or []:
+            if isinstance(tool, LanguageModelToolDescription):
+                converted = tool.to_openai(mode="responses")
+            else:
+                converted = tool
+            if converted.get("name") == _PLAN_TOOL_NAME:
+                continue
+            extra_tools.append(converted)
+
+        return [plan_tool, *extra_tools]
+
     @failsafe_async(failure_return_value=None, logger=_LOGGER)
     async def _run_plan_step(
         self,
         openai_messages: str | list[ResponseInputItemParam],
         model_name: str,
+        tools: list[FunctionToolParam | ToolParam],
+        forwarded_options: dict[str, Any],
     ) -> str | None:
-        planning_schema = get_planning_schema(self._config.planning_schema_config)
-
         response = await self._openai_client.responses.create(
             model=model_name,
             input=openai_messages,
-            text=ResponseTextConfigParam(
-                {
-                    "format": ResponseFormatTextJSONSchemaConfigParam(
-                        {
-                            "type": "json_schema",
-                            "name": planning_schema.get("title", "Plan"),
-                            "schema": planning_schema,
-                            "strict": False,
-                        }
-                    )
-                }
-            ),
+            tools=tools,
+            tool_choice={"type": "function", "name": _PLAN_TOOL_NAME},
+            parallel_tool_calls=False,
+            **forwarded_options,
         )
 
-        output_text = _get_first_output_text(response)
+        output_text = _get_first_tool_call_arguments(response)
         if not output_text:
             _LOGGER.info("Empty planning response")
             return None
@@ -184,6 +245,8 @@ class ResponsesPlanningMiddleware(ResponsesLoopIterationRunner):
         output_text = await self._run_plan_step(
             openai_messages=openai_messages,
             model_name=kwargs["model"].name,
+            tools=self._build_tools(kwargs),
+            forwarded_options=self._build_forwarded_options(kwargs),
         )
 
         if output_text is None:
