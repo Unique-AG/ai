@@ -126,7 +126,7 @@ def _get_display_template(
         case SubAgentResponseDisplayMode.DETAILS_CLOSED:
             template = _wrap_with_details_tag(template, "closed", title_template)
         case SubAgentResponseDisplayMode.PLAIN:
-            # Add a hidden block border to seperate sub agent answers from the rest of the text.
+            # Add a hidden block border to separate sub agent answers from the rest of the text.
             hidden_block_border = _wrap_hidden_div("sub_agent_answer_block")
             template = _join_text_blocks(title_template, template, hidden_block_border)
 
