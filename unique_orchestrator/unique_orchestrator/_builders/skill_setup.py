@@ -102,16 +102,24 @@ def _build_subtree_metadata_filter(*, scope_ids: list[str]) -> dict[str, Any]:
 def _parse_frontmatter(*, text: str) -> tuple[dict[str, Any], str]:
     """Split YAML frontmatter from the markdown body.
 
-    Thin wrapper around ``python-frontmatter``. On a YAML parse error
-    we fall back to ``({}, text)`` so a broken skill file never leaks
-    its raw ``---\\nname: ...\\n---`` block into the LLM prompt.
+    Thin wrapper around ``python-frontmatter``. On a YAML parse error,
+    or when the frontmatter parses to a non-mapping (e.g. a top-level
+    YAML list), we fall back to ``({}, <stripped body>)`` so a broken
+    skill file never leaks its raw ``---\\nname: ...\\n---`` block into
+    the LLM prompt, but also never crashes ``_build_skill`` with an
+    unhandled ``TypeError``/``ValueError`` from ``dict(...)``.
     """
     try:
         post = frontmatter.loads(text)
+        metadata = post.metadata
+        body = post.content
     except Exception:
         return {}, text
 
-    return dict(post.metadata), post.content
+    if not isinstance(metadata, dict):
+        return {}, body
+
+    return dict(metadata), body
 
 
 def _build_skill(
