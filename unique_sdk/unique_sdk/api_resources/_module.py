@@ -71,6 +71,7 @@ class Module(APIResource["Module"]):
     @classmethod
     def list(
         cls,
+        *,
         user_id: str,
         company_id: str,
         **params: Unpack["Module.ListParams"],
@@ -91,6 +92,7 @@ class Module(APIResource["Module"]):
     @classmethod
     async def list_async(
         cls,
+        *,
         user_id: str,
         company_id: str,
         **params: Unpack["Module.ListParams"],
@@ -111,6 +113,7 @@ class Module(APIResource["Module"]):
     @classmethod
     def retrieve(
         cls,
+        *,
         user_id: str,
         company_id: str,
         id: str,
@@ -124,6 +127,7 @@ class Module(APIResource["Module"]):
     @classmethod
     async def retrieve_async(
         cls,
+        *,
         user_id: str,
         company_id: str,
         id: str,
@@ -137,6 +141,7 @@ class Module(APIResource["Module"]):
     @classmethod
     def create(
         cls,
+        *,
         user_id: str,
         company_id: str,
         **params: Unpack["Module.CreateParams"],
@@ -155,6 +160,7 @@ class Module(APIResource["Module"]):
     @classmethod
     async def create_async(
         cls,
+        *,
         user_id: str,
         company_id: str,
         **params: Unpack["Module.CreateParams"],
@@ -173,6 +179,7 @@ class Module(APIResource["Module"]):
     @classmethod
     def modify(
         cls,
+        *,
         user_id: str,
         company_id: str,
         id: str,
@@ -187,6 +194,7 @@ class Module(APIResource["Module"]):
     @classmethod
     async def modify_async(
         cls,
+        *,
         user_id: str,
         company_id: str,
         id: str,
@@ -201,6 +209,7 @@ class Module(APIResource["Module"]):
     @classmethod
     def delete(
         cls,
+        *,
         user_id: str,
         company_id: str,
         id: str,
@@ -214,6 +223,7 @@ class Module(APIResource["Module"]):
     @classmethod
     async def delete_async(
         cls,
+        *,
         user_id: str,
         company_id: str,
         id: str,
