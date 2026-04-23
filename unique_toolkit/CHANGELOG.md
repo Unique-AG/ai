@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.82.0] - 2026-04-22
+### Added
+- Add `Tool.tool_system_reminder_for_user_prompt()` hook returning a per-turn `<system-reminder>` string that the orchestrator can inject as its own `{"type": "text"}` part on the latest user message. Override in tools whose state changes between turns (e.g. the Skill tool's list of currently loaded skills). Defaults to `""`.
+- Add `tool_system_reminder_for_user_prompt` field to `ToolPrompts`; populated automatically from the new hook in `Tool.prompts()`.
+
 ## [1.81.0] - 2026-04-22
 ### Added
 - `AgenticTableService.update_row_verification_status`: optional `locked` argument, forwarded to SDK `bulk_update_status` (public `POST .../rows/bulk-update-status`).
