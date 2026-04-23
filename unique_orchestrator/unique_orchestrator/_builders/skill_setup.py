@@ -130,10 +130,10 @@ def _build_skill(
     if not file_text.strip():
         return None
 
-    frontmatter, body = _parse_frontmatter(text=file_text)
+    metadata, body = _parse_frontmatter(text=file_text)
 
-    name = frontmatter.get("name")
-    description = frontmatter.get("description")
+    name = metadata.get("name")
+    description = metadata.get("description")
 
     if not name or not description:
         logger.warning(
