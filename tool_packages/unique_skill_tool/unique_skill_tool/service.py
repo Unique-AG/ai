@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from typing import override
-
-from jinja2.sandbox import SandboxedEnvironment
+import jinja2
 from unique_toolkit.agentic.evaluation.schemas import EvaluationMetricName
 from unique_toolkit.agentic.tools.factory import ToolFactory
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
@@ -48,11 +46,9 @@ class SkillTool(Tool[SkillToolConfig]):
     def skill_registry(self) -> dict[str, SkillDefinition]:
         return self._skill_registry
 
-    @override
     def display_name(self) -> str:
         return "Skill"
 
-    @override
     def tool_description(self) -> LanguageModelToolDescription:
         skill_names = list(self._skill_registry.keys())
 
@@ -79,7 +75,6 @@ class SkillTool(Tool[SkillToolConfig]):
             },
         )
 
-    @override
     def tool_description_for_system_prompt(self) -> str:
         """Static instructions for the system prompt.
 
@@ -89,11 +84,9 @@ class SkillTool(Tool[SkillToolConfig]):
         """
         return self.config.tool_description_for_system_prompt
 
-    @override
     def tool_description_for_user_prompt(self) -> str:
         return self.config.tool_description_for_user_prompt
 
-    @override
     def tool_system_reminder_for_user_prompt(self) -> str:
         """Per-turn ``<system-reminder>`` block listing available skills.
 
@@ -110,13 +103,10 @@ class SkillTool(Tool[SkillToolConfig]):
             return ""
 
         listing = format_skill_listing(skills=skills, config=self.config)
-        return (
-            SandboxedEnvironment()
-            .from_string(self.config.tool_system_reminder_for_user_message)
-            .render(skill_list=listing)
-        )
+        return jinja2.Template(
+            self.config.tool_system_reminder_for_user_message
+        ).render(skill_list=listing)
 
-    @override
     async def run(self, tool_call: LanguageModelFunction) -> ToolCallResponse:
         args = tool_call.arguments or {}
         raw_skill_name: str = args.get("skill_name", "")
@@ -124,7 +114,7 @@ class SkillTool(Tool[SkillToolConfig]):
 
         if not raw_skill_name or not raw_skill_name.strip():
             return ToolCallResponse(
-                id=tool_call.id,
+                id=tool_call.id,  # type: ignore
                 name=self.name,
                 error_message="skill_name must be a non-empty string.",
             )
@@ -135,14 +125,14 @@ class SkillTool(Tool[SkillToolConfig]):
         if skill is None:
             available = ", ".join(sorted(self._skill_registry.keys()))
             return ToolCallResponse(
-                id=tool_call.id,
+                id=tool_call.id,  # type: ignore
                 name=self.name,
                 error_message=(
                     f"Unknown skill: '{skill_name}'. Available skills: {available}"
                 ),
             )
 
-        self._active_message_log = await self._log_skill_loaded(skill_name=skill_name)
+        await self._log_skill_loaded(skill_name=skill_name, skill=skill)
 
         content_parts = [
             f"<skill_loaded>{skill_name}</skill_loaded>",
@@ -154,7 +144,7 @@ class SkillTool(Tool[SkillToolConfig]):
             content_parts.append(f"\nUser-provided arguments: {arguments}")
 
         return ToolCallResponse(
-            id=tool_call.id,
+            id=tool_call.id,  # type: ignore
             name=self.name,
             content="\n".join(content_parts),
             system_reminder=(
@@ -164,7 +154,9 @@ class SkillTool(Tool[SkillToolConfig]):
             ),
         )
 
-    async def _log_skill_loaded(self, *, skill_name: str) -> MessageLog | None:
+    async def _log_skill_loaded(
+        self, *, skill_name: str, skill: SkillDefinition
+    ) -> MessageLog | None:
         """Emit a completed message log entry for the loaded skill."""
         progress_message = f"Loaded skill `{skill_name}`"
 
@@ -181,11 +173,9 @@ class SkillTool(Tool[SkillToolConfig]):
             )
             return None
 
-    @override
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
         return []
 
-    @override
     def get_evaluation_checks_based_on_tool_response(
         self, tool_response: ToolCallResponse
     ) -> list[EvaluationMetricName]:

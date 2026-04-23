@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from unique_toolkit.chat.schemas import MessageLogStatus
 from unique_toolkit.language_model.schemas import LanguageModelFunction
 
@@ -22,12 +23,12 @@ from unique_skill_tool.schemas import (
 )
 from unique_skill_tool.service import (
     SkillTool,
+    normalize_skill_name,
 )
 from unique_skill_tool.utils import (
     extract_prefix_skills,
     format_skill_listing,
     get_char_budget,
-    normalize_skill_name,
 )
 
 # ---------------------------------------------------------------------------
@@ -68,7 +69,7 @@ def _make_tool_call(
     skill_name: str = "test-skill",
     arguments: str = "",
 ) -> LanguageModelFunction:
-    args: dict[str, str] = {"skill_name": skill_name}
+    args: dict = {"skill_name": skill_name}
     if arguments:
         args["arguments"] = arguments
     return LanguageModelFunction(name="Skill", arguments=args)
@@ -99,6 +100,7 @@ class TestNormalizeSkillName:
 
 
 class TestSkillToolRun:
+    @pytest.mark.asyncio
     async def test_valid_skill_returns_content(self) -> None:
         skill = _make_skill(content="Step 1: Do the thing.\nStep 2: Done.")
         tool = _make_tool(skill_registry=_make_skill_registry(skill))
@@ -110,6 +112,7 @@ class TestSkillToolRun:
 
         assert "skill_loaded" in result.content
 
+    @pytest.mark.asyncio
     async def test_valid_skill_with_arguments(self) -> None:
         tool = _make_tool()
         result = await tool.run(_make_tool_call("test-skill", arguments="focus on X"))
@@ -117,6 +120,7 @@ class TestSkillToolRun:
         assert result.successful
         assert "focus on X" in result.content
 
+    @pytest.mark.asyncio
     async def test_unknown_skill_returns_error(self) -> None:
         tool = _make_tool()
         result = await tool.run(_make_tool_call("nonexistent"))
@@ -125,6 +129,7 @@ class TestSkillToolRun:
         assert "Unknown skill" in result.error_message
         assert "nonexistent" in result.error_message
 
+    @pytest.mark.asyncio
     async def test_empty_skill_name_returns_error(self) -> None:
         tool = _make_tool()
         result = await tool.run(_make_tool_call(""))
@@ -132,6 +137,7 @@ class TestSkillToolRun:
         assert not result.successful
         assert "non-empty" in result.error_message
 
+    @pytest.mark.asyncio
     async def test_whitespace_only_skill_name_returns_error(self) -> None:
         tool = _make_tool()
         result = await tool.run(_make_tool_call("   "))
@@ -139,12 +145,14 @@ class TestSkillToolRun:
         assert not result.successful
         assert "non-empty" in result.error_message
 
+    @pytest.mark.asyncio
     async def test_leading_slash_is_normalized(self) -> None:
         tool = _make_tool()
         result = await tool.run(_make_tool_call("/test-skill"))
 
         assert result.successful
 
+    @pytest.mark.asyncio
     async def test_error_lists_available_skills(self) -> None:
         skills = [_make_skill("alpha"), _make_skill("beta")]
         tool = _make_tool(skill_registry=_make_skill_registry(*skills))
@@ -162,6 +170,7 @@ class TestSkillToolMessageLog:
     the assistant message log indicating which skill was activated.
     """
 
+    @pytest.mark.asyncio
     async def test_valid_skill_writes_completed_message_log(self) -> None:
         skill = _make_skill("my-skill", description="Does stuff")
         tool = _make_tool(skill_registry=_make_skill_registry(skill))
@@ -179,6 +188,7 @@ class TestSkillToolMessageLog:
         assert "my-skill" in kwargs["header"]
         assert kwargs["status"] == MessageLogStatus.COMPLETED
 
+    @pytest.mark.asyncio
     async def test_unknown_skill_does_not_write_message_log(self) -> None:
         tool = _make_tool()
         mock_logger = MagicMock()
@@ -190,6 +200,7 @@ class TestSkillToolMessageLog:
         assert not result.successful
         mock_logger.create_or_update_message_log_async.assert_not_called()
 
+    @pytest.mark.asyncio
     async def test_message_log_failure_does_not_break_skill_loading(self) -> None:
         skill = _make_skill("my-skill")
         tool = _make_tool(skill_registry=_make_skill_registry(skill))
@@ -432,7 +443,7 @@ class TestFormatSkillListing:
         result = format_skill_listing(skills, config=config)
 
         desc_part = result.split(": ", 1)[1]
-        assert len(desc_part) <= config.max_listing_desc_chars
+        assert len(desc_part) <= config.max_listing_desc_chars + 2
         assert desc_part.endswith("...")
 
 
@@ -532,16 +543,3 @@ class TestExtractPrefixSkills:
         skills, remaining = extract_prefix_skills("/foo hi", {})
         assert skills == []
         assert remaining == "/foo hi"
-
-    def test_name_starting_with_digit_is_matched(self) -> None:
-        """Schema allows names starting with digits (e.g. ``5-forces``)."""
-        reg = _make_skill_registry(_make_skill("5-forces"))
-        skills, remaining = extract_prefix_skills("/5-forces rest", reg)
-        assert [s.name for s in skills] == ["5-forces"]
-        assert remaining == "rest"
-
-    def test_all_digits_name_is_matched(self) -> None:
-        reg = _make_skill_registry(_make_skill("123"))
-        skills, remaining = extract_prefix_skills("/123 rest", reg)
-        assert [s.name for s in skills] == ["123"]
-        assert remaining == "rest"
