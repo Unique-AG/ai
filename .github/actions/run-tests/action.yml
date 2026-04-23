@@ -64,12 +64,7 @@ runs:
         for pkg in $WORKSPACE_PKGS; do
           REINSTALL_ARGS="$REINSTALL_ARGS --reinstall-package $pkg"
         done
-        if [ -n "${{ inputs.install_args }}" ]; then
-          EXTRAS=$(echo "${{ inputs.install_args }}" | grep -oP '(?<=--extra )\w+' | paste -sd ',' -)
-          uv pip install $REINSTALL_ARGS ".[${EXTRAS}]"
-        else
-          uv pip install $REINSTALL_ARGS .
-        fi
+        uv pip install $REINSTALL_ARGS .
 
     - name: Show installed unique-* packages
       shell: bash
