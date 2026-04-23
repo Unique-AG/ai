@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Arms the next stable release by pushing an empty `Release-As: YYYY.WW.0`
-# commit to `main`. Release-please then rewrites its standing Release PR on
-# `main` to target that version, so the PR always reflects the authoritative
-# next CalVer (never a SemVer placeholder).
+# Arms the next stable release by opening a PR that carries an empty
+# `Release-As: YYYY.WW.0` commit. Once merged, release-please rewrites its
+# standing Release PR on `main` to target that version.
+#
+# The commit lands on a side branch (`chore/arm-YYYY.WW.0`) and is merged via
+# the normal merge queue. This avoids needing a branch-protection bypass for
+# direct pushes to `main`.
 #
 # Inputs (via flags):
 #   --year-week YYYY.WW  Explicit target cycle (e.g. 2026.20). Optional.
@@ -12,10 +15,11 @@ set -euo pipefail
 #                        .release-please-manifest.json (manifest + 2 weeks,
 #                        fallback: next even ISO week).
 #   --remote NAME        Remote to push to. Default: origin.
-#   --branch NAME        Branch to push to. Default: main.
+#   --branch NAME        Base branch (PR target). Default: main.
 #
-# Idempotent: if a `Release-As: <version>` trailer is already present in
-# unreleased main history, exits 0 without pushing.
+# Idempotent: exits 0 without opening a PR if the Release-As trailer is
+# already on the base branch, or if an arm PR for the same version is already
+# open.
 
 REMOTE="origin"
 BRANCH="main"
@@ -81,9 +85,28 @@ if git log "${REMOTE}/${BRANCH}" "${SINCE_FLAG[@]}" \
   exit 0
 fi
 
+CYCLE_BRANCH="chore/arm-${VERSION}"
+
+OPEN_PRS=$(gh pr list \
+  --base "$BRANCH" \
+  --head "$CYCLE_BRANCH" \
+  --state open \
+  --json number \
+  --jq 'length' 2>/dev/null || echo "0")
+if [[ "$OPEN_PRS" != "0" ]]; then
+  echo "Arm PR for ${VERSION} already open on ${CYCLE_BRANCH}; nothing to do."
+  exit 0
+fi
+
 git commit --allow-empty \
   -m "chore: arm release ${VERSION}" \
   -m "Release-As: ${VERSION}"
-git push "$REMOTE" "HEAD:${BRANCH}"
+git push "$REMOTE" "HEAD:refs/heads/${CYCLE_BRANCH}"
 
-echo "Pushed Release-As: ${VERSION}. Release-please will update the ${BRANCH} Release PR on its next run."
+gh pr create \
+  --base "$BRANCH" \
+  --head "$CYCLE_BRANCH" \
+  --title "chore: arm release ${VERSION}" \
+  --body "Arms the next CalVer cycle. Once merged, release-please will retarget the standing Release PR to \`${VERSION}\`."
+
+echo "Opened arm PR for ${VERSION}. Release-please will update the ${BRANCH} Release PR once it is merged."

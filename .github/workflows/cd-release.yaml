@@ -80,16 +80,9 @@ jobs:
         run: ./.github/scripts/cut-release-branch.sh
 
       - name: Arm next cycle on main
-        run: ./.github/scripts/prepare-next-cycle.sh
-
-      - name: Kick release-please
-        # The arm step above pushed with GITHUB_TOKEN, which can't
-        # re-trigger this workflow via push. Dispatch ourselves so the
-        # standing Release PR is refreshed immediately with the newly
-        # armed CalVer.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run cd-release.yaml --ref main
+        run: ./.github/scripts/prepare-next-cycle.sh
 
       - name: Summary
         run: |
@@ -97,6 +90,5 @@ jobs:
             echo "### Post-release actions"
             echo "- Cut \`release/\` branch from the tagged release commit"
             echo "- Kicked \`cd-publish.yaml\` (package=all) via \`publish-stable\` job"
-            echo "- Pushed \`Release-As:\` trailer on \`main\` to arm the next cycle"
-            echo "- Kicked release-please to refresh the standing Release PR"
+            echo "- Opened arm PR on \`main\` to arm the next CalVer cycle"
           } >> "$GITHUB_STEP_SUMMARY"
