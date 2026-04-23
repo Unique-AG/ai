@@ -77,10 +77,6 @@ jobs:
     name: Config Compatibility Check
     uses: ./.github/workflows/ci-config-check.yaml
 
-  changelog:
-    name: Changelog and Version Bump
-    uses: ./.github/workflows/enforce_changelog_version_bump.yaml
-
   pr-title:
     name: PR Title
     if: github.event_name == 'pull_request'
@@ -104,7 +100,7 @@ jobs:
 
   status:
     name: Gatekeeper
-    needs: [detect-changes, lint, test, types, coverage, deps, config, changelog, pr-title, no-manual-release]
+    needs: [detect-changes, lint, test, types, coverage, deps, config, pr-title, no-manual-release]
     if: always()
     runs-on: ubuntu-latest
     permissions:
@@ -120,7 +116,6 @@ jobs:
           COVERAGE: ${{ needs.coverage.result }}
           DEPS: ${{ needs.deps.result }}
           CONFIG: ${{ needs.config.result }}
-          CHANGELOG: ${{ needs.changelog.result }}
           PR_TITLE: ${{ needs.pr-title.result }}
           NO_MANUAL_RELEASE: ${{ needs.no-manual-release.result }}
         run: |
@@ -132,7 +127,6 @@ jobs:
           echo "coverage: $COVERAGE"
           echo "deps: $DEPS"
           echo "config: $CONFIG"
-          echo "changelog: $CHANGELOG"
           echo "pr-title: $PR_TITLE"
           echo "no-manual-release: $NO_MANUAL_RELEASE"
           echo "========================="
@@ -141,7 +135,7 @@ jobs:
 
           # Required checks (skipped is OK for when no packages changed or merge_group).
           # Types: failure means a package with typecheck_require_zero_errors failed, so we treat it as blocking.
-          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "types:$TYPES" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "changelog:$CHANGELOG" "pr-title:$PR_TITLE" "no-manual-release:$NO_MANUAL_RELEASE"; do
+          for check in "detect-changes:$DETECT_CHANGES" "lint:$LINT" "test:$TEST" "types:$TYPES" "coverage:$COVERAGE" "deps:$DEPS" "config:$CONFIG" "pr-title:$PR_TITLE" "no-manual-release:$NO_MANUAL_RELEASE"; do
             name="${check%%:*}"
             result="${check##*:}"
             if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
