@@ -5,12 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.23.0] - 2026-04-22
-### Added
-- Add `unique-skill-tool` workspace dependency and wire the `SkillTool` into the orchestrator via `_builders/skill_setup.py` (`configure_skill_tool`), called from both the Responses and Completions build paths.
-- Expose `skill_tool_config: SkillToolConfig` on `ExperimentalConfig` to configure the skill tool alongside `open_file_tool_config`.
-- Inject per-turn tool `<system-reminder>` blocks into the latest user message via `_builders/inject_tool_reminders.py` (`inject_tool_reminders_into_user_message`), using the new `ToolPrompts.tool_system_reminder_for_user_prompt` field from `unique-toolkit>=1.80.2`. Lets stateful tools (e.g. the Skill tool) surface fresh state on every loop iteration.
-
 ## [1.22.2] - 2026-04-22
 - Align `SKIP_EXCEL_INGESTION` tests in `_configure_uploaded_search_tool` with the new `Content.is_ingested` semantics from `unique_toolkit` 1.80.1; also pin non-Excel behavior with a regression test.
 
