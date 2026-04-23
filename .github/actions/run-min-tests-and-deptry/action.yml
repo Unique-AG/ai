@@ -41,29 +41,6 @@ runs:
         # uv pip install is fully workspace-agnostic.
         uv venv --python "${{ inputs.python_version }}"
 
-        # Collect constraint-dependencies from all workspace members' pyproject.toml
-        # files (not just the current package). This ensures transitive constraints
-        # like lxml>=5.0.0 (defined in unique_toolkit) are applied even when
-        # installing unique_mcp which depends on toolkit indirectly.
-        REPO_ROOT="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}"
-        python3 -c "
-        import tomllib, pathlib, sys
-        seen = set()
-        for p in pathlib.Path(sys.argv[1]).rglob('pyproject.toml'):
-            if '.venv' in p.parts or 'tutorials' in p.parts:
-                continue
-            data = tomllib.loads(p.read_text())
-            for dep in data.get('tool', {}).get('uv', {}).get('constraint-dependencies', []):
-                if dep not in seen:
-                    seen.add(dep)
-                    print(dep)
-        " "$REPO_ROOT" > /tmp/constraints.txt
-
-        CONSTRAINT_ARGS=""
-        if [ -s /tmp/constraints.txt ]; then
-          CONSTRAINT_ARGS="--constraint /tmp/constraints.txt"
-        fi
-
         EXTRAS=""
         for e in $(echo "${{ inputs.extras }}" | tr ',' ' '); do
           [ -n "$e" ] && EXTRAS="${EXTRAS:+$EXTRAS,}$e"
@@ -75,7 +52,7 @@ runs:
           PKG_SPEC="-e ."
         fi
 
-        uv pip install $PKG_SPEC --resolution lowest-direct $CONSTRAINT_ARGS
+        uv pip install $PKG_SPEC --resolution lowest-direct
 
     - name: Reinstall workspace packages from source
       shell: bash
