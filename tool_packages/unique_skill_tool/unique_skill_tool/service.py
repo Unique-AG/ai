@@ -122,7 +122,7 @@ class SkillTool(Tool[SkillToolConfig]):
 
         if not raw_skill_name or not raw_skill_name.strip():
             return ToolCallResponse(
-                id=tool_call.id,  # type: ignore
+                id=tool_call.id,
                 name=self.name,
                 error_message="skill_name must be a non-empty string.",
             )
@@ -133,7 +133,7 @@ class SkillTool(Tool[SkillToolConfig]):
         if skill is None:
             available = ", ".join(sorted(self._skill_registry.keys()))
             return ToolCallResponse(
-                id=tool_call.id,  # type: ignore
+                id=tool_call.id,
                 name=self.name,
                 error_message=(
                     f"Unknown skill: '{skill_name}'. Available skills: {available}"
@@ -152,7 +152,7 @@ class SkillTool(Tool[SkillToolConfig]):
             content_parts.append(f"\nUser-provided arguments: {arguments}")
 
         return ToolCallResponse(
-            id=tool_call.id,  # type: ignore
+            id=tool_call.id,
             name=self.name,
             content="\n".join(content_parts),
             system_reminder=(
