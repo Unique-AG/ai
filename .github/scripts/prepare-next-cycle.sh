@@ -57,12 +57,24 @@ if ! git config user.email >/dev/null 2>&1; then
 fi
 
 git fetch --no-tags "$REMOTE" "$BRANCH"
+
 # Escape regex metachars in VERSION (dots) so the BRE below matches literally,
 # while keeping `^`/`$` as line anchors. `--fixed-strings` can't be used here
 # because it would also neuter the anchors and cause false positives for
 # versions that share a numeric prefix (e.g. 2026.20.0 vs 2026.20.0.dev1).
 ESCAPED_VERSION="${VERSION//./\\.}"
-if git log "${REMOTE}/${BRANCH}" \
+
+# Limit the idempotency scan to commits made after the latest release tag so
+# we don't walk the entire branch history on every run.
+SINCE_FLAG=()
+LAST_TAG_DATE=$(git log -1 --format=%aI \
+  "$(git tag --list --sort=-version:refname 'unique-toolkit-v[0-9]*.[0-9]*.0' \
+     | head -1)" 2>/dev/null || true)
+if [[ -n "$LAST_TAG_DATE" ]]; then
+  SINCE_FLAG=(--since="$LAST_TAG_DATE")
+fi
+
+if git log "${REMOTE}/${BRANCH}" "${SINCE_FLAG[@]}" \
       --grep "^Release-As: ${ESCAPED_VERSION}$" \
       -n 1 --format=%H | grep -q .; then
   echo "Release-As: ${VERSION} already present on ${REMOTE}/${BRANCH}; nothing to do."
