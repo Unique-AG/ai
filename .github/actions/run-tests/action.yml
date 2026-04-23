@@ -39,8 +39,8 @@ runs:
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       run: |
-        EXTRAS=$(echo "${{ inputs.install_args }}" | grep -oP '(?<=--extra )\w+' | paste -sd ',' -)
-        uv pip install ".[${EXTRAS}]"
+        EXTRA_FLAGS=$(echo "${{ inputs.install_args }}" | grep -oP '(?<=--extra )\w+' | sed 's/^/--extra /' | paste -sd ' ' -)
+        uv sync --locked $EXTRA_FLAGS
 
     - name: Reinstall intra-monorepo deps from PyPI
       if: inputs.use_workspace != 'true'
