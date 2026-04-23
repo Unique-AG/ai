@@ -83,6 +83,7 @@ from unique_orchestrator._builders.open_file_setup import (
     configure_file_payload,
     handle_uploaded_file_tool_choices,
 )
+from unique_orchestrator._builders.skill_setup import configure_skill_tool
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.unique_ai import UniqueAI
 from unique_orchestrator.utils import filter_uploaded_documents_by_selection
@@ -140,7 +141,7 @@ async def build_unique_ai(
             common_components=common_components,
         )
     else:
-        return _build_completions(
+        return await _build_completions(
             event=event,
             logger=logger,
             config=config,
@@ -432,6 +433,14 @@ async def _build_responses(
             history_manager=history_manager,
         )
 
+    await configure_skill_tool(
+        config=config,
+        event=event,
+        logger=logger,
+        content_service=common_components.content_service,
+        tool_manager=tool_manager,
+    )
+
     loop_iteration_runner = build_responses_loop_iteration_runner(
         config=config,
         history_manager=common_components.history_manager,
@@ -478,7 +487,7 @@ async def _build_responses(
     )
 
 
-def _build_completions(
+async def _build_completions(
     event: ChatEvent,
     logger: Logger,
     config: UniqueAIConfig,
@@ -501,6 +510,14 @@ def _build_completions(
     )
     if not has_tool_choices and has_valid_uploaded_documents:
         tool_manager.add_forced_tool(UploadedSearchTool.name)
+
+    await configure_skill_tool(
+        config=config,
+        event=event,
+        logger=logger,
+        content_service=common_components.content_service,
+        tool_manager=tool_manager,
+    )
 
     postprocessor_manager = common_components.postprocessor_manager
 

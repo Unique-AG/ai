@@ -50,6 +50,10 @@ from unique_toolkit.protocols.support import (
     SupportCompleteWithReferences,
 )
 
+from unique_orchestrator._builders.inject_tool_reminders import (
+    inject_tool_reminders_into_user_message,
+)
+from unique_orchestrator._builders.skill_setup import preload_invoked_skills
 from unique_orchestrator.config import UniqueAIConfig
 from unique_orchestrator.utils import filter_uploaded_documents_by_selection
 
@@ -209,6 +213,16 @@ class UniqueAI:
 
         self._execution_times = []
         run_start = time.perf_counter()
+
+        if self._config.agent.experimental.skill_tool_config.enabled:
+            stripped_text = await preload_invoked_skills(
+                event=self._event,
+                tool_manager=self._tool_manager,
+                history_manager=self._history_manager,
+                logger=self._logger,
+            )
+            if stripped_text is not None:
+                self._event.payload.user_message.text = stripped_text
 
         sub = self._chat_service.cancellation.on_cancellation.subscribe(
             self._on_cancellation
@@ -405,6 +419,12 @@ class UniqueAI:
                         messages
                     )
                 )
+
+        tool_reminders: list[str] = []
+        for prompts in self._tool_manager.get_tool_prompts():
+            if prompts.tool_system_reminder_for_user_prompt:
+                tool_reminders.append(prompts.tool_system_reminder_for_user_prompt)
+        messages = inject_tool_reminders_into_user_message(messages, tool_reminders)
         return messages
 
     async def _render_user_prompt(self) -> str:
@@ -635,8 +655,11 @@ class UniqueAI:
             for tool in self._tool_manager.available_tools
         }
 
-        # Tool names that should not be logged in the message steps
-        tool_names_not_to_log = ["DeepResearch"]
+        # Tool names that should not be logged in the "Triggered Tool Calls"
+        # step. The Skill tool emits its own message log entry per invocation
+        # (see ``unique_skill_tool.SkillTool._log_skill_loaded``), so it is
+        # redundant and noisy to also list it here.
+        tool_names_not_to_log = ["DeepResearch", "Skill"]
 
         used_tools: dict[str, int] = {}
         for tool_call in tool_calls:

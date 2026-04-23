@@ -345,10 +345,6 @@ class TestConfigureUploadedSearchToolIngestionFilter:
         assert UploadedSearchTool.name not in tool_names
 
     def test_skip_excel_ingestion_mode_is_excluded(self):
-        # SKIP_EXCEL_INGESTION only excludes the doc when the mime type is
-        # actually Excel/CSV (see unique_toolkit.Content.is_ingested after
-        # #1454). A SKIP_EXCEL_INGESTION doc with a non-Excel or unknown
-        # mime type is still considered ingested.
         doc = self._make_doc(
             {"uniqueIngestionMode": "SKIP_EXCEL_INGESTION"},
             mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -381,7 +377,7 @@ class TestConfigureUploadedSearchToolIngestionFilter:
             self._make_doc({"uniqueIngestionMode": "SKIP_INGESTION"}),
             self._make_doc(
                 {"uniqueIngestionMode": "SKIP_EXCEL_INGESTION"},
-                mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                mime_type="text/csv",
             ),
         ]
         common = self._run(docs)
