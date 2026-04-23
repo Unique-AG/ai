@@ -3,17 +3,17 @@ set -euo pipefail
 
 # Computes the target CalVer cycle (YYYY.WW) for the next release/dev build.
 #
-# Strategy:
-#   1. If .release-please-manifest.json contains at least one CalVer value
-#      (YYYY.WW.N), take the highest and advance by one release cycle
-#      (+2 ISO weeks). This covers the normal steady state — after release X
-#      is cut, dev builds target X+2.
-#   2. Otherwise (bootstrap, no CalVer in manifest yet), pick the next
-#      even ISO week >= today's ISO week.
+# Today's strategy is simple: pick the next even ISO week >= today's ISO
+# week, rolling into the following ISO year when week 53 (always odd) or
+# a post-52 overflow would otherwise land on an odd week.
+#
+# Once release-please is wired up and starts maintaining
+# `.release-please-manifest.json`, that file will become the source of
+# truth for "which cycle did we just ship?" and dev builds will target
+# cycle + 2 instead. That manifest-first selector lives in the follow-up
+# release-process PR, not here.
 #
 # Output (stdout): YYYY.WW
-
-MANIFEST="${MANIFEST:-.release-please-manifest.json}"
 
 # Number of ISO weeks in a given ISO year (52 or 53).
 #
@@ -53,19 +53,6 @@ advance_weeks() {
   printf "%04d.%02d\n" "$year" "$week"
 }
 
-calver_from_manifest() {
-  [[ -f "$MANIFEST" ]] || return 1
-  local highest
-  highest=$(jq -r '.. | strings | select(test("^[0-9]{4}\\.[0-9]{2}\\.[0-9]+$"))' "$MANIFEST" \
-            | sort -V | tail -n 1)
-  [[ -n "$highest" ]] || return 1
-  local y w
-  y="${highest%%.*}"
-  w="${highest#*.}"
-  w="${w%%.*}"
-  advance_weeks "$y" "$w" 2
-}
-
 calver_from_today() {
   local year week
   # TODAY is an optional override used by BATS tests for determinism.
@@ -85,9 +72,5 @@ calver_from_today() {
 # Only execute when invoked directly; sourcing (e.g. from BATS tests)
 # gets access to the helper functions without running main.
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  if out=$(calver_from_manifest); then
-    echo "$out"
-  else
-    calver_from_today
-  fi
+  calver_from_today
 fi

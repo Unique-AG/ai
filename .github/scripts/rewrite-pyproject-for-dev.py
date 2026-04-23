@@ -1,133 +1,147 @@
 #!/usr/bin/env python3
 """Rewrite a package's pyproject.toml for a .devN build.
 
-For a dev publish at target version `YYYY.WW.0.devN`:
-  1. Replace the package's own `project.version` with the dev version.
-  2. In every PEP 621 dependency array (`project.dependencies` and each
-     entry of `project.optional-dependencies`), for any requirement that
-     references another AI monorepo package, rewrite the specifier to
-     `>=<dep-floor>`, e.g.
-         "unique-sdk>=0.10.85,<0.12"  ->  "unique-sdk>=2026.18.0.dev0"
-         "unique-toolkit[monitoring]>=1.69.6,<2"
-             ->  "unique-toolkit[monitoring]>=2026.18.0.dev0"
+Two things happen in place:
+
+1. ``project.version`` is replaced with the caller's ``--own-version``.
+2. In every PEP 621 dependency array (``project.dependencies`` and each
+   entry of ``project.optional-dependencies``), any requirement that
+   names another AI monorepo package is rewritten to use the pin
+   supplied via ``--dep-pins``. For example, with::
+
+       --dep-pins '{"unique-sdk": ">=2026.18.0.dev3",
+                    "unique-toolkit": ">=2026.18.0.dev7"}'
+
+   the rewriter produces::
+
+       "unique-sdk>=0.10.85,<0.12"  ->  "unique-sdk>=2026.18.0.dev3"
+       "unique-toolkit[monitoring]>=1.69.6,<2"
+           ->  "unique-toolkit[monitoring]>=2026.18.0.dev7"
 
 Because the constraint explicitly contains a PEP 440 pre-release segment
-(`devN`), pip/uv will resolve to dev versions without `--pre`.
+(``devN``), pip/uv will resolve to dev versions without ``--pre``.
 
-The dep-floor is intentionally separate from the package's own dev
-version: with selective publishing, not every package publishes on
-every push. Using a cycle floor (`YYYY.WW.0.dev0`) lets any dev wheel
-from the current cycle satisfy the dep, regardless of which specific
-`.devN` was last published.
+The pin map is computed upstream in ``resolve-dev-versions.py`` and
+encodes three cases per cross-package dep:
 
-Non-AI dependencies are left untouched. `project.name` and `[tool.*]` tables
-are never touched.
+  * The dep is being published in the same push     -> ``>=<new-version>``
+  * The cycle already has a dev wheel for the dep   -> ``>=<latest-dev>``
+  * Otherwise (nothing in the cycle yet)            -> ``>=<last-stable>``
+
+The second and third cases produce a floor that an older locally-
+installed dev wheel can never satisfy (because ``>=`` includes the
+specified version), so ``pip install -U`` correctly upgrades siblings
+even when they weren't republished in this push.
+
+Non-AI dependencies are left untouched. ``project.name`` and ``[tool.*]``
+tables are never touched. Formatting and comments in the TOML file are
+preserved via tomlkit.
 
 Usage:
-    rewrite-pyproject-for-dev.py <pyproject.toml> <dev-version> [<dep-floor>]
-
-If <dep-floor> is omitted, it defaults to <dev-version> (the legacy
-behavior, appropriate for the lockstep all-packages-every-push mode).
-
-The file is rewritten in place using tomlkit so formatting/comments are
-preserved.
+    rewrite-pyproject-for-dev.py <pyproject.toml>
+        --own-version <v> --dep-pins <json>
 """
 
 from __future__ import annotations
 
+import argparse
+import json
 import re
-import sys
 from pathlib import Path
 
 import tomlkit
 
-AI_PACKAGES = {
-    "unique-sdk",
-    "unique-toolkit",
-    "unique-mcp",
-    "unique-orchestrator",
-    "unique-web-search",
-    "unique-swot",
-    "unique-deep-research",
-    "unique-internal-search",
-    "unique-follow-up-questions",
-    "unique-stock-ticker",
-    "unique-quartr",
-    "unique-six",
-}
-
 _REQ_RE = re.compile(r"^\s*([A-Za-z0-9_.\-]+)(\[[^\]]*\])?\s*(.*)$")
+# Own version is always CalVer .devN — the dev publish never stamps a
+# stable version into a package.
+_VERSION_RE = re.compile(r"^\d{4}\.\d{2}\.\d+\.dev\d+$")
+# Dep pins come in three flavors out of resolve-dev-versions.py:
+#   >=<CalVer dev>   (sibling in this push, or cycle-dev already on PyPI)
+#   >=<stable>       (last stable fallback; may be legacy pre-CalVer)
+# All three cases use >= so future dev releases of the same package
+# remain installable without republishing every transitive dependent.
+# Dotted numerics of arbitrary length are accepted so legacy
+# "0.3.3"-style versions pass through.
+_PIN_RE = re.compile(r"^>=\d+(\.\d+)*(\.dev\d+)?$")
 
 
-def _normalize(name: str) -> str:
-    # PEP 503 project name normalization — underscores and dots collapse
-    # to hyphens, so `unique_toolkit`, `unique.toolkit` and `unique-toolkit`
-    # all compare equal.
+def normalize(name: str) -> str:
+    # PEP 503 normalization — unify "-", "_", ".".
     return re.sub(r"[-_.]+", "-", name).lower()
 
 
-_AI_PACKAGES_NORMALIZED = {_normalize(n) for n in AI_PACKAGES}
-
-
-def rewrite_req(raw: str, dep_floor: str) -> tuple[str, bool]:
+def rewrite_req(
+    raw: str, dep_pins: dict[str, str]
+) -> tuple[str, tuple[str, str] | None]:
     m = _REQ_RE.match(raw)
     if not m:
-        return raw, False
+        return raw, None
     name, extras = m.group(1), m.group(2) or ""
-    if _normalize(name) not in _AI_PACKAGES_NORMALIZED:
-        return raw, False
-    return f"{name}{extras}>={dep_floor}", True
+    pin = dep_pins.get(normalize(name))
+    if pin is None:
+        return raw, None
+    new = f"{name}{extras}{pin}"
+    return new, (raw, new)
 
 
-def rewrite_array(arr, dep_floor: str, changes: list[tuple[str, str]]) -> None:
+def rewrite_array(
+    arr, dep_pins: dict[str, str], changes: list[tuple[str, str]]
+) -> None:
     for i, item in enumerate(arr):
         if isinstance(item, str):
-            new, changed = rewrite_req(item, dep_floor)
-            if changed:
-                changes.append((item, new))
+            new, change = rewrite_req(item, dep_pins)
+            if change is not None:
+                changes.append(change)
                 arr[i] = new
 
 
-_VERSION_RE = re.compile(r"\d{4}\.\d{2}\.\d+(\.dev\d+)?")
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("pyproject", type=Path)
+    parser.add_argument("--own-version", required=True)
+    parser.add_argument(
+        "--dep-pins",
+        required=True,
+        help="JSON object mapping PEP 503 normalized name -> spec suffix",
+    )
+    args = parser.parse_args(argv)
 
+    if not _VERSION_RE.match(args.own_version):
+        raise SystemExit(f"invalid --own-version: {args.own_version!r}")
 
-def main() -> int:
-    if len(sys.argv) not in (3, 4):
-        print(__doc__, file=sys.stderr)
-        return 2
+    dep_pins_raw = json.loads(args.dep_pins)
+    if not isinstance(dep_pins_raw, dict):
+        raise SystemExit("--dep-pins must be a JSON object")
 
-    pyproject = Path(sys.argv[1])
-    dev_version = sys.argv[2]
-    dep_floor = sys.argv[3] if len(sys.argv) == 4 else dev_version
+    dep_pins: dict[str, str] = {}
+    for name, pin in dep_pins_raw.items():
+        if not isinstance(pin, str) or not _PIN_RE.match(pin):
+            raise SystemExit(f"invalid pin for {name!r}: {pin!r}")
+        dep_pins[normalize(name)] = pin
 
-    for label, value in (("dev version", dev_version), ("dep floor", dep_floor)):
-        if not _VERSION_RE.fullmatch(value):
-            raise SystemExit(f"invalid {label}: {value!r}")
-
-    doc = tomlkit.parse(pyproject.read_text())
+    doc = tomlkit.parse(args.pyproject.read_text())
     project = doc.get("project")
     if project is None:
-        raise SystemExit(f"{pyproject}: no [project] table")
+        raise SystemExit(f"{args.pyproject}: no [project] table")
 
     prev_version = str(project.get("version", "<unset>"))
-    project["version"] = dev_version
+    project["version"] = args.own_version
 
     changes: list[tuple[str, str]] = []
 
     deps = project.get("dependencies")
     if deps is not None:
-        rewrite_array(deps, dep_floor, changes)
+        rewrite_array(deps, dep_pins, changes)
 
     opt_deps = project.get("optional-dependencies")
     if opt_deps is not None:
         for _group, items in opt_deps.items():
-            rewrite_array(items, dep_floor, changes)
+            rewrite_array(items, dep_pins, changes)
 
-    pyproject.write_text(tomlkit.dumps(doc))
+    args.pyproject.write_text(tomlkit.dumps(doc))
 
-    print(f"{pyproject}:")
-    print(f"  version: {prev_version} -> {dev_version}")
-    print(f"  dep floor for AI cross-deps: {dep_floor}")
+    print(f"{args.pyproject}:")
+    print(f"  version: {prev_version} -> {args.own_version}")
     if changes:
         print(f"  dependencies rewritten ({len(changes)}):")
         for before, after in changes:

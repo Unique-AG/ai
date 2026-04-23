@@ -2,32 +2,46 @@ name: "[CI] Publish dev builds to PyPI"
 
 # On every push to `main`, build and publish `.devN` wheels of the
 # publishable AI-repo packages whose sources actually changed in the
-# push range. Skipped entirely when the push is a release-please bot
-# merge or the release-cut trailer commit (the tag-based publish in
-# ci-publish.yaml handles those).
+# push range.
 #
 # Change detection reuses the same `detect-changes` + `select-packages`
 # composite actions that drive pull-request CI, so the definition of
 # "this package changed" (including doc/markdown exclusions) is
 # identical across lint/test/typecheck/publish.
 #
+# The release-please / release-cut / release-tag skip guard lands in
+# the follow-up release-process PR alongside those workflows — none of
+# their trigger commits can land on main until that PR merges.
+#
 # Version scheme
 # ==============
-#   Own version:  YYYY.WW.0.dev<commit-count>
-#     - YYYY.WW is the next scheduled release cycle, computed by
-#       `.github/scripts/compute-calver.sh` (manifest-first, ISO
-#       week-fallback).
-#     - commit-count is monotonic and unique per push, so every push
-#       produces a strictly-newer pre-release version.
+#   Cycle:    YYYY.WW (next even ISO week), from `compute-calver.sh`.
+#   Own ver:  YYYY.WW.0.devN — per-package, contiguous counter within a
+#             cycle. N is derived from PyPI: look up the highest dev
+#             already published for this package in this cycle and add
+#             one (or start at 0). Each package therefore gets a clean
+#             `dev0, dev1, dev2, ...` sequence on PyPI with no gaps.
 #
-#   Dep floor:    YYYY.WW.0.dev0
-#     - Cross-package AI deps get this floor via
-#       `.github/scripts/rewrite-pyproject-for-dev.py`. Any dev wheel
-#       published in the current cycle satisfies the floor, so
-#       selectively-published wheels remain mutually installable
-#       regardless of which packages ran on a given push. Across
-#       cycles the floor isolates naturally — `2026.18.x.devN` never
-#       satisfies `>=2026.20.0.dev0`.
+# Dep pins (cross-package AI deps, per publish)
+# =============================================
+#   Computed once in `resolve` and stamped into every wheel's
+#   Requires-Dist by `rewrite-pyproject-for-dev.py`:
+#     - dep IS publishing in this push          -> `==<its new_version>`
+#         (siblings are locked together so `pip install` always pulls a
+#          mutually-consistent set)
+#     - dep has a dev wheel in the current cycle -> `>=<highest dev>`
+#         (older locally-installed dev wheels do not satisfy the floor,
+#          so `pip install -U` correctly upgrades them)
+#     - otherwise                                -> `>=<last stable>`
+#         (a fresh cycle with no dev wheels yet; the dep has not changed
+#          since its last stable, so that is the honest floor)
+#
+# Serialization
+# =============
+#   The workflow runs under a global `publish-dev` concurrency group
+#   with `cancel-in-progress: false`, so two pushes never race on the
+#   same PyPI write. Each run observes the previous run's published
+#   versions before computing its own devN counters.
 
 on:
   push:
@@ -37,61 +51,21 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: publish-dev
+  cancel-in-progress: false
+
 jobs:
-  guard:
-    runs-on: ubuntu-latest
-    outputs:
-      should_publish: ${{ steps.guard.outputs.publish }}
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          fetch-depth: 1
-          fetch-tags: true
-
-      - name: Skip release-please / release-cut commits
-        id: guard
-        env:
-          COMMIT_MSG: ${{ github.event.head_commit.message }}
-        run: |
-          # We skip dev-publishing a commit when any of the following hold:
-          #   1. A per-package release tag already points at HEAD
-          #      (e.g. `unique-toolkit-v2026.18.0`) — those are published by
-          #      `ci-publish.yaml` via the `release:published` event.
-          #   2. The commit message is a release-please merge title
-          #      (`chore: release …` / `chore(main): release …`) — these can
-          #      fire before the tag is created, so rely on the subject.
-          #   3. The commit body carries a `Release-As:` trailer — this is
-          #      the `release-cut` prepare commit; nothing to publish yet.
-          TAGS=$(git tag --points-at HEAD || true)
-          echo "Tags at HEAD: ${TAGS:-<none>}"
-          echo "Subject: $(echo "$COMMIT_MSG" | head -n1)"
-
-          if echo "$TAGS" | grep -qE '^unique-[a-z0-9_-]+-v[0-9]'; then
-            echo "Release tag present — skipping."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-          elif echo "$COMMIT_MSG" | head -n1 | grep -qE '^chore(\([^)]+\))?: release'; then
-            echo "Release-please merge commit — skipping."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-          elif echo "$COMMIT_MSG" | grep -qE '^Release-As:'; then
-            echo "Release-cut prepare commit — skipping."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-          fi
-
   resolve:
-    needs: guard
-    if: needs.guard.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.publishable.outputs.matrix }}
-      dev_version: ${{ steps.version.outputs.dev_version }}
-      cycle_floor: ${{ steps.version.outputs.cycle_floor }}
+      new_versions: ${{ steps.resolve_versions.outputs.new_versions }}
+      dep_pins: ${{ steps.resolve_versions.outputs.dep_pins }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          # Need enough history for `git rev-list --count HEAD` and for
-          # paths-filter to diff before..after.
+          # Enough history for paths-filter to diff before..after.
           fetch-depth: 0
 
       - name: Invalidator override (force all packages on pipeline changes)
@@ -107,6 +81,7 @@ jobs:
           INVALIDATORS=(
             ".github/workflows/publish-dev.yaml"
             ".github/scripts/rewrite-pyproject-for-dev.py"
+            ".github/scripts/resolve-dev-versions.py"
             ".github/scripts/compute-calver.sh"
             ".github/actions/get-packages-matrix/package_configuration.json"
             ".github/actions/detect-changes/action.yml"
@@ -153,7 +128,9 @@ jobs:
           # Strip them here so the publish strategy only spins up jobs for
           # things we actually ship.
           MATRIX=$(jq -c '{include: [.include[] | select((.publish_skip != true) and (.pypi_name != null))]}' <<<"$RAW_MATRIX")
+          SELECTED_IDS=$(jq -c '[.include[].id]' <<<"$MATRIX")
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "selected_ids=$SELECTED_IDS" >> "$GITHUB_OUTPUT"
           {
             echo "### Dev publish — selection"
             echo ""
@@ -165,20 +142,46 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Compute dev version
-        id: version
+      - name: Install uv
+        if: fromJson(steps.publishable.outputs.matrix).include[0] != null
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          version: '0.11.5'
+
+      - name: Compute CalVer cycle
+        id: calver
+        if: fromJson(steps.publishable.outputs.matrix).include[0] != null
         run: |
-          CV="$(./.github/scripts/compute-calver.sh)"
-          N="$(git rev-list --count HEAD)"
-          DEV="${CV}.0.dev${N}"
-          FLOOR="${CV}.0.dev0"
-          echo "dev_version=$DEV" >> "$GITHUB_OUTPUT"
-          echo "cycle_floor=$FLOOR" >> "$GITHUB_OUTPUT"
+          CYCLE="$(./.github/scripts/compute-calver.sh)"
+          echo "cycle=$CYCLE" >> "$GITHUB_OUTPUT"
+          echo "- CalVer cycle: \`$CYCLE\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Resolve dev versions and dep pins
+        id: resolve_versions
+        if: fromJson(steps.publishable.outputs.matrix).include[0] != null
+        env:
+          CYCLE: ${{ steps.calver.outputs.cycle }}
+          SELECTED_IDS: ${{ steps.publishable.outputs.selected_ids }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/resolve"
+          uv run --quiet --no-project -- \
+            python3 .github/scripts/resolve-dev-versions.py \
+              --cycle "$CYCLE" \
+              --selected-ids "$SELECTED_IDS" \
+              --output-dir "$RUNNER_TEMP/resolve" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+          # Use a random delimiter (GitHub-recommended for multiline outputs).
+          # `printf '%s\n'` guarantees a newline before the delimiter even if
+          # the JSON file ever loses its trailing `\n` again.
+          DELIM="$(openssl rand -hex 16)"
           {
-            echo ""
-            echo "- Dev version: \`$DEV\`"
-            echo "- Dep floor:   \`$FLOOR\`"
-          } >> "$GITHUB_STEP_SUMMARY"
+            echo "new_versions<<${DELIM}"
+            printf '%s\n' "$(cat "$RUNNER_TEMP/resolve/new_versions.json")"
+            echo "${DELIM}"
+            echo "dep_pins<<${DELIM}"
+            printf '%s\n' "$(cat "$RUNNER_TEMP/resolve/dep_pins.json")"
+            echo "${DELIM}"
+          } >> "$GITHUB_OUTPUT"
 
   publish:
     needs: resolve
@@ -203,13 +206,15 @@ jobs:
 
       - name: Rewrite pyproject.toml for dev version
         env:
-          DEV_VERSION: ${{ needs.resolve.outputs.dev_version }}
-          CYCLE_FLOOR: ${{ needs.resolve.outputs.cycle_floor }}
+          OWN_VERSION: ${{ fromJson(needs.resolve.outputs.new_versions)[matrix.id] }}
+          DEP_PINS: ${{ needs.resolve.outputs.dep_pins }}
           PYPROJECT: ${{ matrix.dir }}/pyproject.toml
         run: |
           uv run --quiet --no-project --with 'tomlkit==0.14.0' -- \
             python3 .github/scripts/rewrite-pyproject-for-dev.py \
-              "$PYPROJECT" "$DEV_VERSION" "$CYCLE_FLOOR"
+              "$PYPROJECT" \
+              --own-version "$OWN_VERSION" \
+              --dep-pins "$DEP_PINS"
 
       - name: Show rewrite diff
         run: |
