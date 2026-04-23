@@ -1,4 +1,5 @@
 import logging
+from typing import Any, cast
 
 from typing_extensions import deprecated
 from unique_sdk import (
@@ -7,6 +8,7 @@ from unique_sdk import (
     AgreementStatus,
     CellRendererTypes,
     FilterTypes,
+    MagicTableArtifactType,
     RowVerificationStatus,
     SelectionMethod,
 )
@@ -14,13 +16,31 @@ from unique_sdk import AgenticTableCell as SDKAgenticTableCell
 from unique_sdk.api_resources._agentic_table import ActivityStatus
 
 from .schemas import (
-    ArtifactType,
     LogEntry,
     MagicTableAction,
     MagicTableCell,
     MagicTableSheet,
     RowMetadataEntry,
 )
+
+
+def _sheet_batch_cells_include_row_metadata_from_api(
+    cells: list[SDKAgenticTableCell],
+) -> bool:
+    """True when `get_sheet_data` already returned per-cell ``rowMetadata`` (UN-19884+).
+
+    Used to skip N+1 ``get_cell`` hydration. If the batch is empty, there is nothing
+    to hydrate, so we treat that as satisfied.
+
+    When the gateway does not yet populate ``rowMetadata`` on sheet payloads, the
+    first cell typically omits the key entirely — then callers fall back to
+    ``get_cell`` per distinct row (legacy compat; removable after deprecation).
+    """
+    if not cells:
+        return True
+    first = cells[0]
+    rm = first.get("rowMetadata")
+    return "rowMetadata" in first and isinstance(rm, list)
 
 
 class LockedAgenticTableError(Exception):
@@ -106,7 +126,7 @@ class AgenticTableService:
             tableId=self.table_id,
             rowOrder=row,
             columnOrder=column,
-            includeRowMetadata=include_row_metadata,  # type: ignore[arg-type]
+            includeRowMetadata=include_row_metadata,
         )
         return MagicTableCell.model_validate(cell_data)
 
@@ -198,27 +218,32 @@ class AgenticTableService:
 
     async def set_artifact(
         self,
-        artifact_type: ArtifactType,
+        artifact_type: MagicTableArtifactType,
         content_id: str,
-        mime_type: str,
-        name: str,
+        mime_type: str | None = None,
+        name: str | None = None,
     ):
         """Upload/set report files to the Agentic Table.
 
         Args:
-            artifact_type (ArtifactType): The type of artifact to set.
-            content_id (str): The content ID of the artifact.
-            mime_type (str): The MIME type of the artifact.
-            name (str): The name of the artifact.
+            artifact_type: The type of artifact to set (``MagicTableArtifactType`` / public API).
+            content_id: The content ID of the artifact.
+            mime_type: The MIME type of the artifact (optional on the wire; include when known).
+            name: The display name of the artifact (optional on the wire; include when known).
         """
+        extras: dict[str, str] = {}
+        if mime_type is not None:
+            extras["mimeType"] = mime_type
+        if name is not None:
+            extras["name"] = name
+        # ``Unpack[SetArtifact]`` + dynamic keys: basedpyright cannot tie ``extras`` to optional fields.
         await AgenticTable.set_artifact(
             user_id=self._user_id,
             company_id=self._company_id,
             tableId=self.table_id,
-            artifactType=artifact_type.value,  # pyright: ignore[reportArgumentType]
+            artifactType=artifact_type,
             contentId=content_id,
-            mimeType=mime_type,
-            name=name,
+            **cast(Any, extras),
         )
 
     @deprecated("Use set_column_style instead.")
@@ -282,7 +307,12 @@ class AgenticTableService:
             includeCells=False,
             includeLogHistory=False,
         )
-        return sheet_info["magicTableRowCount"]
+        row_count = sheet_info.get("magicTableRowCount")
+        if row_count is None:
+            raise RuntimeError(
+                "Expected magicTableRowCount in sheet response when includeRowCount=True"
+            )
+        return row_count
 
     async def get_sheet(
         self,
@@ -316,7 +346,11 @@ class AgenticTableService:
             includeLogHistory=False,
             includeCellMetaData=False,
         )
-        total_rows = sheet_info["magicTableRowCount"]
+        total_rows = sheet_info.get("magicTableRowCount")
+        if total_rows is None:
+            raise RuntimeError(
+                "Expected magicTableRowCount in sheet response when includeRowCount=True"
+            )
         if end_row is None or end_row > total_rows:
             end_row = total_rows
         if start_row > end_row:
@@ -328,50 +362,69 @@ class AgenticTableService:
         cells = []
         for row in range(start_row, end_row, batch_size):
             end_row_batch = min(row + batch_size, end_row)
-            sheet_partial = await AgenticTable.get_sheet_data(
-                user_id=self._user_id,
-                company_id=self._company_id,
-                tableId=self.table_id,
-                includeCells=True,
-                includeLogHistory=include_log_history,
-                includeRowCount=False,
-                includeCellMetaData=include_cell_meta_data,  # renderer, selection, agreement status
-                startRow=row,
-                endRow=end_row_batch - 1,
-            )
+            if include_row_metadata:
+                sheet_partial = await AgenticTable.get_sheet_data(
+                    user_id=self._user_id,
+                    company_id=self._company_id,
+                    tableId=self.table_id,
+                    includeCells=True,
+                    includeLogHistory=include_log_history,
+                    includeRowCount=False,
+                    includeCellMetaData=include_cell_meta_data,  # renderer, selection, agreement status
+                    startRow=row,
+                    endRow=end_row_batch - 1,
+                    includeRowMetadata=True,
+                )
+            else:
+                sheet_partial = await AgenticTable.get_sheet_data(
+                    user_id=self._user_id,
+                    company_id=self._company_id,
+                    tableId=self.table_id,
+                    includeCells=True,
+                    includeLogHistory=include_log_history,
+                    includeRowCount=False,
+                    includeCellMetaData=include_cell_meta_data,  # renderer, selection, agreement status
+                    startRow=row,
+                    endRow=end_row_batch - 1,
+                )
             if "magicTableCells" in sheet_partial:
-                if include_row_metadata:
-                    # If include_row_metadata is true, we need to get the row metadata for each cell.
-                    row_metadata_map = {}
-                    # TODO: @thea-unique This routine is not efficient and would be nice if we had this data passed on in get_sheet_data.
-                    for cell in sheet_partial["magicTableCells"]:
+                batch_cells = sheet_partial["magicTableCells"]
+                if (
+                    include_row_metadata
+                    and not _sheet_batch_cells_include_row_metadata_from_api(
+                        batch_cells
+                    )
+                ):
+                    # Legacy: gateways before UN-19884 omit rowMetadata on sheet cells; hydrate
+                    # via get_cell until all environments expose rowMetadata on GET sheet. This
+                    # branch can be removed after an agreed deprecation window.
+                    self.logger.debug(
+                        "Magic table sheet cells lack rowMetadata; hydrating row metadata via get_cell."
+                    )
+                    row_metadata_map: dict[int, list[RowMetadataEntry]] = {}
+                    for cell in batch_cells:
                         row_order = cell.get("rowOrder")  # type: ignore[assignment]
                         if row_order is not None and row_order not in row_metadata_map:  # pyright: ignore[reportUnnecessaryComparison]
                             column_order = cell.get("columnOrder")  # type: ignore[assignment]
-                            self.logger.info(
-                                f"Getting row metadata for cell {row_order}, {column_order}"
-                            )
                             cell_with_row_metadata = await self.get_cell(
                                 row_order,
                                 column_order,
                             )
                             if cell_with_row_metadata.row_metadata:
-                                print(cell_with_row_metadata.row_metadata)
                                 row_metadata_map[cell_with_row_metadata.row_order] = (
                                     cell_with_row_metadata.row_metadata
                                 )
                                 cell["rowMetadata"] = (  # pyright: ignore[reportGeneralTypeIssues]
                                     cell_with_row_metadata.row_metadata
                                 )
-                    # Assign row_metadata to all cells
-                    for cell in sheet_partial["magicTableCells"]:
+                    for cell in batch_cells:
                         row_order = cell.get("rowOrder")  # type: ignore[assignment]
                         if row_order is not None and row_order in row_metadata_map:  # pyright: ignore[reportUnnecessaryComparison]
                             cell["rowMetadata"] = row_metadata_map[  # pyright: ignore[reportGeneralTypeIssues]
                                 row_order
                             ]
 
-                cells.extend(sheet_partial["magicTableCells"])
+                cells.extend(batch_cells)
 
         sheet_info["magicTableCells"] = cells
         return MagicTableSheet.model_validate(sheet_info)
@@ -387,12 +440,10 @@ class AgenticTableService:
             user_id=self._user_id,
             company_id=self._company_id,
             tableId=self.table_id,
-            includeSheetMetadata=True,  # pyright: ignore[reportCallIssue]
+            includeSheetMetadata=True,
         )
-        return [
-            RowMetadataEntry.model_validate(metadata)
-            for metadata in sheet_info["magicTableSheetMetadata"]
-        ]
+        raw_metadata = sheet_info.get("magicTableSheetMetadata") or []
+        return [RowMetadataEntry.model_validate(metadata) for metadata in raw_metadata]
 
     async def set_cell_metadata(
         self,
@@ -436,17 +487,29 @@ class AgenticTableService:
         self,
         row_orders: list[int],
         status: RowVerificationStatus,
+        locked: bool | None = None,
     ):
         """Update the verification status of multiple rows at once.
 
         Args:
-            row_orders (list[int]): The row indexes to update.
-            status (RowVerificationStatus): The verification status to set.
+            row_orders: The row indexes to update.
+            status: The verification status to set (``NEEDS_REVIEW``, etc.; matches public API).
+            locked: When set, forwarded as ``locked`` on ``POST .../rows/bulk-update-status``.
         """
-        await AgenticTable.bulk_update_status(
-            user_id=self._user_id,
-            company_id=self._company_id,
-            tableId=self.table_id,
-            rowOrders=row_orders,
-            status=status,
-        )
+        if locked is None:
+            await AgenticTable.bulk_update_status(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                tableId=self.table_id,
+                rowOrders=row_orders,
+                status=status,
+            )
+        else:
+            await AgenticTable.bulk_update_status(
+                user_id=self._user_id,
+                company_id=self._company_id,
+                tableId=self.table_id,
+                rowOrders=row_orders,
+                status=status,
+                locked=locked,
+            )

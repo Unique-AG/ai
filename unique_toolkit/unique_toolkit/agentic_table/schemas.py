@@ -10,6 +10,7 @@ from pydantic import (
 from unique_sdk import (
     AgenticTableSheetState,
     AgreementStatus,
+    MagicTableArtifactType,
     SelectionMethod,
 )
 from unique_sdk import LogDetail as SDKLogDetail
@@ -150,15 +151,13 @@ class MagicTableUpdateCellPayload(
     data: str
 
 
-class ArtifactType(StrEnum):
-    QUESTIONS = "QUESTIONS"
-    FULL_REPORT = "FULL_REPORT"
-    AGENTIC_REPORT = "AGENTIC_REPORT"
+# Same wire values as ``MagicTableArtifactType`` / public ``POST .../artifact`` (unique-sdk 0.11.12+).
+ArtifactType = MagicTableArtifactType
 
 
 class ArtifactData(BaseModel):
     model_config = get_configuration_dict()
-    artifact_type: ArtifactType
+    artifact_type: MagicTableArtifactType
 
 
 class MagicTableGenerateArtifactPayload(
@@ -344,7 +343,10 @@ class MagicTableSheet(BaseModel):
         description="The total number of rows in the sheet",
         alias="magicTableRowCount",
     )
-    chat_id: str
+    chat_id: str | None = Field(
+        default=None,
+        description="Chat that owns the sheet when returned by the API (may be omitted).",
+    )
     created_by: str
     company_id: str
     created_at: str
