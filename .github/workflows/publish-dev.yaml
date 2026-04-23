@@ -170,13 +170,14 @@ jobs:
               --selected-ids "$SELECTED_IDS" \
               --output-dir "$RUNNER_TEMP/resolve" \
             | tee -a "$GITHUB_STEP_SUMMARY"
+          DELIM="$(openssl rand -hex 16)"
           {
-            echo "new_versions<<EOF"
+            echo "new_versions<<${DELIM}"
             cat "$RUNNER_TEMP/resolve/new_versions.json"
-            echo "EOF"
-            echo "dep_pins<<EOF"
+            echo "${DELIM}"
+            echo "dep_pins<<${DELIM}"
             cat "$RUNNER_TEMP/resolve/dep_pins.json"
-            echo "EOF"
+            echo "${DELIM}"
           } >> "$GITHUB_OUTPUT"
 
   publish:
