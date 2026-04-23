@@ -170,13 +170,16 @@ jobs:
               --selected-ids "$SELECTED_IDS" \
               --output-dir "$RUNNER_TEMP/resolve" \
             | tee -a "$GITHUB_STEP_SUMMARY"
+          # Use a random delimiter (GitHub-recommended for multiline outputs).
+          # `printf '%s\n'` guarantees a newline before the delimiter even if
+          # the JSON file ever loses its trailing `\n` again.
           DELIM="$(openssl rand -hex 16)"
           {
             echo "new_versions<<${DELIM}"
-            cat "$RUNNER_TEMP/resolve/new_versions.json"
+            printf '%s\n' "$(cat "$RUNNER_TEMP/resolve/new_versions.json")"
             echo "${DELIM}"
             echo "dep_pins<<${DELIM}"
-            cat "$RUNNER_TEMP/resolve/dep_pins.json"
+            printf '%s\n' "$(cat "$RUNNER_TEMP/resolve/dep_pins.json")"
             echo "${DELIM}"
           } >> "$GITHUB_OUTPUT"
 
