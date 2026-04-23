@@ -34,20 +34,23 @@ runs:
         package_dir: ${{ inputs.package_dir }}
         python_version: ${{ inputs.python_version }}
 
-    - name: Install extra dependencies from PyPI
-      if: inputs.install_args != '' && inputs.use_workspace != 'true'
+    - name: Install optional extras
+      if: inputs.install_args != ''
+      shell: bash
+      working-directory: ${{ inputs.package_dir }}
+      run: |
+        EXTRAS=$(echo "${{ inputs.install_args }}" | grep -oP '(?<=--extra )\w+' | paste -sd ',' -)
+        uv pip install ".[${EXTRAS}]"
+
+    - name: Reinstall intra-monorepo deps from PyPI
+      if: inputs.use_workspace != 'true'
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
         UV_NO_SOURCES: 1
       run: |
-        # Extract extra names from "--extra foo --extra bar" → "foo,bar"
-        EXTRAS=$(echo "${{ inputs.install_args }}" | grep -oP '(?<=--extra )\w+' | paste -sd ',' -)
-
-        # Find workspace-sourced deps in this package's pyproject.toml and
-        # reinstall them from PyPI to validate the declared version bounds
-        # against published releases. Only runs on release branches
-        # (use_workspace=false); all other branches use workspace sources.
+        # On release branches, replace workspace-sourced intra-monorepo deps with
+        # their published PyPI versions to validate the declared version bounds.
         WORKSPACE_PKGS=$(python3 -c "
         import tomllib
         with open('pyproject.toml', 'rb') as f:
@@ -56,13 +59,17 @@ runs:
         pkgs = [name for name, src in sources.items() if src.get('workspace') or 'path' in src]
         print(' '.join(pkgs))
         ")
-
+        if [ -z "$WORKSPACE_PKGS" ]; then exit 0; fi
         REINSTALL_ARGS=""
         for pkg in $WORKSPACE_PKGS; do
           REINSTALL_ARGS="$REINSTALL_ARGS --reinstall-package $pkg"
         done
-
-        uv pip install $REINSTALL_ARGS ".[${EXTRAS}]"
+        if [ -n "${{ inputs.install_args }}" ]; then
+          EXTRAS=$(echo "${{ inputs.install_args }}" | grep -oP '(?<=--extra )\w+' | paste -sd ',' -)
+          uv pip install $REINSTALL_ARGS ".[${EXTRAS}]"
+        else
+          uv pip install $REINSTALL_ARGS .
+        fi
 
     - name: Run pytest
       shell: bash
