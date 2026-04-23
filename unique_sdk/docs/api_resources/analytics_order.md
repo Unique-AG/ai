@@ -1,79 +1,247 @@
 # Analytics Order API
 
-Create, monitor, and download analytics reports (e.g. chat usage exports) as **analytics orders**. An order is an async job: you create it, poll until it reaches `DONE` or `ERROR`, then download the CSV result.
+The Analytics Order API generates and manages async analytics reports (e.g. chat usage exports) for a company.
 
-Use `unique_sdk.AnalyticsOrder`:
+## Overview
 
-- **`create` / `create_async`** — start a new analytics order. Required: `type`, `start_date`, `end_date`. Optional: `assistant_id` to scope the report to a single assistant.
-- **`list` / `list_async`** — list orders for the company. Optional `skip` and `take` for pagination (default page size: 20, max: 100).
-- **`retrieve` / `retrieve_async`** — fetch a single order by ID (poll this for status changes).
-- **`delete` / `delete_async`** — cancel and remove an order.
-- **`download` / `download_async`** — fetch the CSV content as a string. The order must be in `DONE` state.
+Create and manage analytics orders with:
 
-## Order lifecycle
+- Report generation for configurable date ranges and types
+- Optional filtering by assistant
+- Status polling until completion
+- CSV download once the order is done
 
-```
-PENDING → RUNNING → DONE
-                 ↘ ERROR
-```
+## Methods
 
-Poll `retrieve` until `state` is `"DONE"` or `"ERROR"`, then call `download` to get the CSV.
+??? example "`unique_sdk.AnalyticsOrder.create` - Create an analytics order"
 
-## Examples
+    Start a new analytics order. The order is processed asynchronously — poll `retrieve` until `state` reaches `DONE` or `ERROR`.
 
-### Create an order
+    **Parameters:**
 
-```python
-import unique_sdk
+    - `type` (str, required) - Analytics type (e.g. `"CHAT_ANALYTICS"`)
+    - `start_date` (str, required) - Report start date in ISO 8601 format (e.g. `"2024-01-01"`)
+    - `end_date` (str, required) - Report end date in ISO 8601 format (e.g. `"2024-12-31"`)
+    - `assistant_id` (str, optional) - Filter the report to a specific assistant
 
-order = unique_sdk.AnalyticsOrder.create(
-    user_id=user_id,
-    company_id=company_id,
-    type="CHAT_ANALYTICS",
-    start_date="2024-01-01",
-    end_date="2024-12-31",
-)
-print(order["id"], order["state"])  # e.g. "ord_abc123", "PENDING"
-```
+    **Returns:**
 
-### Poll until done, then download CSV
+    Returns an [`AnalyticsOrder`](#analyticsorder) object.
 
-```python
-import time
-import unique_sdk
+    **Example:**
 
-order_id = order["id"]
-while True:
-    order = unique_sdk.AnalyticsOrder.retrieve(user_id, company_id, order_id)
-    if order["state"] in ("DONE", "ERROR"):
-        break
-    time.sleep(5)
+    ```python
+    order = unique_sdk.AnalyticsOrder.create(
+        user_id=user_id,
+        company_id=company_id,
+        type="CHAT_ANALYTICS",
+        start_date="2024-01-01",
+        end_date="2024-12-31",
+    )
+    print(order["id"], order["state"])  # e.g. "ord_abc123", "PENDING"
+    ```
 
-if order["state"] == "DONE":
-    csv_text = unique_sdk.AnalyticsOrder.download(user_id, company_id, order_id)
+    **Scoped to an assistant:**
+
+    ```python
+    order = unique_sdk.AnalyticsOrder.create(
+        user_id=user_id,
+        company_id=company_id,
+        type="CHAT_ANALYTICS",
+        start_date="2024-01-01",
+        end_date="2024-12-31",
+        assistant_id="asst_xyz789",
+    )
+    ```
+
+??? example "`unique_sdk.AnalyticsOrder.list` - List analytics orders"
+
+    List analytics orders for the company, sorted by creation date descending.
+
+    **Parameters:**
+
+    - `skip` (int, optional) - Number of orders to skip (default: `0`)
+    - `take` (int, optional) - Number of orders to return (default: `20`, max: `100`)
+
+    **Returns:**
+
+    Returns a list of [`AnalyticsOrder`](#analyticsorder) objects.
+
+    **Example:**
+
+    ```python
+    orders = unique_sdk.AnalyticsOrder.list(
+        user_id=user_id,
+        company_id=company_id,
+        skip=0,
+        take=20,
+    )
+    for order in orders:
+        print(order["id"], order["state"])
+    ```
+
+??? example "`unique_sdk.AnalyticsOrder.retrieve` - Get an analytics order"
+
+    Fetch a single analytics order by ID. Use this to poll for status changes.
+
+    **Parameters:**
+
+    - `order_id` (str, required) - Analytics order ID
+
+    **Returns:**
+
+    Returns an [`AnalyticsOrder`](#analyticsorder) object.
+
+    **Example:**
+
+    ```python
+    order = unique_sdk.AnalyticsOrder.retrieve(
+        user_id=user_id,
+        company_id=company_id,
+        order_id="ord_abc123",
+    )
+    print(order["state"])  # "PENDING" | "RUNNING" | "DONE" | "ERROR"
+    ```
+
+??? example "`unique_sdk.AnalyticsOrder.delete` - Delete an analytics order"
+
+    Delete an analytics order by ID.
+
+    **Parameters:**
+
+    - `order_id` (str, required) - Analytics order ID
+
+    **Returns:**
+
+    Returns the deleted [`AnalyticsOrder`](#analyticsorder) object.
+
+    **Example:**
+
+    ```python
+    deleted = unique_sdk.AnalyticsOrder.delete(
+        user_id=user_id,
+        company_id=company_id,
+        order_id="ord_abc123",
+    )
+    print(deleted["id"])
+    ```
+
+??? example "`unique_sdk.AnalyticsOrder.download` - Download analytics order CSV"
+
+    Download the CSV content of a completed analytics order. The order must be in `DONE` state.
+
+    **Parameters:**
+
+    - `order_id` (str, required) - Analytics order ID
+
+    **Returns:**
+
+    Returns the CSV content as a `str`.
+
+    **Example:**
+
+    ```python
+    csv_content = unique_sdk.AnalyticsOrder.download(
+        user_id=user_id,
+        company_id=company_id,
+        order_id="ord_abc123",
+    )
     with open("report.csv", "w") as f:
-        f.write(csv_text)
-```
+        f.write(csv_content)
+    ```
 
-### List orders
+## Use Cases
 
-```python
-orders = unique_sdk.AnalyticsOrder.list(
-    user_id=user_id,
-    company_id=company_id,
-    skip=0,
-    take=20,
-)
-for o in orders:
-    print(o["id"], o["state"])
-```
+??? example "Poll until done, then download"
 
-### Delete an order
+    ```python
+    import time
+    import unique_sdk
 
-```python
-unique_sdk.AnalyticsOrder.delete(user_id, company_id, order_id)
-```
+    # Create order
+    order = unique_sdk.AnalyticsOrder.create(
+        user_id=user_id,
+        company_id=company_id,
+        type="CHAT_ANALYTICS",
+        start_date="2024-01-01",
+        end_date="2024-12-31",
+    )
+    order_id = order["id"]
 
-Async: use the same names with `_async` and `await`.
+    # Poll until terminal state
+    while True:
+        order = unique_sdk.AnalyticsOrder.retrieve(user_id, company_id, order_id)
+        if order["state"] in ("DONE", "ERROR"):
+            break
+        time.sleep(5)
 
-To create an order, wait for it to finish, and save the CSV in one call, use the [Analytics order run utility](../utilities/analytics_order_run.md).
+    # Save CSV if successful
+    if order["state"] == "DONE":
+        csv_content = unique_sdk.AnalyticsOrder.download(user_id, company_id, order_id)
+        with open("report.csv", "w") as f:
+            f.write(csv_content)
+    ```
+
+??? example "List and clean up old orders"
+
+    ```python
+    import unique_sdk
+
+    orders = unique_sdk.AnalyticsOrder.list(
+        user_id=user_id,
+        company_id=company_id,
+        take=100,
+    )
+
+    for order in orders:
+        if order["state"] == "ERROR":
+            unique_sdk.AnalyticsOrder.delete(user_id, company_id, order["id"])
+            print(f"Deleted failed order: {order['id']}")
+    ```
+
+??? example "End-to-end with the run utility"
+
+    For a single async call that handles creation, polling, and CSV saving, use the [Analytics order run utility](../utilities/analytics_order_run.md):
+
+    ```python
+    import asyncio
+    from unique_sdk.utils.analytics_order_run import run_analytics_order
+
+    async def main():
+        result = await run_analytics_order(
+            user_id=user_id,
+            company_id=company_id,
+            type="CHAT_ANALYTICS",
+            start_date="2024-01-01",
+            end_date="2024-12-31",
+            save_csv_to="./report.csv",
+        )
+        print(result["order"]["state"])  # "DONE"
+        print(result.get("csv_path"))    # "./report.csv"
+
+    asyncio.run(main())
+    ```
+
+## Return Types
+
+#### AnalyticsOrder {#analyticsorder}
+
+??? note "The `AnalyticsOrder` object represents an analytics report order"
+
+    **Fields:**
+
+    - `id` (str) - Unique order identifier
+    - `type` (str) - Analytics type (e.g. `"CHAT_ANALYTICS"`)
+    - `state` (str) - Current state: `"PENDING"`, `"RUNNING"`, `"DONE"`, or `"ERROR"`
+    - `configuration` (dict) - Order configuration (includes `startDate`, `endDate`, and optionally `assistantId`)
+    - `createdAt` (str) - Creation timestamp (ISO 8601)
+    - `updatedAt` (str) - Last update timestamp (ISO 8601)
+    - `stateUpdatedAt` (str) - Timestamp of the last state change (ISO 8601)
+    - `object` (str) - Always `"analytics-order"`
+
+    **Returned by:** `AnalyticsOrder.create()`, `AnalyticsOrder.retrieve()`, `AnalyticsOrder.delete()`
+
+## Related Resources
+
+- [Analytics order run utility](../utilities/analytics_order_run.md) - End-to-end create → poll → download helper
+- [Benchmarking API](benchmarking.md) - Similar async job pattern for xlsx benchmarking
