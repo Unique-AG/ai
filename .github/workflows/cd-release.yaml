@@ -29,7 +29,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       releases_created: ${{ steps.rp.outputs.releases_created }}
-      prs: ${{ steps.rp.outputs.prs }}
     steps:
       - id: rp
         uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
@@ -38,19 +37,25 @@ jobs:
           manifest-file: .release-please-manifest.json
 
   # After release-please updates the PR with new version bumps it does not
-  # update uv.lock. This job checks out the PR branch, reruns uv lock, and
+  # update uv.lock. This job finds the open release PR (labelled
+  # "autorelease: pending"), checks out its branch, reruns uv lock, and
   # commits the result so the lockfile stays consistent with pyproject.toml.
   update-release-lockfile:
     needs: release-please
     if: needs.release-please.outputs.releases_created != 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Parse release PR branch
+      - name: Find open release PR branch
         id: pr-info
         env:
-          PRS_JSON: ${{ needs.release-please.outputs.prs }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          branch=$(echo "${PRS_JSON:-[]}" | jq -r '.[0].headBranchName // empty')
+          branch=$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --label "autorelease: pending" \
+            --state open \
+            --json headRefName \
+            --jq '.[0].headRefName // empty')
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
       - name: Checkout release PR branch
