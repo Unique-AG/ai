@@ -80,7 +80,9 @@ jobs:
 
       - name: Seed lockfile from main before regenerating
         if: steps.pr-info.outputs.branch != ''
-        run: git show origin/main:uv.lock > uv.lock
+        run: |
+          git fetch --depth=1 origin main
+          git show origin/main:uv.lock > uv.lock
 
       - name: Regenerate lockfile
         if: steps.pr-info.outputs.branch != ''
