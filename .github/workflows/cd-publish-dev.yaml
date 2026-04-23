@@ -1,4 +1,4 @@
-name: "[CI] Publish dev builds to PyPI"
+name: "[CD] Publish dev builds to PyPI"
 
 # On every push to `main`, build and publish `.devN` wheels of the
 # publishable AI-repo packages whose sources actually changed in the
@@ -79,7 +79,7 @@ jobs:
           # the change is exercised end-to-end. Otherwise we stay in
           # auto-detect mode (selected='').
           INVALIDATORS=(
-            ".github/workflows/publish-dev.yaml"
+            ".github/workflows/cd-publish-dev.yaml"
             ".github/scripts/rewrite-pyproject-for-dev.py"
             ".github/scripts/resolve-dev-versions.py"
             ".github/scripts/compute-calver.sh"

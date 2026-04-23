@@ -1,0 +1,67 @@
+name: "[CD] Release · Arm Version"
+
+# In steady state the release-cut is fully automated by the `cut-and-arm`
+# job in `cd-release.yaml`: merging the Release PR on `main` cuts the
+# `release/YYYY.WW` branch and arms the next cycle automatically.
+#
+# This workflow is the manual escape hatch for cases where that
+# automation isn't enough:
+#
+#   - bootstrap, before any release has ever been cut (no manifest entry
+#     for compute-calver.sh to key off),
+#   - retargeting after a skipped cycle (e.g. week 20 passed silently —
+#     retarget the standing Release PR to 2026.22),
+#   - shipping off-cadence (e.g. cut 2026.19.0 a week early),
+#   - correcting a miscomputed CalVer.
+#
+# It pushes an empty `Release-As: YYYY.WW.0` commit to `main`. Each
+# trailer overrides the previous one; no cleanup is needed.
+
+permissions:
+  contents: write
+  actions: write  # needed for `gh workflow run cd-release.yaml`
+
+on:
+  workflow_dispatch:
+    inputs:
+      year_week:
+        description: "Target cycle as YYYY.WW (e.g. 2026.20). Leave empty to compute from manifest."
+        required: false
+        type: string
+
+jobs:
+  arm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ensure workflow runs from main
+        run: |
+          CURRENT_BRANCH="${GITHUB_REF#refs/heads/}"
+          if [ "$CURRENT_BRANCH" != "main" ]; then
+            echo "::error::This workflow must be run from the main branch (got: $CURRENT_BRANCH)"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Arm cycle
+        env:
+          YEAR_WEEK: ${{ inputs.year_week }}
+        run: |
+          if [[ -n "$YEAR_WEEK" ]]; then
+            ./.github/scripts/prepare-next-cycle.sh --year-week "$YEAR_WEEK"
+          else
+            ./.github/scripts/prepare-next-cycle.sh
+          fi
+
+      - name: Kick release-please
+        # The push above used GITHUB_TOKEN and therefore did not fire
+        # cd-release.yaml via its push trigger. Invoke it manually so
+        # the standing Release PR is refreshed immediately.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run cd-release.yaml --ref main

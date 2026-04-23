@@ -1,0 +1,102 @@
+name: "[CD] Release Pipeline"
+
+# Single entry point for the full release pipeline. One workflow so the
+# three post-release steps (cut branch, kick ci-publish, arm next cycle)
+# chain deterministically after release-please without racing it for
+# freshly-created tags.
+#
+# Triggers:
+#   push: main          standing Release PR + post-release side effects
+#   push: release/*     per-cycle hotfix Release PR + hotfix publishes
+#   workflow_dispatch   manual kick after GITHUB_TOKEN-pushed commits
+#                       (see `cut-and-arm` — GitHub's anti-recursion rule
+#                       means those pushes can't re-trigger us via push)
+
+on:
+  push:
+    branches:
+      - "main"
+      - "release/*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.rp.outputs.releases_created }}
+    steps:
+      - id: rp
+        uses: googleapis/release-please-action@a02a34c4d625f9be7cb89f4291f3d4484fec4e28 # v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # Dispatch cd-publish.yaml for stable wheels. Works for both main
+  # (YYYY.WW.0) and release/* (YYYY.WW.PATCH) since both flows land tags
+  # the same way. Runs on a separate runner so it doesn't block
+  # cut-and-arm.
+  #
+  # Why dispatch instead of relying on `release:published`? The release
+  # action just ran with the default GITHUB_TOKEN, and GitHub's
+  # anti-recursion rule means release events produced by GITHUB_TOKEN do
+  # not fire `release:` triggers on other workflows. `gh workflow run`
+  # bypasses that by invoking ci-publish as a workflow_dispatch.
+  publish-stable:
+    needs: release-please
+    if: needs.release-please.outputs.releases_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kick ci-publish for stable wheels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run cd-publish.yaml \
+            --ref "${{ github.ref_name }}" \
+            -f package=all \
+            -f ref="${{ github.sha }}"
+
+  # Main-only post-release chores. Skipped on release/* because hotfix
+  # cycles don't cut a new branch and don't advance the next CalVer.
+  cut-and-arm:
+    needs: release-please
+    if: >-
+      needs.release-please.outputs.releases_created == 'true'
+      && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cut release branch from tagged commit
+        run: ./.github/scripts/cut-release-branch.sh
+
+      - name: Arm next cycle on main
+        run: ./.github/scripts/prepare-next-cycle.sh
+
+      - name: Kick release-please
+        # The arm step above pushed with GITHUB_TOKEN, which can't
+        # re-trigger this workflow via push. Dispatch ourselves so the
+        # standing Release PR is refreshed immediately with the newly
+        # armed CalVer.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run cd-release.yaml --ref main
+
+      - name: Summary
+        run: |
+          {
+            echo "### Post-release actions"
+            echo "- Cut \`release/\` branch from the tagged release commit"
+            echo "- Kicked \`cd-publish.yaml\` (package=all) via \`publish-stable\` job"
+            echo "- Pushed \`Release-As:\` trailer on \`main\` to arm the next cycle"
+            echo "- Kicked release-please to refresh the standing Release PR"
+          } >> "$GITHUB_STEP_SUMMARY"

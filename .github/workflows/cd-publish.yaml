@@ -1,0 +1,113 @@
+name: "[CD] Publish to PyPI"
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Package to publish (required for manual dispatch)"
+        type: choice
+        options:
+          - ""
+          - all
+          - sdk
+          - toolkit
+          - mcp
+          - orchestrator
+          - web_search
+          - swot
+          - follow_up_questions
+          - stock_ticker
+          - deep_research
+          - internal_search
+          - quartr
+          - six
+          - skill_tool
+        default: ""
+      ref:
+        description: "Git ref (SHA or tag) to check out. Defaults to github.sha when omitted."
+        required: false
+        default: ""
+
+jobs:
+  resolve-package:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: ./.github/actions/get-packages-matrix
+        id: pkgs
+
+      - name: Filter publishable packages
+        id: filter
+        run: |
+          PACKAGES='${{ steps.pkgs.outputs.packages }}'
+          FILTERED=$(echo "$PACKAGES" | jq -c '[.[] | select((.publish_skip != true) and (.pypi_name != null))]')
+          echo "packages=$FILTERED" >> $GITHUB_OUTPUT
+
+      - name: Resolve packages to publish
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_PACKAGE: ${{ inputs.package }}
+        run: |
+          PACKAGES='${{ steps.filter.outputs.packages }}'
+
+          if [[ "$EVENT_NAME" == "release" ]]; then
+            TAG="$RELEASE_TAG"
+            # Tag format: <component>-v<version>, e.g. unique-toolkit-v2026.18.0
+            COMPONENT="${TAG%-v*}"
+
+            # Map component to package config using release-please-config.json
+            PKG_DIR=$(jq -r --arg comp "$COMPONENT" \
+              '.packages | to_entries[] | select(.value.component == $comp) | .key' \
+              release-please-config.json)
+
+            if [[ -z "$PKG_DIR" || "$PKG_DIR" == "null" ]]; then
+              echo "Error: no package found for component '$COMPONENT' (tag: $TAG)"
+              exit 1
+            fi
+
+            MATRIX=$(echo "$PACKAGES" | jq -c --arg dir "$PKG_DIR" \
+              '{include: [.[] | select(.dir == $dir)]}')
+          elif [[ -n "$INPUT_PACKAGE" && "$INPUT_PACKAGE" != "" ]]; then
+            SELECTED="$INPUT_PACKAGE"
+            if [[ "$SELECTED" == "all" ]]; then
+              MATRIX=$(echo "$PACKAGES" | jq -c '{include: .}')
+            else
+              MATRIX=$(echo "$PACKAGES" | jq -c --arg id "$SELECTED" \
+                '{include: [.[] | select(.id == $id)]}')
+            fi
+          else
+            echo "Error: no package specified and not triggered by release event"
+            exit 1
+          fi
+
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          echo "Publishing: $(echo "$MATRIX" | jq -r '.include[].id // empty')"
+
+  publish:
+    needs: resolve-package
+    if: ${{ fromJson(needs.resolve-package.outputs.matrix).include[0] != null }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.resolve-package.outputs.matrix) }}
+    name: publish-${{ matrix.id }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.ref || github.sha }}
+
+      - name: Publish with uv
+        uses: ./.github/actions/publish-to-pypi-with-uv
+        with:
+          package_dir: ${{ matrix.dir }}
+          package_name: ${{ matrix.pypi_name }}
+          python_version: ${{ matrix.python }}
+          check_version: "false"
+          pypi_token: ${{ secrets.PYPI_TOKEN }}
