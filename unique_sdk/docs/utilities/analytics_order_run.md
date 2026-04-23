@@ -96,3 +96,18 @@ result = await run_analytics_order(
 
 !!! note
     If polling times out, you get a `TimeoutError` with the last observed order state embedded in the message. The order may still be running on the server — call `AnalyticsOrder.retrieve()` later to check.
+
+## Return Types
+
+#### RunAnalyticsOrderResult {#runanalyticsorderresult}
+
+??? note "The result dict returned by `run_analytics_order`"
+
+    **Fields:**
+
+    - `order` ([`AnalyticsOrder`](../api_resources/analytics_order.md#analyticsorder)) - The final order object after reaching a terminal state
+    - `csv_path` (str, optional) - Absolute path to the saved CSV file. Only present when `save_csv_to` was set **and** the order reached `DONE` state.
+
+## Related Resources
+
+- [Analytics Order API](../api_resources/analytics_order.md) - Low-level create, list, retrieve, delete, and download methods
