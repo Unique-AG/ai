@@ -101,7 +101,10 @@ fi
 git commit --allow-empty \
   -m "chore: arm release ${VERSION}" \
   -m "Release-As: ${VERSION}"
-git push "$REMOTE" "HEAD:refs/heads/${CYCLE_BRANCH}"
+
+# Force-push so a retry after a partial failure (branch pushed but gh pr create
+# failed, or a previously closed arm PR) doesn't hit a non-fast-forward error.
+git push --force-with-lease "$REMOTE" "HEAD:refs/heads/${CYCLE_BRANCH}"
 
 gh pr create \
   --base "$BRANCH" \
