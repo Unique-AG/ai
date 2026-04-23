@@ -17,6 +17,13 @@ inputs:
     description: 'Additional arguments to pass to pytest'
     required: false
     default: ''
+  use_workspace:
+    description: >
+      When true (default), workspace sources are used for all intra-monorepo
+      deps. Set to false only on release branches to validate that the package
+      resolves correctly against its declared bounds on PyPI.
+    required: false
+    default: 'true'
 
 runs:
   using: 'composite'
@@ -28,7 +35,7 @@ runs:
         python_version: ${{ inputs.python_version }}
 
     - name: Install extra dependencies from PyPI
-      if: inputs.install_args != ''
+      if: inputs.install_args != '' && inputs.use_workspace != 'true'
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
@@ -37,10 +44,10 @@ runs:
         # Extract extra names from "--extra foo --extra bar" → "foo,bar"
         EXTRAS=$(echo "${{ inputs.install_args }}" | grep -oP '(?<=--extra )\w+' | paste -sd ',' -)
 
-        # Find workspace-sourced deps in this package's pyproject.toml.
-        # These were installed from local paths by setup-uv; reinstall them
-        # from PyPI to test against released versions (SDK must be published
-        # before toolkit can be released, so the PyPI version always exists).
+        # Find workspace-sourced deps in this package's pyproject.toml and
+        # reinstall them from PyPI to validate the declared version bounds
+        # against published releases. Only runs on release branches
+        # (use_workspace=false); all other branches use workspace sources.
         WORKSPACE_PKGS=$(python3 -c "
         import tomllib
         with open('pyproject.toml', 'rb') as f:

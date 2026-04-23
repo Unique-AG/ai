@@ -13,6 +13,13 @@ inputs:
     description: 'Extra names to install (e.g., "--extra fastapi --extra monitoring")'
     required: false
     default: ''
+  use_workspace:
+    description: >
+      When true (default), workspace sources are used for all intra-monorepo
+      deps. Set to false only on release branches to validate that the package
+      resolves correctly against its declared bounds on PyPI.
+    required: false
+    default: 'true'
   base_ref:
     description: 'Base branch/ref for comparison'
     required: false
@@ -32,7 +39,7 @@ runs:
         python_version: ${{ inputs.python_version }}
 
     - name: Install extra dependencies from PyPI
-      if: inputs.install_args != ''
+      if: inputs.install_args != '' && inputs.use_workspace != 'true'
       shell: bash
       working-directory: ${{ inputs.package_dir }}
       env:
