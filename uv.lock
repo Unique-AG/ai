@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-09T08:12:19.076829Z"
+exclude-newer = "2026-04-09T09:51:43.07642Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5500,7 +5500,7 @@ dev = [{ name = "responses", specifier = ">=0.25.0" }]
 
 [[package]]
 name = "unique-skill-tool"
-version = "0.1.0"
+version = "2026.16.0"
 source = { editable = "tool_packages/unique_skill_tool" }
 dependencies = [
     { name = "jinja2" },
