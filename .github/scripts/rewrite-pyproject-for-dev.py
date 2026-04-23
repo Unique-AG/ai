@@ -9,12 +9,12 @@ Two things happen in place:
    names another AI monorepo package is rewritten to use the pin
    supplied via ``--dep-pins``. For example, with::
 
-       --dep-pins '{"unique-sdk": "==2026.18.0.dev3",
+       --dep-pins '{"unique-sdk": ">=2026.18.0.dev3",
                     "unique-toolkit": ">=2026.18.0.dev7"}'
 
    the rewriter produces::
 
-       "unique-sdk>=0.10.85,<0.12"  ->  "unique-sdk==2026.18.0.dev3"
+       "unique-sdk>=0.10.85,<0.12"  ->  "unique-sdk>=2026.18.0.dev3"
        "unique-toolkit[monitoring]>=1.69.6,<2"
            ->  "unique-toolkit[monitoring]>=2026.18.0.dev7"
 
@@ -24,7 +24,7 @@ Because the constraint explicitly contains a PEP 440 pre-release segment
 The pin map is computed upstream in ``resolve-dev-versions.py`` and
 encodes three cases per cross-package dep:
 
-  * The dep is being published in the same push     -> ``==<new-version>``
+  * The dep is being published in the same push     -> ``>=<new-version>``
   * The cycle already has a dev wheel for the dep   -> ``>=<latest-dev>``
   * Otherwise (nothing in the cycle yet)            -> ``>=<last-stable>``
 
@@ -56,12 +56,13 @@ _REQ_RE = re.compile(r"^\s*([A-Za-z0-9_.\-]+)(\[[^\]]*\])?\s*(.*)$")
 # stable version into a package.
 _VERSION_RE = re.compile(r"^\d{4}\.\d{2}\.\d+\.dev\d+$")
 # Dep pins come in three flavors out of resolve-dev-versions.py:
-#   ==<CalVer dev>   (sibling in this push)
-#   >=<CalVer dev>   (cycle-dev already on PyPI)
+#   >=<CalVer dev>   (sibling in this push, or cycle-dev already on PyPI)
 #   >=<stable>       (last stable fallback; may be legacy pre-CalVer)
-# The final branch has to accept dotted numerics of arbitrary length so
-# legacy "0.3.3"-style versions pass through.
-_PIN_RE = re.compile(r"^(==\d{4}\.\d{2}\.\d+\.dev\d+|>=\d+(\.\d+)*(\.dev\d+)?)$")
+# All three cases use >= so future dev releases of the same package
+# remain installable without republishing every transitive dependent.
+# Dotted numerics of arbitrary length are accepted so legacy
+# "0.3.3"-style versions pass through.
+_PIN_RE = re.compile(r"^>=\d+(\.\d+)*(\.dev\d+)?$")
 
 
 def normalize(name: str) -> str:
