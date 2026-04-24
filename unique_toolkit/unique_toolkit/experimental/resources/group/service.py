@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Any
 
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.experimental.resources.groups.functions import (
+from unique_toolkit.experimental.resources.group.functions import (
     DEFAULT_LIST_SKIP,
     DEFAULT_LIST_TAKE,
     add_group_members,
@@ -35,7 +35,7 @@ from unique_toolkit.experimental.resources.groups.functions import (
     update_group_configuration,
     update_group_configuration_async,
 )
-from unique_toolkit.experimental.resources.groups.schemas import (
+from unique_toolkit.experimental.resources.group.schemas import (
     GroupDeleted,
     GroupInfo,
     GroupMembership,
@@ -49,7 +49,7 @@ class Groups:
     .. warning::
 
         **Experimental.** Part of
-        :mod:`unique_toolkit.experimental.resources.groups`. The API may
+        :mod:`unique_toolkit.experimental.resources.group`. The API may
         change without notice.
 
     Surface:

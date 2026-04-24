@@ -1,4 +1,4 @@
-"""Pydantic schemas for the :mod:`unique_toolkit.experimental.resources.groups` resource.
+"""Pydantic schemas for the :mod:`unique_toolkit.experimental.resources.group` resource.
 
 Mirrors :mod:`unique_sdk.Group` responses with field-level documentation and
 camelCase aliases so SDK wire payloads validate directly via

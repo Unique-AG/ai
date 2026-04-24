@@ -13,11 +13,11 @@ Only the group-centric pieces live here:
   (from :mod:`.schemas`)
 
 The :class:`Identity` facade that composes
-:class:`~unique_toolkit.experimental.resources.users.Users` + :class:`Groups`
+:class:`~unique_toolkit.experimental.resources.user.Users` + :class:`Groups`
 lives in :mod:`unique_toolkit.experimental.resources.facades.identity`.
 """
 
-from unique_toolkit.experimental.resources.groups.functions import (
+from unique_toolkit.experimental.resources.group.functions import (
     DEFAULT_LIST_SKIP,
     DEFAULT_LIST_TAKE,
     add_group_members,
@@ -35,14 +35,14 @@ from unique_toolkit.experimental.resources.groups.functions import (
     update_group_configuration,
     update_group_configuration_async,
 )
-from unique_toolkit.experimental.resources.groups.schemas import (
+from unique_toolkit.experimental.resources.group.schemas import (
     GroupDeleted,
     GroupInfo,
     GroupMember,
     GroupMembership,
     GroupWithConfiguration,
 )
-from unique_toolkit.experimental.resources.groups.service import Groups
+from unique_toolkit.experimental.resources.group.service import Groups
 
 __all__ = [
     "DEFAULT_LIST_SKIP",

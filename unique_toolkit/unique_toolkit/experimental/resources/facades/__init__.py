@@ -25,5 +25,5 @@ sub-resource, it is a facade; otherwise it is a capability.
 
 Planned contents:
 
-* ``identity`` — :class:`Identity` over :mod:`..users` + :mod:`..groups`.
+* ``identity`` — :class:`Identity` over :mod:`..user` + :mod:`..group`.
 """

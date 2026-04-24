@@ -47,12 +47,12 @@ Planned contents (current home → new home):
 * ``short_term_memory``← :mod:`unique_toolkit.short_term_memory`
 * ``elicitation``      ← :mod:`unique_toolkit.elicitation`
 * ``agentic_table``    ← :mod:`unique_toolkit.agentic_table`
-* ``users``            ← :mod:`unique_toolkit.experimental.identity` (user part)
-* ``groups``           ← :mod:`unique_toolkit.experimental.identity` (group part)
+* ``user``             ← :mod:`unique_toolkit.experimental.identity` (user part)
+* ``group``            ← :mod:`unique_toolkit.experimental.identity` (group part)
 * ``content_folder``   ← :mod:`unique_toolkit.experimental.content_folder`
 * ``scheduled_task``   ← :mod:`unique_toolkit.experimental.scheduled_task`
 * ``facades.identity`` ← :mod:`unique_toolkit.experimental.identity`
-  (the :class:`Identity` facade bundling ``users`` + ``groups``)
+  (the :class:`Identity` facade bundling the :class:`Users` and :class:`Groups` services)
 
 One thing that *looks* like it should live here but does not:
 

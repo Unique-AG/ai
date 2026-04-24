@@ -12,7 +12,7 @@ from typing import Any
 
 from unique_sdk import Group
 
-from unique_toolkit.experimental.resources.groups.schemas import (
+from unique_toolkit.experimental.resources.group.schemas import (
     GroupDeleted,
     GroupInfo,
     GroupMembership,

@@ -10,9 +10,9 @@
 composes two resource services:
 
 - :attr:`Identity.users` — an instance of
-  :class:`~unique_toolkit.experimental.resources.users.Users`.
+  :class:`~unique_toolkit.experimental.resources.user.Users`.
 - :attr:`Identity.groups` — an instance of
-  :class:`~unique_toolkit.experimental.resources.groups.Groups`.
+  :class:`~unique_toolkit.experimental.resources.group.Groups`.
 
 Both sub-services share the same ``(user_id, company_id)`` pair, so
 instantiating :class:`Identity` is equivalent to building both sub-services
@@ -29,8 +29,8 @@ from typing import TYPE_CHECKING, Self
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.unique_settings import UniqueSettings
-from unique_toolkit.experimental.resources.groups.service import Groups
-from unique_toolkit.experimental.resources.users.service import Users
+from unique_toolkit.experimental.resources.group.service import Groups
+from unique_toolkit.experimental.resources.user.service import Users
 
 if TYPE_CHECKING:
     from unique_toolkit.app.unique_settings import UniqueContext
@@ -48,9 +48,9 @@ class Identity:
     :class:`Identity` owns two sub-services:
 
     - :attr:`users` — an instance of
-      :class:`~unique_toolkit.experimental.resources.users.Users`.
+      :class:`~unique_toolkit.experimental.resources.user.Users`.
     - :attr:`groups` — an instance of
-      :class:`~unique_toolkit.experimental.resources.groups.Groups`.
+      :class:`~unique_toolkit.experimental.resources.group.Groups`.
 
     ``Identity`` itself is stateless beyond the credentials it holds; the
     actual CRUD surface lives on the sub-services so callers write

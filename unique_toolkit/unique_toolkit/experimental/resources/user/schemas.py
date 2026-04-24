@@ -1,10 +1,10 @@
-"""Pydantic schemas for the :mod:`unique_toolkit.experimental.resources.users` resource.
+"""Pydantic schemas for the :mod:`unique_toolkit.experimental.resources.user` resource.
 
 Mirrors :mod:`unique_sdk.User` responses with field-level documentation and
 camelCase aliases so SDK wire payloads validate directly via
 :func:`BaseModel.model_validate`. :class:`UserGroupMembership` is the response
 shape of ``GET /users/{id}/groups`` and lives here — not in
-:mod:`..groups.schemas` — because the endpoint is rooted on the user.
+:mod:`..group.schemas` — because the endpoint is rooted on the user.
 """
 
 from __future__ import annotations
@@ -96,7 +96,7 @@ class UserGroupMembership(BaseModel):
     """One of the groups a user is a member of (``GET /users/{id}/groups``).
 
     This is the response shape of a *user* endpoint — a subset of
-    :class:`~unique_toolkit.experimental.resources.groups.schemas.GroupInfo`
+    :class:`~unique_toolkit.experimental.resources.group.schemas.GroupInfo`
     with no ``members`` or ``configuration`` field — and therefore lives with
     the users resource, not the groups resource.
     """

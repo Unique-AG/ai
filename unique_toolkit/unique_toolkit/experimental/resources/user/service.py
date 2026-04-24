@@ -25,7 +25,7 @@ from __future__ import annotations
 from typing import Any, overload
 
 from unique_toolkit._common.validate_required_values import validate_required_values
-from unique_toolkit.experimental.resources.users.functions import (
+from unique_toolkit.experimental.resources.user.functions import (
     DEFAULT_LIST_SKIP,
     DEFAULT_LIST_TAKE,
     find_user,
@@ -39,7 +39,7 @@ from unique_toolkit.experimental.resources.users.functions import (
     update_user_configuration,
     update_user_configuration_async,
 )
-from unique_toolkit.experimental.resources.users.schemas import (
+from unique_toolkit.experimental.resources.user.schemas import (
     UserGroupMembership,
     UserInfo,
     UserWithConfiguration,
@@ -52,7 +52,7 @@ class Users:
     .. warning::
 
         **Experimental.** Part of
-        :mod:`unique_toolkit.experimental.resources.users`. The API may
+        :mod:`unique_toolkit.experimental.resources.user`. The API may
         change without notice.
 
     Surface:
@@ -82,7 +82,7 @@ class Users:
     ) -> list[UserInfo]:
         """List users, optionally filtered server-side (``getent passwd``).
 
-        ``skip``/``take`` default to a 0/:data:`~unique_toolkit.experimental.resources.users.functions.DEFAULT_LIST_TAKE`
+        ``skip``/``take`` default to a 0/:data:`~unique_toolkit.experimental.resources.user.functions.DEFAULT_LIST_TAKE`
         pagination window; callers can widen or shrink it as needed.
         """
         return list_users(
