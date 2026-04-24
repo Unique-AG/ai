@@ -186,6 +186,9 @@ async def _upload_files_to_container(
     memory: CodeExecutionShortTermMemorySchema,
     content_service: ContentService,
 ) -> CodeExecutionShortTermMemorySchema:
+    # Deduplicate
+    unique_contents = {content.id: content for content in uploaded_files}.values()
+
     await asyncio.gather(
         *(
             _upload_file_to_container(
@@ -195,7 +198,7 @@ async def _upload_files_to_container(
                 memory=memory,
                 content_service=content_service,
             )
-            for file in uploaded_files
+            for file in unique_contents
         )
     )
     return memory
@@ -205,8 +208,6 @@ async def _resolve_kb_contents(
     content_service: ContentService,
     content_ids: list[str],
 ) -> list[Content]:
-    content_ids = list(set(content_ids))
-
     contents = await content_service.search_contents_async(
         where={"id": {"in": content_ids}},
     )
