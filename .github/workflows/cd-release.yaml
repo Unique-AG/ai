@@ -109,6 +109,15 @@ jobs:
           git commit -m "chore: update dependency floors and regenerate uv.lock for release"
           git push
 
+      - name: Kick CI on release PR branch
+        if: steps.pr-info.outputs.branch != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run ci.yaml \
+            --repo "${{ github.repository }}" \
+            --ref "${{ steps.pr-info.outputs.branch }}"
+
   # Dispatch cd-publish.yaml for stable wheels. Works for both main
   # (YYYY.WW.0) and release/* (YYYY.WW.PATCH) since both flows land tags
   # the same way. Runs on a separate runner so it doesn't block
