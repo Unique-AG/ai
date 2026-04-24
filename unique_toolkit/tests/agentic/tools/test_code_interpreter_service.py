@@ -751,9 +751,7 @@ async def test_check_container_exists__returns_false__when_not_found() -> None:
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_check_container_exists__returns_false__when_status_is_not_live() -> (
-    None
-):
+async def test_check_container_exists__returns_false__when_status_is_not_live() -> None:
     """
     Purpose: Verify that a container in a non-live status (e.g. ``expired``) is treated
     as missing so the caller recreates it.
@@ -823,9 +821,7 @@ async def test_upload_files_to_container__isolates_failures__one_file_fails_othe
     Setup summary: Two files; downloader raises for ``bad``, returns bytes for ``good``.
     Assert only the good one lands in memory.file_ids and ``updated`` is True.
     """
-    memory = CodeExecutionShortTermMemorySchema(
-        container_id="ctr_isolate", file_ids={}
-    )
+    memory = CodeExecutionShortTermMemorySchema(container_id="ctr_isolate", file_ids={})
     good = Content(id="cont_good", key="good.csv")
     bad = Content(id="cont_bad", key="bad.csv")
 
