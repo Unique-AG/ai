@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, override
 
@@ -125,63 +126,101 @@ async def _create_container_if_not_exists(
     return memory
 
 
+async def _upload_file_to_container(
+    client: AsyncOpenAI,
+    content_id: str,
+    filename: str,
+    memory: CodeExecutionShortTermMemorySchema,
+    content_service: ContentService,
+) -> None:
+    container_id = memory.container_id
+    assert container_id is not None
+
+    if content_id in memory.file_ids:
+        try:
+            await client.containers.files.retrieve(
+                container_id=container_id, file_id=memory.file_ids[content_id]
+            )
+            logger.info("File with id %s already uploaded to container", content_id)
+            return
+        except NotFoundError:
+            pass
+
+    logger.info(
+        "Uploading file %s (%s) to container %s",
+        content_id,
+        filename,
+        container_id,
+    )
+
+    file_content = await _build_upload_retry()(
+        content_service.download_content_to_bytes_async,
+        content_id=content_id,
+    )
+    logger.info(
+        "Downloaded %d bytes for file %s; uploading to container %s",
+        len(file_content),
+        content_id,
+        container_id,
+    )
+
+    openai_file = await _build_upload_retry()(
+        client.containers.files.create,
+        container_id=container_id,
+        file=(filename, file_content),
+    )
+    memory.file_ids[content_id] = openai_file.id
+
+    logger.info(
+        "File %s successfully uploaded as OpenAI file %s in container %s",
+        content_id,
+        openai_file.id,
+        container_id,
+    )
+    return
+
+
 async def _upload_files_to_container(
     client: AsyncOpenAI,
     uploaded_files: list[Content],
     memory: CodeExecutionShortTermMemorySchema,
     content_service: ContentService,
-    chat_id: str,
 ) -> CodeExecutionShortTermMemorySchema:
-    container_id = memory.container_id
-
-    assert container_id is not None
-
-    memory = memory.model_copy(deep=True)
-
-    for file in uploaded_files:
-        upload = True
-        if file.id in memory.file_ids:
-            try:
-                _ = await client.containers.files.retrieve(
-                    container_id=container_id, file_id=memory.file_ids[file.id]
-                )
-                logger.info("File with id %s already uploaded to container", file.id)
-                upload = False
-            except NotFoundError:
-                upload = True
-
-        if upload:
-            logger.info(
-                "Uploading file %s (%s) to container %s",
-                file.id,
-                file.key,
-                memory.container_id,
-            )
-            file_content = await _build_upload_retry()(
-                content_service.download_content_to_bytes_async,
+    await asyncio.gather(
+        *(
+            _upload_file_to_container(
+                client=client,
                 content_id=file.id,
-                chat_id=chat_id,
+                filename=file.key,
+                memory=memory,
+                content_service=content_service,
             )
-            logger.info(
-                "Downloaded %d bytes for file %s; uploading to container %s",
-                len(file_content),
-                file.id,
-                container_id,
-            )
-            openai_file = await _build_upload_retry()(
-                client.containers.files.create,
-                container_id=container_id,
-                file=(file.key, file_content),
-            )
-            memory.file_ids[file.id] = openai_file.id
-            logger.info(
-                "File %s successfully uploaded as OpenAI file %s in container %s",
-                file.id,
-                openai_file.id,
-                container_id,
-            )
-
+            for file in uploaded_files
+        )
+    )
     return memory
+
+
+async def _resolve_kb_contents(
+    content_service: ContentService,
+    content_ids: list[str],
+) -> list[Content]:
+    content_ids = list(set(content_ids))
+
+    contents = await content_service.search_contents_async(
+        where={"id": {"in": content_ids}},
+    )
+
+    found_ids = {c.id for c in contents}
+    missing = [content_id for content_id in content_ids if content_id not in found_ids]
+    if missing:
+        logger.warning(
+            "additional_uploaded_documents: %d content ids not found or not accessible in KB: %s",
+            len(missing),
+            missing,
+        )
+
+    return contents
 
 
 class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
@@ -275,12 +314,23 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
             expires_after_minutes=config.expires_after_minutes,
         )
 
+        files_to_upload: list[Content] = []
         if config.upload_files_in_chat_to_container:
+            files_to_upload.extend(uploaded_files)
+
+        if config.additional_uploaded_documents:
+            files_to_upload.extend(
+                await _resolve_kb_contents(
+                    content_service=content_service,
+                    content_ids=config.additional_uploaded_documents,
+                )
+            )
+
+        if files_to_upload:
             memory = await _upload_files_to_container(
                 client=client,
-                uploaded_files=uploaded_files,
+                uploaded_files=files_to_upload,
                 content_service=content_service,
-                chat_id=chat_id,
                 memory=memory,
             )
 
