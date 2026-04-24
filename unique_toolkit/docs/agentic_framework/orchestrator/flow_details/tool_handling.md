@@ -10,12 +10,12 @@ When the LLM returns tool calls:
 5. Add tool results to history
 6. Return whether a tool took control (to exit the loop if true)
 
-When the model proposes tool calls, the orchestrator has to do more than merely “run them.”
+When the model proposes tool calls, the orchestrator has to do more than merely "run them."
 
-Here’s the reasoning behind each step:
+Here's the reasoning behind each step:
 
 1. Append tool calls to history — before execution
-The conversation history must reflect the model’s intent at the moment it decided to act. By writing the tool calls into the HistoryManager first, we preserve a verifiable chain of decision → action. This makes subsequent model calls reproducible: on the next iteration, the LLM sees exactly which tools it requested and in what order.
+The conversation history must reflect the model's intent at the moment it decided to act. By writing the tool calls into the HistoryManager first, we preserve a verifiable chain of decision → action. This makes subsequent model calls reproducible: on the next iteration, the LLM sees exactly which tools it requested and in what order.
 2. Execute tool calls via ToolManager
 The ToolManager centralizes the parallel execution of the tools. Keeping execution behind a single interface reduces coupling in the orchestrator and ensures every tool adheres to a consistent contract.
 
@@ -27,11 +27,11 @@ Multiple tools can produce citable references and all of them must be numbered c
 Operational visibility matters. If a tool times out, returns a partial payload, or hits an API limit, the DebugInfoManager captures this without polluting the user-facing content. These traces are invaluable for developer diagnosis and for adaptive logic (e.g., future retries, fallbacks).
 For easier debugging in production and richer telemetry without exposing noisy internals to end users.
 5. Add tool results to history
-Mich like in "Append tool calls to history" step the The model’s next reasoning step must be informed about the actual tool outputs (not just that a tool was called). 
-6. Return whether a tool “takes control”
-Some tools aren’t just data fetchers — they’re specialized agents (e.g., deep research, long-running pipelines) that assume full streaming and control. If ToolManager.does_a_tool_take_control() returns true, the orchestrator stops its loop to handoff control to the subagent.
+Much like in "Append tool calls to history" step, the model's next reasoning step must be informed about the actual tool outputs (not just that a tool was called).
+6. Return whether a tool "takes control"
+Some tools aren't just data fetchers — they're specialized agents (e.g., deep research, long-running pipelines) that assume full streaming and control. If ToolManager.does_a_tool_take_control() returns true, the orchestrator stops its loop to handoff control to the subagent.
 
-This ordering preserves causal integrity (what was intended vs. what happened), equips the next iteration with usable evidence, and makes space for expert agents to take over when it’s appropriate.
+This ordering preserves causal integrity (what was intended vs. what happened), equips the next iteration with usable evidence, and makes space for expert agents to take over when it's appropriate.
 
 
 
@@ -65,4 +65,4 @@ Code:
 ```
 
 Notes:
-- “Tool takes control” scenarios (e.g., deep research) stop the orchestrator’s loop and hand over streaming to the tool/agent.
+- "Tool takes control" scenarios (e.g., deep research) stop the orchestrator's loop and hand over streaming to the tool/agent.

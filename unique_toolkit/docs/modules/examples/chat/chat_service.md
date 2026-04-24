@@ -108,7 +108,7 @@ chat_service.complete_with_references(
         model_name = LanguageModelName.AZURE_GPT_4o_2024_1120)
 ```
 
-and again the functionality automatically returns the the last assistant message in the chat.
+and again the functionality automatically returns the last assistant message in the chat.
 
 
 <!--
