@@ -102,26 +102,6 @@ NORMALIZATION_MAX_MATCH_LENGTH = 80
 multi-source patterns like ``[source: 1, 2, ..., 20]``."""
 
 
-def chunks_to_sdk_references(
-    chunks: list[ContentChunk],
-) -> list[unique_sdk.Message.Reference]:
-    """Convert ``ContentChunk`` objects to ``unique_sdk.Message.Reference`` TypedDicts."""
-    return [
-        unique_sdk.Message.Reference(
-            name=chunk.title or chunk.key or chunk.id or "",
-            url=chunk.url or f"unique://content/{chunk.id}",
-            sequenceNumber=i + 1,
-            sourceId=(
-                f"{chunk.id}_{chunk.chunk_id}" if chunk.chunk_id else chunk.id or ""
-            ),
-            source="node-ingestion-chunks",
-            description=None,
-            originalIndex=[i + 1],
-        )
-        for i, chunk in enumerate(chunks)
-    ]
-
-
 _CITED_SUP_PATTERN = re.compile(r"<sup>(\d+)</sup>")
 
 
@@ -139,7 +119,7 @@ def filter_cited_sdk_references(
     cited = {int(match) for match in _CITED_SUP_PATTERN.findall(text)}
     if not cited:
         return []
-    all_refs = chunks_to_sdk_references(chunks)
+    all_refs = [chunk.to_sdk_reference(i) for i, chunk in enumerate(chunks)]
     return [ref for ref in all_refs if ref["sequenceNumber"] in cited]
 
 

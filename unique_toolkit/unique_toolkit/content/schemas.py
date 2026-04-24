@@ -76,6 +76,22 @@ class ContentChunk(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
+    def to_sdk_reference(
+        self,
+        sequence_number: int,
+    ) -> unique_sdk.Message.Reference:
+        """Convert ``ContentChunk`` objects to ``unique_sdk.Message.Reference`` TypedDicts."""
+
+        return unique_sdk.Message.Reference(
+            name=self.title or self.key or self.id or "",
+            url=self.url or f"unique://content/{self.id}",
+            sequenceNumber=sequence_number + 1,
+            sourceId=(f"{self.id}_{self.chunk_id}" if self.chunk_id else self.id or ""),
+            source="node-ingestion-chunks",
+            description=None,
+            originalIndex=[sequence_number + 1],
+        )
+
     def to_reference(
         self,
         sequence_number: int,
