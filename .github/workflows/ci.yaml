@@ -86,7 +86,7 @@ jobs:
 
   no-manual-release:
     name: No Manual Release Changes
-    if: github.event_name == 'pull_request' && github.actor != 'release-please[bot]' && !startsWith(github.head_ref, 'release-please--')
+    if: github.event_name == 'pull_request' && github.actor != 'release-please[bot]' && !startsWith(github.head_ref, 'release-please--') && !startsWith(github.head_ref, 'chore/bump-dev-')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
