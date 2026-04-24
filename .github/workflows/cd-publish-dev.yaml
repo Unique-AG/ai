@@ -57,6 +57,10 @@ concurrency:
 
 jobs:
   resolve:
+    # Skip when the push is the automated dev-bump commit itself — merging
+    # that PR only updates pyproject.toml version pins and must not trigger
+    # a new publish cycle.
+    if: "!startsWith(github.event.head_commit.message, 'chore: bump dev versions')"
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.publishable.outputs.matrix }}
