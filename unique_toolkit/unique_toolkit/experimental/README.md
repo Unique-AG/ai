@@ -21,7 +21,7 @@ you know what it's allowed to import.
 ```mermaid
 flowchart TD
     integrations["<b>integrations/</b><br/><i>third-party framework glue</i>"]
-    capabilities["<b>capabilities/</b><br/><i>orchestration &amp; derived views</i>"]
+    components["<b>components/</b><br/><i>orchestration &amp; derived views</i>"]
 
     subgraph resources ["<b>resources/</b>"]
         direction TB
@@ -35,8 +35,8 @@ flowchart TD
 
     integrations ==> facades
     integrations -.-> primitives
-    integrations -.-> capabilities
-    capabilities --> resources
+    integrations -.-> components
+    components --> resources
     resources --> internal
     primitives -.-> sdk
 
@@ -50,12 +50,12 @@ flowchart TD
 - **Dotted arrows** are allowed but discouraged — use them when the default
   path does not cover your case, and consider whether the missing path is
   a signal that something should be refactored.
-- `integrations/` and `capabilities/` are **peers**, not stacked. Both
+- `integrations/` and `components/` are **peers**, not stacked. Both
   sit directly above `resources/`. An integration's default path is a
   facade (which is why `integrations ==> facades` is drawn bold); reaching
   a primitive resource is fine when no facade fits; reaching into
-  `capabilities/` is the escape hatch of last resort.
-- `capabilities/` never imports `integrations/`. Orchestration must stay
+  `components/` is the escape hatch of last resort.
+- `components/` never imports `integrations/`. Orchestration must stay
   framework-agnostic — that is the entire reason integrations are a
   separate layer.
 
@@ -72,7 +72,7 @@ API. Think: HTTP plumbing, Pydantic helpers, time/string/exception utilities.
 - **Must not import:** anything else in `experimental/`. This is the
   bottom of the stack; it would be a dependency inversion.
 - **Public exposure:** none. If something here is genuinely useful to
-  users, promote it into `resources/`, `capabilities/`, or
+  users, promote it into `resources/`, `components/`, or
   `integrations/` — whichever layer fits — and re-export it there.
 
 ### `resources/<name>/` — typed adapters over `unique_sdk`
@@ -82,7 +82,7 @@ One subfolder per SDK resource family. The canonical shape is:
 ```
 resources/<name>/
     schemas.py     # Pydantic models for request/response payloads
-    functions.py   # free-standing sync + async call pairs
+    functions.py   # (optional) free-standing sync + async call pairs
     service.py     # stateful, keyword-only class over functions.py
     __init__.py    # re-exports
 ```
@@ -93,9 +93,10 @@ slightly nicer call surface, nothing more.
 
 - **May import:** `unique_sdk`, `_internal/`, stdlib, third-party libs.
 - **Must not import:** sibling resources (see `facades/` below for the
-  exception), `capabilities/`, `integrations/`.
+  exception), `components/`, `integrations/`.
 - **Concrete examples in-tree today:** `user/`, `group/`,
   `content_folder/`, `scheduled_task/`.
+- **Resources** should be stateless classes
 
 ### `resources/facades/<name>/` — aggregating resources
 
@@ -113,17 +114,17 @@ services to wire up individually.
   `_internal/`, stdlib, third-party libs.
 - **Must not import:** `unique_sdk` directly (go through a sibling
   resource instead — a facade that calls the SDK directly is actually a
-  primitive resource with an identity crisis), `capabilities/`,
+  primitive resource with an identity crisis), `components/`,
   `integrations/`.
-- **Test to decide "facade vs capability":** if every public method is a
+- **Test to decide "facade vs component":** if every public method is a
   one-liner that forwards to a sub-resource attribute, it is a facade.
   As soon as a method adds orchestration (parallel fan-out, caching,
   derived views, retry/fallback, cross-resource validation), it belongs
-  in `capabilities/` instead.
+  in `components/` instead.
 - **Concrete example in-tree today:** `facades/identity/` composes
   `user/` + `group/` behind `Identity.users` / `Identity.groups`.
 
-### `capabilities/<name>/` — behaviour beyond the SDK
+### `components/<name>/` — behaviour beyond the SDK
 
 Everything the SDK does not provide by itself: agent loops, evaluation,
 rule compilation, tokenization, data extraction, derived views (e.g. a
@@ -134,7 +135,7 @@ trie over content), parallel pagination, post-processing.
 - **Must not import:** `integrations/`, `unique_sdk` directly (every SDK
   call lives in a `resources/` module so there is exactly one place to
   patch when the SDK changes).
-- **Concrete example in-tree today:** `capabilities/content_tree/` — a
+- **Concrete example in-tree today:** `components/content_tree/` — a
   derived trie + fuzzy-search view over the `content` resource.
 
 ### `integrations/<framework>/` — third-party framework adapters
@@ -146,18 +147,18 @@ types to a framework's types.
 - **May import (default path):** `resources/facades/` — the one-object
   entry point that a framework adapter typically wants to bridge.
 - **May import (fine when no facade fits):** primitive `resources/<x>/`.
-- **May import (escape hatch — discouraged):** `capabilities/`. If you
+- **May import (escape hatch — discouraged):** `components/`. If you
   reach for this, stop and consider: is the orchestration you need truly
   framework-specific (then it belongs inside this `integrations/<x>/`
   module)? Or is it general-purpose orchestration that any caller would
-  want (then it stays in `capabilities/`, and you import it, but
+  want (then it stays in `components/`, and you import it, but
   double-check whether another integration will need the same pass and
   whether a facade could replace the dependency entirely)?
 - **Always may import:** `_internal/`, stdlib, third-party libs
   (including the framework itself).
 - **Must not import:** another `integrations/<framework>/` — each
   framework adapter stands alone. Share code via `_internal/` or by
-  lifting it into `capabilities/`.
+  lifting it into `components/`.
 - **Optional dependencies:** integrations that depend on libraries the
   toolkit does not pin (e.g. LangChain) stay importable even when the
   library is missing; the framework itself is loaded lazily inside the
@@ -167,22 +168,22 @@ types to a framework's types.
 
 ## Import-rule cheat sheet
 
-| From ↓ \ May import → | `_internal` | `resources/<primitive>` | `resources/facades` | `capabilities` | `integrations` |
+| From ↓ \ May import → | `_internal` | `resources/<primitive>` | `resources/facades` | `components` | `integrations` |
 | --- | :-: | :-: | :-: | :-: | :-: |
 | `_internal`                | —   | no  | no  | no  | no  |
 | `resources/<primitive>`    | yes | no¹ | no  | no  | no  |
 | `resources/facades`        | yes | **yes** | no² | no  | no  |
-| `capabilities`             | yes | yes | yes | yes³ | no  |
+| `components`             | yes | yes | yes | yes³ | no  |
 | `integrations/<framework>` | yes | ok⁴ | **yes** | discouraged⁵ | no⁶ |
 
 ¹ A primitive resource imports only `unique_sdk`, not sibling resources.
 If two primitives need to call each other, you have discovered a facade.
 
 ² Facades do not import other facades; they compose primitives. Stacking
-facades is an orchestration concern — that lives in `capabilities/`.
+facades is an orchestration concern — that lives in `components/`.
 
 ³ Importing a *sibling* module inside the same layer is fine when the
-dependency is genuinely intra-layer (one capability building on another).
+dependency is genuinely intra-layer (one component building on another).
 Cross-layer is what the rules above constrain.
 
 ⁴ Primitive resources are a fine fallback when no facade covers the
@@ -191,10 +192,10 @@ single bridge to maintain per framework.
 
 ⁵ Allowed but flagged as a smell. Ask whether the orchestration you need
 is framework-specific (belongs in this integration) or general-purpose
-(stays in `capabilities/`, possibly behind a new facade).
+(stays in `components/`, possibly behind a new facade).
 
 ⁶ One integration never imports another integration. Share via
-`_internal/` or promote to `capabilities/`.
+`_internal/` or promote to `components/`.
 
 ---
 
@@ -215,7 +216,7 @@ flowchart TD
 
     primitive["<b>resources/&lt;name&gt;/</b><br/>primitive resource"]
     facade["<b>resources/facades/&lt;name&gt;/</b>"]
-    capability["<b>capabilities/&lt;name&gt;/</b>"]
+    component["<b>components/&lt;name&gt;/</b>"]
     integration["<b>integrations/&lt;framework&gt;/</b>"]
     internal["<b>_internal/</b>"]
     discuss["<i>Probably not experimental/ at all —<br/>open a discussion first</i>"]
@@ -225,7 +226,7 @@ flowchart TD
     q1 -- no --> q2
     q2 -- yes --> facade
     q2 -- no --> q3
-    q3 -- yes --> capability
+    q3 -- yes --> component
     q3 -- no --> q4
     q4 -- yes --> integration
     q4 -- no --> q5
@@ -234,7 +235,7 @@ flowchart TD
 
     classDef target fill:#e7f5ff,stroke:#1971c2,stroke-width:2px,color:#0b4a80
     classDef escape fill:#fff4e6,stroke:#e8590c,color:#7a3b00
-    class primitive,facade,capability,integration,internal target
+    class primitive,facade,component,integration,internal target
     class discuss escape
 ```
 

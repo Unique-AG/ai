@@ -7,7 +7,7 @@
 
 Typical usage::
 
-    from unique_toolkit.experimental.capabilities.content_tree import ContentTree
+    from unique_toolkit.experimental.components.content_tree import ContentTree
 
     tree = ContentTree.from_settings()
     print(await tree.render_visible_tree_async(max_depth=2))
@@ -16,16 +16,16 @@ Typical usage::
 The subpackage is split into three modules to mirror the rest of the
 ``content`` domain:
 
-- :mod:`unique_toolkit.experimental.capabilities.content_tree.schemas` — data classes
+- :mod:`unique_toolkit.experimental.components.content_tree.schemas` — data classes
   (:class:`PathTrieNode`, :class:`FuzzyMatch`, :data:`MatchTarget`).
-- :mod:`unique_toolkit.experimental.capabilities.content_tree.functions` — pure helpers
+- :mod:`unique_toolkit.experimental.components.content_tree.functions` — pure helpers
   for listing, scope-id resolution, trie construction, and ``tree(1)``-style
   formatting.
-- :mod:`unique_toolkit.experimental.capabilities.content_tree.service` —
+- :mod:`unique_toolkit.experimental.components.content_tree.service` —
   :class:`ContentTree`, the orchestrating service with per-instance caching.
 """
 
-from unique_toolkit.experimental.capabilities.content_tree.functions import (
+from unique_toolkit.experimental.components.content_tree.functions import (
     build_trie_from_resolved_paths,
     extract_scope_ids_from_content_infos,
     format_path_trie,
@@ -35,12 +35,12 @@ from unique_toolkit.experimental.capabilities.content_tree.functions import (
     translate_scope_ids_async,
     translate_scope_ids_batch,
 )
-from unique_toolkit.experimental.capabilities.content_tree.schemas import (
+from unique_toolkit.experimental.components.content_tree.schemas import (
     FuzzyMatch,
     MatchTarget,
     PathTrieNode,
 )
-from unique_toolkit.experimental.capabilities.content_tree.service import ContentTree
+from unique_toolkit.experimental.components.content_tree.service import ContentTree
 
 __all__ = [
     "ContentTree",

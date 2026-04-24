@@ -10,7 +10,7 @@ Pydantic schemas and sync/async function pairs. The canonical shape is::
 
 Resources are intentionally unopinionated: they do not own app bootstrap
 concerns and do not add behavior beyond typing. Anything that does belongs
-in :mod:`..capabilities`.
+in :mod:`..components`.
 
 **Ergonomic call surfaces via** :func:`typing.overload`. Where the
 underlying SDK endpoint accepts several mutually-exclusive identifier
@@ -56,7 +56,7 @@ Planned contents (current home → new home):
 
 One thing that *looks* like it should live here but does not:
 
-* ``content_tree`` is a capability (see :mod:`..capabilities.content_tree`)
+* ``content_tree`` is a component (see :mod:`..components.content_tree`)
   — it does not wrap a ``unique_sdk`` endpoint, it composes the ``content``
   resource into a derived view (parallel pagination, scope-id resolution,
   trie rendering, fuzzy search).

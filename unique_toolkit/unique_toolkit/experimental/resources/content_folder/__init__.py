@@ -16,7 +16,7 @@ By default, :class:`ContentFolder` grants the acting user READ+WRITE on each new
 **Classification note (reorg proposal).** The ``private_to_creator`` ACL
 grant on create is *toolkit* behavior layered on top of two raw SDK calls
 (``Folder.create`` + ``Folder.create_access``), which in isolation would
-argue for extracting a ``capabilities/content_acl`` module. It stays inline
+argue for extracting a ``components/content_acl`` module. It stays inline
 here for two reasons: (1) it is opt-out (``private_to_creator=False`` falls
 through to pure SDK semantics), and (2) it preserves the common-case
 invariant that a creator can read the folder they just created. If more

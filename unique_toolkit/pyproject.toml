@@ -129,17 +129,17 @@ DEP004 = ["langchain_openai", "langchain_core"]
 #
 # Rules encoded below:
 #   1. integrations → resources → _internal   (layers)
-#   2. capabilities → resources → _internal   (layers; peer of integrations)
-#   3. capabilities never import integrations (keeps orchestration framework-agnostic)
+#   2. components → resources → _internal   (layers; peer of integrations)
+#   3. components never import integrations (keeps orchestration framework-agnostic)
 #   4. primitive resources are mutually independent
 #   5. primitives never import facades (dependency direction inside resources/)
-#   6. facades compose primitives only — never unique_sdk / capabilities / integrations
-#   7. capabilities never call unique_sdk directly (go through a resource)
+#   6. facades compose primitives only — never unique_sdk / components / integrations
+#   7. components never call unique_sdk directly (go through a resource)
 #   8. each integrations/<framework>/ stands alone — enabled when real modules land
 #
 # Preference rules from the README that are NOT machine-enforced (import-linter
 # is pass/fail, not tiered): integrations prefer facades over primitives;
-# integrations importing capabilities is "discouraged but allowed".
+# integrations importing components is "discouraged but allowed".
 # -----------------------------------------------------------------------------
 [tool.importlinter]
 root_packages = ["unique_toolkit"]
@@ -155,18 +155,18 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "experimental: capabilities stack (capabilities → resources → _internal)"
+name = "experimental: components stack (components → resources → _internal)"
 type = "layers"
 layers = [
-    "unique_toolkit.experimental.capabilities",
+    "unique_toolkit.experimental.components",
     "unique_toolkit.experimental.resources",
     "unique_toolkit.experimental._internal",
 ]
 
 [[tool.importlinter.contracts]]
-name = "experimental: capabilities never import integrations"
+name = "experimental: components never import integrations"
 type = "forbidden"
-source_modules = ["unique_toolkit.experimental.capabilities"]
+source_modules = ["unique_toolkit.experimental.components"]
 forbidden_modules = ["unique_toolkit.experimental.integrations"]
 
 [[tool.importlinter.contracts]]
@@ -196,7 +196,7 @@ type = "forbidden"
 source_modules = ["unique_toolkit.experimental.resources.facades"]
 forbidden_modules = [
     "unique_sdk",
-    "unique_toolkit.experimental.capabilities",
+    "unique_toolkit.experimental.components",
     "unique_toolkit.experimental.integrations",
 ]
 # Facades legitimately reach `unique_sdk` transitively through primitive
@@ -205,13 +205,13 @@ forbidden_modules = [
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
-name = "experimental: capabilities never call unique_sdk directly"
+name = "experimental: components never call unique_sdk directly"
 type = "forbidden"
-source_modules = ["unique_toolkit.experimental.capabilities"]
+source_modules = ["unique_toolkit.experimental.components"]
 forbidden_modules = ["unique_sdk"]
-# Capabilities are allowed to reach `unique_sdk` indirectly through a
+# Components are allowed to reach `unique_sdk` indirectly through a
 # resource or an existing toolkit service; the rule only bans a *direct*
-# `import unique_sdk` inside a capability module.
+# `import unique_sdk` inside a component module.
 allow_indirect_imports = true
 
 # Uncomment and populate once concrete integrations exist under

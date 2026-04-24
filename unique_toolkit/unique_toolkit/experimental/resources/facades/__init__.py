@@ -18,7 +18,7 @@ The bucket exists instead of placing facades flat under :mod:`..` so that:
 - the sibling resources they compose can be imported directly from
   :mod:`..` without the facade pulling them into a second graph.
 
-A facade belongs in :mod:`..capabilities` rather than here when it adds
+A facade belongs in :mod:`..components` rather than here when it adds
 behaviour beyond delegation (orchestration, derived views, caching,
 parallel fan-out). If every method is a one-liner that forwards to a
 sub-resource, it is a facade; otherwise it is a capability.

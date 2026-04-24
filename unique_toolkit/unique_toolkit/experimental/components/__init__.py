@@ -1,4 +1,4 @@
-"""Real capabilities built on top of :mod:`..resources`.
+"""Components — orchestration and derived behaviour on top of :mod:`..resources`.
 
 Everything here adds behavior the SDK does not provide: orchestration,
 post-processing, evaluation, rule compilation, tokenization, etc. If a
@@ -20,7 +20,8 @@ Planned contents (current home → new home):
 * ``config_checker``         ← :mod:`unique_toolkit._common.config_checker`
 * ``docx_generator``         ← :mod:`unique_toolkit._common.docx_generator`
 * ``tokenization``           ← :mod:`unique_toolkit._common.token`
-* ``content_tree``           ← :mod:`unique_toolkit.experimental.content_tree`
-  (derived tree/fuzzy-search view over the ``content`` resource; does not
-  wrap an SDK endpoint of its own)
+* ``content_tree``           ← :mod:`unique_toolkit.experimental.components.content_tree`
+  (re-export: :mod:`unique_toolkit.experimental.content_tree`); a derived
+  tree/fuzzy-search view over the ``content`` resource; does not wrap an SDK
+  endpoint of its own
 """
