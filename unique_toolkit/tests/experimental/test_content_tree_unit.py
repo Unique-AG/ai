@@ -1,4 +1,4 @@
-"""Unit tests for :class:`~unique_toolkit.experimental.content_tree.service.ContentTree`."""
+"""Unit tests for :class:`~unique_toolkit.experimental.components.content_tree.service.ContentTree`."""
 
 from __future__ import annotations
 
@@ -15,13 +15,11 @@ from unique_toolkit.experimental.content_tree import (
     format_path_trie,
 )
 
-# All patches target the name as bound in ``experimental.content_tree.service``
+# All patches target the name as bound in ``experimental.components.content_tree.service``
 # (where the service module imports it from ``functions``), not the original
 # definition module. That's the usual ``mock.patch`` rule: patch where it's
 # looked up.
-_PATCH_TARGET = (
-    "unique_toolkit.experimental.content_tree.service.resolve_visible_file_paths_core"
-)
+_PATCH_TARGET = "unique_toolkit.experimental.components.content_tree.service.resolve_visible_file_paths_core"
 
 
 def _minimal_content_info(*, key: str, metadata: dict | None) -> ContentInfo:

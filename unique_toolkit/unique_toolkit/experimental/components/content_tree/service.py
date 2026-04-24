@@ -12,7 +12,7 @@ user (via ``folderIdPath`` metadata) and exposes it through three lenses:
 The service is intentionally **decoupled** from
 :class:`~unique_toolkit.services.knowledge_base.KnowledgeBaseService`: it talks
 to the same backend through the functional helpers in
-:mod:`unique_toolkit.experimental.capabilities.content_tree.functions` so it can be constructed and used
+:mod:`unique_toolkit.experimental.components.content_tree.functions` so it can be constructed and used
 on its own.
 """
 
@@ -28,13 +28,13 @@ from typing import TYPE_CHECKING, Any, Protocol, Self, overload
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.unique_settings import UniqueSettings
 from unique_toolkit.content.schemas import ContentInfo
-from unique_toolkit.experimental.capabilities.content_tree.functions import (
+from unique_toolkit.experimental.components.content_tree.functions import (
     build_trie_from_resolved_paths,
     format_path_trie,
     resolve_visible_file_paths_core,
     serialize_filter,
 )
-from unique_toolkit.experimental.capabilities.content_tree.schemas import (
+from unique_toolkit.experimental.components.content_tree.schemas import (
     FuzzyMatch,
     MatchTarget,
     PathTrieNode,
@@ -67,7 +67,7 @@ class ContentTree:
     """Resolve visible content paths, render trees, and search files.
 
     The service is a thin orchestrator around the functional helpers in
-    :mod:`unique_toolkit.experimental.capabilities.content_tree.functions`. It takes the same identity
+    :mod:`unique_toolkit.experimental.components.content_tree.functions`. It takes the same identity
     parameters as the other toolkit services (``company_id`` / ``user_id`` /
     optional ``metadata_filter``) so it can be instantiated and tested without
     a :class:`~unique_toolkit.services.knowledge_base.KnowledgeBaseService`.

@@ -5,10 +5,10 @@ These types describe the *shape* of a content-tree snapshot:
 - :class:`PathTrieNode` is the in-memory directory structure built from resolved
   file paths.
 - :class:`FuzzyMatch` is the result record returned by
-  :meth:`unique_toolkit.experimental.capabilities.content_tree.service.ContentTree.search_visible_files_fuzzy_async`.
+  :meth:`unique_toolkit.experimental.components.content_tree.service.ContentTree.search_visible_files_fuzzy_async`.
 
 Kept free of behaviour so they can be imported and introspected without pulling
-in the SDK/HTTP stack used by :mod:`unique_toolkit.experimental.capabilities.content_tree.functions`.
+in the SDK/HTTP stack used by :mod:`unique_toolkit.experimental.components.content_tree.functions`.
 """
 
 from __future__ import annotations
