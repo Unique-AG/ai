@@ -1,4 +1,4 @@
-"""Pydantic schemas for the :mod:`unique_toolkit.experimental.scheduled_task` subpackage.
+"""Pydantic schemas for the :mod:`unique_toolkit.experimental.resources.scheduled_task` subpackage.
 
 These models mirror the :class:`unique_sdk.ScheduledTask` TypedDicts but add:
 
@@ -46,7 +46,7 @@ class ScheduledTask(BaseModel):
     - an :attr:`enabled` flag to pause/resume execution without deleting the task.
 
     Maps to ``unique_sdk.ScheduledTask`` and is the return value of every toolkit
-    CRUD method except :meth:`~unique_toolkit.experimental.scheduled_task.service.ScheduledTasks.delete`.
+    CRUD method except :meth:`~unique_toolkit.experimental.resources.scheduled_task.service.ScheduledTasks.delete`.
     """
 
     model_config = _model_config
@@ -130,7 +130,7 @@ class DeletedScheduledTask(BaseModel):
 
     The API echoes the deleted task's id and flags the row as removed. Deletion
     is permanent; a deleted task cannot be recovered, so re-scheduling requires
-    calling :meth:`~unique_toolkit.experimental.scheduled_task.service.ScheduledTasks.create`
+    calling :meth:`~unique_toolkit.experimental.resources.scheduled_task.service.ScheduledTasks.create`
     with fresh parameters.
     """
 

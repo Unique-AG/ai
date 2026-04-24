@@ -32,7 +32,7 @@ from typing import Any
 
 import unique_sdk
 
-from unique_toolkit.experimental.scheduled_task.schemas import (
+from unique_toolkit.experimental.resources.scheduled_task.schemas import (
     DeletedScheduledTask,
     ScheduledTask,
 )
