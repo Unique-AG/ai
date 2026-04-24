@@ -1,5 +1,5 @@
 name: 'Get Packages Matrix'
-description: 'Outputs the canonical CI package list. Use with select-packages in ci.yaml and reusable workflows. Publish pipeline (ci-publish) uses its own list.'
+description: 'Outputs the canonical CI package list. Use with select-packages in ci.yaml and reusable workflows. Publish pipeline (cd-publish) uses its own list.'
 
 outputs:
   packages:

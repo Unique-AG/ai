@@ -5,9 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.11.13] - 2026-04-22
+## [2026.18.1] - 2026-04-22
 - Add `Module` API resource: full CRUD for assistant modules (`list`, `retrieve`, `create`, `modify`, `delete` + async variants). Mirrors the new `POST/GET/PATCH/DELETE /modules` endpoints added in Unique-AG/monorepo#22845. Includes `Module.ListParams`, `Module.CreateParams`, `Module.ModifyParams`, and `Module.DeletedObject` typed helpers; exports `Module` from the top-level `unique_sdk` package
 - Docs: add `docs/api_resources/module.md` reference
+
+## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v0.11.12...unique-sdk-v2026.18.0) (2026-04-23)
+
+
+### Miscellaneous
+
+* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
 
 ## [0.11.12] - 2026-04-22
 - `AgenticTable.GetSheetData`: add `includeSheetMetadata` and `includeRowMetadata` (optional GET query params; `includeRowMetadata` for `GET /magic-table/{tableId}` aligns with in-flight public API work)
@@ -523,4 +530,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.0] - 2024-07-29
 - Added the possibility to make async requests to the unique APIs using either aiohttp or httpx as client
-

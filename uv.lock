@@ -8,28 +8,29 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-08T15:05:15.127159Z"
+exclude-newer = "2026-04-09T17:59:25.455430138Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
 unique-toolkit = false
 unique-internal-search = false
-pytest = "2026-04-08T22:00:00Z"
-langchain-core = "2026-04-09T22:00:00Z"
+pytest = "2026-04-09T00:00:00Z"
+langchain-core = "2026-04-10T00:00:00Z"
 unique-swot = false
 unique-sdk = false
 unique-mcp = false
-cryptography = "2026-04-09T22:00:00Z"
+cryptography = "2026-04-10T00:00:00Z"
 unique-orchestrator = false
 unique-follow-up-questions = false
-langsmith = "2026-04-15T22:00:00Z"
+langsmith = "2026-04-16T00:00:00Z"
 unique-six = false
-python-multipart = "2026-04-11T22:00:00Z"
-unique-stock-ticker = false
+python-multipart = "2026-04-12T00:00:00Z"
+unique-quartr = false
 unique-web-search = false
 unique-deep-research = false
+unique-stock-ticker = false
 unique-search-proxy = false
-unique-quartr = false
+unique-skill-tool = false
 
 [manifest]
 members = [
@@ -43,6 +44,7 @@ members = [
     "unique-sdk",
     "unique-search-proxy",
     "unique-six",
+    "unique-skill-tool",
     "unique-stock-ticker",
     "unique-swot",
     "unique-toolkit",
@@ -4223,6 +4225,18 @@ wheels = [
 ]
 
 [[package]]
+name = "python-frontmatter"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyyaml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/96/de/910fa208120314a12f9a88ea63e03707261692af782c99283f1a2c8a5e6f/python-frontmatter-1.1.0.tar.gz", hash = "sha256:7118d2bd56af9149625745c58c9b51fb67e8d1294a0c76796dafdc72c36e5f6d", size = 16256, upload-time = "2024-01-16T18:50:04.052Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/49/87/3c8da047b3ec5f99511d1b4d7a5bc72d4b98751c7e78492d14dc736319c5/python_frontmatter-1.1.0-py3-none-any.whl", hash = "sha256:335465556358d9d0e6c98bbeb69b1c969f2a4a21360587b9873bfc3b213407c1", size = 9834, upload-time = "2024-01-16T18:50:00.911Z" },
+]
+
+[[package]]
 name = "python-multipart"
 version = "0.0.26"
 source = { registry = "https://pypi.org/simple" }
@@ -5221,7 +5235,7 @@ wheels = [
 
 [[package]]
 name = "unique-deep-research"
-version = "3.6.2"
+version = "2026.18.0"
 source = { editable = "tool_packages/unique_deep_research" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -5263,7 +5277,7 @@ dev = []
 
 [[package]]
 name = "unique-follow-up-questions"
-version = "1.1.19"
+version = "2026.18.0"
 source = { editable = "postprocessors/unique_follow_up_questions" }
 dependencies = [
     { name = "jinja2" },
@@ -5288,7 +5302,7 @@ dev = [{ name = "unique-sdk", editable = "unique_sdk" }]
 
 [[package]]
 name = "unique-internal-search"
-version = "1.2.43"
+version = "2026.18.0"
 source = { editable = "tool_packages/unique_internal_search" }
 dependencies = [
     { name = "pydantic" },
@@ -5308,7 +5322,7 @@ dev = []
 
 [[package]]
 name = "unique-mcp"
-version = "0.3.3"
+version = "2026.18.0"
 source = { editable = "unique_mcp" }
 dependencies = [
     { name = "fastmcp" },
@@ -5334,16 +5348,18 @@ dev = []
 
 [[package]]
 name = "unique-orchestrator"
-version = "1.22.2"
+version = "2026.18.0"
 source = { editable = "unique_orchestrator" }
 dependencies = [
     { name = "jinja2" },
     { name = "openai" },
     { name = "pydantic" },
+    { name = "python-frontmatter" },
     { name = "typing-extensions" },
     { name = "unique-deep-research" },
     { name = "unique-follow-up-questions" },
     { name = "unique-internal-search" },
+    { name = "unique-skill-tool" },
     { name = "unique-stock-ticker" },
     { name = "unique-swot" },
     { name = "unique-toolkit" },
@@ -5355,10 +5371,12 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.0,<4" },
     { name = "openai", specifier = ">=1.109.1,<3" },
     { name = "pydantic", specifier = ">=2.8.2,<3" },
+    { name = "python-frontmatter", specifier = ">=1.1.0,<2" },
     { name = "typing-extensions", specifier = ">=4.9.0,<5" },
     { name = "unique-deep-research", editable = "tool_packages/unique_deep_research" },
     { name = "unique-follow-up-questions", editable = "postprocessors/unique_follow_up_questions" },
     { name = "unique-internal-search", editable = "tool_packages/unique_internal_search" },
+    { name = "unique-skill-tool", editable = "tool_packages/unique_skill_tool" },
     { name = "unique-stock-ticker", editable = "postprocessors/unique_stock_ticker" },
     { name = "unique-swot", editable = "tool_packages/unique_swot" },
     { name = "unique-toolkit", editable = "unique_toolkit" },
@@ -5370,7 +5388,7 @@ dev = []
 
 [[package]]
 name = "unique-quartr"
-version = "0.2.11"
+version = "2026.18.0"
 source = { editable = "connectors/unique_quartr" }
 dependencies = [
     { name = "httpx" },
@@ -5396,7 +5414,7 @@ dev = []
 
 [[package]]
 name = "unique-sdk"
-version = "0.11.13"
+version = "2026.18.1"
 source = { editable = "unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
@@ -5465,7 +5483,7 @@ dev = []
 
 [[package]]
 name = "unique-six"
-version = "0.1.8"
+version = "2026.18.0"
 source = { editable = "connectors/unique_six" }
 dependencies = [
     { name = "cryptography" },
@@ -5497,8 +5515,28 @@ requires-dist = [
 dev = [{ name = "responses", specifier = ">=0.25.0" }]
 
 [[package]]
+name = "unique-skill-tool"
+version = "2026.18.0"
+source = { editable = "tool_packages/unique_skill_tool" }
+dependencies = [
+    { name = "jinja2" },
+    { name = "pydantic" },
+    { name = "unique-toolkit" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "jinja2", specifier = ">=3.1.0,<4" },
+    { name = "pydantic", specifier = ">=2.8.2,<3" },
+    { name = "unique-toolkit", editable = "unique_toolkit" },
+]
+
+[package.metadata.requires-dev]
+dev = []
+
+[[package]]
 name = "unique-stock-ticker"
-version = "1.1.6"
+version = "2026.18.0"
 source = { editable = "postprocessors/unique_stock_ticker" }
 dependencies = [
     { name = "numerize" },
@@ -5530,7 +5568,7 @@ dev = []
 
 [[package]]
 name = "unique-swot"
-version = "1.3.5"
+version = "2026.18.0"
 source = { editable = "tool_packages/unique_swot" }
 dependencies = [
     { name = "jinja2" },
@@ -5556,7 +5594,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-version = "1.81.0"
+version = "2026.18.0"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -5647,7 +5685,7 @@ dev = []
 
 [[package]]
 name = "unique-web-search"
-version = "1.17.0"
+version = "2026.18.0"
 source = { editable = "tool_packages/unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },

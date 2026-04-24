@@ -1,6 +1,6 @@
 [project]
 name = "unique_internal_search"
-version = "1.2.43"
+version = "2026.18.0"
 description = ""
 readme = "README.md"
 license = { text = "Proprietary" }
@@ -14,7 +14,7 @@ requires-python = ">=3.12,<4"
 dependencies = [
     "pydantic>=2.8.2,<3",
     "typing-extensions>=4.9.0,<5",
-    "unique-toolkit>=1.47.7,<2",
+    "unique-toolkit>=1.82.0",
 ]
 
 [build-system]

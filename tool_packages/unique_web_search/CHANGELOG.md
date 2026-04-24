@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v1.17.0...unique-web-search-v2026.18.0) (2026-04-23)
+
+
+### Miscellaneous
+
+* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
+
 ## [1.17.0] - 2026-04-16
 ### Changed
 - **Grounding search layout:** Bing and VertexAI helpers now live under `utils/grounding/`. Shared Pydantic models (`GroundingSearchResults`, `ResultItem`, prompts) sit in `grounding/models.py`; shared parsing (`ResponseParser`, `JsonConversionStrategy`, `LLMParserStrategy`, `convert_response_to_search_results`) lives in `grounding/response_parsing.py`. Bing-specific code is in `grounding/bing/`; Vertex client, Gemini call, config, and citation handling are in `grounding/vertexai/`. Legacy `utils/bing/` and duplicate `utils/vertexai/` were removed; import from `utils.grounding.vertexai` instead.

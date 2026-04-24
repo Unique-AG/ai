@@ -1,6 +1,6 @@
 [project]
 name = "unique_follow_up_questions"
-version = "1.1.19"
+version = "2026.18.0"
 description = ""
 authors = [
     { name = "Martin Fadler", email = "martin.fadler@unique.ch" },
@@ -14,12 +14,12 @@ requires-python = ">=3.12,<4"
 dependencies = [
     "pydantic>=2.8.2",
     "jinja2>=3.1.6",
-    "unique-toolkit>=1.50.4",
+    "unique-toolkit>=1.82.0",
 ]
 
 [dependency-groups]
 dev = [
-    "unique-sdk",
+    "unique-sdk>=0.11.12",
 ]
 
 [build-system]

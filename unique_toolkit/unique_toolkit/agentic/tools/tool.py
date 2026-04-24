@@ -103,6 +103,20 @@ class Tool(ABC, Generic[ConfigType]):
         """
         return ""
 
+    # TODO: This method should be a property
+    def tool_system_reminder_for_user_prompt(self) -> str:
+        """A per-turn ``<system-reminder>`` block for the tool.
+
+        Override this when the tool's state changes between turns and
+        the model must see the fresh state on every loop iteration
+        (e.g. the Skill tool's listing of currently available skills).
+        The returned string is injected by the orchestrator as its own
+        ``{"type": "text"}`` part on the latest user message, alongside
+        ``tool_description_for_user_prompt``. Return ``""`` when there
+        is nothing to inject.
+        """
+        return ""
+
     @deprecated(
         "Do not use. The tool should not determine how"
         "it is checked. This should be defined by the user"
@@ -138,6 +152,7 @@ class Tool(ABC, Generic[ConfigType]):
             input_model=self.tool_description_as_json(),
             tool_user_prompt=self.tool_description_for_user_prompt(),
             tool_format_information_for_user_prompt=self.tool_format_information_for_user_prompt(),
+            tool_system_reminder_for_user_prompt=self.tool_system_reminder_for_user_prompt(),
         )
 
     @overload

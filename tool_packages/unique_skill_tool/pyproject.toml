@@ -1,0 +1,92 @@
+[project]
+name = "unique_skill_tool"
+version = "2026.18.0"
+description = ""
+readme = "README.md"
+license = { text = "Proprietary" }
+authors = [
+    { name = "Fabian Schläpfer", email = "fabian@unique.ch" },
+]
+requires-python = ">=3.12,<4"
+dependencies = [
+    "jinja2>=3.1.0,<4",
+    "pydantic>=2.8.2,<3",
+    "unique-toolkit>=1.82.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.8.14,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
+[tool.uv]
+exclude-newer = "2 weeks"
+
+[tool.uv.exclude-newer-package]
+"unique-toolkit" = false
+
+[dependency-groups]
+dev = []
+
+[tool.uv.sources]
+unique-toolkit = { workspace = true }
+
+[tool.poe.tasks]
+lint = "ruff check ."
+lint-fix = "ruff check . --fix"
+format = "ruff format ."
+test = "pytest"
+typecheck = "basedpyright"
+depcheck = "deptry ."
+coverage = "pytest --cov=unique_skill_tool --cov-report=term-missing"
+ci-typecheck = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh typecheck" }
+ci-coverage = { shell = "bash $(git rev-parse --show-toplevel)/.github/scripts/dev.sh coverage" }
+
+[tool.deptry]
+known_first_party = ["unique_skill_tool"]
+extend_exclude = ["tests"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["unique-toolkit"]
+DEP003 = ["unique_toolkit"]
+
+[tool.basedpyright]
+typeCheckingMode = "recommended"
+include = ["unique_skill_tool"]
+exclude = ["**/tests/**", "**/test_*.py"]
+
+# Any-cascade: originates from jinja2 and LanguageModelFunction.arguments in
+# unique_toolkit; not fixable from this package.
+reportAny = "none"
+reportUnknownVariableType = "none"
+reportUnknownMemberType = "none"
+reportUnknownArgumentType = "none"
+
+# unique_toolkit submodules ship no inline stubs; suppressed identically to toolkit.
+reportMissingTypeStubs = "none"
+
+# base-class/mixin patterns make per-attribute annotations impractical.
+reportUnannotatedClassAttribute = "none"
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --import-mode=importlib"
+asyncio_mode = "auto"
+markers = [
+    "ai: AI-authored or AI-generated tests",
+    "asyncio: asyncio tests",
+    "integration: integration tests that require API access or credentials",
+    "serial: tests that must run serially",
+    "unit: unit tests",
+    "verified: AI-generated tests with human verification",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+extend-select = ["I"]
