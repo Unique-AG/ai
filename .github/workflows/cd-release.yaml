@@ -33,7 +33,7 @@ jobs:
       - id: rp
         uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         with:
-          config-file: release-please-config.json
+          config-file: ${{ github.ref_name == 'main' && 'release-please-config.json' || 'release-please-config-hotfix.json' }}
           manifest-file: .release-please-manifest.json
           target-branch: ${{ github.ref_name }}
 
@@ -80,6 +80,10 @@ jobs:
         with:
           install_dependencies: "false"
 
+      - name: Update internal dependency floors
+        if: steps.pr-info.outputs.branch != ''
+        run: uv run .github/scripts/update-dep-floors.py
+
       - name: Seed lockfile from base branch before regenerating
         if: steps.pr-info.outputs.branch != ''
         env:
@@ -92,17 +96,17 @@ jobs:
         if: steps.pr-info.outputs.branch != ''
         run: uv lock
 
-      - name: Commit lockfile if changed
+      - name: Commit lockfile and floor updates if changed
         if: steps.pr-info.outputs.branch != ''
         run: |
-          if git diff --quiet uv.lock; then
-            echo "uv.lock is already up to date"
+          if git diff --quiet; then
+            echo "No changes to commit"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add uv.lock
-          git commit -m "chore: regenerate uv.lock for release"
+          git add -A
+          git commit -m "chore: update dependency floors and regenerate uv.lock for release"
           git push
 
   # Dispatch cd-publish.yaml for stable wheels. Works for both main
