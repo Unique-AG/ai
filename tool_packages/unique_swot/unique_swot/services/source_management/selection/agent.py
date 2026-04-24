@@ -56,8 +56,8 @@ class SourceSelectionAgent:
             _LOGGER.error(f"Failed to select the source for {company_name}")
             response = SourceSelectionResult(
                 should_select=True,
-                reason="An error occured while selecting the source.",
-                notification_message="An error occured while selecting the source. The source will be still considered for the SWOT as a safety measure.",
+                reason="An error occurred while selecting the source.",
+                notification_message="An error occurred while selecting the source. The source will be still considered for the SWOT as a safety measure.",
             )
         await step_notifier.notify(
             title=notification_title,

@@ -144,7 +144,7 @@ async def test_selection_agent_handles_llm_failure(
 
         # Should default to selecting the source
         assert result.should_select is True
-        assert "error" in result.reason.lower() or "occured" in result.reason.lower()
+        assert "error" in result.reason.lower() or "occurred" in result.reason.lower()
 
 
 @pytest.mark.asyncio
