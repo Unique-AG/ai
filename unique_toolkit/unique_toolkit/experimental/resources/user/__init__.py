@@ -13,11 +13,11 @@ Only the user-centric pieces live here:
 The cross-cutting :meth:`Users.groups_of` / :meth:`Users.is_member` relational
 helpers stay on this resource because the SDK's "groups of user" endpoint
 hangs off the user entity. The :class:`Identity` facade that composes
-:class:`Users` + :class:`~unique_toolkit.experimental.resources.groups.Groups`
+:class:`Users` + :class:`~unique_toolkit.experimental.resources.group.Groups`
 lives in :mod:`unique_toolkit.experimental.resources.facades.identity`.
 """
 
-from unique_toolkit.experimental.resources.users.functions import (
+from unique_toolkit.experimental.resources.user.functions import (
     DEFAULT_LIST_SKIP,
     DEFAULT_LIST_TAKE,
     FIND_USER_TAKE,
@@ -32,12 +32,12 @@ from unique_toolkit.experimental.resources.users.functions import (
     update_user_configuration,
     update_user_configuration_async,
 )
-from unique_toolkit.experimental.resources.users.schemas import (
+from unique_toolkit.experimental.resources.user.schemas import (
     UserGroupMembership,
     UserInfo,
     UserWithConfiguration,
 )
-from unique_toolkit.experimental.resources.users.service import Users
+from unique_toolkit.experimental.resources.user.service import Users
 
 __all__ = [
     "DEFAULT_LIST_SKIP",

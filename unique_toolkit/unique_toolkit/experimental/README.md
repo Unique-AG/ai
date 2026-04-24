@@ -26,7 +26,7 @@ flowchart TD
     subgraph resources ["<b>resources/</b>"]
         direction TB
         facades["<b>facades/</b><br/><i>resource-shaped aggregators</i><br/>(identity)"]
-        primitives["<b>primitives</b><br/><i>typed SDK wrappers</i><br/>(users, groups, content_folder,<br/>scheduled_task, …)"]
+        primitives["<b>primitives</b><br/><i>typed SDK wrappers</i><br/>(user, group, content_folder,<br/>scheduled_task, …)"]
         facades --> primitives
     end
 
@@ -94,7 +94,7 @@ slightly nicer call surface, nothing more.
 - **May import:** `unique_sdk`, `_internal/`, stdlib, third-party libs.
 - **Must not import:** sibling resources (see `facades/` below for the
   exception), `capabilities/`, `integrations/`.
-- **Concrete examples in-tree today:** `users/`, `groups/`,
+- **Concrete examples in-tree today:** `user/`, `group/`,
   `content_folder/`, `scheduled_task/`.
 
 ### `resources/facades/<name>/` — aggregating resources
@@ -121,7 +121,7 @@ services to wire up individually.
   derived views, retry/fallback, cross-resource validation), it belongs
   in `capabilities/` instead.
 - **Concrete example in-tree today:** `facades/identity/` composes
-  `users/` + `groups/` behind `Identity.users` / `Identity.groups`.
+  `user/` + `group/` behind `Identity.users` / `Identity.groups`.
 
 ### `capabilities/<name>/` — behaviour beyond the SDK
 

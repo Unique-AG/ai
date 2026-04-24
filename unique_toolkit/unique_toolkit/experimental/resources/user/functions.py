@@ -12,7 +12,7 @@ from typing import Any
 
 from unique_sdk import User
 
-from unique_toolkit.experimental.resources.users.schemas import (
+from unique_toolkit.experimental.resources.user.schemas import (
     UserGroupMembership,
     UserInfo,
     UserWithConfiguration,

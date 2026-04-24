@@ -173,8 +173,8 @@ forbidden_modules = ["unique_toolkit.experimental.integrations"]
 name = "experimental: primitive resources are independent"
 type = "independence"
 modules = [
-    "unique_toolkit.experimental.resources.users",
-    "unique_toolkit.experimental.resources.groups",
+    "unique_toolkit.experimental.resources.user",
+    "unique_toolkit.experimental.resources.group",
     "unique_toolkit.experimental.resources.content_folder",
     "unique_toolkit.experimental.resources.scheduled_task",
 ]
@@ -183,8 +183,8 @@ modules = [
 name = "experimental: primitives never import facades"
 type = "forbidden"
 source_modules = [
-    "unique_toolkit.experimental.resources.users",
-    "unique_toolkit.experimental.resources.groups",
+    "unique_toolkit.experimental.resources.user",
+    "unique_toolkit.experimental.resources.group",
     "unique_toolkit.experimental.resources.content_folder",
     "unique_toolkit.experimental.resources.scheduled_task",
 ]
