@@ -337,6 +337,7 @@ jobs:
               done
 
       - name: Commit and push
+        id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -344,12 +345,15 @@ jobs:
           git add .
           if git diff --cached --quiet; then
             echo "No changes — nothing to push." >&2
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git commit -m "chore: bump dev versions for cycle $CYCLE"
           git push -u origin HEAD
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
 
       - name: Open PR
+        if: steps.commit.outputs.pushed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ALL_CURRENT_VERSIONS: ${{ needs.resolve.outputs.all_current_versions }}
