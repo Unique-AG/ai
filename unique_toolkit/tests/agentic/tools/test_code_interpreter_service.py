@@ -13,6 +13,9 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import 
 from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service import (
     CodeExecutionShortTermMemorySchema,
     OpenAICodeInterpreterTool,
+    _check_container_exists,
+    _check_file_already_uploaded,
+    _create_container,
     _resolve_kb_contents,
     _upload_file_to_container,
     _upload_files_to_container,
@@ -281,13 +284,14 @@ async def test_upload_files_to_container__downloads_and_creates__when_file_not_i
     client = MagicMock()
     client.containers.files.create = files_create
 
-    result = await _upload_files_to_container(
+    result, updated = await _upload_files_to_container(
         client=client,
         uploaded_files=[uploaded],
         memory=memory,
         content_service=content_service,
     )
 
+    assert updated is True
     assert result.file_ids["cont_upload_1"] == "file_openai_1"
     content_service.download_content_to_bytes_async.assert_awaited_once_with(
         content_id="cont_upload_1",
@@ -321,13 +325,14 @@ async def test_upload_files_to_container__retries_download__after_transient_erro
     client = MagicMock()
     client.containers.files.create = files_create
 
-    result = await _upload_files_to_container(
+    result, updated = await _upload_files_to_container(
         client=client,
         uploaded_files=[uploaded],
         memory=memory,
         content_service=content_service,
     )
 
+    assert updated is True
     assert result.file_ids["cont_retry_1"] == "file_after_retry"
     assert content_service.download_content_to_bytes_async.await_count == 2
     files_create.assert_awaited_once()
@@ -361,13 +366,14 @@ async def test_upload_files_to_container__deduplicates_by_content_id__when_dupli
     client = MagicMock()
     client.containers.files.create = files_create
 
-    result = await _upload_files_to_container(
+    result, updated = await _upload_files_to_container(
         client=client,
         uploaded_files=[duplicate, duplicate],
         memory=memory,
         content_service=content_service,
     )
 
+    assert updated is True
     assert result.file_ids == {"cont_dup": "file_dup"}
     assert content_service.download_content_to_bytes_async.await_count == 1
     files_create.assert_awaited_once()
@@ -375,88 +381,108 @@ async def test_upload_files_to_container__deduplicates_by_content_id__when_dupli
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_upload_file_to_container__skips_upload__when_already_present_in_container() -> (
+async def test_check_file_already_uploaded__returns_true__when_retrieve_succeeds() -> (
     None
 ):
     """
-    Purpose: Verify that _upload_file_to_container short-circuits when memory already
-    maps the content id to a container file and containers.files.retrieve succeeds.
-    Why this matters: Avoids redundant uploads on repeated tool builds within a chat.
-    Setup summary: Pre-populate memory.file_ids; stub retrieve to return a file; assert
-    no download or create is attempted.
+    Purpose: Verify that _check_file_already_uploaded returns True when memory has a
+    mapping for the content id and containers.files.retrieve succeeds.
+    Why this matters: This is the short-circuit that avoids redundant uploads on
+    repeated tool builds within a chat.
     """
     memory = CodeExecutionShortTermMemorySchema(
         container_id="ctr_skip",
         file_ids={"cont_skip": "file_existing"},
     )
-    content_service = MagicMock()
-    content_service.download_content_to_bytes_async = AsyncMock()
     client = MagicMock()
     client.containers.files.retrieve = AsyncMock(return_value=MagicMock())
-    client.containers.files.create = AsyncMock()
 
-    await _upload_file_to_container(
-        client=client,
-        content_id="cont_skip",
-        filename="skip.csv",
-        memory=memory,
-        content_service=content_service,
+    result = await _check_file_already_uploaded(
+        client=client, content_id="cont_skip", memory=memory
     )
 
+    assert result is True
     client.containers.files.retrieve.assert_awaited_once_with(
         container_id="ctr_skip", file_id="file_existing"
     )
-    content_service.download_content_to_bytes_async.assert_not_awaited()
-    client.containers.files.create.assert_not_awaited()
-    assert memory.file_ids == {"cont_skip": "file_existing"}
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_upload_file_to_container__reuploads__when_retrieve_raises_not_found() -> (
+async def test_upload_files_to_container__reuploads__when_retrieve_raises_error() -> (
     None
 ):
     """
-    Purpose: Verify that when the cached container file id no longer exists (NotFoundError
-    from retrieve), the file is re-downloaded and re-uploaded and memory is refreshed.
+    Purpose: Verify that when the cached container file id no longer exists (the retrieve
+    call raises), _upload_files_to_container re-downloads and re-uploads the file and
+    records the new openai file id in memory.
     Why this matters: Container files expire; stale memory entries must not permanently
     block re-uploads.
-    Setup summary: Seed memory with a stale mapping; retrieve raises NotFoundError;
-    create returns a new file; assert memory is updated with the new openai file id.
+    Setup summary: Seed memory with a stale mapping; retrieve raises OpenAIError; create
+    returns a new file; assert memory is updated with the new openai file id.
     """
-    from httpx import Request, Response
-    from openai import NotFoundError
+    from openai import OpenAIError
 
     memory = CodeExecutionShortTermMemorySchema(
         container_id="ctr_stale",
         file_ids={"cont_stale": "file_gone"},
     )
+    stale = Content(id="cont_stale", key="stale.csv")
     content_service = MagicMock()
     content_service.download_content_to_bytes_async = AsyncMock(return_value=b"bytes")
     new_file = MagicMock()
     new_file.id = "file_new"
-    not_found = NotFoundError(
-        message="gone",
-        response=Response(404, request=Request("GET", "https://x")),
-        body=None,
-    )
     client = MagicMock()
-    client.containers.files.retrieve = AsyncMock(side_effect=not_found)
+    client.containers.files.retrieve = AsyncMock(side_effect=OpenAIError("gone"))
     client.containers.files.create = AsyncMock(return_value=new_file)
 
-    await _upload_file_to_container(
+    result, updated = await _upload_files_to_container(
         client=client,
-        content_id="cont_stale",
-        filename="stale.csv",
+        uploaded_files=[stale],
         memory=memory,
         content_service=content_service,
     )
 
+    assert updated is True
+    assert result.file_ids["cont_stale"] == "file_new"
     content_service.download_content_to_bytes_async.assert_awaited_once_with(
         content_id="cont_stale",
     )
     client.containers.files.create.assert_awaited_once()
-    assert memory.file_ids["cont_stale"] == "file_new"
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_upload_file_to_container__returns_new_file_id__on_successful_upload() -> (
+    None
+):
+    """
+    Purpose: Verify _upload_file_to_container downloads content and creates a container
+    file, returning the new openai file id.
+    """
+    content_service = MagicMock()
+    content_service.download_content_to_bytes_async = AsyncMock(return_value=b"data")
+    openai_file = MagicMock()
+    openai_file.id = "file_created"
+    client = MagicMock()
+    client.containers.files.create = AsyncMock(return_value=openai_file)
+
+    file_id = await _upload_file_to_container(
+        client=client,
+        content_id="cont_new",
+        filename="new.csv",
+        content_service=content_service,
+        container_id="ctr_upload",
+    )
+
+    assert file_id == "file_created"
+    content_service.download_content_to_bytes_async.assert_awaited_once_with(
+        content_id="cont_new",
+    )
+    client.containers.files.create.assert_awaited_once()
+    assert client.containers.files.create.await_args.kwargs["container_id"] == (
+        "ctr_upload"
+    )
 
 
 @pytest.mark.ai
@@ -565,12 +591,16 @@ async def test_build_tool__uploads_kb_documents__when_additional_uploaded_docume
             return_value=memory_manager,
         ),
         patch(
-            f"{service_mod}._create_container_if_not_exists",
-            AsyncMock(return_value=memory_after_create),
+            f"{service_mod}._check_container_exists",
+            AsyncMock(return_value=False),
+        ),
+        patch(
+            f"{service_mod}._create_container",
+            AsyncMock(return_value="ctr_built"),
         ),
         patch(
             f"{service_mod}._upload_files_to_container",
-            AsyncMock(return_value=memory_after_create),
+            AsyncMock(return_value=(memory_after_create, True)),
         ) as mock_upload,
     ):
         tool = await OpenAICodeInterpreterTool.build_tool(
@@ -625,12 +655,16 @@ async def test_build_tool__skips_upload__when_no_sources_enabled() -> None:
             return_value=memory_manager,
         ),
         patch(
-            f"{service_mod}._create_container_if_not_exists",
-            AsyncMock(return_value=memory_after_create),
+            f"{service_mod}._check_container_exists",
+            AsyncMock(return_value=False),
+        ),
+        patch(
+            f"{service_mod}._create_container",
+            AsyncMock(return_value="ctr_empty"),
         ),
         patch(
             f"{service_mod}._upload_files_to_container",
-            AsyncMock(return_value=memory_after_create),
+            AsyncMock(return_value=(memory_after_create, True)),
         ) as mock_upload,
     ):
         tool = await OpenAICodeInterpreterTool.build_tool(
@@ -659,3 +693,385 @@ def test_config__additional_uploaded_documents__defaults_to_empty_list() -> None
     """
     config = OpenAICodeInterpreterConfig()
     assert config.additional_uploaded_documents == []
+
+
+# ============================================================================
+# Tests for _check_container_exists (status + NotFoundError handling)
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["active", "running"])
+async def test_check_container_exists__returns_true__when_status_is_live(
+    status: str,
+) -> None:
+    """
+    Purpose: Verify _check_container_exists returns True for the two live container
+    statuses (``active`` and ``running``).
+    Why this matters: These are the only statuses where the cached container id can
+    be reused; anything else must trigger a recreate.
+    """
+    memory = CodeExecutionShortTermMemorySchema(container_id="ctr_live")
+    container = MagicMock()
+    container.status = status
+    client = MagicMock()
+    client.containers.retrieve = AsyncMock(return_value=container)
+
+    result = await _check_container_exists(client=client, memory=memory)
+
+    assert result is True
+    client.containers.retrieve.assert_awaited_once_with("ctr_live")
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_check_container_exists__returns_false__when_not_found() -> None:
+    """
+    Purpose: Verify _check_container_exists returns False when the container id in
+    memory no longer exists (NotFoundError from the OpenAI client).
+    Why this matters: Containers expire; stale memory must not block rebuilding.
+    """
+    from httpx import Request, Response
+    from openai import NotFoundError
+
+    memory = CodeExecutionShortTermMemorySchema(container_id="ctr_gone")
+    not_found = NotFoundError(
+        message="gone",
+        response=Response(404, request=Request("GET", "https://x")),
+        body=None,
+    )
+    client = MagicMock()
+    client.containers.retrieve = AsyncMock(side_effect=not_found)
+
+    result = await _check_container_exists(client=client, memory=memory)
+
+    assert result is False
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_check_container_exists__returns_false__when_status_is_not_live() -> (
+    None
+):
+    """
+    Purpose: Verify that a container in a non-live status (e.g. ``expired``) is treated
+    as missing so the caller recreates it.
+    """
+    memory = CodeExecutionShortTermMemorySchema(container_id="ctr_expired")
+    container = MagicMock()
+    container.status = "expired"
+    client = MagicMock()
+    client.containers.retrieve = AsyncMock(return_value=container)
+
+    result = await _check_container_exists(client=client, memory=memory)
+
+    assert result is False
+
+
+# ============================================================================
+# Tests for _create_container (name format + expires_after payload)
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_create_container__uses_scoped_name_and_expires_after() -> None:
+    """
+    Purpose: Verify _create_container calls ``containers.create`` with the scoped name
+    ``code_execution_{company}_{user}_{chat}`` and an ``expires_after`` payload anchored
+    at ``last_active_at`` with the configured minutes, and returns the new container id.
+    Why this matters: The scoped name is what isolates containers per chat; wrong
+    wiring would leak data across chats or users.
+    """
+    container = MagicMock()
+    container.id = "ctr_created"
+    client = MagicMock()
+    client.containers.create = AsyncMock(return_value=container)
+
+    result = await _create_container(
+        client=client,
+        chat_id="chat-1",
+        user_id="user-1",
+        company_id="company-1",
+        expires_after_minutes=15,
+    )
+
+    assert result == "ctr_created"
+    client.containers.create.assert_awaited_once_with(
+        name="code_execution_company-1_user-1_chat-1",
+        expires_after={"anchor": "last_active_at", "minutes": 15},
+    )
+
+
+# ============================================================================
+# Tests for failure isolation in _upload_files_to_container
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_upload_files_to_container__isolates_failures__one_file_fails_others_succeed() -> (
+    None
+):
+    """
+    Purpose: Verify that when one file's upload raises, sibling uploads still complete
+    and the successful ids are recorded in memory.
+    Why this matters: This is the reason ``SafeTaskExecutor`` replaced a bare
+    ``asyncio.gather``; without isolation one bad file would cancel every other upload
+    in the batch.
+    Setup summary: Two files; downloader raises for ``bad``, returns bytes for ``good``.
+    Assert only the good one lands in memory.file_ids and ``updated`` is True.
+    """
+    memory = CodeExecutionShortTermMemorySchema(
+        container_id="ctr_isolate", file_ids={}
+    )
+    good = Content(id="cont_good", key="good.csv")
+    bad = Content(id="cont_bad", key="bad.csv")
+
+    async def download(*, content_id: str) -> bytes:
+        if content_id == "cont_bad":
+            raise RuntimeError("download boom")
+        return b"good bytes"
+
+    content_service = MagicMock()
+    content_service.download_content_to_bytes_async = AsyncMock(side_effect=download)
+    openai_file = MagicMock()
+    openai_file.id = "file_good"
+    client = MagicMock()
+    client.containers.files.create = AsyncMock(return_value=openai_file)
+
+    result, updated = await _upload_files_to_container(
+        client=client,
+        uploaded_files=[bad, good],
+        memory=memory,
+        content_service=content_service,
+    )
+
+    assert updated is True
+    assert result.file_ids == {"cont_good": "file_good"}
+    assert "cont_bad" not in result.file_ids
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_upload_files_to_container__returns_updated_false__when_all_files_already_present() -> (
+    None
+):
+    """
+    Purpose: Verify that when every file is already uploaded (retrieve succeeds for
+    every content id), ``_upload_files_to_container`` returns ``updated=False`` and
+    does not re-download or re-create anything.
+    Why this matters: This is the signal that short-term memory does not need to be
+    persisted — the caller relies on it to skip ``save_async``.
+    """
+    memory = CodeExecutionShortTermMemorySchema(
+        container_id="ctr_allcached",
+        file_ids={"cont_a": "file_a", "cont_b": "file_b"},
+    )
+    a = Content(id="cont_a", key="a.csv")
+    b = Content(id="cont_b", key="b.csv")
+    content_service = MagicMock()
+    content_service.download_content_to_bytes_async = AsyncMock()
+    client = MagicMock()
+    client.containers.files.retrieve = AsyncMock(return_value=MagicMock())
+    client.containers.files.create = AsyncMock()
+
+    result, updated = await _upload_files_to_container(
+        client=client,
+        uploaded_files=[a, b],
+        memory=memory,
+        content_service=content_service,
+    )
+
+    assert updated is False
+    assert result.file_ids == {"cont_a": "file_a", "cont_b": "file_b"}
+    content_service.download_content_to_bytes_async.assert_not_awaited()
+    client.containers.files.create.assert_not_awaited()
+
+
+# ============================================================================
+# Tests for build_tool conditional save_async gating
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_build_tool__skips_save_async__when_container_and_files_unchanged() -> (
+    None
+):
+    """
+    Purpose: Verify that when the existing container is still live and the upload
+    helper reports no changes, ``build_tool`` does not persist short-term memory.
+    Why this matters: This is the optimisation motivating the ``(memory, updated)``
+    tuple — unnecessary STM writes on every tool build would be wasteful.
+    """
+    config = OpenAICodeInterpreterConfig(
+        use_auto_container=False,
+        upload_files_in_chat_to_container=True,
+        additional_uploaded_documents=[],
+    )
+    chat_file = Content(id="cont_cached", key="c.csv")
+
+    memory_loaded = CodeExecutionShortTermMemorySchema(
+        container_id="ctr_existing", file_ids={"cont_cached": "file_cached"}
+    )
+    memory_manager = MagicMock()
+    memory_manager.load_async = AsyncMock(return_value=memory_loaded)
+    memory_manager.save_async = AsyncMock()
+
+    service_mod = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service"
+    with (
+        patch(
+            f"{service_mod}._get_container_code_execution_short_term_memory_manager",
+            return_value=memory_manager,
+        ),
+        patch(
+            f"{service_mod}._check_container_exists",
+            AsyncMock(return_value=True),
+        ),
+        patch(
+            f"{service_mod}._create_container",
+            AsyncMock(),
+        ) as mock_create,
+        patch(
+            f"{service_mod}._upload_files_to_container",
+            AsyncMock(return_value=(memory_loaded, False)),
+        ),
+    ):
+        tool = await OpenAICodeInterpreterTool.build_tool(
+            config=config,
+            uploaded_files=[chat_file],
+            client=MagicMock(),
+            content_service=MagicMock(),
+            company_id="co",
+            user_id="u",
+            chat_id="c",
+        )
+
+    assert tool._container_id == "ctr_existing"
+    memory_manager.save_async.assert_not_awaited()
+    mock_create.assert_not_awaited()
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_build_tool__saves_when_files_updated__even_if_container_unchanged() -> (
+    None
+):
+    """
+    Purpose: Verify that when the container is live but a new file was uploaded,
+    ``build_tool`` still persists short-term memory.
+    Why this matters: The files flag must drive persistence independently of the
+    container flag.
+    """
+    config = OpenAICodeInterpreterConfig(
+        use_auto_container=False,
+        upload_files_in_chat_to_container=True,
+        additional_uploaded_documents=[],
+    )
+    chat_file = Content(id="cont_new", key="n.csv")
+
+    memory_loaded = CodeExecutionShortTermMemorySchema(
+        container_id="ctr_live", file_ids={}
+    )
+    memory_after_upload = CodeExecutionShortTermMemorySchema(
+        container_id="ctr_live", file_ids={"cont_new": "file_new"}
+    )
+    memory_manager = MagicMock()
+    memory_manager.load_async = AsyncMock(return_value=memory_loaded)
+    memory_manager.save_async = AsyncMock()
+
+    service_mod = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service"
+    with (
+        patch(
+            f"{service_mod}._get_container_code_execution_short_term_memory_manager",
+            return_value=memory_manager,
+        ),
+        patch(
+            f"{service_mod}._check_container_exists",
+            AsyncMock(return_value=True),
+        ),
+        patch(
+            f"{service_mod}._upload_files_to_container",
+            AsyncMock(return_value=(memory_after_upload, True)),
+        ),
+    ):
+        await OpenAICodeInterpreterTool.build_tool(
+            config=config,
+            uploaded_files=[chat_file],
+            client=MagicMock(),
+            content_service=MagicMock(),
+            company_id="co",
+            user_id="u",
+            chat_id="c",
+        )
+
+    memory_manager.save_async.assert_awaited_once_with(memory_after_upload)
+
+
+# ============================================================================
+# Test for end-to-end dedup across chat files and KB files
+# ============================================================================
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_build_tool__deduplicates_chat_and_kb_overlap__uploads_each_content_once() -> (
+    None
+):
+    """
+    Purpose: Verify that when the same content id is passed both as a chat-uploaded
+    file and as part of ``additional_uploaded_documents``, it is downloaded and
+    uploaded only once.
+    Why this matters: Operators can configure a template that a user also happens to
+    attach in the chat; we must not pay for the same bytes twice.
+    Setup summary: Same id appears in both lists; real upload helper runs against
+    mocked client + content service; assert exactly one download/create.
+    """
+    config = OpenAICodeInterpreterConfig(
+        use_auto_container=False,
+        upload_files_in_chat_to_container=True,
+        additional_uploaded_documents=["cont_overlap"],
+    )
+    shared = Content(id="cont_overlap", key="shared.csv")
+
+    content_service = MagicMock()
+    content_service.search_contents_async = AsyncMock(return_value=[shared])
+    content_service.download_content_to_bytes_async = AsyncMock(return_value=b"x")
+
+    openai_file = MagicMock()
+    openai_file.id = "file_shared"
+    client = MagicMock()
+    client.containers.files.create = AsyncMock(return_value=openai_file)
+
+    memory_loaded = CodeExecutionShortTermMemorySchema(
+        container_id="ctr_dedup_e2e", file_ids={}
+    )
+    memory_manager = MagicMock()
+    memory_manager.load_async = AsyncMock(return_value=memory_loaded)
+    memory_manager.save_async = AsyncMock()
+
+    service_mod = "unique_toolkit.agentic.tools.openai_builtin.code_interpreter.service"
+    with (
+        patch(
+            f"{service_mod}._get_container_code_execution_short_term_memory_manager",
+            return_value=memory_manager,
+        ),
+        patch(
+            f"{service_mod}._check_container_exists",
+            AsyncMock(return_value=True),
+        ),
+    ):
+        await OpenAICodeInterpreterTool.build_tool(
+            config=config,
+            uploaded_files=[shared],
+            client=client,
+            content_service=content_service,
+            company_id="co",
+            user_id="u",
+            chat_id="c",
+        )
+
+    assert content_service.download_content_to_bytes_async.await_count == 1
+    assert client.containers.files.create.await_count == 1

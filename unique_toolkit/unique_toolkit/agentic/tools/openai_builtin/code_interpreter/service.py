@@ -20,6 +20,7 @@ from tenacity import (
 )
 
 from unique_toolkit import ContentService, ShortTermMemoryService
+from unique_toolkit._common.execution import SafeTaskExecutor
 from unique_toolkit.agentic.feature_flags.feature_flags import feature_flags
 from unique_toolkit.agentic.short_term_memory_manager.persistent_short_term_memory_manager import (
     PersistentShortMemoryManager,
@@ -62,7 +63,7 @@ _SHORT_TERM_MEMORY_NAME = "container_code_execution"
 
 
 class CodeExecutionShortTermMemorySchema(BaseModel):
-    container_id: str | None = None
+    container_id: str
     file_ids: dict[str, str] = {}  # Mapping of unique file id to openai file id
 
 
@@ -88,71 +89,76 @@ def _get_container_code_execution_short_term_memory_manager(
     return short_term_memory_manager
 
 
-async def _create_container_if_not_exists(
+async def _check_container_exists(
+    client: AsyncOpenAI,
+    memory: CodeExecutionShortTermMemorySchema,
+) -> bool:
+    try:
+        container = await client.containers.retrieve(memory.container_id)
+    except NotFoundError:
+        logger.info("Container %s not found", memory.container_id)
+        return False
+
+    if container.status not in ["active", "running"]:
+        logger.info(
+            "Container %s has status `%s`, recreating a new one",
+            memory.container_id,
+            container.status,
+        )
+        return False
+
+    logger.info("Container %s found in short term memory", memory.container_id)
+    return True
+
+
+async def _create_container(
     client: AsyncOpenAI,
     chat_id: str,
     user_id: str,
     company_id: str,
     expires_after_minutes: int,
-    memory: CodeExecutionShortTermMemorySchema | None = None,
-) -> CodeExecutionShortTermMemorySchema:
-    if memory is not None:
-        logger.info("Container found in short term memory")
-    else:
-        logger.info("No Container in short term memory, creating a new container")
-        memory = CodeExecutionShortTermMemorySchema()
+) -> str:
+    container = await client.containers.create(
+        name=f"code_execution_{company_id}_{user_id}_{chat_id}",
+        expires_after={
+            "anchor": "last_active_at",
+            "minutes": expires_after_minutes,
+        },
+    )
+    logger.info("Created new container %s", container.id)
+    return container.id
 
+
+async def _check_file_already_uploaded(
+    client: AsyncOpenAI,
+    content_id: str,
+    memory: CodeExecutionShortTermMemorySchema,
+) -> bool:
     container_id = memory.container_id
 
-    if container_id is not None:
-        try:
-            container = await client.containers.retrieve(container_id)
-            if container.status not in ["active", "running"]:
-                logger.info(
-                    "Container has status `%s`, recreating a new one", container.status
-                )
-                container_id = None
-        except NotFoundError:
-            container_id = None
+    if content_id not in memory.file_ids:
+        logger.info("File with id %s not in short term memory", content_id)
+        return False
 
-    if container_id is None:
-        memory = CodeExecutionShortTermMemorySchema()
-
-        container = await client.containers.create(
-            name=f"code_execution_{company_id}_{user_id}_{chat_id}",
-            expires_after={
-                "anchor": "last_active_at",
-                "minutes": expires_after_minutes,
-            },
+    file_id = memory.file_ids[content_id]
+    try:
+        await client.containers.files.retrieve(
+            container_id=container_id, file_id=file_id
         )
-
-        memory.container_id = container.id
-
-    return memory
+        logger.info("File with id %s already uploaded to container", content_id)
+        return True
+    except OpenAIError:  # Azure API Errors are not stable
+        logger.exception("Error while retrieving file %s", file_id)
+        return False
 
 
 async def _upload_file_to_container(
     client: AsyncOpenAI,
     content_id: str,
     filename: str,
-    memory: CodeExecutionShortTermMemorySchema,
     content_service: ContentService,
-) -> None:
-    container_id = memory.container_id
-    assert container_id is not None
-
-    if content_id in memory.file_ids:
-        file_id = memory.file_ids[content_id]
-        try:
-            await client.containers.files.retrieve(
-                container_id=container_id, file_id=file_id
-            )
-            logger.info("File with id %s already uploaded to container", content_id)
-            return
-        except OpenAIError:  # Azure API Errors are not stable
-            logger.exception("Error while retrieving file %s", file_id)
-            pass
-
+    container_id: str,
+) -> str:
     logger.info(
         "Uploading file %s (%s) to container %s",
         content_id,
@@ -176,15 +182,14 @@ async def _upload_file_to_container(
         container_id=container_id,
         file=(filename, file_content),
     )
-    memory.file_ids[content_id] = openai_file.id
-
     logger.info(
         "File %s successfully uploaded as OpenAI file %s in container %s",
         content_id,
         openai_file.id,
         container_id,
     )
-    return
+
+    return openai_file.id
 
 
 async def _upload_files_to_container(
@@ -192,23 +197,41 @@ async def _upload_files_to_container(
     uploaded_files: list[Content],
     memory: CodeExecutionShortTermMemorySchema,
     content_service: ContentService,
-) -> CodeExecutionShortTermMemorySchema:
+) -> tuple[CodeExecutionShortTermMemorySchema, bool]:
+
+    async def _check_and_upload(content: Content) -> str | None:
+        if await _check_file_already_uploaded(
+            client=client, content_id=content.id, memory=memory
+        ):
+            return None
+
+        return await _upload_file_to_container(
+            client=client,
+            content_id=content.id,
+            filename=content.key,
+            content_service=content_service,
+            container_id=memory.container_id,
+        )
+
     # Deduplicate
     unique_contents = {content.id: content for content in uploaded_files}.values()
 
-    await asyncio.gather(
+    executor = SafeTaskExecutor(logger=logger)
+
+    results = await asyncio.gather(
         *(
-            _upload_file_to_container(
-                client=client,
-                content_id=file.id,
-                filename=file.key,
-                memory=memory,
-                content_service=content_service,
-            )
-            for file in unique_contents
-        )
+            executor.execute_async(_check_and_upload, content)
+            for content in unique_contents
+        ),
     )
-    return memory
+
+    updated = False
+    for content, result in zip(unique_contents, results):
+        if result.success and (file_id := result.unpack()) is not None:
+            memory.file_ids[content.id] = file_id
+            updated = True
+
+    return memory, updated
 
 
 async def _resolve_kb_contents(
@@ -313,14 +336,19 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
 
         memory = await memory_manager.load_async()
 
-        memory = await _create_container_if_not_exists(
-            client=client,
-            memory=memory,
-            chat_id=chat_id,
-            user_id=user_id,
-            company_id=company_id,
-            expires_after_minutes=config.expires_after_minutes,
-        )
+        container_updated = False
+        if memory is None or not await _check_container_exists(
+            client=client, memory=memory
+        ):
+            container_id = await _create_container(
+                client=client,
+                chat_id=chat_id,
+                user_id=user_id,
+                company_id=company_id,
+                expires_after_minutes=config.expires_after_minutes,
+            )
+            memory = CodeExecutionShortTermMemorySchema(container_id=container_id)
+            container_updated = True
 
         files_to_upload: list[Content] = []
         if config.upload_files_in_chat_to_container:
@@ -334,17 +362,17 @@ class OpenAICodeInterpreterTool(OpenAIBuiltInTool[CodeInterpreter]):
                 )
             )
 
+        files_updated = False
         if files_to_upload:
-            memory = await _upload_files_to_container(
+            memory, files_updated = await _upload_files_to_container(
                 client=client,
                 uploaded_files=files_to_upload,
                 content_service=content_service,
                 memory=memory,
             )
 
-        await memory_manager.save_async(memory)
-
-        assert memory.container_id is not None
+        if container_updated or files_updated:
+            await memory_manager.save_async(memory)
 
         return OpenAICodeInterpreterTool(
             config=config,
