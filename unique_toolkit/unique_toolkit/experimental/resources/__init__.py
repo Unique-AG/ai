@@ -12,6 +12,26 @@ Resources are intentionally unopinionated: they do not own app bootstrap
 concerns and do not add behavior beyond typing. Anything that does belongs
 in :mod:`..capabilities`.
 
+**Ergonomic call surfaces via** :func:`typing.overload`. Where the
+underlying SDK endpoint accepts several mutually-exclusive identifier
+shapes (``id`` vs ``email`` vs ``user_name``, ``user_id`` vs ``group_id``,
+etc.), the service exposes a single method name backed by multiple
+``@overload`` stubs — one per legal call shape — plus one runtime
+implementation that dispatches at the bottom. This makes the permissible
+calls discoverable at the type-checker / IDE completion layer instead of
+buried in ``if kind == "email": ...`` logic that a caller has to reverse
+engineer:
+
+.. code-block:: python
+
+    users.get(user_id="usr_abc")         # overload 1: by id
+    users.get(email="alice@example.com") # overload 2: by email
+    users.get(user_name="alice")         # overload 3: by username
+    users.get(email=..., user_name=...)  # type error at call site
+
+Resources that wrap a single-shape endpoint do not bother with overloads
+and just type the parameters directly.
+
 One sub-bucket lives here: :mod:`.facades`, for resource-shaped classes
 that compose two or more sibling resources (currently only
 :class:`~.facades.identity.Identity`). Facades share the same constructor

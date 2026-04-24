@@ -2,8 +2,8 @@
 
 Replaces the current :mod:`unique_toolkit._common` junk drawer. Modules
 here are implementation details; anything users are expected to import must
-be promoted into :mod:`..resources`, :mod:`..capabilities`,
-:mod:`..integrations`, or :mod:`..runtime` first.
+be promoted into :mod:`..resources`, :mod:`..capabilities`, or
+:mod:`..integrations` first.
 
 Planned contents (current home → new home):
 
