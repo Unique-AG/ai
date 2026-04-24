@@ -14,7 +14,7 @@ The cross-cutting :meth:`Users.groups_of` / :meth:`Users.is_member` relational
 helpers stay on this resource because the SDK's "groups of user" endpoint
 hangs off the user entity. The :class:`Identity` facade that composes
 :class:`Users` + :class:`~unique_toolkit.experimental.resources.groups.Groups`
-lives in :mod:`unique_toolkit.experimental.clients.identity`.
+lives in :mod:`unique_toolkit.experimental.resources.facades.identity`.
 """
 
 from unique_toolkit.experimental.resources.users.functions import (

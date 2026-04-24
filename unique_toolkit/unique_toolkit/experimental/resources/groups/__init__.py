@@ -14,7 +14,7 @@ Only the group-centric pieces live here:
 
 The :class:`Identity` facade that composes
 :class:`~unique_toolkit.experimental.resources.users.Users` + :class:`Groups`
-lives in :mod:`unique_toolkit.experimental.clients.identity`.
+lives in :mod:`unique_toolkit.experimental.resources.facades.identity`.
 """
 
 from unique_toolkit.experimental.resources.groups.functions import (

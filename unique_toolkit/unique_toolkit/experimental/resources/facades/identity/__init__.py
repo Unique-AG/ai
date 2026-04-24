@@ -1,4 +1,4 @@
-"""``unique_toolkit.experimental.clients.identity`` — the :class:`Identity` facade.
+"""``unique_toolkit.experimental.resources.facades.identity`` — the :class:`Identity` facade.
 
 .. warning::
 
@@ -20,7 +20,7 @@ with their Pydantic response schemas (:class:`UserInfo`, :class:`GroupInfo`,
 you only need a single resource.
 """
 
-from unique_toolkit.experimental.clients.identity.service import Identity
+from unique_toolkit.experimental.resources.facades.identity.service import Identity
 from unique_toolkit.experimental.resources.groups import (
     GroupDeleted,
     GroupInfo,

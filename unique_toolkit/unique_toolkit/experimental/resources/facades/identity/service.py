@@ -42,7 +42,7 @@ class Identity:
     .. warning::
 
         **Experimental.** Import path is
-        :mod:`unique_toolkit.experimental.clients.identity`. The API may
+        :mod:`unique_toolkit.experimental.resources.facades.identity`. The API may
         change without notice.
 
     :class:`Identity` owns two sub-services:
