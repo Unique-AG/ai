@@ -113,7 +113,7 @@ class ResolveTests(unittest.TestCase):
             )
 
     def test_fresh_cycle_first_push_uses_pyproject_for_unchanged(self) -> None:
-        new_versions, dep_pins = self._resolve(
+        new_versions, dep_pins, all_current, branch_suffix = self._resolve(
             ["toolkit"],
             pypi={"unique_toolkit": [], "unique_sdk": [], "unique-mcp": []},
             on_disk={"unique_sdk": "0.11.6", "unique_mcp": "0.3.3"},
@@ -122,9 +122,16 @@ class ResolveTests(unittest.TestCase):
         self.assertEqual(dep_pins["unique-toolkit"], ">=2026.18.0.dev0")
         self.assertEqual(dep_pins["unique-sdk"], ">=0.11.6")
         self.assertEqual(dep_pins["unique-mcp"], ">=0.3.3")
+        # all_current_versions
+        self.assertEqual(all_current["toolkit"], "2026.18.0.dev0")
+        self.assertEqual(all_current["sdk"], "0.11.6")
+        self.assertEqual(all_current["mcp"], "0.3.3")
+        # branch_suffix: only toolkit has a dev → uses its shorthand if present
+        self.assertNotIn("sdk", branch_suffix)
+        self.assertNotIn("mcp", branch_suffix)
 
     def test_cycle_with_existing_devs_for_unchanged(self) -> None:
-        new_versions, dep_pins = self._resolve(
+        new_versions, dep_pins, all_current, branch_suffix = self._resolve(
             ["toolkit"],
             pypi={
                 "unique_toolkit": ["2026.18.0.dev3"],
@@ -137,9 +144,12 @@ class ResolveTests(unittest.TestCase):
         self.assertEqual(dep_pins["unique-toolkit"], ">=2026.18.0.dev4")
         self.assertEqual(dep_pins["unique-sdk"], ">=2026.18.0.dev2")
         self.assertEqual(dep_pins["unique-mcp"], ">=0.3.3")
+        self.assertEqual(all_current["toolkit"], "2026.18.0.dev4")
+        self.assertEqual(all_current["sdk"], "2026.18.0.dev2")
+        self.assertEqual(all_current["mcp"], "0.3.3")
 
     def test_siblings_in_same_push_lockstep(self) -> None:
-        new_versions, dep_pins = self._resolve(
+        new_versions, dep_pins, all_current, branch_suffix = self._resolve(
             ["toolkit", "sdk"],
             pypi={
                 "unique_toolkit": ["2026.18.0.dev5"],
@@ -154,9 +164,12 @@ class ResolveTests(unittest.TestCase):
         self.assertEqual(dep_pins["unique-toolkit"], ">=2026.18.0.dev6")
         self.assertEqual(dep_pins["unique-sdk"], ">=2026.18.0.dev10")
         self.assertEqual(dep_pins["unique-mcp"], ">=0.3.3")
+        self.assertEqual(all_current["toolkit"], "2026.18.0.dev6")
+        self.assertEqual(all_current["sdk"], "2026.18.0.dev10")
+        self.assertEqual(all_current["mcp"], "0.3.3")
 
     def test_pep503_normalization(self) -> None:
-        _, dep_pins = self._resolve(
+        _, dep_pins, _, _ = self._resolve(
             ["toolkit"],
             pypi={"unique_toolkit": [], "unique_sdk": [], "unique-mcp": []},
             on_disk={"unique_sdk": "0.11.6", "unique_mcp": "0.3.3"},
@@ -186,6 +199,47 @@ class ResolveTests(unittest.TestCase):
                 fetcher=_fake_fetcher({}),
             )
 
+    def test_branch_suffix_uses_shorthands(self) -> None:
+        publishable_with_shorthands = [
+            {
+                "id": "toolkit",
+                "shorthand": "tk",
+                "pypi_name": "unique_toolkit",
+                "dir": "unique_toolkit",
+            },
+            {
+                "id": "sdk",
+                "shorthand": "sdk",
+                "pypi_name": "unique_sdk",
+                "dir": "unique_sdk",
+            },
+            {
+                "id": "mcp",
+                "pypi_name": "unique-mcp",
+                "dir": "unique_mcp",
+            },  # no shorthand
+        ]
+
+        def fake_read(pkg_dir: Path) -> str:
+            return {"unique_mcp": "0.3.3"}.get(str(pkg_dir), "0.0.0")
+
+        with patch.object(rdv, "read_pyproject_version", side_effect=fake_read):
+            _, _, _, branch_suffix = rdv.resolve(
+                cycle="2026.18",
+                selected_ids=["toolkit"],
+                publishable=publishable_with_shorthands,
+                pypi_base_url="",
+                fetcher=_fake_fetcher(
+                    {
+                        "unique_toolkit": ["2026.18.0.dev2"],
+                        "unique_sdk": ["2026.18.0.dev1"],
+                        "unique-mcp": [],
+                    }
+                ),
+            )
+        # toolkit → tk-3, sdk (existing dev, not selected) → sdk-1; mcp has no shorthand
+        self.assertEqual(branch_suffix, "tk-3-sdk-1")
+
 
 class MainOutputFilesTests(unittest.TestCase):
     """Guards that the JSON files consumed by publish-dev.yaml end with
@@ -207,6 +261,8 @@ class MainOutputFilesTests(unittest.TestCase):
                 return (
                     {"toolkit": "2026.18.0.dev0"},
                     {"unique-toolkit": ">=2026.18.0.dev0"},
+                    {"toolkit": "2026.18.0.dev0"},
+                    "tk-0",
                 )
 
             with patch.object(rdv, "resolve", side_effect=fake_resolve):
@@ -227,6 +283,10 @@ class MainOutputFilesTests(unittest.TestCase):
             self.assertEqual(rc, 0)
             self.assertTrue((out / "new_versions.json").read_text().endswith("\n"))
             self.assertTrue((out / "dep_pins.json").read_text().endswith("\n"))
+            self.assertTrue(
+                (out / "all_current_versions.json").read_text().endswith("\n")
+            )
+            self.assertTrue((out / "branch_suffix.txt").read_text().endswith("\n"))
 
 
 class LoadPublishableTests(unittest.TestCase):
