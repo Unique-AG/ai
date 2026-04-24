@@ -25,7 +25,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "pytest==8.3.5",
+    "pytest==9.0.3",
     "pytest-cov==6.1.1",
     "ruff>=0.2.1",
     "sseclient==0.0.27",
