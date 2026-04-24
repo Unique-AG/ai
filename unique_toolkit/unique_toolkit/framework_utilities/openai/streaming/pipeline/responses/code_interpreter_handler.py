@@ -103,11 +103,9 @@ class ResponsesCodeInterpreterHandler:
         elif isinstance(event, ResponseCodeInterpreterCallInProgressEvent):
             text_update = "Code interpreter call in progress"
             status = "RUNNING"
-        elif isinstance(event, ResponseCodeInterpreterCallInterpretingEvent):
+        else:  # ResponseCodeInterpreterCallInterpretingEvent
             text_update = "Code interpreter call interpreting"
             status = "RUNNING"
-        else:
-            return
 
         item_id = event.item_id
         fingerprint = (status, text_update)

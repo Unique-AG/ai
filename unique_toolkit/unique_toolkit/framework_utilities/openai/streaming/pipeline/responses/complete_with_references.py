@@ -13,7 +13,7 @@ import asyncio
 import logging
 from collections.abc import Iterable, Sequence
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, TypeGuard, overload
+from typing import TYPE_CHECKING, Any, TypeGuard, overload
 
 import httpx
 from openai import AsyncOpenAI
@@ -382,7 +382,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = 0.0,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         start_text: str | None = None,
         include: list[ResponseIncludable] | None = None,
         instructions: str | None = None,
@@ -393,7 +393,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         tool_choice: response_create_params.ToolChoice | None = None,
         top_p: float | None = None,
         reasoning: Reasoning | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> ResponsesLanguageModelStreamResponse:
         return asyncio.run(
             self.complete_with_references_async(
@@ -429,7 +429,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         content_chunks: list[ContentChunk] | None = None,
         tools: Sequence[LanguageModelToolDescription | ToolParam] | None = None,
         temperature: float = 0.0,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         start_text: str | None = None,
         include: list[ResponseIncludable] | None = None,
         instructions: str | None = None,
@@ -440,7 +440,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
         tool_choice: response_create_params.ToolChoice | None = None,
         top_p: float | None = None,
         reasoning: Reasoning | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> ResponsesLanguageModelStreamResponse:
         # ``start_text`` and ``debug_info`` are on the
         # :class:`ResponsesSupportCompleteWithReferences` protocol but are
@@ -545,7 +545,7 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
             )
 
             try:
-                create_kwargs: dict = {}
+                create_kwargs: dict[str, Any] = {}
                 if converted_tools:
                     create_kwargs["tools"] = converted_tools
                 if instructions is not None:

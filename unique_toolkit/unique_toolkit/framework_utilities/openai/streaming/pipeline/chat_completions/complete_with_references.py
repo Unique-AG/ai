@@ -296,13 +296,13 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         messages: LanguageModelMessages,
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         temperature: float = 0.0,
         timeout: int = 240_000,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         start_text: str | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse:
         return asyncio.run(
             self.complete_with_references_async(
@@ -324,13 +324,13 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
         messages: LanguageModelMessages | list[ChatCompletionMessageParam],
         model_name: LanguageModelName | str,
         content_chunks: list[ContentChunk] | None = None,
-        debug_info: dict | None = None,
+        debug_info: dict[str, Any] | None = None,
         temperature: float = 0.0,
         timeout: int = 240_000,
         tools: Sequence[LanguageModelTool | LanguageModelToolDescription] | None = None,
         tool_choice: ChatCompletionToolChoiceOptionParam | None = None,
         start_text: str | None = None,
-        other_options: dict | None = None,
+        other_options: dict[str, Any] | None = None,
     ) -> LanguageModelStreamResponse:
         # ``timeout``, ``start_text``, and ``debug_info`` are on the
         # :class:`SupportCompleteWithReferences` protocol but are not
