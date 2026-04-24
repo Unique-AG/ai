@@ -294,12 +294,21 @@ jobs:
         with:
           version: '0.11.5'
 
+      - name: Ensure dev-version-bump label exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create "dev-version-bump" \
+            --description "Automated PR that bumps dev version pins for local development" \
+            --color "0075ca" \
+            --force
+
       - name: Close previous dev-bump PRs
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr list --state open --json number,headRefName \
-            | jq -r '.[] | select(.headRefName | startswith("chore/bump-dev-")) | .number' \
+          gh pr list --state open --label "dev-version-bump" --json number \
+            | jq -r '.[].number' \
             | xargs -r -I{} sh -c \
                 'gh pr close {} --comment "Superseded by `'"$BRANCH"'`." || true'
 
@@ -375,4 +384,5 @@ jobs:
             --title "chore: bump dev versions ($CYCLE / ${{ needs.resolve.outputs.branch_suffix }})" \
             --body-file "$BODY_FILE" \
             --head "$BRANCH" \
-            --base main
+            --base main \
+            --label "dev-version-bump"
