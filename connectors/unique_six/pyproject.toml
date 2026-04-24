@@ -1,6 +1,6 @@
 [project]
 name = "unique_six"
-version = "2026.18.0"
+version = "2026.20.0.dev2"
 description = "Unique Six API client"
 authors = [
     { name = "Ahmed Jellouli", email = "ahmed.jellouli.ext@unique.ch" },
@@ -12,7 +12,7 @@ requires-python = ">=3.12,<4"
 dependencies = [
     "pydantic>=2.12.4",
     "python-dotenv>=1.0.1",
-    "unique-toolkit>=2026.18.0",
+    "unique-toolkit>=2026.20.0.dev4",
     "cryptography>=46.0.5",
     "pyopenssl>=25.0.0",
     "requests>=2.32.0",
