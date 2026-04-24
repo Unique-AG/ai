@@ -1,15 +1,15 @@
 {
-  "unique_sdk": "2026.18.0",
-  "unique_toolkit": "2026.18.0",
-  "unique_mcp": "2026.18.0",
-  "unique_orchestrator": "2026.18.0",
-  "tool_packages/unique_web_search": "2026.18.0",
-  "tool_packages/unique_swot": "2026.18.0",
-  "tool_packages/unique_deep_research": "2026.18.0",
-  "tool_packages/unique_internal_search": "2026.18.0",
-  "postprocessors/unique_follow_up_questions": "2026.18.0",
-  "postprocessors/unique_stock_ticker": "2026.18.0",
-  "connectors/unique_quartr": "2026.18.0",
-  "connectors/unique_six": "2026.18.0",
-  "tool_packages/unique_skill_tool": "2026.18.0"
+  "unique_sdk": "2026.18.1",
+  "unique_toolkit": "2026.18.1",
+  "unique_mcp": "2026.18.1",
+  "unique_orchestrator": "2026.18.1",
+  "tool_packages/unique_web_search": "2026.18.1",
+  "tool_packages/unique_swot": "2026.18.1",
+  "tool_packages/unique_deep_research": "2026.18.1",
+  "tool_packages/unique_internal_search": "2026.18.1",
+  "postprocessors/unique_follow_up_questions": "2026.18.1",
+  "postprocessors/unique_stock_ticker": "2026.18.1",
+  "connectors/unique_quartr": "2026.18.1",
+  "connectors/unique_six": "2026.18.1",
+  "tool_packages/unique_skill_tool": "2026.18.1"
 }

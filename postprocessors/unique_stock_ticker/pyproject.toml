@@ -1,6 +1,6 @@
 [project]
 name = "unique_stock_ticker"
-version = "2026.18.0"
+version = "2026.18.1"
 description = ""
 authors = [
     { name = "Martin Fadler", email = "martin.fadler@unique.ch" },
