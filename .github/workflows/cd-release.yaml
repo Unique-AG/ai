@@ -126,6 +126,7 @@ jobs:
           REF_SHA: ${{ github.sha }}
         run: |
           gh workflow run cd-publish.yaml \
+            --repo "${{ github.repository }}" \
             --ref "$REF_NAME" \
             -f package=all \
             -f ref="$REF_SHA"
