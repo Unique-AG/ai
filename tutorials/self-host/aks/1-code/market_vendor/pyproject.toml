@@ -18,9 +18,9 @@ dependencies = [
     "flask>=3.0.2",
     "python-dotenv>=1.0.1",
     "requests>=2.31.0",
-    "unique-sdk>=2026.18.0",
+    "unique-sdk>=2026.18.1",
     "gunicorn>=23.0.0",
-    "unique-toolkit>=2026.18.0",
+    "unique-toolkit>=2026.18.1",
 ]
 
 [dependency-groups]

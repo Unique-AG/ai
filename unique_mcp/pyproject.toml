@@ -13,7 +13,7 @@ dependencies = [
     "platformdirs>=4.0.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.0.0",
-    "unique-toolkit>=2026.18.0",
+    "unique-toolkit>=2026.18.1",
 ]
 
 [build-system]
