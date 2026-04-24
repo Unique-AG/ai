@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["tomlkit"]
+# ///
 """Rewrite cross-package dependency floors in all pyproject.toml files.
 
 Reads ``.release-please-manifest.json`` to discover the current stable version
