@@ -33,7 +33,7 @@ jobs:
       - id: rp
         uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         with:
-          config-file: ${{ github.ref_name == 'main' && 'release-please-config.json' || 'release-please-config-hotfix.json' }}
+          config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           target-branch: ${{ github.ref_name }}
 
