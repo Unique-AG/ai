@@ -24,6 +24,7 @@ dev = [
     "pytest-cov>=7.0.0,<8",
     "pytest-mock>=3.14.0,<4",
     "deptry>=0.24.0,<0.25",
+    "import-linter>=2.0,<3",
     "poethepoet>=0.32.0,<0.33",
     # migrated from per-package dev groups
     "python-dotenv>=1.1.0,<2",
@@ -97,3 +98,10 @@ members = [
     "connectors/*",
     "tutorials/mcp/mcp_test",
 ]
+
+# Root-level poe tasks. Individual workspace packages own their own
+# [tool.poe.tasks] blocks; only forward-to-package passthroughs belong here,
+# so `uv run poe <task>` works from the repository root as well as from each
+# package directory.
+[tool.poe.tasks]
+check-imports = "lint-imports --config unique_toolkit/pyproject.toml"
