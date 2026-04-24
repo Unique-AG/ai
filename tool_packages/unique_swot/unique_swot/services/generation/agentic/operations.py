@@ -119,7 +119,7 @@ async def handle_generate_operation(
         )
         await step_notifier.notify(
             title=notification_title,
-            description=f"An error occured while extracting facts for component {component}. This batch will be skipped.",
+            description=f"An error occurred while extracting facts for component {component}. This batch will be skipped.",
         )
     except FailedToGeneratePlanException as e:
         _LOGGER.exception(
@@ -127,7 +127,7 @@ async def handle_generate_operation(
         )
         await step_notifier.notify(
             title=notification_title,
-            description=f"An error occured while generating plan to update the SWOT report for component {component}. Extracted information will be discarded.",
+            description=f"An error occurred while generating plan to update the SWOT report for component {component}. Extracted information will be discarded.",
         )
     except Exception as e:
         _LOGGER.exception(
@@ -135,7 +135,7 @@ async def handle_generate_operation(
         )
         await step_notifier.notify(
             title=notification_title,
-            description=f"An unexpected error occured while updating the SWOT report for component {component}. Skipping this batch.",
+            description=f"An unexpected error occurred while updating the SWOT report for component {component}. Skipping this batch.",
         )
 
 
