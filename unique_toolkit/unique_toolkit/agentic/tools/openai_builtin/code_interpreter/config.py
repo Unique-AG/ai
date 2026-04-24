@@ -181,6 +181,10 @@ class OpenAICodeInterpreterConfig(BaseToolConfig):
         default=False,
         description="If set, use the `auto` container setting from OpenAI. Note that this will recreate the container on each call.",
     )
+    additional_uploaded_documents: list[str] = Field(
+        default=[],
+        description="Documents (content_ids) to always upload to the container from the Knowledge Base. Useful for example for templates.",
+    )
 
 
 @register_config()
