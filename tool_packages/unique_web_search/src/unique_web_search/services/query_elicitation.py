@@ -149,13 +149,13 @@ class QueryElicitationService:
             elif elicitation.status == ElicitationStatus.DECLINED:
                 _LOGGER.info(f"Query elicitation {elicitation.id} declined")
                 raise ElicitationDeclinedException(
-                    f"Elicitation triggerd with queries {queries} was declined"
+                    f"Elicitation triggered with queries {queries} was declined"
                 )
 
             elif elicitation.status == ElicitationStatus.CANCELLED:
                 _LOGGER.info(f"Query elicitation {elicitation.id} cancelled")
                 raise ElicitationCancelledException(
-                    f"Elicitation triggerd with queries {queries} was cancelled"
+                    f"Elicitation triggered with queries {queries} was cancelled"
                 )
 
         raise ElicitationExpiredException(
