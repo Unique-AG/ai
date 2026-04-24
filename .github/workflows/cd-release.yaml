@@ -35,6 +35,7 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+          target-branch: ${{ github.ref_name }}
 
   # After release-please updates the PR with new version bumps it does not
   # update uv.lock. This job finds the open release PR via its label, checks
