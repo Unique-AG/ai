@@ -1,6 +1,6 @@
 [project]
 name = "unique_six"
-version = "2026.18.1"
+version = "2026.18.2"
 description = "Unique Six API client"
 authors = [
     { name = "Ahmed Jellouli", email = "ahmed.jellouli.ext@unique.ch" },
