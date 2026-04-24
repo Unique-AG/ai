@@ -4,7 +4,12 @@ import asyncio
 import logging
 from typing import Any, override
 
-from openai import AsyncOpenAI, BaseModel, NotFoundError
+from openai import (
+    AsyncOpenAI,
+    BaseModel,
+    NotFoundError,
+    OpenAIError,
+)
 from openai.types.responses import ResponseCodeInterpreterToolCall, ResponseIncludable
 from openai.types.responses.tool_param import CodeInterpreter
 from tenacity import (
@@ -137,13 +142,15 @@ async def _upload_file_to_container(
     assert container_id is not None
 
     if content_id in memory.file_ids:
+        file_id = memory.file_ids[content_id]
         try:
             await client.containers.files.retrieve(
-                container_id=container_id, file_id=memory.file_ids[content_id]
+                container_id=container_id, file_id=file_id
             )
             logger.info("File with id %s already uploaded to container", content_id)
             return
-        except NotFoundError:
+        except OpenAIError:  # Azure API Errors are not stable
+            logger.exception("Error while retrieving file %s", file_id)
             pass
 
     logger.info(
