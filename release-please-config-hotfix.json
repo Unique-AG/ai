@@ -1,0 +1,62 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "python",
+  "separate-pull-requests": false,
+  "group-pull-request-title-pattern": "chore: release ${branch}",
+  "include-component-in-tag": true,
+  "include-v-in-tag": true,
+  "tag-separator": "-",
+  "changelog-sections": [
+    {"type": "feat", "section": "Features"},
+    {"type": "fix", "section": "Bug Fixes"},
+    {"type": "perf", "section": "Performance"},
+    {"type": "revert", "section": "Reverts"},
+    {"type": "docs", "section": "Documentation", "hidden": true},
+    {"type": "chore", "section": "Miscellaneous", "hidden": true},
+    {"type": "refactor", "section": "Miscellaneous", "hidden": true},
+    {"type": "test", "section": "Tests", "hidden": true},
+    {"type": "ci", "section": "CI", "hidden": true},
+    {"type": "build", "section": "Build", "hidden": true}
+  ],
+  "packages": {
+    "unique_sdk": {
+      "component": "unique-sdk"
+    },
+    "unique_toolkit": {
+      "component": "unique-toolkit"
+    },
+    "unique_mcp": {
+      "component": "unique-mcp"
+    },
+    "unique_orchestrator": {
+      "component": "unique-orchestrator"
+    },
+    "tool_packages/unique_web_search": {
+      "component": "unique-web-search"
+    },
+    "tool_packages/unique_swot": {
+      "component": "unique-swot"
+    },
+    "tool_packages/unique_deep_research": {
+      "component": "unique-deep-research"
+    },
+    "tool_packages/unique_internal_search": {
+      "component": "unique-internal-search"
+    },
+    "postprocessors/unique_follow_up_questions": {
+      "component": "unique-follow-up-questions"
+    },
+    "postprocessors/unique_stock_ticker": {
+      "component": "unique-stock-ticker"
+    },
+    "connectors/unique_quartr": {
+      "component": "unique-quartr"
+    },
+    "connectors/unique_six": {
+      "component": "unique-six"
+    },
+    "tool_packages/unique_skill_tool": {
+      "component": "unique-skill-tool"
+    }
+  }
+}
