@@ -34,7 +34,7 @@ async def _poll_until_terminal(
 async def run_analytics_order(
     user_id: str,
     company_id: str,
-    type: str,
+    type: "AnalyticsOrder.AnalyticsTypeLiteral",
     start_date: str,
     end_date: str,
     *,
@@ -49,7 +49,7 @@ async def run_analytics_order(
     Args:
         user_id: The user ID.
         company_id: The company ID.
-        type: The analytics type (e.g. ``"CHAT_ANALYTICS"``).
+        type: The analytics type; must be a member of ``AnalyticsOrder.ANALYTICS_TYPE_VALUES``.
         start_date: Report start date in ISO 8601 format (e.g. ``"2024-01-01"``).
         end_date: Report end date in ISO 8601 format (e.g. ``"2024-12-31"``).
         assistant_id: Optional assistant ID to filter the report by.
@@ -69,11 +69,11 @@ async def run_analytics_order(
     """
     create_kwargs: dict[str, Any] = {
         "type": type,
-        "start_date": start_date,
-        "end_date": end_date,
+        "startDate": start_date,
+        "endDate": end_date,
     }
     if assistant_id is not None:
-        create_kwargs["assistant_id"] = assistant_id
+        create_kwargs["assistantId"] = assistant_id
 
     order = await AnalyticsOrder.create_async(user_id, company_id, **create_kwargs)
     order_id = cast(str, order.get("id"))

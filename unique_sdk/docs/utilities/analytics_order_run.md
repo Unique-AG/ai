@@ -9,7 +9,7 @@ End-to-end flow for analytics reports: **create an order → poll until it reach
     **Parameters:**
 
     - `user_id`, `company_id` (required)
-    - `type` (required) — analytics type string (e.g. `"CHAT_ANALYTICS"`)
+    - `type` (required) — a valid analytics [type string](../api_resources/analytics_order.md#analytics-types) (e.g. `"CHAT_INTERACTION"`), matching `AnalyticsOrder.AnalyticsTypeLiteral` and `AnalyticsOrder.ANALYTICS_TYPE_VALUES` (see [API](../api_resources/analytics_order.md#analytics-type-literal))
     - `start_date` (required) — ISO 8601 date string (e.g. `"2024-01-01"`)
     - `end_date` (required) — ISO 8601 date string (e.g. `"2024-12-31"`)
     - `assistant_id` (optional) — filter the report to a specific assistant
@@ -29,7 +29,7 @@ End-to-end flow for analytics reports: **create an order → poll until it reach
         result = await run_analytics_order(
             user_id=user_id,
             company_id=company_id,
-            type="CHAT_ANALYTICS",
+            type="CHAT_INTERACTION",
             start_date="2024-01-01",
             end_date="2024-12-31",
             save_csv_to="./report.csv",
@@ -57,7 +57,7 @@ The number of attempts is derived automatically: `max(1, int(max_wait // poll_in
 result = await run_analytics_order(
     user_id=user_id,
     company_id=company_id,
-    type="CHAT_ANALYTICS",
+    type="CHAT_INTERACTION",
     start_date="2024-12-01",
     end_date="2024-12-31",
     poll_interval=2.0,   # check every 2 s
@@ -71,7 +71,7 @@ result = await run_analytics_order(
 result = await run_analytics_order(
     user_id=user_id,
     company_id=company_id,
-    type="CHAT_ANALYTICS",
+    type="CHAT_INTERACTION",
     start_date="2023-01-01",
     end_date="2024-12-31",
     poll_interval=15.0,   # check every 15 s
@@ -86,7 +86,7 @@ result = await run_analytics_order(
 result = await run_analytics_order(
     user_id=user_id,
     company_id=company_id,
-    type="CHAT_ANALYTICS",
+    type="CHAT_INTERACTION",
     start_date="2024-01-01",
     end_date="2024-12-31",
     poll_interval=5.0,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import builtins
-from typing import Any, Literal, NotRequired, cast
+from typing import Any, ClassVar, Literal, NotRequired, cast, get_args
 from urllib.parse import quote_plus
 
 from typing_extensions import Unpack
@@ -18,11 +18,27 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
 
     RESOURCE_URL = "/analytics/orders"
 
+    AnalyticsTypeLiteral = Literal[
+        "ACTIVE_USER",
+        "CHAT_INTERACTION",
+        "CHAT_INTERACTION_DETAILED",
+        "INGESTION_STAT",
+        "MODEL_USAGE",
+        "NPS",
+        "PRODUCT_METRICS",
+        "REFERENCE_STAT",
+        "USER_CHAT_EXPORT",
+    ]
+
+    ANALYTICS_TYPE_VALUES: ClassVar[tuple[str, ...]] = tuple(
+        get_args(AnalyticsTypeLiteral)
+    )
+
     class CreateParams(RequestOptions):
-        type: str
-        start_date: str
-        end_date: str
-        assistant_id: NotRequired[str | None]
+        type: "AnalyticsOrder.AnalyticsTypeLiteral"
+        startDate: str
+        endDate: str
+        assistantId: NotRequired[str | None]
 
     class ListParams(RequestOptions):
         skip: NotRequired[int | None]

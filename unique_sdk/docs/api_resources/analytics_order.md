@@ -11,6 +11,12 @@ Create and manage analytics orders with:
 - Status polling until completion
 - CSV download once the order is done
 
+## Analytics types
+
+Report `type` must be one of the strings in [`AnalyticsOrder.ANALYTICS_TYPE_VALUES`](#analytics-type-literal). The static type of `type` is [`AnalyticsOrder.AnalyticsTypeLiteral`](#analytics-type-literal) (a `Literal[...]` of the same set), matching the product **AnalyticsType** values:
+
+`ACTIVE_USER`, `CHAT_INTERACTION`, `CHAT_INTERACTION_DETAILED`, `INGESTION_STAT`, `MODEL_USAGE`, `NPS`, `PRODUCT_METRICS`, `REFERENCE_STAT`, `USER_CHAT_EXPORT`.
+
 ## Methods
 
 ??? example "`unique_sdk.AnalyticsOrder.create` - Create an analytics order"
@@ -19,10 +25,10 @@ Create and manage analytics orders with:
 
     **Parameters:**
 
-    - `type` (str, required) - Analytics type (e.g. `"CHAT_ANALYTICS"`)
-    - `start_date` (str, required) - Report start date in ISO 8601 format (e.g. `"2024-01-01"`)
-    - `end_date` (str, required) - Report end date in ISO 8601 format (e.g. `"2024-12-31"`)
-    - `assistant_id` (str, optional) - Filter the report to a specific assistant
+    - `type` (str, required) - Analytics type; must be a member of [Analytics types](#analytics-types) (e.g. `"CHAT_INTERACTION"`)
+    - `startDate` (str, required) - Report start date in ISO 8601 format (e.g. `"2024-01-01"`)
+    - `endDate` (str, required) - Report end date in ISO 8601 format (e.g. `"2024-12-31"`)
+    - `assistantId` (str, optional) - Filter the report to a specific assistant
 
     **Returns:**
 
@@ -34,9 +40,9 @@ Create and manage analytics orders with:
     order = unique_sdk.AnalyticsOrder.create(
         user_id=user_id,
         company_id=company_id,
-        type="CHAT_ANALYTICS",
-        start_date="2024-01-01",
-        end_date="2024-12-31",
+        type="CHAT_INTERACTION",
+        startDate="2024-01-01",
+        endDate="2024-12-31",
     )
     print(order["id"], order["state"])  # e.g. "ord_abc123", "PENDING"
     ```
@@ -47,10 +53,10 @@ Create and manage analytics orders with:
     order = unique_sdk.AnalyticsOrder.create(
         user_id=user_id,
         company_id=company_id,
-        type="CHAT_ANALYTICS",
-        start_date="2024-01-01",
-        end_date="2024-12-31",
-        assistant_id="asst_xyz789",
+        type="CHAT_INTERACTION",
+        startDate="2024-01-01",
+        endDate="2024-12-31",
+        assistantId="asst_xyz789",
     )
     ```
 
@@ -171,6 +177,13 @@ Create and manage analytics orders with:
 
 ## Return Types
 
+#### AnalyticsTypeLiteral and ANALYTICS_TYPE_VALUES {#analytics-type-literal}
+
+`AnalyticsOrder` exposes:
+
+- `AnalyticsTypeLiteral` — a `typing.Literal[...]` of the allowed `type` strings.
+- `ANALYTICS_TYPE_VALUES` — a `tuple[str, ...]` of the same strings (suitable for membership checks, UI dropdowns, or validation at runtime).
+
 #### AnalyticsOrder {#analyticsorder}
 
 ??? note "The `AnalyticsOrder` object represents an analytics report order"
@@ -178,7 +191,7 @@ Create and manage analytics orders with:
     **Fields:**
 
     - `id` (str) - Unique order identifier
-    - `type` (str) - Analytics type (e.g. `"CHAT_ANALYTICS"`)
+    - `type` (str) - Analytics type (one of the values in [Analytics types](#analytics-types))
     - `state` (str) - Current state: `"PENDING"`, `"RUNNING"`, `"DONE"`, or `"ERROR"`
     - `configuration` (dict) - Order configuration (includes `startDate`, `endDate`, and optionally `assistantId`)
     - `createdAt` (str) - Creation timestamp (ISO 8601)
