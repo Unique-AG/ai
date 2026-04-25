@@ -5,6 +5,7 @@ This section contains documentation for all API resources available in the Uniqu
 ## Available Resources
 
 - [Agentic Table API](agentic_table.md) - AI-powered interactive tables with activity tracking
+- [Analytics Order API](analytics_order.md) - Async analytics report generation and CSV download
 - [Benchmarking API](benchmarking.md) - Benchmarking spreadsheet upload and downloads
 - [ChatCompletion API](chat_completion.md) - Chat completion functionality
 - [Content API](content.md) - Content management operations
