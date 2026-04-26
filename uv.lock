@@ -8,23 +8,23 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-09T11:18:49.121056Z"
+exclude-newer = "2026-04-12T18:45:56.360372Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
 unique-toolkit = false
 unique-internal-search = false
-pytest = "2026-04-09T00:00:00Z"
-langchain-core = "2026-04-10T00:00:00Z"
+pytest = "2026-04-08T22:00:00Z"
+langchain-core = "2026-04-09T22:00:00Z"
 unique-swot = false
 unique-sdk = false
 unique-mcp = false
-cryptography = "2026-04-10T00:00:00Z"
+cryptography = "2026-04-09T22:00:00Z"
 unique-orchestrator = false
 unique-follow-up-questions = false
-langsmith = "2026-04-16T00:00:00Z"
+langsmith = "2026-04-15T22:00:00Z"
 unique-six = false
-python-multipart = "2026-04-12T00:00:00Z"
+python-multipart = "2026-04-11T22:00:00Z"
 unique-quartr = false
 unique-web-search = false
 unique-deep-research = false
@@ -5348,7 +5348,7 @@ dev = []
 
 [[package]]
 name = "unique-orchestrator"
-version = "1.22.2"
+version = "2026.20.0.dev3"
 source = { editable = "unique_orchestrator" }
 dependencies = [
     { name = "jinja2" },
