@@ -14,7 +14,7 @@ requires-python = ">=3.12,<4"
 dependencies = [
     "pydantic>=2.8.2",
     "jinja2>=3.1.6",
-    "unique-toolkit>=2026.20.0.dev5",
+    "unique-toolkit>=2026.20.0.dev6",
 ]
 
 [dependency-groups]
