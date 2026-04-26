@@ -120,9 +120,19 @@ def upload_file(
             f"preview_pdf_path does not point to a readable file: {preview_pdf_path}"
         )
 
+    # A filename without a path would register a phantom preview on the
+    # Content row (the upsert mints a pdfPreviewWriteUrl, but we never
+    # PUT any bytes), leaving the side panel pointing at a nonexistent
+    # blob. Treat it as a programmer mistake and fail fast.
+    if preview_pdf_filename is not None and preview_pdf_path is None:
+        raise ValueError(
+            "preview_pdf_filename was provided without preview_pdf_path; "
+            "pass the PDF path so the preview blob actually gets uploaded."
+        )
+
     size = os.path.getsize(path_to_file)
-    resolved_preview_filename = preview_pdf_filename or (
-        _derive_preview_pdf_filename(displayed_filename)
+    resolved_preview_filename = (
+        (preview_pdf_filename or _derive_preview_pdf_filename(displayed_filename))
         if preview_pdf_path is not None
         else None
     )

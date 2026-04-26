@@ -229,6 +229,26 @@ class TestUploadFilePreviewPdfPath:
                 preview_pdf_path="/definitely/not/a/real/file.pdf",
             )
 
+    def test_preview_filename_without_path_raises(self, sample_pptx: str) -> None:
+        """Passing ``preview_pdf_filename`` without ``preview_pdf_path``
+        would register a phantom preview on the Content row but never
+        upload any bytes (because the PUT is gated on the path). Treat
+        the inconsistent argument combo as a programmer mistake and
+        refuse before touching the network."""
+        with pytest.raises(ValueError, match="preview_pdf_filename"):
+            file_io.upload_file(
+                userId="user-1",
+                companyId="company-1",
+                path_to_file=sample_pptx,
+                displayed_filename="deck.pptx",
+                mime_type=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "presentationml.presentation"
+                ),
+                chat_id="chat-1",
+                preview_pdf_filename="orphan.pdf",
+            )
+
 
 class TestDerivePreviewPdfFilename:
     @pytest.mark.parametrize(
