@@ -1,6 +1,6 @@
 [project]
 name = "unique_web_search"
-version = "2026.20.0.dev4"
+version = "2026.20.0"
 description = ""
 readme = "README.md"
 requires-python = ">=3.12,<4.0"

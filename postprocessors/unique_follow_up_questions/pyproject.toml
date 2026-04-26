@@ -1,6 +1,6 @@
 [project]
 name = "unique_follow_up_questions"
-version = "2026.20.0.dev3"
+version = "2026.20.0"
 description = ""
 authors = [
     { name = "Martin Fadler", email = "martin.fadler@unique.ch" },
