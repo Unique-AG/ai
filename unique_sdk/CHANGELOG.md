@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.0.dev4] - 2026-04-26
+- `utils.file_io.upload_file`: derive the preview-PDF blob name from the upserted content id (`f"{content.id}_pdfPreview"`) instead of the user-supplied `displayed_filename`. The flow is now a two-upsert handshake — first upsert without `previewPdfFileName` to mint the content id, PUT the original blob, then a finalize upsert that registers `previewPdfFileName` and mints `pdfPreviewWriteUrl`, which the SDK PUTs the PDF bytes to. Matches the `${content.id}_pdfPreview` naming convention used by node-ingestion's `pdf-preview-converter` so blob names line up across all clients
+- Remove the `preview_pdf_filename` override kwarg from `upload_file`: blob naming is the SDK's responsibility now (no caller-supplied overrides) so every client lands on the same content-id-derived key. Two `report.pptx` uploads in the same company no longer race on the preview blob
+- Tests: rewrite `test_file_io_preview_pdf.py` to pin the new contract — first upsert MUST omit `previewPdfFileName`, finalize upsert MUST carry `f"{content.id}_pdfPreview"`, and the preview PUT targets the SAS URL minted by the finalize response (not the first one)
+
 ## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v0.11.12...unique-sdk-v2026.18.0) (2026-04-23)
 
 
