@@ -1,6 +1,6 @@
 [project]
 name = "unique_follow_up_questions"
-version = "2026.20.0.dev3"
+version = "2026.20.0"
 description = ""
 authors = [
     { name = "Martin Fadler", email = "martin.fadler@unique.ch" },
@@ -14,7 +14,7 @@ requires-python = ">=3.12,<4"
 dependencies = [
     "pydantic>=2.8.2",
     "jinja2>=3.1.6",
-    "unique-toolkit>=2026.20.0.dev5",
+    "unique-toolkit>=2026.20.0",
 ]
 
 [dependency-groups]

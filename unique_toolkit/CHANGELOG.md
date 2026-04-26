@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.20.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.18.0...unique-toolkit-v2026.20.0) (2026-04-26)
+
+
+### Features
+
+* **code_interpreter:** Add option to specify files that will be always available for code execution ([#1504](https://github.com/Unique-AG/ai/issues/1504)) ([f6e17fe](https://github.com/Unique-AG/ai/commit/f6e17fea86221097dcb88b9e5eaf03c3fda96ce7))
+* **unique-toolkit:** Adding gpt 5.5 to LLM infos ([#1529](https://github.com/Unique-AG/ai/issues/1529)) ([85d0833](https://github.com/Unique-AG/ai/commit/85d0833a70a959e41fd30a6ae9b7589a1eb06fdc))
+
+
+### Bug Fixes
+
+* **toolkit:** correct "Unkown" typo to "Unknown" in two strings ([#1521](https://github.com/Unique-AG/ai/issues/1521)) ([9a1092b](https://github.com/Unique-AG/ai/commit/9a1092b452cad91b19ab8baf9568b834107bec39))
+
+
+### Miscellaneous
+
+* arm release 2026.20.0 ([#1506](https://github.com/Unique-AG/ai/issues/1506)) ([0820dc9](https://github.com/Unique-AG/ai/commit/0820dc9a1c661470c2ef44ed2eed6830b508ca8d))
+
 ## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v1.82.0...unique-toolkit-v2026.18.0) (2026-04-23)
 
 
