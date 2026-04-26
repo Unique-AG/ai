@@ -2,12 +2,21 @@ import asyncio
 import os
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import requests
 
 import unique_sdk
 from unique_sdk.api_resources._content import Content
+
+
+class _PreviewKwargs(TypedDict, total=False):
+    """Subset of ``Content.UpsertParams`` that we conditionally forward
+    to ``upsert``. Typing it as a ``total=False`` TypedDict lets us
+    expand ``**preview_kwargs`` without basedpyright assuming the dict
+    could collide with non-string params like ``headers``."""
+
+    previewPdfFileName: str
 
 
 # download readUrl a random directory in /tmp
@@ -136,6 +145,15 @@ def upload_file(
         if preview_pdf_path is not None
         else None
     )
+    # Only forward ``previewPdfFileName`` when we actually have one.
+    # Sending ``None`` would serialize as ``"previewPdfFileName": null``,
+    # which the server treats as a clearing operation and would erase
+    # an existing preview on a re-upload that doesn't ship one.
+    preview_kwargs: _PreviewKwargs = (
+        {"previewPdfFileName": resolved_preview_filename}
+        if resolved_preview_filename is not None
+        else {}
+    )
 
     createdContent = Content.upsert(
         user_id=userId,
@@ -150,7 +168,7 @@ def upload_file(
         },
         scopeId=scope_or_unique_path,
         chatId=chat_id,
-        previewPdfFileName=resolved_preview_filename,
+        **preview_kwargs,
     )
 
     uploadUrl = createdContent.writeUrl
@@ -174,7 +192,11 @@ def upload_file(
     # (the server only mints it when previewPdfFileName is set, so a
     # missing URL signals a server-side regression).
     if preview_pdf_path is not None:
-        preview_write_url = createdContent.pdfPreviewWriteUrl
+        # ``getattr`` so an older gateway that omits the field falls
+        # through to the RuntimeError below instead of raising the
+        # opaque ``AttributeError`` that ``UniqueObject.__getattr__``
+        # produces on a missing key.
+        preview_write_url = getattr(createdContent, "pdfPreviewWriteUrl", None)
         if not preview_write_url:
             raise RuntimeError(
                 "preview_pdf_path was provided but the upsert response carries "
@@ -199,7 +221,7 @@ def upload_file(
             },
             fileUrl=createdContent.readUrl,
             chatId=chat_id,
-            previewPdfFileName=resolved_preview_filename,
+            **preview_kwargs,
         )
     else:
         unique_sdk.Content.upsert(
@@ -216,7 +238,7 @@ def upload_file(
             },
             fileUrl=createdContent.readUrl,
             scopeId=scope_or_unique_path,
-            previewPdfFileName=resolved_preview_filename,
+            **preview_kwargs,
         )
 
     return createdContent

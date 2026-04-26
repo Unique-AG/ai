@@ -84,8 +84,12 @@ class TestUploadFilePreviewPdfPath:
                 chat_id="chat-1",
             )
 
+        # Key must be *absent* (not present-as-None): an explicit
+        # ``"previewPdfFileName": null`` in the JSON body would tell
+        # the server to clear an existing preview, silently regressing
+        # callers who re-upload content that already has one.
         for call in upsert_calls:
-            assert call.get("previewPdfFileName") is None
+            assert "previewPdfFileName" not in call
         # Only one PUT — for the original blob; no preview PUT.
         assert put_mock.call_count == 1
         original_put = put_mock.call_args_list[0]
@@ -187,6 +191,48 @@ class TestUploadFilePreviewPdfPath:
         response is missing the URL, the server is misconfigured —
         surface the error instead of silently dropping the preview."""
         created = _fake_created_content(pdfPreviewWriteUrl=None)
+
+        with (
+            patch.object(file_io.Content, "upsert", return_value=created),
+            patch.object(file_io.unique_sdk.Content, "upsert", return_value=created),
+            patch.object(
+                file_io.requests,
+                "put",
+                MagicMock(return_value=MagicMock(status_code=200)),
+            ),
+            pytest.raises(RuntimeError, match="pdfPreviewWriteUrl"),
+        ):
+            file_io.upload_file(
+                userId="user-1",
+                companyId="company-1",
+                path_to_file=sample_pptx,
+                displayed_filename="deck.pptx",
+                mime_type=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "presentationml.presentation"
+                ),
+                chat_id="chat-1",
+                preview_pdf_path=sample_pdf,
+            )
+
+    def test_absent_preview_write_url_attribute_raises_runtime_error(
+        self, sample_pptx: str, sample_pdf: str
+    ) -> None:
+        """An older gateway may omit ``pdfPreviewWriteUrl`` entirely
+        from the upsert response. ``UniqueObject.__getattr__`` would
+        normally surface that as ``AttributeError``, which would skip
+        the descriptive ``RuntimeError`` guard. We must still surface
+        the same actionable error so callers can diagnose a stale
+        gateway without reading a traceback into ``__getattr__``."""
+
+        class _ResponseWithoutPreviewUrl:
+            writeUrl = "https://blob.example/write-original?sig=1"
+            readUrl = "https://blob.example/read-original?sig=1"
+
+            def __getattr__(self, name: str) -> Any:  # mimic UniqueObject
+                raise AttributeError(name)
+
+        created = _ResponseWithoutPreviewUrl()
 
         with (
             patch.object(file_io.Content, "upsert", return_value=created),
