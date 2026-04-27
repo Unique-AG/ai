@@ -39,7 +39,9 @@ docs = [
     "mkdocs-include-markdown-plugin>=7.1.8",
     "mkdocs-callouts>=1.16.0",
     "mkdocstrings-python>=1.16.10",
-    "entangled-cli>=2.1.13",
+    # mkdocs-entangled-plugin 0.6.0 still calls entangled.config.read_config()
+    # without the filesystem argument added in entangled-cli 2.4.2.
+    "entangled-cli>=2.4,<2.4.2",
     "mkdocs-entangled-plugin>=0.4.0",
     "mkdocs-codeinclude-plugin>=0.2.1",
     "mkdocs-include-dir-to-nav>=1.2.0",

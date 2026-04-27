@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-13T17:25:44.571545Z"
+exclude-newer = "2026-04-13T17:26:19.453251Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -94,8 +94,7 @@ dev = [
     { name = "ruff" },
 ]
 docs = [
-    { name = "entangled-cli", version = "2.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "entangled-cli", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
+    { name = "entangled-cli" },
     { name = "mike" },
     { name = "mkdocs" },
     { name = "mkdocs-callouts" },
@@ -133,7 +132,7 @@ dev = [
     { name = "ruff", specifier = ">=0.14.2" },
 ]
 docs = [
-    { name = "entangled-cli", specifier = ">=2.1.13" },
+    { name = "entangled-cli", specifier = ">=2.4,<2.4.2" },
     { name = "mike", specifier = ">=2.1.3" },
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-callouts", specifier = ">=1.16.0" },
@@ -1156,58 +1155,27 @@ wheels = [
 name = "entangled-cli"
 version = "2.4.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.13'",
-]
 dependencies = [
-    { name = "argh", marker = "python_full_version < '3.13'" },
-    { name = "brei", marker = "python_full_version < '3.13'" },
-    { name = "click", marker = "python_full_version < '3.13'" },
-    { name = "copier", marker = "python_full_version < '3.13'" },
-    { name = "filelock", marker = "python_full_version < '3.13'" },
-    { name = "mawk", marker = "python_full_version < '3.13'" },
-    { name = "msgspec", marker = "python_full_version < '3.13'" },
-    { name = "pexpect", marker = "python_full_version < '3.13'" },
-    { name = "pyyaml", marker = "python_full_version < '3.13'" },
-    { name = "repl-session", marker = "python_full_version < '3.13'" },
-    { name = "rich", marker = "python_full_version < '3.13'" },
-    { name = "rich-argparse", marker = "python_full_version < '3.13'" },
-    { name = "rich-click", marker = "python_full_version < '3.13'" },
-    { name = "tomlkit", marker = "python_full_version < '3.13'" },
-    { name = "typeguard", marker = "python_full_version < '3.13'" },
-    { name = "watchdog", marker = "python_full_version < '3.13'" },
+    { name = "argh" },
+    { name = "brei" },
+    { name = "click" },
+    { name = "copier" },
+    { name = "filelock" },
+    { name = "mawk" },
+    { name = "msgspec" },
+    { name = "pexpect" },
+    { name = "pyyaml" },
+    { name = "repl-session" },
+    { name = "rich" },
+    { name = "rich-argparse" },
+    { name = "rich-click" },
+    { name = "tomlkit" },
+    { name = "typeguard" },
+    { name = "watchdog" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f1/00/4f0325f849869ab5490cc62d63186dde8d52fb40f9f0103fb39c53dee218/entangled_cli-2.4.0.tar.gz", hash = "sha256:62518756ddb08b2e3242c873310961f534b377bcc04df72910c2b7e3865540d0", size = 45026, upload-time = "2025-11-25T11:33:13.447Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/de/3e/c73e72157fb7a705c1e710266d487a4dac9615a89767d1bd1f598b7734e4/entangled_cli-2.4.0-py3-none-any.whl", hash = "sha256:e9cd8c22d32a9a219c4f51337e157c5acff05fd59ebe77239588c813b115901c", size = 67223, upload-time = "2025-11-25T11:33:12.258Z" },
-]
-
-[[package]]
-name = "entangled-cli"
-version = "2.4.2"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14'",
-    "python_full_version == '3.13.*'",
-]
-dependencies = [
-    { name = "brei", marker = "python_full_version >= '3.13'" },
-    { name = "click", marker = "python_full_version >= '3.13'" },
-    { name = "copier", marker = "python_full_version >= '3.13'" },
-    { name = "filelock", marker = "python_full_version >= '3.13'" },
-    { name = "msgspec", marker = "python_full_version >= '3.13'" },
-    { name = "pyyaml", marker = "python_full_version >= '3.13'" },
-    { name = "repl-session", marker = "python_full_version >= '3.13'" },
-    { name = "rich", marker = "python_full_version >= '3.13'" },
-    { name = "rich-argparse", marker = "python_full_version >= '3.13'" },
-    { name = "rich-click", marker = "python_full_version >= '3.13'" },
-    { name = "tomlkit", marker = "python_full_version >= '3.13'" },
-    { name = "typeguard", marker = "python_full_version >= '3.13'" },
-    { name = "watchfiles", marker = "python_full_version >= '3.13'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/d2/01/5de54d9fb5efc1ca177d9a2cb144c03f9469a7645c2a7cbbc27cb0f18c2d/entangled_cli-2.4.2.tar.gz", hash = "sha256:d147d9b7d8ea24ac9a1407819e12ae6a377fa3368bdc955cf08126378c0c56bd", size = 45590, upload-time = "2026-01-15T16:34:19.323Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7e/05/58e525fd25760e7161d9c2467b9195a12621efd6ff8dc0f25b08d946cc57/entangled_cli-2.4.2-py3-none-any.whl", hash = "sha256:3a682ccc4e143ecbfd2821e2b5b13f39828facb1081431cf37770d5e1cfa1850", size = 67980, upload-time = "2026-01-15T16:34:18.384Z" },
 ]
 
 [[package]]
@@ -2883,8 +2851,7 @@ name = "mkdocs-entangled-plugin"
 version = "0.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "entangled-cli", version = "2.4.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.13'" },
-    { name = "entangled-cli", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.13'" },
+    { name = "entangled-cli" },
     { name = "mawk" },
     { name = "mkdocs" },
 ]

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from unique_toolkit.experimental.content_tree import ContentTree
+from unique_toolkit.experimental.components.content_tree import ContentTree
 # ~/~ end
 
 
