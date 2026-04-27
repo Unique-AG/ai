@@ -101,6 +101,7 @@ from unique_sdk.api_resources._benchmarking import (
     Benchmarking as Benchmarking,
 )
 from unique_sdk.api_resources._scheduled_task import ScheduledTask as ScheduledTask
+from unique_sdk.api_resources._module import Module as Module
 
 # Unique QL
 from unique_sdk._unique_ql import UQLOperator as UQLOperator
