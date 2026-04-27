@@ -1,4 +1,6 @@
+import asyncio
 import logging
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, Sequence, overload
 
 import unique_sdk
@@ -1740,59 +1742,152 @@ class ChatService(ChatServiceDeprecated):
         reasoning: Reasoning | None = None,
         other_options: dict[str, Any] | None = None,
     ) -> ResponsesLanguageModelStreamResponse:
+        from unique_toolkit.agentic.message_log_manager.service import _request_counters
+
+        # Single-element box so nested callbacks and finally see assignments (pyright).
+        rate_limit_log_box: list[MessageLog | None] = [None]
+        _ticker_task: asyncio.Task[None] | None = None
+
+        async def _cancel_ticker() -> None:
+            nonlocal _ticker_task
+            if _ticker_task is not None and not _ticker_task.done():
+                _ = _ticker_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await _ticker_task
+            _ticker_task = None
+
         async def _on_rate_limit_retry(attempt: int, wait_secs: float) -> None:
+            nonlocal _ticker_task
+
             if not rate_limit_retry_config.log_message_on_retry:
                 return
             if not feature_flags.enable_new_answers_ui_un_14411.is_enabled(
                 self._company_id
             ):
                 return
-            from unique_toolkit.agentic.message_log_manager.service import (
-                _request_counters,
-            )
+
+            await _cancel_ticker()
 
             msg_id = self._assistant_message_id
-            _request_counters[msg_id] += 1
-            order = _request_counters[msg_id]
+            initial = (
+                f"Rate limit reached; retrying in {wait_secs:.0f}s (attempt {attempt})"
+            )
+
             try:
-                await self.create_message_log_async(
-                    message_id=msg_id,
-                    text=f"Rate limit reached; retrying in {wait_secs:.0f}s (attempt {attempt})",
-                    status=MessageLogStatus.RUNNING,
-                    order=order,
-                )
+                if rate_limit_log_box[0] is None:
+                    _request_counters[msg_id] += 1
+                    order = _request_counters[msg_id]
+                    rate_limit_log_box[0] = await self.create_message_log_async(
+                        message_id=msg_id,
+                        text=initial,
+                        status=MessageLogStatus.RUNNING,
+                        order=order,
+                    )
+                else:
+                    existing = rate_limit_log_box[0]
+                    if existing.message_log_id is None:
+                        return
+                    rate_limit_log_box[0] = await self.update_message_log_async(
+                        message_log_id=existing.message_log_id,
+                        order=existing.order,
+                        text=initial,
+                        status=MessageLogStatus.RUNNING,
+                    )
             except Exception:
                 _LOGGER.warning(
                     "Failed to write rate-limit retry message log",
                     exc_info=True,
                 )
+                return
 
-        return await stream_responses_with_references_async(
-            company_id=self._company_id,
-            user_id=self._user_id,
-            assistant_message_id=self._assistant_message_id,
-            user_message_id=self._user_message_id,
-            chat_id=self._chat_id,
-            assistant_id=self._assistant_id,
-            model_name=model_name,
-            messages=messages,
-            content_chunks=content_chunks,
-            tools=tools,
-            temperature=temperature,
-            debug_info=debug_info,
-            start_text=start_text,
-            include=include,
-            instructions=instructions,
-            max_output_tokens=max_output_tokens,
-            metadata=metadata,
-            parallel_tool_calls=parallel_tool_calls,
-            text=text,
-            tool_choice=tool_choice,
-            top_p=top_p,
-            reasoning=reasoning,
-            other_options=other_options,
-            on_rate_limit_retry=_on_rate_limit_retry,
-        )
+            active = rate_limit_log_box[0]
+            if active.message_log_id is None:
+                return
+
+            log_id = active.message_log_id
+            log_order = active.order
+
+            async def _countdown() -> None:
+                remaining = int(wait_secs)
+                while remaining > 0:
+                    await asyncio.sleep(1)
+                    remaining -= 1
+                    if remaining <= 0:
+                        break
+                    try:
+                        _ = await self.update_message_log_async(
+                            message_log_id=log_id,
+                            order=log_order,
+                            text=(
+                                f"Rate limit reached; retrying in {remaining}s "
+                                f"(attempt {attempt})"
+                            ),
+                            status=MessageLogStatus.RUNNING,
+                        )
+                    except Exception:
+                        _LOGGER.debug(
+                            "Rate limit countdown message log update failed",
+                            exc_info=True,
+                        )
+                        break
+
+            _ticker_task = asyncio.create_task(_countdown())
+
+        stream_error: BaseException | None = None
+        try:
+            return await stream_responses_with_references_async(
+                company_id=self._company_id,
+                user_id=self._user_id,
+                assistant_message_id=self._assistant_message_id,
+                user_message_id=self._user_message_id,
+                chat_id=self._chat_id,
+                assistant_id=self._assistant_id,
+                model_name=model_name,
+                messages=messages,
+                content_chunks=content_chunks,
+                tools=tools,
+                temperature=temperature,
+                debug_info=debug_info,
+                start_text=start_text,
+                include=include,
+                instructions=instructions,
+                max_output_tokens=max_output_tokens,
+                metadata=metadata,
+                parallel_tool_calls=parallel_tool_calls,
+                text=text,
+                tool_choice=tool_choice,
+                top_p=top_p,
+                reasoning=reasoning,
+                other_options=other_options,
+                on_rate_limit_retry=_on_rate_limit_retry,
+            )
+        except BaseException as exc:
+            stream_error = exc
+            raise
+        finally:
+            await _cancel_ticker()
+            fin = rate_limit_log_box[0]
+            if fin is not None and fin.message_log_id is not None:
+                try:
+                    if stream_error is None:
+                        _ = await self.update_message_log_async(
+                            message_log_id=fin.message_log_id,
+                            order=fin.order,
+                            text="Rate limit resolved; resuming.",
+                            status=MessageLogStatus.COMPLETED,
+                        )
+                    else:
+                        _ = await self.update_message_log_async(
+                            message_log_id=fin.message_log_id,
+                            order=fin.order,
+                            text="Rate limit retries exhausted.",
+                            status=MessageLogStatus.FAILED,
+                        )
+                except Exception:
+                    _LOGGER.warning(
+                        "Failed to finalize rate-limit message log",
+                        exc_info=True,
+                    )
 
     # Chat Content Methods
     ############################################################################
