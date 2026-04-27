@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.18.3](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.18.2...unique-toolkit-v2026.18.3) (2026-04-27)
+
+
+### Features
+
+* **unique-toolkit:** adding gpt 5.5 to llm infos ([#1534](https://github.com/Unique-AG/ai/issues/1534)) ([c91f0a9](https://github.com/Unique-AG/ai/commit/c91f0a9205c1e02be048b6b40f2e86fdbdd70f68))
+
 ## [2026.18.2](https://github.com/Unique-AG/ai/compare/unique-toolkit-v2026.18.1...unique-toolkit-v2026.18.2) (2026-04-24)
 
 
