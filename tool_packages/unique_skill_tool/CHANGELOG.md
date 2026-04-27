@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.19.0](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.18.2...unique-skill-tool-v2026.19.0) (2026-04-27)
+
+
+### Miscellaneous
+
+* **unique-skill-tool:** Synchronize ai versions
+
 ## [2026.18.2](https://github.com/Unique-AG/ai/compare/unique-skill-tool-v2026.18.1...unique-skill-tool-v2026.18.2) (2026-04-24)
 
 
