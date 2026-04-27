@@ -29,9 +29,9 @@ or ``resolve-rc-versions.py``:
   * Dev publish (``resolve-dev-versions.py``) emits ``>=<version>`` pins;
     siblings drift forward independently and ``pip install -U`` upgrades
     siblings that were not republished.
-  * RC publish (``resolve-rc-versions.py``) emits ``==<version>`` pins,
-    because every publishable package is republished at the same
-    ``{cycle}.0rcN`` for a fully reproducible cut.
+  * RC publish (``resolve-rc-versions.py``) emits ``>=<version>`` pins,
+    floored at the shared ``{cycle}.0rcN`` so customers can upgrade
+    freely to later rcs or the final stable.
 
 Non-AI dependencies are left untouched. ``project.name`` and ``[tool.*]``
 tables are never touched. Formatting and comments in the TOML file are
@@ -58,7 +58,7 @@ _REQ_RE = re.compile(r"^\s*([A-Za-z0-9_.\-]+)(\[[^\]]*\])?\s*(.*)$")
 _VERSION_RE = re.compile(r"^\d{4}\.\d{2}\.\d+(\.dev\d+|rc\d+)$")
 # Dep pins come from one of the two resolvers:
 #   >=<version>   from resolve-dev-versions.py (siblings drift forward)
-#   ==<version>   from resolve-rc-versions.py  (reproducible rc cut)
+#   >=<version>   from resolve-rc-versions.py  (floored at the rc cut)
 # Versions may be CalVer with a ``.devN``/``rcN`` suffix, or legacy
 # pre-CalVer dotted numerics (e.g. "0.3.3") for last-stable fallbacks.
 _PIN_RE = re.compile(r"^(>=|==)\d+(\.\d+)*(\.dev\d+|rc\d+)?$")

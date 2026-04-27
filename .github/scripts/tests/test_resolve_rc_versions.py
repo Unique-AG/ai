@@ -124,15 +124,15 @@ class ResolveTests(unittest.TestCase):
         self.assertEqual(new_versions["toolkit"], "2026.20.0rc1")
         self.assertEqual(new_versions["sdk"], "2026.20.0rc1")
         self.assertEqual(new_versions["mcp"], "2026.20.0rc1")
-        # And every sibling dep is pinned with ``==`` to that same version.
-        self.assertEqual(dep_pins["unique-toolkit"], "==2026.20.0rc1")
-        self.assertEqual(dep_pins["unique-sdk"], "==2026.20.0rc1")
-        self.assertEqual(dep_pins["unique-mcp"], "==2026.20.0rc1")
+        # And every sibling dep is floored at that rc version.
+        self.assertEqual(dep_pins["unique-toolkit"], ">=2026.20.0rc1")
+        self.assertEqual(dep_pins["unique-sdk"], ">=2026.20.0rc1")
+        self.assertEqual(dep_pins["unique-mcp"], ">=2026.20.0rc1")
 
     def test_global_max_drives_shared_counter(self) -> None:
         # Different packages are at different rc counters on PyPI; the
         # next cut must use ``max + 1`` shared across the full set so
-        # ``==`` pins still resolve to one concrete release.
+        # all siblings are floored at the same rc.
         new_versions, dep_pins, rc_n = self._resolve(
             pypi={
                 "unique_toolkit": ["2026.20.0rc1", "2026.20.0rc2"],
@@ -144,7 +144,7 @@ class ResolveTests(unittest.TestCase):
         for pid in ("toolkit", "sdk", "mcp"):
             self.assertEqual(new_versions[pid], "2026.20.0rc5")
         for name in ("unique-toolkit", "unique-sdk", "unique-mcp"):
-            self.assertEqual(dep_pins[name], "==2026.20.0rc5")
+            self.assertEqual(dep_pins[name], ">=2026.20.0rc5")
 
     def test_publishable_without_rc_history_still_gets_shared_counter(self) -> None:
         # A brand-new package never published to PyPI must still land at
@@ -159,7 +159,7 @@ class ResolveTests(unittest.TestCase):
         )
         self.assertEqual(rc_n, 4)
         self.assertEqual(new_versions["sdk"], "2026.20.0rc4")
-        self.assertEqual(dep_pins["unique-sdk"], "==2026.20.0rc4")
+        self.assertEqual(dep_pins["unique-sdk"], ">=2026.20.0rc4")
 
     def test_pep503_normalization(self) -> None:
         # ``unique_toolkit`` and ``unique-mcp`` must both land under
@@ -202,7 +202,7 @@ class MainOutputFilesTests(unittest.TestCase):
             def fake_resolve(**_):
                 return (
                     {"toolkit": "2026.20.0rc1"},
-                    {"unique-toolkit": "==2026.20.0rc1"},
+                    {"unique-toolkit": ">=2026.20.0rc1"},
                     1,
                 )
 
