@@ -5,7 +5,8 @@ Covers:
 - _on_rate_limit_retry updates the same entry on subsequent hits (no new line)
 - Countdown ticker writes decremented seconds to the log
 - finally marks the log COMPLETED when the stream succeeds
-- finally marks the log FAILED when all retries are exhausted
+- finally marks the log FAILED when the stream raises after a rate-limit log was created
+- no log when the stream errors before any on_rate_limit_retry callback runs
 - Feature-flag guard: no log written when flag is off
 - Config guard: no log written when log_message_on_retry is False
 """
@@ -299,23 +300,19 @@ async def test_rate_limit_ux__marks_log_completed_on_success(
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_rate_limit_ux__marks_log_failed_on_stream_error(
+async def test_rate_limit_ux__no_log_when_stream_fails_before_rate_limit_callback(
     chat_service: ChatService,
 ) -> None:
     """
-    Purpose: Verify the rate-limit log is marked FAILED when the stream raises.
-    Why this matters: Exhausted retries should show a clear failure state, not a stale 'retrying' message.
-    Setup summary: Trigger one retry, then let stream raise; assert final update status is FAILED.
+    Purpose: If the stream fails before tenacity invokes on_rate_limit_retry, no message log exists.
+    Why this matters: The callback is only wired from the rate-limit retry path; unrelated
+    stream errors must not leave stray log rows.
+    Setup summary: fake_stream raises immediately; assert create_message_log_async is never called.
     """
-    created_log = _make_log()
-    create_mock = AsyncMock(return_value=created_log)
-    update_mock = AsyncMock(return_value=created_log)
-
-    captured_callback = None
+    create_mock = AsyncMock()
+    update_mock = AsyncMock()
 
     async def fake_stream(**kwargs):
-        nonlocal captured_callback
-        captured_callback = kwargs.get("on_rate_limit_retry")
         raise RuntimeError("rate limit exhausted")
 
     with (
@@ -335,39 +332,35 @@ async def test_rate_limit_ux__marks_log_failed_on_stream_error(
                 messages="hello",
             )
         )
-        await asyncio.sleep(0)
-        # Stream raises before callback fires here — just let it propagate
         with pytest.raises(RuntimeError, match="rate limit exhausted"):
             await task
 
-    # No rate-limit log was written (callback never called), so no update expected
-    update_mock.assert_not_awaited()
     create_mock.assert_not_awaited()
+    update_mock.assert_not_awaited()
 
 
 @pytest.mark.ai
 @pytest.mark.asyncio
-async def test_rate_limit_ux__marks_log_failed_after_retry_exhausted(
+async def test_rate_limit_ux__marks_log_failed_when_stream_raises_after_callback(
     chat_service: ChatService,
 ) -> None:
     """
-    Purpose: Verify FAILED status when retry fires then stream raises.
-    Why this matters: The user should see 'retries exhausted' not a hanging 'retrying' entry.
-    Setup summary: Trigger retry callback then let stream raise; assert FAILED in final update.
+    Purpose: When a rate-limit message log was created and the stream then raises, finally marks FAILED.
+    Why this matters: The user should see 'retries exhausted' instead of a stuck RUNNING row.
+    Setup summary: Gate fake_stream with an event; invoke the retry callback (creates log),
+    then release the stream so it raises; assert the last update_message_log_async call is FAILED.
     """
     created_log = _make_log()
     create_mock = AsyncMock(return_value=created_log)
     update_mock = AsyncMock(return_value=created_log)
-
+    proceed_event = asyncio.Event()
     captured_callback = None
-    stream_should_raise = False
 
     async def fake_stream(**kwargs):
         nonlocal captured_callback
         captured_callback = kwargs.get("on_rate_limit_retry")
-        if stream_should_raise:
-            raise RuntimeError("exhausted")
-        return MagicMock()
+        await proceed_event.wait()
+        raise RuntimeError("stream failed after rate limit UX")
 
     with (
         patch(f"{_MODULE}.stream_responses_with_references_async", fake_stream),
@@ -380,7 +373,6 @@ async def test_rate_limit_ux__marks_log_failed_after_retry_exhausted(
         cfg.max_attempts = 2
         cfg.initial_delay_seconds = 30.0
 
-        # First run: succeed but trigger callback so log is created
         task = asyncio.create_task(
             chat_service.complete_responses_with_references_async(
                 model_name="gpt-4o",
@@ -388,29 +380,17 @@ async def test_rate_limit_ux__marks_log_failed_after_retry_exhausted(
             )
         )
         await asyncio.sleep(0)
+        assert captured_callback is not None
         await captured_callback(1, 30.0)
-        await task
+        proceed_event.set()
+        with pytest.raises(RuntimeError, match="stream failed after rate limit UX"):
+            await task
 
-        # Reset mocks; now make stream raise AFTER callback fires
-        create_mock.reset_mock()
-        update_mock.reset_mock()
-        captured_callback = None
-        stream_should_raise = True
-
-        # Second run: callback fires → log created → stream raises → finally FAILED
-        task2 = asyncio.create_task(
-            chat_service.complete_responses_with_references_async(
-                model_name="gpt-4o",
-                messages="hello",
-            )
-        )
-        # Drive the event loop: fake_stream captures callback synchronously
-        await asyncio.sleep(0)
-
-        # For this test the stream raises before we can call callback,
-        # so use a wrapping approach: patch fake_stream to call callback then raise
-        with pytest.raises(RuntimeError):
-            await task2
+    create_mock.assert_awaited_once()
+    assert update_mock.await_count >= 1
+    final_kwargs = update_mock.call_args_list[-1].kwargs
+    assert final_kwargs["status"] == MessageLogStatus.FAILED
+    assert "exhausted" in final_kwargs["text"].lower()
 
 
 @pytest.mark.ai
