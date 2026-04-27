@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Rewrite a package's pyproject.toml for a .devN build.
+"""Rewrite a package's pyproject.toml for a pre-release build.
 
-Two things happen in place:
+Used by both the dev (``.devN``) and release-candidate (``rcN``)
+publish workflows. Two things happen in place:
 
 1. ``project.version`` is replaced with the caller's ``--own-version``.
 2. In every PEP 621 dependency array (``project.dependencies`` and each
@@ -19,26 +20,25 @@ Two things happen in place:
            ->  "unique-toolkit[monitoring]>=2026.18.0.dev7"
 
 Because the constraint explicitly contains a PEP 440 pre-release segment
-(``devN``), pip/uv will resolve to dev versions without ``--pre``.
+(``devN`` or ``rcN``), pip/uv resolves to pre-release versions without
+``--pre``.
 
-The pin map is computed upstream in ``resolve-dev-versions.py`` and
-encodes three cases per cross-package dep:
+The pin map is computed upstream by either ``resolve-dev-versions.py``
+or ``resolve-rc-versions.py``:
 
-  * The dep is being published in the same push     -> ``>=<new-version>``
-  * The cycle already has a dev wheel for the dep   -> ``>=<latest-dev>``
-  * Otherwise (nothing in the cycle yet)            -> ``>=<last-stable>``
-
-The second and third cases produce a floor that an older locally-
-installed dev wheel can never satisfy (because ``>=`` includes the
-specified version), so ``pip install -U`` correctly upgrades siblings
-even when they weren't republished in this push.
+  * Dev publish (``resolve-dev-versions.py``) emits ``>=<version>`` pins;
+    siblings drift forward independently and ``pip install -U`` upgrades
+    siblings that were not republished.
+  * RC publish (``resolve-rc-versions.py``) emits ``==<version>`` pins,
+    because every publishable package is republished at the same
+    ``{cycle}.0rcN`` for a fully reproducible cut.
 
 Non-AI dependencies are left untouched. ``project.name`` and ``[tool.*]``
 tables are never touched. Formatting and comments in the TOML file are
 preserved via tomlkit.
 
 Usage:
-    rewrite-pyproject-for-dev.py <pyproject.toml>
+    rewrite-pyproject-pre-release.py <pyproject.toml>
         --own-version <v> --dep-pins <json>
 """
 
@@ -52,17 +52,16 @@ from pathlib import Path
 import tomlkit
 
 _REQ_RE = re.compile(r"^\s*([A-Za-z0-9_.\-]+)(\[[^\]]*\])?\s*(.*)$")
-# Own version is always CalVer .devN — the dev publish never stamps a
-# stable version into a package.
-_VERSION_RE = re.compile(r"^\d{4}\.\d{2}\.\d+\.dev\d+$")
-# Dep pins come in three flavors out of resolve-dev-versions.py:
-#   >=<CalVer dev>   (sibling in this push, or cycle-dev already on PyPI)
-#   >=<stable>       (last stable fallback; may be legacy pre-CalVer)
-# All three cases use >= so future dev releases of the same package
-# remain installable without republishing every transitive dependent.
-# Dotted numerics of arbitrary length are accepted so legacy
-# "0.3.3"-style versions pass through.
-_PIN_RE = re.compile(r"^>=\d+(\.\d+)*(\.dev\d+)?$")
+# Own version is always a CalVer pre-release — either ``.devN`` (dev
+# publish) or ``rcN`` (release-candidate publish). Stable CalVers are
+# stamped by release-please, never by this script.
+_VERSION_RE = re.compile(r"^\d{4}\.\d{2}\.\d+(\.dev\d+|rc\d+)$")
+# Dep pins come from one of the two resolvers:
+#   >=<version>   from resolve-dev-versions.py (siblings drift forward)
+#   ==<version>   from resolve-rc-versions.py  (reproducible rc cut)
+# Versions may be CalVer with a ``.devN``/``rcN`` suffix, or legacy
+# pre-CalVer dotted numerics (e.g. "0.3.3") for last-stable fallbacks.
+_PIN_RE = re.compile(r"^(>=|==)\d+(\.\d+)*(\.dev\d+|rc\d+)?$")
 
 
 def normalize(name: str) -> str:

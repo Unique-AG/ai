@@ -1,8 +1,9 @@
-"""Unit tests for `.github/scripts/rewrite-pyproject-for-dev.py`.
+"""Unit tests for `.github/scripts/rewrite-pyproject-pre-release.py`.
 
 Verifies the in-place rewrite of ``project.version`` plus PEP 621
 dependency arrays (including optional-dependencies groups) against the
-dep-pin map produced by ``resolve-dev-versions.py``.
+dep-pin map produced by ``resolve-dev-versions.py`` or
+``resolve-rc-versions.py``.
 """
 
 from __future__ import annotations
@@ -15,19 +16,21 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SCRIPT = REPO_ROOT / ".github" / "scripts" / "rewrite-pyproject-for-dev.py"
+SCRIPT = REPO_ROOT / ".github" / "scripts" / "rewrite-pyproject-pre-release.py"
 
 
 def _load_module():
-    spec = importlib.util.spec_from_file_location("rewrite_pyproject_for_dev", SCRIPT)
+    spec = importlib.util.spec_from_file_location(
+        "rewrite_pyproject_pre_release", SCRIPT
+    )
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
-    sys.modules["rewrite_pyproject_for_dev"] = mod
+    sys.modules["rewrite_pyproject_pre_release"] = mod
     spec.loader.exec_module(mod)
     return mod
 
 
-rpd = _load_module()
+rppr = _load_module()
 
 
 SAMPLE_PYPROJECT = """\
@@ -57,7 +60,7 @@ class RewriteTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "pyproject.toml"
             path.write_text(SAMPLE_PYPROJECT)
-            rc = rpd.main(
+            rc = rppr.main(
                 [
                     str(path),
                     "--own-version",
@@ -122,7 +125,7 @@ class RewriteTests(unittest.TestCase):
             path = Path(td) / "pyproject.toml"
             path.write_text(SAMPLE_PYPROJECT)
             with self.assertRaises(SystemExit):
-                rpd.main(
+                rppr.main(
                     [
                         str(path),
                         "--own-version",
@@ -137,7 +140,7 @@ class RewriteTests(unittest.TestCase):
             path = Path(td) / "pyproject.toml"
             path.write_text(SAMPLE_PYPROJECT)
             with self.assertRaises(SystemExit):
-                rpd.main(
+                rppr.main(
                     [
                         str(path),
                         "--own-version",
@@ -147,22 +150,48 @@ class RewriteTests(unittest.TestCase):
                     ]
                 )
 
-    def test_rejects_non_dev_own_version(self) -> None:
-        # The rewriter is only ever invoked for dev publishes — stable
-        # CalVers are stamped by release-please, not by this script.
+    def test_rejects_non_pre_release_own_version(self) -> None:
+        # The rewriter is only ever invoked for pre-release publishes
+        # (.devN or rcN). Stable CalVers are stamped by release-please,
+        # not by this script.
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "pyproject.toml"
             path.write_text(SAMPLE_PYPROJECT)
             with self.assertRaises(SystemExit):
-                rpd.main(
+                rppr.main(
                     [
                         str(path),
                         "--own-version",
-                        "2026.18.0",  # stable, no .devN — must be rejected
+                        "2026.18.0",  # stable — must be rejected
                         "--dep-pins",
                         json.dumps({}),
                     ]
                 )
+
+    def test_accepts_rc_own_version_and_equality_pins(self) -> None:
+        # The rc publish path stamps {cycle}.0rcN versions and ``==`` pins
+        # so every package in the cut resolves to the same rc.
+        out = self._run(
+            {
+                "unique-sdk": "==2026.20.0rc1",
+                "unique-orchestrator": "==2026.20.0rc1",
+                "unique-mcp": "==2026.20.0rc1",
+            },
+            own_version="2026.20.0rc1",
+        )
+        self.assertIn('version = "2026.20.0rc1"', out)
+        self.assertIn('"unique-sdk==2026.20.0rc1"', out)
+        self.assertIn('"unique_orchestrator==2026.20.0rc1"', out)
+        self.assertIn('"unique-mcp[extra]==2026.20.0rc1"', out)
+
+    def test_accepts_higher_rc_number(self) -> None:
+        # rcN counter can grow without bound within a cycle.
+        out = self._run(
+            {"unique-sdk": "==2026.20.0rc7"},
+            own_version="2026.20.0rc7",
+        )
+        self.assertIn('version = "2026.20.0rc7"', out)
+        self.assertIn('"unique-sdk==2026.20.0rc7"', out)
 
 
 if __name__ == "__main__":
