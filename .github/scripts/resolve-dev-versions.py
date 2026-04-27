@@ -96,7 +96,21 @@ def resolve(
     publishable: list[dict],
     pypi_base_url: str,
     fetcher=_fetch_versions,
-) -> tuple[dict[str, str], dict[str, str]]:
+) -> tuple[dict[str, str], dict[str, str], dict[str, str], str]:
+    """Return (new_versions, dep_pins, all_current_versions, branch_suffix).
+
+    ``all_current_versions`` maps every publishable package id to its best
+    known version after this run:
+      - just published in this push  → the new devN version
+      - already has a dev in cycle   → the highest existing devN
+      - no dev in cycle yet          → the on-disk pyproject.toml version
+
+    ``branch_suffix`` is a compact string encoding the dev counters for all
+    packages that have a dev version in the current cycle, ordered by their
+    position in ``publishable``.  Example: ``tk-5-sdk-4-orch-3``.  It is
+    empty when no package has a dev version in this cycle (fresh cycle, no
+    publishes yet).
+    """
     if not _CYCLE_RE.match(cycle):
         raise SystemExit(f"invalid cycle: {cycle!r}")
 
@@ -107,19 +121,33 @@ def resolve(
 
     new_versions: dict[str, str] = {}
     dep_pins: dict[str, str] = {}
+    all_current_versions: dict[str, str] = {}
+    branch_parts: list[str] = []
+
     for pkg in publishable:
         pypi_name = pkg["pypi_name"]
         key = normalize(pypi_name)
         dev_n = highest_dev_in_cycle(pypi_name, cycle, pypi_base_url, fetcher=fetcher)
         if pkg["id"] in selected:
             next_n = 0 if dev_n is None else dev_n + 1
-            new_versions[pkg["id"]] = f"{cycle}.0.dev{next_n}"
-            dep_pins[key] = f">={new_versions[pkg['id']]}"
+            version = f"{cycle}.0.dev{next_n}"
+            new_versions[pkg["id"]] = version
+            dep_pins[key] = f">={version}"
+            all_current_versions[pkg["id"]] = version
+            if sh := pkg.get("shorthand"):
+                branch_parts.append(f"{sh}-{next_n}")
         elif dev_n is not None:
-            dep_pins[key] = f">={cycle}.0.dev{dev_n}"
+            version = f"{cycle}.0.dev{dev_n}"
+            dep_pins[key] = f">={version}"
+            all_current_versions[pkg["id"]] = version
+            if sh := pkg.get("shorthand"):
+                branch_parts.append(f"{sh}-{dev_n}")
         else:
-            dep_pins[key] = f">={read_pyproject_version(Path(pkg['dir']))}"
-    return new_versions, dep_pins
+            stable = read_pyproject_version(Path(pkg["dir"]))
+            dep_pins[key] = f">={stable}"
+            all_current_versions[pkg["id"]] = stable
+
+    return new_versions, dep_pins, all_current_versions, "-".join(branch_parts)
 
 
 def _load_publishable(config_path: Path) -> list[dict]:
@@ -145,7 +173,7 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("--selected-ids must be a JSON array of strings")
 
     publishable = _load_publishable(args.package_config)
-    new_versions, dep_pins = resolve(
+    new_versions, dep_pins, all_current_versions, branch_suffix = resolve(
         cycle=args.cycle,
         selected_ids=selected_ids,
         publishable=publishable,
@@ -160,6 +188,11 @@ def main(argv: list[str] | None = None) -> int:
     # `...}DELIM` on one line and GitHub reports "Matching delimiter not found".
     (out / "new_versions.json").write_text(json.dumps(new_versions, indent=2) + "\n")
     (out / "dep_pins.json").write_text(json.dumps(dep_pins, indent=2) + "\n")
+    (out / "all_current_versions.json").write_text(
+        json.dumps(all_current_versions, indent=2) + "\n"
+    )
+    # branch_suffix is a single-line value — no multiline delimiter needed.
+    (out / "branch_suffix.txt").write_text(branch_suffix + "\n")
 
     print("### Dev publish — version resolution\n")
     print(f"- Cycle: `{args.cycle}`")

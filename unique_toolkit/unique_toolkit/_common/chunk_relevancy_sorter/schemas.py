@@ -11,7 +11,7 @@ class ChunkRelevancy(BaseModel):
     relevancy: EvaluationMetricResult | None = None
 
     def get_document_name(self):
-        title = self.chunk.key or self.chunk.title or "Unkown"
+        title = self.chunk.key or self.chunk.title or "Unknown"
         return title.split(":")[0]
 
     def get_page_number(self):

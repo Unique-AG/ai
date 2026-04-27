@@ -10,8 +10,8 @@ dependencies = [
     "fastmcp>=3.1.1,<4",
     "psycopg2-binary>=2.9.11",
     "pydantic>=2.12.3",
-    "unique-mcp>=0.2.0",
-    "unique-toolkit>=1.61.0",
+    "unique-mcp>=2026.18.0",
+    "unique-toolkit>=2026.18.0",
 ]
 
 [tool.uv.sources]

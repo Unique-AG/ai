@@ -7,9 +7,9 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "python-dotenv>=1.0.1",
-    "unique-sdk>=0.9.4",
+    "unique-sdk>=2026.18.0",
     "gunicorn>=22.0.0",
-    "unique-toolkit>=0.6.8",
+    "unique-toolkit>=2026.18.0",
     "pydantic-settings>=2.8.1",
     "sseclient>=0.0.27",
     "backoff>=2.2.1",

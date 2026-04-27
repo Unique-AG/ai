@@ -9,7 +9,7 @@ dependencies = [
     "flask>=3.0.0",
     "langchain>=0.3.0",
     "langchain-community>=0.3.0",
-    "unique-sdk",
+    "unique-sdk>=2026.18.0",
     "requests>=2.32.4",
 ]
 

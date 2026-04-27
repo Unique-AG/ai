@@ -31,6 +31,16 @@ class Content(APIResource["Content"]):
     expiredAt: str | None
     appliedIngestionConfig: dict[str, Any] | None
     mimeType: str | None
+    # Optional preview PDF blob registered against this content. When the
+    # caller passes ``previewPdfFileName`` to :meth:`upsert` (or to
+    # :func:`unique_sdk.utils.file_io.upload_file` via ``preview_pdf_path``),
+    # the platform stores the filename here and returns
+    # ``pdfPreviewWriteUrl`` so the PDF bytes can be uploaded directly to
+    # blob storage. The chat side panel resolves this filename to the
+    # ``/v1/content/{id}/preview-file`` endpoint when rendering Office /
+    # other formats whose in-browser preview is unreliable.
+    previewPdfFileName: str | None
+    pdfPreviewWriteUrl: str | None
 
     class QueryMode(Enum):
         Default = "default"
@@ -155,6 +165,11 @@ class Content(APIResource["Content"]):
         sourceOwnerType: NotRequired[str | None]
         storeInternally: NotRequired[bool | None]
         fileUrl: NotRequired[str | None]
+        # Pass a blob filename to attach a PDF preview to the upserted
+        # content. The response then carries ``pdfPreviewWriteUrl`` —
+        # a SAS URL the caller PUTs the PDF bytes to. ``file_io.upload_file``
+        # exposes this as ``preview_pdf_path`` for a one-call flow.
+        previewPdfFileName: NotRequired[str | None]
 
     class UpdateParams(RequestOptions):
         contentId: NotRequired[str]

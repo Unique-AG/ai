@@ -5,10 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2026.18.1] - 2026-04-22
-- Add `Module` API resource: full CRUD for assistant modules (`list`, `retrieve`, `create`, `modify`, `delete` + async variants). Mirrors the new `POST/GET/PATCH/DELETE /modules` endpoints added in Unique-AG/monorepo#22845. Includes `Module.ListParams`, `Module.CreateParams`, `Module.ModifyParams`, and `Module.DeletedObject` typed helpers; exports `Module` from the top-level `unique_sdk` package
-- Docs: add `docs/api_resources/module.md` reference
-
 ## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-sdk-v0.11.12...unique-sdk-v2026.18.0) (2026-04-23)
 
 
