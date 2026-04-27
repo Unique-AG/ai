@@ -286,6 +286,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      short: ${{ steps.tag.outputs.short }}
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -355,8 +358,8 @@ jobs:
     # (e.g. chore/bump-dev-2026.18-tk-5-sdk-4-orch-3) so each publish run
     # creates a unique, auditable branch.  Any older open dev-bump PR is
     # closed first to avoid stale branches accumulating.
-    needs: [resolve, publish]
-    if: needs.publish.result == 'success'
+    needs: [resolve, publish, tag-cut]
+    if: needs.publish.result == 'success' && needs.tag-cut.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -468,7 +471,7 @@ jobs:
             >> "$BODY_FILE"
 
           gh pr create \
-            --title "chore: bump dev versions ($CYCLE / ${{ needs.resolve.outputs.branch_suffix }})" \
+            --title "chore: pin dev-cut ${{ needs.tag-cut.outputs.short }}" \
             --body-file "$BODY_FILE" \
             --head "$BRANCH" \
             --base main \
