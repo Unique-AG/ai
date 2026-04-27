@@ -11,6 +11,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import 
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
+    LanguageModelName,
     LanguageModelProvider,
     ModelCapabilities,
 )
@@ -237,6 +238,98 @@ class TestUniqueAIConfigOpenFileValidator:
                     responses_api_config=ResponsesApiConfig(
                         use_responses_api=True,
                     )
+                )
+            },
+        )
+
+        assert config.agent.experimental.responses_api_config.use_responses_api is True
+
+
+class TestUniqueAIConfigGpt55ResponsesApiValidator:
+    """Test suite for UniqueAIConfig.enable_responses_api_for_gpt_55_and_gpt_55_pro validator.
+
+    GPT-5.5 (AZURE_GPT_55_2026_0424) and GPT-5.5-Pro (AZURE_GPT_55_PRO_2026_0424)
+    reject requests that combine `tools` with `reasoning_effort` on
+    /v1/chat/completions and demand /v1/responses. The validator forces the
+    Responses API on when either of these models is selected, regardless of
+    which tools are configured.
+    Tracked in Jira: UN-20123.
+    """
+
+    @pytest.mark.parametrize(
+        "model_name",
+        [
+            LanguageModelName.AZURE_GPT_55_2026_0424,
+            LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
+        ],
+    )
+    def test_enables_responses_api_for_affected_models(
+        self, model_name: LanguageModelName
+    ):
+        """When the selected model is GPT-5.5 or GPT-5.5-Pro, the validator must
+        auto-enable use_responses_api so the runner routes to /v1/responses."""
+        model = LanguageModelInfo.from_name(model_name)
+
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(language_model=model, tools=[]),
+        )
+
+        assert config.agent.experimental.responses_api_config.use_responses_api is True
+
+    @pytest.mark.parametrize(
+        "model_name",
+        [
+            LanguageModelName.AZURE_GPT_55_2026_0424,
+            LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
+        ],
+    )
+    def test_enables_responses_api_for_affected_models_with_tools(
+        self, model_name: LanguageModelName
+    ):
+        """The auto-enable must apply even when tools other than Code Interpreter
+        are configured — the GPT-5.5(-Pro) transport requirement is independent
+        of the Code Interpreter validator above."""
+        model = LanguageModelInfo.from_name(model_name)
+
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(
+                language_model=model,
+                tools=[CODE_INTERPRETER_TOOL],
+            ),
+        )
+
+        assert config.agent.experimental.responses_api_config.use_responses_api is True
+
+    def test_does_not_enable_responses_api_for_other_models(self):
+        """When the selected model is neither GPT-5.5 nor GPT-5.5-Pro, the
+        validator must be a no-op even if the model supports the Responses API.
+        Otherwise the TEMP FIX could mask real configuration issues for
+        unaffected models."""
+        config = _make_config(tools=[], supports_responses_api=True)
+
+        assert config.agent.experimental.responses_api_config.use_responses_api is False
+
+    @pytest.mark.parametrize(
+        "model_name",
+        [
+            LanguageModelName.AZURE_GPT_55_2026_0424,
+            LanguageModelName.AZURE_GPT_55_PRO_2026_0424,
+        ],
+    )
+    def test_keeps_responses_api_enabled_when_already_enabled(
+        self, model_name: LanguageModelName
+    ):
+        """When use_responses_api is already True for an affected model, the
+        validator must leave it True (i.e. it is idempotent for those models)."""
+        from unique_orchestrator.config import ExperimentalConfig, ResponsesApiConfig
+
+        model = LanguageModelInfo.from_name(model_name)
+
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(language_model=model, tools=[]),
+            agent={
+                "experimental": ExperimentalConfig(
+                    responses_api_config=ResponsesApiConfig(use_responses_api=True),
                 )
             },
         )
