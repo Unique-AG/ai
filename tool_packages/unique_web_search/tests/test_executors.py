@@ -734,11 +734,13 @@ class TestWebSearchV3ExecutorSearch:
 
         tool_parameters = WebSearchV3ToolParameters.model_validate(
             {
-                "exec": {
-                    "command": "search",
-                    "objective": "Find NVIDIA coverage",
-                    "query": "nvidia coverage",
-                }
+                "user_intent": "Understand NVIDIA news and press coverage",
+                "task_complexity": "simple",
+                "sub_questions": [],
+                "objective": "Find recent search hits about NVIDIA coverage",
+                "action": "search",
+                "search": {"query": "nvidia coverage"},
+                "fetch_urls": None,
             }
         )
 
@@ -778,6 +780,79 @@ class TestWebSearchV3ExecutorSearch:
         assert first["domain"] == "example.com"
         assert first["title"] == "Page 1"
         assert first["snippet"] == "Snippet 1"
+
+
+class TestWebSearchV3ToolParametersValidation:
+    """Validators on the V3 tool parameter schema (`task_complexity` + `sub_questions`)."""
+
+    @pytest.mark.ai
+    def test_complex_requires_at_least_two_sub_questions(self) -> None:
+        """Complex tasks must declare a real decomposition (>= 2 sub-questions)."""
+        with pytest.raises(ValueError, match="task_complexity.*complex"):
+            WebSearchV3ToolParameters.model_validate(
+                {
+                    "user_intent": "Compare two payment providers on fees and PSD2.",
+                    "task_complexity": "complex",
+                    "sub_questions": ["Only one item"],
+                    "objective": "Cover sub-question 1.",
+                    "action": "search",
+                    "search": {"query": "stripe vs adyen"},
+                    "fetch_urls": None,
+                }
+            )
+
+    @pytest.mark.ai
+    def test_simple_must_have_empty_sub_questions(self) -> None:
+        """Simple tasks must not carry a decomposition."""
+        with pytest.raises(ValueError, match="task_complexity.*simple"):
+            WebSearchV3ToolParameters.model_validate(
+                {
+                    "user_intent": "Get the current Fed funds target rate.",
+                    "task_complexity": "simple",
+                    "sub_questions": ["Stray sub-question"],
+                    "objective": "Look up the rate.",
+                    "action": "search",
+                    "search": {"query": "fed funds rate"},
+                    "fetch_urls": None,
+                }
+            )
+
+    @pytest.mark.ai
+    def test_complex_with_two_sub_questions_validates(self) -> None:
+        """Happy-path: complex + 2 sub-questions parses cleanly."""
+        params = WebSearchV3ToolParameters.model_validate(
+            {
+                "user_intent": "Compare Stripe and Adyen on cross-border fees and PSD2.",
+                "task_complexity": "complex",
+                "sub_questions": [
+                    "Stripe cross-border fees",
+                    "Adyen cross-border fees",
+                ],
+                "objective": "Cover sub-question 1: Stripe cross-border fees.",
+                "action": "search",
+                "search": {"query": "stripe cross-border fees"},
+                "fetch_urls": None,
+            }
+        )
+        assert params.task_complexity == "complex"
+        assert len(params.sub_questions) == 2
+
+    @pytest.mark.ai
+    def test_simple_with_empty_sub_questions_validates(self) -> None:
+        """Happy-path: simple + empty sub_questions parses cleanly."""
+        params = WebSearchV3ToolParameters.model_validate(
+            {
+                "user_intent": "Get the current Fed funds target rate.",
+                "task_complexity": "simple",
+                "sub_questions": [],
+                "objective": "Look up the rate.",
+                "action": "search",
+                "search": {"query": "fed funds rate"},
+                "fetch_urls": None,
+            }
+        )
+        assert params.task_complexity == "simple"
+        assert params.sub_questions == []
 
 
 class TestWebSearchV2ExecutorExecuteReadUrlStep:

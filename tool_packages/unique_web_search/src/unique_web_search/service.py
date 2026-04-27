@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime
 from time import time
 
@@ -46,10 +47,7 @@ from unique_web_search.services.executors.context import (
 )
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import WebSearchPlan
-from unique_web_search.services.executors.v3.schema import (
-    WebSearchV3CommandType,
-    WebSearchV3ToolParameters,
-)
+from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 from unique_web_search.services.message_log import WebSearchMessageLogger
 from unique_web_search.services.query_elicitation import QueryElicitationService
 from unique_web_search.services.search_engine import (
@@ -65,13 +63,38 @@ from unique_web_search.utils import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Experimental: nudge orchestrator after V3 `search` to follow up with `fetch_urls`.
-_EXPERIMENTAL_V3_SEARCH_FETCH_REMINDER = (
-    "[WebSearch V3] This turn was `search` (titles/snippets only). "
-    "If what you need is not fully present in those snippets, make another WebSearch "
-    "call with `exec.command` set to `fetch_urls` and put the chosen HTTP(S) URLs in "
-    "`exec.urls` (take `url` from the search-hit JSON you just got; prefer a small, "
-    "high-signal set)."
+# After a V3 `search` call: snippets-only chunks were just returned. Drive the orchestrator
+# through the snippet-sufficiency check + iteration loop described in the V3 system prompt.
+_V3_SEARCH_REMINDER_BASE = (
+    "This turn was `action`: `search` (SERP snippets only). Self-check the snippets against "
+    "this call's `objective`: do they contain the specific numbers, quotes, dates, or names "
+    "the objective requires, with at least 2 corroborating domains where accuracy matters?\n"
+    "- If yes: stop searching this sub-question. "
+    "{complex_next_search_or_answer}\n"
+    "- If no: make a follow-up call with the same `user_intent`, `task_complexity`, and "
+    "`sub_questions`; set `action`: `fetch_urls` and `fetch_urls.urls` to a small, "
+    "high-signal subset of the `url` values from the SERP JSON just returned (do not invent "
+    "URLs). If the user already gave URL(s) to read, you should have used `fetch_urls` "
+    "directly without searching first."
+)
+_V3_SEARCH_REMINDER_COMPLEX_NEXT = (
+    "Cover the next item in `sub_questions` with another `action`: `search` call (same "
+    "`user_intent`, `task_complexity`, and `sub_questions`; new `objective` and `search.query`)."
+)
+_V3_SEARCH_REMINDER_DONE = (
+    "All sub-questions are covered (or the task is `simple`); compose your answer."
+)
+
+# After a V3 `fetch_urls` call: full-page chunks were just returned. Steer next step.
+_V3_FETCH_URLS_REMINDER_COMPLEX = (
+    "This turn was `action`: `fetch_urls` (full-page text). If sub-questions remain "
+    "uncovered in `sub_questions`, continue with another `action`: `search` call (same "
+    "`user_intent`, `task_complexity`, and `sub_questions`; new `objective` and "
+    "`search.query`). Otherwise, compose your answer."
+)
+_V3_FETCH_URLS_REMINDER_SIMPLE = (
+    "This turn was `action`: `fetch_urls` (full-page text). The task is `simple`; "
+    "compose your answer from the page text just returned."
 )
 
 
@@ -120,7 +143,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 self.config.language_model_max_input_tokens,
                 self.config.percentage_of_input_tokens_for_sources,
                 self.config.limit_token_sources,
-                language_model,
+                language_model, # type: ignore
                 self.chat_history_token_length,
             )
 
@@ -130,7 +153,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         self,
         parameters: WebSearchPlan | WebSearchToolParameters | WebSearchV3ToolParameters,
     ) -> str:
-        """Merge configured tool-response reminder with experimental V3 search nudge."""
+        """Merge configured tool-response reminder with V3 iteration guidance."""
         rem = self.config.experimental_features.tool_response_system_reminder
         base = rem.get_reminder_prompt
         parts: list[str] = []
@@ -139,10 +162,26 @@ class WebSearchTool(Tool[WebSearchConfig]):
         if (
             self.config.web_search_mode_config.mode == WebSearchMode.V3
             and isinstance(parameters, WebSearchV3ToolParameters)
-            and parameters.exec.command == WebSearchV3CommandType.SEARCH
         ):
-            parts.append(_EXPERIMENTAL_V3_SEARCH_FETCH_REMINDER)
+            parts.append(self._build_v3_reminder(parameters))
         return "\n\n".join(parts)
+
+    @staticmethod
+    def _build_v3_reminder(parameters: WebSearchV3ToolParameters) -> str:
+        """Pick the right V3 iteration nudge based on action + task_complexity."""
+        is_complex = parameters.task_complexity == "complex"
+        if parameters.search is not None:
+            complex_next = (
+                _V3_SEARCH_REMINDER_COMPLEX_NEXT if is_complex else _V3_SEARCH_REMINDER_DONE
+            )
+            return _V3_SEARCH_REMINDER_BASE.format(
+                complex_next_search_or_answer=complex_next
+            )
+        return (
+            _V3_FETCH_URLS_REMINDER_COMPLEX
+            if is_complex
+            else _V3_FETCH_URLS_REMINDER_SIMPLE
+        )
 
     def _resolve_search_engine_mode(self) -> SearchEngineMode:
         """Derive the search-engine mode, respecting CustomAPI overrides."""
@@ -223,7 +262,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         web_search_message_logger = WebSearchMessageLogger(
             message_step_logger=self._message_step_logger,
-            tool_display_name=self.display_name(),
+            tool_display_name=self._build_display_name(parameters),
         )
         executor = self._get_executor(
             tool_call, parameters, debug_info, web_search_message_logger
@@ -350,7 +389,6 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 callbacks=callbacks,
                 tool_call=tool_call,
                 tool_parameters=parameters,
-                search_outcome_judge_config=search_config.search_outcome_judge,
             )
         if isinstance(parameters, WebSearchPlan):
             assert search_config.mode == WebSearchMode.V2
@@ -425,6 +463,18 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 )
 
         return notify_from_tool_call
+    
+    
+    def _build_display_name(self, parameters: WebSearchPlan | WebSearchToolParameters | WebSearchV3ToolParameters) -> str:
+        if not isinstance(parameters, WebSearchV3ToolParameters):
+            return self.display_name()
+        
+        display_name = self.display_name()
+        # Remove "search" from the display name (case-insensitive, all occurrences).
+        display_name = re.sub(r"search", "", display_name, flags=re.IGNORECASE).strip()
+        if parameters.fetch_urls is not None:
+            return display_name + " - Reading Pages"
+        return display_name + " - Searching"
 
 
 ToolFactory.register_tool(WebSearchTool, WebSearchConfig)

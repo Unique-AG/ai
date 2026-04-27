@@ -14,7 +14,6 @@ from unique_web_search.services.executors.base_config import (
     BaseWebSearchModeConfig,
     WebSearchMode,
 )
-from unique_web_search.services.executors.v3.llm_judge.config import V3LlmJudgeConfig
 from unique_web_search.services.executors.v3.prompts import (
     DEFAULT_TOOL_DESCRIPTION,
     DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT,
@@ -62,15 +61,6 @@ class WebSearchV3Config(BaseWebSearchModeConfig[WebSearchMode.V3]):
         default=DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3,
         title="Tool Format Information For System Prompt",
         description="Advanced: Instructions that tell the AI how to cite web search sources in its answers (V3 includes domain diversity requirements).",
-    )
-    search_outcome_judge: V3LlmJudgeConfig = Field(
-        default_factory=V3LlmJudgeConfig,
-        title="V3 search-outcome judge",
-        description=(
-            "Optional LLM pass after `search`: whether snippets meet the objective, "
-            "whether to recommend `fetch_urls`, and suggested follow-up search queries "
-            "(stored in debug steps when enabled)."
-        ),
     )
 
     @field_validator("mode", mode="before")

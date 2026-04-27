@@ -1,33 +1,171 @@
-Use the `WebSearch` tool for up-to-date information from the web. **V3:** each call runs **one** command only, nested under `exec`.
-
-### Workflow
-
-1. Call with `"exec": { "command": "search", "objective": "...", "query": "..." }`. Each returned content chunk’s `text` is a **JSON object** with `url`, `domain`, `title`, and `snippet` for one search hit.
-2. If snippets are **insufficient** (missing facts, numbers, quotes, or nuance), call again with `"exec": { "command": "fetch_urls", "objective": "...", "urls": ["https://...", ...] }`. **Choose `urls` from the `url` fields in your latest `search` results**—prioritize hits that plausibly hold the missing information. Do not combine `search` and `fetch_urls` in the same invocation. For each URL, you get one chunk whose `text` is **JSON** with `url`, `domain`, and `chunks`: an array of `{ "index": n, "body": "..." }`.
+Use `WebSearch` for up-to-date information from the web. Each invocation performs **one** operation (a single `search` or a single `fetch_urls`). Complex user tasks are handled by **chaining** invocations using a small, stable plan you carry on every call.
 
 **Current date:** {{ date_string }}
 
-For recent news, live data, or anything time-sensitive, use **{{ date_string }}** when shaping `query` strings (e.g. year or month) where that improves recall.
+### Root field order
 
-### When to call `fetch_urls`
+`user_intent` → `task_complexity` → `sub_questions` → `objective` → `action` → exactly one of `search` or `fetch_urls` (the other is `null`).
 
-- **Default stance:** If you can answer from **title + snippet + domain** alone, you may stop after `search`. If anything important is **missing, vague, or unverifiable** from snippets, you **should** use `fetch_urls`.
-- **Select links from search results:** Build the `urls` list from the **`url`** values returned in the `search` chunks (same page you intend to cite or trust). Do not invent URLs; prefer the smallest set that fills the gaps.
-- The **snippet is not enough** to answer safely (need quotes, numbers, tables, or longer context from the page).
-- The user or task needs **depth, verification, or a primary source** (official docs, regulatory text, long-form reporting).
-- A hit is **highly relevant** but the title/snippet alone cannot support the claim you want to make.
-- Prefer **only URLs worth crawling**; if many URLs need full text, use **additional** `fetch_urls` invocations rather than one enormous `urls` list unless appropriate.
+- **`user_intent`** (string, stable) — What the user is trying to accomplish in plain language. Decide this first. Reuse the **same** `user_intent` across every follow-up call for this task.
+- **`task_complexity`** (`"simple"` | `"complex"`, stable) — Your classification of the user task; see Step 1 below.
+- **`sub_questions`** (list of strings, stable) — The decomposition; empty for `simple`, 2-5 self-contained items for `complex`. Repeat the **same** list on every call.
+- **`objective`** (string, per call) — The slice of the task this single call covers. For `complex`, point at exactly one item from `sub_questions` (or a focused `fetch_urls` follow-up).
+- **`action`** + payload — `search` with `search.query`, OR `fetch_urls` with `fetch_urls.urls`. Set the unused payload to `null`.
 
-### Multi-call research
+---
 
-- Each tool invocation carries **exactly one** `exec` command; **many sequential WebSearch calls** are allowed and **encouraged** for complex, multi-facet, or detail-heavy questions.
-- Typical patterns: several `search` calls with different queries; `search` then `fetch_urls` then `search` again with a **refined** query after reading pages.
-- Do **not** try to pack an entire research plan into a single tool call when the question clearly needs iteration.
+### Step 1 — Classify the user task
 
-### Tool shape
+Set `task_complexity` from these triggers:
 
-- Root object has **`exec`** (required). Inside `exec`, discriminate with **`command`**:
-  - **`search`:** `objective` (string), `query` (string).
-  - **`fetch_urls`:** `objective` (string), `urls` (array of HTTP(S) URL strings).
+- **`simple`** when the task fits ALL of:
+  - One concrete fact, definition, value, status, or short list to look up.
+  - One entity (one company, one person, one product, one place, one document).
+  - One timeframe (one date, one quarter, one year — or timeless).
+  - One ask (no comparison, no "and", no "vs", no "compared to", no "across").
+- **`complex`** when ANY of the following hold:
+  - Multiple distinct facts the user wants in one answer.
+  - Comparison or contrast across ≥2 entities, products, jurisdictions, or vendors.
+  - Multiple time windows (e.g. "in 2023 vs 2024", "before and after the IPO").
+  - Composite reasoning that needs sub-answers chained together.
+  - Vague / multi-faceted topics the user expects you to cover broadly.
 
-The JSON schema exposed to the model is generated from the tool definition (no separate schema block here).
+**Examples:**
+
+- "What is the current Fed funds rate?" → `simple`.
+- "Read https://example.com/policy.pdf and summarize" → `simple` (use `fetch_urls`).
+- "Compare Stripe and Adyen on cross-border fees, settlement times, and EU PSD2 compliance" → `complex` (3 facets × 2 entities).
+- "What's new in Pydantic v2 vs v1, and which migrations are breaking?" → `complex` (two facets).
+- "Latest news about NVIDIA earnings and AI chip export rules" → `complex` (two distinct topics).
+
+---
+
+### Step 2 — Decompose (only when `task_complexity` = `complex`)
+
+Write 2-5 self-contained sub-questions into `sub_questions` and **repeat the same list on every follow-up call** for this task. Each sub-question should:
+
+- Be answerable on its own by one focused `search` query (and possibly one `fetch_urls` follow-up).
+- Not depend on the answer of another sub-question.
+- Cover a distinct entity / facet / timeframe — no overlap.
+
+For "Compare Stripe and Adyen on cross-border fees, settlement times, and EU PSD2 compliance":
+
+```
+sub_questions = [
+  "Stripe cross-border fees and pricing for international card transactions",
+  "Adyen cross-border fees and pricing for international card transactions",
+  "Stripe settlement and payout times by region",
+  "Adyen settlement and payout times by region",
+  "Stripe and Adyen positioning under EU PSD2 / SCA requirements"
+]
+```
+
+Then call `WebSearch` **once per sub-question**, all sharing the same `user_intent`, `task_complexity="complex"`, and full `sub_questions` list, varying only `objective` + `search.query`.
+
+---
+
+### Step 3 — Execute one operation per call
+
+- **`action: search`** when you need the search engine to discover sources or craft a query. `search.query` is one focused query (3-8 keywords, query operators allowed). For time-sensitive topics, you may incorporate **{{ date_string }}** (year or month) in the query.
+- **`action: fetch_urls`** when the URL(s) to read are already known: the user pasted them, asked you to read a specific page, **or** a previous `search` returned them and snippets are not enough. Pass `fetch_urls.urls` from the `url` fields of those snippets — do **not** invent URLs.
+
+If the user pasted URL(s) at the start of the task, your **first** call should be `action: fetch_urls`. Do not run `search` to "find" a URL the user already supplied.
+
+---
+
+### Step 4 — Sufficiency check (after each `search`)
+
+Before deciding the next call, judge the snippets you just received against the current `objective`:
+
+- Do they contain the **specific** number, quote, date, or name the `objective` requires? (Snippets often paraphrase or truncate.)
+- Are there **≥2 corroborating domains** for fact-style claims, when accuracy matters?
+- Is the **freshness** consistent with the question, given **{{ date_string }}**?
+- Are key entities / context disambiguated (right company, right region, right version)?
+
+Decide:
+
+- **Snippets sufficient** + still uncovered `sub_questions` ⇒ next call: `action: search` for the next sub-question.
+- **Snippets sufficient** + all sub-questions covered (or `simple`) ⇒ stop calling and answer.
+- **Snippets insufficient** ⇒ go to Step 5.
+
+---
+
+### Step 5 — Fetch follow-up (when snippets aren't enough)
+
+Issue a follow-up call with:
+
+- The **same** `user_intent`, `task_complexity`, and `sub_questions`.
+- An `objective` like "Read full article X to extract <missing detail> for sub-question Y".
+- `action: fetch_urls` and `fetch_urls.urls` set to a **small, high-signal** subset of URLs from the `url` fields of the SERP JSON you already received (typically 1-3 URLs; pick complementary domains).
+
+Once the page text comes back, do another sufficiency check. If the task is `complex` and more sub-questions remain, continue with the next `search`; otherwise, answer.
+
+---
+
+### Anti-patterns
+
+- Packing several sub-questions into one bloated `search.query`. Split them across calls instead.
+- Running `search` "just in case" before reading a URL the user already provided.
+- Calling `fetch_urls` with paraphrased or invented URLs — only URLs surfaced by a prior `search` (or pasted by the user) are valid.
+- Refetching pages already crawled in this task.
+- Re-classifying mid-task: keep `task_complexity` and `sub_questions` stable for the whole task.
+
+---
+
+### Worked examples
+
+**Simple:**
+
+```json
+{
+  "user_intent": "Get the current US Fed funds target rate.",
+  "task_complexity": "simple",
+  "sub_questions": [],
+  "objective": "Look up the current Fed funds target rate range.",
+  "action": "search",
+  "search": { "query": "current Fed funds target rate {{ date_string }}" },
+  "fetch_urls": null
+}
+```
+
+**Complex (first of a series of calls — same `user_intent` / `task_complexity` / `sub_questions` repeat on each one):**
+
+```json
+{
+  "user_intent": "Compare Stripe and Adyen on cross-border fees, settlement times, and EU PSD2 compliance.",
+  "task_complexity": "complex",
+  "sub_questions": [
+    "Stripe cross-border fees and pricing for international card transactions",
+    "Adyen cross-border fees and pricing for international card transactions",
+    "Stripe settlement and payout times by region",
+    "Adyen settlement and payout times by region",
+    "Stripe and Adyen positioning under EU PSD2 / SCA requirements"
+  ],
+  "objective": "Cover sub-question 1: Stripe cross-border fees and pricing.",
+  "action": "search",
+  "search": { "query": "Stripe cross-border international card transaction fees pricing" },
+  "fetch_urls": null
+}
+```
+
+**Complex follow-up after weak snippets — fetch the source page:**
+
+```json
+{
+  "user_intent": "Compare Stripe and Adyen on cross-border fees, settlement times, and EU PSD2 compliance.",
+  "task_complexity": "complex",
+  "sub_questions": [
+    "Stripe cross-border fees and pricing for international card transactions",
+    "Adyen cross-border fees and pricing for international card transactions",
+    "Stripe settlement and payout times by region",
+    "Adyen settlement and payout times by region",
+    "Stripe and Adyen positioning under EU PSD2 / SCA requirements"
+  ],
+  "objective": "Read Stripe's official pricing page to extract exact cross-border fee percentages.",
+  "action": "fetch_urls",
+  "search": null,
+  "fetch_urls": { "urls": ["https://stripe.com/pricing"] }
+}
+```
+
+Tool arguments are defined by the tool schema; the live JSON schema comes from the tool definition.

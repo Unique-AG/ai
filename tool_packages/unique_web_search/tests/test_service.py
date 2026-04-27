@@ -773,11 +773,13 @@ class TestWebSearchToolRun:
         tool_call = Mock()
         tool_call.id = "test-id"
         tool_call.arguments = {
-            "exec": {
-                "command": "search",
-                "objective": "test",
-                "query": "test",
-            }
+            "user_intent": "Test user goal",
+            "task_complexity": "simple",
+            "sub_questions": [],
+            "objective": "Test sub-goal for this search",
+            "action": "search",
+            "search": {"query": "test"},
+            "fetch_urls": None,
         }
 
         result = await tool.run(tool_call)
