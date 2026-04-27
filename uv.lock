@@ -8,23 +8,23 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-13T09:23:27.612071757Z"
+exclude-newer = "2026-04-13T20:34:40.825995Z"
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
 unique-toolkit = false
 unique-internal-search = false
-pytest = "2026-04-09T00:00:00Z"
-langchain-core = "2026-04-10T00:00:00Z"
+pytest = "2026-04-08T22:00:00Z"
+langchain-core = "2026-04-09T22:00:00Z"
 unique-swot = false
 unique-sdk = false
 unique-mcp = false
-cryptography = "2026-04-10T00:00:00Z"
+cryptography = "2026-04-09T22:00:00Z"
 unique-orchestrator = false
 unique-follow-up-questions = false
-langsmith = "2026-04-16T00:00:00Z"
+langsmith = "2026-04-15T22:00:00Z"
 unique-six = false
-python-multipart = "2026-04-12T00:00:00Z"
+python-multipart = "2026-04-11T22:00:00Z"
 unique-quartr = false
 unique-web-search = false
 unique-deep-research = false
@@ -5244,7 +5244,7 @@ wheels = [
 
 [[package]]
 name = "unique-deep-research"
-version = "2026.18.3"
+version = "2026.18.4"
 source = { editable = "tool_packages/unique_deep_research" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -5286,7 +5286,7 @@ dev = []
 
 [[package]]
 name = "unique-follow-up-questions"
-version = "2026.18.3"
+version = "2026.18.4"
 source = { editable = "postprocessors/unique_follow_up_questions" }
 dependencies = [
     { name = "jinja2" },
@@ -5311,7 +5311,7 @@ dev = [{ name = "unique-sdk", editable = "unique_sdk" }]
 
 [[package]]
 name = "unique-internal-search"
-version = "2026.18.3"
+version = "2026.18.4"
 source = { editable = "tool_packages/unique_internal_search" }
 dependencies = [
     { name = "pydantic" },
@@ -5331,7 +5331,7 @@ dev = []
 
 [[package]]
 name = "unique-mcp"
-version = "2026.18.3"
+version = "2026.18.4"
 source = { editable = "unique_mcp" }
 dependencies = [
     { name = "fastmcp" },
@@ -5357,7 +5357,7 @@ dev = []
 
 [[package]]
 name = "unique-orchestrator"
-version = "2026.18.3"
+version = "2026.18.4"
 source = { editable = "unique_orchestrator" }
 dependencies = [
     { name = "jinja2" },
@@ -5397,7 +5397,7 @@ dev = []
 
 [[package]]
 name = "unique-quartr"
-version = "2026.18.3"
+version = "2026.18.4"
 source = { editable = "connectors/unique_quartr" }
 dependencies = [
     { name = "httpx" },
@@ -5423,7 +5423,7 @@ dev = []
 
 [[package]]
 name = "unique-sdk"
-version = "2026.18.3"
+version = "2026.18.4"
 source = { editable = "unique_sdk" }
 dependencies = [
     { name = "aiohttp" },
@@ -5492,7 +5492,7 @@ dev = []
 
 [[package]]
 name = "unique-six"
-version = "2026.18.3"
+version = "2026.18.4"
 source = { editable = "connectors/unique_six" }
 dependencies = [
     { name = "cryptography" },
@@ -5525,7 +5525,7 @@ dev = [{ name = "responses", specifier = ">=0.25.0" }]
 
 [[package]]
 name = "unique-skill-tool"
-version = "2026.18.3"
+version = "2026.18.4"
 source = { editable = "tool_packages/unique_skill_tool" }
 dependencies = [
     { name = "jinja2" },
@@ -5545,7 +5545,7 @@ dev = []
 
 [[package]]
 name = "unique-stock-ticker"
-version = "2026.18.3"
+version = "2026.18.4"
 source = { editable = "postprocessors/unique_stock_ticker" }
 dependencies = [
     { name = "numerize" },
@@ -5577,7 +5577,7 @@ dev = []
 
 [[package]]
 name = "unique-swot"
-version = "2026.18.3"
+version = "2026.18.4"
 source = { editable = "tool_packages/unique_swot" }
 dependencies = [
     { name = "jinja2" },
@@ -5603,7 +5603,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-version = "2026.18.3"
+version = "2026.18.4"
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
@@ -5694,7 +5694,7 @@ dev = []
 
 [[package]]
 name = "unique-web-search"
-version = "2026.18.3"
+version = "2026.18.4"
 source = { editable = "tool_packages/unique_web_search" }
 dependencies = [
     { name = "azure-ai-projects" },
