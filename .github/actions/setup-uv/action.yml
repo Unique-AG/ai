@@ -13,6 +13,10 @@ inputs:
     description: 'Whether to install package dependencies after setting up uv'
     required: false
     default: 'true'
+  lock_mode:
+    description: 'uv lock mode: locked (default, asserts lock file is up-to-date) or frozen (uses lock file as-is, no staleness check)'
+    required: false
+    default: 'locked'
 
 outputs:
   uv-version:
@@ -45,5 +49,5 @@ runs:
       run: |
         PKG_NAME=$(grep '^name' "${{ inputs.package_dir }}/pyproject.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')
         echo "Syncing package: $PKG_NAME"
-        uv sync --locked --package "$PKG_NAME"
-        uv sync --locked --inexact --only-dev
+        uv sync --${{ inputs.lock_mode }} --package "$PKG_NAME"
+        uv sync --${{ inputs.lock_mode }} --inexact --only-dev
