@@ -72,7 +72,7 @@ def create_zitadel_oauth_proxy(
         # required_scopes=[],
     )
 
-    if valid_scopes := kwargs.get("valid_scopes", []):
+    if valid_scopes := kwargs.pop("valid_scopes", []):
         valid_scopes = ZITADEL_DEFAULT_MCP_SCOPES
 
     return OAuthProxy(
