@@ -1,6 +1,6 @@
 # Release Process
 
-This page documents the full lifecycle of AI package releases — from a developer pushing to `main` through stable weekly releases, hotfixes, and the optional RC path for pre-shipping to a specific customer.
+This page documents the full lifecycle of AI package releases — from a developer pushing to `main` through stable biweekly releases, hotfixes, and the optional RC path for pre-shipping to a specific customer.
 
 ---
 
@@ -12,7 +12,7 @@ All packages use **CalVer**: `YYYY.WW.PATCH`.
 |---------|---------|
 | `YYYY` | Calendar year |
 | `WW` | Next even ISO week number (the target release week) |
-| `PATCH` | `0` for weekly releases; `1`, `2`, … for hotfixes on the same branch |
+| `PATCH` | `0` for biweekly releases; `1`, `2`, … for hotfixes on the same branch |
 
 Pre-release suffixes follow PEP 440 ordering (`dev < rc < final`):
 
@@ -20,7 +20,7 @@ Pre-release suffixes follow PEP 440 ordering (`dev < rc < final`):
 |--------|---------|--------------|
 | `.devN` | `2026.20.0.dev3` | Every push to `main` (automated) |
 | `rcN` | `2026.20.0rc2` | Manual promotion of a dev cut |
-| *(none)* | `2026.20.0` | Weekly release (automated via release-please) |
+| *(none)* | `2026.20.0` | Biweekly release (automated via release-please) |
 | `.N` (hotfix) | `2026.20.1` | Patch on a `release/YYYY.WW` branch |
 
 ---
@@ -62,7 +62,7 @@ You can promote a specific dev cut to an RC — see [RC releases](#rc-releases) 
 
 ## RC releases
 
-**Use case:** shipping a tested snapshot to a customer between two weekly releases, without using a dev version (which some package managers treat specially) and without conflicting with the upcoming weekly or future hotfixes.
+**Use case:** shipping a tested snapshot to a customer between two biweekly releases, without using a dev version (which some package managers treat specially) and without conflicting with the upcoming biweekly or future hotfixes.
 
 **Workflow:** `.github/workflows/cd-publish-rc.yaml` — triggered manually via `workflow_dispatch`.
 
@@ -107,11 +107,14 @@ After every successful dev publish the workflow opens (or updates) a pull reques
 chore: pin dev-cut <SHORT_SHA>
 ```
 
-This PR bumps the AI package version floors in the monorepo to the latest dev versions, allowing monorepo developers to test against the newest AI packages. It is **not** a release artifact — merge it at your discretion.
+This PR bumps the AI package version floors in the monorepo to the latest dev versions. **You only need to merge it when you are actively mixing dev AI dependencies with local monorepo sources** — for example, when developing a monorepo feature that depends on unreleased AI changes. In the typical development flow the PR can be left open and will be superseded by the next stable release sync.
+
+!!! tip "One-person merge"
+    Because the PR is opened by the bot, it only requires your approval — you can approve and merge it yourself without a second reviewer.
 
 ---
 
-## Stable weekly releases
+## Stable biweekly releases
 
 **Trigger:** a Release PR is merged on `main`.
 
@@ -125,6 +128,7 @@ This PR bumps the AI package version floors in the monorepo to the latest dev ve
    ```
    chore: stable release <version>
    ```
+   Because this PR is opened by the bot, it only requires your approval — you can approve and merge it yourself without a second reviewer.
 4. release-please bumps all `pyproject.toml` versions and `CHANGELOG.md` entries.
 5. `cd-release.yaml` cuts the `release/YYYY.WW` branch, creates a GitHub Release, and triggers `cd-publish.yaml`.
 6. `cd-publish.yaml` builds and publishes every changed package to PyPI. Dependencies in the stable wheels are pinned with `>=` (updated by `update-dep-floors.py` at release time).
@@ -146,19 +150,20 @@ The workflow pushes an empty `Release-As: YYYY.WW.0` footer commit to `main`. re
 
 ## Hotfix releases
 
-**Use case:** a critical fix that must ship on a release branch without waiting for the next weekly cycle.
+**Use case:** a critical fix that must ship on a release branch without waiting for the next biweekly cycle.
 
 **Workflow:** `.github/workflows/cd-release.yaml` (running on a `release/*` branch) + `cd-publish.yaml`
 
-1. Branch off `release/YYYY.WW` and cherry-pick or commit the fix.
-2. release-please opens a PR on the release branch with title:
+1. Create a branch off `release/YYYY.WW`, commit or cherry-pick the fix, and open a PR targeting `release/YYYY.WW`.
+2. Get the PR reviewed and merged normally (standard review process applies).
+3. release-please opens a second PR on the release branch with title:
    ```
    chore: hotfix release/YYYY.WW to <version>
    ```
-   where `<version>` is `YYYY.WW.1` (or `.2`, etc.).
-3. Merge the PR. release-please cuts a GitHub Release and triggers `cd-publish.yaml`.
-4. `cd-publish.yaml` publishes the patched packages.
-5. Run `uniqueai-sync-ai-versions.yaml` manually (target `release`, source `release/YYYY.WW`) to sync the patch versions to the matching monorepo release branch.
+   where `<version>` is `YYYY.WW.1` (or `.2`, etc.). Because this PR is opened by the bot, it only requires your approval — you can approve and merge it yourself without a second reviewer.
+4. release-please cuts a GitHub Release and triggers `cd-publish.yaml`.
+5. `cd-publish.yaml` publishes the patched packages.
+6. Run `uniqueai-sync-ai-versions.yaml` manually (target `release`, source `release/YYYY.WW`) to sync the patch versions to the matching monorepo release branch.
 
 ---
 
@@ -198,7 +203,7 @@ flowchart TD
     B -->|open/update PR| E[Dev bump PR in monorepo\nchore: pin dev-cut SHA]
 
     F[Merge Release PR on main] -->|cd-release| G[cut release/YYYY.WW branch\ncreate GitHub Release]
-    G -->|cd-publish| H[stable publish\nYYYY.WW.0\nchanged packages]
+    G -->|cd-publish| H[biweekly stable publish\nYYYY.WW.0\nchanged packages]
     G -->|uniqueai-sync-ai-versions| I[Sync == versions\nto monorepo master]
 
     J[Fix on release/YYYY.WW] -->|cd-release| K[create GitHub Release\nYYYY.WW.P]
