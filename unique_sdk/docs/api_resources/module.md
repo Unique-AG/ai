@@ -7,7 +7,7 @@ Create, list, retrieve, update, and delete assistant modules. Modules define the
 Each module belongs to an **assistant** and configures:
 
 - A **name** and optional **description**
-- A **weight** controlling evaluation priority (higher = higher priority)
+- A **weight** controlling evaluation priority (higher weight takes precedence)
 - Whether the module is **external** (`isExternal`)
 - Whether **custom instructions** are enabled (`isCustomInstructionEnabled`)
 - An optional **configuration** object (arbitrary key/value settings)
