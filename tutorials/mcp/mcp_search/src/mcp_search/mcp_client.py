@@ -3,6 +3,8 @@ import os
 
 from fastmcp import Client
 
+from unique_mcp.meta_keys import MetaKeys
+
 MCP_URL = os.environ.get("MCP_SEARCH_URL", "http://localhost:8003/mcp")
 
 SEARCH_ARGS = {
@@ -33,11 +35,13 @@ async def main() -> None:
         _print_result(result)
 
         # --- Call 2: override auth via _meta ---
-        meta_user = os.environ.get("UNIQUE_AUTH_USER_ID", "meta-test-user")
-        meta_company = os.environ.get("UNIQUE_AUTH_COMPANY_ID", "meta-test-company")
         meta_override = {
-            "unique.app/user-id": meta_user,
-            "unique.app/company-id": meta_company,
+            MetaKeys.USER_ID.value: os.environ.get(
+                "UNIQUE_AUTH_USER_ID", "meta-test-user"
+            ),
+            MetaKeys.COMPANY_ID.value: os.environ.get(
+                "UNIQUE_AUTH_COMPANY_ID", "meta-test-company"
+            ),
         }
         print(f"\n--- Call 2: auth from _meta {meta_override} ---")
         result = await client.call_tool("search", SEARCH_ARGS, meta=meta_override)
