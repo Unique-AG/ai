@@ -13,7 +13,7 @@ class Module(APIResource["Module"]):
     """An assistant module that configures behaviour, tools, and instructions.
 
     Modules are attached to assistants (spaces) and define their capabilities,
-    configuration, and tool definitions.  They control weight/priority, whether
+    configuration, and tool definitions.  They control priority weight, whether
     the module is external, and whether custom instructions are enabled.
     """
 
