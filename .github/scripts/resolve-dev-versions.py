@@ -23,7 +23,7 @@ From that we produce:
       - otherwise                           -> ``>=<pyproject version>``
 
 Both maps key cross-package names by their PEP 503 normalized form so
-``rewrite-pyproject-for-dev.py`` can match regardless of whether the
+``rewrite-pyproject-pre-release.py`` can match regardless of whether the
 requirement spells the name with ``-``, ``_`` or ``.``.
 """
 
