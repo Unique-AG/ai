@@ -1,4 +1,4 @@
-"""Unit tests for :class:`unique_toolkit.experimental.scheduled_task.ScheduledTasks`.
+"""Unit tests for :class:`unique_toolkit.experimental.resources.scheduled_task.ScheduledTasks`.
 
 The SDK is patched at the ``unique_sdk.ScheduledTask`` boundary so we notice any
 drift in method names or wire-level field names between toolkit and SDK.
@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from unique_toolkit.experimental.scheduled_task import (
+from unique_toolkit.experimental.resources.scheduled_task import (
     DeletedScheduledTask,
     ScheduledTask,
     ScheduledTasks,

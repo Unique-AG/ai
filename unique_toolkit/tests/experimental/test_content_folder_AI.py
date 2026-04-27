@@ -7,13 +7,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from unique_toolkit.experimental.content_folder import functions as _functions
-from unique_toolkit.experimental.content_folder.functions import (
+from unique_toolkit.experimental.resources.content_folder import functions as _functions
+from unique_toolkit.experimental.resources.content_folder.functions import (
     create_access,
     creator_scope_access_grants,
     read,
 )
-from unique_toolkit.experimental.content_folder.schemas import (
+from unique_toolkit.experimental.resources.content_folder.schemas import (
     AccessEntityType,
     AccessType,
     CreatedFolder,
@@ -21,7 +21,7 @@ from unique_toolkit.experimental.content_folder.schemas import (
     FolderInfo,
     ScopeAccess,
 )
-from unique_toolkit.experimental.content_folder.service import ContentFolder
+from unique_toolkit.experimental.resources.content_folder.service import ContentFolder
 
 # ── Test fixtures ─────────────────────────────────────────────────────────────
 
@@ -139,7 +139,7 @@ def test_AI_folder_info_preserves_ingestion_config_as_dict() -> None:
     assert info.ingestion_config == {"uniqueIngestionMode": "MODE_A"}
 
 
-@patch("unique_toolkit.experimental.content_folder.functions.create")
+@patch("unique_toolkit.experimental.resources.content_folder.functions.create")
 def test_AI_create_normalizes_single_path_string(mock_create: MagicMock) -> None:
     """A single ``paths=`` string is normalized to a one-element list for the SDK."""
     mock_create.return_value = []
@@ -149,7 +149,7 @@ def test_AI_create_normalizes_single_path_string(mock_create: MagicMock) -> None
     assert mock_create.call_args.kwargs["absolute_paths"] == ["/a"]
 
 
-@patch("unique_toolkit.experimental.content_folder.functions.create_async")
+@patch("unique_toolkit.experimental.resources.content_folder.functions.create_async")
 @pytest.mark.asyncio
 async def test_AI_create_async_has_same_overloads_as_create(
     mock_create_async: MagicMock,
@@ -493,7 +493,7 @@ def test_AI_service_read_delegates_to_functions() -> None:
     """``ContentFolder.read`` calls the underlying :func:`read` with stored ids."""
     svc = ContentFolder(company_id="c1", user_id="u1")
     with patch(
-        "unique_toolkit.experimental.content_folder.service._folder.read"
+        "unique_toolkit.experimental.resources.content_folder.service._folder.read"
     ) as mock_read:
         mock_read.return_value = FolderInfo.model_validate(_FOLDER_INFO, by_alias=True)
         svc.read(scope_id="scope_1")
@@ -509,7 +509,7 @@ async def test_AI_service_read_async_delegates_to_functions() -> None:
     """``ContentFolder.read_async`` forwards to the async functions layer."""
     svc = ContentFolder(company_id="c1", user_id="u1")
     with patch(
-        "unique_toolkit.experimental.content_folder.service._folder.read_async",
+        "unique_toolkit.experimental.resources.content_folder.service._folder.read_async",
         new_callable=AsyncMock,
     ) as mock_read_async:
         mock_read_async.return_value = FolderInfo.model_validate(
@@ -525,7 +525,7 @@ def test_AI_service_delete_delegates_to_functions() -> None:
     """``ContentFolder.delete`` forwards scope + recursive to the functions layer."""
     svc = ContentFolder(company_id="c1", user_id="u1")
     with patch(
-        "unique_toolkit.experimental.content_folder.service._folder.delete"
+        "unique_toolkit.experimental.resources.content_folder.service._folder.delete"
     ) as mock_delete:
         mock_delete.return_value = DeleteResult.model_validate(
             _DELETE_RESULT, by_alias=True
@@ -542,7 +542,7 @@ async def test_AI_service_delete_async_delegates_to_functions() -> None:
     """``ContentFolder.delete_async`` forwards to the async functions layer."""
     svc = ContentFolder(company_id="c1", user_id="u1")
     with patch(
-        "unique_toolkit.experimental.content_folder.service._folder.delete_async",
+        "unique_toolkit.experimental.resources.content_folder.service._folder.delete_async",
         new_callable=AsyncMock,
     ) as mock_delete_async:
         mock_delete_async.return_value = DeleteResult.model_validate(
@@ -557,7 +557,7 @@ def test_AI_service_create_access_delegates_to_functions() -> None:
     """``ContentFolder.create_access`` forwards ``scope_accesses`` and scope address."""
     svc = ContentFolder(company_id="c1", user_id="u1")
     with patch(
-        "unique_toolkit.experimental.content_folder.service._folder.create_access"
+        "unique_toolkit.experimental.resources.content_folder.service._folder.create_access"
     ) as mock_ca:
         mock_ca.return_value = MagicMock()
         svc.create_access(scope_id="scope_1", scope_accesses=[_grant("u2")])
@@ -570,7 +570,7 @@ async def test_AI_service_create_access_async_delegates_to_functions() -> None:
     """``ContentFolder.create_access_async`` forwards to the async functions layer."""
     svc = ContentFolder(company_id="c1", user_id="u1")
     with patch(
-        "unique_toolkit.experimental.content_folder.service._folder.create_access_async",
+        "unique_toolkit.experimental.resources.content_folder.service._folder.create_access_async",
         new_callable=AsyncMock,
     ) as mock_ca_async:
         mock_ca_async.return_value = MagicMock()
@@ -590,7 +590,7 @@ def test_AI_service_delete_access_delegates_to_functions() -> None:
     """``ContentFolder.delete_access`` forwards the scope address and grants."""
     svc = ContentFolder(company_id="c1", user_id="u1")
     with patch(
-        "unique_toolkit.experimental.content_folder.service._folder.delete_access"
+        "unique_toolkit.experimental.resources.content_folder.service._folder.delete_access"
     ) as mock_da:
         mock_da.return_value = MagicMock()
         svc.delete_access(scope_id="scope_1", scope_accesses=[_grant("u2")])
@@ -603,7 +603,7 @@ async def test_AI_service_delete_access_async_delegates_to_functions() -> None:
     """``ContentFolder.delete_access_async`` forwards to the async functions layer."""
     svc = ContentFolder(company_id="c1", user_id="u1")
     with patch(
-        "unique_toolkit.experimental.content_folder.service._folder.delete_access_async",
+        "unique_toolkit.experimental.resources.content_folder.service._folder.delete_access_async",
         new_callable=AsyncMock,
     ) as mock_da_async:
         mock_da_async.return_value = MagicMock()
