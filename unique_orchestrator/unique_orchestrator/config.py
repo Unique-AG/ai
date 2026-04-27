@@ -46,7 +46,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ToolProgressReporterConfig,
 )
 from unique_toolkit.language_model.default_language_model import DEFAULT_GPT_4o
-from unique_toolkit.language_model.infos import ModelCapabilities
+from unique_toolkit.language_model.infos import LanguageModelName, ModelCapabilities
 from unique_web_search.config import WebSearchConfig
 from unique_web_search.service import WebSearchTool
 
@@ -414,6 +414,24 @@ class UniqueAIConfig(BaseToolConfig):
         ):
             self.agent.experimental.responses_api_config.use_responses_api = True
 
+        return self
+
+    @model_validator(mode="after")
+    def enable_responses_api_for_gpt_55_and_gpt_55_pro(self) -> "UniqueAIConfig":
+        """Auto-enable the Responses API for GPT-5.5 (AZURE_GPT_55_2026_0424) and GPT-5.5-Pro (AZURE_GPT_55_PRO_2026_0424).
+
+        TEMP FIX: gpt-5.5-2026-04-24 and gpt-5.5-pro-2026-04-24 reject requests that combine `tools` with
+        `reasoning_effort` on /v1/chat/completions and demands /v1/responses.
+        Forcing the Responses API here avoids the OpenAI 400 error until the
+        runner can pick the right transport based on model capabilities.
+        Tracked in Jira: UN-20123.
+        """
+        if (
+            self.space.language_model.name == LanguageModelName.AZURE_GPT_55_2026_0424
+            or self.space.language_model.name
+            == LanguageModelName.AZURE_GPT_55_PRO_2026_0424
+        ):
+            self.agent.experimental.responses_api_config.use_responses_api = True
         return self
 
     @model_validator(mode="after")
