@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Self
 
 from unique_toolkit._common.validate_required_values import validate_required_values
 from unique_toolkit.app.unique_settings import UniqueSettings
-from unique_toolkit.experimental.scheduled_task.functions import (
+from unique_toolkit.experimental.resources.scheduled_task.functions import (
     create_scheduled_task,
     create_scheduled_task_async,
     delete_scheduled_task,
@@ -40,7 +40,7 @@ from unique_toolkit.experimental.scheduled_task.functions import (
     update_scheduled_task,
     update_scheduled_task_async,
 )
-from unique_toolkit.experimental.scheduled_task.schemas import (
+from unique_toolkit.experimental.resources.scheduled_task.schemas import (
     DeletedScheduledTask,
     ScheduledTask,
 )
@@ -55,7 +55,7 @@ class ScheduledTasks:
     .. warning::
 
         **Experimental.** Import path is
-        :mod:`unique_toolkit.experimental.scheduled_task`. The API may change
+        :mod:`unique_toolkit.experimental.resources.scheduled_task`. The API may change
         without notice.
 
     **What is a scheduled task?** A task stored on the platform that, on every

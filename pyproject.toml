@@ -24,6 +24,7 @@ dev = [
     "pytest-cov>=7.0.0,<8",
     "pytest-mock>=3.14.0,<4",
     "deptry>=0.24.0,<0.25",
+    "import-linter>=2.0,<3",
     "poethepoet>=0.32.0,<0.33",
     # migrated from per-package dev groups
     "python-dotenv>=1.1.0,<2",
@@ -38,7 +39,9 @@ docs = [
     "mkdocs-include-markdown-plugin>=7.1.8",
     "mkdocs-callouts>=1.16.0",
     "mkdocstrings-python>=1.16.10",
-    "entangled-cli>=2.1.13",
+    # mkdocs-entangled-plugin 0.6.0 still calls entangled.config.read_config()
+    # without the filesystem argument added in entangled-cli 2.4.2.
+    "entangled-cli>=2.4,<2.4.2",
     "mkdocs-entangled-plugin>=0.4.0",
     "mkdocs-codeinclude-plugin>=0.2.1",
     "mkdocs-include-dir-to-nav>=1.2.0",
@@ -98,3 +101,10 @@ members = [
     "connectors/*",
     "tutorials/mcp/mcp_test",
 ]
+
+# Root-level poe tasks. Individual workspace packages own their own
+# [tool.poe.tasks] blocks; only forward-to-package passthroughs belong here,
+# so `uv run poe <task>` works from the repository root as well as from each
+# package directory.
+[tool.poe.tasks]
+check-imports = "lint-imports --config unique_toolkit/pyproject.toml"

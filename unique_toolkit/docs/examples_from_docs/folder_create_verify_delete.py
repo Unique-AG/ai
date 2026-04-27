@@ -1,7 +1,7 @@
 # %%
 from __future__ import annotations
 
-from unique_toolkit.experimental.content_folder import ContentFolder
+from unique_toolkit.experimental.resources.content_folder import ContentFolder
 
 # Absolute path from the KB root; change if this collides with real data.
 DEMO_FOLDER_PATH = "/EntangledToolkitDocsDemo"
