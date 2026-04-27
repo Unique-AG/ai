@@ -137,6 +137,53 @@ async def test_rate_limit_ux__creates_log_entry_on_first_retry(
 
 @pytest.mark.ai
 @pytest.mark.asyncio
+async def test_rate_limit_ux__initial_display_uses_round_not_int_for_jittered_wait(
+    chat_service: ChatService,
+) -> None:
+    """
+    Purpose: Initial banner and countdown must use the same rounded second value.
+    Why this matters: tenacity adds jitter so wait_secs is often non-integer; using
+    round() once avoids a jump (e.g. "31s" then 29s) from mixing :.0f with int().
+    Setup summary: Callback with 30.7s; assert log text shows 31s (round), not 30 (int).
+    """
+    created_log = _make_log()
+    create_mock = AsyncMock(return_value=created_log)
+    stream_result = MagicMock()
+    captured_callback = None
+
+    async def fake_stream(**kwargs):
+        nonlocal captured_callback
+        captured_callback = kwargs.get("on_rate_limit_retry")
+        return stream_result
+
+    with (
+        patch(f"{_MODULE}.stream_responses_with_references_async", fake_stream),
+        patch.object(chat_service, "create_message_log_async", create_mock),
+        _patch_feature_flag(True),
+        patch(f"{_MODULE}.rate_limit_retry_config") as cfg,
+    ):
+        cfg.log_message_on_retry = True
+        cfg.max_attempts = 2
+        cfg.initial_delay_seconds = 30.0
+
+        task = asyncio.create_task(
+            chat_service.complete_responses_with_references_async(
+                model_name="gpt-4o",
+                messages="hello",
+            )
+        )
+        await asyncio.sleep(0)
+        assert captured_callback is not None
+        await captured_callback(1, 30.7)
+        await task
+
+    text = create_mock.call_args.kwargs["text"]
+    assert "retrying in 31s" in text
+    assert "retrying in 30s" not in text
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
 async def test_rate_limit_ux__updates_existing_log_on_second_retry(
     chat_service: ChatService,
 ) -> None:

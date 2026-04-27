@@ -1769,8 +1769,13 @@ class ChatService(ChatServiceDeprecated):
             await _cancel_ticker()
 
             msg_id = self._assistant_message_id
+            # Use round(), not int() and not :.0f in isolation: tenacity adds jitter, so
+            # wait_secs is often non-integer. Rounding once keeps the first banner and the
+            # countdown start value identical (e.g. avoid "31s" then 29, 28…).
+            wait_display_seconds = max(0, round(float(wait_secs)))
             initial = (
-                f"Rate limit reached; retrying in {wait_secs:.0f}s (attempt {attempt})"
+                f"Rate limit reached; retrying in {wait_display_seconds}s "
+                f"(attempt {attempt})"
             )
 
             try:
@@ -1808,7 +1813,7 @@ class ChatService(ChatServiceDeprecated):
             log_order = active.order
 
             async def _countdown() -> None:
-                remaining = int(wait_secs)
+                remaining = wait_display_seconds
                 while remaining > 0:
                     await asyncio.sleep(1)
                     remaining -= 1
