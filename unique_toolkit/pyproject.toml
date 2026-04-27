@@ -191,6 +191,11 @@ source_modules = [
 forbidden_modules = ["unique_toolkit.experimental.resources.facades"]
 
 [[tool.importlinter.contracts]]
+name = "experimental: facades never import other facades"
+type = "independence"
+modules = ["unique_toolkit.experimental.resources.facades.*"]
+
+[[tool.importlinter.contracts]]
 name = "experimental: facades compose primitives only"
 type = "forbidden"
 source_modules = ["unique_toolkit.experimental.resources.facades"]
