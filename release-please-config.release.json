@@ -3,7 +3,7 @@
   "release-type": "python",
   "versioning": "always-bump-patch",
   "separate-pull-requests": false,
-  "group-pull-request-title-pattern": "chore: hotfix ${branch}",
+  "group-pull-request-title-pattern": "chore: hotfix ${branch} to ${version}",
   "include-component-in-tag": true,
   "include-v-in-tag": true,
   "tag-separator": "-",
