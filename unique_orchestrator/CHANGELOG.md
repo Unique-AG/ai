@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.18.4](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.18.3...unique-orchestrator-v2026.18.4) (2026-04-27)
+
+
+### Bug Fixes
+
+* **unique-orchestrator:** using response API fpr GPT 55 ([#1556](https://github.com/Unique-AG/ai/issues/1556)) ([#1559](https://github.com/Unique-AG/ai/issues/1559)) ([0d4363f](https://github.com/Unique-AG/ai/commit/0d4363f725bb348498210d0245c7e10d2e924a11))
+
 ## [2026.18.3](https://github.com/Unique-AG/ai/compare/unique-orchestrator-v2026.18.2...unique-orchestrator-v2026.18.3) (2026-04-27)
 
 
