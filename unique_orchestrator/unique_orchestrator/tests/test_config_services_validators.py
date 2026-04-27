@@ -11,6 +11,7 @@ from unique_toolkit.agentic.tools.openai_builtin.code_interpreter.config import 
 from unique_toolkit.agentic.tools.tool import ToolBuildConfig
 from unique_toolkit.language_model.infos import (
     LanguageModelInfo,
+    LanguageModelName,
     LanguageModelProvider,
     ModelCapabilities,
 )
@@ -237,6 +238,82 @@ class TestUniqueAIConfigOpenFileValidator:
                     responses_api_config=ResponsesApiConfig(
                         use_responses_api=True,
                     )
+                )
+            },
+        )
+
+        assert config.agent.experimental.responses_api_config.use_responses_api is True
+
+
+class TestUniqueAIConfigGpt55ResponsesApiValidator:
+    """Test suite for UniqueAIConfig.enable_responses_api_for_gpt_55 validator.
+
+    GPT-5.5 (AZURE_GPT_55_2026_0424) rejects requests that combine `tools`
+    with `reasoning_effort` on /v1/chat/completions and demands /v1/responses.
+    The validator forces the Responses API on when this specific model is
+    selected, regardless of which tools are configured.
+    Tracked in Jira: UN-20123.
+    """
+
+    def test_enables_responses_api_for_gpt_55_model(self):
+        """When the selected model is AZURE_GPT_55_2026_0424, the validator
+        must auto-enable use_responses_api so the runner routes to /v1/responses."""
+        gpt_55 = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_55_2026_0424)
+
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(language_model=gpt_55, tools=[]),
+        )
+
+        assert config.agent.experimental.responses_api_config.use_responses_api is True
+
+    def test_enables_responses_api_for_gpt_55_with_tools(self):
+        """The auto-enable must apply even when tools other than Code Interpreter
+        are configured — the GPT-5.5 transport requirement is independent of the
+        Code Interpreter validator above."""
+        gpt_55 = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_55_2026_0424)
+
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(
+                language_model=gpt_55,
+                tools=[CODE_INTERPRETER_TOOL],
+            ),
+        )
+
+        assert config.agent.experimental.responses_api_config.use_responses_api is True
+
+    def test_does_not_enable_responses_api_for_other_models(self):
+        """When the selected model is not AZURE_GPT_55_2026_0424, the validator
+        must be a no-op even if the model supports the Responses API."""
+        config = _make_config(tools=[], supports_responses_api=True)
+
+        assert config.agent.experimental.responses_api_config.use_responses_api is False
+
+    def test_does_not_enable_responses_api_for_gpt_55_pro(self):
+        """The TEMP FIX targets only AZURE_GPT_55_2026_0424. Sibling variants such
+        as AZURE_GPT_55_PRO_2026_0424 must not be auto-upgraded by this validator,
+        otherwise the fix could mask real configuration issues for other models."""
+        gpt_55_pro = LanguageModelInfo.from_name(
+            LanguageModelName.AZURE_GPT_55_PRO_2026_0424
+        )
+
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(language_model=gpt_55_pro, tools=[]),
+        )
+
+        assert config.agent.experimental.responses_api_config.use_responses_api is False
+
+    def test_keeps_responses_api_enabled_when_already_enabled(self):
+        """When use_responses_api is already True for GPT-5.5, the validator must
+        leave it True (i.e. it is idempotent for this model)."""
+        from unique_orchestrator.config import ExperimentalConfig, ResponsesApiConfig
+
+        gpt_55 = LanguageModelInfo.from_name(LanguageModelName.AZURE_GPT_55_2026_0424)
+
+        config = UniqueAIConfig(
+            space=UniqueAISpaceConfig(language_model=gpt_55, tools=[]),
+            agent={
+                "experimental": ExperimentalConfig(
+                    responses_api_config=ResponsesApiConfig(use_responses_api=True),
                 )
             },
         )
