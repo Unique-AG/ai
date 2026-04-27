@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.18.3](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.18.2...unique-sdk-v2026.18.3) (2026-04-27)
+
+
+### Features
+
+* **sdk:** add modules api ([#1538](https://github.com/Unique-AG/ai/issues/1538)) ([0377639](https://github.com/Unique-AG/ai/commit/0377639935fc81d75bad9d285d95c07858d8acbe))
+
 ## [2026.18.2](https://github.com/Unique-AG/ai/compare/unique-sdk-v2026.18.1...unique-sdk-v2026.18.2) (2026-04-24)
 
 
