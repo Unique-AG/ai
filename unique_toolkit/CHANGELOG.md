@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-toolkit-v1.82.0...unique-toolkit-v2026.18.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* **ci:** skip no-manual-release check on release-please PRs ([#1501](https://github.com/Unique-AG/ai/issues/1501)) ([c930672](https://github.com/Unique-AG/ai/commit/c930672e6f7b21317786c68f55eedfa1a446dde9))
+* **planning:** Use tool calling for planning in responses api ([#1478](https://github.com/Unique-AG/ai/issues/1478)) ([4c2009e](https://github.com/Unique-AG/ai/commit/4c2009eac4db522965f26ed44f426c81ffeead0e))
+
+
+### Miscellaneous
+
+* arm release 2026.18.0 ([#1493](https://github.com/Unique-AG/ai/issues/1493)) ([bc435b2](https://github.com/Unique-AG/ai/commit/bc435b2c5838a9e16484fb054beb277b8262c136))
+
 ## [1.82.0] - 2026-04-22
 ### Added
 - Add `Tool.tool_system_reminder_for_user_prompt()` hook returning a per-turn `<system-reminder>` string that the orchestrator can inject as its own `{"type": "text"}` part on the latest user message. Override in tools whose state changes between turns (e.g. the Skill tool's list of currently loaded skills). Defaults to `""`.

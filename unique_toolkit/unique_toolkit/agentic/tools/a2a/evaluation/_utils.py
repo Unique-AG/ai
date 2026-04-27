@@ -48,7 +48,7 @@ def get_valid_assessments(
             or assessment["label"] not in ChatMessageAssessmentLabel
         ):
             logger.warning(
-                "Unkown assistant label %s for assistant %s (sequence number: %s) will be ignored",
+                "Unknown assistant label %s for assistant %s (sequence number: %s) will be ignored",
                 assessment["label"],
                 display_name,
                 sequence_number,

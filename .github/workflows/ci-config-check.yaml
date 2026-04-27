@@ -106,6 +106,7 @@ jobs:
         with:
           package_dir: ${{ matrix.dir }}
           python_version: ${{ matrix.python }}
+          lock_mode: frozen
 
       - name: Export base defaults
         working-directory: ${{ matrix.dir }}

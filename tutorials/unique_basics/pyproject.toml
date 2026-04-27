@@ -7,7 +7,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "python-dotenv>=1.0.1",
-    "unique-toolkit>=0.7.39",
+    "unique-toolkit>=2026.18.0",
     "pydantic-settings>=2.8.1",
     "aiolimiter>=1.2.1",
     "dotenv>=0.9.9",

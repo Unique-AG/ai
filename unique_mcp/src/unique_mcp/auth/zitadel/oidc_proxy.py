@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 from fastmcp.server.auth.oidc_proxy import OIDCProxy
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from unique_mcp.auth.zitadel.scopes import ZITADEL_DEFAULT_MCP_SCOPES
 from unique_mcp.util.find_env_file import find_env_file
 
 if TYPE_CHECKING:
@@ -40,12 +41,25 @@ def create_zitadel_oidc_proxy(
     Args:
         mcp_server_base_url: Base URL of the MCP server (e.g., http://localhost:8003).
         zitadel_oidc_proxy_settings: Optional settings instance. If not provided,
-            a new instance will be created.
+            a new instance will be created from environment variables.
+        client_storage: Storage backend for OAuth state.
+        **kwargs: Forwarded directly to ``OIDCProxy``. Unless ``extra_authorize_params``
+            already sets ``scope``, the default Zitadel/MCP scope list is injected so
+            Zitadel never receives an empty scope on the authorize request.
+            Do NOT use ``required_scopes`` for this: Zitadel access tokens often omit
+            several requested scopes from the JWT, which would cause the JWT verifier
+            to reject every token (invalid_token loop).
 
     Returns:
         Configured OIDCProxy instance
     """
     settings = zitadel_oidc_proxy_settings or ZitadelOIDCProxySettings()  # type: ignore[call-arg]
+
+    extra_authorize_params: dict[str, str] = dict(
+        kwargs.pop("extra_authorize_params", None) or {}
+    )
+    if "scope" not in extra_authorize_params:
+        extra_authorize_params["scope"] = " ".join(ZITADEL_DEFAULT_MCP_SCOPES)
 
     return OIDCProxy(
         config_url=settings.config_url,
@@ -54,5 +68,6 @@ def create_zitadel_oidc_proxy(
         base_url=mcp_server_base_url,
         token_endpoint_auth_method="client_secret_post",
         client_storage=client_storage,
+        extra_authorize_params=extra_authorize_params,
         **kwargs,
     )

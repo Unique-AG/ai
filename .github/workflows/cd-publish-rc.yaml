@@ -1,0 +1,411 @@
+name: "[CD] Publish rc release to PyPI"
+
+# Promote a previously published *dev cut* to a release-candidate (rc)
+# release on PyPI. Manually triggered, takes a `dev-cut-<SHA>` tag as
+# input, and republishes *every* package in that cut at version
+# `{cycle}.0rcN` with sibling deps pinned to `==`.
+#
+# Why rc instead of dev for "ship something between weekly releases"
+# ==================================================================
+#   PEP 440 orders pre-releases as ``dev < a < b < rc < final < post``.
+#   A ``2026.20.0rc1`` therefore:
+#     - sorts BEFORE the eventual ``2026.20.0`` weekly release, so it
+#       does not shadow it
+#     - sorts AFTER any ``2026.18.x`` hotfix, so a customer that wants
+#       a fix between weekly releases can pin ``>= 2026.18.0`` and pick
+#       it up via normal upgrades
+#     - is opt-in by default for pip / uv (pre-releases require
+#       ``--pre`` or an explicit pin), unlike a stable release which
+#       would be picked up by the next weekly automation
+#
+# Why "dev cut" as the promotion unit
+# ===================================
+#   ``cd-publish-dev`` only rebuilds the packages whose sources changed
+#   in the push range. Two consecutive dev publishes therefore produce
+#   *different sets* of sibling versions on PyPI. A "dev cut" is the
+#   reproducible unit that pins this down: one SHA on ``main`` plus
+#   the exact ``(package, version)`` map produced from it. Each
+#   successful dev publish tags ``dev-cut-<SHORT_SHA>`` and creates a
+#   matching GitHub pre-release that records the map.
+#
+#   This workflow always promotes the WHOLE cut (every publishable
+#   package), not just packages that changed since the last release.
+#   That keeps `==` sibling pins in the rc wheels honest: every rc
+#   in a cycle resolves to one consistent set of versions.
+#
+# RC monotonicity
+# ===============
+#   ``rcN+1`` must be a superset of ``rcN`` so a customer who pinned
+#   ``==2026.20.0rcN`` can move forward to ``rcN+1`` without losing
+#   fixes. We enforce this by requiring the chosen cut SHA to be a
+#   descendant of the previous rc cut SHA in the same cycle. Override
+#   with ``force_non_linear: true`` only when intentionally branching
+#   (e.g. dropping an unwanted commit).
+#
+# Tag and release artifacts
+# =========================
+#   - Git tag: ``rc-{cycle}.0rcN`` on the dev cut SHA (so the same SHA
+#     can carry both ``dev-cut-<SHORT>`` and the matching rc tag).
+#   - GitHub pre-release: title = rc version, target = cut SHA,
+#     ``--notes-start-tag`` = highest earlier ``rc-{cycle}.0rc*`` tag
+#     when present (so notes only cover what landed between rcs);
+#     omitted on the first rc of a cycle, where ``--generate-notes``
+#     falls back to GitHub's default last-release heuristic.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Dev cut tag to promote (e.g. dev-cut-abc123def456). Pick from a "dev cut" GitHub pre-release.'
+        required: true
+        type: string
+      force_non_linear:
+        description: 'Skip the monotonicity check (cut SHA must be descendant of the previous rc cut SHA in the same cycle). Only set when intentionally branching off the current rc lineage.'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Shared with cd-publish-dev so dev and rc publishes serialize against
+# each other. Two PyPI writes for the same cycle would otherwise race
+# on the rc counter resolution.
+concurrency:
+  group: publish-prerelease
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.publishable.outputs.matrix }}
+      new_versions: ${{ steps.resolve_versions.outputs.new_versions }}
+      dep_pins: ${{ steps.resolve_versions.outputs.dep_pins }}
+      cycle: ${{ steps.calver.outputs.cycle }}
+      rc_version: ${{ steps.resolve_versions.outputs.rc_version }}
+      rc_n: ${{ steps.resolve_versions.outputs.rc_n }}
+      cut_sha: ${{ steps.cut.outputs.sha }}
+      cut_short: ${{ steps.cut.outputs.short }}
+      previous_rc_tag: ${{ steps.previous.outputs.tag }}
+    steps:
+      - name: Validate input ref
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+        run: |
+          # Restrict promotion to the cut tag namespace so we can't
+          # accidentally rc-publish from an arbitrary branch / SHA where
+          # the package set was never recorded.
+          if [[ ! "$INPUT_REF" =~ ^dev-cut-[0-9a-f]{12}$ ]]; then
+            echo "Error: ref must be a dev-cut tag like 'dev-cut-abc123def456'." >&2
+            echo "Got: '$INPUT_REF'" >&2
+            exit 1
+          fi
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          # Need full history + all tags for ancestor checks and the
+          # "highest previous rc tag in cycle" lookup.
+          fetch-depth: 0
+          fetch-tags: true
+          # Check out the dev cut tag itself; every subsequent build /
+          # rewrite step must see the source tree as it was when the
+          # dev wheels were produced, not whatever main looks like now.
+          ref: ${{ inputs.ref }}
+
+      - name: Resolve cut SHA
+        id: cut
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+        run: |
+          SHA="$(git rev-parse "$INPUT_REF^{commit}")"
+          SHORT="$(git rev-parse --short=12 "$SHA")"
+          echo "sha=$SHA"     >> "$GITHUB_OUTPUT"
+          echo "short=$SHORT" >> "$GITHUB_OUTPUT"
+          echo "Resolved $INPUT_REF -> $SHA"
+
+      - name: Verify cut SHA is on main
+        env:
+          CUT_SHA: ${{ steps.cut.outputs.sha }}
+        run: |
+          # rc publishes promote main-line history. If the cut SHA is
+          # not an ancestor of origin/main, something has gone wrong
+          # (force-push, deleted commit, tag pointing somewhere odd).
+          git fetch --no-tags --depth=1 origin main
+          if ! git merge-base --is-ancestor "$CUT_SHA" origin/main; then
+            echo "Error: cut SHA $CUT_SHA is not an ancestor of origin/main." >&2
+            echo "rc publishes must come from a dev cut on main." >&2
+            exit 1
+          fi
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          version: '0.11.5'
+
+      - name: Compute CalVer cycle
+        id: calver
+        run: |
+          # Run from the cut SHA's tree so the cycle is the one that was
+          # active when the dev was published, not "now". This matters
+          # if the rc is promoted weeks after the dev cut landed.
+          CYCLE="$(./.github/scripts/compute-calver.sh)"
+          echo "cycle=$CYCLE" >> "$GITHUB_OUTPUT"
+          echo "- CalVer cycle: \`$CYCLE\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build publishable matrix
+        id: publishable
+        env:
+          PKG_CONFIG: .github/actions/get-packages-matrix/package_configuration.json
+        run: |
+          # rc cuts always include every publishable package, no
+          # change-detection: the dev cut already locked the version
+          # graph, and partial rc publishes would break `==` sibling
+          # pins for anything left behind on PyPI.
+          MATRIX=$(jq -c '{include: [.[] | select((.publish_skip != true) and (.pypi_name != null))]}' "$PKG_CONFIG")
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          {
+            echo "### RC publish — selection"
+            echo ""
+            echo "- Source ref: \`${{ inputs.ref }}\` (\`${{ steps.cut.outputs.sha }}\`)"
+            echo "- Packages queued: $(jq '.include | length' <<<"$MATRIX")"
+            echo ""
+            echo '```json'
+            jq . <<<"$MATRIX"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Resolve rc versions and dep pins
+        id: resolve_versions
+        env:
+          CYCLE: ${{ steps.calver.outputs.cycle }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/resolve"
+          uv run --quiet --no-project -- \
+            python3 .github/scripts/resolve-rc-versions.py \
+              --cycle "$CYCLE" \
+              --output-dir "$RUNNER_TEMP/resolve" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+          DELIM="$(openssl rand -hex 16)"
+          {
+            echo "new_versions<<${DELIM}"
+            printf '%s\n' "$(cat "$RUNNER_TEMP/resolve/new_versions.json")"
+            echo "${DELIM}"
+            echo "dep_pins<<${DELIM}"
+            printf '%s\n' "$(cat "$RUNNER_TEMP/resolve/dep_pins.json")"
+            echo "${DELIM}"
+            echo "rc_version=$(tr -d '\n' < "$RUNNER_TEMP/resolve/rc_version.txt")"
+            echo "rc_n=$(tr -d '\n' < "$RUNNER_TEMP/resolve/rc_n.txt")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Find previous rc tag in cycle and check monotonicity
+        id: previous
+        env:
+          CYCLE: ${{ steps.calver.outputs.cycle }}
+          CUT_SHA: ${{ steps.cut.outputs.sha }}
+          FORCE_NON_LINEAR: ${{ inputs.force_non_linear }}
+        run: |
+          # Highest existing rc tag (if any) for this cycle, used both
+          # for `--notes-start-tag` later and for the monotonicity
+          # check. Tag pattern: rc-{cycle}.0rc{N}.
+          PREV_TAG=$(git tag --list "rc-${CYCLE}.0rc*" \
+            | awk -F'rc' '{ printf "%d %s\n", $NF, $0 }' \
+            | sort -n -k1,1 \
+            | tail -n1 \
+            | awk '{ print $2 }' || true)
+
+          if [[ -z "$PREV_TAG" ]]; then
+            echo "No previous rc tag in cycle $CYCLE — first rc."
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PREV_SHA="$(git rev-parse "$PREV_TAG^{commit}")"
+          echo "Previous rc tag: $PREV_TAG (sha $PREV_SHA)"
+          echo "tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
+
+          # Monotonicity: the new cut must be a descendant of (or equal
+          # to) the previous rc cut, so customers who pinned to it can
+          # always move forward without losing fixes. Override only when
+          # intentionally branching off the previous rc lineage.
+          if git merge-base --is-ancestor "$PREV_SHA" "$CUT_SHA"; then
+            echo "✓ Cut SHA descends from previous rc cut — monotonicity preserved."
+          else
+            if [[ "$FORCE_NON_LINEAR" == "true" ]]; then
+              echo "::warning::Cut SHA $CUT_SHA is NOT a descendant of $PREV_TAG ($PREV_SHA), but force_non_linear=true was set. Proceeding."
+            else
+              echo "Error: cut SHA $CUT_SHA is not a descendant of previous rc tag $PREV_TAG ($PREV_SHA)." >&2
+              echo "rc lineage must be linear within a cycle. Re-run with force_non_linear=true if you intend to branch off." >&2
+              exit 1
+            fi
+          fi
+
+  publish:
+    needs: resolve
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.resolve.outputs.matrix) }}
+    name: publish-rc-${{ matrix.id }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          # Build from the dev cut SHA, never from main HEAD — same
+          # source as the original dev wheels, just with rc version
+          # numbers and `==` sibling pins.
+          ref: ${{ needs.resolve.outputs.cut_sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          version: '0.11.5'
+
+      - name: Rewrite pyproject.toml for rc version
+        env:
+          OWN_VERSION: ${{ fromJson(needs.resolve.outputs.new_versions)[matrix.id] }}
+          DEP_PINS: ${{ needs.resolve.outputs.dep_pins }}
+          PYPROJECT: ${{ matrix.dir }}/pyproject.toml
+        run: |
+          # Same rewrite script as dev — it accepts both `.devN` /`>=`
+          # (dev path) and `rcN` / `==` (rc path) version+pin shapes.
+          uv run --quiet --no-project --with 'tomlkit==0.14.0' -- \
+            python3 .github/scripts/rewrite-pyproject-pre-release.py \
+              "$PYPROJECT" \
+              --own-version "$OWN_VERSION" \
+              --dep-pins "$DEP_PINS"
+
+      - name: Show rewrite diff
+        run: |
+          echo "### ${{ matrix.id }} — pyproject.toml rewrite" >> "$GITHUB_STEP_SUMMARY"
+          echo '```diff' >> "$GITHUB_STEP_SUMMARY"
+          git --no-pager diff --no-color -- "${{ matrix.dir }}/pyproject.toml" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build package
+        working-directory: ${{ matrix.dir }}
+        env:
+          UV_NO_SOURCES: 1
+        run: uv build -o dist
+
+      - name: Show wheel metadata
+        working-directory: ${{ matrix.dir }}
+        run: |
+          WHEEL=$(ls dist/*.whl | head -n1)
+          echo "### ${{ matrix.id }} — wheel METADATA ($(basename "$WHEEL"))" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          python3 -c "
+          import sys, zipfile, re
+          wheel = sys.argv[1]
+          with zipfile.ZipFile(wheel) as zf:
+              meta_name = next(n for n in zf.namelist() if n.endswith('.dist-info/METADATA'))
+              text = zf.read(meta_name).decode()
+          for line in text.splitlines():
+              if re.match(r'^(Name|Version|Requires-Dist):', line):
+                  print(line)
+          " "$WHEEL" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish to PyPI
+        working-directory: ${{ matrix.dir }}
+        run: uv publish --username __token__ --password "${{ secrets.PYPI_TOKEN }}"
+
+  tag-release:
+    # After every package in the cut publishes successfully, tag the
+    # cut SHA with the rc version and create the matching GitHub
+    # pre-release. We do not block on tag-release for PyPI: even if
+    # tagging fails, the wheels are already shipped.
+    needs: [resolve, publish]
+    if: needs.publish.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          # Same SHA the dev wheels were built from. Tag goes on this
+          # commit; release notes use the source tree at this commit.
+          ref: ${{ needs.resolve.outputs.cut_sha }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Tag rc release
+        env:
+          CUT_SHA: ${{ needs.resolve.outputs.cut_sha }}
+          RC_VERSION: ${{ needs.resolve.outputs.rc_version }}
+        run: |
+          TAG="rc-${RC_VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG" "$CUT_SHA"
+          git push origin "$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        id: tag
+
+      - name: Create GitHub pre-release for rc cut
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_VERSIONS: ${{ needs.resolve.outputs.new_versions }}
+          DEP_PINS: ${{ needs.resolve.outputs.dep_pins }}
+          CYCLE: ${{ needs.resolve.outputs.cycle }}
+          RC_VERSION: ${{ needs.resolve.outputs.rc_version }}
+          CUT_SHA: ${{ needs.resolve.outputs.cut_sha }}
+          CUT_SHORT: ${{ needs.resolve.outputs.cut_short }}
+          INPUT_REF: ${{ inputs.ref }}
+          PREV_TAG: ${{ needs.resolve.outputs.previous_rc_tag }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          BODY_FILE="$(mktemp)"
+          {
+            echo "Release candidate \`${RC_VERSION}\` for cycle \`${CYCLE}\`."
+            echo
+            echo "- Source dev cut: [\`${INPUT_REF}\`](../../releases/tag/${INPUT_REF})"
+            echo "- Cut SHA: \`${CUT_SHA}\`"
+            if [[ -n "$PREV_TAG" ]]; then
+              echo "- Previous rc in cycle: [\`${PREV_TAG}\`](../../releases/tag/${PREV_TAG})"
+            else
+              echo "- Previous rc in cycle: _none — first rc of \`${CYCLE}\`_"
+            fi
+            echo
+            echo "## Packages published in this rc cut"
+            echo
+            echo "| package | version |"
+            echo "| --- | --- |"
+            jq -r 'to_entries | sort_by(.key) | .[] | "| `\(.key)` | `\(.value)` |"' <<<"$NEW_VERSIONS"
+            echo
+            echo "## Sibling dependency pins stamped into wheel METADATA"
+            echo
+            echo "All cross-package AI deps are pinned with \`==\` to the same rc version,"
+            echo "so installing any package in this cut resolves to a single consistent set."
+            echo
+            echo '```json'
+            jq -S . <<<"$DEP_PINS"
+            echo '```'
+            echo
+            echo "## Auto-generated changes since previous rc"
+          } > "$BODY_FILE"
+
+          # `--notes-start-tag` produces a commit-list / PR list between
+          # the previous rc and this cut. On the first rc of a cycle we
+          # have no anchor, so we let `--generate-notes` use GitHub's
+          # default "since last release" heuristic instead.
+          if [[ -n "$PREV_TAG" ]]; then
+            gh release create "$TAG" \
+              --prerelease \
+              --target "$CUT_SHA" \
+              --title "$RC_VERSION" \
+              --notes-file "$BODY_FILE" \
+              --generate-notes \
+              --notes-start-tag "$PREV_TAG"
+          else
+            gh release create "$TAG" \
+              --prerelease \
+              --target "$CUT_SHA" \
+              --title "$RC_VERSION" \
+              --notes-file "$BODY_FILE" \
+              --generate-notes
+          fi
