@@ -210,33 +210,43 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: ./.github/scripts/prepare-next-cycle.sh
 
-      # A stable release commits new dev floors via update-dep-floors.py,
-      # which makes any open `chore: pin dev-cut <SHA>` PR (opened by
-      # cd-publish-dev.yaml against `main`) obsolete: its floors are
-      # strictly older than the floors that just landed on `main`.
-      # Close them so they don't accumulate cycle after cycle.
-      - name: Close stale dev bump PRs
+      # cd-publish-dev.yaml already closes the prior dev-bump PR every time
+      # it opens a new one, so at most one `chore: pin dev-cut <SHA>` PR is
+      # ever open. After a stable cut, update-dep-floors.py has just
+      # persisted strictly newer floors on `main`, making that single open
+      # PR obsolete. Close it now instead of waiting for the next dev
+      # publish to supersede it (the next dev publish may not happen for
+      # hours/days, and a "previous-cycle" dev-cut PR sitting open is
+      # confusing for reviewers).
+      - name: Close stale dev bump PR
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
+          # Use a loop anyway in case the invariant ever slips and more than
+          # one ends up open.
           PR_NUMBERS=$(gh pr list \
             --repo "${{ github.repository }}" \
             --state open \
             --base main \
-            --search "chore: pin dev-cut in:title" \
+            --label "dev-version-bump" \
             --json number \
             --jq '.[].number')
 
           if [[ -z "$PR_NUMBERS" ]]; then
-            echo "No open dev bump PRs found."
+            echo "No open dev bump PR found."
             exit 0
           fi
 
+          # `|| true` keeps the post-release job green if the PR is already
+          # closed (race with cd-publish-dev.yaml's own cleanup) or if the
+          # API call hits a transient error — this is best-effort cleanup,
+          # not a release-blocking step.
           for PR in $PR_NUMBERS; do
             echo "Closing dev bump PR #${PR}"
             gh pr close "$PR" \
               --repo "${{ github.repository }}" \
-              --comment "Superseded by stable release: dev-cut floors were just persisted to \`main\`."
+              --comment "Superseded by stable release: dev-cut floors were just persisted to \`main\`." \
+              || true
           done
 
       - name: Summary
@@ -245,6 +255,6 @@ jobs:
             echo "### Post-release actions"
             echo "- Cut \`release/\` branch from the tagged release commit (App token bypasses branch protection on \`release-branches\` ruleset)"
             echo "- Pushed \`Release-As\` trailer to \`main\` to arm the next CalVer cycle (App token bypasses branch protection on \`main-branch\` ruleset)"
-            echo "- Closed any open \`chore: pin dev-cut …\` PRs (superseded by the stable floors that just landed on \`main\`)"
+            echo "- Closed the open \`chore: pin dev-cut …\` PR (superseded by the stable floors that just landed on \`main\`)"
             echo "- \`cd-publish.yaml\` will fire on the \`release:published\` event created by release-please's App-token-authored release"
           } >> "$GITHUB_STEP_SUMMARY"
