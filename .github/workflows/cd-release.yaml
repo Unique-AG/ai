@@ -80,7 +80,7 @@ jobs:
           owner: ${{ github.repository_owner }}
 
       - id: rp
-        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ steps.app-token.outputs.token }}
           config-file: ${{ startsWith(github.ref_name, 'release/') && 'release-please-config.release.json' || 'release-please-config.json' }}
@@ -133,7 +133,7 @@ jobs:
 
       - name: Checkout release PR branch
         if: steps.pr-info.outputs.branch != ''
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ steps.pr-info.outputs.branch }}
           token: ${{ steps.app-token.outputs.token }}
@@ -197,7 +197,7 @@ jobs:
           owner: ${{ github.repository_owner }}
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
