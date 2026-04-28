@@ -1,13 +1,15 @@
-"""Unit tests for unique_toolkit.components.internal_search.base.utils."""
+"""Unit tests for unique_toolkit.experimental.components.internal_search.base.utils."""
 
 import pytest
 
-from unique_toolkit.components.internal_search.base.schemas import SearchStringResult
-from unique_toolkit.components.internal_search.base.utils import (
+from unique_toolkit.content.schemas import ContentChunk
+from unique_toolkit.experimental.components.internal_search.base.schemas import (
+    SearchStringResult,
+)
+from unique_toolkit.experimental.components.internal_search.base.utils import (
     clean_search_string,
     interleave_search_results_round_robin,
 )
-from unique_toolkit.content.schemas import ContentChunk
 
 # ---------------------------------------------------------------------------
 # Helpers

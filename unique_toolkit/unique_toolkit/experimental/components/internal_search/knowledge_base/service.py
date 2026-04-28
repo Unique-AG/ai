@@ -3,16 +3,16 @@ from __future__ import annotations
 from typing import Any, Self, cast
 
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
-from unique_toolkit.components.internal_search.base import (
+from unique_toolkit.experimental.components.internal_search.base import (
     SearchStringResult,
 )
-from unique_toolkit.components.internal_search.base.service import (
+from unique_toolkit.experimental.components.internal_search.base.service import (
     InternalSearchBaseService,
 )
-from unique_toolkit.components.internal_search.knowledge_base.config import (
+from unique_toolkit.experimental.components.internal_search.knowledge_base.config import (
     KnowledgeBaseInternalSearchConfig,
 )
-from unique_toolkit.components.internal_search.knowledge_base.schemas import (
+from unique_toolkit.experimental.components.internal_search.knowledge_base.schemas import (
     UNSET,
     KnowledgeBaseInternalSearchDeps,
     KnowledgeBaseInternalSearchState,
@@ -25,7 +25,7 @@ class KnowledgeBaseInternalSearchService(
 ):
     _state: KnowledgeBaseInternalSearchState
     _dependencies: KnowledgeBaseInternalSearchDeps
-    _config: KnowledgeBaseInternalSearchConfig
+    _config: KnowledgeBaseInternalSearchConfig  # pyright: ignore[reportIncompatibleVariableOverride]
     _config_model_cls = KnowledgeBaseInternalSearchConfig
 
     @classmethod
@@ -42,7 +42,6 @@ class KnowledgeBaseInternalSearchService(
     ) -> KnowledgeBaseInternalSearchDeps:
         factory = UniqueServiceFactory(settings=settings)
         return KnowledgeBaseInternalSearchDeps(
-            chunk_relevancy_sorter=factory.chunk_relevancy_sorter(),
             knowledge_base_service=factory.knowledge_base_service(),
         )
 
@@ -61,7 +60,6 @@ class KnowledgeBaseInternalSearchService(
             "search_string": query,
             "search_type": self._config.search_type,
             "limit": self._config.limit,
-            "reranker_config": self._config.reranker_config,
             "search_language": self._config.search_language,
             "score_threshold": self._config.score_threshold,
         }

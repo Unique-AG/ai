@@ -4,7 +4,7 @@ from pydantic import Field
 
 from unique_toolkit._common.config_checker import register_config
 from unique_toolkit._common.pydantic_helpers import DeactivatedNone
-from unique_toolkit.components.internal_search.base.config import (
+from unique_toolkit.experimental.components.internal_search.base.config import (
     InternalSearchConfig,
 )
 
@@ -13,7 +13,11 @@ from unique_toolkit.components.internal_search.base.config import (
 class KnowledgeBaseInternalSearchConfig(InternalSearchConfig):
     scope_ids: Annotated[list[str], Field(title="Active")] | DeactivatedNone = Field(
         default=None,
-        description="The scope ids to use for the search.",
+        description=(
+            "Knowledge-base scope IDs to restrict the search to. "
+            "When set, takes precedence over metadata_filter — the two are "
+            "mutually exclusive at the API level (scope_ids OR metadata_filter)."
+        ),
     )
     metadata_filter: dict[str, object] | None = Field(
         default=None,

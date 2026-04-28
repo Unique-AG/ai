@@ -30,12 +30,10 @@ def language_model_info() -> LanguageModelInfo:
 
 
 @pytest.fixture
-def set_runnable_state(language_model_info):
+def set_runnable_state():
     """Factory fixture — populates a service's state so run() is valid."""
 
     def _set(svc, queries: list[str]) -> None:
         svc._state.search_queries = queries
-        svc._state.language_model_info = language_model_info
-        svc._state.language_model_max_input_tokens = 128_000
 
     return _set

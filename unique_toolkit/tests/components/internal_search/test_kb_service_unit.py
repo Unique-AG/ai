@@ -6,15 +6,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from unique_toolkit.components.internal_search.knowledge_base.config import (
+from unique_toolkit.experimental.components.internal_search.knowledge_base.config import (
     KnowledgeBaseInternalSearchConfig,
 )
-from unique_toolkit.components.internal_search.knowledge_base.schemas import (
+from unique_toolkit.experimental.components.internal_search.knowledge_base.schemas import (
     UNSET,
     KnowledgeBaseInternalSearchDeps,
     KnowledgeBaseInternalSearchState,
 )
-from unique_toolkit.components.internal_search.knowledge_base.service import (
+from unique_toolkit.experimental.components.internal_search.knowledge_base.service import (
     KnowledgeBaseInternalSearchService,
 )
 
@@ -32,10 +32,8 @@ def _make_service(
     svc = KnowledgeBaseInternalSearchService.from_config(cfg)
 
     mock_kb_svc = AsyncMock()
-    mock_sorter = MagicMock()
 
     svc._dependencies = KnowledgeBaseInternalSearchDeps(
-        chunk_relevancy_sorter=mock_sorter,
         knowledge_base_service=mock_kb_svc,
     )
     context = MagicMock()

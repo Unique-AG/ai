@@ -1,8 +1,10 @@
 import logging
 import re
 
-from unique_toolkit.components.internal_search.base.schemas import SearchStringResult
 from unique_toolkit.content import ContentChunk
+from unique_toolkit.experimental.components.internal_search.base.schemas import (
+    SearchStringResult,
+)
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -1,17 +1,22 @@
 import asyncio
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from collections.abc import Sequence
 from typing import Any, Self
 
 from typing_extensions import Generic
 
-from unique_toolkit._common.chunk_relevancy_sorter.exception import (
-    ChunkRelevancySorterException,
-)
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.chat.schemas import MessageLogStatus
-from unique_toolkit.components.internal_search.base.config import InternalSearchConfig
-from unique_toolkit.components.internal_search.base.schemas import (
+from unique_toolkit.content import (
+    ContentChunk,
+    merge_content_chunks,
+    sort_content_chunks,
+)
+from unique_toolkit.experimental.components._base import BaseService
+from unique_toolkit.experimental.components.internal_search.base.config import (
+    InternalSearchConfig,
+)
+from unique_toolkit.experimental.components.internal_search.base.schemas import (
     InternalSearchProgressMessage,
     InternalSearchResult,
     InternalSearchStage,
@@ -19,21 +24,13 @@ from unique_toolkit.components.internal_search.base.schemas import (
     SearchStringResult,
     TInternalSearchDeps,
 )
-from unique_toolkit.components.internal_search.base.utils import (
+from unique_toolkit.experimental.components.internal_search.base.utils import (
     clean_search_string,
     interleave_search_results_round_robin,
 )
-from unique_toolkit.components.parts import BaseService
-from unique_toolkit.content import (
-    ContentChunk,
-    merge_content_chunks,
-    pick_content_chunks_for_token_window,
-    sort_content_chunks,
-)
 
 
-class InternalSearchBaseService(
-    ABC,
+class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
     BaseService[
         InternalSearchResult,
         InternalSearchConfig,
@@ -98,8 +95,6 @@ class InternalSearchBaseService(
     def _validate_state(self):
         if not self._state.search_queries:
             raise ValueError("State must have at least one search query before run().")
-        if self._state.language_model_info is None:
-            raise ValueError("State must have language_model_info set before run().")
 
     def _normalise_queries(self, queries: list[str]) -> list[str]:
         cleaned = [clean_search_string(q) for q in queries]
@@ -125,37 +120,12 @@ class InternalSearchBaseService(
                 successful.append(result)
         return successful
 
-    async def _resort_chunks(
-        self, search_result: SearchStringResult
-    ) -> list[ContentChunk]:
-        self.logger.info("Resorting %d search results...", len(search_result.chunks))
-        try:
-            result = await self._dependencies.chunk_relevancy_sorter.run(
-                input_text=search_result.query,
-                chunks=search_result.chunks,
-                config=self._config.chunk_relevancy_sort_config,
-            )
-            return result.content_chunks
-        except ChunkRelevancySorterException as e:
-            self.logger.warning("Chunk resorting failed: %s", e.error_message)
-            return search_result.chunks
-
     async def _finalize_run(
         self,
         search_queries: list[str],
         found: list[SearchStringResult],
         debug_info: dict[str, Any],
     ) -> InternalSearchResult:
-        if self._config.chunk_relevancy_sort_config.enabled:
-            await self.post_progress_message(
-                InternalSearchProgressMessage(
-                    stage=InternalSearchStage.RESORTING,
-                    status=MessageLogStatus.RUNNING,
-                    search_queries=search_queries,
-                )
-            )
-            for result in found:
-                result.chunks = await self._resort_chunks(result)
         await self.post_progress_message(
             InternalSearchProgressMessage(
                 stage=InternalSearchStage.POSTPROCESSING,
@@ -170,19 +140,10 @@ class InternalSearchBaseService(
         all_chunks: list[ContentChunk] = [
             chunk for result in found for chunk in result.chunks
         ]
-        selected = pick_content_chunks_for_token_window(
-            all_chunks,
-            self._state.get_max_tokens(
-                percentage=self._config.percentage_of_input_tokens_for_sources,
-                fallback=self._config.max_tokens_for_sources,
-            ),
-            model_info=self._state.language_model_info,
-        )
-
-        selected = (
-            sort_content_chunks(selected)
+        chunks = (
+            sort_content_chunks(all_chunks)
             if self._config.chunked_sources
-            else merge_content_chunks(selected)
+            else merge_content_chunks(all_chunks)
         )
 
         await self.post_progress_message(
@@ -190,12 +151,12 @@ class InternalSearchBaseService(
                 stage=InternalSearchStage.COMPLETED,
                 status=MessageLogStatus.COMPLETED,
                 search_queries=search_queries,
-                chunks=selected,
+                chunks=chunks,
             )
         )
 
         return InternalSearchResult(
-            chunks=selected,
+            chunks=chunks,
             debug_info=debug_info,
         )
 

@@ -6,18 +6,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from unique_toolkit.components.internal_search.base.config import InternalSearchConfig
-from unique_toolkit.components.internal_search.base.schemas import (
+from unique_toolkit.content.schemas import ContentSearchType
+from unique_toolkit.experimental.components.internal_search.base.config import (
+    InternalSearchConfig,
+)
+from unique_toolkit.experimental.components.internal_search.base.schemas import (
     InternalSearchState,
     SearchStringResult,
 )
-from unique_toolkit.components.internal_search.chat.schemas import (
+from unique_toolkit.experimental.components.internal_search.chat.schemas import (
     ChatInternalSearchDeps,
 )
-from unique_toolkit.components.internal_search.chat.service import (
+from unique_toolkit.experimental.components.internal_search.chat.service import (
     ChatInternalSearchService,
 )
-from unique_toolkit.content.schemas import ContentSearchType
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -27,23 +29,21 @@ from unique_toolkit.content.schemas import ContentSearchType
 def _make_service(
     config: InternalSearchConfig | None = None,
     chat_context: MagicMock | None = None,
-) -> tuple[ChatInternalSearchService, MagicMock, MagicMock]:
-    """Return (service, mock_chat_service, mock_sorter)."""
+) -> tuple[ChatInternalSearchService, MagicMock]:
+    """Return (service, mock_chat_service)."""
     cfg = config or InternalSearchConfig()
     svc = ChatInternalSearchService.from_config(cfg)
 
     mock_chat_svc = AsyncMock()
-    mock_sorter = MagicMock()
 
     svc._dependencies = ChatInternalSearchDeps(
-        chunk_relevancy_sorter=mock_sorter,
         chat_service=mock_chat_svc,
     )
     context = MagicMock()
     context.chat = chat_context if chat_context is not None else MagicMock()
     svc._context = context
     svc.reset_state()
-    return svc, mock_chat_svc, mock_sorter
+    return svc, mock_chat_svc
 
 
 # ---------------------------------------------------------------------------
@@ -82,7 +82,7 @@ def test_reset_state__creates_base_state():
     Why this matters: The state must be ready for use before any search query is issued.
     Setup summary: After reset_state, assert state is an InternalSearchState with empty queries.
     """
-    svc, _, _ = _make_service()
+    svc, _ = _make_service()
     assert isinstance(svc._state, InternalSearchState)
     assert svc._state.search_queries == []
 
@@ -101,7 +101,7 @@ async def test_search_single_query__calls_chat_service_with_correct_args(make_ch
         search_language="german",
         score_threshold=0.3,
     )
-    svc, mock_chat_svc, _ = _make_service(config=cfg)
+    svc, mock_chat_svc = _make_service(config=cfg)
 
     chunks = [make_chunk("a"), make_chunk("b")]
     mock_chat_svc.search_content_chunks_async = AsyncMock(return_value=chunks)
@@ -112,7 +112,6 @@ async def test_search_single_query__calls_chat_service_with_correct_args(make_ch
         search_string="my query",
         search_type=ContentSearchType.VECTOR,
         limit=50,
-        reranker_config=cfg.reranker_config,
         search_language="german",
         score_threshold=0.3,
         content_ids=None,
@@ -128,7 +127,7 @@ async def test_search_single_query__forwards_content_ids_when_set():
         uploaded files; not forwarding it silently ignores the caller's intent.
     Setup summary: State with two content IDs; assert ChatService receives them unchanged.
     """
-    svc, mock_chat_svc, _ = _make_service()
+    svc, mock_chat_svc = _make_service()
     svc._state.content_ids = ["file-1", "file-2"]
     mock_chat_svc.search_content_chunks_async = AsyncMock(return_value=[])
 
@@ -145,7 +144,7 @@ async def test_search_single_query__returns_empty_chunks_on_no_results():
     Why this matters: Empty results are valid (no matching documents); they must not cause a crash.
     Setup summary: Mock chat service returns []; assert SearchStringResult has empty chunks.
     """
-    svc, mock_chat_svc, _ = _make_service()
+    svc, mock_chat_svc = _make_service()
     mock_chat_svc.search_content_chunks_async = AsyncMock(return_value=[])
 
     result = await svc._search_single_query(query="nothing here")
@@ -168,7 +167,7 @@ async def test_run__produces_result_from_chat_search(make_chunk, set_runnable_st
     Setup summary: Service with one query; chat service returns one chunk; assert result has
         that chunk and debug_info contains the search string.
     """
-    svc, mock_chat_svc, _ = _make_service()
+    svc, mock_chat_svc = _make_service()
     set_runnable_state(svc, ["what is AI?"])
     mock_chat_svc.search_content_chunks_async = AsyncMock(
         return_value=[make_chunk("c1")]

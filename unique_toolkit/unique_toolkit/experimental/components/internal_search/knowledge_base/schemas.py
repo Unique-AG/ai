@@ -3,13 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from unique_toolkit.components.internal_search.base.schemas import InternalSearchState
+from unique_toolkit.experimental.components.internal_search.base.schemas import (
+    InternalSearchState,
+)
 
 if TYPE_CHECKING:
     from unique_toolkit import KnowledgeBaseService
-    from unique_toolkit._common.chunk_relevancy_sorter.service import (
-        ChunkRelevancySorter,
-    )
 
 
 class _UnsetType:
@@ -31,7 +30,6 @@ UNSET: _UnsetType = _UnsetType()
 
 @dataclass
 class KnowledgeBaseInternalSearchDeps:
-    chunk_relevancy_sorter: ChunkRelevancySorter
     knowledge_base_service: KnowledgeBaseService
 
 

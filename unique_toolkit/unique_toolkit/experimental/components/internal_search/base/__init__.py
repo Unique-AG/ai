@@ -1,10 +1,5 @@
-from .config import (
-    DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED,
-    DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED,
-    InternalSearchConfig,
-)
+from .config import DEFAULT_LIMIT, InternalSearchConfig
 from .schemas import (
-    HasChunkRelevancySorter,
     InternalSearchProgressMessage,
     InternalSearchResult,
     InternalSearchStage,
@@ -22,9 +17,9 @@ from .utils import (
 __all__ = [
     "append_metadata_in_chunks",
     "clean_search_string",
-    "HasChunkRelevancySorter",
-    "InternalSearchConfig",
+    "DEFAULT_LIMIT",
     "InternalSearchBaseService",
+    "InternalSearchConfig",
     "InternalSearchProgressMessage",
     "InternalSearchResult",
     "InternalSearchStage",
@@ -32,6 +27,4 @@ __all__ = [
     "interleave_search_results_round_robin",
     "SearchStringResult",
     "TInternalSearchDeps",
-    "DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_ENABLED",
-    "DEFAULT_LIMIT_CHUNK_RELEVANCY_SORT_DISABLED",
 ]
