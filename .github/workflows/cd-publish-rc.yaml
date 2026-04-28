@@ -319,12 +319,27 @@ jobs:
     # cut SHA with the rc version and create the matching GitHub
     # pre-release. We do not block on tag-release for PyPI: even if
     # tagging fails, the wheels are already shipped.
+    #
+    # Runs on gh-static-ip-slim under the `release-workflow` environment
+    # so the tag and pre-release are authored by the Release Workflow
+    # App. App-authored tags / releases are not subject to GitHub's
+    # anti-recursion rule, which keeps the rc tag visible to any
+    # downstream automation that listens on `release: prereleased`.
     needs: [resolve, publish]
     if: needs.publish.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: gh-static-ip-slim
+    environment: release-workflow
     permissions:
       contents: write
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: unique-ag/actions/github/app-token-create@df61dcf6fb84a7cad9c9b5f04924b40311cb016a
+        with:
+          app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
+          base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
+          owner: ${{ github.repository_owner }}
+
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           # Same SHA the dev wheels were built from. Tag goes on this
@@ -332,6 +347,7 @@ jobs:
           ref: ${{ needs.resolve.outputs.cut_sha }}
           fetch-depth: 0
           fetch-tags: true
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Tag rc release
         env:
@@ -348,7 +364,7 @@ jobs:
 
       - name: Create GitHub pre-release for rc cut
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           NEW_VERSIONS: ${{ needs.resolve.outputs.new_versions }}
           DEP_PINS: ${{ needs.resolve.outputs.dep_pins }}
           CYCLE: ${{ needs.resolve.outputs.cycle }}
