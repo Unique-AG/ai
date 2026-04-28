@@ -281,21 +281,33 @@ jobs:
     # plus the matching GitHub pre-release lock down what the cut actually
     # contained — which packages were rebuilt, at what versions, and with
     # which sibling pins — without anyone having to scrape PyPI by date.
+    #
+    # Runs on gh-static-ip-slim: the Release Workflow GitHub App is
+    # IP-origin-bound and only accepts requests from this runner's static IP.
     needs: [resolve, publish]
     if: needs.publish.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: gh-static-ip-slim
     permissions:
       contents: write
     outputs:
       short: ${{ steps.tag.outputs.short }}
       tag: ${{ steps.tag.outputs.tag }}
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: unique-ag/actions/github/app-token-create@df61dcf6fb84a7cad9c9b5f04924b40311cb016a
+        with:
+          app_id: ${{ vars.RELEASE_WORKFLOW_APP_ID }}
+          base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
+          owner: ${{ github.repository_owner }}
+
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           # Tag and notes target the commit the dev wheels were built from,
           # not whatever main looks like by the time this job runs.
           ref: ${{ github.sha }}
           fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Tag dev cut
         env:
@@ -313,7 +325,7 @@ jobs:
 
       - name: Create GitHub pre-release for cut
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           NEW_VERSIONS: ${{ needs.resolve.outputs.new_versions }}
           DEP_PINS: ${{ needs.resolve.outputs.dep_pins }}
           CYCLE: ${{ needs.resolve.outputs.cycle }}
@@ -358,9 +370,14 @@ jobs:
     # (e.g. chore/bump-dev-2026.18-tk-5-sdk-4-orch-3) so each publish run
     # creates a unique, auditable branch.  Any older open dev-bump PR is
     # closed first to avoid stale branches accumulating.
+    #
+    # Uses the Release Workflow GitHub App token so that the opened PR
+    # triggers pull_request: CI workflows. GITHUB_TOKEN-created PRs are
+    # subject to GitHub's anti-recursion rule and do not fire CI.
+    # Runs on gh-static-ip-slim: the App is IP-origin-bound.
     needs: [resolve, publish, tag-cut]
     if: needs.publish.result == 'success' && needs.tag-cut.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: gh-static-ip-slim
     permissions:
       contents: write
       pull-requests: write
@@ -368,9 +385,18 @@ jobs:
       BRANCH: chore/bump-dev-${{ needs.resolve.outputs.cycle }}-${{ needs.resolve.outputs.branch_suffix }}
       CYCLE: ${{ needs.resolve.outputs.cycle }}
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: unique-ag/actions/github/app-token-create@df61dcf6fb84a7cad9c9b5f04924b40311cb016a
+        with:
+          app_id: ${{ vars.RELEASE_WORKFLOW_APP_ID }}
+          base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
+          owner: ${{ github.repository_owner }}
+
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: main
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
@@ -379,7 +405,7 @@ jobs:
 
       - name: Ensure dev-version-bump label exists
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh label create "dev-version-bump" \
             --description "Automated PR that bumps dev version pins for local development" \
@@ -388,7 +414,7 @@ jobs:
 
       - name: Close previous dev-bump PRs
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh pr list --state open --label "dev-version-bump" --json number \
             | jq -r '.[].number' \
@@ -441,7 +467,7 @@ jobs:
       - name: Open PR
         if: steps.commit.outputs.pushed == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ALL_CURRENT_VERSIONS: ${{ needs.resolve.outputs.all_current_versions }}
         run: |
           BODY_FILE="$(mktemp)"
