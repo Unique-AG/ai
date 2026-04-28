@@ -97,14 +97,16 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         company_id: str,
         **params: Unpack["AnalyticsOrder.ListParams"],
     ) -> builtins.list["AnalyticsOrder"]:
-        result = cls._static_request(
-            "get",
-            cls.RESOURCE_URL,
-            user_id,
-            company_id,
-            params,
+        return cast(
+            builtins.list["AnalyticsOrder"],
+            cls._static_request(
+                "get",
+                cls.RESOURCE_URL,
+                user_id,
+                company_id,
+                params,
+            ),
         )
-        return cast(builtins.list["AnalyticsOrder"], result.get("items", []))
 
     @classmethod
     async def list_async(
@@ -113,14 +115,16 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         company_id: str,
         **params: Unpack["AnalyticsOrder.ListParams"],
     ) -> builtins.list["AnalyticsOrder"]:
-        result = await cls._static_request_async(
-            "get",
-            cls.RESOURCE_URL,
-            user_id,
-            company_id,
-            params,
+        return cast(
+            builtins.list["AnalyticsOrder"],
+            await cls._static_request_async(
+                "get",
+                cls.RESOURCE_URL,
+                user_id,
+                company_id,
+                params,
+            ),
         )
-        return cast(builtins.list["AnalyticsOrder"], result.get("items", []))
 
     @classmethod
     def retrieve(
