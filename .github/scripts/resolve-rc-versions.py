@@ -4,10 +4,9 @@
 Unlike dev publishes (per-package contiguous ``devN`` counters), an rc
 cut republishes **every** publishable AI package at a single shared
 ``{cycle}.0rcN`` version. The shared counter is what lets sibling deps
-be pinned with ``==``: every package in the cut resolves to the same
-concrete release, so ``pip install`` always picks a mutually consistent
-set. Mixing different ``rcN`` counters across packages would defeat the
-``==`` pins.
+be pinned with ``>=``: every package in the cut lands at the same
+``rcN`` floor, so ``pip install`` pulls a mutually consistent set while
+still allowing natural upgrades to later rcs or the final stable.
 
 Counter selection
 =================
@@ -27,10 +26,10 @@ Outputs
   package. Always covers the full publishable set — rc cuts do not
   honor a "selected" subset because every sibling needs to resolve.
 
-* ``dep_pins``: normalized PyPI name -> ``=={cycle}.0rcN`` for every
+* ``dep_pins``: normalized PyPI name -> ``>={cycle}.0rcN`` for every
   publishable package. Consumed by ``rewrite-pyproject-pre-release.py``,
-  which stamps these into wheel ``Requires-Dist`` so the resulting
-  release is a closed set with no drift between siblings.
+  which stamps these into wheel ``Requires-Dist`` so every sibling is
+  at the rc floor or newer.
 
 Names in both maps are PEP 503 normalized so the rewrite step matches
 ``unique-sdk``, ``unique_sdk`` and ``Unique.SDK`` to the same entry.
@@ -94,7 +93,7 @@ def resolve(
         raise SystemExit(f"invalid cycle: {cycle!r}")
 
     # Global max across every publishable package; one rc counter for the
-    # whole cut so sibling ``==`` pins always resolve consistently.
+    # whole cut so sibling ``>=`` pins always share the same floor.
     seen: list[int] = []
     for pkg in publishable:
         n = highest_rc_in_cycle(pkg["pypi_name"], cycle, pypi_base_url, fetcher=fetcher)
@@ -107,7 +106,7 @@ def resolve(
     dep_pins: dict[str, str] = {}
     for pkg in publishable:
         new_versions[pkg["id"]] = version
-        dep_pins[normalize(pkg["pypi_name"])] = f"=={version}"
+        dep_pins[normalize(pkg["pypi_name"])] = f">={version}"
 
     return new_versions, dep_pins, rc_n
 
