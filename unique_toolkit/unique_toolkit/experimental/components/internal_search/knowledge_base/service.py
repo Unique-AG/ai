@@ -29,7 +29,7 @@ class KnowledgeBaseInternalSearchService(
     _config_model_cls = KnowledgeBaseInternalSearchConfig
 
     @classmethod
-    def from_config(cls, config: KnowledgeBaseInternalSearchConfig) -> Self:
+    def from_config(cls, config: KnowledgeBaseInternalSearchConfig) -> Self:  # pyright: ignore[reportIncompatibleMethodOverride]
         instance = cls()
         instance._config = config
         return instance
