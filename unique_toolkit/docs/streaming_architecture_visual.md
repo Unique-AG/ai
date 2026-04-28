@@ -5,6 +5,16 @@
 
 Each section gives a small diagram focused on one idea. Copy any block into a Mermaid live editor if you need to zoom.
 
+> **Architecture goal.** This layer adapts streaming APIs from provider SDKs
+> into the Unique platform update model. A provider stream emits
+> provider-specific chunks and events; the router/event-handler layer
+> interprets those into the typical things that happen during an LLM stream:
+> start, text deltas, end, tool/activity progress, function calls, usage, and
+> appendices. The bus then publishes the platform-facing events that
+> subscribers translate into `unique_sdk` calls, so the backend can update the
+> assistant message and progress logs while the original streaming call is
+> still running.
+
 > **A note on naming.** The package is `event_routing/`, and the core runtime type
 > is `*StreamEventRouter`. It does not chain event handlers like a Pipes-and-Filters
 > pipeline: it **dispatches** each incoming event to the right event handler
@@ -23,14 +33,14 @@ flowchart LR
     classDef pure fill:#2ca02c,color:#fff,stroke:#1a6a1a
     classDef eff  fill:#d62728,color:#fff,stroke:#7a1515
 
-    A[Orchestrator]:::orch --> B[Router + event handlers]:::pure
+    A["*CompleteWithReferences<br/>orchestrator"]:::orch --> B[Router + event handlers]:::pure
     B --> C[Subscribers]:::eff
     C -.-> SDK[(unique_sdk)]
 ```
 
-- **Orchestrator** owns the HTTP stream + bus.
-- **Router + event handlers** are pure state machines.
-- **Subscribers** are the only layer allowed to touch `unique_sdk`.
+- **`*CompleteWithReferences` orchestrator** owns the provider streaming call and the platform event bus. Today this means `ResponsesCompleteWithReferences` or `ChatCompletionsCompleteWithReferences`.
+- **Router + event handlers** normalize provider-specific stream events into state and platform-facing events.
+- **Subscribers** are the only layer allowed to touch `unique_sdk`; they send the corresponding message/log updates to the backend.
 
 ---
 
@@ -44,16 +54,16 @@ flowchart LR
     classDef eff  fill:#d62728,color:#fff,stroke:#7a1515
     classDef ext  fill:#7f7f7f,color:#fff,stroke:#333
 
-    OAI[OpenAI]:::ext --> H[CompleteWithReferences]:::orch
+    OAI[Provider SDK stream<br/>OpenAI today]:::ext --> H["*CompleteWithReferences<br/>orchestrator"]:::orch
     H --> P[StreamEventRouter]:::pure
     H --> BUS((StreamEventBus)):::bus
     BUS --> MP[MessagePersister]:::eff
     BUS --> PL[ProgressLogPersister]:::eff
-    MP --> SDK[(unique_sdk)]:::ext
+    MP --> SDK[(unique_sdk<br/>Unique backend updates)]:::ext
     PL --> SDK
 ```
 
-Read it as: OpenAI feeds the orchestrator; the orchestrator fans out to a pure router (for state) and a bus (for side effects).
+Read it as: a provider SDK feeds a `*CompleteWithReferences` orchestrator; the orchestrator fans out to a pure router (for stream interpretation and state) and a bus (for platform side effects). OpenAI Responses and Chat Completions are the current provider stream shapes, but the boundary is meant to keep the rest of the platform from depending on those wire formats.
 
 ---
 
@@ -74,7 +84,7 @@ flowchart TB
     classDef sub fill:#d62728,color:#fff,stroke:#7a1515
     classDef sdk fill:#7f7f7f,color:#fff,stroke:#333
 
-    subgraph O["Orchestrator: *CompleteWithReferences"]
+    subgraph O["*CompleteWithReferences orchestrator"]
         ORCH[stream loop + lifecycle]:::owner
         ODATA[request context<br/>message_id · chat_id · content_chunks<br/>gpt_request · debug_info · StreamEventBus]:::data
     end
@@ -145,7 +155,7 @@ before publishing on `StreamEventBus`.
 
 ## 4. Domain events on the bus
 
-`StreamEventBus` is a **routing table of typed channels** — one channel per concrete event. The orchestrator publishes on the matching channel; subscribers subscribe only to the channels they care about. No runtime `isinstance` dispatch at the subscriber boundary.
+`StreamEventBus` is the normalized platform-facing contract for a running stream. It is a **routing table of typed channels** — one channel per concrete event. The orchestrator publishes on the matching channel; subscribers subscribe only to the channels they care about. No runtime `isinstance` dispatch at the subscriber boundary.
 
 ```mermaid
 flowchart LR
@@ -159,7 +169,7 @@ flowchart LR
     A[activity_progress: TypedEventBus&lt;ActivityProgress&gt;]:::ev --- BUS
 ```
 
-Four channels, nothing else. `MessagePersistingSubscriber` subscribes to the three text-lifecycle channels; `ProgressLogPersister` subscribes only to `activity_progress`. The orchestrator wires `ProgressLogPersister` **only when** the router has a progress-producing event handler.
+Four channels, nothing else. They cover the updates the Unique backend needs during streaming: message creation/start, incremental text, final text, and tool-like progress. `MessagePersistingSubscriber` subscribes to the three text-lifecycle channels; `ProgressLogPersister` subscribes only to `activity_progress`. The orchestrator wires `ProgressLogPersister` **only when** the router has a progress-producing event handler.
 
 ---
 
@@ -169,7 +179,7 @@ Each component has one well-scoped responsibility. The table is the short versio
 
 | Component | Owns | Must do | Must *not* do |
 |---|---|---|---|
-| **Orchestrator** (`*CompleteWithReferences`) | HTTP stream, `StreamEventBus`, router instance | Run `async for`, publish domain events with identity, build the final result | Accumulate text, call `unique_sdk`, know regex patterns |
+| **`*CompleteWithReferences` orchestrator** | HTTP stream, `StreamEventBus`, router instance | Run `async for`, publish domain events with identity, build the final result | Accumulate text, call `unique_sdk`, know regex patterns |
 | **Stream event router** (`*StreamEventRouter`) | Event-handler references | Dispatch events by type (Responses) or broadcast to all event handlers (Chat Completions), fan out lifecycle, aggregate appendices, build typed result | Hold state, call SDK, know about identity |
 | **Event handlers** (`*TextDeltaEventHandler`, `*ToolCallEventHandler`, …) | `TextState`, tool-call list, usage/output, progress dedup state, inner `TypedEventBus` | Accumulate state, publish inner-bus flushes/progress | Call SDK, know `message_id` / `chat_id`, see `ContentChunk`s |
 | **Protocols** (`protocols/`) | Type contracts only | Define the shape event handlers must implement | Contain any logic |
@@ -179,9 +189,9 @@ Each component has one well-scoped responsibility. The table is the short versio
 | **Subscribers** (`MessagePersistingSubscriber`, `ProgressLogPersister`) | Per-stream side-effect state (`chunks_by_message`, `logs_by_correlation`) | Translate domain events into SDK calls; subscribe only to the channels they handle | Mutate event handler state, change event contents |
 | **Pattern replacer** (`pattern_replacer.py`) | `NORMALIZATION_PATTERNS`, hold-back buffer | Rewrite citation variants to `<sup>N</sup>` across chunk boundaries | Know which chunk a citation maps to |
 
-### 5.1 Orchestrator — `ResponsesCompleteWithReferences` / `ChatCompletionsCompleteWithReferences`
+### 5.1 `*CompleteWithReferences` orchestrators
 
-- Opens the streaming call to the OpenAI proxy (`responses.create` / `chat.completions.create`).
+- Opens the streaming call to the provider SDK (`responses.create` / `chat.completions.create` for OpenAI today).
 - Runs its own `async for` loop so it can catch `httpx.RemoteProtocolError` and still finalise with partial output.
 - Publishes the four domain events on the bus. Always publishes `StreamEnded` from `finally`.
 - **Identity adapter:** subscribes to each event handler's inner bus (`text_bus`, `activity_bus`) and re-publishes the payload on the outer bus with `message_id` / `chat_id` attached.
@@ -330,7 +340,7 @@ Event handlers realize a tiny lifecycle protocol. `AppendixProducer` is an optio
 
 ---
 
-## 9. Class relationships — router + orchestrator
+## 9. Class relationships — router + `*CompleteWithReferences` orchestrator
 
 ```mermaid
 classDiagram
@@ -356,7 +366,7 @@ classDiagram
     ResponsesCompleteWithReferences *-- StreamEventBus
 ```
 
-The orchestrator **composes** router + bus (they live and die with it). The router **aggregates** event handlers (event handlers can be built and tested independently).
+The `*CompleteWithReferences` orchestrator **composes** router + bus (they live and die with it). The router **aggregates** event handlers (event handlers can be built and tested independently).
 
 ---
 
@@ -441,7 +451,7 @@ One subscriber per SDK surface, each subscribed only to the channels it handles:
 sequenceDiagram
     autonumber
     participant Caller
-    participant Orch
+    participant Orch as *CompleteWithReferences orchestrator
     participant Router
     participant Bus
     participant Sub as Subscribers
@@ -469,7 +479,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Orch
+    participant Orch as *CompleteWithReferences orchestrator
     participant CI as CodeInterpreter event handler
     participant Bus
     participant PL as ProgressLogPersister
@@ -494,7 +504,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Orch
+    participant Orch as *CompleteWithReferences orchestrator
     participant OpenAI
     participant Bus
     participant Sub
@@ -511,7 +521,7 @@ sequenceDiagram
 
 ---
 
-## 15. Orchestrator state machine
+## 15. `*CompleteWithReferences` orchestrator state machine
 
 ```mermaid
 stateDiagram-v2
@@ -616,7 +626,7 @@ flowchart LR
 
 | I want to… | Where to plug in |
 |---|---|
-| Add a wire format | New `*StreamEventRouter` + orchestrator; reuse bus, subscribers, replacer |
+| Add a provider SDK stream shape | New `*CompleteWithReferences`-style orchestrator + `*StreamEventRouter`; reuse bus, subscribers, replacer |
 | Add an activity | Event handler exposes `activity_bus` of `ActivityProgressUpdate` |
 | Append to final message | Implement `AppendixProducer.get_appendix()` |
 | Tracing / analytics | `orchestrator.bus.text_delta.subscribe(my_fn)` (or any other typed channel) |
@@ -652,4 +662,4 @@ flowchart LR
 
 ## 22. Elevator pitch
 
-> "We turn the OpenAI async stream into two outputs from one loop: a live-updating assistant message on the Unique platform and a typed result for downstream code. A **stream event router** dispatches each event to pure state event handlers that accumulate text, tool calls, usage, and code interpreter blocks; a **stream event bus** made of one typed channel per event fans work out to subscribers that opt in per channel — no `isinstance` at the subscriber boundary, and subscribers are only registered when the router actually produces the channel they care about. Event handlers never call the SDK — **only subscribers do** — so persistence is swap-in/swap-out. Citations are normalised to `<sup>N</sup>` **during** streaming via a shared pattern list that batch post-processing also uses, guarded by a parity test. Same design on both Responses and Chat Completions — ~80% of the code is shared."
+> "We adapt provider SDK streams into Unique platform updates. One streaming call is owned by a `*CompleteWithReferences` orchestrator, interpreted by a **stream event router**, and handled by pure event handlers that recognize the normal stream lifecycle: start, text deltas, tool/activity progress, function calls, usage, and end. A **stream event bus** exposes the platform-facing events on typed channels, and subscribers translate those events into `unique_sdk` calls that update the backend message and progress logs. Event handlers never call the SDK — **only subscribers do** — so adding another provider stream shape means writing a new `*CompleteWithReferences`-style orchestrator/router pair while reusing the bus, subscribers, citation normalization, and result assembly patterns."

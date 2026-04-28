@@ -51,8 +51,12 @@ class _FakeStream:
 
     def __init__(self, chunks: list[Any]) -> None:
         self._chunks = chunks
+        self.enter_calls = 0
+        self.exit_calls = 0
+        self.exit_exc_type: type[BaseException] | None = None
 
     async def __aenter__(self) -> "_FakeStream":
+        self.enter_calls += 1
         return self
 
     async def __aexit__(
@@ -61,6 +65,8 @@ class _FakeStream:
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
+        self.exit_calls += 1
+        self.exit_exc_type = exc_type
         return None
 
     async def __aiter__(self):
@@ -88,6 +94,41 @@ def _build_orchestrator(
         tool_call_event_handler=ChatCompletionToolCallEventHandler(),
     )
     return ChatCompletionsCompleteWithReferences(
+        _settings_with_chat(),
+        client=client,
+        router=router,
+        subscribers=(),
+    )
+
+
+def _build_responses_orchestrator(*, client: Any) -> Any:
+    """Build a Responses orchestrator with no default subscribers."""
+    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.code_interpreter_event_handler import (
+        ResponsesCodeInterpreterEventHandler,
+    )
+    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.complete_with_references import (
+        ResponsesCompleteWithReferences,
+    )
+    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.completed_event_handler import (
+        ResponsesCompletedEventHandler,
+    )
+    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.stream_event_router import (
+        ResponsesStreamEventRouter,
+    )
+    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.text_delta_event_handler import (
+        ResponsesTextDeltaEventHandler,
+    )
+    from unique_toolkit.experimental.integrations.openai.streaming.event_routing.responses.tool_call_event_handler import (
+        ResponsesToolCallEventHandler,
+    )
+
+    router = ResponsesStreamEventRouter(
+        text_event_handler=ResponsesTextDeltaEventHandler(replacers=[]),
+        tool_call_event_handler=ResponsesToolCallEventHandler(),
+        completed_event_handler=ResponsesCompletedEventHandler(),
+        code_interpreter_event_handler=ResponsesCodeInterpreterEventHandler(),
+    )
+    return ResponsesCompleteWithReferences(
         _settings_with_chat(),
         client=client,
         router=router,
@@ -258,6 +299,68 @@ async def test_AI_chat_completions__final_response__includes_request_and_debug_i
 
     assert response.message.gpt_request == [{"role": "user", "content": "hi"}]
     assert response.message.debug_info == {"trace_id": "abc"}
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_chat_completions__event_handler_error__closes_openai_stream():
+    """
+    Purpose: Unexpected event-routing failures still exit the OpenAI stream context.
+    Why this matters: The SDK stream owns the HTTP response; without
+      ``__aexit__`` an exception from routing can leak the connection.
+    Setup summary: Drive one fake chunk while ``router.on_event`` raises and
+      assert the original exception propagates after the stream context exits.
+    """
+
+    class _Boom(RuntimeError):
+        pass
+
+    stream = _FakeStream([object()])
+    fake_client = MagicMock()
+    fake_client.chat.completions.create = AsyncMock(return_value=stream)
+    orchestrator = _build_orchestrator(client=fake_client)
+    orchestrator._router.on_event = AsyncMock(side_effect=_Boom("router failed"))
+
+    with pytest.raises(_Boom):
+        await orchestrator.complete_with_references_async(
+            messages=[{"role": "user", "content": "hi"}],
+            model_name="test-model",
+        )
+
+    assert stream.enter_calls == 1
+    assert stream.exit_calls == 1
+    assert stream.exit_exc_type is _Boom
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_responses__event_handler_error__closes_openai_stream():
+    """
+    Purpose: Responses API streams are also closed when event routing raises.
+    Why this matters: ``client.responses.create(stream=True)`` returns an SDK
+      stream that must deterministically release its HTTP connection on errors.
+    Setup summary: Drive one fake event while ``router.on_event`` raises and
+      assert the stream context manager observes the propagated exception.
+    """
+
+    class _Boom(RuntimeError):
+        pass
+
+    stream = _FakeStream([object()])
+    fake_client = MagicMock()
+    fake_client.responses.create = AsyncMock(return_value=stream)
+    orchestrator = _build_responses_orchestrator(client=fake_client)
+    orchestrator._router.on_event = AsyncMock(side_effect=_Boom("router failed"))
+
+    with pytest.raises(_Boom):
+        await orchestrator.complete_with_references_async(
+            messages="hi",
+            model_name="test-model",
+        )
+
+    assert stream.enter_calls == 1
+    assert stream.exit_calls == 1
+    assert stream.exit_exc_type is _Boom
 
 
 @pytest.mark.ai

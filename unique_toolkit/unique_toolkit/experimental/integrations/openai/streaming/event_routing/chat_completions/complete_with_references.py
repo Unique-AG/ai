@@ -432,8 +432,9 @@ class ChatCompletionsCompleteWithReferences(SupportCompleteWithReferences):
                     **optional_create_kwargs,
                 )
 
-                async for chunk in stream:
-                    await self._router.on_event(chunk)
+                async with stream:
+                    async for chunk in stream:
+                        await self._router.on_event(chunk)
 
             except httpx.RemoteProtocolError as exc:
                 _LOGGER.warning(

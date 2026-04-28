@@ -583,8 +583,9 @@ class ResponsesCompleteWithReferences(ResponsesSupportCompleteWithReferences):
                     temperature=temperature,
                     **create_kwargs,
                 )
-                async for event in stream:
-                    await self._router.on_event(event)
+                async with stream:
+                    async for event in stream:
+                        await self._router.on_event(event)
             except httpx.RemoteProtocolError as exc:
                 _LOGGER.warning(
                     "Stream connection closed prematurely (incomplete chunked read). "

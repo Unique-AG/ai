@@ -170,7 +170,7 @@ class MessagePersistingSubscriber:
             text=final_text or None,
             originalText=event.original_text or None,
             references=filter_cited_sdk_references(chunks, event.full_text),
-            gptRequest=event.gpt_request,
+            gptRequest=event.gpt_request,  # type: ignore
             debugInfo=event.debug_info,
             stoppedStreamingAt=cast(Any, now_iso),
             completedAt=cast(Any, now_iso),

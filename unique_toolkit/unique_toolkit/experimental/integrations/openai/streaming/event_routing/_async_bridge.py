@@ -41,5 +41,4 @@ def run_async_from_sync(
 
     if error is not None:
         raise error
-
     return cast(_T, result)
