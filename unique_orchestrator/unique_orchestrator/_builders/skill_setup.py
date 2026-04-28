@@ -53,7 +53,6 @@ from unique_toolkit.agentic.tools.config import ToolBuildConfig
 from unique_toolkit.agentic.tools.schemas import ToolCallResponse
 from unique_toolkit.content.schemas import Content, ContentInfo
 from unique_toolkit.content.smart_rules import (
-    AndStatement,
     Operator,
     OrStatement,
     Statement,
@@ -110,42 +109,15 @@ def _build_subtree_metadata_filter(*, scope_ids: list[str]) -> dict[str, Any]:
     ``Root/Skills/Programming``::
 
         uniquepathid://scope_root/scope_skills/scope_programming
-
-    The prefix is **not** repeated per segment. A naive
-    ``CONTAINS uniquepathid://<scope_id>`` therefore only matches when
-    ``<scope_id>`` is the *root* of the path, which silently breaks
-    skill discovery for any sub-folder scope ID.
-
-    To match a scope at any depth we OR two predicates per scope:
-
-    * ``folderIdPath CONTAINS "uniquepathid://<scope_id>"`` — root case.
-    * ``folderIdPath CONTAINS "/<scope_id>"`` — descendant case. The
-      leading ``/`` anchors the match to a path-segment boundary so we
-      don't accidentally match inside another scope ID. Scope IDs are
-      ``scope_<random>`` and never contain ``/``, so this predicate
-      cannot leak across segments.
-
-    The two predicates per scope are flattened into a single ``OR`` (or
-    a single ``Statement`` when only one predicate is needed), and the
-    backend's ACL is then applied to the matching set so only files the
-    current user can access are returned.
     """
-    statements: list[Statement | AndStatement | OrStatement] = []
-    for scope_id in scope_ids:
-        statements.append(
-            Statement(
-                operator=Operator.CONTAINS,
-                value=f"uniquepathid://{scope_id}",
-                path=["folderIdPath"],
-            )
+    statements: list[Statement] = [
+        Statement(
+            operator=Operator.CONTAINS,
+            value=f"/{scope_id}",
+            path=["folderIdPath"],
         )
-        statements.append(
-            Statement(
-                operator=Operator.CONTAINS,
-                value=f"/{scope_id}",
-                path=["folderIdPath"],
-            )
-        )
+        for scope_id in scope_ids
+    ]
     if len(statements) == 1:
         return statements[0].model_dump(mode="json")
     return OrStatement(or_list=statements).model_dump(mode="json")
@@ -257,7 +229,6 @@ async def load_skills_from_knowledge_base(
         return {}
 
     metadata_filter = _build_subtree_metadata_filter(scope_ids=scope_ids)
-    print('metadata_filter', metadata_filter)
     all_infos: list[ContentInfo] = []
     skip = 0
     try:
@@ -282,7 +253,6 @@ async def load_skills_from_knowledge_base(
             exc_info=True,
         )
         return {}
-    print('all_infos', all_infos)
 
     skill_infos = [ci for ci in all_infos if _is_skill_entrypoint(content=ci)]
     if not skill_infos:
