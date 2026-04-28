@@ -39,4 +39,7 @@ def run_async_from_sync(
     thread.start()
     thread.join()
 
+    if error is not None:
+        raise error
+
     return cast(_T, result)
