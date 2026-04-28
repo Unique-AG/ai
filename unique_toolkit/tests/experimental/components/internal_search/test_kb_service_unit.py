@@ -48,7 +48,7 @@ def _make_service(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_reset_state__creates_kb_state():
     """
     Purpose: Verifies that reset_state initialises KnowledgeBaseInternalSearchState, not the base class.
@@ -67,7 +67,7 @@ def test_reset_state__creates_kb_state():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_effective_metadata_filter__unset_uses_chat_context_filter():
     """
     Purpose: Verifies that UNSET (default) falls back to the chat context metadata filter.
@@ -82,7 +82,7 @@ def test_effective_metadata_filter__unset_uses_chat_context_filter():
     assert svc._effective_metadata_filter == {"key": "value"}
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_effective_metadata_filter__explicit_none_override_returns_none():
     """
     Purpose: Verifies that explicitly setting metadata_filter_override=None returns None,
@@ -99,7 +99,7 @@ def test_effective_metadata_filter__explicit_none_override_returns_none():
     assert svc._effective_metadata_filter is None
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_effective_metadata_filter__explicit_dict_override_takes_precedence():
     """
     Purpose: Verifies that a dict override is returned instead of the chat context filter.
@@ -116,7 +116,7 @@ def test_effective_metadata_filter__explicit_dict_override_takes_precedence():
     assert svc._effective_metadata_filter == {"custom": "filter"}
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_effective_metadata_filter__unset_no_chat_uses_config_filter():
     """
     Purpose: Verifies that UNSET with no chat context falls back to the static config filter.
@@ -139,7 +139,7 @@ def test_effective_metadata_filter__unset_no_chat_uses_config_filter():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 async def test_search_single_query__uses_scope_ids_when_set(make_chunk):
     """
     Purpose: Verifies that scope_ids are passed to KB search when present in config.
@@ -159,7 +159,7 @@ async def test_search_single_query__uses_scope_ids_when_set(make_chunk):
     assert "content_ids" not in call_kwargs
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 async def test_search_single_query__uses_metadata_filter_when_no_scope_ids():
     """
     Purpose: Verifies that metadata_filter is passed when scope_ids is None.
@@ -181,7 +181,7 @@ async def test_search_single_query__uses_metadata_filter_when_no_scope_ids():
     assert "scope_ids" not in call_kwargs
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 async def test_search_single_query__includes_content_ids_with_metadata_filter():
     """
     Purpose: Verifies that content_ids are forwarded alongside metadata_filter when both are set.
@@ -204,7 +204,7 @@ async def test_search_single_query__includes_content_ids_with_metadata_filter():
     assert call_kwargs["content_ids"] == ["doc-1", "doc-2"]
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 async def test_search_single_query__raises_when_neither_scope_ids_nor_filter():
     """
     Purpose: Verifies that a RuntimeError is raised when both scope_ids and metadata_filter
@@ -225,7 +225,7 @@ async def test_search_single_query__raises_when_neither_scope_ids_nor_filter():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 async def test_run__produces_result_from_kb_search(make_chunk, set_runnable_state):
     """
     Purpose: Verifies the full pipeline works end-to-end for KB search.

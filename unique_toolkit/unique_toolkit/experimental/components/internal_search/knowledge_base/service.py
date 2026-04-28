@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Self, cast
 
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
@@ -18,6 +19,8 @@ from unique_toolkit.experimental.components.internal_search.knowledge_base.schem
     KnowledgeBaseInternalSearchState,
 )
 from unique_toolkit.services import UniqueServiceFactory
+
+_logger = logging.getLogger(__name__)
 
 
 class KnowledgeBaseInternalSearchService(
@@ -46,45 +49,42 @@ class KnowledgeBaseInternalSearchService(
         )
 
     async def _search_single_query(self, *, query: str) -> SearchStringResult:
-        # kb_service has some overloads that only accept some specific combinations of
-        # scope_ids, metadata_filter, and content_ids
-        # - if scope_ids, then nothing else
-        # - if content_ids, then also metadata_filter is needed
-        # - metadata_filter can be passed alone as well
-
-        scope_ids = self._config.scope_ids
-        metadata_filter = self._effective_metadata_filter
-        content_ids = self._state.content_ids
-
-        kwargs: dict[str, Any] = {
+        # The KB search API accepts mutually exclusive filter combinations:
+        # - scope_ids alone (no metadata_filter or content_ids)
+        # - metadata_filter alone, or metadata_filter + content_ids
+        kb = self._dependencies.knowledge_base_service
+        base = {
             "search_string": query,
             "search_type": self._config.search_type,
             "limit": self._config.limit,
             "search_language": self._config.search_language,
             "score_threshold": self._config.score_threshold,
         }
-        if scope_ids is not None:  # if defined, it takes precedence over other filters
-            kwargs["scope_ids"] = scope_ids
+
+        scope_ids = self._config.scope_ids
+        metadata_filter = self._effective_metadata_filter
+        content_ids = self._state.content_ids
+
+        if scope_ids is not None:
+            _logger.debug("scope_ids set; ignoring metadata_filter for this query.")
+            chunks = await kb.search_content_chunks_async(**base, scope_ids=scope_ids)
         elif metadata_filter is not None:
-            kwargs["metadata_filter"] = metadata_filter
             if content_ids is not None:
-                kwargs["content_ids"] = content_ids
+                chunks = await kb.search_content_chunks_async(
+                    **base, metadata_filter=metadata_filter, content_ids=content_ids
+                )
+            else:
+                chunks = await kb.search_content_chunks_async(
+                    **base, metadata_filter=metadata_filter
+                )
         else:
             raise RuntimeError(
                 "KBSearchService requires either scope_ids or metadata_filter. "
-                + "Set scope_ids or metadata_filter in config, or ensure the chat "
-                + "context provides a filter."
+                "Set scope_ids or metadata_filter in config, or ensure the chat "
+                "context provides a filter."
             )
 
-        chunks = (
-            await self._dependencies.knowledge_base_service.search_content_chunks_async(
-                **kwargs  # type: ignore[call-overload]
-            )
-        )
-        return SearchStringResult(
-            query=query,
-            chunks=chunks,
-        )
+        return SearchStringResult(query=query, chunks=chunks)
 
     @property
     def _effective_metadata_filter(self) -> dict[str, Any] | None:

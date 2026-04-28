@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Self
 
 from unique_toolkit.app.unique_settings import UniqueSettings
@@ -22,6 +23,8 @@ if TYPE_CHECKING:
     )
     from unique_toolkit.language_model.infos import LanguageModelInfo
 
+_logger = logging.getLogger(__name__)
+
 
 class InternalSearchPostProcessor:
     """Rerank, window, and sort raw chunks from InternalSearchResult.
@@ -33,13 +36,13 @@ class InternalSearchPostProcessor:
     Typical usage::
 
         from unique_toolkit.experimental.components.internal_search import (
-            KBInternalSearchService,
-            KBInternalSearchConfig,
+            KnowledgeBaseInternalSearchService,
+            KnowledgeBaseInternalSearchConfig,
             InternalSearchPostProcessor,
             PostProcessorConfig,
         )
 
-        search_service = KBInternalSearchService.from_config(search_config)
+        search_service = KnowledgeBaseInternalSearchService.from_config(search_config)
         processor = InternalSearchPostProcessor.from_settings(settings, config=post_config)
 
         search_service.bind_settings(settings)
@@ -96,12 +99,14 @@ class InternalSearchPostProcessor:
         """
         chunks = list(result.chunks)
 
-        if (
-            self._config.chunk_relevancy_sort_config.enabled
-            and self._sorter is not None
-            and query_text is not None
-        ):
-            chunks = await self._rerank(chunks, query_text=query_text)
+        if self._config.chunk_relevancy_sort_config.enabled:
+            if query_text is None:
+                _logger.warning(
+                    "chunk_relevancy_sort_config is enabled but query_text was not "
+                    "provided — reranking skipped. Pass query_text to process() to enable it."
+                )
+            elif self._sorter is not None:
+                chunks = await self._rerank(chunks, query_text=query_text)
 
         token_limit = self._resolve_token_limit(model_info)
         chunks = pick_content_chunks_for_token_window(

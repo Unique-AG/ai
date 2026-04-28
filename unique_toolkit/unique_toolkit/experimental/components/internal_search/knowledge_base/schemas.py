@@ -12,14 +12,7 @@ if TYPE_CHECKING:
 
 
 class _UnsetType:
-    """Singleton sentinel — distinguishes 'not set' from None for metadata_filter_override."""
-
-    _instance: _UnsetType | None = None
-
-    def __new__(cls) -> _UnsetType:
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+    """Sentinel — distinguishes 'not set' from None for metadata_filter_override."""
 
     def __repr__(self) -> str:
         return "UNSET"

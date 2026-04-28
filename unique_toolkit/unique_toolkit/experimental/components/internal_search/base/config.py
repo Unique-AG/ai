@@ -10,7 +10,11 @@ _FIELD_ALIASES: dict[str, str] = {
     "ftsSearchLanguage": "searchLanguage",
 }
 
-DEFAULT_LIMIT = 200
+# Previously dynamic: 200 when chunk relevancy sort was enabled, 1000 when disabled.
+# Sort config moved to PostProcessorConfig, so the search service can no longer
+# detect whether a second-stage pruning step will follow. Defaulting to the larger
+# value is the safe choice — the post-processor token window will trim as needed.
+DEFAULT_LIMIT = 1000
 
 
 # TODO [UN-17521]: remove _remap_legacy_fields once ftsSearchLanguage is fully migrated
@@ -58,12 +62,6 @@ class InternalSearchConfig(BaseModel):
     enable_multiple_search_strings_execution: bool = Field(
         default=True,
         description="Allow execution of multiple search strings in one call.",
-    )
-
-    # ── Output format ─────────────────────────────────────────────────────────
-    chunked_sources: bool = Field(
-        default=True,
-        description="Whether each chunk is added as an individual source. If False, chunks from the same document are merged.",
     )
 
 

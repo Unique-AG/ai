@@ -51,7 +51,7 @@ def _make_service(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_make_dependencies__raises_without_chat_context():
     """
     Purpose: Verifies that _make_dependencies raises RuntimeError when chat context is absent.
@@ -75,7 +75,7 @@ def test_make_dependencies__raises_without_chat_context():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_reset_state__creates_base_state():
     """
     Purpose: Verifies that reset_state initialises a valid InternalSearchState.
@@ -87,7 +87,7 @@ def test_reset_state__creates_base_state():
     assert svc._state.search_queries == []
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 async def test_search_single_query__calls_chat_service_with_correct_args(make_chunk):
     """
     Purpose: Verifies that _search_single_query passes all config parameters to ChatService.
@@ -119,7 +119,7 @@ async def test_search_single_query__calls_chat_service_with_correct_args(make_ch
     assert result == SearchStringResult(query="my query", chunks=chunks)
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 async def test_search_single_query__forwards_content_ids_when_set():
     """
     Purpose: Verifies that content_ids from the base state are forwarded to ChatService.
@@ -137,7 +137,7 @@ async def test_search_single_query__forwards_content_ids_when_set():
     assert call_kwargs["content_ids"] == ["file-1", "file-2"]
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 async def test_search_single_query__returns_empty_chunks_on_no_results():
     """
     Purpose: Verifies that an empty chunk list from ChatService produces an empty SearchStringResult.
@@ -158,7 +158,7 @@ async def test_search_single_query__returns_empty_chunks_on_no_results():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 async def test_run__produces_result_from_chat_search(make_chunk, set_runnable_state):
     """
     Purpose: Verifies that the full pipeline (run → search → finalize) works end-to-end.

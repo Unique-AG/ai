@@ -7,11 +7,7 @@ from typing_extensions import Generic
 
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.chat.schemas import MessageLogStatus
-from unique_toolkit.content import (
-    ContentChunk,
-    merge_content_chunks,
-    sort_content_chunks,
-)
+from unique_toolkit.content import ContentChunk
 from unique_toolkit.experimental.components._base import BaseService
 from unique_toolkit.experimental.components.internal_search.base.config import (
     InternalSearchConfig,
@@ -53,14 +49,14 @@ class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
         context: UniqueContext = settings.context
         self._context = context
         self._dependencies = self._make_dependencies(settings, context)
-        self.reset_state()  # check if really needed
+        self.reset_state()
         return self
 
     def reset_state(self) -> None:
         self._state = InternalSearchState(search_queries=[])
 
     async def run(self) -> InternalSearchResult:
-        self._validate_state()  # checks that all the required state are set
+        self._validate_state()
         search_queries = self._normalise_queries(self._state.search_queries)
 
         await self.post_progress_message(
@@ -78,7 +74,11 @@ class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
 
         found = self._collect_results(results, search_queries)
         return await self._finalize_run(
-            search_queries, found, debug_info={"searchStrings": search_queries}
+            search_queries,
+            found,
+            debug_info={
+                "searchStrings": search_queries
+            },  # camelCase: wire-protocol key consumed by downstream logging/analytics
         )
 
     # Abstract methods - need to define them in Subclasses
@@ -137,14 +137,9 @@ class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
         if self._config.enable_multiple_search_strings_execution and len(found) > 1:
             found = interleave_search_results_round_robin(found)
 
-        all_chunks: list[ContentChunk] = [
+        chunks: list[ContentChunk] = [
             chunk for result in found for chunk in result.chunks
         ]
-        chunks = (
-            sort_content_chunks(all_chunks)
-            if self._config.chunked_sources
-            else merge_content_chunks(all_chunks)
-        )
 
         await self.post_progress_message(
             InternalSearchProgressMessage(

@@ -15,16 +15,16 @@ windowing, sorting) are handled separately by
 Typical usage::
 
     from unique_toolkit.experimental.components.internal_search import (
-        KBInternalSearchService,
-        KBInternalSearchConfig,
+        KnowledgeBaseInternalSearchService,
+        KnowledgeBaseInternalSearchConfig,
         InternalSearchPostProcessor,
         PostProcessorConfig,
     )
 
-    search_config = KBInternalSearchConfig(limit=200, ...)
+    search_config = KnowledgeBaseInternalSearchConfig(limit=200, ...)
     post_config = PostProcessorConfig(max_tokens_for_sources=30_000, ...)
 
-    search_service = KBInternalSearchService.from_config(search_config)
+    search_service = KnowledgeBaseInternalSearchService.from_config(search_config)
     processor = InternalSearchPostProcessor.from_settings(settings, config=post_config)
 
     search_service.bind_settings(settings)

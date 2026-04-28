@@ -50,7 +50,7 @@ def _make_service(config: InternalSearchConfig | None = None) -> _ConcreteSearch
     return svc
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_bind_settings__uses_settings_context_and_resets_state():
     """
     Purpose: Verifies that bind_settings preserves the full request context from settings.
@@ -76,7 +76,7 @@ def test_bind_settings__uses_settings_context_and_resets_state():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_config_defaults():
     """
     Purpose: Verifies that InternalSearchConfig has sensible retrieval-only defaults.
@@ -90,7 +90,7 @@ def test_config_defaults():
     assert cfg.limit == DEFAULT_LIMIT
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_config_legacy_field_remapping():
     """
     Purpose: Verifies that the deprecated ftsSearchLanguage key is migrated to searchLanguage.
@@ -107,7 +107,7 @@ def test_config_legacy_field_remapping():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_validate_state__raises_on_empty_queries():
     """
     Purpose: Verifies that run() is blocked when no search queries are set.
@@ -122,7 +122,7 @@ def test_validate_state__raises_on_empty_queries():
         svc._validate_state()
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_validate_state__passes_when_state_is_complete():
     """
     Purpose: Verifies that _validate_state does not raise when required fields are set.
@@ -139,7 +139,7 @@ def test_validate_state__passes_when_state_is_complete():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_normalise_queries__cleans_and_deduplicates():
     """
     Purpose: Verifies that operator cleanup and deduplication both apply before truncation.
@@ -157,7 +157,7 @@ def test_normalise_queries__cleans_and_deduplicates():
     assert result == ["topic overview", "another query"]
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_normalise_queries__respects_max_search_strings():
     """
     Purpose: Verifies that output is capped at max_search_strings.
@@ -175,7 +175,7 @@ def test_normalise_queries__respects_max_search_strings():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_collect_results__filters_out_exceptions(make_chunk):
     """
     Purpose: Verifies that exceptions in gathered results are skipped, not re-raised.
@@ -189,7 +189,7 @@ def test_collect_results__filters_out_exceptions(make_chunk):
     assert result == [good]
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_collect_results__all_failures_returns_empty():
     """
     Purpose: Verifies that all-failed results produce an empty list rather than a crash.
@@ -206,7 +206,7 @@ def test_collect_results__all_failures_returns_empty():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 async def test_run__returns_result_with_chunks(make_chunk):
     """
     Purpose: Verifies the full run() pipeline produces an InternalSearchResult with chunks.
@@ -230,7 +230,7 @@ async def test_run__returns_result_with_chunks(make_chunk):
     assert "searchStrings" in result.debug_info
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 async def test_run__raises_when_state_invalid():
     """
     Purpose: Verifies that run() raises ValueError before calling any search when state is incomplete.

@@ -32,7 +32,7 @@ def _result(query: str, chunk_ids: list[str]) -> SearchStringResult:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_clean_search_string__removes_qdf_suffix():
     """
     Purpose: Verifies that --QDF=<n> is stripped from the end of the search string.
@@ -44,7 +44,7 @@ def test_clean_search_string__removes_qdf_suffix():
     assert clean_search_string(raw) == "GPT4 performance on MMLU benchmark"
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_clean_search_string__removes_boost_operators():
     """
     Purpose: Verifies that +(term) boost syntax is unwrapped to just the term.
@@ -59,7 +59,7 @@ def test_clean_search_string__removes_boost_operators():
     )
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_clean_search_string__plain_string_unchanged():
     """
     Purpose: Verifies that a string with no operators is returned as-is.
@@ -71,7 +71,7 @@ def test_clean_search_string__plain_string_unchanged():
     assert clean_search_string(raw) == raw
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_clean_search_string__collapses_extra_whitespace():
     """
     Purpose: Verifies that operator removal does not leave stray whitespace.
@@ -83,7 +83,7 @@ def test_clean_search_string__collapses_extra_whitespace():
     assert clean_search_string(raw) == "hello world"
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_clean_search_string__empty_string():
     """
     Purpose: Verifies that an empty string is handled without error.
@@ -98,7 +98,7 @@ def test_clean_search_string__empty_string():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_interleave__empty_input_returns_empty():
     """
     Purpose: Verifies that an empty list returns an empty list.
@@ -108,7 +108,7 @@ def test_interleave__empty_input_returns_empty():
     assert interleave_search_results_round_robin([]) == []
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_interleave__single_result_preserves_chunks():
     """
     Purpose: Verifies that a single SearchStringResult is exploded into per-chunk entries.
@@ -123,7 +123,7 @@ def test_interleave__single_result_preserves_chunks():
     assert [r.chunks[0].chunk_id for r in out] == ["a", "b", "c"]
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_interleave__round_robin_ordering():
     """
     Purpose: Verifies that chunks from multiple queries are interleaved position-by-position.
@@ -140,7 +140,7 @@ def test_interleave__round_robin_ordering():
     assert ids == ["a", "c", "b", "d"]
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_interleave__deduplicates_chunks():
     """
     Purpose: Verifies that duplicate chunk_ids are removed, keeping the first occurrence.
@@ -158,7 +158,7 @@ def test_interleave__deduplicates_chunks():
     assert "b" in ids
 
 
-@pytest.mark.verified
+@pytest.mark.ai
 def test_interleave__unequal_length_results():
     """
     Purpose: Verifies correct interleaving when results have different chunk counts.
