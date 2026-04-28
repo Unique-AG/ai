@@ -1,16 +1,47 @@
 name: "[CD] Release Pipeline"
 
 # Single entry point for the full release pipeline. One workflow so the
-# three post-release steps (cut branch, kick ci-publish, arm next cycle)
-# chain deterministically after release-please without racing it for
-# freshly-created tags.
+# post-release steps (cut branch, arm next cycle) chain deterministically
+# after release-please without racing it for freshly-created tags.
 #
 # Triggers:
 #   push: main          standing Release PR + post-release side effects
 #   push: release/*     per-cycle hotfix Release PR + hotfix publishes
-#   workflow_dispatch   manual kick after GITHUB_TOKEN-pushed commits
-#                       (see `cut-and-arm` — GitHub's anti-recursion rule
-#                       means those pushes can't re-trigger us via push)
+#   workflow_dispatch   manual kick (rarely needed)
+#
+# Tokens
+# ======
+#   release-please, the lockfile updater and cut-and-arm all run with the
+#   Release Workflow GitHub App token. Two reasons:
+#     1. Bypass: the App is a bypass actor on `main-branch` and
+#        `release-branches` rulesets, so `prepare-next-cycle.sh` can push
+#        directly to `main` and `cut-release-branch.sh` can create the
+#        new `release/YYYY.WW` branch despite branch protection.
+#     2. Trigger downstream CI: GitHub's anti-recursion rule prevents
+#        commits / releases produced by GITHUB_TOKEN from firing other
+#        workflows. App-token-authored events are NOT subject to that
+#        rule, so:
+#          - lockfile commits on the standing Release PR re-run PR CI,
+#          - the GitHub Release that release-please publishes natively
+#            triggers `cd-publish.yaml` (we don't need a `gh workflow run`
+#            shim),
+#          - the new `release/YYYY.WW` branch push triggers `cd-release`
+#            and `ci-pull-request.yaml` like any human-authored push.
+#
+#   Jobs that need the App token declare `environment: release-workflow`
+#   so the env-scoped credentials resolve, and run on `gh-static-ip-slim`
+#   because the App is IP-origin-bound to that runner pool.
+#
+# Concurrency
+# ===========
+#   A single global `cd-release` group serializes every run of this
+#   workflow regardless of branch. That keeps `prepare-next-cycle.sh`
+#   safe (the script pushes empty Release-As trailers to main; the very
+#   next push triggers another cd-release run, which we want to queue
+#   behind the current one) and keeps two parallel pushes to main from
+#   stomping each other's release-please updates. Hotfix pushes on
+#   release/* serialize against main runs too — they're rare enough
+#   that the extra waiting is fine.
 
 on:
   push:
@@ -24,15 +55,34 @@ permissions:
   pull-requests: write
   actions: write
 
+concurrency:
+  group: cd-release
+  cancel-in-progress: false
+
 jobs:
   release-please:
-    runs-on: ubuntu-latest
+    # Runs with the App token so the release commit, tag, and GitHub
+    # Release are authored by the App. That makes the `release:published`
+    # event fire `cd-publish.yaml` natively (no `gh workflow run` shim
+    # needed) and lets the App's bypass rights cover the tag push on
+    # protected branches.
+    runs-on: gh-static-ip-slim
+    environment: release-workflow
     outputs:
       releases_created: ${{ steps.rp.outputs.releases_created }}
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: unique-ag/actions/github/app-token-create@df61dcf6fb84a7cad9c9b5f04924b40311cb016a
+        with:
+          app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
+          base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
+          owner: ${{ github.repository_owner }}
+
       - id: rp
         uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         with:
+          token: ${{ steps.app-token.outputs.token }}
           config-file: ${{ startsWith(github.ref_name, 'release/') && 'release-please-config.release.json' || 'release-please-config.json' }}
           manifest-file: .release-please-manifest.json
           target-branch: ${{ github.ref_name }}
@@ -47,15 +97,29 @@ jobs:
   # run. Commits that don't trigger a version bump (docs, chore) leave `prs`
   # empty even though an open release PR exists. Querying by label is reliable
   # regardless of what release-please did in the current run.
+  #
+  # Why the App token? The lockfile commit needs to fire pull_request: CI
+  # on the standing Release PR. A push by GITHUB_TOKEN would be silently
+  # ignored by GitHub's anti-recursion rule and the PR would sit with no
+  # CI status against its newest commit.
   update-release-lockfile:
     needs: release-please
     if: needs.release-please.outputs.releases_created != 'true'
-    runs-on: ubuntu-latest
+    runs-on: gh-static-ip-slim
+    environment: release-workflow
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: unique-ag/actions/github/app-token-create@df61dcf6fb84a7cad9c9b5f04924b40311cb016a
+        with:
+          app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
+          base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
+          owner: ${{ github.repository_owner }}
+
       - name: Find open release PR branch
         id: pr-info
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           BASE_BRANCH: ${{ github.ref_name }}
         run: |
           branch=$(gh pr list \
@@ -72,7 +136,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: ${{ steps.pr-info.outputs.branch }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Setup uv
         if: steps.pr-info.outputs.branch != ''
@@ -108,33 +172,6 @@ jobs:
           git add -A
           git commit -m "chore: update dependency floors and regenerate uv.lock for release"
           git push
-
-  # Dispatch cd-publish.yaml for stable wheels. Works for both main
-  # (YYYY.WW.0) and release/* (YYYY.WW.PATCH) since both flows land tags
-  # the same way. Runs on a separate runner so it doesn't block
-  # cut-and-arm.
-  #
-  # Why dispatch instead of relying on `release:published`? The release
-  # action just ran with the default GITHUB_TOKEN, and GitHub's
-  # anti-recursion rule means release events produced by GITHUB_TOKEN do
-  # not fire `release:` triggers on other workflows. `gh workflow run`
-  # bypasses that by invoking ci-publish as a workflow_dispatch.
-  publish-stable:
-    needs: release-please
-    if: needs.release-please.outputs.releases_created == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Kick ci-publish for stable wheels
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REF_NAME: ${{ github.ref_name }}
-          REF_SHA: ${{ github.sha }}
-        run: |
-          gh workflow run cd-publish.yaml \
-            --repo "${{ github.repository }}" \
-            --ref "$REF_NAME" \
-            -f package=all \
-            -f ref="$REF_SHA"
 
   # Main-only post-release chores. Skipped on release/* because hotfix
   # cycles don't cut a new branch and don't advance the next CalVer.
@@ -177,7 +214,7 @@ jobs:
         run: |
           {
             echo "### Post-release actions"
-            echo "- Cut \`release/\` branch from the tagged release commit"
-            echo "- Kicked \`cd-publish.yaml\` (package=all) via \`publish-stable\` job"
-            echo "- Opened arm PR on \`main\` to arm the next CalVer cycle"
+            echo "- Cut \`release/\` branch from the tagged release commit (App token bypasses branch protection on \`release-branches\` ruleset)"
+            echo "- Pushed \`Release-As\` trailer to \`main\` to arm the next CalVer cycle (App token bypasses branch protection on \`main-branch\` ruleset)"
+            echo "- \`cd-publish.yaml\` will fire on the \`release:published\` event created by release-please's App-token-authored release"
           } >> "$GITHUB_STEP_SUMMARY"
