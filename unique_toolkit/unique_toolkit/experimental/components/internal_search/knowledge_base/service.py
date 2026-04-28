@@ -48,6 +48,9 @@ class KnowledgeBaseInternalSearchService(
             knowledge_base_service=factory.knowledge_base_service(),
         )
 
+    def _extra_debug_info(self) -> dict[str, Any]:
+        return {"metadataFilter": self._effective_metadata_filter}
+
     async def _search_single_query(self, *, query: str) -> SearchStringResult:
         # The KB search API accepts mutually exclusive filter combinations:
         # - scope_ids alone (no metadata_filter or content_ids)
@@ -59,6 +62,7 @@ class KnowledgeBaseInternalSearchService(
             "limit": self._config.limit,
             "search_language": self._config.search_language,
             "score_threshold": self._config.score_threshold,
+            "reranker_config": self._config.reranker_config,
         }
 
         scope_ids = self._config.scope_ids

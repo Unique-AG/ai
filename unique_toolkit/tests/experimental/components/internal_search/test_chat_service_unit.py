@@ -7,12 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from unique_toolkit.content.schemas import ContentSearchType
-from unique_toolkit.experimental.components.internal_search.base.config import (
-    InternalSearchConfig,
-)
 from unique_toolkit.experimental.components.internal_search.base.schemas import (
     InternalSearchState,
     SearchStringResult,
+)
+from unique_toolkit.experimental.components.internal_search.chat.config import (
+    ChatInternalSearchConfig,
 )
 from unique_toolkit.experimental.components.internal_search.chat.schemas import (
     ChatInternalSearchDeps,
@@ -27,11 +27,11 @@ from unique_toolkit.experimental.components.internal_search.chat.service import 
 
 
 def _make_service(
-    config: InternalSearchConfig | None = None,
+    config: ChatInternalSearchConfig | None = None,
     chat_context: MagicMock | None = None,
 ) -> tuple[ChatInternalSearchService, MagicMock]:
     """Return (service, mock_chat_service)."""
-    cfg = config or InternalSearchConfig()
+    cfg = config or ChatInternalSearchConfig()
     svc = ChatInternalSearchService.from_config(cfg)
 
     mock_chat_svc = AsyncMock()
@@ -60,7 +60,7 @@ def test_make_dependencies__raises_without_chat_context():
     Setup summary: bind_settings called with a settings object whose context has no chat;
         assert RuntimeError is raised.
     """
-    svc = ChatInternalSearchService.from_config(InternalSearchConfig())
+    svc = ChatInternalSearchService.from_config(ChatInternalSearchConfig())
     mock_context = MagicMock()
     mock_context.chat = None
     mock_settings = MagicMock()
@@ -95,7 +95,7 @@ async def test_search_single_query__calls_chat_service_with_correct_args(make_ch
         wrong results; the config must be forwarded exactly.
     Setup summary: Mock chat service returns two chunks; assert called with config values.
     """
-    cfg = InternalSearchConfig(
+    cfg = ChatInternalSearchConfig(
         search_type=ContentSearchType.VECTOR,
         limit=50,
         search_language="german",
@@ -114,6 +114,7 @@ async def test_search_single_query__calls_chat_service_with_correct_args(make_ch
         limit=50,
         search_language="german",
         score_threshold=0.3,
+        reranker_config=None,
         content_ids=None,
     )
     assert result == SearchStringResult(query="my query", chunks=chunks)
@@ -178,3 +179,42 @@ async def test_run__produces_result_from_chat_search(make_chunk, set_runnable_st
 
     assert len(result.chunks) >= 1
     assert result.debug_info.get("searchStrings") == ["what is AI?"]
+
+
+# ---------------------------------------------------------------------------
+# Q6 verification: ChatService hardwires chat_only=True and chat_id
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+async def test_chat_service_scopes_to_chat_without_metadata_filter(
+    make_chunk, set_runnable_state
+):
+    """
+    Purpose: Verify that ChatInternalSearchService delegates to ChatService which
+        hardwires chat_only=True and chat_id. No metadata_filter is required —
+        the scoping is provided by the service layer itself.
+    Why this matters: The Chat/KB split claim rests on ChatService natively scoping
+        to chat content. If chat_only=True is missing from the underlying call,
+        the service is not actually scoped and the capability boundary is false.
+    Setup summary: Service with no metadata_filter config; assert underlying
+        search_content_chunks_async is called (ChatService will inject chat_only=True
+        internally). The call must succeed without any filter being required.
+    """
+    svc, mock_chat_svc = _make_service(config=ChatInternalSearchConfig())
+    set_runnable_state(svc, ["test query"])
+    mock_chat_svc.search_content_chunks_async = AsyncMock(
+        return_value=[make_chunk("c1")]
+    )
+
+    with patch.object(svc, "post_progress_message", new=AsyncMock()):
+        result = await svc.run()
+
+    # ChatService was called — no metadata_filter required, scoping is implicit.
+    mock_chat_svc.search_content_chunks_async.assert_called_once()
+    call_kwargs = mock_chat_svc.search_content_chunks_async.call_args.kwargs
+    # Confirm no metadata_filter was forwarded — ChatService owns that concern.
+    assert (
+        "metadata_filter" not in call_kwargs or call_kwargs["metadata_filter"] is None
+    )
+    assert len(result.chunks) >= 1

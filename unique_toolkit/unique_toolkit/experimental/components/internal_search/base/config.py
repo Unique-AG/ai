@@ -10,11 +10,11 @@ _FIELD_ALIASES: dict[str, str] = {
     "ftsSearchLanguage": "searchLanguage",
 }
 
-# Previously dynamic: 200 when chunk relevancy sort was enabled, 1000 when disabled.
-# Sort config moved to PostProcessorConfig, so the search service can no longer
-# detect whether a second-stage pruning step will follow. Defaulting to the larger
-# value is the safe choice — the post-processor token window will trim as needed.
-DEFAULT_LIMIT = 1000
+# 200 matches the tool's sort-enabled default — conservative by design.
+# Callers who need higher recall (e.g. multi-query with post-processing) should set
+# limit explicitly in config. The service does not cap by token budget; that is the
+# post-processor's job via pick_content_chunks_for_token_window.
+DEFAULT_LIMIT = 200
 
 
 # TODO [UN-17521]: remove _remap_legacy_fields once ftsSearchLanguage is fully migrated
@@ -50,7 +50,11 @@ class InternalSearchConfig(BaseModel):
     )
     limit: int = Field(
         default=DEFAULT_LIMIT,
-        description="Maximum number of chunks to return per search query.",
+        description=(
+            "Maximum number of chunks to return per search query. "
+            "Default is 200 — the conservative baseline. Increase for higher recall "
+            "when a post-processor with token windowing follows."
+        ),
     )
 
     # ── Multi-query ───────────────────────────────────────────────────────────

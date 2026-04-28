@@ -40,6 +40,9 @@ class InternalSearchState:
 
 class InternalSearchResult(BaseModel):
     chunks: list[ContentChunk]
+    """Interleaved flat chunk list — for callers that skip the post-processor."""
+    search_string_results: list[SearchStringResult] = []
+    """Per-query results before interleaving — for the post-processor's per-query rerank."""
     debug_info: dict[str, Any]
 
 

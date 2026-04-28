@@ -32,13 +32,21 @@ class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
         InternalSearchConfig,
         InternalSearchState,
         InternalSearchProgressMessage,
-        TInternalSearchDeps,  # still variable, defined based on chat or kb
+        TInternalSearchDeps,
     ],
     Generic[TInternalSearchDeps],
 ):
+    """Pure retrieval primitive — performs no post-retrieval processing.
+
+    The service does no reranking, token windowing, sort, or merge. Its output
+    carries per-query structure (``search_string_results``) because downstream
+    consumers such as ``InternalSearchPostProcessor`` need it for per-query
+    reranking. ``chunks`` is the interleaved flat list for callers that skip
+    the post-processor entirely.
+    """
+
     _config_model_cls = InternalSearchConfig
 
-    # Define needed methods from BaseService
     @classmethod
     def from_config(cls, config: InternalSearchConfig) -> Self:
         instance = cls()
@@ -77,11 +85,13 @@ class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
             search_queries,
             found,
             debug_info={
-                "searchStrings": search_queries
-            },  # camelCase: wire-protocol key consumed by downstream logging/analytics
+                "searchStrings": search_queries,  # camelCase: wire-protocol key consumed by downstream logging/analytics
+                **self._extra_debug_info(),
+            },
         )
 
-    # Abstract methods - need to define them in Subclasses
+    # ── Abstract methods ─────────────────────────────────────────────────────
+
     @abstractmethod
     def _make_dependencies(
         self, settings: UniqueSettings, context: UniqueContext
@@ -90,7 +100,13 @@ class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
     @abstractmethod
     async def _search_single_query(self, *, query: str) -> SearchStringResult: ...
 
-    # Utilities - used in other methods or subclasses methods
+    # ── Hook for subclass-specific debug info ─────────────────────────────────
+
+    def _extra_debug_info(self) -> dict[str, Any]:
+        """Override in subclasses to merge additional keys into debug_info."""
+        return {}
+
+    # ── Utilities ─────────────────────────────────────────────────────────────
 
     def _validate_state(self):
         if not self._state.search_queries:
@@ -134,6 +150,9 @@ class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
             )
         )
 
+        # Capture per-query structure before interleaving — the post-processor needs this.
+        search_string_results = list(found)
+
         if self._config.enable_multiple_search_strings_execution and len(found) > 1:
             found = interleave_search_results_round_robin(found)
 
@@ -152,6 +171,7 @@ class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
 
         return InternalSearchResult(
             chunks=chunks,
+            search_string_results=search_string_results,
             debug_info=debug_info,
         )
 
