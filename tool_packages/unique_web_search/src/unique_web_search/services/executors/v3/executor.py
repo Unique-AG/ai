@@ -1,4 +1,4 @@
-"""Web Search V3 executor: one command per invocation (`search` or `fetch_urls`)."""
+"""Web Search V3 executor: one command per invocation (``query`` search or ``urls`` fetch)."""
 
 from __future__ import annotations
 
@@ -26,8 +26,8 @@ from unique_web_search.services.executors.context import (
     ExecutorServiceContext,
 )
 from unique_web_search.services.executors.v3.schema import (
-    WebSearchV3FetchUrlsPayload,
-    WebSearchV3SearchPayload,
+    FetchUrlsPayload,
+    SearchPayload,
     WebSearchV3ToolParameters,
 )
 from unique_web_search.services.search_engine.schema import WebSearchResult
@@ -36,7 +36,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
-    """Run either ``search`` (SERP-only JSON chunks) or ``fetch_urls`` (crawl + pipeline)."""
+    """Run either a ``query`` search (SERP-only JSON chunks) or a ``urls`` fetch (crawl + pipeline)."""
 
     def __init__(
         self,
@@ -56,33 +56,28 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
 
     async def run(self) -> list[ContentChunk]:
         p = self.tool_parameters
-        if p.search is not None:
+        if isinstance(p.payload, SearchPayload):
             await self._message_log_callback.log_progress("_Executing Search_")
-            return await self._run_search(
-                p.search, user_intent=p.user_intent, objective=p.objective
-            )
-        if p.fetch_urls is not None:
+            return await self._run_search(query=p.payload.query, objective=p.objective)
+        if isinstance(p.payload, FetchUrlsPayload):
             await self._message_log_callback.log_progress("_Reading Web Pages_")
-            return await self._run_fetch_urls(
-                p.fetch_urls, user_intent=p.user_intent, objective=p.objective
-            )
-        msg = "WebSearchV3ToolParameters requires exactly one of search or fetch_urls."
+            return await self._run_fetch_urls(urls=p.payload.urls, objective=p.objective)
+        
+        msg = "WebSearchV3ToolParameters requires exactly one of 'query' or 'urls'."
+        
         raise ValueError(msg)
 
     async def _run_search(
         self,
-        cmd: WebSearchV3SearchPayload,
         *,
-        user_intent: str,
+        query: str,
         objective: str,
     ) -> list[ContentChunk]:
-        query_in = cmd.query
-
         self.notify_name = "**Searching Web**"
-        self.notify_message = f"{user_intent} · {objective}"
+        self.notify_message = objective
         await self.notify_callback()
 
-        elicited = await self._ff_elicitate_queries([query_in])
+        elicited = await self._ff_elicitate_queries([query])
         query = elicited[0]
 
         self.debug_info.steps.append(
@@ -90,7 +85,6 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
                 step_name="SEARCH",
                 execution_time=0,
                 config={
-                    "user_intent": user_intent,
                     "objective": objective,
                     "query": query,
                 },
@@ -163,14 +157,12 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
 
     async def _run_fetch_urls(
         self,
-        cmd: WebSearchV3FetchUrlsPayload,
         *,
-        user_intent: str,
+        urls: list[str],
         objective: str,
     ) -> list[ContentChunk]:
-
         self.notify_name = "**Reading Web Pages**"
-        self.notify_message = f"{user_intent} · {objective}"
+        self.notify_message = objective
         await self.notify_callback()
 
         self.debug_info.steps.append(
@@ -178,14 +170,13 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
                 step_name="FETCH_URLS",
                 execution_time=0,
                 config={
-                    "user_intent": user_intent,
                     "objective": objective,
-                    "urls": list(cmd.urls),
+                    "urls": list(urls),
                 },
             )
         )
 
-        urls = list(cmd.urls)
+        urls = list(urls)
         crawler = self.crawler_service.config.crawler_type.value
         time_start = time()
         _LOGGER.info("Company %s Crawling %s URLs", self.company_id, len(urls))
@@ -211,16 +202,16 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
         )
 
         self.notify_name = "**Analyzing Web Pages**"
-        self.notify_message = f"{user_intent} · {objective}"
+        self.notify_message = objective
         await self.notify_callback()
         await self._message_log_callback.log_progress("_Analyzing Web Pages_")
 
-        content_focus = f"{user_intent}\n\n{objective}"
+        content_focus = objective
         content_results = await self._content_processing(content_focus, results)
 
         if self.chunk_relevancy_sort_config.enabled:
             self.notify_name = "**Resorting Sources**"
-            self.notify_message = f"{user_intent} · {objective}"
+            self.notify_message = objective
             await self.notify_callback()
             await self._message_log_callback.log_progress("_Resorting Sources_")
 

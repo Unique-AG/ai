@@ -1,29 +1,16 @@
-The WebSearch tool returns current information from the web. Each call performs **one** operation: a single `search` (SERP snippets) or a single `fetch_urls` (full-page crawl). Drive multi-part tasks by chaining calls.
+The WebSearch tool returns up-to-date information from the web. It exposes two capabilities, picked per call via `command`:
 
-### Decision procedure (apply on every call)
+- **Search** (`command: "search"`) — runs the configured search engine and returns SERP rows (URL, domain, title, snippet). Gives a high-level read of what relevant pages contain without crawling them. Useful for **exploration** and quick lookups when a snippet is enough to answer.
+- **Fetch** (`command: "read_urls"`) — crawls one or more URLs and returns full-page text. Useful for **deep dives** when the task is complex and needs exact figures, quotes, regulatory text, or specs, and when the user provides a URL directly.
 
-1. **Classify** the user task in `task_complexity`:
-   - `simple` — single fact, single entity, single timeframe; coverable by ONE `search` query (or one `fetch_urls` if URLs are given).
-   - `complex` — multiple facts, comparisons across entities, several timeframes, or otherwise independent sub-questions. Set `sub_questions` to a 2-5 item decomposition; each item is self-contained.
-2. **Execute** one operation per call:
-   - `simple` ⇒ one `search` (or `fetch_urls` if the user pasted URL(s) / asked to read a specific page).
-   - `complex` ⇒ one `search` per `sub_questions` item, **same** `user_intent` / `task_complexity` / `sub_questions` on every call; vary only `objective` and `search.query` to cover one sub-question at a time. Never bundle multiple sub-questions into one query.
-3. **Self-evaluate snippets** after each `search`: are the concrete numbers, quotes, dates the `objective` needs present, with ≥2 corroborating domains? If yes, answer (or move to the next sub-question). If no, follow up with `action: fetch_urls` using URLs taken from the `url` fields of the SERP JSON just returned (small, high-signal set; do not invent URLs).
+Each call performs **one** operation. Drive multi-part tasks by chaining calls.
 
-### Root field order
+### Fields
 
-`user_intent` → `task_complexity` → `sub_questions` → `objective` → `action` → exactly one payload (`search` or `fetch_urls`); the other is `null`.
+- **`command`** — `"search"` or `"read_urls"`.
+- **`objective`** — One concise sentence: what this call is meant to accomplish.
+- **`payload`** — Shape depends on `command`:
+  - For `"search"`: `{ "gap": <what this query is meant to fill>, "query": <search engine query> }`.
+  - For `"read_urls"`: `{ "urls": [<HTTP(S) URLs to crawl>] }`. Use only URLs returned by a prior search or pasted by the user — never invent URLs.
 
-- **`user_intent`** — The user's overall goal (the *why*); stable across calls.
-- **`task_complexity`** / **`sub_questions`** — The stable plan; repeat verbatim on every follow-up call for the same `user_intent`.
-- **`objective`** — This call only: which sub-question (or facet) this `search` / `fetch_urls` covers.
-- **`action: search`** — Runs the configured search engine on `search.query`; each result is JSON with `url`, `domain`, `title`, `snippet` (no full page body).
-- **`action: fetch_urls`** — Crawls `fetch_urls.urls` and returns processed full-page text (one chunk per URL, body split into numbered `chunks`).
-
-### Anti-patterns
-
-- Packing multiple sub-questions into one bloated `search.query`.
-- Running `search` to "find" a URL the user already pasted — go straight to `fetch_urls`.
-- Calling `fetch_urls` with invented or paraphrased URLs (only use URLs returned by a prior `search` or supplied by the user).
-
-You may chain multiple WebSearch calls in a row. Tool arguments are defined by the tool schema.
+For a deeper playbook on when to search vs fetch (snippet hedging, canonical-source topics, sub-question decomposition, URL-selection rules, anti-patterns), activate the `web-search-v3` skill before/while using this tool.
