@@ -59,18 +59,39 @@ On each qualifying push the workflow:
 !!! note "Why only changed packages?"
     Dev releases are incremental. Only packages that actually changed are republished; unchanged siblings keep their last dev (or stable) version.
 
----
-
-## Dev cuts
+### Dev cuts
 
 A **dev cut** is the unit of promotion. It is defined by:
 
 - A single Git SHA on `main`
 - The set of `(package, devN version)` pairs produced from that push
 
-Every successful dev publish creates a `dev-cut-<SHORT_SHA>` tag (visible on the [GitHub tags page](https://github.com/Unique-AG/ai/tags)) and a matching GitHub pre-release that lists every package version in the cut.
+Every successful dev publish creates a `dev-cut-<SHORT_SHA>` tag (visible on the [GitHub tags page](https://github.com/Unique-AG/ai/tags)) and a matching GitHub pre-release that lists every package version in the cut. A dev cut is the only thing the [RC workflow](#rc-releases) accepts as input — you promote a specific cut, never "the latest dev".
 
-You can promote a specific dev cut to an RC — see [RC releases](#rc-releases) below.
+### Dev bump PR
+
+After every successful dev publish the workflow opens (or updates) a pull request **in the AI repo** with title:
+
+```
+chore: pin dev-cut <SHORT_SHA>
+```
+
+This PR rewrites every publishable package's `pyproject.toml` so its `version` and AI cross-package dep floors match the dev wheels just published to PyPI. **You only need to merge it when you are mixing freshly-published dev wheels with locally-checked-out AI packages** — for example, when developing in a worktree where one package is a path source and a sibling is consumed as a wheel. Without this, `uv`'s version-solver fails because the local clone still advertises the previous cycle version while the wheel `Requires-Dist` floor is `>= <current dev>`.
+
+In the typical flow the PR can sit untouched: it is automatically superseded by the next dev publish (the workflow closes the previous one before opening the new one).
+
+!!! tip "One-person merge"
+    Because the PR is opened by the Release Workflow App, it only requires your approval — you can approve and merge it yourself without a second reviewer. The PR also runs `pull_request:` CI normally, since the App-authored push is not subject to GitHub's anti-recursion rule.
+
+### Flow
+
+```mermaid
+flowchart TD
+    A[Push to main] -->|cd-publish-dev.yaml| B[dev publish<br/>YYYY.WW.0.devN<br/>changed packages only]
+    B --> C[dev-cut-SHORT_SHA tag<br/>+ GitHub pre-release<br/>listing all package versions]
+    B -->|open/update PR| E[Dev bump PR in AI repo<br/>chore: pin dev-cut SHORT_SHA]
+    C -.input to RC.-> R[cd-publish-rc.yaml]
+```
 
 ---
 
@@ -111,22 +132,15 @@ unique-toolkit>=2026.20.0rc1
 
 `pip` will resolve this to the latest compatible version — either a later RC or the eventual `2026.20.0` stable.
 
----
+### Flow
 
-## Dev bump PR
-
-After every successful dev publish the workflow opens (or updates) a pull request **in the AI repo** with title:
-
+```mermaid
+flowchart TD
+    DC[dev-cut-SHORT_SHA tag] -->|manual workflow_dispatch<br/>ref = dev-cut tag| RC[cd-publish-rc.yaml]
+    RC --> A1[ancestor check<br/>vs previous rc in cycle]
+    A1 --> P[RC publish<br/>YYYY.WW.0rcN<br/>all packages]
+    P --> T[rc-YYYY.WW.0rcN tag<br/>+ GitHub pre-release<br/>auto-generated notes]
 ```
-chore: pin dev-cut <SHORT_SHA>
-```
-
-This PR rewrites every publishable package's `pyproject.toml` so its `version` and AI cross-package dep floors match the dev wheels just published to PyPI. **You only need to merge it when you are mixing freshly-published dev wheels with locally-checked-out AI packages** — for example, when developing in a worktree where one package is a path source and a sibling is consumed as a wheel. Without this, `uv`'s version-solver fails because the local clone still advertises the previous cycle version while the wheel `Requires-Dist` floor is `>= <current dev>`.
-
-In the typical flow the PR can sit untouched: it is automatically superseded by the next dev publish (the workflow closes the previous one before opening the new one).
-
-!!! tip "One-person merge"
-    Because the PR is opened by the Release Workflow App, it only requires your approval — you can approve and merge it yourself without a second reviewer. The PR also runs `pull_request:` CI normally, since the App-authored push is not subject to GitHub's anti-recursion rule.
 
 ---
 
@@ -148,7 +162,7 @@ In the typical flow the PR can sit untouched: it is automatically superseded by 
 4. release-please bumps all `pyproject.toml` versions and `CHANGELOG.md` entries, then tags and creates a GitHub Release.
 5. `cd-release.yaml`'s post-release job pushes the new `release/YYYY.WW` branch from the tagged commit (the Release Workflow App is a bypass actor on the `release-branches` ruleset) and arms the next cycle on `main` — see [Arming a cycle](#arming-a-cycle).
 6. The GitHub Release that release-please just published natively triggers `cd-publish.yaml`, which builds and publishes every changed package to PyPI. Dependencies in the stable wheels are pinned with `>=` (updated by `update-dep-floors.py` at release time).
-7. `uniqueai-sync-ai-versions.yaml` (monorepo) automatically syncs the new stable versions to `master` with `==` pins.
+7. To propagate the new stable versions to monorepo `master`, run [`uniqueai-sync-ai-versions.yaml`](#sync-ai-versions-workflow) manually with `target=master`, `ai_source_branch=release/YYYY.WW`. The workflow rewrites every monorepo `pyproject.toml` to pin on the new versions with `==` (the pin operator is driven by `ai_source_branch`, not `target` — see [Pin operator rules](#pin-operator-rules)).
 
 ### Arming a cycle
 
@@ -163,6 +177,21 @@ Use the manual escape hatch when the automation can't run on its own (bootstrap,
 | Input | Default | Description |
 |-------|---------|-------------|
 | `year_week` | computed from manifest | Override target cycle, e.g. `2026.22` |
+
+### Flow
+
+```mermaid
+flowchart TD
+    ARM[cd-arm-version.yaml<br/>or auto post-release] -->|direct push to main<br/>Release-As: trailer| MAIN[main]
+    MAIN -->|release-please updates| RPR[Standing Release PR<br/>chore: stable release X]
+    MAIN -->|cd-release.yaml| LOCK[regenerate uv.lock<br/>push onto PR branch<br/>PR CI runs]
+    LOCK --> RPR
+    RPR -->|merge| TAG[release-please tags<br/>+ creates GitHub Release]
+    TAG -->|release: published| PUB[cd-publish.yaml<br/>biweekly stable publish<br/>YYYY.WW.0]
+    TAG --> CUT[cut release/YYYY.WW branch<br/>from tagged commit]
+    TAG --> NEXT[arm next cycle on main<br/>direct push]
+    TAG -.manual dispatch.-> SYNC[uniqueai-sync-ai-versions.yaml<br/>target=master<br/>source=release/YYYY.WW<br/>Sync == versions to monorepo master]
+```
 
 ---
 
@@ -182,6 +211,17 @@ Use the manual escape hatch when the automation can't run on its own (bootstrap,
 4. release-please tags the commit and creates a GitHub Release. The release event (authored by the Release Workflow App) natively triggers `cd-publish.yaml`.
 5. `cd-publish.yaml` publishes the patched packages to PyPI.
 6. Run `uniqueai-sync-ai-versions.yaml` manually (target `release`, source `release/YYYY.WW`) to sync the patch versions to the matching monorepo release branch.
+
+### Flow
+
+```mermaid
+flowchart TD
+    F[Fix PR on release/YYYY.WW] -->|merge| RB[release/YYYY.WW]
+    RB -->|release-please opens| HPR[Hotfix Release PR<br/>chore: hotfix release/YYYY.WW to X]
+    HPR -->|merge| TAG[release-please tags<br/>+ creates GitHub Release<br/>YYYY.WW.P]
+    TAG -->|release: published| PUB[cd-publish.yaml<br/>hotfix publish]
+    TAG -.manual.-> SYNC[uniqueai-sync-ai-versions.yaml<br/>target=release<br/>Sync == versions]
+```
 
 ---
 
@@ -208,25 +248,3 @@ Syncs AI package version floors from the AI repo into the monorepo. Runs automat
 
 !!! warning "Dev releases cannot be synced to monorepo release branches"
     The workflow rejects any run where `target=release` and `ai_source_branch=main`. Dev versions are not suitable for release branches.
-
----
-
-## Flow overview
-
-```mermaid
-flowchart TD
-    A[Push to main] -->|cd-publish-dev| B[dev publish\nYYYY.WW.0.devN]
-    B --> C[dev-cut-SHA tag\n+ GitHub pre-release]
-    C -->|manual cd-publish-rc| D[RC publish\nYYYY.WW.0rcN\nall packages]
-    B -->|open/update PR| E[Dev bump PR in AI repo\nchore: pin dev-cut SHA]
-
-    F[Merge Release PR on main] -->|cd-release| G[cut release/YYYY.WW branch\ncreate GitHub Release]
-    G -->|cd-publish| H[biweekly stable publish\nYYYY.WW.0\nchanged packages]
-    G -->|uniqueai-sync-ai-versions| I[Sync == versions\nto monorepo master]
-
-    J[Fix on release/YYYY.WW] -->|cd-release| K[create GitHub Release\nYYYY.WW.P]
-    K -->|cd-publish| L[hotfix publish]
-    K -->|manual uniqueai-sync-ai-versions| M[Sync == versions\nto monorepo release branch]
-
-    N[cd-arm-version\nmanual escape hatch] --> F
-```
