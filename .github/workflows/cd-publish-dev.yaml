@@ -287,6 +287,7 @@ jobs:
     needs: [resolve, publish]
     if: needs.publish.result == 'success'
     runs-on: gh-static-ip-slim
+    environment: release-workflow
     permissions:
       contents: write
     outputs:
@@ -297,7 +298,7 @@ jobs:
         id: app-token
         uses: unique-ag/actions/github/app-token-create@df61dcf6fb84a7cad9c9b5f04924b40311cb016a
         with:
-          app_id: ${{ vars.RELEASE_WORKFLOW_APP_ID }}
+          app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
           base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
           owner: ${{ github.repository_owner }}
 
@@ -378,6 +379,7 @@ jobs:
     needs: [resolve, publish, tag-cut]
     if: needs.publish.result == 'success' && needs.tag-cut.result == 'success'
     runs-on: gh-static-ip-slim
+    environment: release-workflow
     permissions:
       contents: write
       pull-requests: write
@@ -389,7 +391,7 @@ jobs:
         id: app-token
         uses: unique-ag/actions/github/app-token-create@df61dcf6fb84a7cad9c9b5f04924b40311cb016a
         with:
-          app_id: ${{ vars.RELEASE_WORKFLOW_APP_ID }}
+          app_id: ${{ vars.RELEASE_WORKFLOW_CLIENT_ID }}
           base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
           owner: ${{ github.repository_owner }}
 
