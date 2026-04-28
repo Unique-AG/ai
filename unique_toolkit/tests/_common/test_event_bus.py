@@ -144,3 +144,61 @@ def test_publish_and_wait__async_handler__no_loop_skips(caplog):
     bus.publish_and_wait("no-loop")
 
     assert "Skipping async handler" in caplog.text
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_publish_and_wait_async__return_exceptions__isolates_flaky_subscribers(
+    caplog,
+):
+    """
+    Purpose: ``return_exceptions=True`` must let the non-flaky subscribers
+      complete while the raising one is logged and swallowed.
+    Why this matters: Hot-path publishes (e.g. TextDelta) must not be
+      aborted by a single flaky analytics subscriber — otherwise one
+      misbehaving add-on kills the whole stream.
+    Setup summary: Two subscribers, one raises, one records; publish with
+      ``return_exceptions=True`` and assert no exception propagates, the
+      good subscriber still receives the event, and the failure is logged.
+    """
+    import logging
+
+    bus = TypedEventBus[str]()
+    received: list[str] = []
+
+    async def raising(event: str) -> None:
+        raise RuntimeError("boom")
+
+    async def good(event: str) -> None:
+        received.append(event)
+
+    bus.subscribe(raising)
+    bus.subscribe(good)
+
+    with caplog.at_level(logging.ERROR, logger="unique_toolkit._common.event_bus"):
+        await bus.publish_and_wait_async("hi", return_exceptions=True)
+
+    assert received == ["hi"]
+    assert any("raised during publish" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_AI_publish_and_wait_async__default__propagates_exception():
+    """
+    Purpose: Default ``return_exceptions=False`` must still propagate a
+      raising subscriber's exception.
+    Why this matters: Critical-path events (e.g. stream_started) rely on
+      loud failures rather than silent drops.
+    Setup summary: One raising subscriber on a bus; publish without
+      ``return_exceptions`` and assert ``RuntimeError`` propagates.
+    """
+    bus = TypedEventBus[str]()
+
+    async def raising(event: str) -> None:
+        raise RuntimeError("boom")
+
+    bus.subscribe(raising)
+
+    with pytest.raises(RuntimeError, match="boom"):
+        await bus.publish_and_wait_async("hi")
