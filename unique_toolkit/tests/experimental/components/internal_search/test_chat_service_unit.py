@@ -218,3 +218,37 @@ async def test_chat_service_scopes_to_chat_without_metadata_filter(
         "metadata_filter" not in call_kwargs or call_kwargs["metadata_filter"] is None
     )
     assert len(result.chunks) >= 1
+
+
+@pytest.mark.ai
+async def test_chat_service_succeeds_when_chat_context_has_no_metadata_filter(
+    make_chunk, set_runnable_state
+):
+    """
+    Purpose: Confirm ChatInternalSearchService does NOT require metadata_filter
+        on the chat context — it runs successfully even when chat.metadata_filter is None.
+    Why this matters: The load-bearing claim that "chat scoping is provided by ChatService
+        itself (chat_only=True + chat_id), not by a metadata_filter" means the service
+        must never need or propagate metadata_filter. This test makes that claim explicit
+        and verifiable.
+    Setup summary: chat context with metadata_filter=None; assert run() succeeds and
+        search_content_chunks_async is called without metadata_filter.
+    """
+    chat_ctx = MagicMock()
+    chat_ctx.metadata_filter = None
+    svc, mock_chat_svc = _make_service(
+        config=ChatInternalSearchConfig(), chat_context=chat_ctx
+    )
+    set_runnable_state(svc, ["chat query"])
+    mock_chat_svc.search_content_chunks_async = AsyncMock(
+        return_value=[make_chunk("c2")]
+    )
+
+    with patch.object(svc, "post_progress_message", new=AsyncMock()):
+        result = await svc.run()
+
+    assert len(result.chunks) >= 1
+    call_kwargs = mock_chat_svc.search_content_chunks_async.call_args.kwargs
+    assert (
+        "metadata_filter" not in call_kwargs or call_kwargs["metadata_filter"] is None
+    )

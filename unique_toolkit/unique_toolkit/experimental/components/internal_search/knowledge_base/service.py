@@ -56,14 +56,6 @@ class KnowledgeBaseInternalSearchService(
         # - scope_ids alone (no metadata_filter or content_ids)
         # - metadata_filter alone, or metadata_filter + content_ids
         kb = self._dependencies.knowledge_base_service
-        base = {
-            "search_string": query,
-            "search_type": self._config.search_type,
-            "limit": self._config.limit,
-            "search_language": self._config.search_language,
-            "score_threshold": self._config.score_threshold,
-            "reranker_config": self._config.reranker_config,
-        }
 
         scope_ids = self._config.scope_ids
         metadata_filter = self._effective_metadata_filter
@@ -71,15 +63,36 @@ class KnowledgeBaseInternalSearchService(
 
         if scope_ids is not None:
             _logger.debug("scope_ids set; ignoring metadata_filter for this query.")
-            chunks = await kb.search_content_chunks_async(**base, scope_ids=scope_ids)
+            chunks = await kb.search_content_chunks_async(
+                search_string=query,
+                search_type=self._config.search_type,
+                limit=self._config.limit,
+                search_language=self._config.search_language,
+                score_threshold=self._config.score_threshold,
+                reranker_config=self._config.reranker_config,
+                scope_ids=scope_ids,
+            )
         elif metadata_filter is not None:
             if content_ids is not None:
                 chunks = await kb.search_content_chunks_async(
-                    **base, metadata_filter=metadata_filter, content_ids=content_ids
+                    search_string=query,
+                    search_type=self._config.search_type,
+                    limit=self._config.limit,
+                    search_language=self._config.search_language,
+                    score_threshold=self._config.score_threshold,
+                    reranker_config=self._config.reranker_config,
+                    metadata_filter=metadata_filter,
+                    content_ids=content_ids,
                 )
             else:
                 chunks = await kb.search_content_chunks_async(
-                    **base, metadata_filter=metadata_filter
+                    search_string=query,
+                    search_type=self._config.search_type,
+                    limit=self._config.limit,
+                    search_language=self._config.search_language,
+                    score_threshold=self._config.score_threshold,
+                    reranker_config=self._config.reranker_config,
+                    metadata_filter=metadata_filter,
                 )
         else:
             raise RuntimeError(

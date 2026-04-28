@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from pydantic import BaseModel, Field
 
 from unique_toolkit._common.chunk_relevancy_sorter.config import (
@@ -29,10 +31,9 @@ class PostProcessorConfig(BaseModel):
             "chunks against that query's text before interleaving."
         ),
     )
-    max_tokens_for_sources: int = Field(
+    max_tokens_for_sources: Annotated[int, RJSFMetaTag.SpecialWidget.hidden()] = Field(
         default=30_000,
         description="Hard token-budget cap for the returned chunks.",
-        json_schema_extra=RJSFMetaTag.SpecialWidget.hidden(),
     )
     percentage_of_input_tokens_for_sources: float = Field(
         default=0.4,
