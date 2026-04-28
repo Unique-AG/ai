@@ -1,9 +1,5 @@
-from unique_web_search.schema import (
-    Step,
-    StepType,
-    WebSearchPlan,
-    WebSearchToolParameters,
-)
+from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
+from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
 
 
 class TestWebSearchToolParameters:

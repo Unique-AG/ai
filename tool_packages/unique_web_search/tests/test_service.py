@@ -3,8 +3,9 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
 from unique_web_search.service import WebSearchTool
+from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
+from unique_web_search.services.executors.v2.schema import WebSearchPlan
 from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 
 

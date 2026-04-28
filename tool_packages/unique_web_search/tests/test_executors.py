@@ -5,12 +5,6 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from unique_web_search.schema import (
-    Step,
-    StepType,
-    WebSearchPlan,
-    WebSearchToolParameters,
-)
 from unique_web_search.services.executors.v1.config import RefineQueryMode
 from unique_web_search.services.executors.v1.executor import (
     RefinedQueries,
@@ -18,9 +12,11 @@ from unique_web_search.services.executors.v1.executor import (
     WebSearchV1Executor,
     query_generation_agent,
 )
+from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.executor import (
     WebSearchV2Executor,
 )
+from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
 from unique_web_search.services.executors.v3.executor import (
     WebSearchV3Executor,
 )
