@@ -6,6 +6,7 @@ from urllib.parse import quote_plus
 
 from typing_extensions import Unpack
 
+from unique_sdk._api_requestor import APIRequestor
 from unique_sdk._api_resource import APIResource
 from unique_sdk._request_options import RequestOptions
 from unique_sdk._util import classproperty
@@ -128,7 +129,7 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         company_id: str,
         order_id: str,
     ) -> "AnalyticsOrder":
-        url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(order_id))
+        url = f"{cls.RESOURCE_URL}/{quote_plus(order_id)}"
         return cast(
             "AnalyticsOrder",
             cls._static_request("get", url, user_id, company_id),
@@ -141,7 +142,7 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         company_id: str,
         order_id: str,
     ) -> "AnalyticsOrder":
-        url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(order_id))
+        url = f"{cls.RESOURCE_URL}/{quote_plus(order_id)}"
         return cast(
             "AnalyticsOrder",
             await cls._static_request_async("get", url, user_id, company_id),
@@ -154,7 +155,7 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         company_id: str,
         order_id: str,
     ) -> "AnalyticsOrder":
-        url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(order_id))
+        url = f"{cls.RESOURCE_URL}/{quote_plus(order_id)}"
         return cast(
             "AnalyticsOrder",
             cls._static_request("delete", url, user_id, company_id),
@@ -167,7 +168,7 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         company_id: str,
         order_id: str,
     ) -> "AnalyticsOrder":
-        url = "%s/%s" % (cls.RESOURCE_URL, quote_plus(order_id))
+        url = f"{cls.RESOURCE_URL}/{quote_plus(order_id)}"
         return cast(
             "AnalyticsOrder",
             await cls._static_request_async("delete", url, user_id, company_id),
@@ -180,8 +181,14 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         company_id: str,
         order_id: str,
     ) -> str:
-        url = "%s/%s/download" % (cls.RESOURCE_URL, quote_plus(order_id))
-        return cast(str, cls._static_request("get", url, user_id, company_id))
+        url = f"{cls.RESOURCE_URL}/{quote_plus(order_id)}/download"
+        requestor = APIRequestor(user_id=user_id, company_id=company_id)
+        rbody, rcode, rheaders = requestor.request_raw("get", url)
+        if not 200 <= rcode < 300:
+            requestor.interpret_response(rbody, rcode, rheaders)
+        if isinstance(rbody, bytes):
+            return rbody.decode("utf-8-sig")
+        return str(rbody).lstrip("\ufeff")
 
     @classmethod
     async def download_async(
@@ -190,7 +197,11 @@ class AnalyticsOrder(APIResource["AnalyticsOrder"]):
         company_id: str,
         order_id: str,
     ) -> str:
-        url = "%s/%s/download" % (cls.RESOURCE_URL, quote_plus(order_id))
-        return cast(
-            str, await cls._static_request_async("get", url, user_id, company_id)
-        )
+        url = f"{cls.RESOURCE_URL}/{quote_plus(order_id)}/download"
+        requestor = APIRequestor(user_id=user_id, company_id=company_id)
+        rbody, rcode, rheaders = await requestor.request_raw_async("get", url)
+        if not 200 <= rcode < 300:
+            requestor.interpret_response(rbody, rcode, rheaders)
+        if isinstance(rbody, bytes):
+            return rbody.decode("utf-8-sig")
+        return str(rbody).lstrip("\ufeff")
