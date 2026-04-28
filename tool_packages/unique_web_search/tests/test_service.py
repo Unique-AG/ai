@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from unique_web_search.schema import WebSearchPlan, WebSearchToolParameters
-from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 from unique_web_search.service import WebSearchTool
+from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 
 
 class TestWebSearchToolDescription:
@@ -773,13 +773,9 @@ class TestWebSearchToolRun:
         tool_call = Mock()
         tool_call.id = "test-id"
         tool_call.arguments = {
-            "user_intent": "Test user goal",
-            "task_complexity": "simple",
-            "sub_questions": [],
+            "command": "search",
             "objective": "Test sub-goal for this search",
-            "action": "search",
-            "search": {"query": "test"},
-            "fetch_urls": None,
+            "payload": {"gap": "Test gap to fill", "query": "test"},
         }
 
         result = await tool.run(tool_call)

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Changed
+- **Web Search V3 redesigned as a two-command tool.** V3 no longer runs a snippet-judge + crawl pipeline behind a single tool call. Each invocation now performs **one** operation, picked via `command`:
+  - `command: "search"` returns SERP rows (URL, domain, title, snippet) as JSON `ContentChunk`s, with no crawl or LLM judge.
+  - `command: "read_urls"` crawls and processes the chosen pages into the standard content pipeline.
+
+  Multi-step research is driven by the LLM chaining calls; the new `web-search-v3` agent skill (at `skills/web-search-v3.md`) ships the explore-then-exploit playbook (snippet-hedging triggers, canonical-source topics, URL-selection rules).
+- **V3 tool parameter schema simplified.** `WebSearchV3ToolParameters` is now `command` + `objective` + a discriminated `payload` (`SearchPayload` with `gap`/`query`, or `FetchUrlsPayload` with `urls`). Old fields (`user_intent`, `task_complexity`, `sub_questions`, `action`, `search`, `fetch_urls`) are removed.
+- **V3 mode label updated.** `WebSearchMode.get_enum_names()` now describes V3 as a two-command (search / read_urls) tool with LLM-driven chaining instead of the old snippet-judge pipeline.
+
+### Refactored
+- Web search executors split into per-version subpackages (`services/executors/{v1,v2,v3}/{config,executor,schema,prompts}`); `services/executors/configs/` is now a thin backward-compat shim. `unique_web_search.schema` re-exports `WebSearchToolParameters`, `Step`, `StepType`, and `WebSearchPlan` so existing downstream imports keep working unchanged.
+
 ## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v1.17.0...unique-web-search-v2026.18.0) (2026-04-23)
 
 

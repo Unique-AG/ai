@@ -207,7 +207,7 @@ class TestBraveSearchExtractUrls:
 
         assert results[0].snippet == "No Snippet Found"
 
-    def test_extra_snippets_joined_as_content(self, _mock_brave_settings):
+    def test_extra_snippets_joined_into_snippet(self, _mock_brave_settings):
         search = self._make_search(_mock_brave_settings)
         response = {
             "web": {
@@ -224,7 +224,8 @@ class TestBraveSearchExtractUrls:
 
         results = search._extract_urls(response)
 
-        assert results[0].content == "snippet one\nsnippet two"
+        assert results[0].snippet == "desc\nsnippet one\nsnippet two"
+        assert results[0].content == ""
 
     def test_content_empty_when_no_extra_snippets(self, _mock_brave_settings):
         search = self._make_search(_mock_brave_settings)

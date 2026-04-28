@@ -66,3 +66,23 @@ class WebSearchDebugInfo(BaseModel):
                 "web_page_chunks": True,
             } | exclude
         return super().model_dump(exclude=exclude, **kwargs)
+
+
+from unique_web_search.services.executors.v1.schema import (  # noqa: E402
+    WebSearchToolParameters,
+)
+from unique_web_search.services.executors.v2.schema import (  # noqa: E402
+    Step,
+    StepType,
+    WebSearchPlan,
+)
+
+__all__ = [
+    "Step",
+    "StepDebugInfo",
+    "StepType",
+    "WebPageChunk",
+    "WebSearchDebugInfo",
+    "WebSearchPlan",
+    "WebSearchToolParameters",
+]
