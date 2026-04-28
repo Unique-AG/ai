@@ -210,11 +210,41 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: ./.github/scripts/prepare-next-cycle.sh
 
+      # A stable release commits new dev floors via update-dep-floors.py,
+      # which makes any open `chore: pin dev-cut <SHA>` PR (opened by
+      # cd-publish-dev.yaml against `main`) obsolete: its floors are
+      # strictly older than the floors that just landed on `main`.
+      # Close them so they don't accumulate cycle after cycle.
+      - name: Close stale dev bump PRs
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          PR_NUMBERS=$(gh pr list \
+            --repo "${{ github.repository }}" \
+            --state open \
+            --base main \
+            --search "chore: pin dev-cut in:title" \
+            --json number \
+            --jq '.[].number')
+
+          if [[ -z "$PR_NUMBERS" ]]; then
+            echo "No open dev bump PRs found."
+            exit 0
+          fi
+
+          for PR in $PR_NUMBERS; do
+            echo "Closing dev bump PR #${PR}"
+            gh pr close "$PR" \
+              --repo "${{ github.repository }}" \
+              --comment "Superseded by stable release: dev-cut floors were just persisted to \`main\`."
+          done
+
       - name: Summary
         run: |
           {
             echo "### Post-release actions"
             echo "- Cut \`release/\` branch from the tagged release commit (App token bypasses branch protection on \`release-branches\` ruleset)"
             echo "- Pushed \`Release-As\` trailer to \`main\` to arm the next CalVer cycle (App token bypasses branch protection on \`main-branch\` ruleset)"
+            echo "- Closed any open \`chore: pin dev-cut …\` PRs (superseded by the stable floors that just landed on \`main\`)"
             echo "- \`cd-publish.yaml\` will fire on the \`release:published\` event created by release-please's App-token-authored release"
           } >> "$GITHUB_STEP_SUMMARY"

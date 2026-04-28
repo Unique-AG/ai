@@ -160,7 +160,7 @@ flowchart TD
    ```
    Because this PR is opened by the bot, it only requires your approval — you can approve and merge it yourself without a second reviewer.
 4. release-please bumps all `pyproject.toml` versions and `CHANGELOG.md` entries, then tags and creates a GitHub Release.
-5. `cd-release.yaml`'s post-release job pushes the new `release/YYYY.WW` branch from the tagged commit (the Release Workflow App is a bypass actor on the `release-branches` ruleset) and arms the next cycle on `main` — see [Arming a cycle](#arming-a-cycle).
+5. `cd-release.yaml`'s post-release job pushes the new `release/YYYY.WW` branch from the tagged commit (the Release Workflow App is a bypass actor on the `release-branches` ruleset), arms the next cycle on `main` — see [Arming a cycle](#arming-a-cycle) — and closes any open `chore: pin dev-cut <SHA>` PRs, since their floors are now superseded by the stable floors that just landed on `main`.
 6. The GitHub Release that release-please just published natively triggers `cd-publish.yaml`, which builds and publishes every changed package to PyPI. Dependencies in the stable wheels are pinned with `>=` (updated by `update-dep-floors.py` at release time).
 7. Propagating the new stable versions to the monorepo is [documented in the monorepo](https://github.com/Unique-AG/monorepo/blob/master/docs/uniqueai/release-process/index.md#sync-ai-versions-workflow).
 
@@ -190,6 +190,7 @@ flowchart TD
     TAG -->|release: published| PUB[cd-publish.yaml<br/>biweekly stable publish<br/>YYYY.WW.0]
     TAG --> CUT[cut release/YYYY.WW branch<br/>from tagged commit]
     TAG --> NEXT[arm next cycle on main<br/>direct push]
+    TAG --> CLOSE[close stale<br/>chore: pin dev-cut PRs]
     TAG -.manual dispatch.-> SYNC[uniqueai-sync-ai-versions.yaml<br/>target=master<br/>source=release/YYYY.WW<br/>Sync == versions to monorepo master]
 ```
 
