@@ -22,7 +22,7 @@ from unique_toolkit.language_model.schemas import LanguageModelFunction
 from unique_orchestrator._builders.skill_setup import (
     _build_skill,
     _build_subtree_metadata_filter,
-    _is_markdown,
+    _is_skill_entrypoint,
     _parse_frontmatter,
     configure_skill_tool,
     load_skills_from_knowledge_base,
@@ -395,44 +395,92 @@ class TestParseFrontmatter:
         assert body == "---not-a-delimiter\nname: foo\n---\nbody"
 
 
-class TestIsMarkdown:
-    def test_lowercase_md(self) -> None:
+class TestIsSkillEntrypoint:
+    def test_canonical_skill_md(self) -> None:
         content = MagicMock()
-        content.key = "readme.md"
-        assert _is_markdown(content=content) is True
+        content.key = "SKILL.md"
+        assert _is_skill_entrypoint(content=content) is True
 
-    def test_uppercase_md(self) -> None:
+    def test_lowercase_skill_md(self) -> None:
         content = MagicMock()
-        content.key = "README.MD"
-        assert _is_markdown(content=content) is True
+        content.key = "skill.md"
+        assert _is_skill_entrypoint(content=content) is True
 
-    def test_non_markdown(self) -> None:
+    def test_uppercase_skill_md(self) -> None:
+        content = MagicMock()
+        content.key = "SKILL.MD"
+        assert _is_skill_entrypoint(content=content) is True
+
+    def test_other_markdown_rejected(self) -> None:
+        """README, references/*.md, etc. are assets — not skill entrypoints."""
+        for name in ("README.md", "notes.md", "references.md", "skill_old.md"):
+            content = MagicMock()
+            content.key = name
+            assert _is_skill_entrypoint(content=content) is False, name
+
+    def test_non_markdown_rejected(self) -> None:
         content = MagicMock()
         content.key = "data.txt"
-        assert _is_markdown(content=content) is False
+        assert _is_skill_entrypoint(content=content) is False
 
 
 class TestBuildSubtreeMetadataFilter:
-    def test_single_scope_returns_single_statement(self) -> None:
+    def test_single_scope_emits_root_and_descendant_predicates(self) -> None:
+        """One scope yields two OR'd CONTAINS predicates so the filter
+        matches both when the configured scope is the root of the path
+        (``uniquepathid://<id>...``) and when it is a descendant
+        segment (``.../<id>/...`` or ``.../<id>``).
+        """
         result = _build_subtree_metadata_filter(scope_ids=["scope-1"])
 
-        assert result["operator"] == "contains"
-        assert result["value"] == "uniquepathid://scope-1"
-        assert result["path"] == ["folderIdPath"]
+        assert "or" in result
+        predicates = result["or"]
+        assert [p["operator"] for p in predicates] == ["contains", "contains"]
+        assert all(p["path"] == ["folderIdPath"] for p in predicates)
+        assert [p["value"] for p in predicates] == [
+            "uniquepathid://scope-1",
+            "/scope-1",
+        ]
 
     def test_multiple_scopes_wrapped_in_or(self) -> None:
+        """N scopes yield 2N predicates (root + descendant) flattened
+        into a single OR — the filter is one boolean expression rather
+        than nested per-scope ORs.
+        """
         result = _build_subtree_metadata_filter(
             scope_ids=["scope-1", "scope-2", "scope-3"]
         )
 
         assert "or" in result
         predicates = result["or"]
-        assert len(predicates) == 3
+        assert len(predicates) == 6
         assert [p["value"] for p in predicates] == [
             "uniquepathid://scope-1",
+            "/scope-1",
             "uniquepathid://scope-2",
+            "/scope-2",
             "uniquepathid://scope-3",
+            "/scope-3",
         ]
+
+    def test_descendant_predicate_matches_nested_scope(self) -> None:
+        """Regression for the silent miss: when the configured scope
+        sits at any non-root depth in ``folderIdPath`` (e.g. nested
+        skill folder), the ``/<scope_id>`` predicate must be present so
+        the ``contains`` substring match can land on a path segment
+        boundary. The root-only ``uniquepathid://<scope_id>`` predicate
+        from before this fix never matched in that case because the
+        prefix is only stamped once at the start of the path.
+        """
+        result = _build_subtree_metadata_filter(scope_ids=["scope-nested"])
+
+        descendant_predicates = [
+            p for p in result["or"] if p["value"] == "/scope-nested"
+        ]
+        assert len(descendant_predicates) == 1
+        path = "uniquepathid://scope-root/scope-nested/scope-leaf"
+        assert "/scope-nested" in path
+        assert f"uniquepathid://scope-nested" not in path
 
 
 def _fake_info(content_id: str, key: str) -> MagicMock:
@@ -483,13 +531,19 @@ class TestLoadSkillsFromKnowledgeBase:
         assert result == {}
 
     @pytest.mark.asyncio
-    async def test_no_markdown_files_returns_empty(self, logger: Logger) -> None:
+    async def test_no_skill_files_returns_empty(self, logger: Logger) -> None:
+        """Plain markdown / non-skill files are filtered out before download."""
         content_service = MagicMock()
         content_service.download_content_to_bytes_async = AsyncMock()
         knowledge_base_service = MagicMock()
         knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
-            [_fake_info("c1", "foo.txt"), _fake_info("c2", "bar.pdf")],
-            total=2,
+            [
+                _fake_info("c1", "foo.txt"),
+                _fake_info("c2", "bar.pdf"),
+                _fake_info("c3", "README.md"),
+                _fake_info("c4", "references.md"),
+            ],
+            total=4,
         )
 
         result = await load_skills_from_knowledge_base(
@@ -503,6 +557,35 @@ class TestLoadSkillsFromKnowledgeBase:
         content_service.download_content_to_bytes_async.assert_not_awaited()
 
     @pytest.mark.asyncio
+    async def test_only_skill_md_entrypoints_are_loaded(
+        self, logger: Logger
+    ) -> None:
+        """Sibling .md files in a skill folder are ignored; only SKILL.md counts."""
+        content_service = MagicMock()
+        content_service.download_content_to_bytes_async = AsyncMock(
+            return_value=b"---\nname: foo\ndescription: d\n---\nFOO\n"
+        )
+        knowledge_base_service = MagicMock()
+        knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
+            [
+                _fake_info("c1", "SKILL.md"),
+                _fake_info("c2", "README.md"),
+                _fake_info("c3", "references.md"),
+            ],
+            total=3,
+        )
+
+        result = await load_skills_from_knowledge_base(
+            content_service=content_service,
+            knowledge_base_service=knowledge_base_service,
+            scope_ids=["scope-1"],
+            logger=logger,
+        )
+
+        assert set(result.keys()) == {"foo"}
+        assert content_service.download_content_to_bytes_async.await_count == 1
+
+    @pytest.mark.asyncio
     async def test_download_failure_skips_entry(self, logger: Logger) -> None:
         content_service = MagicMock()
         content_service.download_content_to_bytes_async = AsyncMock(
@@ -513,7 +596,7 @@ class TestLoadSkillsFromKnowledgeBase:
         )
         knowledge_base_service = MagicMock()
         knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
-            [_fake_info("c1", "foo.md"), _fake_info("c2", "bar.md")],
+            [_fake_info("c1", "SKILL.md"), _fake_info("c2", "SKILL.md")],
             total=2,
         )
 
@@ -534,7 +617,7 @@ class TestLoadSkillsFromKnowledgeBase:
         )
         knowledge_base_service = MagicMock()
         knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
-            [_fake_info("c1", "empty.md")],
+            [_fake_info("c1", "SKILL.md")],
             total=1,
         )
 
@@ -558,7 +641,7 @@ class TestLoadSkillsFromKnowledgeBase:
         )
         knowledge_base_service = MagicMock()
         knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
-            [_fake_info("c1", "a.md"), _fake_info("c2", "b.md")],
+            [_fake_info("c1", "SKILL.md"), _fake_info("c2", "SKILL.md")],
             total=2,
         )
 
@@ -584,7 +667,7 @@ class TestLoadSkillsFromKnowledgeBase:
         )
         knowledge_base_service = MagicMock()
         knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
-            [_fake_info("c1", "foo.md"), _fake_info("c2", "bar.md")],
+            [_fake_info("c1", "SKILL.md"), _fake_info("c2", "SKILL.md")],
             total=2,
         )
 
@@ -629,7 +712,7 @@ class TestLoadSkillsFromKnowledgeBase:
         )
         knowledge_base_service = MagicMock()
         knowledge_base_service.get_paginated_content_infos.return_value = _paginated(
-            [_fake_info(f"c{i}", f"s{i}.md") for i in range(10)], total=10
+            [_fake_info(f"c{i}", "SKILL.md") for i in range(10)], total=10
         )
 
         result = await load_skills_from_knowledge_base(
@@ -651,10 +734,10 @@ class TestLoadSkillsFromKnowledgeBase:
         )
         knowledge_base_service = MagicMock()
         page1 = _paginated(
-            [_fake_info(f"c{i}", f"a{i}.md") for i in range(100)], total=150
+            [_fake_info(f"c{i}", "SKILL.md") for i in range(100)], total=150
         )
         page2 = _paginated(
-            [_fake_info(f"c{i}", f"b{i}.md") for i in range(50)], total=150
+            [_fake_info(f"c{i}", "SKILL.md") for i in range(50)], total=150
         )
         knowledge_base_service.get_paginated_content_infos.side_effect = [page1, page2]
 

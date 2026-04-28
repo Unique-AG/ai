@@ -3,7 +3,18 @@
 Loads skill definitions from the knowledge base and registers the
 SkillTool with the tool manager.
 
-Skill files are ``.md`` documents with optional YAML frontmatter::
+Skill discovery follows the official Agent Skills protocol — see
+https://agentskills.io/home. Each skill is a **folder**
+that contains a ``SKILL.md`` entrypoint with required YAML frontmatter::
+
+    <skill-folder>/
+      SKILL.md          (required: name + description + body)
+      scripts/          (optional: executable code)
+      references/       (optional: documentation)
+      assets/           (optional: templates, resources)
+      ...               # Any additional files or directories
+
+The ``SKILL.md`` body looks like::
 
     ---
     name: summarize-report
@@ -15,25 +26,15 @@ Skill files are ``.md`` documents with optional YAML frontmatter::
     # Summarize Report
     ...instructions...
 
+Only files whose basename is ``SKILL.md`` (case-insensitive) are
+treated as skill entrypoints. Any other ``.md`` files in a skill
+folder (``references/*.md``, README, etc.) are ignored by the loader
+— they are treated as assets, not separate skills. This matches the
+"each skill is a folder" semantics of the official protocol.
+
 The frontmatter fields are used for the skill listing shown to the
-LLM.  The body (everything after the frontmatter) is the prompt
+LLM. The body (everything after the frontmatter) is the prompt
 content injected when the skill is invoked.
-
-TODO: Add a skill-path reconciliation module that supports both KB
-layouts and infers the skill name when frontmatter ``name:`` is
-missing. Today every ``.md`` is treated as an independent skill and
-is skipped unless the frontmatter carries both ``name`` and
-``description`` — a folder-based skill (``<scope>/draft-email/
-SKILL.md`` + assets) is indistinguishable from a flat-layout skill
-(``<scope>/draft-email.md``), and authors must repeat the name in
-frontmatter even though the filename or folder already implies it.
-
-Target layouts:
-  * flat:   ``<scope>/draft-email.md``
-            -> name inferred from filename stem
-  * folder: ``<scope>/draft-email/SKILL.md`` + sibling assets
-            -> name inferred from folder name; other ``.md`` files in
-               the folder are treated as assets, not separate skills
 """
 
 from __future__ import annotations
@@ -85,27 +86,66 @@ def _find_skill_tool_build_config(
 _SUBTREE_PAGE_SIZE = 100
 _MAX_SUBTREE_ITEMS = 10_000
 
+_SKILL_ENTRYPOINT_FILENAME = "skill.md"
 
-def _is_markdown(*, content: Content | ContentInfo) -> bool:
-    return content.key.lower().endswith(".md")
+
+def _is_skill_entrypoint(*, content: Content | ContentInfo) -> bool:
+    """Return True when *content*'s basename is the skill entrypoint file.
+
+    Matches only ``SKILL.md`` (case-insensitive). Other ``.md`` files in
+    a skill folder — README, ``references/*.md``, etc. — are treated as
+    assets and not registered as separate skills, which is what the
+    "each skill is a folder" semantics of the official Agent Skills
+    protocol requires.
+    """
+    return content.key.lower() == _SKILL_ENTRYPOINT_FILENAME
 
 
 def _build_subtree_metadata_filter(*, scope_ids: list[str]) -> dict[str, Any]:
     """Build a UniqueQL filter matching any file under the given scope IDs.
 
-    For each configured scope ID we add a ``folderIdPath CONTAINS
-    uniquepathid://<scope_id>`` predicate, then OR them together. The
-    backend's ACL is then applied to the matching set, so only files
-    the current user can access are returned.
+    The ``folderIdPath`` metadata is stored as a single string with one
+    ``uniquepathid://`` prefix at the start, followed by ``/``-separated
+    scope IDs from root to leaf — e.g. for a file in
+    ``Root/Skills/Programming``::
+
+        uniquepathid://scope_root/scope_skills/scope_programming
+
+    The prefix is **not** repeated per segment. A naive
+    ``CONTAINS uniquepathid://<scope_id>`` therefore only matches when
+    ``<scope_id>`` is the *root* of the path, which silently breaks
+    skill discovery for any sub-folder scope ID.
+
+    To match a scope at any depth we OR two predicates per scope:
+
+    * ``folderIdPath CONTAINS "uniquepathid://<scope_id>"`` — root case.
+    * ``folderIdPath CONTAINS "/<scope_id>"`` — descendant case. The
+      leading ``/`` anchors the match to a path-segment boundary so we
+      don't accidentally match inside another scope ID. Scope IDs are
+      ``scope_<random>`` and never contain ``/``, so this predicate
+      cannot leak across segments.
+
+    The two predicates per scope are flattened into a single ``OR`` (or
+    a single ``Statement`` when only one predicate is needed), and the
+    backend's ACL is then applied to the matching set so only files the
+    current user can access are returned.
     """
-    statements: list[Statement | AndStatement | OrStatement] = [
-        Statement(
-            operator=Operator.CONTAINS,
-            value=f"uniquepathid://{scope_id}",
-            path=["folderIdPath"],
+    statements: list[Statement | AndStatement | OrStatement] = []
+    for scope_id in scope_ids:
+        statements.append(
+            Statement(
+                operator=Operator.CONTAINS,
+                value=f"uniquepathid://{scope_id}",
+                path=["folderIdPath"],
+            )
         )
-        for scope_id in scope_ids
-    ]
+        statements.append(
+            Statement(
+                operator=Operator.CONTAINS,
+                value=f"/{scope_id}",
+                path=["folderIdPath"],
+            )
+        )
     if len(statements) == 1:
         return statements[0].model_dump(mode="json")
     return OrStatement(or_list=statements).model_dump(mode="json")
@@ -186,18 +226,24 @@ async def load_skills_from_knowledge_base(
     scope_ids: list[str],
     logger: Logger,
 ) -> dict[str, SkillDefinition]:
-    """Load all ``.md`` files from *scope_ids* (recursively) into a skill registry.
+    """Load all ``SKILL.md`` files from *scope_ids* (recursively) into a skill registry.
 
-    Pages through ``/content/infos`` with a UniqueQL metadata filter that
-    OR's ``folderIdPath CONTAINS uniquepathid://<scope_id>`` for every
-    configured scope. The public API caps ``take`` at 100, so results are
-    accumulated across pages up to ``_MAX_SUBTREE_ITEMS``. This matches
-    any file whose folder path contains the configured scope at any
-    depth, so:
+    Pages through ``/content/infos`` with the UniqueQL metadata filter
+    built by :func:`_build_subtree_metadata_filter`, which OR's two
+    ``CONTAINS`` predicates per scope (``uniquepathid://<scope_id>`` and
+    ``/<scope_id>``) so a configured scope matches at the root *and* at
+    any descendant depth. The public API caps ``take`` at 100, so
+    results are accumulated across pages up to ``_MAX_SUBTREE_ITEMS``.
+    This means:
 
-    * Each configured scope ID acts as a subtree root — all files inside
-      it and any of its descendants are considered.
-    * The backend's ACL is applied to the matching set, so only files
+    * Each configured scope ID acts as a subtree root — every skill
+      folder inside it (and any descendant folder) is considered,
+      regardless of whether the scope is itself a top-level folder or
+      a nested one.
+    * Only files whose basename is ``SKILL.md`` are kept; everything
+      else (assets, references, scripts, READMEs) is filtered out so
+      a single skill folder maps to a single registered skill.
+    * The backend's ACL is applied to the matching set, so only skills
       the current user can access are returned.
     * To expose skills to users who only have access to specific
       sub-folders, configure those sub-folder scope IDs directly.
@@ -211,7 +257,7 @@ async def load_skills_from_knowledge_base(
         return {}
 
     metadata_filter = _build_subtree_metadata_filter(scope_ids=scope_ids)
-
+    print('metadata_filter', metadata_filter)
     all_infos: list[ContentInfo] = []
     skip = 0
     try:
@@ -236,22 +282,26 @@ async def load_skills_from_knowledge_base(
             exc_info=True,
         )
         return {}
+    print('all_infos', all_infos)
 
-    md_infos = [ci for ci in all_infos if _is_markdown(content=ci)]
-    if not md_infos:
-        logger.info("No .md files found for scope_ids=%s.", scope_ids)
+    skill_infos = [ci for ci in all_infos if _is_skill_entrypoint(content=ci)]
+    if not skill_infos:
+        logger.info(
+            "No SKILL.md entrypoints found for scope_ids=%s.",
+            scope_ids,
+        )
         return {}
 
     download_results = await asyncio.gather(
         *(
             content_service.download_content_to_bytes_async(content_id=info.id)
-            for info in md_infos
+            for info in skill_infos
         ),
         return_exceptions=True,
     )
 
     skill_registry: dict[str, SkillDefinition] = {}
-    for info, result in zip(md_infos, download_results, strict=True):
+    for info, result in zip(skill_infos, download_results, strict=True):
         if isinstance(result, BaseException):
             logger.warning(
                 "Failed to download '%s' (%s) — skipping.",
@@ -308,24 +358,12 @@ async def configure_skill_tool(
 ) -> None:
     """Populate the SkillTool's skill registry when it is enabled in ``space.tools``.
 
-    The SkillTool is integrated like every other tool: it lives as a
-    ``ToolBuildConfig`` entry in ``config.space.tools`` and is built by
-    :class:`ToolFactory` when the :class:`ToolManager` is constructed.
-    This function only handles the runtime concern of loading the skill
-    definitions from the knowledge base and injecting them into the
-    already-constructed tool instance.
-
-    The tool is treated as "active" only when both:
-
-    * an entry with name ``SkillTool.name`` is present in
-      ``config.space.tools`` and its
-      :attr:`~ToolBuildConfig.is_enabled` flag is ``True``, **and**
-    * the resulting skill registry contains at least one skill.
-
-    When either is not the case the SkillTool is excluded from the
-    manager so it is never advertised to the model. Its system prompt
-    claims HIGHEST PRIORITY and would otherwise waste iterations or
-    provoke hallucinated skill names when no skills exist.
+    Lists every ``SKILL.md`` entrypoint reachable from the configured
+    ``scope_ids`` (and every sub-folder under them), downloads each one
+    concurrently, and registers the SkillTool with the parsed skills.
+    Each skill folder follows the official Agent Skills protocol layout
+    (``<skill>/SKILL.md`` plus optional ``scripts/``, ``references/``,
+    ``assets/``).
     """
     skill_tool_build_config = _find_skill_tool_build_config(config.space.tools)
     if skill_tool_build_config is None or not skill_tool_build_config.is_enabled:
