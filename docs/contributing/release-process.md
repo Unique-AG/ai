@@ -25,6 +25,20 @@ Pre-release suffixes follow PEP 440 ordering (`dev < rc < final`):
 
 ---
 
+## Automation identity
+
+All write operations performed by release workflows (creating/updating release-please PRs, pushing lockfile updates, tagging commits, creating GitHub Releases, opening dev-bump PRs, cutting `release/*` branches, arming the next cycle) authenticate as the **Release Workflow App**, a GitHub App provisioned in the [`infrastructure`](https://github.com/Unique-AG/infrastructure) repo and shared with the monorepo.
+
+Why it matters:
+
+- **Bypasses branch protection** — the App is registered as a bypass actor on the `main-branch` and `release-branches` rulesets, so the arm-next-cycle commit can be pushed directly to `main` and the cut step can push the new `release/YYYY.WW` branch without going through a PR.
+- **Triggers downstream CI** — pushes, tags, and releases authored by the App are *not* covered by GitHub's anti-recursion rule (which suppresses follow-up workflows for `GITHUB_TOKEN`-authored events). This is what makes lockfile commits on the Release PR run PR CI, and what makes the `release: published` event natively fan out to `cd-publish.yaml`.
+- **IP-origin-bound** — the App's installation token is only usable from the static-IP runner pool, so any job that mints one must declare `runs-on: gh-static-ip-slim` and `environment: release-workflow`.
+
+You should never need to interact with the App directly; this section exists so the references throughout the rest of this document make sense.
+
+---
+
 ## Dev releases
 
 **Trigger:** every push to `main` that touches a publishable package.
@@ -101,16 +115,18 @@ unique-toolkit>=2026.20.0rc1
 
 ## Dev bump PR
 
-After every successful dev publish the workflow opens (or updates) a pull request in the **monorepo** with title:
+After every successful dev publish the workflow opens (or updates) a pull request **in the AI repo** with title:
 
 ```
 chore: pin dev-cut <SHORT_SHA>
 ```
 
-This PR bumps the AI package version floors in the monorepo to the latest dev versions. **You only need to merge it when you are actively mixing dev AI dependencies with local monorepo sources** — for example, when developing a monorepo feature that depends on unreleased AI changes. In the typical development flow the PR can be left open and will be superseded by the next stable release sync.
+This PR rewrites every publishable package's `pyproject.toml` so its `version` and AI cross-package dep floors match the dev wheels just published to PyPI. **You only need to merge it when you are mixing freshly-published dev wheels with locally-checked-out AI packages** — for example, when developing in a worktree where one package is a path source and a sibling is consumed as a wheel. Without this, `uv`'s version-solver fails because the local clone still advertises the previous cycle version while the wheel `Requires-Dist` floor is `>= <current dev>`.
+
+In the typical flow the PR can sit untouched: it is automatically superseded by the next dev publish (the workflow closes the previous one before opening the new one).
 
 !!! tip "One-person merge"
-    Because the PR is opened by the bot, it only requires your approval — you can approve and merge it yourself without a second reviewer.
+    Because the PR is opened by the Release Workflow App, it only requires your approval — you can approve and merge it yourself without a second reviewer. The PR also runs `pull_request:` CI normally, since the App-authored push is not subject to GitHub's anti-recursion rule.
 
 ---
 
@@ -123,28 +139,30 @@ This PR bumps the AI package version floors in the monorepo to the latest dev ve
 ### Cadence
 
 1. **Arm the cycle** (usually automated, manual escape hatch available — see [Arming a cycle](#arming-a-cycle)).
-2. Developers merge features to `main`. Each merge triggers a dev publish (see above) and keeps the standing Release PR up to date.
+2. Developers merge features to `main`. Each merge triggers a dev publish (see above) and keeps the standing Release PR up to date. Whenever release-please rewrites the PR, `cd-release.yaml` regenerates `uv.lock` in the same workflow run and pushes the result back onto the PR branch — that push runs PR CI like any other commit, so the PR's status is always against the actual lockfile that will land.
 3. When ready to ship, **merge the Release PR** on `main`. Its title is:
    ```
    chore: stable release <version>
    ```
    Because this PR is opened by the bot, it only requires your approval — you can approve and merge it yourself without a second reviewer.
-4. release-please bumps all `pyproject.toml` versions and `CHANGELOG.md` entries.
-5. `cd-release.yaml` cuts the `release/YYYY.WW` branch, creates a GitHub Release, and triggers `cd-publish.yaml`.
-6. `cd-publish.yaml` builds and publishes every changed package to PyPI. Dependencies in the stable wheels are pinned with `>=` (updated by `update-dep-floors.py` at release time).
+4. release-please bumps all `pyproject.toml` versions and `CHANGELOG.md` entries, then tags and creates a GitHub Release.
+5. `cd-release.yaml`'s post-release job pushes the new `release/YYYY.WW` branch from the tagged commit (the Release Workflow App is a bypass actor on the `release-branches` ruleset) and arms the next cycle on `main` — see [Arming a cycle](#arming-a-cycle).
+6. The GitHub Release that release-please just published natively triggers `cd-publish.yaml`, which builds and publishes every changed package to PyPI. Dependencies in the stable wheels are pinned with `>=` (updated by `update-dep-floors.py` at release time).
 7. `uniqueai-sync-ai-versions.yaml` (monorepo) automatically syncs the new stable versions to `master` with `==` pins.
 
 ### Arming a cycle
 
-In steady state `cd-release.yaml` arms the next cycle automatically after cutting a release. Use the manual escape hatch when needed:
+In steady state `cd-release.yaml` arms the next cycle automatically after cutting a release: the same job that cuts `release/YYYY.WW` then runs `prepare-next-cycle.sh`, which pushes an empty `chore: arm release YYYY.WW.0` commit (with a `Release-As:` trailer) **directly onto `main`**. The Release Workflow App is a bypass actor on the `main-branch` ruleset, so the push is allowed despite branch protection. release-please picks the trailer up on the next workflow run and retargets the standing Release PR to that version.
+
+There is no arm PR, no side branch, and no merge queue involvement — the trailer commit lands on `main` immediately. If two arm runs race for the same `main`, `prepare-next-cycle.sh` retries with a refetch+re-anchor loop (bounded at 5 attempts) so a non-fast-forward rejection is recovered automatically.
+
+Use the manual escape hatch when the automation can't run on its own (bootstrap, skipped cycle, off-cadence release, miscomputed CalVer):
 
 **Workflow:** `.github/workflows/cd-arm-version.yaml` — triggered manually via `workflow_dispatch`.
 
 | Input | Default | Description |
 |-------|---------|-------------|
 | `year_week` | computed from manifest | Override target cycle, e.g. `2026.22` |
-
-The workflow pushes an empty `Release-As: YYYY.WW.0` footer commit to `main`. release-please picks this up and retargets the standing Release PR.
 
 ---
 
@@ -161,8 +179,8 @@ The workflow pushes an empty `Release-As: YYYY.WW.0` footer commit to `main`. re
    chore: hotfix release/YYYY.WW to <version>
    ```
    where `<version>` is `YYYY.WW.1` (or `.2`, etc.). Because this PR is opened by the bot, it only requires your approval — you can approve and merge it yourself without a second reviewer.
-4. release-please cuts a GitHub Release and triggers `cd-publish.yaml`.
-5. `cd-publish.yaml` publishes the patched packages.
+4. release-please tags the commit and creates a GitHub Release. The release event (authored by the Release Workflow App) natively triggers `cd-publish.yaml`.
+5. `cd-publish.yaml` publishes the patched packages to PyPI.
 6. Run `uniqueai-sync-ai-versions.yaml` manually (target `release`, source `release/YYYY.WW`) to sync the patch versions to the matching monorepo release branch.
 
 ---
@@ -200,7 +218,7 @@ flowchart TD
     A[Push to main] -->|cd-publish-dev| B[dev publish\nYYYY.WW.0.devN]
     B --> C[dev-cut-SHA tag\n+ GitHub pre-release]
     C -->|manual cd-publish-rc| D[RC publish\nYYYY.WW.0rcN\nall packages]
-    B -->|open/update PR| E[Dev bump PR in monorepo\nchore: pin dev-cut SHA]
+    B -->|open/update PR| E[Dev bump PR in AI repo\nchore: pin dev-cut SHA]
 
     F[Merge Release PR on main] -->|cd-release| G[cut release/YYYY.WW branch\ncreate GitHub Release]
     G -->|cd-publish| H[biweekly stable publish\nYYYY.WW.0\nchanged packages]
