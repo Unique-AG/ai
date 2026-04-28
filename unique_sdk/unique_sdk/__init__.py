@@ -101,6 +101,9 @@ from unique_sdk.api_resources._benchmarking import (
     Benchmarking as Benchmarking,
 )
 from unique_sdk.api_resources._scheduled_task import ScheduledTask as ScheduledTask
+from unique_sdk.api_resources._analytics_order import (
+    AnalyticsOrder as AnalyticsOrder,
+)
 from unique_sdk.api_resources._module import Module as Module
 
 # Unique QL
