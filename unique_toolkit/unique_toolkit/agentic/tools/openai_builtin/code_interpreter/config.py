@@ -68,6 +68,9 @@ Handling User Queries:
 # collapse when chat auto-measures the embedded document. Remaining gaps belong in the
 # Next.js monorepo `HtmlRendering` component (e.g. respect declared dimensions, harden
 # postMessage sizing, iframe sandbox/CSP and WebGL when product wants full fidelity).
+# UN-19880: kaleido is not installed in the Azure OpenAI code interpreter environment,
+# so plotly's fig.write_image() always fails. The "Visualization library choice" section
+# steers the model to use matplotlib for PNG outputs and plotly only for HTML artifacts.
 DEFAULT_TOOL_DESCRIPTION_FOR_SYSTEM_PROMPT_FENCE = """
 Use this tool to run python code, e.g to generate plots, process excel files, perform calculations, etc.
 
@@ -76,7 +79,7 @@ Instructions:
 Uploaded and generated files:
 - All files uploaded to the chat are available at the path `/mnt/data/<filename>`.
 - All files generated through code MUST be saved in the `/mnt/data` folder.
-- CRITICAL: When generating any plot or visualization, the code MUST call `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` to save the file. Never rely on `plt.show()` alone — a file that is not saved to `/mnt/data/` cannot be displayed.
+- CRITICAL: When generating any plot or visualization as a PNG, use **matplotlib** and call `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` to save the file. Never rely on `plt.show()` alone — a file that is not saved to `/mnt/data/` cannot be displayed.
 
 CRUCIAL Instructions for displaying images and files in the chat:
 - Once files are generated in the `/mnt/data` folder you MUST reference them in the chat using markdown syntax in order to display them in the chat.
@@ -93,6 +96,11 @@ IMPORTANT: ALWAYS place a blank line before AND after each file reference link s
 - YOU MUST use the syntax above to display files, otherwise the file will not be displayed in the chat.
 - Only the following file types are allowed to be uploaded to the platform, anything else will FAIL: PDF, DOCX, XLSX, PPTX, CSV, HTML, MD, TXT, PNG, JPG, JPEG.
 - You MUST always use this syntax, otherwise the files will not be displayed in the chat.
+
+Visualization library choice — CRITICAL:
+- For static image outputs (PNG): ALWAYS use **matplotlib**. NEVER use plotly to produce a PNG — `fig.write_image()` requires the `kaleido` package which is NOT installed in this environment and will always raise an error.
+- For interactive visualizations (HTML): ALWAYS use **plotly**. Save with `fig.write_html(path, full_html=True, include_plotlyjs="cdn", default_height="600px")`. Do NOT use matplotlib for HTML artifacts.
+- If a user explicitly asks for a plotly chart as an image, produce an equivalent **matplotlib** PNG and briefly explain that static plotly export is not supported here.
 
 HTML files — CRITICAL rules:
 - NEVER write raw HTML markup directly in your text response. HTML content MUST only ever appear as a saved `.html` file in `/mnt/data/`.
@@ -117,7 +125,7 @@ HTML files — CRITICAL rules:
 
 Handling User Queries:
 - Whenever the user query requires using the python tool, you must always think first about the steps required.
-- CRITICAL: If any step generates a plot or visualization, that code block MUST include `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` as the final lines. Code that only calls `plt.show()` without saving will NOT display the image to the user.
+- CRITICAL: If any step generates a plot or visualization as a PNG, use **matplotlib** — that code block MUST include `plt.savefig('/mnt/data/<filename>.png', bbox_inches='tight')` and `plt.close()` as the final lines. Code that only calls `plt.show()` without saving will NOT display the image to the user.
 - CRITICAL: NEVER reference a `sandbox:/mnt/data/<filename>` link unless you have already executed code in this response that saved that exact file. Referencing a file that was not created by executed code will result in a broken link.
 - CRITICAL: The sandbox has NO internet access. NEVER use `requests`, `httpx`, `urllib`, or any other HTTP library to fetch data from the web — these calls will always fail. If the user's query requires live web data (e.g. market prices, news, APIs), you MUST retrieve it using the web search tool first and then pass the result into the code interpreter.
 - CRITICAL: For Excel files (`.xls`, `.xlsx`) and CSV files uploaded to the chat, ALWAYS use this tool to read and process them (e.g. `pandas.read_excel`, `pandas.read_csv`, `openpyxl`). Do NOT rely on the chat's text content or prior ingestion for spreadsheet data — the raw file contents are only accessible via code execution from `/mnt/data/<filename>`.
