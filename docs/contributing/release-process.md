@@ -162,7 +162,7 @@ flowchart TD
 4. release-please bumps all `pyproject.toml` versions and `CHANGELOG.md` entries, then tags and creates a GitHub Release.
 5. `cd-release.yaml`'s post-release job pushes the new `release/YYYY.WW` branch from the tagged commit (the Release Workflow App is a bypass actor on the `release-branches` ruleset) and arms the next cycle on `main` — see [Arming a cycle](#arming-a-cycle).
 6. The GitHub Release that release-please just published natively triggers `cd-publish.yaml`, which builds and publishes every changed package to PyPI. Dependencies in the stable wheels are pinned with `>=` (updated by `update-dep-floors.py` at release time).
-7. To propagate the new stable versions to monorepo `master`, manually dispatch the [Sync AI Versions workflow](https://github.com/Unique-AG/monorepo/blob/master/docs/uniqueai/release-process/index.md#sync-ai-versions-workflow) in the monorepo with `target=master`, `ai_source_branch=release/YYYY.WW`. It rewrites the monorepo `pyproject.toml` files to pin the new stable versions with `==`.
+7. Propagating the new stable versions to the monorepo is [documented in the monorepo](https://github.com/Unique-AG/monorepo/blob/master/docs/uniqueai/release-process/index.md#sync-ai-versions-workflow).
 
 ### Arming a cycle
 
@@ -210,7 +210,7 @@ flowchart TD
    where `<version>` is `YYYY.WW.1` (or `.2`, etc.). Because this PR is opened by the bot, it only requires your approval — you can approve and merge it yourself without a second reviewer.
 4. release-please tags the commit and creates a GitHub Release. The release event (authored by the Release Workflow App) natively triggers `cd-publish.yaml`.
 5. `cd-publish.yaml` publishes the patched packages to PyPI.
-6. To propagate the patch versions to the matching monorepo release branch, manually dispatch the [Sync AI Versions workflow](https://github.com/Unique-AG/monorepo/blob/master/docs/uniqueai/release-process/index.md#sync-ai-versions-workflow) in the monorepo with `target=release`, `release_branch=release/YYYY.WW`.
+6. Propagating the patch versions to the matching monorepo release branch is [documented in the monorepo](https://github.com/Unique-AG/monorepo/blob/master/docs/uniqueai/release-process/index.md#sync-ai-versions-workflow).
 
 ### Flow
 
@@ -227,8 +227,4 @@ flowchart TD
 
 ## Syncing AI versions to the monorepo
 
-The monorepo consumes AI packages via `python/assistants/bundles/core/src/pyproject.toml` and `python/assistants/bundles/agentic-table/pyproject.toml`. Propagation is handled entirely on the monorepo side by the **Sync AI Versions** workflow — the AI repo never pushes to the monorepo.
-
-For inputs, pin-operator rules, triggers, and use cases (hotfix re-pin, stable-back-to-master, dev-floor bump) see the monorepo docs:
-
-→ [Sync AI Versions workflow (monorepo docs)](https://github.com/Unique-AG/monorepo/blob/master/docs/uniqueai/release-process/index.md#sync-ai-versions-workflow)
+Syncing AI package versions into the monorepo is [documented in the monorepo](https://github.com/Unique-AG/monorepo/blob/master/docs/uniqueai/release-process/index.md#sync-ai-versions-workflow).
