@@ -138,26 +138,37 @@ jobs:
 
   # Main-only post-release chores. Skipped on release/* because hotfix
   # cycles don't cut a new branch and don't advance the next CalVer.
+  #
+  # Runs on gh-static-ip-slim: the Release Workflow GitHub App is
+  # IP-origin-bound and only accepts requests from this runner's static IP.
   cut-and-arm:
     needs: release-please
     if: >-
       needs.release-please.outputs.releases_created == 'true'
       && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: gh-static-ip-slim
     timeout-minutes: 5
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: unique-ag/actions/github/app-token-create@df61dcf6fb84a7cad9c9b5f04924b40311cb016a
+        with:
+          app_id: ${{ vars.RELEASE_WORKFLOW_APP_ID }}
+          base64_encoded_private_key: ${{ secrets.RELEASE_WORKFLOW_APP_PRIVATE_KEY_B64 }}
+          owner: ${{ github.repository_owner }}
+
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Cut release branch from tagged commit
         run: ./.github/scripts/cut-release-branch.sh
 
       - name: Arm next cycle on main
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: ./.github/scripts/prepare-next-cycle.sh
 
       - name: Summary
