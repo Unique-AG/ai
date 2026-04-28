@@ -1,10 +1,6 @@
 [project]
 name = "unique_toolkit"
-<<<<<<< HEAD
 version = "2026.20.0.dev7"
-=======
-version = "1.82.0"
->>>>>>> 7f398a3e (feat(toolkit): add RetrieveSearchScope as experimental tool)
 description = ""
 readme = "README.md"
 requires-python = ">=3.12"

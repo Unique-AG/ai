@@ -8,11 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-<<<<<<< HEAD
 exclude-newer = "2026-04-13T17:26:19.453251Z"
-=======
-exclude-newer = "2026-04-08T15:23:48.763102Z"
->>>>>>> 7f398a3e (feat(toolkit): add RetrieveSearchScope as experimental tool)
 exclude-newer-span = "P2W"
 
 [options.exclude-newer-package]
@@ -5647,11 +5643,7 @@ dev = []
 
 [[package]]
 name = "unique-toolkit"
-<<<<<<< HEAD
 version = "2026.20.0.dev7"
-=======
-version = "1.82.0"
->>>>>>> 7f398a3e (feat(toolkit): add RetrieveSearchScope as experimental tool)
 source = { editable = "unique_toolkit" }
 dependencies = [
     { name = "aiohttp" },
