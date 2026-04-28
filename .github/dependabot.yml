@@ -1,0 +1,19 @@
+# Keeps GitHub Actions used in workflows and composite actions up to date.
+# Dependabot preserves the existing SHA-pin + version-comment style enforced
+# by .github/workflows/github.policies.verify.pinned-actions.yaml.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+      - github-actions
+    groups:
+      github-actions:
+        patterns:
+          - "*"
