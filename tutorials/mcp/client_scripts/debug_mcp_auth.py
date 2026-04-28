@@ -23,7 +23,7 @@ from collections.abc import AsyncGenerator, Iterable, Iterator, Sequence
 from contextlib import aclosing, contextmanager
 from types import TracebackType
 from typing import Literal, Protocol, TypeAlias, cast, override
-from urllib.parse import parse_qsl, urlencode, urljoin, urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 from fastmcp import Client as _FastMCPClient  # pyright: ignore[reportMissingImports, reportUnknownVariableType]
@@ -69,16 +69,6 @@ DEFAULT_CLIENT_NAME = "debug-mcp-auth"
 DEFAULT_CLIENT_VERSION = "0.1.0"
 DEFAULT_BODY_PREVIEW_CHARS = 4_000
 SERVER_URL_ENV_VAR = "DEBUG_MCP_AUTH_SERVER_URL"
-SENSITIVE_HEADER_NAMES = {"authorization", "cookie", "proxy-authorization", "set-cookie"}
-SENSITIVE_BODY_KEYS = {
-    "access_token",
-    "assertion",
-    "client_secret",
-    "code",
-    "id_token",
-    "refresh_token",
-    "token",
-}
 
 
 def print_step(title: str) -> None:
@@ -89,61 +79,13 @@ def print_kv(key: str, value: object) -> None:
     print(f"{key}: {value}")
 
 
-def redact_header_value(name: str, value: str) -> str:
-    if name.lower() in SENSITIVE_HEADER_NAMES:
-        return "<redacted>"
-    return value
-
-
 def print_headers(headers: httpx.Headers) -> None:
     if not headers:
         print("  <none>")
         return
 
     for name, value in headers.multi_items():
-        print(f"  {name}: {redact_header_value(name, value)}")
-
-
-def redact_json_value(value: JsonValue) -> JsonValue:
-    if isinstance(value, dict):
-        return {
-            key: "<redacted>" if key.lower() in SENSITIVE_BODY_KEYS else redact_json_value(nested_value)
-            for key, nested_value in value.items()
-        }
-    if isinstance(value, list):
-        return [redact_json_value(item) for item in value]
-    return value
-
-
-def redact_form_body(content: bytes) -> bytes | None:
-    try:
-        pairs = parse_qsl(content.decode("utf-8"), keep_blank_values=True)
-    except UnicodeDecodeError:
-        return None
-
-    redacted_pairs = [
-        (key, "<redacted>" if key.lower() in SENSITIVE_BODY_KEYS else value)
-        for key, value in pairs
-    ]
-    return urlencode(redacted_pairs).encode()
-
-
-def redact_body_content(content: bytes, content_type: str | None) -> bytes:
-    if not content:
-        return content
-
-    normalized_content_type = (content_type or "").lower()
-    if "json" in normalized_content_type:
-        try:
-            payload = cast(JsonValue, json.loads(content))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            return content
-        return json.dumps(redact_json_value(payload), sort_keys=True).encode()
-
-    if "application/x-www-form-urlencoded" in normalized_content_type:
-        return redact_form_body(content) or content
-
-    return content
+        print(f"  {name}: {value}")
 
 
 def request_content(request: httpx.Request) -> bytes:
@@ -154,7 +96,7 @@ def request_content(request: httpx.Request) -> bytes:
 
 
 def body_preview(content: bytes, limit: int, *, content_type: str | None = None) -> str:
-    content = redact_body_content(content, content_type)
+    del content_type
     if not content:
         return "<empty>"
     if limit <= 0:
