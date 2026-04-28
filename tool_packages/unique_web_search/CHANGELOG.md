@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **V3 mode label updated.** `WebSearchMode.get_enum_names()` now describes V3 as a two-command (search / read_urls) tool with LLM-driven chaining instead of the old snippet-judge pipeline.
 
 ### Refactored
-- Web search executors split into per-version subpackages (`services/executors/{v1,v2,v3}/{config,executor,schema,prompts}`); `services/executors/configs/` is now a thin backward-compat shim. `unique_web_search.schema` re-exports `WebSearchToolParameters`, `Step`, `StepType`, and `WebSearchPlan` so existing downstream imports keep working unchanged.
+- Web search executors split into per-version subpackages (`services/executors/{v1,v2,v3}/{config,executor,schema,prompts}`); `services/executors/configs/` is now a thin backward-compat shim.
 
 ## [2026.18.0](https://github.com/Unique-AG/ai/compare/unique-web-search-v1.17.0...unique-web-search-v2026.18.0) (2026-04-23)
 
