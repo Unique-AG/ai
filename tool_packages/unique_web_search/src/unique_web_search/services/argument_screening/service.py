@@ -73,7 +73,7 @@ class ArgumentScreeningService:
                 go=True, reason="Argument screening disabled"
             )
             
-        await message_log_callback.post_message("PII Detection running...")
+        await message_log_callback.log_progress("PII Detection running...")
 
         start_time = time()
         result = await self._screen_arguments(arguments)
