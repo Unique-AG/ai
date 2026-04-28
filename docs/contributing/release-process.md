@@ -160,7 +160,7 @@ flowchart TD
    ```
    Because this PR is opened by the bot, it only requires your approval — you can approve and merge it yourself without a second reviewer.
 4. release-please bumps all `pyproject.toml` versions and `CHANGELOG.md` entries, then tags and creates a GitHub Release.
-5. `cd-release.yaml`'s post-release job pushes the new `release/YYYY.WW` branch from the tagged commit (the Release Workflow App is a bypass actor on the `release-branches` ruleset), arms the next cycle on `main` — see [Arming a cycle](#arming-a-cycle) — and closes any open `chore: pin dev-cut <SHA>` PRs, since their floors are now superseded by the stable floors that just landed on `main`.
+5. `cd-release.yaml`'s post-release job pushes the new `release/YYYY.WW` branch from the tagged commit (the Release Workflow App is a bypass actor on the `release-branches` ruleset), arms the next cycle on `main` — see [Arming a cycle](#arming-a-cycle) — and closes the currently-open `chore: pin dev-cut <SHA>` PR if one exists (`cd-publish-dev.yaml` keeps at most one open at a time; after a stable cut its floors are strictly older than what just landed on `main`).
 6. The GitHub Release that release-please just published natively triggers `cd-publish.yaml`, which builds and publishes every changed package to PyPI. Dependencies in the stable wheels are pinned with `>=` (updated by `update-dep-floors.py` at release time).
 7. Propagating the new stable versions to the monorepo is [documented in the monorepo](https://github.com/Unique-AG/monorepo/blob/master/docs/uniqueai/release-process/index.md#sync-ai-versions-workflow).
 
