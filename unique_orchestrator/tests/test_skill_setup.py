@@ -425,27 +425,24 @@ class TestIsSkillEntrypoint:
 
 
 class TestBuildSubtreeMetadataFilter:
-    def test_single_scope_emits_root_and_descendant_predicates(self) -> None:
-        """One scope yields two OR'd CONTAINS predicates so the filter
-        matches both when the configured scope is the root of the path
-        (``uniquepathid://<id>...``) and when it is a descendant
-        segment (``.../<id>/...`` or ``.../<id>``).
+    def test_single_scope_emits_single_predicate(self) -> None:
+        """One scope yields one CONTAINS predicate on ``folderIdPath``.
+
+        The ``/<scope_id>`` form is sufficient for both the root and
+        descendant cases: the path prefix ``uniquepathid://`` ends with
+        ``/``, so ``/<scope_id>`` is also a substring of
+        ``uniquepathid://<scope_id>...``.
         """
         result = _build_subtree_metadata_filter(scope_ids=["scope-1"])
 
-        assert "or" in result
-        predicates = result["or"]
-        assert [p["operator"] for p in predicates] == ["contains", "contains"]
-        assert all(p["path"] == ["folderIdPath"] for p in predicates)
-        assert [p["value"] for p in predicates] == [
-            "uniquepathid://scope-1",
-            "/scope-1",
-        ]
+        assert result["operator"] == "contains"
+        assert result["path"] == ["folderIdPath"]
+        assert result["value"] == "/scope-1"
 
     def test_multiple_scopes_wrapped_in_or(self) -> None:
-        """N scopes yield 2N predicates (root + descendant) flattened
-        into a single OR — the filter is one boolean expression rather
-        than nested per-scope ORs.
+        """N scopes yield N predicates flattened into a single OR — the
+        filter is one boolean expression rather than nested per-scope
+        ORs.
         """
         result = _build_subtree_metadata_filter(
             scope_ids=["scope-1", "scope-2", "scope-3"]
@@ -453,34 +450,26 @@ class TestBuildSubtreeMetadataFilter:
 
         assert "or" in result
         predicates = result["or"]
-        assert len(predicates) == 6
+        assert len(predicates) == 3
         assert [p["value"] for p in predicates] == [
-            "uniquepathid://scope-1",
             "/scope-1",
-            "uniquepathid://scope-2",
             "/scope-2",
-            "uniquepathid://scope-3",
             "/scope-3",
         ]
 
-    def test_descendant_predicate_matches_nested_scope(self) -> None:
-        """Regression for the silent miss: when the configured scope
-        sits at any non-root depth in ``folderIdPath`` (e.g. nested
-        skill folder), the ``/<scope_id>`` predicate must be present so
-        the ``contains`` substring match can land on a path segment
-        boundary. The root-only ``uniquepathid://<scope_id>`` predicate
-        from before this fix never matched in that case because the
-        prefix is only stamped once at the start of the path.
+    def test_predicate_matches_root_and_descendant_scope(self) -> None:
+        """The single ``/<scope_id>`` predicate must hit both placements
+        of the configured scope in ``folderIdPath``: when the scope is
+        the root (where the leading ``/`` of ``://`` provides the
+        boundary) and when it is a non-root descendant segment.
         """
         result = _build_subtree_metadata_filter(scope_ids=["scope-nested"])
+        assert result["value"] == "/scope-nested"
 
-        descendant_predicates = [
-            p for p in result["or"] if p["value"] == "/scope-nested"
-        ]
-        assert len(descendant_predicates) == 1
-        path = "uniquepathid://scope-root/scope-nested/scope-leaf"
-        assert "/scope-nested" in path
-        assert f"uniquepathid://scope-nested" not in path
+        root_path = "uniquepathid://scope-nested/scope-leaf"
+        descendant_path = "uniquepathid://scope-root/scope-nested/scope-leaf"
+        assert "/scope-nested" in root_path
+        assert "/scope-nested" in descendant_path
 
 
 def _fake_info(content_id: str, key: str) -> MagicMock:
@@ -557,9 +546,7 @@ class TestLoadSkillsFromKnowledgeBase:
         content_service.download_content_to_bytes_async.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_only_skill_md_entrypoints_are_loaded(
-        self, logger: Logger
-    ) -> None:
+    async def test_only_skill_md_entrypoints_are_loaded(self, logger: Logger) -> None:
         """Sibling .md files in a skill folder are ignored; only SKILL.md counts."""
         content_service = MagicMock()
         content_service.download_content_to_bytes_async = AsyncMock(
