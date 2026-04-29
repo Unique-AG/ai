@@ -79,7 +79,7 @@ jobs:
           python_version: '3.12'
 
       - name: Install docs dependencies
-        run: uv sync --locked --inexact --group docs
+        run: uv sync --locked --inexact --no-default-groups --group docs
 
       - name: Configure Git
         run: |
