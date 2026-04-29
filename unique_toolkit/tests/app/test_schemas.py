@@ -1,3 +1,5 @@
+import pytest
+
 from unique_toolkit.app.schemas import (
     ChatEvent,
     ChatEventAdditionalParameters,
@@ -236,7 +238,7 @@ class TestEventSchemas:
 
 
 class TestChatEventInitialDebugInfo:
-    """Exercise :meth:`ChatEvent.get_initial_debug_info` across payload kinds."""
+    """Exercise :meth:`ChatEvent.get_initial_debug_info`."""
 
     def test_get_initial_debug_info__chat_payload__includes_metadata_and_tools(self):
         event = ChatEvent(
@@ -271,9 +273,9 @@ class TestChatEventInitialDebugInfo:
         assert info["chosen_module"] == "mod_ref"
         assert info["assistant"] == {"id": "aid"}
 
-    def test_get_initial_debug_info__magic_table_payload__fills_defaults_for_chat_only_fields(
-        self,
-    ):
+    def test_magic_table_event_has_no_get_initial_debug_info(self) -> None:
+        """Chat debug overlay stays on :class:`~unique_toolkit.app.schemas.ChatEvent` only."""
+
         from unique_sdk.api_resources._agentic_table import MagicTableAction, SheetType
 
         from unique_toolkit.agentic_table.schemas import (
@@ -302,8 +304,6 @@ class TestChatEventInitialDebugInfo:
                 ),
             ),
         )
-        info = event.get_initial_debug_info()
-        assert info["user_metadata"] == {}
-        assert info["tool_parameters"] == {}
-        assert info["chosen_module"] == "rfp_agent"
-        assert info["assistant"] == {"id": "aid"}
+
+        with pytest.raises(AttributeError):
+            getattr(event, "get_initial_debug_info")()

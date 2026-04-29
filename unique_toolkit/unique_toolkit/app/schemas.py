@@ -343,30 +343,6 @@ class AssistantWebhookEvent(
 
         model_config = CHAT_EVENT_FILTER_OPTIONS_SETTINGS
 
-    def get_initial_debug_info(self) -> dict[str, Any]:
-        """Return a small dict for tooling / first-message debug overlays.
-
-        Uses :attr:`payload.name`, :attr:`payload.assistant_id` from
-        :class:`BaseEventPayload` for every webhook. Fields that exist only on
-        :class:`ChatEventPayload` (``user_metadata``, ``tool_parameters``) default
-        to ``{}`` when the payload is not a chat payload (for example magic-table
-        events).
-        """
-        payload = self.payload
-        if isinstance(payload, ChatEventPayload):
-            user_metadata = payload.user_metadata
-            tool_parameters = payload.tool_parameters
-        else:
-            user_metadata = {}
-            tool_parameters = {}
-        # TODO: Make sure this coincides with what is shown in the first user message
-        return {
-            "user_metadata": user_metadata,
-            "tool_parameters": tool_parameters,
-            "chosen_module": payload.name,
-            "assistant": {"id": payload.assistant_id},
-        }
-
     @override
     def filter(self) -> bool:
         """Filter the chat event based on the assistant id and reference in code."""
@@ -424,6 +400,22 @@ class AssistantWebhookEvent(
 
 class ChatEvent(AssistantWebhookEvent[ChatEventPayload, str]):
     """Inbound chat webhook (`ChatEventPayload` + plain string ``event`` field)."""
+
+    def get_initial_debug_info(self) -> dict[str, Any]:
+        """Return a small dict for tooling / first-message debug overlays.
+
+        Chat pipelines only — not part of other :class:`AssistantWebhookEvent`
+        specializations (e.g. magic-table).
+        """
+        payload = self.payload
+        user_metadata = payload.user_metadata
+        # TODO: Make sure this coincides with what is shown in the first user message
+        return {
+            "user_metadata": {} if user_metadata is None else user_metadata,
+            "tool_parameters": payload.tool_parameters,
+            "chosen_module": payload.name,
+            "assistant": {"id": payload.assistant_id},
+        }
 
     @classmethod
     def from_json_file(cls, file_path: Path) -> ChatEvent:
