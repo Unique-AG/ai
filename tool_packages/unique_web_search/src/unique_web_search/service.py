@@ -32,13 +32,11 @@ from unique_web_search.services.argument_screening import (
 from unique_web_search.services.content_processing import ContentProcessor
 from unique_web_search.services.crawlers import get_crawler_service
 from unique_web_search.services.executors import (
+    WebSearchMode,
     WebSearchV1Executor,
     WebSearchV2Executor,
-    WebSearchV3Executor,
-)
-from unique_web_search.services.executors.configs import (
-    WebSearchMode,
     WebSearchV3Config,
+    WebSearchV3Executor,
 )
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,

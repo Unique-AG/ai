@@ -57,15 +57,15 @@ def get_search_engine_mode(
 
 
 _SearchEngineExposedName = {
-    SearchEngineType.GOOGLE: "Google Search Engine",
+    SearchEngineType.GOOGLE: "Google Search",
     SearchEngineType.JINA: "Jina Search",
     SearchEngineType.FIRECRAWL: "Firecrawl Search",
     SearchEngineType.TAVILY: "Tavily Search",
-    SearchEngineType.BRAVE: "Brave Search Engine",
+    SearchEngineType.BRAVE: "Brave Search",
     SearchEngineType.BING: "Grounding with Bing",
-    SearchEngineType.DUCKDUCKGO: "DuckDuckGo Search Engine",
-    SearchEngineType.VERTEXAI: "VertexAI Search Engine",
-    SearchEngineType.CUSTOM_API: "Customized API Search Engine",
+    SearchEngineType.DUCKDUCKGO: "DuckDuckGo Search",
+    SearchEngineType.VERTEXAI: "Grounding with VertexAI",
+    SearchEngineType.CUSTOM_API: "Customized API Search",
 }
 
 
