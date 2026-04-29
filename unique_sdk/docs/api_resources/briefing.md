@@ -11,6 +11,8 @@ Use this API when you need to:
 
 Callers must have permission to manage the target assistant; the server returns `403` when access is denied and `404` when the assistant does not exist.
 
+With the default [`api_base`](../getting_started/configuration.md) (typically ending in `/public/chat-gen2`), the SDK issues `PUT {api_base}/briefings/{assistantId}` — for example `https://gateway.example/public/chat-gen2/briefings/assistant_…`. Override `unique_sdk.api_base` or `UNIQUE_API_BASE` if your deployment uses a different gateway prefix.
+
 ## Methods
 
 ??? example "`unique_sdk.Briefing.upsert_for_assistant` - Upsert briefing for an assistant"
@@ -94,7 +96,7 @@ Callers must have permission to manage the target assistant; the server returns 
 
 ??? note "The `Briefing` resource object"
 
-    **Typical fields (aligned with `#/components/schemas/Briefing` where exposed):**
+    **Typical fields (aligned with `#/components/schemas/PublicBriefingDto` where exposed):**
 
     - `id` (str) — Briefing identifier
     - `object` (str) — Often `"briefing"` for typed SDK responses
