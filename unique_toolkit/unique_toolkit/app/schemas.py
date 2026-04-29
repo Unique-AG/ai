@@ -350,19 +350,25 @@ class ChatEvent(
         return cast(ChatEvent[ChatEventPayload, str], cls.model_validate(data))
 
     def get_initial_debug_info(self) -> dict[str, Any]:
-        """Return debug information for chat payload fields.
+        """Return a small dict for tooling / first-message debug overlays.
 
-        Only defined for payloads that include chat-specific fields (:class:`ChatEventPayload`).
+        Uses :attr:`payload.name`, :attr:`payload.assistant_id` from
+        :class:`BaseEventPayload` for every webhook. Fields that exist only on
+        :class:`ChatEventPayload` (``user_metadata``, ``tool_parameters``) default
+        to ``{}`` when the payload is not a chat payload (for example magic-table
+        events).
         """
         payload = self.payload
-        if not isinstance(payload, ChatEventPayload):
-            raise TypeError(
-                "get_initial_debug_info applies only when payload is ChatEventPayload",
-            )
+        if isinstance(payload, ChatEventPayload):
+            user_metadata = payload.user_metadata
+            tool_parameters = payload.tool_parameters
+        else:
+            user_metadata = {}
+            tool_parameters = {}
         # TODO: Make sure this coincides with what is shown in the first user message
         return {
-            "user_metadata": payload.user_metadata,
-            "tool_parameters": payload.tool_parameters,
+            "user_metadata": user_metadata,
+            "tool_parameters": tool_parameters,
             "chosen_module": payload.name,
             "assistant": {"id": payload.assistant_id},
         }

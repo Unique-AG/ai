@@ -1,4 +1,5 @@
 from unique_toolkit.app.schemas import (
+    ChatEvent,
     ChatEventAdditionalParameters,
     ChatEventAssistantMessage,
     ChatEventPayload,
@@ -232,3 +233,77 @@ class TestEventSchemas:
 
         assert params.uploaded_files == []
         assert params.selected_uploaded_files == []
+
+
+class TestChatEventInitialDebugInfo:
+    """Exercise :meth:`ChatEvent.get_initial_debug_info` across payload kinds."""
+
+    def test_get_initial_debug_info__chat_payload__includes_metadata_and_tools(self):
+        event = ChatEvent(
+            id="ev1",
+            event="unique.chat.external-module.chosen",
+            user_id="user1",
+            company_id="co1",
+            payload=ChatEventPayload(
+                name="mod_ref",
+                description="desc",
+                configuration={},
+                chat_id="chat1",
+                assistant_id="aid",
+                user_message=ChatEventUserMessage(
+                    id="m1",
+                    text="hi",
+                    original_text="hi",
+                    created_at="2023-01-01T00:00:00Z",
+                    language="en",
+                ),
+                assistant_message=ChatEventAssistantMessage(
+                    id="m2",
+                    created_at="2023-01-01T00:01:00Z",
+                ),
+                user_metadata={"k": "v"},
+                tool_parameters={"tool": {}},
+            ),
+        )
+        info = event.get_initial_debug_info()
+        assert info["user_metadata"] == {"k": "v"}
+        assert info["tool_parameters"] == {"tool": {}}
+        assert info["chosen_module"] == "mod_ref"
+        assert info["assistant"] == {"id": "aid"}
+
+    def test_get_initial_debug_info__magic_table_payload__fills_defaults_for_chat_only_fields(
+        self,
+    ):
+        from unique_sdk.api_resources._agentic_table import MagicTableAction, SheetType
+
+        from unique_toolkit.agentic_table.schemas import (
+            MagicTableEvent,
+            MagicTableEventTypes,
+            MagicTableRerunRowPayload,
+            RerunRowMetadata,
+        )
+
+        event = MagicTableEvent(
+            id="ev1",
+            event=MagicTableEventTypes.RERUN_ROW,
+            user_id="user1",
+            company_id="co1",
+            payload=MagicTableRerunRowPayload(
+                name="rfp_agent",
+                sheet_name="S",
+                action=MagicTableAction.RERUN_ROW,
+                chat_id="chat-123",
+                assistant_id="aid",
+                table_id="tid",
+                metadata=RerunRowMetadata(
+                    source_file_ids=["f1"],
+                    row_order=1,
+                    sheet_type=SheetType.DEFAULT,
+                ),
+            ),
+        )
+        info = event.get_initial_debug_info()
+        assert info["user_metadata"] == {}
+        assert info["tool_parameters"] == {}
+        assert info["chosen_module"] == "rfp_agent"
+        assert info["assistant"] == {"id": "aid"}
