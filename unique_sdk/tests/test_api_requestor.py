@@ -9,6 +9,7 @@ import pytest
 import unique_sdk
 from unique_sdk._api_requestor import (
     APIRequestor,
+    _abs_api_url,
     _api_encode,
     _encode_datetime,
     _encode_nested_dict,
@@ -51,6 +52,47 @@ def test_encode_nested_dict():
 
     result = _encode_nested_dict(key, data)
     assert result == expected_output
+
+
+@pytest.mark.parametrize(
+    ("base", "path", "expected"),
+    [
+        (
+            "https://gateway.example/public/chat-gen2",
+            "/content/infos",
+            "https://gateway.example/public/chat-gen2/content/infos",
+        ),
+        (
+            "https://gateway.example/public/chat-gen2/",
+            "/content/infos",
+            "https://gateway.example/public/chat-gen2/content/infos",
+        ),
+        (
+            "'https://gateway.example/public/chat-gen2'",
+            "/content/infos",
+            "https://gateway.example/public/chat-gen2/content/infos",
+        ),
+        (
+            "https://gateway.example/public/chat-gen2/",
+            "/content/infos'",
+            "https://gateway.example/public/chat-gen2/content/infos",
+        ),
+        (
+            "https://gateway.qa.unique.app/public/chat-gen2/",
+            "/briefings/asst_1",
+            "https://gateway.qa.unique.app/public/chat-gen2/briefings/asst_1",
+        ),
+    ],
+)
+@pytest.mark.ai
+def test_AI_abs_api_url_joins_gateway_base_and_path(base, path, expected):
+    """Purpose: ``api_base`` with trailing slash must not yield ``//`` before the route.
+
+    Why this matters: GET/PUT paths like ``/content/infos`` or ``/briefings/{id}`` must
+    match the same host as other resources; double slashes can break routing behind proxies.
+    Setup summary: Compare _abs_api_url outputs for bases with/without trailing slash.
+    """
+    assert _abs_api_url(base, path) == expected
 
 
 # Test _api_encode with different data types
@@ -192,11 +234,15 @@ def test_AI_get_request_args_put_sends_json_body(mock_requests):
     method, abs_url, headers, post_data = requestor._get_request_args(
         "put",
         "/briefings/astr-1",
-        {"content": "Hello"},
+        {
+            "text": "hello",
+            "generatedAt": "2020-01-01T00:00:00.000Z",
+        },
     )
 
     assert method == "put"
-    assert post_data == {"content": "Hello"}
+    assert post_data["text"] == "hello"
+    assert post_data["generatedAt"] == "2020-01-01T00:00:00.000Z"
     assert abs_url.endswith("/briefings/astr-1")
 
 
@@ -239,7 +285,7 @@ def test_request_raw(mock_requests):
     # Ensure the client's request method was called correctly
     _client.request.assert_called_once_with(
         "get",
-        requestor.api_base + "/resource",
+        _abs_api_url(requestor.api_base, "/resource"),
         requestor.request_headers("api_key", "app_id", "get"),
         None,
     )

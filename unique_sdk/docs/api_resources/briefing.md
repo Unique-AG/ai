@@ -1,13 +1,13 @@
 # Briefing API
 
-The Briefing API creates or replaces the briefing attached to an assistant using the assistant’s identifier. The API upserts the briefing with that id as its external id (see `PUT /briefings/{assistantId}` in the public OpenAPI specification).
+The Briefing API creates or replaces the briefing attached to an assistant using the assistant’s identifier. The API upserts the briefing with that id as its external id (see `PUT /briefings/{assistantId}` and `#/components/schemas/PublicUpsertBriefingRequestDto` in the public OpenAPI specification).
 
 ## Overview
 
 Use this API when you need to:
 
-- Attach or update long-form briefing text for a specific assistant (space)
-- Keep assistant context in sync from automation or admin tools
+- Attach or update briefing text for a specific assistant (space)
+- Keep assistant briefing content in sync from automation or admin tools
 
 Callers must have permission to manage the target assistant; the server returns `403` when access is denied and `404` when the assistant does not exist.
 
@@ -15,14 +15,18 @@ Callers must have permission to manage the target assistant; the server returns 
 
 ??? example "`unique_sdk.Briefing.upsert_for_assistant` - Upsert briefing for an assistant"
 
-    Create or update the briefing for the assistant identified by `assistant_id`. The HTTP request is `PUT /briefings/{assistantId}` with a JSON body matching OpenAPI `UpsertBriefingRequest`.
+    Create or update the briefing for the assistant identified by `assistant_id`. The HTTP request is `PUT /briefings/{assistantId}` with a JSON body matching OpenAPI `PublicUpsertBriefingRequestDto`: **`text`** (required, non-empty string, max length **4000**), **`generatedAt`** (ISO 8601 date/time — if omitted or blank, the SDK sends current UTC time), and **`prompts`** (required list, max **200** items; each item has **`title`** max **100** and **`body`** max **4000** characters — this is the full replacement set persisted in order).
 
     **Parameters:**
 
-    - `user_id` (str, required) - Authenticated user id (forwarded via `x-user-id`).
-    - `company_id` (str, required) - Company scope (forwarded via `x-company-id`).
-    - `assistant_id` (str, required) - Identifier of the assistant the briefing belongs to (path segment; URI-encoded when necessary). Matches OpenAPI path `assistantId` (max length 128 in the schema).
-    - `content` (str, required) - Briefing body text. Mirrors the `UpsertBriefingRequest` field in the SDK; extend typed fields in [`UpsertForAssistantParams`](#upsertforassistantparams) when the stable OpenAPI gains additional keys.
+    - `user_id` (str, required) — Authenticated user id (forwarded via `x-user-id`).
+    - `company_id` (str, required) — Company scope (forwarded via `x-company-id`).
+    - `assistant_id` (str, required) — Assistant the briefing attaches to (path segment; URI-encoded when necessary). Matches OpenAPI path `assistantId` (max length **128**).
+    - `text` (str, required unless legacy aliases below are used) — Briefing body. Must be ≤ 4000 characters.
+    - `generatedAt` (str, optional) — Timestamp for this briefing revision in ISO 8601. If omitted or blank, the SDK sends the **current UTC** time (recommended for automated updates).
+    - `prompts` (list, required) — Full replacement list of prompts (max **200**). Each element is ``{"title": str, "body": str}``. Pass ``[]`` to clear prompts on the server.
+    - `markdown` (str, optional) — Legacy alias; sent as **`text`** in JSON.
+    - `content` (str, optional) — Legacy alias; sent as **`text`** in JSON.
 
     **Returns:**
 
@@ -35,7 +39,12 @@ Callers must have permission to manage the target assistant; the server returns 
         user_id=user_id,
         company_id=company_id,
         assistant_id=assistant_external_id,
-        content="# Role\nAssist users with onboarding...",
+        text="# Role\nAssist users with onboarding...",
+        generatedAt="2026-04-29T06:46:06.789Z",
+        prompts=[
+            {"title": "First idea", "body": "Ask about priorities."},
+            {"title": "Follow-up", "body": "Summarize next steps."},
+        ],
     )
     print(f"Briefing id: {briefing['id']} assistant={briefing['assistantId']}")
     ```
@@ -59,7 +68,8 @@ Callers must have permission to manage the target assistant; the server returns 
         user_id=user_id,
         company_id=company_id,
         assistant_id=assistant_external_id,
-        content="Updated briefing text.",
+        text="Updated briefing text.",
+        prompts=[],
     )
     ```
 
@@ -67,29 +77,34 @@ Callers must have permission to manage the target assistant; the server returns 
 
 #### UpsertForAssistantParams {#upsertforassistantparams}
 
-??? note "Request body (`UpsertBriefingRequest`)"
+??? note "Request body (`PublicUpsertBriefingRequestDto`)"
 
-    The SDK exposes this as typed keyword arguments unpacked into the JSON body.
+    Keyword arguments become the JSON object sent as `application/json`.
 
     **Fields:**
 
-    - `content` (str, required) - Briefing content to store.
+    - `text` (str) — Primary field for briefing body (**max 4000** characters on the API).
+    - `generatedAt` (str, optional) — ISO 8601 string; omitted or empty → SDK uses current UTC.
+    - `prompts` (list of `{title, body}`) — Required on the wire. Max **200** entries; **`title`** max **100**, **`body`** max **4000** characters each.
+    - `markdown` / `content` — Optional legacy aliases mapped to **`text`** before sending.
 
-    Optional per-call overrides (such as `api_key`, `api_base`, or extra `headers`) follow the usual SDK patterns; see [Configuration](../getting_started/configuration.md) for global defaults.
+    Optional per-call overrides (`api_key`, `api_base`, `headers`) apply to SDK transport only and are **not** included in the JSON body; see [Configuration](../getting_started/configuration.md) for global defaults.
 
 #### Briefing {#briefing}
 
 ??? note "The `Briefing` resource object"
 
-    **Typical fields (from the public `Briefing` schema):**
+    **Typical fields (aligned with `#/components/schemas/Briefing` where exposed):**
 
-    - `id` (str) - Briefing identifier
-    - `object` (str) - Always `"briefing"` for typed SDK responses
-    - `assistantId` (str) - Assistant this briefing is attached to
-    - `content` (str, optional) - Stored briefing text, if present on the response
-    - `title` (str, optional) - Title if exposed by the API
-    - `createdAt` (str, optional) - Creation timestamp (ISO 8601)
-    - `updatedAt` (str, optional) - Last update timestamp (ISO 8601)
+    - `id` (str) — Briefing identifier
+    - `object` (str) — Often `"briefing"` for typed SDK responses
+    - `assistantId` (str) — Assistant this briefing is attached to
+    - `text` (str, optional) — Stored briefing body when returned
+    - `generatedAt` (str, optional) — Generation timestamp (ISO 8601) when returned
+    - `prompts` (list, optional) — Ordered prompt rows when returned (see `PublicBriefingPromptDto`)
+    - `content` / `markdown` — May appear depending on API version
+    - `title` (str, optional) — If exposed by the API
+    - `createdAt`, `updatedAt` (str, optional)
 
     **Returned by:** `upsert_for_assistant()`, `upsert_for_assistant_async()`
 
@@ -98,7 +113,7 @@ Callers must have permission to manage the target assistant; the server returns 
 The underlying route can return:
 
 - `200` — Briefing created or updated and attached to the assistant.
-- `400` — Invalid request parameters.
+- `400` — Invalid request parameters (e.g. empty `text`, invalid `generatedAt`).
 - `401` — Missing or invalid authentication.
 - `403` — Caller lacks manage access to the assistant.
 - `404` — Assistant not found.

@@ -60,6 +60,7 @@ def load_config() -> Config:
     user_id = os.environ["UNIQUE_USER_ID"]
     company_id = os.environ["UNIQUE_COMPANY_ID"]
     api_base = os.environ.get("UNIQUE_API_BASE", unique_sdk.api_base)
+    api_base = api_base.strip().strip("'\"")
 
     unique_sdk.api_key = api_key
     unique_sdk.app_id = app_id
