@@ -31,6 +31,7 @@ _LOGGER = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
+
 class BaseWebSearchExecutor(ABC, Generic[T]):
     def __init__(
         self,

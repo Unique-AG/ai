@@ -40,7 +40,9 @@ class WebSearchPlan(BaseModel):
     def with_search_engine_mode(cls, mode: SearchEngineMode) -> type[WebSearchPlan]:
         """Build a ``WebSearchPlan`` variant whose ``Step.query_or_url``
         description is tailored to the search-engine mode."""
-        query_desc = Template(STEP_QUERY_DESCRIPTION).render(search_engine_mode=mode.value)
+        query_desc = Template(STEP_QUERY_DESCRIPTION).render(
+            search_engine_mode=mode.value
+        )
 
         DynamicStep = create_model(
             "Step",

@@ -37,10 +37,11 @@ class WebSearchV3ToolParameters(BaseModel):
     objective: str = Field(
         description="One concise sentence: what this call is meant to accomplish."
     )
-    
-    payload: SearchPayload | FetchUrlsPayload = Field(description="The payload of the command. Must be either a SearchPayload or a FetchUrlsPayload.")
-    
-    
+
+    payload: SearchPayload | FetchUrlsPayload = Field(
+        description="The payload of the command. Must be either a SearchPayload or a FetchUrlsPayload."
+    )
+
     def get_display_name_suffix(self) -> str:
         if self.command == Command.SEARCH:
             return " - Searching"
@@ -48,4 +49,3 @@ class WebSearchV3ToolParameters(BaseModel):
             return " - Reading Pages"
         else:
             raise ValueError(f"Invalid command: {self.command}")
-

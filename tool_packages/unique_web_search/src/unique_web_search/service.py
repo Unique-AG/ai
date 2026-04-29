@@ -408,7 +408,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
         display_name = re.sub(r"search", "", display_name, flags=re.IGNORECASE).strip()
 
         suffix = parameters.get_display_name_suffix()
-        
+
         return display_name + suffix
 
 

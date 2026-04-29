@@ -29,9 +29,7 @@ class WebSearchV2Config(BaseWebSearchModeConfig[WebSearchMode.V2]):
     )
     tool_description: Annotated[
         str,
-        RJSFMetaTag.StringWidget.textarea(
-            rows=len(TOOL_DESCRIPTION.split("\n"))
-        ),
+        RJSFMetaTag.StringWidget.textarea(rows=len(TOOL_DESCRIPTION.split("\n"))),
     ] = Field(
         default=TOOL_DESCRIPTION,
         title="Tool Description",

@@ -21,7 +21,6 @@ class WebSearchMessageLogger:
         self._references: list[ContentReference] = []
         self._message = ""
 
-
     async def finished(self) -> None:
         self._message = ""
         self._status = MessageLogStatus.COMPLETED

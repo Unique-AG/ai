@@ -61,10 +61,12 @@ class WebSearchV3Executor(BaseWebSearchExecutor[WebSearchV3ToolParameters]):
             return await self._run_search(query=p.payload.query, objective=p.objective)
         if isinstance(p.payload, FetchUrlsPayload):
             await self._message_log_callback.log_progress("_Reading Web Pages_")
-            return await self._run_fetch_urls(urls=p.payload.urls, objective=p.objective)
-        
+            return await self._run_fetch_urls(
+                urls=p.payload.urls, objective=p.objective
+            )
+
         msg = "WebSearchV3ToolParameters requires exactly one of 'query' or 'urls'."
-        
+
         raise ValueError(msg)
 
     async def _run_search(

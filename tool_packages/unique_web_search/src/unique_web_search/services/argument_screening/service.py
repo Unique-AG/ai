@@ -58,8 +58,10 @@ class ArgumentScreeningService:
         self._language_model_service = language_model_service
         self._language_model = language_model
         self._config = config
-        
-    async def __call__(self, arguments: dict, message_log_callback: WebSearchMessageLogger) -> ArgumentScreeningResult:
+
+    async def __call__(
+        self, arguments: dict, message_log_callback: WebSearchMessageLogger
+    ) -> ArgumentScreeningResult:
         """Screen tool call arguments; raises on rejection.
 
         Args:
@@ -72,18 +74,18 @@ class ArgumentScreeningService:
             return ArgumentScreeningResult(
                 go=True, reason="Argument screening disabled"
             )
-            
+
         await message_log_callback.log_progress("PII Detection running...")
 
         start_time = time()
         result = await self._screen_arguments(arguments)
         result._execution_time = time() - start_time
-        
+
         if not result.go:
             await message_log_callback.log_progress(f"PII Detection: {result.reason}")
         else:
             await message_log_callback.log_progress("PII Detection completed!")
-            
+
         return result
 
     async def _screen_arguments(self, arguments: dict) -> ArgumentScreeningResult:

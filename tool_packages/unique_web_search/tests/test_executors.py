@@ -757,7 +757,9 @@ class TestWebSearchV3ExecutorSearch:
                 content="",
             ),
         ]
-        mock_executor_dependencies["search_service"].search = AsyncMock(return_value=serp)
+        mock_executor_dependencies["search_service"].search = AsyncMock(
+            return_value=serp
+        )
         mock_executor_dependencies[
             "search_service"
         ].config.search_engine_name.name = "TEST"
@@ -821,7 +823,9 @@ class TestWebSearchV3ExecutorFetchUrls:
         )
         result = await executor.run()
 
-        mock_executor_dependencies["crawler_service"].crawl.assert_called_once_with(urls)
+        mock_executor_dependencies["crawler_service"].crawl.assert_called_once_with(
+            urls
+        )
         mock_executor_dependencies["search_service"].search.assert_not_called()
         mock_executor_dependencies["content_processor"].run.assert_awaited_once()
         assert isinstance(result, list)
