@@ -139,21 +139,21 @@ class TestGetSearchEngineModelConfig:
         config_dict = get_search_engine_model_config(SearchEngineType.GOOGLE)
 
         # Assert
-        assert config_dict["title"] == "Google Search Engine"
+        assert config_dict["title"] == "Google Search"
 
     @pytest.mark.ai
     @pytest.mark.parametrize(
         "engine_type, expected_title",
         [
-            (SearchEngineType.GOOGLE, "Google Search Engine"),
+            (SearchEngineType.GOOGLE, "Google Search"),
             (SearchEngineType.JINA, "Jina Search"),
             (SearchEngineType.FIRECRAWL, "Firecrawl Search"),
             (SearchEngineType.TAVILY, "Tavily Search"),
-            (SearchEngineType.BRAVE, "Brave Search Engine"),
+            (SearchEngineType.BRAVE, "Brave Search"),
             (SearchEngineType.BING, "Grounding with Bing"),
-            (SearchEngineType.DUCKDUCKGO, "DuckDuckGo Search Engine"),
-            (SearchEngineType.VERTEXAI, "VertexAI Search Engine"),
-            (SearchEngineType.CUSTOM_API, "Customized API Search Engine"),
+            (SearchEngineType.DUCKDUCKGO, "DuckDuckGo Search"),
+            (SearchEngineType.VERTEXAI, "Grounding with VertexAI"),
+            (SearchEngineType.CUSTOM_API, "Customized API Search"),
         ],
         ids=[
             "google",
@@ -199,7 +199,7 @@ class TestGetSearchEngineModelConfig:
         config = BraveSearchConfig(search_engine_name=SearchEngineType.BRAVE)
 
         # Assert
-        assert config.model_config.get("title") == "Brave Search Engine"
+        assert config.model_config.get("title") == "Brave Search"
 
     @pytest.mark.ai
     def test_model_config_title__set_on_vertexai_config__when_instantiated(
@@ -214,7 +214,7 @@ class TestGetSearchEngineModelConfig:
         config = VertexAIConfig(search_engine_name=SearchEngineType.VERTEXAI)
 
         # Assert
-        assert config.model_config.get("title") == "VertexAI Search Engine"
+        assert config.model_config.get("title") == "Grounding with VertexAI"
 
 
 class TestSearchEngineConfigs:

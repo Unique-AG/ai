@@ -10,6 +10,11 @@ from unique_web_search.services.search_engine.schema import (
 )
 
 
+class SearchEngineMode(StrEnum):
+    STANDARD = "standard"
+    AGENT = "agent"
+
+
 class SearchEngineType(StrEnum):
     GOOGLE = "Google"
     JINA = "Jina"
@@ -22,16 +27,45 @@ class SearchEngineType(StrEnum):
     CUSTOM_API = "CustomAPI"
 
 
+_SEARCH_ENGINE_MODE_MAP: dict[SearchEngineType, SearchEngineMode] = {
+    SearchEngineType.GOOGLE: SearchEngineMode.STANDARD,
+    SearchEngineType.JINA: SearchEngineMode.STANDARD,
+    SearchEngineType.FIRECRAWL: SearchEngineMode.STANDARD,
+    SearchEngineType.TAVILY: SearchEngineMode.STANDARD,
+    SearchEngineType.BRAVE: SearchEngineMode.STANDARD,
+    SearchEngineType.DUCKDUCKGO: SearchEngineMode.STANDARD,
+    SearchEngineType.BING: SearchEngineMode.AGENT,
+    SearchEngineType.VERTEXAI: SearchEngineMode.AGENT,
+}
+
+
+def get_search_engine_mode(
+    engine_type: SearchEngineType,
+    *,
+    override: SearchEngineMode | None = None,
+) -> SearchEngineMode:
+    """Return the mode (standard vs agent) for a given search engine type.
+
+    Args:
+        engine_type: The search engine type to look up.
+        override: If provided, returned as-is (used by CustomAPI with a
+            user-configured mode).
+    """
+    if override is not None:
+        return override
+    return _SEARCH_ENGINE_MODE_MAP.get(engine_type, SearchEngineMode.STANDARD)
+
+
 _SearchEngineExposedName = {
-    SearchEngineType.GOOGLE: "Google Search Engine",
+    SearchEngineType.GOOGLE: "Google Search",
     SearchEngineType.JINA: "Jina Search",
     SearchEngineType.FIRECRAWL: "Firecrawl Search",
     SearchEngineType.TAVILY: "Tavily Search",
-    SearchEngineType.BRAVE: "Brave Search Engine",
+    SearchEngineType.BRAVE: "Brave Search",
     SearchEngineType.BING: "Grounding with Bing",
-    SearchEngineType.DUCKDUCKGO: "DuckDuckGo Search Engine",
-    SearchEngineType.VERTEXAI: "VertexAI Search Engine",
-    SearchEngineType.CUSTOM_API: "Customized API Search Engine",
+    SearchEngineType.DUCKDUCKGO: "DuckDuckGo Search",
+    SearchEngineType.VERTEXAI: "Grounding with VertexAI",
+    SearchEngineType.CUSTOM_API: "Customized API Search",
 }
 
 

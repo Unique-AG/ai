@@ -19,20 +19,20 @@ class WebSearchMessageLogger:
         self._status = MessageLogStatus.RUNNING
         self._details: MessageLogDetails = MessageLogDetails(data=[])
         self._references: list[ContentReference] = []
-        self._progress_message = ""
+        self._message = ""
 
     async def finished(self) -> None:
-        self._progress_message = ""
+        self._message = ""
         self._status = MessageLogStatus.COMPLETED
         await self._propagate_message_log()
 
     async def failed(self) -> None:
-        self._progress_message = "_Search failed_"
+        self._message = "_Search failed_"
         self._status = MessageLogStatus.FAILED
         await self._propagate_message_log()
 
     async def log_progress(self, progress_message: str) -> None:
-        self._progress_message = progress_message
+        self._message = progress_message
         await self._propagate_message_log()
 
     async def log_queries(self, queries: list[str]) -> None:
@@ -64,7 +64,7 @@ class WebSearchMessageLogger:
             await self._message_step_logger.create_or_update_message_log_async(
                 active_message_log=self._current_message_log,
                 header=self._tool_display_name,
-                progress_message=self._progress_message,
+                progress_message=self._message,
                 details=self._details,
                 references=self._references,
                 status=self._status,

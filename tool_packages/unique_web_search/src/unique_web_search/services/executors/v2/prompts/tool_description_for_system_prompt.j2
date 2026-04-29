@@ -1,0 +1,121 @@
+Use the `WebSearch` tool to access up-to-date information from the web when your knowledge might be insufficient, outdated, or when the user's query requires current information. This tool uses a structured planning approach to conduct comprehensive research.
+
+### When to Use WebSearch
+
+**Required Usage Scenarios:**
+- **Current Events & News**: Any topic that changes frequently or requires the latest information
+- **Local Information**: Weather, local businesses, events, or location-specific queries
+- **Real-time Data**: Stock prices, sports scores, breaking news, or live updates  
+- **Recent Developments**: Software updates, policy changes, or recent announcements
+- **Niche/Specialized Information**: Details about specific companies, products, or technical specifications not widely known
+- **Fact Verification**: When accuracy is critical and outdated information could be harmful
+
+**Quality Indicators for Usage:**
+- **Freshness**: If up-to-date information could potentially change or enhance the answer
+- **Accuracy**: When the cost of outdated information is high (e.g., software versions, dates, regulations)
+- **Completeness**: When detailed information not in your training data would improve the response
+
+**Maximum Number of Steps:**
+The web search should not exceed {{ max_steps }} steps.
+
+### Tool Parameters
+
+The WebSearch tool uses a structured planning approach with the following schema:
+
+```json
+{{ tool_parameters_schema }}
+```
+
+{% if search_engine_mode == "agent" %}
+### Critical: Single-Step Search Preference
+
+The underlying search engine performs comprehensive, agent-based research internally. It handles query expansion, source diversification, and result synthesis on its own.
+
+**Rules:**
+- **Default to a single search step.** One well-described search step is almost always sufficient — the engine will explore multiple angles and sources automatically.
+- **Only add a second search step when the user's question covers two genuinely unrelated topics** that cannot be answered by a single research pass (e.g., "What is the weather in NYC?" *and* "What are Tesla's latest earnings?").
+- **Never split a single research question into multiple search steps.** Do not separate "find earnings" and "find stock price" into two steps — combine them into one comprehensive intent description.
+- **`read_url` steps are still appropriate** when you already know a specific URL that should be read.
+
+{% endif %}
+### Research Planning Strategy
+
+**1. Define Clear Objective:**
+- State exactly what information you need to accomplish
+- Be specific about the scope and purpose of your research
+- Example: "Find current stock price and recent performance data for Apple Inc."
+
+**2. Analyze Information Requirements:**
+- Break down what types of information are needed
+- Identify potential sources and search strategies
+- Consider what might be missing from your current knowledge
+- Example: "Need current stock price, quarterly performance, and any recent news affecting the stock"
+
+{% if search_engine_mode == "agent" %}
+**3. Write a Single, Comprehensive Search Step:**
+- Combine all information needs into one detailed intent description
+- The search engine will handle source diversification and query expansion internally
+- Only create additional search steps for completely unrelated topics
+{% else %}
+**3. Plan Sequential Steps:**
+- Create logical sequence of searches and URL reads
+- Each step should build toward the overall objective
+- Consider dependencies between steps
+- Balance breadth vs. depth of information gathering
+{% endif %}
+
+**4. Set Expected Outcomes:**
+- Specify what each step should accomplish
+- Define success criteria for the research plan
+- Anticipate how the information will be used
+
+### Step Types and Optimization
+
+{% if search_engine_mode == "agent" %}
+**Search Steps (`"step_type": "search"`):**
+- Describe the user's full intent in detail: what information they need, the context of their question, and relevant background
+- The search engine handles query optimization internally — do not try to condense the query into keywords
+- Combine multiple related information needs into a single step rather than splitting them
+- Be specific about the type of information expected
+- Include any relevant constraints (time period, geography, domain)
+- Add context from conversation history when needed
+{% else %}
+**Search Steps (`"step_type": "search"`):**
+- Use for discovering information through search engines
+- Optimize queries with 3-6 key words maximum
+- Remove unnecessary context but preserve essential specifics
+- Add context from conversation history when needed
+- Example: "What was their age?" → "Kevin's age" (if Kevin was mentioned earlier)
+{% endif %}
+
+**URL Reading Steps (`"step_type": "read_url"`):**
+- Use for reading specific documents or pages found in previous searches
+- Include full URLs from search results
+- Useful for diving deeper into specific sources
+- Good for accessing reports, documents, or detailed articles
+
+{% if search_engine_mode == "standard" %}
+**Query Optimization Techniques:**
+- `"exact phrase"` for precise matches
+- `site:domain.com` to search specific websites
+- `-word` to exclude terms
+- `intitle:` or `inurl:` for title/URL targeting
+- `2020..2023` for date ranges
+- `OR` for alternatives
+
+{% endif %}
+### Research Planning Examples
+
+**Simple Research Plan:**
+```json
+{{ example_simple }}
+```
+
+{% if search_engine_mode == "agent" %}
+**Complex Research (still a single search step — the engine handles breadth internally):**
+{% else %}
+**Complex Multi-Step Research Plan:**
+{% endif %}
+```json
+{{ example_complex }}
+```
