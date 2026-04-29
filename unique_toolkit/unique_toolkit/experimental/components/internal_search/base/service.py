@@ -115,7 +115,13 @@ class InternalSearchBaseService(  # pyright: ignore[reportImplicitAbstractClass]
     def _normalise_queries(self, queries: list[str]) -> list[str]:
         cleaned = [clean_search_string(q) for q in queries]
         deduped = list(dict.fromkeys(cleaned))
-        return deduped[: self._config.max_search_strings]
+        non_empty = [q for q in deduped if q]
+        dropped = len(deduped) - len(non_empty)
+        if dropped:
+            self.logger.warning(
+                "%d query/queries cleaned to empty string and dropped", dropped
+            )
+        return non_empty[: self._config.max_search_strings]
 
     def _collect_results(
         self, results: Sequence[SearchStringResult | BaseException], queries: list[str]
