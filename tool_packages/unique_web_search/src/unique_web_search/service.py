@@ -148,15 +148,27 @@ class WebSearchTool(Tool[WebSearchConfig]):
         if mode_config.mode == WebSearchMode.V1:
             return mode_config.tool_description_for_system_prompt
 
-        template = Template(mode_config.tool_description_for_system_prompt)
+        template_str = mode_config.tool_description_for_system_prompt
 
         if mode_config.mode == WebSearchMode.V3:
-            return template.render(
+            return Template(template_str).render(
                 date_string=datetime.now().strftime("%A %B %d, %Y"),
             )
 
+        # Backwards compatibility: V2 prompts persisted before the Jinja
+        # migration use the legacy ``$max_steps`` placeholder. Jinja would
+        # otherwise pass it through verbatim, so rewrite it to the Jinja
+        # equivalent before rendering.
+        if "$max_steps" in template_str:
+            _LOGGER.warning(
+                "V2 web-search prompt contains legacy '$max_steps' placeholder; "
+                "rewriting to '{{ max_steps }}'. Please update the stored "
+                "configuration to use Jinja syntax."
+            )
+            template_str = template_str.replace("$max_steps", "{{ max_steps }}")
+
         engine_mode = self._resolve_search_engine_mode()
-        return template.render(
+        return Template(template_str).render(
             max_steps=mode_config.max_steps,
             date_string=datetime.now().strftime("%A %B %d, %Y"),
             search_engine_mode=engine_mode.value,
@@ -403,7 +415,9 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         display_name = self.display_name()
         # Remove "search" from the display name (case-insensitive, all occurrences).
-        display_name = re.sub(r"search", "", display_name, flags=re.IGNORECASE).strip()
+        display_name = re.sub(
+            r"\bsearch\b", "", display_name, flags=re.IGNORECASE
+        ).strip()
 
         suffix = parameters.get_display_name_suffix()
 
