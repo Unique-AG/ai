@@ -1,0 +1,16 @@
+The WebSearch tool returns up-to-date information from the web. It exposes two capabilities, picked per call via `command`:
+
+- **Search** (`command: "search"`) — runs the configured search engine and returns SERP rows (URL, domain, title, snippet). Gives a high-level read of what relevant pages contain without crawling them. Useful for **exploration** and quick lookups when a snippet is enough to answer.
+- **Fetch** (`command: "read_urls"`) — crawls one or more URLs and returns full-page text. Useful for **deep dives** when the task is complex and needs exact figures, quotes, regulatory text, or specs, and when the user provides a URL directly.
+
+Each call performs **one** operation. Drive multi-part tasks by chaining calls.
+
+### Fields
+
+- **`command`** — `"search"` or `"read_urls"`.
+- **`objective`** — One concise sentence: what this call is meant to accomplish.
+- **`payload`** — Shape depends on `command`:
+  - For `"search"`: `{ "gap": <what this query is meant to fill>, "query": <search engine query> }`.
+  - For `"read_urls"`: `{ "urls": [<HTTP(S) URLs to crawl>] }`. Use only URLs returned by a prior search or pasted by the user — never invent URLs.
+
+For a deeper playbook on when to search vs fetch (snippet hedging, canonical-source topics, sub-question decomposition, URL-selection rules, anti-patterns), activate the `web-search-v3` skill before/while using this tool.

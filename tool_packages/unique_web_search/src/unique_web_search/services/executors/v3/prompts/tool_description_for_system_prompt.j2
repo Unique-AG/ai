@@ -1,0 +1,48 @@
+Use `WebSearch` for up-to-date information from the web. It exposes two capabilities, picked per call via `command`. Each invocation performs **one** operation; complex user tasks are handled by **chaining** invocations.
+
+#### `command: "search"` — search the web
+
+Runs the configured search engine and returns SERP rows (URL, domain, title, snippet). It is **fast** and gives a **high-level read** of what relevant pages contain without paying the cost of crawling them.
+
+Use it when:
+
+- You need to **discover sources**: you don't yet have URLs and need the engine to surface candidates for a topic.
+- The user's question can be answered from **snippets alone** — a definition, a status, a current value, a short factual lookup.
+- You're at the **start of a complex task** and need to map out what's out there before deciding which pages are worth a deeper read.
+- You want to **scope or sanity-check** a topic cheaply (does this entity / event / product even exist? how recent is the latest coverage?).
+- You need to **cover a new gap / sub-question** in a multi-step task — issue another search rather than blindly fetching.
+
+#### `command: "read_urls"` — fetch full page content
+
+Crawls one or more URLs and returns the full-page text. It is **slower** than search but gives the **complete content** of the chosen pages, not just a snippet.
+
+Use it when:
+
+- The user **pasted a URL** or asked you to read a specific page — go straight here, do not search first.
+- The task is **complex / in-depth** and needs more than a snippet: exact figures, full quotes, regulatory text, contract language, statute numbers, API specs, version numbers.
+- The previous search returned **paraphrased / hedged snippets** ("around", "approximately", "is expected to", "reportedly") for a question that needs precision.
+- The topic is **canonical-source-driven** — financial filings (10-K, 10-Q, earnings releases), regulator publications, official product docs, peer-reviewed papers, primary press releases — where the page itself is the source of truth.
+- You found a **highly relevant** SERP hit but the title/snippet alone doesn't support the claim you want to make.
+- The snippets from the previous "search" commands are relevant but do not fully answer the question or fill the gap and fetching the full page is necessary.
+
+**Current date:** {{ date_string }}
+
+### Fields
+
+- **`command`** (string, per call) — `"search"` or `"read_urls"`.
+- **`objective`** (string, per call) — One concise sentence: what this call is meant to accomplish.
+- **`payload`** (object, per call) — Shape depends on `command`:
+  - For `"search"`: `{ "gap": <what this query is meant to fill>, "query": <focused 3-8 keyword query; query operators allowed> }`. For time-sensitive topics you may incorporate **{{ date_string }}** (year or month) in the query.
+  - For `"read_urls"`: `{ "urls": [<HTTP(S) URLs to crawl>] }`. Use only URLs returned by a prior search or pasted by the user — **never invent URLs**.
+
+### Balance exploration and exploitation
+
+- **Explore first.** Start with `command: "search"` to get a cheap, high-level read of candidate pages. Cover one `gap` per call.
+- **Refine, don't escalate prematurely.** If the first search did not fill the `gap`, issue another `command: "search"` with a refined query (different keywords, narrower entity, different timeframe) before reaching for `read_urls`.
+- **Exploit when snippets aren't enough.** Switch to `command: "read_urls"` when snippets paraphrase / hedge, or the task needs exact figures, quotes, regulatory text, specs, or canonical-source content. Pick **1-3 high-signal URLs** from the most recent SERP — complementary domains preferred.
+- **User-provided URLs go straight to fetch.** If the user pasted URL(s), the first call should be `command: "read_urls"`. Do not "search" for a URL the user already supplied.
+- **Latency is a fair trade.** `read_urls` takes longer than `search`. That latency is acceptable on complex queries where the user expects depth — give them the answer that's actually grounded. Don't fetch when a snippet already answers the question; don't refuse to fetch when the snippet doesn't.
+
+For the deeper explore-then-exploit playbook (snippet hedging triggers, canonical-source topics, sub-question decomposition, URL-selection rules, anti-patterns, worked examples), activate the `web-search-v3` skill before/while using this tool.
+
+Tool arguments are defined by the tool schema; the live JSON schema comes from the tool definition.

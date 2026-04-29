@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime
 from time import time
 
@@ -34,6 +35,8 @@ from unique_web_search.services.executors import (
     WebSearchMode,
     WebSearchV1Executor,
     WebSearchV2Executor,
+    WebSearchV3Config,
+    WebSearchV3Executor,
 )
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
@@ -42,6 +45,7 @@ from unique_web_search.services.executors.context import (
 )
 from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.executors.v2.schema import WebSearchPlan
+from unique_web_search.services.executors.v3.schema import WebSearchV3ToolParameters
 from unique_web_search.services.message_log import WebSearchMessageLogger
 from unique_web_search.services.query_elicitation import QueryElicitationService
 from unique_web_search.services.search_engine import (
@@ -123,10 +127,13 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 self.config.web_search_mode_config.tool_parameters_description.date_restrict_description,
             )
         else:
-            engine_mode = self._resolve_search_engine_mode()
-            self.tool_parameter_calls = WebSearchPlan.with_search_engine_mode(
-                engine_mode
-            )
+            if self.config.web_search_mode_config.mode == WebSearchMode.V3:
+                self.tool_parameter_calls = WebSearchV3ToolParameters
+            else:
+                engine_mode = self._resolve_search_engine_mode()
+                self.tool_parameter_calls = WebSearchPlan.with_search_engine_mode(
+                    engine_mode
+                )
 
         tool_description = self.config.web_search_mode_config.tool_description
 
@@ -142,6 +149,11 @@ class WebSearchTool(Tool[WebSearchConfig]):
             return mode_config.tool_description_for_system_prompt
 
         template_str = mode_config.tool_description_for_system_prompt
+
+        if mode_config.mode == WebSearchMode.V3:
+            return Template(template_str).render(
+                date_string=datetime.now().strftime("%A %B %d, %Y"),
+            )
 
         # Backwards compatibility: V2 prompts persisted before the Jinja
         # migration use the legacy ``$max_steps`` placeholder. Jinja would
@@ -170,6 +182,8 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
     def tool_format_information_for_system_prompt(self) -> str:
+        if self.config.web_search_active_mode == WebSearchMode.V3:
+            return self.config.web_search_mode_config_v3.tool_format_information_for_system_prompt
         return self.config.tool_format_information_for_system_prompt
 
     def evaluation_check_list(self) -> list[EvaluationMetricName]:
@@ -190,7 +204,7 @@ class WebSearchTool(Tool[WebSearchConfig]):
 
         web_search_message_logger = WebSearchMessageLogger(
             message_step_logger=self._message_step_logger,
-            tool_display_name=self.display_name(),
+            tool_display_name=self._build_display_name(parameters),
         )
         executor = self._get_executor(
             tool_call, parameters, debug_info, web_search_message_logger
@@ -272,10 +286,10 @@ class WebSearchTool(Tool[WebSearchConfig]):
     def _get_executor(
         self,
         tool_call: LanguageModelFunction,
-        parameters: WebSearchPlan | WebSearchToolParameters,
+        parameters: WebSearchPlan | WebSearchToolParameters | WebSearchV3ToolParameters,
         debug_info: WebSearchDebugInfo,
         web_search_message_logger: WebSearchMessageLogger,
-    ) -> WebSearchV1Executor | WebSearchV2Executor:
+    ) -> WebSearchV1Executor | WebSearchV2Executor | WebSearchV3Executor:
         # Initialize query elicitation service and get callbacks
         elicitation_service = QueryElicitationService(
             chat_service=self._chat_service,
@@ -307,7 +321,17 @@ class WebSearchTool(Tool[WebSearchConfig]):
         )
 
         search_config = self.config.web_search_mode_config
+        if search_config.mode == WebSearchMode.V3:
+            assert isinstance(search_config, WebSearchV3Config)
+            assert isinstance(parameters, WebSearchV3ToolParameters)
 
+            return WebSearchV3Executor(
+                services=services,
+                config=config,
+                callbacks=callbacks,
+                tool_call=tool_call,
+                tool_parameters=parameters,
+            )
         if isinstance(parameters, WebSearchPlan):
             assert search_config.mode == WebSearchMode.V2
             return WebSearchV2Executor(
@@ -381,6 +405,23 @@ class WebSearchTool(Tool[WebSearchConfig]):
                 )
 
         return notify_from_tool_call
+
+    def _build_display_name(
+        self,
+        parameters: WebSearchPlan | WebSearchToolParameters | WebSearchV3ToolParameters,
+    ) -> str:
+        if not isinstance(parameters, WebSearchV3ToolParameters):
+            return self.display_name()
+
+        display_name = self.display_name()
+        # Remove "search" from the display name (case-insensitive, all occurrences).
+        display_name = re.sub(
+            r"\bsearch\b", "", display_name, flags=re.IGNORECASE
+        ).strip()
+
+        suffix = parameters.get_display_name_suffix()
+
+        return display_name + suffix
 
 
 ToolFactory.register_tool(WebSearchTool, WebSearchConfig)
