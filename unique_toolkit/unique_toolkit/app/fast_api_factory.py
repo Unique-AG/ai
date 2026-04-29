@@ -38,7 +38,7 @@ def default_event_handler(event: Any) -> int:
         return 200
 
 
-T = TypeVar("T", bound=BaseEvent[Any])
+T = TypeVar("T", bound=BaseEvent[Any, Any])
 
 EventHandlerType = Callable[[T], Awaitable[int]] | Callable[[T], int]
 

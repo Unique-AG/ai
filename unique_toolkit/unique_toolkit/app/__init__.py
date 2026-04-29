@@ -11,6 +11,9 @@ from .schemas import (
     BaseEvent as BaseEvent,
 )
 from .schemas import (
+    BaseEventPayload as BaseEventPayload,
+)
+from .schemas import (
     ChatEvent as ChatEvent,
 )
 from .schemas import (

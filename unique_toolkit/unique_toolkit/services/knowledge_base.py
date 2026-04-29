@@ -87,7 +87,7 @@ class KnowledgeBaseService:
         "Use UniqueContext.from_chat_event(event) (if you have a ChatEvent) or "
         "UniqueContext.from_event(event) (for any BaseEvent) with UniqueServiceFactory instead."
     )
-    def from_event(cls, event: BaseEvent[Any]):
+    def from_event(cls, event: BaseEvent[Any, Any]):
         """
         Initialize the ContentService with an event.
         """

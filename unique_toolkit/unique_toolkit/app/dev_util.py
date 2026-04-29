@@ -17,7 +17,7 @@ from unique_toolkit.app import BaseEvent, ChatEvent, EventName
 from unique_toolkit.app.init_sdk import init_unique_sdk
 from unique_toolkit.app.unique_settings import UniqueSettings
 
-T = TypeVar("T", bound=BaseEvent[Any])
+T = TypeVar("T", bound=BaseEvent[Any, Any])
 
 LOGGER = getLogger(__name__)
 
@@ -115,8 +115,8 @@ def get_event_stream(
 
 def run_demo_with_sse_client(
     unique_settings: UniqueSettings,
-    handler: Callable[[BaseEvent[Any]], Awaitable[None] | None],
-    event_type: type[BaseEvent[Any]],
+    handler: Callable[[BaseEvent[Any, Any]], Awaitable[None] | None],
+    event_type: type[BaseEvent[Any, Any]],
 ) -> None:
     """
     Run a demo with an SSE client using sync handler.
@@ -142,7 +142,9 @@ def run_demo_with_sse_client(
             handler(event)
 
 
-def load_event(file_path: Path, event_type: type[BaseEvent[Any]]) -> BaseEvent[Any]:
+def load_event(
+    file_path: Path, event_type: type[BaseEvent[Any, Any]]
+) -> BaseEvent[Any, Any]:
     with file_path.open("r") as file:
         event = json.load(file)
 
@@ -151,8 +153,8 @@ def load_event(file_path: Path, event_type: type[BaseEvent[Any]]) -> BaseEvent[A
 
 def run_demo_with_with_saved_event(
     unique_settings: UniqueSettings,
-    handler: Callable[[BaseEvent[Any]], Awaitable[None] | None],
-    event_type: type[BaseEvent[Any]],
+    handler: Callable[[BaseEvent[Any, Any]], Awaitable[None] | None],
+    event_type: type[BaseEvent[Any, Any]],
     file_path: Path,
 ) -> None:
     """
