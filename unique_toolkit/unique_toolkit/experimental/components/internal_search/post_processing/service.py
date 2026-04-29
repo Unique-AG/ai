@@ -181,7 +181,10 @@ class InternalSearchPostProcessor:
                 config=self._config.chunk_relevancy_sort_config,
             )
             return reranked.content_chunks
-        except ChunkRelevancySorterException:
+        except ChunkRelevancySorterException as e:
+            _logger.warning(
+                "Reranking failed for query %r: %s", query_text, e.error_message
+            )
             return chunks
 
     def _resolve_token_limit(self, model_info: LanguageModelInfo | None) -> int:

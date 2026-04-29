@@ -252,6 +252,81 @@ async def test_rerank_exception_per_query__failing_query_falls_back_original_chu
     assert len(chunks) == 2
 
 
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_rerank_exception__warning_is_logged(caplog):
+    """ChunkRelevancySorterException emits a warning log — callers can detect silent failures."""
+    sorter = MagicMock()
+    sorter.run = AsyncMock(
+        side_effect=ChunkRelevancySorterException(
+            "reranker down", "service unavailable"
+        )
+    )
+
+    result = _single_result("c1", "c2")
+    processor = InternalSearchPostProcessor(
+        config=_config(sort_enabled=True, max_tokens=100_000),
+        chunk_relevancy_sorter=sorter,
+    )
+
+    import logging
+
+    with caplog.at_level(
+        logging.WARNING,
+        logger="unique_toolkit.experimental.components.internal_search.post_processing.service",
+    ):
+        await processor.process(result, query_text=None)
+
+    assert any(
+        "erank" in r.message and "service unavailable" in r.message
+        for r in caplog.records
+    )
+
+
+# ---------------------------------------------------------------------------
+# Q1: single-query ordering equivalence
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.ai
+@pytest.mark.asyncio
+async def test_single_query_override_same_text__identical_ordering_to_per_query():
+    """
+    Single-query: override with query_text=sr.query produces the same ordering as per-query.
+
+    Chunk path:
+    - Per-query: _rerank(sr.chunks, query_text=sr.query)
+    - Override:  _rerank(result.chunks, query_text=sr.query)
+    For single-query results, result.chunks == sr.chunks (no interleave happened).
+    Same input list + same query text → same sorter output → same ordering.
+
+    This property means callers can migrate from implicit per-query to explicit override
+    with the same string without observing any change in output order.
+    """
+    ranked_order: list[str] = ["c2", "c1"]  # sorter reverses the input
+
+    async def fake_run(*, input_text: str, chunks, config):
+        ranked = sorted(chunks, key=lambda c: ranked_order.index(c.chunk_id))
+        return MagicMock(content_chunks=ranked)
+
+    sorter = MagicMock()
+    sorter.run = fake_run
+
+    result = _make_result(("my query", ["c1", "c2"]))
+
+    processor = InternalSearchPostProcessor(
+        config=_config(sort_enabled=True),
+        chunk_relevancy_sorter=sorter,
+    )
+
+    per_query_chunks = await processor.process(result, query_text=None)
+    override_chunks = await processor.process(result, query_text="my query")
+
+    assert [c.chunk_id for c in per_query_chunks] == [
+        c.chunk_id for c in override_chunks
+    ]
+
+
 # ---------------------------------------------------------------------------
 # chunked_sources toggle
 # ---------------------------------------------------------------------------

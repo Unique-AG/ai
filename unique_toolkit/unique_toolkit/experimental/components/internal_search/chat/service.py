@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Self
+from typing import Any, Self
 
 from unique_toolkit.app.unique_settings import UniqueContext, UniqueSettings
 from unique_toolkit.experimental.components.internal_search.base import (
@@ -38,6 +38,9 @@ class ChatInternalSearchService(InternalSearchBaseService[ChatInternalSearchDeps
         return ChatInternalSearchDeps(
             chat_service=factory.chat_service(),
         )
+
+    def _extra_debug_info(self) -> dict[str, Any]:
+        return {"chatId": self._context.chat.chat_id if self._context.chat else None}
 
     async def _search_single_query(self, *, query: str) -> SearchStringResult:
         chunks = await self._dependencies.chat_service.search_content_chunks_async(

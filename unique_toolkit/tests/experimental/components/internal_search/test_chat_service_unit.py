@@ -179,6 +179,7 @@ async def test_run__produces_result_from_chat_search(make_chunk, set_runnable_st
 
     assert len(result.chunks) >= 1
     assert result.debug_info.get("searchStrings") == ["what is AI?"]
+    assert "chatId" in result.debug_info
 
 
 # ---------------------------------------------------------------------------
