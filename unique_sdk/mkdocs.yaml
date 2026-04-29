@@ -61,6 +61,7 @@ nav:
     - Overview: api_resources/index.md
     - Agentic Table: api_resources/agentic_table.md
     - Benchmarking: api_resources/benchmarking.md
+    - Briefing: api_resources/briefing.md
     - ChatCompletion: api_resources/chat_completion.md
     - Content: api_resources/content.md
     - Embeddings: api_resources/embeddings.md

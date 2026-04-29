@@ -105,6 +105,7 @@ from unique_sdk.api_resources._analytics_order import (
     AnalyticsOrder as AnalyticsOrder,
 )
 from unique_sdk.api_resources._module import Module as Module
+from unique_sdk.api_resources._briefing import Briefing as Briefing
 
 # Unique QL
 from unique_sdk._unique_ql import UQLOperator as UQLOperator

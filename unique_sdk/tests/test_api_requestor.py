@@ -9,11 +9,15 @@ import pytest
 import unique_sdk
 from unique_sdk._api_requestor import (
     APIRequestor,
+    _abs_api_url,
     _api_encode,
     _encode_datetime,
     _encode_nested_dict,
 )
 from unique_sdk._error import APIError
+
+# Canonical fake gateway bases for URL composition tests (not real endpoints).
+_TEST_CHAT_API_BASE = "https://gateway.example/public/chat-gen2"
 
 
 @pytest.fixture
@@ -51,6 +55,47 @@ def test_encode_nested_dict():
 
     result = _encode_nested_dict(key, data)
     assert result == expected_output
+
+
+@pytest.mark.parametrize(
+    ("base", "path", "expected"),
+    [
+        (
+            _TEST_CHAT_API_BASE,
+            "/content/infos",
+            f"{_TEST_CHAT_API_BASE}/content/infos",
+        ),
+        (
+            f"{_TEST_CHAT_API_BASE}/",
+            "/content/infos",
+            f"{_TEST_CHAT_API_BASE}/content/infos",
+        ),
+        (
+            f"'{_TEST_CHAT_API_BASE}'",
+            "/content/infos",
+            f"{_TEST_CHAT_API_BASE}/content/infos",
+        ),
+        (
+            f"{_TEST_CHAT_API_BASE}/",
+            "/content/infos'",
+            f"{_TEST_CHAT_API_BASE}/content/infos",
+        ),
+        (
+            f"{_TEST_CHAT_API_BASE}/",
+            "/briefings/asst_1",
+            f"{_TEST_CHAT_API_BASE}/briefings/asst_1",
+        ),
+    ],
+)
+@pytest.mark.ai
+def test_AI_abs_api_url_joins_gateway_base_and_path(base, path, expected):
+    """Purpose: ``api_base`` with trailing slash must not yield ``//`` before the route.
+
+    Why this matters: GET/PUT paths like ``/content/infos`` or ``/briefings/{id}`` must
+    match the same host as other resources; double slashes can break routing behind proxies.
+    Setup summary: Compare _abs_api_url outputs for bases with/without trailing slash.
+    """
+    assert _abs_api_url(base, path) == expected
 
 
 # Test _api_encode with different data types
@@ -133,6 +178,22 @@ def test_request_headers(mock_requests):
     assert headers["Content-Type"] == "application/json"
 
 
+@patch("unique_sdk._http_client.requests")
+@pytest.mark.ai
+def test_AI_request_headers_put_includes_json_body(mock_requests):
+    """PUT requests send JSON like POST/PATCH so upstream receives a body.
+
+    Why this matters: New REST upserts use PUT; missing Content-Type breaks the server.
+    Setup summary: Requestor with user/company; headers for method put. Assert Content-Type.
+    """
+    mock_requests.return_value = "response"
+
+    requestor = APIRequestor(user_id="u", company_id="c", key="k", app_id="a")
+
+    headers = requestor.request_headers("k", "a", "put")
+    assert headers["Content-Type"] == "application/json"
+
+
 # Test _get_request_args method in APIRequestor
 @patch("unique_sdk._http_client.requests")
 @patch("unique_sdk._api_requestor._api_encode", return_value=[("key", "value")])
@@ -158,6 +219,34 @@ def test_get_request_args(mock_build_api_url, mock_api_encode, mock_requests):
     assert abs_url == "https://api.example.com/resource?key=value"
     assert headers["Authorization"] == "Bearer api_key"
     assert post_data is None
+
+
+@patch("unique_sdk._http_client.requests")
+@pytest.mark.ai
+def test_AI_get_request_args_put_sends_json_body(mock_requests):
+    """PUT forwards params as post_data for JSON serialization.
+
+    Why this matters: Upsert endpoints use PUT with a JSON body; omitting this raised Unrecognized HTTP method.
+    Setup summary: Requestor._get_request_args("put", ...) with body dict. Assert post_data matches.
+    """
+    mock_requests.return_value = "response"
+    requestor = APIRequestor(
+        user_id="user_id", company_id="company_id", key="api_key", app_id="app_id"
+    )
+
+    method, abs_url, headers, post_data = requestor._get_request_args(
+        "put",
+        "/briefings/astr-1",
+        {
+            "text": "hello",
+            "generatedAt": "2020-01-01T00:00:00.000Z",
+        },
+    )
+
+    assert method == "put"
+    assert post_data["text"] == "hello"
+    assert post_data["generatedAt"] == "2020-01-01T00:00:00.000Z"
+    assert abs_url.endswith("/briefings/astr-1")
 
 
 # Test handling of invalid request method
@@ -199,7 +288,7 @@ def test_request_raw(mock_requests):
     # Ensure the client's request method was called correctly
     _client.request.assert_called_once_with(
         "get",
-        requestor.api_base + "/resource",
+        _abs_api_url(requestor.api_base, "/resource"),
         requestor.request_headers("api_key", "app_id", "get"),
         None,
     )
