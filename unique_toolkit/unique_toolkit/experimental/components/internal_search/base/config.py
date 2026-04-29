@@ -1,14 +1,8 @@
-from typing import Any
-
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 from unique_toolkit._common.config_checker import register_config
 from unique_toolkit.agentic.tools.config import get_configuration_dict
 from unique_toolkit.content.schemas import ContentSearchType
-
-_FIELD_ALIASES: dict[str, str] = {
-    "ftsSearchLanguage": "searchLanguage",
-}
 
 # 200 matches the tool's sort-enabled default — conservative by design.
 # Callers who need higher recall (e.g. multi-query with post-processing) should set
@@ -17,21 +11,11 @@ _FIELD_ALIASES: dict[str, str] = {
 DEFAULT_LIMIT = 200
 
 
-# TODO [UN-17521]: remove _remap_legacy_fields once ftsSearchLanguage is fully migrated
 @register_config()
 class InternalSearchConfig(BaseModel):
     """Retrieval-only config. Token budgeting, reranking and sorting live in PostProcessorConfig."""
 
     model_config = get_configuration_dict()
-
-    @model_validator(mode="before")
-    @classmethod
-    def _remap_legacy_fields(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            for old_key, new_key in _FIELD_ALIASES.items():
-                if old_key in data and new_key not in data:
-                    data[new_key] = data.pop(old_key)
-        return data
 
     # ── Retrieval ─────────────────────────────────────────────────────────────
     search_type: ContentSearchType = Field(
