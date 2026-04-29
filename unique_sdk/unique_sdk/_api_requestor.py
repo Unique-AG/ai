@@ -145,7 +145,7 @@ class APIRequestor(object):
             "Authorization": "Bearer %s" % (api_key,),
         }
 
-        if method == "post" or method == "patch":
+        if method == "post" or method == "patch" or method == "put":
             headers["Content-Type"] = "application/json"
 
         if self.user_id:
@@ -291,7 +291,7 @@ class APIRequestor(object):
             if params:
                 abs_url = _build_api_url(abs_url, encoded_params)
             post_data = None
-        elif method == "post" or method == "patch":
+        elif method == "post" or method == "patch" or method == "put":
             post_data = params
         else:
             raise _error.APIConnectionError(

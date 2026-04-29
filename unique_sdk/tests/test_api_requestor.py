@@ -133,6 +133,22 @@ def test_request_headers(mock_requests):
     assert headers["Content-Type"] == "application/json"
 
 
+@patch("unique_sdk._http_client.requests")
+@pytest.mark.ai
+def test_AI_request_headers_put_includes_json_body(mock_requests):
+    """PUT requests send JSON like POST/PATCH so upstream receives a body.
+
+    Why this matters: New REST upserts use PUT; missing Content-Type breaks the server.
+    Setup summary: Requestor with user/company; headers for method put. Assert Content-Type.
+    """
+    mock_requests.return_value = "response"
+
+    requestor = APIRequestor(user_id="u", company_id="c", key="k", app_id="a")
+
+    headers = requestor.request_headers("k", "a", "put")
+    assert headers["Content-Type"] == "application/json"
+
+
 # Test _get_request_args method in APIRequestor
 @patch("unique_sdk._http_client.requests")
 @patch("unique_sdk._api_requestor._api_encode", return_value=[("key", "value")])
@@ -158,6 +174,30 @@ def test_get_request_args(mock_build_api_url, mock_api_encode, mock_requests):
     assert abs_url == "https://api.example.com/resource?key=value"
     assert headers["Authorization"] == "Bearer api_key"
     assert post_data is None
+
+
+@patch("unique_sdk._http_client.requests")
+@pytest.mark.ai
+def test_AI_get_request_args_put_sends_json_body(mock_requests):
+    """PUT forwards params as post_data for JSON serialization.
+
+    Why this matters: Upsert endpoints use PUT with a JSON body; omitting this raised Unrecognized HTTP method.
+    Setup summary: Requestor._get_request_args("put", ...) with body dict. Assert post_data matches.
+    """
+    mock_requests.return_value = "response"
+    requestor = APIRequestor(
+        user_id="user_id", company_id="company_id", key="api_key", app_id="app_id"
+    )
+
+    method, abs_url, headers, post_data = requestor._get_request_args(
+        "put",
+        "/briefings/astr-1",
+        {"content": "Hello"},
+    )
+
+    assert method == "put"
+    assert post_data == {"content": "Hello"}
+    assert abs_url.endswith("/briefings/astr-1")
 
 
 # Test handling of invalid request method
