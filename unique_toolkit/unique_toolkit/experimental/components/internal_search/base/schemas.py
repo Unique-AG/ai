@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing_extensions import TypeVar
 
 from unique_toolkit.chat.schemas import MessageLogStatus
@@ -41,9 +41,9 @@ class InternalSearchState:
 class InternalSearchResult(BaseModel):
     chunks: list[ContentChunk]
     """Interleaved flat chunk list — for callers that skip the post-processor."""
-    search_string_results: list[SearchStringResult] = []
-    """Per-query results before interleaving — for the post-processor's per-query rerank."""
     debug_info: dict[str, Any]
+    search_string_results: list[SearchStringResult] = Field(default_factory=list)
+    """Per-query results before interleaving — for the post-processor's per-query rerank."""
 
 
 __all__ = [
