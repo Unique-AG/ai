@@ -41,6 +41,7 @@ async def _get_agent_id(agent_client: AIProjectClient) -> str:
 
     async for agent in list_agents:
         if agent.name == _AGENT_NAME_IDENTIFIER:
+            _LOGGER.info(f"Found agent {agent.id} with name {agent.name}")
             return agent.id
 
     raise Exception(f"Agent {_AGENT_NAME_IDENTIFIER} not found")
@@ -61,9 +62,11 @@ async def get_or_create_agent_id(agent_client: AIProjectClient) -> str:
         return env_settings.azure_ai_assistant_id
 
     try:
+        _LOGGER.info("Looking for existing agent")
         return await _get_agent_id(agent_client)
     except Exception as e:
         _LOGGER.exception(f"Error getting agent: {e}")
+        _LOGGER.info("No existing agent found, creating a new one")
         return await _create_agent_id(agent_client)
 
 
@@ -118,7 +121,7 @@ async def create_and_process_run(
         ValueError: If none of the parser strategies can parse the response.
     """
     if not agent_id:
-        _LOGGER.warning("No agent ID provided, creating a new agent")
+        _LOGGER.warning("No agent ID provided")
         thread = await _create_agent_and_run_thread(
             agent_client, query, fetch_size, generation_instructions
         )

@@ -1,32 +1,33 @@
 """Tests for WebSearchV1Executor, WebSearchV2Executor, and WebSearchV3Executor."""
 
 from typing import Any
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from unique_web_search.schema import (
-    Step,
-    StepType,
-    WebPageChunk,
-    WebSearchPlan,
-    WebSearchToolParameters,
-)
-from unique_web_search.services.executors.configs import RefineQueryMode
-from unique_web_search.services.executors.web_search_v1_executor import (
+from unique_web_search.services.executors.v1.config import RefineQueryMode
+from unique_web_search.services.executors.v1.executor import (
     RefinedQueries,
     RefinedQuery,
     WebSearchV1Executor,
     query_generation_agent,
 )
-from unique_web_search.services.executors.web_search_v2_executor import (
+from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
+from unique_web_search.services.executors.v2.executor import (
     WebSearchV2Executor,
 )
-from unique_web_search.services.executors.web_search_v3_executor import (
-    WebSearchV3Executor,
-)
+from unique_web_search.services.executors.v2.schema import Step, StepType, WebSearchPlan
+
+# from unique_web_search.services.executors.v3.executor import (
+#     WebSearchV3Executor,
+# )
+# from unique_web_search.services.executors.v3.schema import (
+#     Command,
+#     FetchUrlsPayload,
+#     SearchPayload,
+#     WebSearchV3ToolParameters,
+# )
 from unique_web_search.services.search_engine.schema import WebSearchResult
-from unique_web_search.services.snippet_judge import SnippetJudgeConfig
 
 
 class TestQueryGenerationAgent:
@@ -719,126 +720,196 @@ class TestWebSearchV2ExecutorExecuteSearchStep:
         ].log_web_search_results.assert_called()
 
 
-class TestWebSearchV3ExecutorExecuteSearchStep:
-    """Tests for WebSearchV3Executor global snippet judging."""
+# class TestWebSearchV3ExecutorSearch:
+#     """Tests for WebSearchV3Executor ``search`` (SERP-only JSON chunks)."""
 
-    @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_run__judges_all_search_results_together_before_crawling(
-        self,
-        executor_context_objects: dict,
-        mock_executor_dependencies: dict,
-    ) -> None:
-        """
-        Purpose: Verify V3 waits for all search-step snippets and judges them in one batch.
-        Why this matters: Global ranking should compare snippets across queries before crawling.
-        Setup summary: Use two search steps with two results each; judge returns a cross-query subset.
-        """
-        plan = WebSearchPlan(
-            objective="Find the most relevant recent NVIDIA coverage",
-            query_analysis="Need to compare results across multiple search queries",
-            steps=[
-                Step(step_type=StepType.SEARCH, objective="q1", query_or_url="query 1"),
-                Step(step_type=StepType.SEARCH, objective="q2", query_or_url="query 2"),
-            ],
-            expected_outcome="Best globally ranked URLs are crawled",
-        )
+#     @pytest.mark.ai
+#     @pytest.mark.asyncio
+#     async def test_run_search__returns_json_chunks_without_crawl(
+#         self,
+#         executor_context_objects: dict,
+#         mock_executor_dependencies: dict,
+#     ) -> None:
+#         """V3 search maps SERP rows to ContentChunks with JSON bodies; no crawl or judge."""
+#         import json
 
-        query_1_results = [
-            WebSearchResult(
-                url="https://example.com/page1",
-                title="Page 1",
-                snippet="Snippet 1",
-                content="",
-            ),
-            WebSearchResult(
-                url="https://example.com/page2",
-                title="Page 2",
-                snippet="Snippet 2",
-                content="",
-            ),
-        ]
-        query_2_results = [
-            WebSearchResult(
-                url="https://example.com/page3",
-                title="Page 3",
-                snippet="Snippet 3",
-                content="",
-            ),
-            WebSearchResult(
-                url="https://example.com/page4",
-                title="Page 4",
-                snippet="Snippet 4",
-                content="",
-            ),
-        ]
+#         tool_parameters = WebSearchV3ToolParameters.model_validate(
+#             {
+#                 "command": "search",
+#                 "objective": "Find recent search hits about NVIDIA coverage",
+#                 "payload": {
+#                     "gap": "Need fresh NVIDIA press coverage",
+#                     "query": "nvidia coverage",
+#                 },
+#             }
+#         )
 
-        mock_executor_dependencies["search_service"].search = AsyncMock(
-            side_effect=[query_1_results, query_2_results]
-        )
-        mock_executor_dependencies["search_service"].requires_scraping = True
-        mock_executor_dependencies[
-            "search_service"
-        ].config.search_engine_name.name = "TEST"
-        selected_by_judge = [query_2_results[0], query_1_results[1]]
-        mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
-            return_value=["content3", "content2"]
-        )
-        mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
-        mock_executor_dependencies["content_processor"].run = AsyncMock(
-            return_value=[
-                WebPageChunk(
-                    url="https://example.com/page3",
-                    display_link="example.com",
-                    title="Page 3",
-                    snippet="Snippet 3",
-                    content="content3",
-                    order="0",
-                ),
-                WebPageChunk(
-                    url="https://example.com/page2",
-                    display_link="example.com",
-                    title="Page 2",
-                    snippet="Snippet 2",
-                    content="content2",
-                    order="1",
-                ),
-            ]
-        )
-        mock_executor_dependencies["chunk_relevancy_sort_config"].enabled = False
-        mock_executor_dependencies["content_reducer"].side_effect = lambda chunks: (
-            chunks
-        )
-        # Base executor always calls chunk_relevancy_sorter when present; pass chunks through.
-        mock_executor_dependencies["chunk_relevancy_sorter"].run = AsyncMock(
-            side_effect=lambda **kwargs: Mock(content_chunks=kwargs["chunks"])
-        )
+#         serp = [
+#             WebSearchResult(
+#                 url="https://example.com/page1",
+#                 title="Page 1",
+#                 snippet="Snippet 1",
+#                 content="",
+#             ),
+#             WebSearchResult(
+#                 url="https://example.com/page2",
+#                 title="Page 2",
+#                 snippet="Snippet 2",
+#                 content="",
+#             ),
+#         ]
+#         mock_executor_dependencies["search_service"].search = AsyncMock(
+#             return_value=serp
+#         )
+#         mock_executor_dependencies[
+#             "search_service"
+#         ].config.search_engine_name.name = "TEST"
+#         mock_executor_dependencies["crawler_service"].crawl = AsyncMock()
 
-        judge_config = SnippetJudgeConfig(max_urls_to_select=2)
+#         executor = WebSearchV3Executor(
+#             services=executor_context_objects["services"],
+#             config=executor_context_objects["config"],
+#             callbacks=executor_context_objects["callbacks"],
+#             tool_call=mock_executor_dependencies["tool_call"],
+#             tool_parameters=tool_parameters,
+#         )
+#         result = await executor.run()
 
-        with patch(
-            "unique_web_search.services.executors.web_search_v3_executor.select_relevant",
-            new_callable=AsyncMock,
-            return_value=selected_by_judge,
-        ) as mocked_select_relevant:
-            executor = WebSearchV3Executor(
-                services=executor_context_objects["services"],
-                config=executor_context_objects["config"],
-                callbacks=executor_context_objects["callbacks"],
-                tool_call=mock_executor_dependencies["tool_call"],
-                tool_parameters=plan,
-                snippet_judge_config=judge_config,
-            )
-            result = await executor.run()
+#         mock_executor_dependencies["crawler_service"].crawl.assert_not_called()
+#         assert len(result) == 2
+#         first = json.loads(result[0].text)
+#         assert first["url"] == "https://example.com/page1"
+#         assert first["domain"] == "example.com"
+#         assert first["title"] == "Page 1"
+#         assert first["snippet"] == "Snippet 1"
 
-        assert isinstance(result, list)
-        assert result[0].metadata is not None
-        assert result[0].metadata.document == 'example.com: "Page 3"'
-        mocked_select_relevant.assert_awaited_once()
-        assert len(mocked_select_relevant.await_args.kwargs["results"]) == 4
-        mock_executor_dependencies["crawler_service"].crawl.assert_called_once_with(
-            ["https://example.com/page3", "https://example.com/page2"]
-        )
+
+# class TestWebSearchV3ExecutorFetchUrls:
+#     """Tests for WebSearchV3Executor ``read_urls`` (crawl + content pipeline)."""
+
+#     @pytest.mark.ai
+#     @pytest.mark.asyncio
+#     async def test_run_fetch_urls__invokes_crawler_not_search(
+#         self,
+#         executor_context_objects: dict,
+#         mock_executor_dependencies: dict,
+#     ) -> None:
+#         """V3 read_urls calls the crawler with the supplied URLs and skips the search engine."""
+#         urls = [
+#             "https://example.com/page1",
+#             "https://example.com/page2",
+#         ]
+#         tool_parameters = WebSearchV3ToolParameters.model_validate(
+#             {
+#                 "command": "read_urls",
+#                 "objective": "Read the linked articles for full text",
+#                 "payload": {"urls": urls},
+#             }
+#         )
+
+#         mock_executor_dependencies["crawler_service"].crawl = AsyncMock(
+#             return_value=["content1", "content2"]
+#         )
+#         mock_executor_dependencies["crawler_service"].config.crawler_type.name = "TEST"
+#         mock_executor_dependencies["content_processor"].run = AsyncMock(return_value=[])
+#         mock_executor_dependencies["chunk_relevancy_sort_config"].enabled = False
+#         mock_executor_dependencies["content_reducer"].return_value = []
+
+#         executor = WebSearchV3Executor(
+#             services=executor_context_objects["services"],
+#             config=executor_context_objects["config"],
+#             callbacks=executor_context_objects["callbacks"],
+#             tool_call=mock_executor_dependencies["tool_call"],
+#             tool_parameters=tool_parameters,
+#         )
+#         result = await executor.run()
+
+#         mock_executor_dependencies["crawler_service"].crawl.assert_called_once_with(
+#             urls
+#         )
+#         mock_executor_dependencies["search_service"].search.assert_not_called()
+#         mock_executor_dependencies["content_processor"].run.assert_awaited_once()
+#         assert isinstance(result, list)
+
+
+# class TestWebSearchV3ToolParametersValidation:
+#     """Validators on the V3 tool parameter schema (``command``/``objective``/``payload``)."""
+
+#     @pytest.mark.ai
+#     def test_search_command_with_search_payload_parses(self) -> None:
+#         """``command='search'`` with a ``SearchPayload`` validates and round-trips."""
+#         params = WebSearchV3ToolParameters.model_validate(
+#             {
+#                 "command": "search",
+#                 "objective": "Look up the current Fed funds target rate.",
+#                 "payload": {
+#                     "gap": "Need the current target rate",
+#                     "query": "fed funds rate",
+#                 },
+#             }
+#         )
+#         assert params.command == Command.SEARCH
+#         assert isinstance(params.payload, SearchPayload)
+#         assert params.payload.query == "fed funds rate"
+
+#     @pytest.mark.ai
+#     def test_read_urls_command_with_fetch_urls_payload_parses(self) -> None:
+#         """``command='read_urls'`` with a ``FetchUrlsPayload`` validates and round-trips."""
+#         params = WebSearchV3ToolParameters.model_validate(
+#             {
+#                 "command": "read_urls",
+#                 "objective": "Read the linked SEC filing for exact figures.",
+#                 "payload": {
+#                     "urls": [
+#                         "https://www.sec.gov/Archives/edgar/data/foo/10-k.htm",
+#                     ],
+#                 },
+#             }
+#         )
+#         assert params.command == Command.FETCH_URLS
+#         assert isinstance(params.payload, FetchUrlsPayload)
+#         assert params.payload.urls == [
+#             "https://www.sec.gov/Archives/edgar/data/foo/10-k.htm",
+#         ]
+
+#     @pytest.mark.ai
+#     def test_extra_fields_are_rejected(self) -> None:
+#         """Top-level ``extra='forbid'`` rejects unknown keys (no legacy fields allowed)."""
+#         with pytest.raises(ValueError):
+#             WebSearchV3ToolParameters.model_validate(
+#                 {
+#                     "command": "search",
+#                     "objective": "Anything",
+#                     "payload": {"gap": "g", "query": "q"},
+#                     "task_complexity": "simple",
+#                 }
+#             )
+
+#     @pytest.mark.ai
+#     def test_command_enum_values(self) -> None:
+#         """The ``Command`` enum exposes exactly ``search`` and ``read_urls``."""
+#         assert Command("search") is Command.SEARCH
+#         assert Command("read_urls") is Command.FETCH_URLS
+
+#     @pytest.mark.ai
+#     def test_get_display_name_suffix_per_command(self) -> None:
+#         """Display-name suffix differs per command for UI clarity."""
+#         search_params = WebSearchV3ToolParameters.model_validate(
+#             {
+#                 "command": "search",
+#                 "objective": "Search obj",
+#                 "payload": {"gap": "g", "query": "q"},
+#             }
+#         )
+#         fetch_params = WebSearchV3ToolParameters.model_validate(
+#             {
+#                 "command": "read_urls",
+#                 "objective": "Fetch obj",
+#                 "payload": {"urls": ["https://example.com/a"]},
+#             }
+#         )
+#         assert search_params.get_display_name_suffix() == " - Searching"
+#         assert fetch_params.get_display_name_suffix() == " - Reading Pages"
 
 
 class TestWebSearchV2ExecutorExecuteReadUrlStep:

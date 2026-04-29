@@ -20,16 +20,17 @@ from unique_web_search.metrics import (
     search_errors,
     search_total,
 )
-from unique_web_search.schema import StepDebugInfo, WebSearchToolParameters
+from unique_web_search.schema import StepDebugInfo
 from unique_web_search.services.executors.base_executor import (
     BaseWebSearchExecutor,
 )
-from unique_web_search.services.executors.configs import RefineQueryMode
 from unique_web_search.services.executors.context import (
     ExecutorCallbacks,
     ExecutorConfiguration,
     ExecutorServiceContext,
 )
+from unique_web_search.services.executors.v1.config import RefineQueryMode
+from unique_web_search.services.executors.v1.schema import WebSearchToolParameters
 from unique_web_search.services.search_engine.schema import (
     WebSearchResult,
 )
@@ -99,7 +100,6 @@ async def query_generation_agent(
     match mode:
         case RefineQueryMode.DEACTIVATED:
             _LOGGER.info("Query Refinement deactivated")
-            ### Early return for deactivated mode
             return RefinedQuery(
                 objective=query,
                 refined_query=query,
@@ -134,7 +134,7 @@ async def query_generation_agent(
     return structured_output_model.model_validate(parsed_response)
 
 
-class WebSearchV1Executor(BaseWebSearchExecutor):
+class WebSearchV1Executor(BaseWebSearchExecutor[WebSearchToolParameters]):
     """Executes research plans step by step."""
 
     @override
@@ -157,7 +157,6 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
             tool_parameters=tool_parameters,
         )
         self.mode = mode
-        self.tool_parameters = tool_parameters
         self.refine_query_system_prompt = refine_query_system_prompt
         self.max_queries = max_queries
 
@@ -177,7 +176,6 @@ class WebSearchV1Executor(BaseWebSearchExecutor):
         elicitated_queries = await self._ff_elicitate_queries(refined_queries)
 
         web_search_results = []
-        # Pass query strings only - callback handles creating WebSearchLogEntry objects
 
         queries_wo_results = [
             query_params_to_human_string(refined_query, date_restrict)

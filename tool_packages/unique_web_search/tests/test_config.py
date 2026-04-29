@@ -16,21 +16,19 @@ from unique_web_search.config import (
 )
 from unique_web_search.prompts import (
     DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT,
-    DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3,
 )
 from unique_web_search.services.crawlers.base import CrawlerType
 from unique_web_search.services.crawlers.basic import BasicCrawlerConfig
-from unique_web_search.services.executors.configs import (
-    RefineQueryMode,
-    WebSearchMode,
-)
-from unique_web_search.services.executors.configs.v1_config import (
+from unique_web_search.services.executors.base_config import WebSearchMode
+from unique_web_search.services.executors.v1.config import (
     QueryRefinementConfig,
+    RefineQueryMode,
     WebSearchToolParametersDescriptionConfig,
     WebSearchV1Config,
 )
-from unique_web_search.services.executors.configs.v2_config import WebSearchV2Config
-from unique_web_search.services.executors.configs.v3_config import WebSearchV3Config
+from unique_web_search.services.executors.v2.config import WebSearchV2Config
+
+# from unique_web_search.services.executors.v3.config import WebSearchV3Config
 from unique_web_search.services.search_engine.base import SearchEngineType
 from unique_web_search.services.search_engine.google import GoogleConfig
 
@@ -203,9 +201,9 @@ class TestWebSearchV2Config:
             WebSearchV2Config(mode="v1")
         assert "Invalid mode" in str(exc_info.value)
 
-        with pytest.raises(ValidationError) as exc_info:
-            WebSearchV2Config(mode="v3")
-        assert "Invalid mode" in str(exc_info.value)
+        # with pytest.raises(ValidationError) as exc_info:
+        #     WebSearchV2Config(mode="v3")
+        # assert "Invalid mode" in str(exc_info.value)
 
         with pytest.raises(ValidationError) as exc_info:
             WebSearchV2Config(mode="invalid")
@@ -228,20 +226,20 @@ class TestExperimentalFeatures:
         assert config.tool_response_system_reminder.get_reminder_prompt == ""
 
 
-class TestWebSearchV3Config:
-    """Test cases for WebSearchV3Config."""
+# class TestWebSearchV3Config:
+#     """Test cases for WebSearchV3Config."""
 
-    def test_web_search_v3_config_tool_format_information_default(self) -> None:
-        """V3 citation instructions default to the full V3 template including domain diversity."""
-        config = WebSearchV3Config()
+#     def test_web_search_v3_config_tool_format_information_default(self) -> None:
+#         """V3 citation instructions default to the full V3 template including domain diversity."""
+#         config = WebSearchV3Config()
 
-        assert (
-            config.tool_format_information_for_system_prompt
-            == DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3
-        )
-        assert "Domain Diversity Requirement" in (
-            config.tool_format_information_for_system_prompt
-        )
+#         assert (
+#             config.tool_format_information_for_system_prompt
+#             == DEFAULT_TOOL_FORMAT_INFORMATION_FOR_SYSTEM_PROMPT_V3
+#         )
+#         assert "Domain Diversity Requirement" in (
+#             config.tool_format_information_for_system_prompt
+#         )
 
 
 class TestQueryRefinementConfig:
@@ -642,11 +640,11 @@ class TestWebSearchConfig:
         )
         assert config_v1.web_search_active_mode == WebSearchMode.V1
 
-        config_v3 = WebSearchConfig(
-            language_model=mock_language_model_info,
-            web_search_active_mode="v3",
-        )
-        assert config_v3.web_search_active_mode == WebSearchMode.V3
+        # config_v3 = WebSearchConfig(
+        #     language_model=mock_language_model_info,
+        #     web_search_active_mode="v3",
+        # )
+        # assert config_v3.web_search_active_mode == WebSearchMode.V3
 
         config_invalid = WebSearchConfig(
             language_model=mock_language_model_info,

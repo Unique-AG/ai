@@ -1,0 +1,7 @@
+{# Guidance for WebSearchPlan step field ``query_or_url`` (V2 tool schema). #}
+{# Render with ``search_engine_mode`` set to ``standard`` or ``agent`` (``SearchEngineMode`` value). #}
+{% if search_engine_mode == "agent" -%}
+For search steps, provide a single, comprehensive description of the user's full intent: what information they need, the context of their question, and relevant background. Combine all related information needs into this one description — the search engine handles query optimization and source diversification internally. For read_url steps, provide the URL to read.
+{%- else -%}
+The input for this step: either an optimized search query (for search steps) or a URL to read (for read_url steps).
+{%- endif %}
