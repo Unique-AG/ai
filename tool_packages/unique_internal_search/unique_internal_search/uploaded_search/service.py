@@ -11,7 +11,7 @@ from unique_toolkit.agentic.tools.tool_progress_reporter import (
     ProgressState,
     ToolProgressReporter,
 )
-from unique_toolkit.app.schemas import BaseEvent, ChatEvent
+from unique_toolkit.app.schemas import AssistantWebhookEvent, BaseEvent
 from unique_toolkit.chat.service import LanguageModelToolDescription
 from unique_toolkit.language_model.schemas import (
     LanguageModelFunction,
@@ -44,7 +44,7 @@ class UploadedSearchTool(Tool[UploadedSearchConfig]):
         )
         self._internal_search_tool._display_name = self._display_name
         self._selected_uploaded_files = extract_selected_uploaded_file_ids(event)
-        if isinstance(event, ChatEvent):
+        if isinstance(event, AssistantWebhookEvent):
             self._user_query = event.payload.user_message.text
         else:
             self._user_query = None
