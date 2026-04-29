@@ -65,19 +65,26 @@ def _validate_prompts(raw: Any) -> list[dict[str, str]]:
 
 
 def _finalize_upsert_request_params(params: Mapping[str, Any]) -> dict[str, Any]:
-    """Build JSON matching OpenAPI ``PublicUpsertBriefingRequestDto``."""
-    body = {k: v for k, v in dict(params).items() if k not in _REQUEST_OPTION_KEYS}
+    """Build JSON matching OpenAPI ``PublicUpsertBriefingRequestDto``.
+
+    ``params`` matches :class:`Briefing.UpsertForAssistantParams` at the type level;
+    transport keys from :class:`~unique_sdk._request_options.RequestOptions` are
+    removed here so they are never sent as JSON.
+    """
+    kw = dict(params)
+    for key in _REQUEST_OPTION_KEYS:
+        kw.pop(key, None)
 
     text: Any | None = None
-    if "text" in body and body["text"] is not None:
-        text = body["text"]
-    elif body.get("markdown") is not None:
-        text = body["markdown"]
-    elif body.get("content") is not None:
-        text = body["content"]
+    if "text" in kw and kw["text"] is not None:
+        text = kw["text"]
+    elif kw.get("markdown") is not None:
+        text = kw["markdown"]
+    elif kw.get("content") is not None:
+        text = kw["content"]
 
     for key in ("text", "markdown", "content"):
-        body.pop(key, None)
+        kw.pop(key, None)
 
     if text is None:
         raise ValueError(
@@ -95,7 +102,7 @@ def _finalize_upsert_request_params(params: Mapping[str, Any]) -> dict[str, Any]
             f"(got {len(text)})"
         )
 
-    generated_raw = body.pop("generatedAt", None)
+    generated_raw = kw.pop("generatedAt", None)
     if generated_raw is None or (
         isinstance(generated_raw, str) and not generated_raw.strip()
     ):
@@ -105,7 +112,7 @@ def _finalize_upsert_request_params(params: Mapping[str, Any]) -> dict[str, Any]
     else:
         ga = generated_raw
 
-    prompts_raw = body.pop("prompts", None)
+    prompts_raw = kw.pop("prompts", None)
     prompts = _validate_prompts(prompts_raw)
 
     return {"text": text, "generatedAt": ga, "prompts": prompts}

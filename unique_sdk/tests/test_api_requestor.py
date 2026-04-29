@@ -16,6 +16,9 @@ from unique_sdk._api_requestor import (
 )
 from unique_sdk._error import APIError
 
+# Canonical fake gateway bases for URL composition tests (not real endpoints).
+_TEST_CHAT_API_BASE = "https://gateway.example/public/chat-gen2"
+
 
 @pytest.fixture
 def mock_requests():
@@ -58,29 +61,29 @@ def test_encode_nested_dict():
     ("base", "path", "expected"),
     [
         (
-            "https://gateway.example/public/chat-gen2",
+            _TEST_CHAT_API_BASE,
             "/content/infos",
-            "https://gateway.example/public/chat-gen2/content/infos",
+            f"{_TEST_CHAT_API_BASE}/content/infos",
         ),
         (
-            "https://gateway.example/public/chat-gen2/",
+            f"{_TEST_CHAT_API_BASE}/",
             "/content/infos",
-            "https://gateway.example/public/chat-gen2/content/infos",
+            f"{_TEST_CHAT_API_BASE}/content/infos",
         ),
         (
-            "'https://gateway.example/public/chat-gen2'",
+            f"'{_TEST_CHAT_API_BASE}'",
             "/content/infos",
-            "https://gateway.example/public/chat-gen2/content/infos",
+            f"{_TEST_CHAT_API_BASE}/content/infos",
         ),
         (
-            "https://gateway.example/public/chat-gen2/",
+            f"{_TEST_CHAT_API_BASE}/",
             "/content/infos'",
-            "https://gateway.example/public/chat-gen2/content/infos",
+            f"{_TEST_CHAT_API_BASE}/content/infos",
         ),
         (
-            "https://gateway.qa.unique.app/public/chat-gen2/",
+            f"{_TEST_CHAT_API_BASE}/",
             "/briefings/asst_1",
-            "https://gateway.qa.unique.app/public/chat-gen2/briefings/asst_1",
+            f"{_TEST_CHAT_API_BASE}/briefings/asst_1",
         ),
     ],
 )
