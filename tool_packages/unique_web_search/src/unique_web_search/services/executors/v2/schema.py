@@ -22,9 +22,7 @@ class StepType(StrEnum):
 class Step(BaseModel):
     step_type: Literal[StepType.SEARCH, StepType.READ_URL]
     objective: str = Field(description="The objective of the step")
-    query_or_url: str = Field(
-        description=STEP_QUERY_DESCRIPTION,
-    )
+    query_or_url: str  # type: ignore (This field is dynamically generated based on the search engine mode)
 
 
 class WebSearchPlan(BaseModel):
